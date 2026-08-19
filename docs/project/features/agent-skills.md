@@ -51,6 +51,9 @@ Az `id@version` tartalma megváltoztathatatlan. A javított útvonal új verzió
 - párbeszéd és utazás: `talk-to-npc`, engedélyezett válaszokra korlátozott
   `navigate-dialog`;
 - eredménnyel igazolt gyűjtés: `gather-loc`, `gather-npc` (inventory vagy XP változás);
+- termelés: `smith-at-anvil`;
+- bolt: `open-shop`, `buy-from-shop`, `sell-to-shop`, `close-shop`;
+- pontos címzettű, mennyiségkorlátos átadás: `trade-give-item`;
 - bank: `openBank`, `depositItem`, `withdrawItem`, `closeBank`;
 - időzítés: `waitForTicks`;
 - koordinátával pontosítható, betöltésre és műveletre váró location interakció;
@@ -91,7 +94,20 @@ után `verified`: a bot banktól bányáig sétált, 8 rézércet gyűjtött, vi
 bankot nyitott, minden ércet lerakott, majd bezárta az interfészt. A két auditált
 run ID a verified dokumentum provenance mezőjében található.
 
-## Karamja fishing draft
+## Első öt verified skill
+
+A katalógus első lezárt készlete:
+
+- `mining.varrock-east.copper-to-bank@1.0.0`;
+- `fishing.karamja.lobster-to-draynor-bank@1.0.0`;
+- `production.varrock.bronze-daggers@1.0.0`;
+- `shopping.lumbridge.buy-hammers@1.0.0`;
+- `trade.lumbridge.give-item@1.0.0`.
+
+Mindegyik megtartja a forrásául szolgáló `0.1.0` draftot, a verified provenance
+pedig tartalmazza a sikeres élő futások azonosítóit.
+
+## Karamja fishing
 
 A `fishing.karamja.lobster-to-draynor-bank@0.1.0` draft végrehajtja a Port Sarim
 → Karamja kompútvonalat, a mozgó fishing spot újracélzását, a vámvizsgálat
@@ -100,5 +116,8 @@ irányban a felső fedélzetre érkezik; az érkezési üzenet biztonságos bez�
 közvetlenül a gangplank használható, létra nem szükséges.
 
 Az első teljes élő kör 16 skill-művelettel, 18 fishing-spot újracélzással sikerült:
-`e0415a5f-bb64-4607-8c8c-f67f0973c170`. A skill egyelőre `draft`; újabb független
-élő futás és a verifier/promóciós folyamat után kaphat `verified` verziót.
+`e0415a5f-bb64-4607-8c8c-f67f0973c170`. A második teljes auditált kör
+`1f149254-9397-4437-ab9c-c5fd9db891e0`; ennél 45 újracélzás kellett, ami igazolta,
+hogy a korábbi 20-as plafon kevés. A verified skill időkorláton belül legfeljebb
+60 újracélzást enged, és továbbra is csak inventory- vagy XP-változást fogad el
+sikernek.

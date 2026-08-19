@@ -180,10 +180,11 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 const beforeItems = itemCount(this.sdk.getInventory(), item);
                 const beforeXp = skill ? (this.sdk.getSkillXp(skill) ?? 0) : 0;
                 const timeoutMs = numberArg(args, 'timeoutMs', 15_000, 100, 300_000);
+                const maxRetargets = numberArg(args, 'maxRetargets', 20, 1, 100);
                 const deadline = Date.now() + timeoutMs;
                 let interactions = 0;
                 let lastInteraction: SkillOperationResult | null = null;
-                while (Date.now() < deadline && interactions < 20) {
+                while (Date.now() < deadline && interactions < maxRetargets) {
                     if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
                     const interaction = operation === 'gather-loc'
                         ? await this.bot.interactLoc(target, option)
@@ -217,6 +218,45 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                     data: { interactions, lastInteraction }
                 };
             }
+            case 'smith-at-anvil': {
+                const bar = typeof args.bar === 'string'
+                    ? new RegExp(args.bar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+                    : undefined;
+                return normalized(await this.bot.smithAtAnvil(stringArg(args, 'product'), {
+                    barPattern: bar,
+                    timeout: numberArg(args, 'timeoutMs', 10_000, 100, 60_000)
+                }));
+            }
+            case 'open-shop':
+                return normalized(await this.bot.openShop(args.name === undefined
+                    ? undefined
+                    : selector(stringArg(args, 'name'), args.match)));
+            case 'buy-from-shop':
+                return normalized(await this.bot.buyFromShop(
+                    selector(stringArg(args, 'name'), args.match),
+                    numberArg(args, 'amount', undefined, 1, 10_000)
+                ));
+            case 'sell-to-shop':
+                return normalized(await this.bot.sellToShop(
+                    selector(stringArg(args, 'name'), args.match),
+                    numberArg(args, 'amount', undefined, -1, 10_000)
+                ));
+            case 'close-shop':
+                return normalized(await this.bot.closeShop(numberArg(args, 'timeoutMs', 5_000, 100, 60_000)));
+            case 'trade-give-item':
+                return normalized(await this.bot.trade(
+                    selector(stringArg(args, 'player'), args.match),
+                    {
+                        give: [{
+                            item: selector(stringArg(args, 'item'), args.itemMatch),
+                            amount: numberArg(args, 'amount', undefined, 1, 2_147_483_647)
+                        }],
+                        want: [],
+                        requestTimeout: numberArg(args, 'requestTimeoutMs', 30_000, 1_000, 120_000),
+                        timeout: numberArg(args, 'timeoutMs', 60_000, 1_000, 180_000),
+                        retryOnBusy: true
+                    }
+                ));
             case 'open-bank':
                 return normalized(await this.bot.openBank(numberArg(args, 'timeoutMs', 10_000, 100, 60_000)));
             case 'deposit-item':

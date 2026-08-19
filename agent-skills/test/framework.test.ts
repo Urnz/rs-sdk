@@ -328,6 +328,43 @@ describe('rs-sdk skill runtime', () => {
         }, new AbortController().signal);
         expect(result).toMatchObject({ success: false, code: 'dialog-choice-not-allowed' });
     });
+
+    test('adapts production, shop, and bounded gift-trade operations', async () => {
+        const calls: Array<{ name: string; args: unknown[] }> = [];
+        const record = (name: string) => async (...args: unknown[]) => {
+            calls.push({ name, args });
+            return { success: true, message: `${name} complete` };
+        };
+        const bot = {
+            smithAtAnvil: record('smithAtAnvil'),
+            openShop: record('openShop'),
+            buyFromShop: record('buyFromShop'),
+            sellToShop: record('sellToShop'),
+            closeShop: record('closeShop'),
+            trade: record('trade')
+        } as any;
+        const runtime = new RsSdkSkillRuntime(bot, {} as any);
+        const signal = new AbortController().signal;
+
+        expect((await runtime.execute('smith-at-anvil', {
+            product: 'bronze dagger', bar: 'Bronze bar', timeoutMs: 12_000
+        }, signal)).success).toBe(true);
+        expect((await runtime.execute('open-shop', { name: 'Shop keeper', match: 'exact' }, signal)).success).toBe(true);
+        expect((await runtime.execute('buy-from-shop', { name: 'Hammer', match: 'exact', amount: 2 }, signal)).success).toBe(true);
+        expect((await runtime.execute('sell-to-shop', { name: 'Bronze dagger', match: 'exact', amount: -1 }, signal)).success).toBe(true);
+        expect((await runtime.execute('close-shop', {}, signal)).success).toBe(true);
+        expect((await runtime.execute('trade-give-item', {
+            player: 'receiver1', match: 'exact', item: 'Bronze dagger', itemMatch: 'exact', amount: 1
+        }, signal)).success).toBe(true);
+
+        expect(calls.map(call => call.name)).toEqual([
+            'smithAtAnvil', 'openShop', 'buyFromShop', 'sellToShop', 'closeShop', 'trade'
+        ]);
+        const tradeOptions = calls.at(-1)?.args[1] as any;
+        expect(tradeOptions.give).toHaveLength(1);
+        expect(tradeOptions.want).toEqual([]);
+        expect(tradeOptions.retryOnBusy).toBe(true);
+    });
 });
 
 describe('sharing and persistence', () => {

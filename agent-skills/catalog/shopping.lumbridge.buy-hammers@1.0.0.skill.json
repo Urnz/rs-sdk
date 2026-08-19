@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "shopping.lumbridge.buy-hammers",
+  "version": "1.0.0",
+  "name": "Buy hammers in Lumbridge",
+  "description": "Walks to the Lumbridge general store and buys a requested number of hammers.",
+  "status": "verified",
+  "tags": ["shopping", "lumbridge", "tools"],
+  "parameters": {
+    "target-items": {
+      "type": "number",
+      "description": "Number of hammers to buy.",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 5
+    }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-08-19T22:00:43.000Z",
+    "derivedFrom": {
+      "id": "shopping.lumbridge.buy-hammers",
+      "version": "0.1.0"
+    },
+    "notes": "Promoted after two successful live general-store purchases: 4dbf0e96-3ef8-40bc-b249-1aabd17817ff and fa039370-f395-4a2b-a5c1-5b8f1eef4a2f."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 180000, "maxOperations": 12 },
+  "preconditions": [
+    { "condition": "inventory-contains", "arguments": { "name": "Coins", "match": "exact", "amount": { "parameter": "target-items" } } },
+    { "condition": "inventory-free-slots-at-least", "arguments": { "slots": { "parameter": "target-items" } } }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-lumbridge-general-store",
+      "operation": "walk-to",
+      "arguments": { "x": 3212, "z": 3246, "tolerance": 3 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "open-general-store",
+      "operation": "open-shop",
+      "arguments": { "name": "Shop keeper", "match": "exact" },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "buy-hammers",
+      "operation": "buy-from-shop",
+      "arguments": { "name": "Hammer", "match": "exact", "amount": { "parameter": "target-items" } },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "close-general-store",
+      "operation": "close-shop",
+      "arguments": {}
+    }
+  ]
+}

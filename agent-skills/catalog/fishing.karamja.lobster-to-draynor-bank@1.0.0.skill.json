@@ -1,10 +1,10 @@
 {
     "schemaVersion": 1,
     "id": "fishing.karamja.lobster-to-draynor-bank",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "name": "Karamja lobster to Draynor bank",
     "description": "Sails from Port Sarim to Karamja, catches a requested number of raw lobsters, returns by ship, and deposits the catch in Draynor bank.",
-    "status": "draft",
+    "status": "verified",
     "tags": ["fishing", "banking", "travel", "karamja"],
     "parameters": {
         "target-lobsters": {
@@ -18,8 +18,12 @@
     "provenance": {
         "authorKind": "human",
         "authorId": "project",
-        "createdAt": "2026-08-19T00:00:00.000Z",
-        "notes": "First route draft. Ferry arrivals place passengers on the upper deck; after dismissing the arrival message, cross the gangplank directly. Fishing spots can move, so gather-npc retargets until inventory or XP proves success."
+        "createdAt": "2026-08-19T22:10:12.000Z",
+        "derivedFrom": {
+            "id": "fishing.karamja.lobster-to-draynor-bank",
+            "version": "0.1.0"
+        },
+        "notes": "Promoted after two complete live routes. Run IDs e0415a5f-bb64-4607-8c8c-f67f0973c170 and 1f149254-9397-4437-ab9c-c5fd9db891e0; the second catch required 45 bounded fishing-spot retargets."
     },
     "sharing": { "visibility": "shared" },
     "limits": { "timeoutMs": 900000, "maxOperations": 100 },

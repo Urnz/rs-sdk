@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 282 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 283 teszt sikeres, 0 sikertelen.
 
 ## Smoke teszt
 
@@ -52,13 +52,18 @@
   bank–bánya–bank útvonal is megismételhetően működött.
 - Első tartós verified audit: run `088fce52-901d-437f-8e66-196ccdfce079`, helyileg
   `.local/agent-skills/runs/088fce52-901d-437f-8e66-196ccdfce079.json`.
-- Első fishing + banking draft: `fishing.karamja.lobster-to-draynor-bank@0.1.0`.
+- Verified fishing + banking skill: `fishing.karamja.lobster-to-draynor-bank@1.0.0`.
 - A teljes Port Sarim → Karamja → fishing → vám → Port Sarim → Draynor bank
   élő útvonal sikeres volt: run `e0415a5f-bb64-4607-8c8c-f67f0973c170`, 16
   skill-művelet, 18 fishing-spot újracélzás, majd `Raw lobster x1` bankolás.
 - A mozgó erőforrások kezelése inventory- vagy XP-változásig újracéloz; a komp
   párbeszédei kizárólag előre engedélyezett érdemi válaszokat fogadnak el.
-- A fishing skill a második független élő futásig és a verifierig `draft` marad.
+- A második teljes fishing audit is sikeres volt: run
+  `1f149254-9397-4437-ab9c-c5fd9db891e0`, 45 fishing-spot újracélzással.
+- További verified skillek: `production.varrock.bronze-daggers@1.0.0`,
+  `shopping.lumbridge.buy-hammers@1.0.0` és `trade.lumbridge.give-item@1.0.0`.
+- A production, shopping és trade skillek két-két független élő auditban sikerültek;
+  a trade fogadó inventoryját a futtató külön ellenőrizte.
 
 ## Windows-megjegyzések
 

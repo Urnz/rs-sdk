@@ -68,9 +68,11 @@ await runScript(async ({ bot, sdk }) => {
 });
 ```
 
-The catalog keeps the original `0.1.0` mining draft and the immutable `1.0.0`
-verified version promoted after two successful live cycles. Framework tests are
-deterministic and run with `bun run test:skills`.
+The catalog keeps each original `0.1.0` draft beside its immutable, live-audited
+`1.0.0` verified version. The first completed set covers mining + banking,
+Karamja fishing + banking, bronze-dagger production, general-store purchasing,
+and an exact-recipient player item transfer. Framework tests are deterministic
+and run with `bun run test:skills`.
 
 Run an exact skill or the newest version for a local bot with:
 
@@ -87,8 +89,13 @@ object and its requested option to become available after a teleport or modal
 arrival message. Gathering operations reselect moving NPC/location targets until
 inventory or XP proves progress, while remaining bounded by the skill timeout.
 
-The first fishing route is a reviewed draft and can be run with an explicit target:
+The verified fishing route can be run with an explicit target:
 
 ```powershell
-bun agent-skills/run.ts 32WTGxrvt fishing.karamja.lobster-to-draynor-bank --allow-draft --param=target-lobsters=5
+bun agent-skills/run.ts 32WTGxrvt fishing.karamja.lobster-to-draynor-bank --param=target-lobsters=5
 ```
+
+Production, shop, and player-trade operations are also narrow adapter calls:
+`smith-at-anvil`, `open-shop`, `buy-from-shop`, `sell-to-shop`, `close-shop`,
+and `trade-give-item`. Gift trades require an explicit recipient, item, and
+positive quantity; the high-level SDK verifies the completed inventory delta.

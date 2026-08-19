@@ -13,7 +13,8 @@ const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const OPERATION_NAMES = new Set<SkillOperationName>([
     'walk-to', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
-    'gather-loc', 'gather-npc', 'open-bank', 'deposit-item',
+    'gather-loc', 'gather-npc', 'smith-at-anvil', 'open-shop', 'buy-from-shop',
+    'sell-to-shop', 'close-shop', 'trade-give-item', 'open-bank', 'deposit-item',
     'withdraw-item', 'close-bank', 'wait-ticks'
 ]);
 const CONDITION_NAMES = new Set<SkillConditionName>([
@@ -27,8 +28,17 @@ const OPERATION_ARGUMENTS: Record<SkillOperationName, { allowed: string[]; requi
     'navigate-dialog': { allowed: ['choices', 'maxSteps', 'timeoutMs'], required: ['choices'] },
     'interact-loc': { allowed: ['name', 'match', 'option', 'x', 'z', 'timeoutMs'], required: ['name'] },
     'interact-npc': { allowed: ['name', 'match', 'option'], required: ['name'] },
-    'gather-loc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs'], required: ['name', 'item'] },
-    'gather-npc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs'], required: ['name', 'item'] },
+    'gather-loc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs', 'maxRetargets'], required: ['name', 'item'] },
+    'gather-npc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs', 'maxRetargets'], required: ['name', 'item'] },
+    'smith-at-anvil': { allowed: ['product', 'bar', 'timeoutMs'], required: ['product'] },
+    'open-shop': { allowed: ['name', 'match'], required: [] },
+    'buy-from-shop': { allowed: ['name', 'match', 'amount'], required: ['name', 'amount'] },
+    'sell-to-shop': { allowed: ['name', 'match', 'amount'], required: ['name', 'amount'] },
+    'close-shop': { allowed: ['timeoutMs'], required: [] },
+    'trade-give-item': {
+        allowed: ['player', 'match', 'item', 'itemMatch', 'amount', 'requestTimeoutMs', 'timeoutMs'],
+        required: ['player', 'item', 'amount']
+    },
     'open-bank': { allowed: ['timeoutMs'], required: [] },
     'deposit-item': { allowed: ['name', 'match', 'amount'], required: ['name'] },
     'withdraw-item': { allowed: ['name', 'match', 'amount', 'asNote'], required: ['name'] },
