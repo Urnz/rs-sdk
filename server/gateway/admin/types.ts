@@ -48,6 +48,7 @@ export interface BotCatalogEntry {
     hasCredentials: boolean;
     canSpawn: boolean;
     canDespawn: boolean;
+    canRestart: boolean;
     currentSkill: string | null;
     runId: string | null;
     lastError: string | null;

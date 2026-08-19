@@ -1,7 +1,7 @@
 import { mkdir, readdir, rename, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { appendAudit, readAudit } from './audit';
-import { buildBotCatalog, economySnapshot, readEconomy, recordEconomy } from './catalog';
+import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, recordEconomy } from './catalog';
 import { adminPublicDir, adminTrashDir, botsDir, experimentsDir, playerSavesDir } from './paths';
 import { BotSupervisor } from './supervisor';
 import type { GatewayBotSnapshot } from './types';
@@ -138,6 +138,60 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         if (req.method === 'GET' && url.pathname === '/api/admin/experiments') {
             const files = await readdir(experimentsDir).catch(() => []);
             return json({ snapshots: files.filter(file => file.endsWith('.json')).sort().reverse() });
+        }
+
+        const spectateMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/spectate$/);
+        if (req.method === 'GET' && spectateMatch?.[1]) {
+            const username = decodeURIComponent(spectateMatch[1]).toLowerCase();
+            const gatewayEntry = [...context.gatewayBots().entries()]
+                .find(([name]) => name.toLowerCase() === username)?.[1];
+            const player = gatewayEntry?.state?.player;
+            if (!gatewayEntry || gatewayEntry.status !== 'active' || !gatewayEntry.state || !player) {
+                return json({
+                    error: 'A bot nem küld friss élő állapotot. A Spectate nem jelentkezik be helyette.',
+                    status: gatewayEntry?.status ?? 'offline'
+                }, 409);
+            }
+            const state = gatewayEntry.state;
+            const catalogEntry = (await catalog()).find(entry => entry.username === username);
+            return json({
+                username,
+                displayName: player.name,
+                status: gatewayEntry.status,
+                stateAgeMs: Date.now() - gatewayEntry.lastStateReceivedAt,
+                tick: state.tick,
+                revision: state.revision ?? null,
+                activity: catalogEntry?.currentSkill || describeLiveActivity(gatewayEntry),
+                currentSkill: catalogEntry?.currentSkill ?? null,
+                player: {
+                    x: player.worldX,
+                    z: player.worldZ,
+                    level: player.level,
+                    hp: player.hp,
+                    maxHp: player.maxHp,
+                    runEnergy: player.runEnergy,
+                    animId: player.animId,
+                    inCombat: player.combat.inCombat
+                },
+                nearbyPlayers: state.nearbyPlayers.slice(0, 30).map(player => ({
+                    name: player.name, x: player.worldX ?? player.x, z: player.worldZ ?? player.z,
+                    combatLevel: player.combatLevel, distance: player.distance
+                })),
+                nearbyNpcs: state.nearbyNpcs.slice(0, 60).map(npc => ({
+                    name: npc.name, x: npc.tileX ?? npc.x, z: npc.tileZ ?? npc.z,
+                    combatLevel: npc.combatLevel, distance: npc.distance, inCombat: npc.inCombat
+                })),
+                nearbyLocs: state.nearbyLocs.filter(loc => loc.options.length > 0).slice(0, 80).map(loc => ({
+                    name: loc.name, x: loc.x, z: loc.z, distance: loc.distance
+                })),
+                groundItems: state.groundItems.slice(0, 40).map(item => ({
+                    name: item.name, count: item.count, x: item.x, z: item.z, distance: item.distance
+                })),
+                inventory: state.inventory.map(item => ({ id: item.id, name: item.name, count: item.count, slot: item.slot })),
+                gameMessages: state.gameMessages.slice(-12).map(message => ({
+                    sender: message.sender, text: message.text, type: message.type, tick: message.tick
+                }))
+            });
         }
 
         if (!authorized(req, url)) {

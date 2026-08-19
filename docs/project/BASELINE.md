@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 286 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 288 teszt sikeres, 0 sikertelen.
 
 ## Botadmin baseline
 

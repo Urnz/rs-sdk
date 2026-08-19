@@ -13,6 +13,8 @@ Az elkészült funkciók:
 - státusz, aktuális tevékenység/agent-skill, combat és total level, pénz,
   pozíció és utolsó aktivitás;
 - részletes profil skill/XP, inventory, equipment, bank és hibaadatokkal;
+- bejelentkezés nélküli élő Spectate-radar közeli játékosokkal, NPC-kkel,
+  objektumokkal, földi itemekkel, inventoryval és játéküzenetekkel;
 - bot spawn, despawn és restart, valamint futó agent-skill megszakítása;
 - új vagy korábban elmentett helyi bot hitelesítő adatainak kezelése;
 - helyi jogosultságvédelem, minden módosításhoz kötelező indoklás és JSONL audit;
@@ -25,6 +27,11 @@ Az audit és a gazdasági idősor a `.local/admin/` könyvtárban marad, ezért 
 kerül Gitbe. Ha az adminfelületet nem csak localhoston használjuk, indítás előtt
 `ADMIN_TOKEN` szükséges; token nélkül a módosítások kizárólag az azonos eredetű
 helyi oldalról engedélyezettek.
+
+Ugyanazzal a névvel és jelszóval a normál vagy botkliensbe belépni nem megfigyelés:
+az engine és a gateway ezt új sessionnek tekinti, ezért az előző headless botot
+szándékosan lecseréli. Megfigyeléshez az adminpanel `Spectate` gombját kell
+használni; ez kizárólag az élő telemetriát olvassa, és nem veszi át a bot sessionjét.
 
 ## Adatforrások és további lehetőségek
 

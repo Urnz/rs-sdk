@@ -67,7 +67,7 @@ function sumItems(items: AdminItem[], id: number): number {
     return items.filter(item => item.id === id).reduce((sum, item) => sum + item.count, 0);
 }
 
-function liveActivity(session: GatewayBotSnapshot | undefined): string {
+export function describeLiveActivity(session: GatewayBotSnapshot | undefined): string {
     const state = session?.state;
     if (!state?.inGame || !state.player) return 'Offline';
     if (state.player.isDead) return 'Respawning';
@@ -78,6 +78,25 @@ function liveActivity(session: GatewayBotSnapshot | undefined): string {
     if (state.trade?.isOpen) return 'Trading';
     if (state.player.animId !== -1) return 'Working';
     return 'Idle';
+}
+
+const PROCESS_START_GRACE_MS = 20_000;
+
+export function deriveAdminStatus(
+    session: GatewayBotSnapshot | undefined,
+    process: ManagedProcessSnapshot | null,
+    now = Date.now()
+): BotCatalogEntry['status'] {
+    if (session?.status === 'active') return 'active';
+    if (process?.status === 'starting') return 'starting';
+    if (process?.status === 'stopping') return 'stopping';
+    if (session?.status === 'stale') return 'stale';
+    if (process?.status === 'running') {
+        const processAge = now - new Date(process.startedAt).getTime();
+        return processAge <= PROCESS_START_GRACE_MS ? 'starting' : 'stale';
+    }
+    if (process?.status === 'error') return 'error';
+    return 'offline';
 }
 
 function stateItems(items: Array<{ id: number; name: string; count: number; slot: number }>): AdminItem[] {
@@ -131,12 +150,9 @@ export async function buildBotCatalog(
             : (save?.coins ?? 0);
         const activeSkill = skills.get(key);
 
-        let status: BotCatalogEntry['status'] = 'offline';
-        if (session?.status === 'active') status = 'active';
-        else if (session?.status === 'stale') status = 'stale';
-        else if (process?.status === 'starting') status = 'starting';
-        else if (process?.status === 'stopping') status = 'stopping';
-        else if (process?.status === 'error') status = 'error';
+        const status = deriveAdminStatus(session, process);
+        const hasCredentials = managed.has(key);
+        const processIsAlive = process?.status === 'starting' || process?.status === 'running' || process?.status === 'stopping';
 
         return {
             username: key,
@@ -144,9 +160,10 @@ export async function buildBotCatalog(
             status,
             managed: managed.has(key) || process !== null,
             hasSave: !!savePath,
-            hasCredentials: managed.has(key),
-            canSpawn: status === 'offline' || status === 'error',
+            hasCredentials,
+            canSpawn: !processIsAlive && (status === 'offline' || status === 'error'),
             canDespawn: status === 'active' || status === 'stale' || status === 'starting',
+            canRestart: hasCredentials && (status === 'active' || status === 'stale' || status === 'error'),
             currentSkill: activeSkill ? `${activeSkill.skillId}@${activeSkill.version}` : null,
             runId: activeSkill?.runId ?? null,
             lastError: process?.error ?? save?.error ?? null,
@@ -161,7 +178,7 @@ export async function buildBotCatalog(
             totalLevel,
             totalXp,
             coins,
-            activity: activeSkill ? activeSkill.skillId : liveActivity(session),
+            activity: activeSkill ? activeSkill.skillId : describeLiveActivity(session),
             skills: reportingSkills,
             inventory,
             equipment,

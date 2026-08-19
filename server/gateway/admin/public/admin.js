@@ -4,6 +4,8 @@ const state = {
     config: null,
     sort: { key: 'status', direction: 1 },
     selected: null,
+    spectating: null,
+    spectateTimer: null,
     token: sessionStorage.getItem('rs-admin-token') || ''
 };
 
@@ -86,13 +88,21 @@ function filteredBots() {
 }
 
 function actionButtons(bot) {
-    const primary = bot.canDespawn
-        ? `<button class="button small secondary" data-action="despawn" data-name="${escapeHtml(bot.username)}">Despawn</button>`
-        : `<button class="button small primary" data-action="spawn" data-name="${escapeHtml(bot.username)}">Spawn</button>`;
+    let primary = '<button class="button small secondary" disabled>Nem elérhető</button>';
+    if (bot.canRestart && (bot.status === 'stale' || bot.status === 'error')) {
+        primary = `<button class="button small secondary" data-action="restart" data-name="${escapeHtml(bot.username)}">Újraindítás</button>`;
+    } else if (bot.canDespawn) {
+        primary = `<button class="button small secondary" data-action="despawn" data-name="${escapeHtml(bot.username)}">Despawn</button>`;
+    } else if (bot.canSpawn) {
+        primary = `<button class="button small primary" data-action="spawn" data-name="${escapeHtml(bot.username)}">Spawn</button>`;
+    }
+    const spectate = bot.status === 'active'
+        ? `<button class="button small spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Spectate</button>`
+        : '';
     const remove = bot.status === 'offline' || bot.status === 'error'
         ? `<button class="button small ghost" data-action="delete" data-name="${escapeHtml(bot.username)}">Törlés</button>`
         : '';
-    return `<div class="row-actions">${primary}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
+    return `<div class="row-actions">${primary}${spectate}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
 }
 
 function renderTable() {
@@ -126,7 +136,7 @@ function openProfile(username) {
     if (!bot) return;
     state.selected = username;
     $('#profile-content').innerHTML = `
-        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p></div>
+        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p>${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div>
         <div class="profile-grid"><div><span>Total level</span><strong>${fmt.format(bot.totalLevel)}</strong></div><div><span>Combat</span><strong>${fmt.format(bot.combatLevel)}</strong></div><div><span>Pénz</span><strong>${fmt.format(bot.coins)} gp</strong></div><div><span>Összes XP</span><strong>${fmt.format(bot.totalXp)}</strong></div><div><span>Pozíció</span><strong>${bot.position ? `${bot.position.x}, ${bot.position.z}` : '–'}</strong></div><div><span>Mentés</span><strong>${bot.hasSave ? 'van' : 'nincs'}</strong></div></div>
         ${bot.currentSkill ? `<p><strong>Aktív agent skill:</strong> ${escapeHtml(bot.currentSkill)}<br><span class="muted">Run: ${escapeHtml(bot.runId || '–')}</span></p>` : ''}
         <h3 class="section-title">Skillek</h3><div class="skill-list">${bot.skills.map(skill => `<div class="skill"><span>${escapeHtml(skill.name)}</span><strong>${skill.level}</strong></div>`).join('')}</div>
@@ -143,6 +153,75 @@ function closeProfile() {
     $('#profile-drawer').classList.remove('open');
     $('#profile-drawer').setAttribute('aria-hidden', 'true');
     $('#drawer-backdrop').classList.remove('open');
+}
+
+function drawRadar(data) {
+    const canvas = $('#spectate-radar');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = devicePixelRatio || 1;
+    const width = Math.max(320, rect.width || 620), height = Math.max(300, rect.height || 460);
+    canvas.width = width * dpr; canvas.height = height * dpr;
+    const context = canvas.getContext('2d'); context.scale(dpr, dpr);
+    context.fillStyle = '#0d110c'; context.fillRect(0, 0, width, height);
+    const center = { x: width / 2, y: height / 2 };
+    const all = [...data.nearbyPlayers, ...data.nearbyNpcs, ...data.nearbyLocs, ...data.groundItems];
+    const maxDistance = Math.max(8, ...all.map(entity => Math.max(Math.abs(entity.x - data.player.x), Math.abs(entity.z - data.player.z))));
+    const scale = Math.min(15, Math.max(5, (Math.min(width, height) / 2 - 30) / maxDistance));
+    context.strokeStyle = '#263024'; context.lineWidth = 1;
+    for (let tile = -Math.floor(width / scale / 2); tile <= Math.floor(width / scale / 2); tile += 5) {
+        const x = center.x + tile * scale; context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
+    }
+    for (let tile = -Math.floor(height / scale / 2); tile <= Math.floor(height / scale / 2); tile += 5) {
+        const y = center.y + tile * scale; context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+    }
+    const point = (entity, color, radius, square = false) => {
+        const x = center.x + (entity.x - data.player.x) * scale;
+        const y = center.y - (entity.z - data.player.z) * scale;
+        if (x < -5 || y < -5 || x > width + 5 || y > height + 5) return;
+        context.fillStyle = color;
+        if (square) context.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+        else { context.beginPath(); context.arc(x, y, radius, 0, Math.PI * 2); context.fill(); }
+    };
+    data.nearbyLocs.forEach(entity => point(entity, '#61705d', 2, true));
+    data.groundItems.forEach(entity => point(entity, '#b987d4', 3));
+    data.nearbyNpcs.forEach(entity => point(entity, entity.inCombat ? '#ff6e61' : '#d49461', 3));
+    data.nearbyPlayers.forEach(entity => point(entity, '#69a7d8', 4));
+    point(data.player, '#e8c55d', 7);
+    context.fillStyle = '#edf0e7'; context.font = '12px Segoe UI';
+    context.fillText(`${data.player.x}, ${data.player.z}, ${data.player.level}`, center.x + 11, center.y - 10);
+}
+
+async function refreshSpectate() {
+    if (!state.spectating || !$('#spectate-dialog').open) return;
+    try {
+        const data = await api(`/api/admin/bots/${encodeURIComponent(state.spectating)}/spectate`);
+        $('#spectate-title').textContent = `${data.displayName} – élő nézet`;
+        $('#spectate-status').innerHTML = `<span class="status active">Online</span><strong>${escapeHtml(data.activity)}</strong><span>Tick ${fmt.format(data.tick)} · ${Math.round(data.stateAgeMs)} ms</span><span>HP ${data.player.hp}/${data.player.maxHp}</span><span>Run ${data.player.runEnergy}%</span><span>${data.player.inCombat ? 'Harcban' : 'Nincs harcban'}</span>`;
+        drawRadar(data);
+        const entities = [...data.nearbyPlayers.map(item => ({ ...item, kind: 'Játékos' })), ...data.nearbyNpcs.map(item => ({ ...item, kind: 'NPC' }))]
+            .sort((left, right) => left.distance - right.distance).slice(0, 14);
+        $('#spectate-entities').innerHTML = entities.length ? entities.map(item => `<div><span>${escapeHtml(item.kind)} · ${escapeHtml(item.name)}</span><strong>${Math.round(item.distance)} tile</strong></div>`).join('') : '<span class="muted">Nincs közeli szereplő.</span>';
+        $('#spectate-inventory').innerHTML = itemChips(data.inventory);
+        $('#spectate-messages').innerHTML = data.gameMessages.length ? data.gameMessages.slice().reverse().map(message => `<div><span>${escapeHtml(message.sender ? `${message.sender}: ` : '')}${escapeHtml(message.text)}</span><strong>t${message.tick}</strong></div>`).join('') : '<span class="muted">Nincs friss üzenet.</span>';
+    } catch (error) {
+        $('#spectate-status').innerHTML = `<span class="status stale">Nem elérhető</span><strong>${escapeHtml(error.message)}</strong>`;
+    }
+}
+
+function openSpectate(username) {
+    state.spectating = username;
+    $('#spectate-title').textContent = `${username} – kapcsolódás…`;
+    $('#spectate-status').textContent = 'Élő állapot betöltése…';
+    $('#spectate-entities').innerHTML = ''; $('#spectate-inventory').innerHTML = ''; $('#spectate-messages').innerHTML = '';
+    $('#spectate-dialog').showModal();
+    clearInterval(state.spectateTimer);
+    void refreshSpectate();
+    state.spectateTimer = setInterval(refreshSpectate, 1000);
+}
+
+function closeSpectate() {
+    clearInterval(state.spectateTimer); state.spectateTimer = null; state.spectating = null;
+    $('#spectate-dialog').close();
 }
 
 function drawChart(snapshots) {
@@ -205,7 +284,14 @@ document.addEventListener('click', async event => {
     const name = button.dataset.name;
     try {
         if (button.dataset.action === 'profile') openProfile(name);
+        if (button.dataset.action === 'spectate') openSpectate(name);
         if (button.dataset.action === 'spawn') showSpawn(name);
+        if (button.dataset.action === 'restart') {
+            const reason = prompt(`${name} újraindításának oka:`, 'Beragadt vagy nem válaszoló bot újraindítása');
+            if (!reason) return;
+            await api(`/api/admin/bots/${encodeURIComponent(name)}/restart`, { method: 'POST', mutation: true, body: JSON.stringify({ reason }) });
+            toast(`${name} újraindítása elindult.`); await refresh();
+        }
         if (button.dataset.action === 'despawn') {
             const reason = prompt(`${name} leállításának oka:`, 'Kézi admin despawn');
             if (!reason) return;
@@ -262,7 +348,9 @@ $('#clear-filters').addEventListener('click', () => { for (const id of ['search-
 $('#new-bot-button').addEventListener('click', () => showSpawn());
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });
 $('#close-profile').addEventListener('click', closeProfile); $('#drawer-backdrop').addEventListener('click', closeProfile);
-document.querySelectorAll('.dialog-close').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+$('#close-spectate').addEventListener('click', closeSpectate);
+$('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault(); closeSpectate(); });
+document.querySelectorAll('.dialog-close:not(#close-spectate)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
 state.config = await api('/api/admin/config');
 await refresh();

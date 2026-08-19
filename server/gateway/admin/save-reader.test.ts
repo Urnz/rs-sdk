@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createSaveData, Items, Locations } from '../../../sdk/test/utils/save-generator';
-import { economySnapshot } from './catalog';
+import { deriveAdminStatus, economySnapshot } from './catalog';
 import { readPlayerSave } from './save-reader';
 import type { BotCatalogEntry } from './types';
 
@@ -57,7 +57,7 @@ describe('admin economy aggregation', () => {
     test('aggregates bot money, xp, online count and item stock', () => {
         const base = {
             username: 'a', displayName: 'A', status: 'active', managed: true, hasSave: true,
-            hasCredentials: true, canSpawn: false, canDespawn: true, currentSkill: null, runId: null,
+            hasCredentials: true, canSpawn: false, canDespawn: true, canRestart: true, currentSkill: null, runId: null,
             lastError: null, lastActivityAt: null, stateAgeMs: 0, position: null, combatLevel: 3,
             totalLevel: 40, totalXp: 1_000, coins: 500, activity: 'Idle', skills: [], equipment: [],
             process: null
@@ -72,5 +72,21 @@ describe('admin economy aggregation', () => {
 
         expect(snapshot).toMatchObject({ bots: 2, online: 1, totalCoins: 1_200, totalXp: 3_000, averageTotalLevel: 50 });
         expect(snapshot.itemStock).toContainEqual({ id: 377, name: 'Raw lobster', count: 12 });
+    });
+});
+
+describe('admin lifecycle status', () => {
+    const process = (status: 'starting' | 'running' | 'stopping' | 'exited' | 'error', startedAt: string) => ({
+        status, startedAt, pid: status === 'exited' ? null : 123, exitCode: null
+    });
+
+    test('does not call a running process offline while the gateway has no fresh state', () => {
+        const now = Date.parse('2026-08-20T00:00:30Z');
+        expect(deriveAdminStatus(undefined, process('running', '2026-08-20T00:00:00Z'), now)).toBe('stale');
+    });
+
+    test('keeps a newly spawned process in the starting grace period', () => {
+        const now = Date.parse('2026-08-20T00:00:10Z');
+        expect(deriveAdminStatus(undefined, process('running', '2026-08-20T00:00:00Z'), now)).toBe('starting');
     });
 });

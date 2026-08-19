@@ -111,6 +111,28 @@
         </form>
     </dialog>
 
+    <dialog id="spectate-dialog" class="spectate-dialog">
+        <div class="spectate-shell">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">ÉLŐ TELEMETRIA</p><h2 id="spectate-title">Spectate</h2></div>
+                <button id="close-spectate" type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">Ez a nézet nem jelentkezik be a bot fiókjával, ezért nem szakítja meg a háttérben futó botot.</p>
+            <div id="spectate-status" class="spectate-status">Kapcsolódás…</div>
+            <div class="spectate-layout">
+                <div>
+                    <canvas id="spectate-radar" width="620" height="460" aria-label="Élő környezeti radar"></canvas>
+                    <div class="radar-legend"><span><i class="radar-dot bot"></i>Bot</span><span><i class="radar-dot player"></i>Játékos</span><span><i class="radar-dot npc"></i>NPC</span><span><i class="radar-dot loc"></i>Objektum</span><span><i class="radar-dot item"></i>Item</span></div>
+                </div>
+                <div class="spectate-details">
+                    <h3>Közeli szereplők</h3><div id="spectate-entities" class="live-list"></div>
+                    <h3>Inventory</h3><div id="spectate-inventory" class="items"></div>
+                    <h3>Legutóbbi üzenetek</h3><div id="spectate-messages" class="live-list"></div>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
     <div id="toast" class="toast" role="status"></div>
     <script src="admin.js" type="module"></script>
 </body>
