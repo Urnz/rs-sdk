@@ -8,7 +8,7 @@ lehessen bejelentkezve.
 
 1. Indítsd el az engine-t `WEBSITE_REGISTRATION=false` beállítással a
    [local-development.md](local-development.md) szerint.
-2. Nyisd meg a `http://localhost:8888/vanilla/` címet egy normál Chrome, Edge vagy
+2. Nyisd meg a `http://localhost:8888/vanilla` címet egy normál Chrome, Edge vagy
    Firefox böngészőben.
 3. Kattints az **Existing User** gombra.
 4. Adj meg egy még nem használt, 1–12 karakteres felhasználónevet és egy

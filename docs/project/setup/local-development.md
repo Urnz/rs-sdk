@@ -28,7 +28,7 @@ Három külön terminál szükséges.
 
 Elérhetőségek:
 
-- játékos kliens: `http://localhost:8888/vanilla/`
+- játékos kliens: `http://localhost:8888/vanilla`
 - bot-kiegészítéseket tartalmazó kliens: `http://localhost:8888/`
 - gateway: `ws://localhost:7780`
 - botállapotok: `http://localhost:8888/status`
