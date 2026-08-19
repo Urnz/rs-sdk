@@ -75,6 +75,9 @@ async function createBot(username?: string, serverOverride?: string, hideChat?: 
     // Override server if --local or --server= was passed
     if (serverOverride) {
         await replaceInFile(envPath, { 'rs-sdk-demo.fly.dev': serverOverride });
+        if (serverOverride.startsWith('localhost') || serverOverride.startsWith('127.')) {
+            await replaceInFile(envPath, { 'TELEMETRY=true': 'TELEMETRY=true\nGATEWAY_URL=ws://localhost:7780' });
+        }
         console.log(`Server set to: ${serverOverride}`);
     }
 
@@ -100,7 +103,7 @@ let hideChat = false;
 
 for (const arg of args) {
     if (arg === '--local') {
-        serverOverride = 'localhost';
+        serverOverride = 'localhost:8888';
     } else if (arg.startsWith('--server=')) {
         serverOverride = arg.slice('--server='.length);
     } else if (arg === '--no-chat' || arg === '--hide-chat') {

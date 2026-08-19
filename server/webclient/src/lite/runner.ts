@@ -351,7 +351,7 @@ function deriveGatewayUrl(server: string): string {
     return `wss://${server}/gateway`;
 }
 
-const botName = process.argv[2];
+const botName = process.argv[2] || process.env.BOT_USERNAME;
 if (!botName) {
     console.error('Usage: bun src/lite/runner.ts <botname>');
     process.exit(1);
@@ -359,12 +359,25 @@ if (!botName) {
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const envPath = `${repoRoot}bots/${botName}/bot.env`;
-const env = Object.fromEntries(
-    (await Bun.file(envPath).text())
+const fileEnv: Record<string, string> = await Bun.file(envPath).exists()
+    ? Object.fromEntries(
+        (await Bun.file(envPath).text())
         .split('\n')
         .filter(l => l.includes('=') && !l.startsWith('#'))
         .map(l => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()])
-);
+    )
+    : {};
+const env: Record<string, string | undefined> = {
+    ...fileEnv,
+    ...(process.env.BOT_USERNAME ? { BOT_USERNAME: process.env.BOT_USERNAME } : {}),
+    ...(process.env.PASSWORD ? { PASSWORD: process.env.PASSWORD } : {}),
+    ...(process.env.SERVER ? { SERVER: process.env.SERVER } : {}),
+    ...(process.env.GATEWAY_URL ? { GATEWAY_URL: process.env.GATEWAY_URL } : {})
+};
+if (!env.BOT_USERNAME || !env.PASSWORD) {
+    console.error(`[lite-runner] Missing credentials for '${botName}'. Provide bots/${botName}/bot.env or BOT_USERNAME and PASSWORD.`);
+    process.exit(1);
+}
 
 const host = env.SERVER || 'localhost';
 // No config channel from the server (see LiteClient's maxMessageLength note), so
@@ -397,6 +410,11 @@ runner.connect();
 
 process.on('SIGINT', () => {
     console.log('\n[lite-runner] SIGINT, shutting down');
+    runner.stop();
+    process.exit(0);
+});
+process.on('SIGTERM', () => {
+    console.log('\n[lite-runner] SIGTERM, shutting down');
     runner.stop();
     process.exit(0);
 });

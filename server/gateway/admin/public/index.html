@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="hu">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RS Agent Admin</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">OSRS AGENT SOCIETY</p>
+            <h1>Bot adminisztráció</h1>
+            <p id="last-refresh" class="muted">Adatok betöltése…</p>
+        </div>
+        <div class="header-actions">
+            <button id="snapshot-button" class="button secondary">Kísérleti snapshot</button>
+            <button id="new-bot-button" class="button primary">+ Bot spawn</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="summary-grid" aria-label="Gazdasági összesítés">
+            <article class="metric"><span>Összes bot</span><strong id="metric-bots">–</strong></article>
+            <article class="metric"><span>Online</span><strong id="metric-online">–</strong></article>
+            <article class="metric"><span>Teljes pénz</span><strong id="metric-coins">–</strong></article>
+            <article class="metric"><span>Összes XP</span><strong id="metric-xp">–</strong></article>
+            <article class="metric"><span>Átlag total level</span><strong id="metric-level">–</strong></article>
+        </section>
+
+        <section class="panel economy-panel">
+            <div class="panel-heading">
+                <div><p class="eyebrow">GAZDASÁG</p><h2>Idősoros áttekintés</h2></div>
+                <div class="legend"><span><i class="dot gold"></i>Pénz</span><span><i class="dot green"></i>Online bot</span></div>
+            </div>
+            <canvas id="economy-chart" height="130" aria-label="Gazdasági idősor"></canvas>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading table-heading">
+                <div><p class="eyebrow">BOTKATALÓGUS</p><h2>Minden bot</h2></div>
+                <span id="visible-count" class="count-pill">0 / 0</span>
+            </div>
+            <div class="filters">
+                <label class="wide">Keresés<input id="search-filter" type="search" placeholder="Név, skill vagy aktivitás"></label>
+                <label>Állapot<select id="status-filter"><option value="">Mind</option><option value="active">Online</option><option value="offline">Offline</option><option value="starting">Indul</option><option value="stale">Nem válaszol</option><option value="error">Hiba</option></select></label>
+                <label>Skill<input id="skill-filter" placeholder="pl. Fishing"></label>
+                <label>Minimum pénz<input id="coins-filter" type="number" min="0" step="1" placeholder="0"></label>
+                <button id="clear-filters" class="button ghost">Szűrők törlése</button>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr>
+                        <th data-sort="status">Állapot</th>
+                        <th data-sort="displayName">Bot</th>
+                        <th data-sort="activity">Aktivitás / agent skill</th>
+                        <th data-sort="totalLevel" class="number">Total</th>
+                        <th data-sort="combatLevel" class="number">Combat</th>
+                        <th data-sort="coins" class="number">Pénz</th>
+                        <th>Pozíció</th>
+                        <th data-sort="lastActivityAt">Utolsó adat</th>
+                        <th>Műveletek</th>
+                    </tr></thead>
+                    <tbody id="bot-rows"><tr><td colspan="9" class="empty">Betöltés…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel stock-panel">
+            <div class="panel-heading"><div><p class="eyebrow">KÉSZLETEK</p><h2>Legnagyobb itemállományok</h2></div></div>
+            <div id="item-stock" class="stock-grid"></div>
+        </section>
+    </main>
+
+    <aside id="profile-drawer" class="drawer" aria-hidden="true">
+        <button id="close-profile" class="drawer-close" aria-label="Bezárás">×</button>
+        <div id="profile-content"></div>
+    </aside>
+    <div id="drawer-backdrop" class="backdrop"></div>
+
+    <dialog id="spawn-dialog">
+        <form id="spawn-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">BOT ÉLETCIKLUS</p><h2>Bot indítása</h2></div><button type="button" class="dialog-close">×</button></div>
+            <label>Bot neve<input name="username" maxlength="12" pattern="[A-Za-z0-9]+" required></label>
+            <label>Jelszó <span class="muted">(ha nincs helyben elmentve)</span><input name="password" type="password" autocomplete="new-password"></label>
+            <label>Szerver<input name="server" value="localhost:8888" required></label>
+            <label>Indoklás<input name="reason" value="Kézi admin spawn" required></label>
+            <label class="check"><input name="rememberCredentials" type="checkbox"> A jelszó mentése kizárólag a helyi, gitből kizárt bot.env fájlba</label>
+            <p class="dialog-note">A jelszó nem jelenik meg a botlistában és nem kerül az auditnaplóba.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Indítás</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="delete-dialog">
+        <form id="delete-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow danger-text">VÉDETT MŰVELET</p><h2>Bot törlése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="username" type="hidden">
+            <p>Csak offline bot törölhető. A mentés és a helyi konfiguráció először karanténba kerül, így téves törlés esetén visszaállítható.</p>
+            <label>Írd be pontosan a bot nevét<input name="confirmUsername" autocomplete="off" required></label>
+            <label>Indoklás<input name="reason" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button danger" value="submit">Törlés karanténba</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="snapshot-dialog">
+        <form id="snapshot-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">KÍSÉRLET</p><h2>Snapshot készítése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <label>Címke<input name="label" placeholder="pl. diminishing XP előtt" required></label>
+            <label>Megjegyzés<input name="reason" placeholder="Mit akarunk később összehasonlítani?" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Mentés</button></div>
+        </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="admin.js" type="module"></script>
+</body>
+</html>

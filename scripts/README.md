@@ -15,6 +15,11 @@ az általuk létrehozott és PID + indulási idő alapján azonosított folyamat
   leállítása.
 - `pwsh -File scripts/smoke-local.ps1` – állapotellenőrzés és egy valódi botművelet.
 
+A futó gateway helyi botadminisztrációs és gazdasági felülete:
+`http://localhost:7780/admin/`. Innen a mentett és online botok szűrhetők,
+részletesen megnyithatók, spawnolhatók/despawnolhatók, és kísérleti snapshot is
+készíthető. Minden módosításhoz indoklás szükséges.
+
 Az indítási állapot a `.local/runtime.json`, a naplók pedig a
 `.local/logs/<run-id>/` könyvtárba kerülnek. Mindkettő ki van zárva a Gitből.
 
@@ -23,7 +28,8 @@ Az indítási állapot a `.local/runtime.json`, a naplók pedig a
 - `bun run test:quick` – gyors unit/regressziós tesztek.
 - `bun run test:integration` – futó helyi komponensek HTTP- és MIME-ellenőrzése.
 - `bun run test:smoke` – a teljes stack és egy botakció ellenőrzése.
-- `bun run check` – formázási ellenőrzés, két typecheck és a teljes tesztcsomag.
+- `bun run check` – formázási ellenőrzés, két typecheck és a teljes tesztcsomag,
+  beleértve az offline player-save adminolvasó tesztjeit.
 - `bun run test:powershell` – minden PowerShell segéd szintaktikai ellenőrzése.
 
 ## Mentés

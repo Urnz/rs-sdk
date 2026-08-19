@@ -19,7 +19,21 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 283 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 286 teszt sikeres, 0 sikertelen.
+
+## Botadmin baseline
+
+- Helyi adminfelület: `http://localhost:7780/admin/`.
+- A katalógus 34 helyi játékosmentést egyesít az élő gateway- és
+  agent-skill-állapottal.
+- Ellenőrzött életciklus: egy offline bot adminfelületről spawnolva aktívvá vált,
+  majd despawn után tisztán lecsatlakozott.
+- Az offline save-olvasó CRC-ellenőrzéssel, írás nélkül szolgáltat skill, XP,
+  pozíció, inventory, equipment, bank és pénz adatokat.
+- A módosító műveletek helyi jogosultságvédelemmel, kötelező indoklással és
+  `.local/admin/audit.jsonl` auditnaplóval futnak.
+- A bot eltávolítása csak offline állapotban, pontos névmegerősítéssel lehetséges,
+  és első körben visszaállítható karanténba mozgatást jelent.
 
 ## Smoke teszt
 

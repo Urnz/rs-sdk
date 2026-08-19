@@ -13,6 +13,9 @@ import type {
 import { PLAYER_CHAT_TYPES } from './types';
 import { ChatHistory } from '../../sdk/chat-history';
 import { chunkMessage } from '../../sdk/chunking';
+import { BotSupervisor } from './admin/supervisor';
+import { handleAdminRequest } from './admin/routes';
+import type { GatewayBotSnapshot } from './admin/types';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 
@@ -764,6 +767,35 @@ function handleClose(ws: any) {
     SyncModule.handleClose(ws);
 }
 
+function findBotSession(username: string): BotSession | null {
+    const key = [...botSessions.keys()].find(name => name.toLowerCase() === username.toLowerCase());
+    return key ? botSessions.get(key) ?? null : null;
+}
+
+function adminGatewayBots(): Map<string, GatewayBotSnapshot> {
+    const snapshots = new Map<string, GatewayBotSnapshot>();
+    for (const [username, session] of botSessions) {
+        snapshots.set(username, {
+            username,
+            status: getSessionStatus(session),
+            connected: !!session.ws,
+            connectedAt: session.connectedAt,
+            lastStateReceivedAt: session.lastStateReceivedAt,
+            state: session.lastState,
+            controllers: SyncModule.getControllersForBot(username).length,
+            observers: SyncModule.getObserversForBot(username).length
+        });
+    }
+    return snapshots;
+}
+
+const botSupervisor = new BotSupervisor((username, reason) => {
+    const session = findBotSession(username);
+    if (!session?.ws) return false;
+    SyncModule.sendToBot(session, { type: 'save_and_disconnect', reason });
+    return true;
+});
+
 // ============ Server Setup ============
 
 // Last-resort net. Bun exits(1) on an unhandled rejection by default, so a single
@@ -791,6 +823,12 @@ const server = Bun.serve({
             if (upgraded) return undefined;
             return new Response('WebSocket upgrade failed', { status: 400 });
         }
+
+        const adminResponse = await handleAdminRequest(req, url, {
+            gatewayBots: adminGatewayBots,
+            supervisor: botSupervisor
+        });
+        if (adminResponse) return adminResponse;
 
         // CORS headers
         const corsHeaders = {
@@ -1053,6 +1091,7 @@ Endpoints:
 - GET /chat/:username      Recent chat (?limit=20&system=1)
 - POST /say/:username      Send chat ({"text": "..."}); relayed through the bot's game client
 - POST /dm/:username       Send a private message ({"to": "...", "text": "..."})
+- GET /admin/              Local bot administration and economy dashboard
 
 WebSocket:
 - ws://localhost:${GATEWAY_PORT}    Bot/SDK connections
