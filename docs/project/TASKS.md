@@ -69,18 +69,18 @@ hibák reprodukálásához elegendő napló áll rendelkezésre.
 
 ## 5. Fázis – saját agent skillek
 
-- [ ] Összegyűjteni a gyakran ismételt műveleteket és skill-jelöltekké bontani őket.
-- [ ] Feltérképezni az rs-sdk meglévő magas szintű API-ját, hogy ne építsük újra a
+- [x] Összegyűjteni a gyakran ismételt műveleteket és skill-jelöltekké bontani őket.
+- [x] Feltérképezni az rs-sdk meglévő magas szintű API-ját, hogy ne építsük újra a
   `walkTo`, bankolás, kereskedés, shop- és interakciós képességeket.
-- [ ] Kialakítani az `Agent knows Skill[]` modellt, nem külön `MiningAgent` vagy
+- [x] Kialakítani az `Agent knows Skill[]` modellt, nem külön `MiningAgent` vagy
   `SmithingAgent` osztályokat.
-- [ ] Első stabil skillek: bányászat + bankolás egy konkrét útvonalon.
+- [x] Első stabil skillek: bányászat + bankolás egy konkrét útvonalon.
 - [ ] Következő skillek: smithing/production, shop-vásárlás és player trade.
 - [ ] 5–10 stabil, hosszabb ideig LLM nélkül futó skillt létrehozni.
-- [ ] Minden skillhez egyértelmű bemenetet, kimenetet, korlátokat és hibakezelést írni.
-- [ ] A skill-végeket és megszakítási okokat egységes eseményként jelenteni.
-- [ ] Tiltani a titkok naplózását és a hivatalos OSRS szolgáltatáshoz való kapcsolódást.
-- [ ] A skilleket kis, determinisztikus példákon és hibás bemeneteken is tesztelni.
+- [x] Minden skillhez egyértelmű bemenetet, kimenetet, korlátokat és hibakezelést írni.
+- [x] A skill-végeket és megszakítási okokat egységes eseményként jelenteni.
+- [x] Tiltani a titkok naplózását és a hivatalos OSRS szolgáltatáshoz való kapcsolódást.
+- [x] A skilleket kis, determinisztikus példákon és hibás bemeneteken is tesztelni.
 
 Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dokumentált,
 és egyikhez sem kell tickenként külső döntéshozó.
@@ -206,12 +206,10 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## Aktuális következő lépések
 
-1. Feltérképezni az rs-sdk meglévő magas szintű API-ját, különösen a mozgás,
-   interakció, inventory és bankolás felületeit.
-2. Kialakítani az újrafelhasználható `Agent knows Skill[]` szerződést és az
-   egységes skill-eredményt.
-3. Kijelölni egy konkrét bánya–bank útvonalat az első saját skillhez.
-4. Megvalósítani és determinisztikusan tesztelni a bányászat + bankolás ciklust
-   LLM nélkül.
-5. A tapasztalatok alapján megtervezni a következő production, shop és trade
-   skilleket.
+1. Karamja lobster–bank útvonalhoz szükséges komp/dialog műveleteket szabványosan
+   hozzáadni az engedélyezett adapterhez.
+2. Elkészíteni és élő bottal ellenőrizni az első fishing + banking skillt.
+3. Agent által létrehozott draft verifier és promóciós folyamatát megvalósítani.
+4. A bányászat után production, shop és trade skillekkel elérni az első
+   5–10 stabil, LLM nélkül futó skillt.
+5. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

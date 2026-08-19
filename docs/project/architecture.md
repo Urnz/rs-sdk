@@ -11,7 +11,9 @@ dokumentációt, agent skilleket és feature-terveket fogja össze.
 
 ## Tervezett bővítési pontok
 
-- **Agent skillek:** ismételhető, hosszú botműveletek az `agent-skills/` alatt.
+- **Agent skillek:** validált, verziózott és megosztható, hosszú botműveletek az
+  `agent-skills/` alatt. A reviewed katalógus Gitben, az agent által létrehozott
+  draftok a `.local/agent-skills/` shared/private tárában élnek.
 - **Játékmodok:** szerveroldali domain-logika, konfiguráció, kliens-visszajelzés és tesztek.
 - **Agent runtime:** identity, célhierarchia, working/episodic/semantic/social memória.
 - **Ingatlanrendszer:** az engine hiteles szerveroldali állapotára épülő tulajdonjog.
@@ -26,3 +28,6 @@ dokumentációt, agent skilleket és feature-terveket fogja össze.
 4. Az LLM javasol és eszközt kér; egy determinisztikus réteg ellenőriz és hajt végre.
 5. Minden hosszú futás limitált, megszakítható és auditálható.
 6. Az LLM stratégiai skillt választ; a determinisztikus skill hosszabb ideig önállóan fut.
+7. Agent vagy LLM tetszőleges kód helyett csak engedélyezett műveletekből álló
+   `SkillDefinition` dokumentumot hozhat létre; más agent automatikusan csak
+   ellenőrzött, megosztott verziót fedezhet fel.
