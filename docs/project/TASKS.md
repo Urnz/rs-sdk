@@ -48,7 +48,7 @@ Elfogadási feltétel: friss klónból reprodukálható telepítés és sikeres 
 - [x] Végrehajtani egy minimális smoke tesztet: csatlakozás, állapotlekérés, mozgás,
   egy egyszerű interakció és tiszta leállítás.
 - [x] Ellenőrizni az újraindítás utáni állapotot és adatmegőrzést.
-- [ ] Külön manuális játékosfiókkal belépni, a tutorialt átugrani, és a futó botot
+- [x] Külön manuális játékosfiókkal belépni, a tutorialt átugrani, és a futó botot
   ugyanabban a világban vizuálisan ellenőrizni.
 
 Elfogadási feltétel: mindhárom szolgáltatás helyben fut, a bot csatlakozik, és a
@@ -56,13 +56,13 @@ smoke teszt dokumentáltan megismételhető.
 
 ## 4. Fázis – fejlesztői alapok
 
-- [ ] Készíteni egyetlen, dokumentált fejlesztői indítási folyamatot.
-- [ ] Egészségellenőrzést adni az engine, webclient és gateway komponensekhez.
-- [ ] Egységes naplókönyvtárat és log-szinteket kialakítani.
-- [ ] Meghatározni a gyors tesztek, integrációs tesztek és teljes smoke teszt parancsait.
-- [ ] CI-folyamatot készíteni formázásra, típusellenőrzésre és tesztekre.
-- [ ] Dokumentálni az upstream frissítések beolvasásának és konfliktuskezelésének módját.
-- [ ] Biztonsági mentési és visszaállítási próbát végezni a szerverállapotra.
+- [x] Készíteni egyetlen, dokumentált fejlesztői indítási folyamatot.
+- [x] Egészségellenőrzést adni az engine, webclient és gateway komponensekhez.
+- [x] Egységes naplókönyvtárat és log-szinteket kialakítani.
+- [x] Meghatározni a gyors tesztek, integrációs tesztek és teljes smoke teszt parancsait.
+- [x] CI-folyamatot készíteni formázásra, típusellenőrzésre és tesztekre.
+- [x] Dokumentálni az upstream frissítések beolvasásának és konfliktuskezelésének módját.
+- [x] Biztonsági mentési és visszaállítási próbát végezni a szerverállapotra.
 
 Elfogadási feltétel: egy új fejlesztő a dokumentáció alapján el tud indulni, és a
 hibák reprodukálásához elegendő napló áll rendelkezésre.
@@ -206,9 +206,12 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## Aktuális következő lépések
 
-1. Külön manuális játékosfiókkal ellenőrizni, hogy a bot látható a világban.
-2. Egységes, egyparancsos helyi indító-, állapot- és leállítófolyamatot készíteni.
-3. Egészségellenőrzést és egységes helyi naplózást készíteni.
-4. Felmérni: XP award pontok, content scriptek, player persistence és az
-   `agent-skills` optimális helye.
-5. Megtervezni és implementálni az első saját bányászat + bankolás agent skillt.
+1. Feltérképezni az rs-sdk meglévő magas szintű API-ját, különösen a mozgás,
+   interakció, inventory és bankolás felületeit.
+2. Kialakítani az újrafelhasználható `Agent knows Skill[]` szerződést és az
+   egységes skill-eredményt.
+3. Kijelölni egy konkrét bánya–bank útvonalat az első saját skillhez.
+4. Megvalósítani és determinisztikusan tesztelni a bányászat + bankolás ciklust
+   LLM nélkül.
+5. A tapasztalatok alapján megtervezni a következő production, shop és trade
+   skilleket.

@@ -1,26 +1,44 @@
-# Egyszerű Git-munkafolyamat
+# Git- és upstream-munkafolyamat
 
 A branch-kezelést alapértelmezetten a Codex végzi.
 
 ## Ágak
 
-- `main`: csak ellenőrzött, stabil állapot.
-- `codex/baseline-local-setup`: az első helyi baseline és Windows-javítások.
-- `codex/<rövid-feladatnév>`: minden későbbi önálló feature vagy javítás.
+- `main`: csak ellenőrzött, stabil állapot;
+- `codex/<rövid-feladatnév>`: önálló feature vagy javítás;
+- `codex/upstream-sync-YYYY-MM-DD`: kizárólag upstream-frissítés és konfliktusok.
 
-## Szabály
+Az eredeti `MaxBittker/rs-sdk` mindig `upstream`, a saját `Urnz/rs-sdk` fork pedig
+`origin` remote néven szerepel.
 
-1. Új munkát nem közvetlenül a `main` ágon kezdünk.
-2. A Codex létrehozza a feladathoz tartozó ágat.
-3. Kis, értelmes commitok készülnek; a dátum önmagában nem commitüzenet.
-4. Teszt után az ág egyesíthető a `main` ágba.
-5. Az eredeti MaxBittker repo mindig `upstream` néven marad.
-6. A saját GitHub-fork lesz az `origin` remote.
+## Normál fejlesztés
 
-Javasolt commitüzenetek például:
+1. A Codex friss `main` ágból létrehozza a feladat branchét.
+2. Kis, értelmes commitok készülnek; a dátum önmagában nem commitüzenet.
+3. Lefut a feladathoz tartozó célzott teszt és a `bun run check`.
+4. A branch felkerül az `origin` tárolóba, majd draft PR készül.
+5. Csak sikeres ellenőrzés után kerül a változás a `main` ágba.
 
-- `chore: document local Windows baseline`
-- `fix: use the Windows home directory for lite cache`
-- `feat: add diminishing XP counters`
-- `test: cover property purchase races`
+## Upstream frissítése
 
+```powershell
+git switch main
+git pull --ff-only origin main
+git fetch upstream
+git switch -c codex/upstream-sync-YYYY-MM-DD
+git merge --no-ff upstream/main
+```
+
+Ütközés esetén fájlonként kell dönteni:
+
+1. A projekt saját `docs/project`, `scripts`, `agent-*` és `mods` tartalma maradjon meg.
+2. Az upstream engine/SDK változását először értsük meg; ne használjunk automatikus
+   „ours/theirs mindenhova” feloldást.
+3. A Windows-javításokat csak akkor tartsuk meg, ha az upstream még nem oldotta meg őket.
+4. Generált fájlt a generátorral készítsünk újra, ne kézzel egyesítsünk.
+5. Függőségváltozás után minden érintett könyvtárban `bun install --frozen-lockfile`,
+   majd `bun run check` és a teljes helyi smoke teszt következik.
+6. Az upstream-sync is PR-on keresztül kerülhet a `main` ágba.
+
+Konfliktus vagy sikertelen teszt esetén a sync branch megmarad diagnosztikára; a
+stabil `main` ágat nem írjuk felül és nem használunk `git reset --hard` műveletet.
