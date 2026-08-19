@@ -206,10 +206,12 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## Aktuális következő lépések
 
-1. Karamja lobster–bank útvonalhoz szükséges komp/dialog műveleteket szabványosan
+1. [x] Karamja lobster–bank útvonalhoz szükséges komp/dialog műveleteket szabványosan
    hozzáadni az engedélyezett adapterhez.
-2. Elkészíteni és élő bottal ellenőrizni az első fishing + banking skillt.
-3. Agent által létrehozott draft verifier és promóciós folyamatát megvalósítani.
-4. A bányászat után production, shop és trade skillekkel elérni az első
+2. [x] Elkészíteni és élő bottal ellenőrizni az első fishing + banking skillt.
+3. A Karamja fishing draftot második független élő futással ellenőrizni, majd a
+   verifier/promóciós folyamaton át új, változtathatatlan `verified` verzióvá tenni.
+4. Agent által létrehozott draft verifier és promóciós folyamatát megvalósítani.
+5. A bányászat után production, shop és trade skillekkel elérni az első
    5–10 stabil, LLM nélkül futó skillt.
-5. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+6. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

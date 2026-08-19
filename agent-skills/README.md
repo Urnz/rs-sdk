@@ -80,3 +80,15 @@ bun agent-skills/run.ts 32WTGxrvt mining.varrock-east.copper-to-bank
 
 Draft permission is deliberately explicit. Parameters can be overridden with
 `--param=bank-x=3253`; the validator rejects unknown parameter names.
+
+Travel skills may use `talk-to-npc`, allowlisted `navigate-dialog`, and
+`wait-for-area`. Coordinate-selected location interactions wait for both the
+object and its requested option to become available after a teleport or modal
+arrival message. Gathering operations reselect moving NPC/location targets until
+inventory or XP proves progress, while remaining bounded by the skill timeout.
+
+The first fishing route is a reviewed draft and can be run with an explicit target:
+
+```powershell
+bun agent-skills/run.ts 32WTGxrvt fishing.karamja.lobster-to-draynor-bank --allow-draft --param=target-lobsters=5
+```

@@ -16,6 +16,14 @@ function stringArg(args: Record<string, unknown>, key: string): string {
     return value;
 }
 
+function stringArrayArg(args: Record<string, unknown>, key: string): string[] {
+    const value = args[key];
+    if (!Array.isArray(value) || value.length === 0 || value.some(entry => typeof entry !== 'string' || entry.length === 0)) {
+        throw new Error(`${key} must be a non-empty string array`);
+    }
+    return value as string[];
+}
+
 function selector(name: string, match: unknown): string | RegExp {
     if (match === 'exact') return new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
     if (match === undefined || match === 'contains') return name;
@@ -33,6 +41,19 @@ function itemCount(items: Array<{ name: string; count: number }>, pattern: strin
         .reduce((total, item) => total + item.count, 0);
 }
 
+async function withAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+    if (signal.aborted) throw new Error('Skill cancelled');
+    let rejectAbort: (error: Error) => void = () => undefined;
+    const aborted = new Promise<never>((_, reject) => { rejectAbort = reject; });
+    const onAbort = () => rejectAbort(new Error('Skill cancelled'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    try {
+        return await Promise.race([promise, aborted]);
+    } finally {
+        signal.removeEventListener('abort', onAbort);
+    }
+}
+
 export class RsSdkSkillRuntime implements SkillRuntime {
     constructor(
         private readonly bot: BotActions,
@@ -48,11 +69,102 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                     numberArg(args, 'z', undefined, 0, 16_383),
                     numberArg(args, 'tolerance', 3, 0, 50)
                 ));
-            case 'interact-loc':
+            case 'wait-for-area': {
+                const x = numberArg(args, 'x', undefined, 0, 16_383);
+                const z = numberArg(args, 'z', undefined, 0, 16_383);
+                const tolerance = numberArg(args, 'tolerance', 3, 0, 50);
+                try {
+                    await withAbort(this.sdk.waitForCondition(state => {
+                        const playerX = state.player?.worldX;
+                        const playerZ = state.player?.worldZ;
+                        return playerX !== undefined && playerZ !== undefined
+                            && Math.abs(playerX - x) <= tolerance
+                            && Math.abs(playerZ - z) <= tolerance;
+                    }, numberArg(args, 'timeoutMs', 30_000, 100, 60_000)), signal);
+                    return { success: true, message: `Arrived near (${x}, ${z})`, code: 'area-reached' };
+                } catch {
+                    return { success: false, message: `Did not arrive near (${x}, ${z})`, code: 'area-timeout' };
+                }
+            }
+            case 'talk-to-npc':
+                return normalized(await this.bot.talkTo(selector(stringArg(args, 'name'), args.match)));
+            case 'navigate-dialog': {
+                const allowedChoices = stringArrayArg(args, 'choices');
+                const maxSteps = numberArg(args, 'maxSteps', 20, 1, 50);
+                const timeoutMs = numberArg(args, 'timeoutMs', 15_000, 100, 60_000);
+                try {
+                    await withAbort(this.sdk.waitForCondition(state => state.dialog.isOpen, timeoutMs), signal);
+                } catch {
+                    return { success: false, message: 'Dialog did not open', code: 'dialog-not-open' };
+                }
+                for (let step = 1; step <= maxSteps; step++) {
+                    const dialog = this.sdk.getState()?.dialog;
+                    if (!dialog?.isOpen) {
+                        return { success: true, message: `Dialog completed after ${step - 1} clicks`, code: 'dialog-completed' };
+                    }
+                    const options = dialog.options;
+                    const selected = allowedChoices.find(choice => options.some(option =>
+                        option.text.toLowerCase().includes(choice.toLowerCase())
+                    ));
+                    const continueOption = options.find(option => /^click here to continue$/i.test(option.text));
+                    if (!selected && !continueOption && options.length > 0) {
+                        const available = options.map(option => option.text).join(', ');
+                        return { success: false, message: `No allowed dialog choice; available: ${available}`, code: 'dialog-choice-not-allowed' };
+                    }
+                    if (selected) await this.sdk.clickDialogByText(selected);
+                    else await this.sdk.sendClickDialog(continueOption?.index ?? 0);
+                    await withAbort(this.sdk.waitForTicks(1), signal);
+                }
+                if (!this.sdk.getState()?.dialog.isOpen) {
+                    return { success: true, message: `Dialog completed after ${maxSteps} clicks`, code: 'dialog-completed' };
+                }
+                return { success: false, message: `Dialog exceeded ${maxSteps} clicks`, code: 'dialog-step-limit' };
+            }
+            case 'interact-loc': {
+                const name = stringArg(args, 'name');
+                const nameSelector = selector(name, args.match);
+                let target: Parameters<BotActions['interactLoc']>[0] = nameSelector;
+                if (args.x !== undefined || args.z !== undefined) {
+                    await this.bot.dismissBlockingUI();
+                    const x = numberArg(args, 'x', undefined, 0, 16_383);
+                    const z = numberArg(args, 'z', undefined, 0, 16_383);
+                    const option = args.option as string | number | undefined;
+                    const findLoc = () => this.sdk.getNearbyLocs().find(entry => {
+                        const nameMatches = typeof nameSelector === 'string'
+                            ? entry.name.toLowerCase().includes(nameSelector.toLowerCase())
+                            : nameSelector.test(entry.name);
+                        const optionMatches = typeof option !== 'string' || entry.optionsWithIndex.some(candidate => {
+                            try {
+                                return new RegExp(option, 'i').test(candidate.text);
+                            } catch {
+                                return candidate.text.toLowerCase().includes(option.toLowerCase());
+                            }
+                        });
+                        return entry.x === x && entry.z === z && nameMatches && optionMatches;
+                    });
+                    let loc = findLoc();
+                    if (!loc) {
+                        try {
+                            await withAbort(this.sdk.waitForCondition(() => {
+                                loc = findLoc();
+                                return loc !== undefined;
+                            }, numberArg(args, 'timeoutMs', 5_000, 100, 60_000)), signal);
+                        } catch {
+                            if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
+                        }
+                    }
+                    if (!loc) return {
+                        success: false,
+                        message: `Location not found: ${name} at (${x}, ${z})`,
+                        code: 'loc-not-found-at-coordinate'
+                    };
+                    target = loc;
+                }
                 return normalized(await this.bot.interactLoc(
-                    selector(stringArg(args, 'name'), args.match),
+                    target,
                     (args.option as string | number | undefined) ?? 1
                 ));
+            }
             case 'interact-npc':
                 return normalized(await this.bot.interactNpc(
                     selector(stringArg(args, 'name'), args.match),
@@ -67,28 +179,43 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 const skill = typeof args.skill === 'string' ? args.skill : null;
                 const beforeItems = itemCount(this.sdk.getInventory(), item);
                 const beforeXp = skill ? (this.sdk.getSkillXp(skill) ?? 0) : 0;
-                const interaction = operation === 'gather-loc'
-                    ? await this.bot.interactLoc(target, option)
-                    : await this.bot.interactNpc(target, option);
-                if (!interaction.success) return normalized(interaction);
-                try {
-                    const evidence = this.sdk.waitForCondition(() => {
-                        if (itemCount(this.sdk.getInventory(), item) > beforeItems) return true;
-                        return skill !== null && (this.sdk.getSkillXp(skill) ?? 0) > beforeXp;
-                    }, numberArg(args, 'timeoutMs', 15_000, 100, 60_000));
-                    let rejectAbort: (error: Error) => void = () => undefined;
-                    const aborted = new Promise<never>((_, reject) => { rejectAbort = reject; });
-                    const onAbort = () => rejectAbort(new Error('Skill cancelled'));
-                    signal.addEventListener('abort', onAbort, { once: true });
+                const timeoutMs = numberArg(args, 'timeoutMs', 15_000, 100, 300_000);
+                const deadline = Date.now() + timeoutMs;
+                let interactions = 0;
+                let lastInteraction: SkillOperationResult | null = null;
+                while (Date.now() < deadline && interactions < 20) {
+                    if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
+                    const interaction = operation === 'gather-loc'
+                        ? await this.bot.interactLoc(target, option)
+                        : await this.bot.interactNpc(target, option);
+                    lastInteraction = normalized(interaction);
+                    interactions++;
+
+                    const remaining = deadline - Date.now();
+                    if (remaining <= 0) break;
+                    const targetMayStillBeActive = interaction.success || interaction.reason === 'rejected';
+                    const evidenceWindow = Math.max(100, Math.min(targetMayStillBeActive ? 15_000 : 3_000, remaining));
                     try {
-                        await Promise.race([evidence, aborted]);
-                    } finally {
-                        signal.removeEventListener('abort', onAbort);
+                        await withAbort(this.sdk.waitForCondition(() => {
+                            if (itemCount(this.sdk.getInventory(), item) > beforeItems) return true;
+                            return skill !== null && (this.sdk.getSkillXp(skill) ?? 0) > beforeXp;
+                        }, evidenceWindow), signal);
+                        return {
+                            success: true,
+                            message: `Gathered ${itemName} after ${interactions} target interaction${interactions === 1 ? '' : 's'}`,
+                            code: 'gathered',
+                            data: { interactions }
+                        };
+                    } catch {
+                        if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
                     }
-                    return { success: true, message: `Gathered ${itemName}`, code: 'gathered' };
-                } catch {
-                    return { success: false, message: `No ${itemName} or ${skill ?? 'skill'} progress observed`, code: 'gather-timeout' };
                 }
+                return {
+                    success: false,
+                    message: `No ${itemName} or ${skill ?? 'skill'} progress observed; retargeted ${interactions} times`,
+                    code: 'gather-timeout',
+                    data: { interactions, lastInteraction }
+                };
             }
             case 'open-bank':
                 return normalized(await this.bot.openBank(numberArg(args, 'timeoutMs', 10_000, 100, 60_000)));
@@ -119,6 +246,8 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 return inventory.length >= 28;
             case 'inventory-free-slots-at-most':
                 return 28 - inventory.length <= numberArg(args, 'slots', undefined, 0, 28);
+            case 'inventory-free-slots-at-least':
+                return 28 - inventory.length >= numberArg(args, 'slots', undefined, 0, 28);
             case 'inventory-contains': {
                 const pattern = selector(stringArg(args, 'name'), args.match);
                 const amount = numberArg(args, 'amount', 1, 1, 2_147_483_647);

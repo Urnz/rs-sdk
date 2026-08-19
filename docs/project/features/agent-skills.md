@@ -46,10 +46,14 @@ Az `id@version` tartalma megváltoztathatatlan. A javított útvonal új verzió
 ## Engedélyezett rs-sdk felület az első változatban
 
 - mozgás: `walkTo`;
+- területre érkezés igazolása: `wait-for-area`;
 - világinterakció: `interactLoc`, `interactNpc`;
+- párbeszéd és utazás: `talk-to-npc`, engedélyezett válaszokra korlátozott
+  `navigate-dialog`;
 - eredménnyel igazolt gyűjtés: `gather-loc`, `gather-npc` (inventory vagy XP változás);
 - bank: `openBank`, `depositItem`, `withdrawItem`, `closeBank`;
 - időzítés: `waitForTicks`;
+- koordinátával pontosítható, betöltésre és műveletre váró location interakció;
 - feltételek: inventory telítettség/tartalom, szabad hely, minimum játékskill-szint.
 
 Új primitív csak adapterrel, validálással és teszttel kerülhet a listára. A meglévő
@@ -86,3 +90,15 @@ megőrzi az első draftot. Az ebből származó `1.0.0` verzió két sikeres él
 után `verified`: a bot banktól bányáig sétált, 8 rézércet gyűjtött, visszatért,
 bankot nyitott, minden ércet lerakott, majd bezárta az interfészt. A két auditált
 run ID a verified dokumentum provenance mezőjében található.
+
+## Karamja fishing draft
+
+A `fishing.karamja.lobster-to-draynor-bank@0.1.0` draft végrehajtja a Port Sarim
+→ Karamja kompútvonalat, a mozgó fishing spot újracélzását, a vámvizsgálat
+engedélyezett válaszait, a visszautat és a Draynor bankolást. A komp mindkét
+irányban a felső fedélzetre érkezik; az érkezési üzenet biztonságos bezárása után
+közvetlenül a gangplank használható, létra nem szükséges.
+
+Az első teljes élő kör 16 skill-művelettel, 18 fishing-spot újracélzással sikerült:
+`e0415a5f-bb64-4607-8c8c-f67f0973c170`. A skill egyelőre `draft`; újabb független
+élő futás és a verifier/promóciós folyamat után kaphat `verified` verziót.

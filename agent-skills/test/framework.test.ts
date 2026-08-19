@@ -198,6 +198,136 @@ describe('rs-sdk skill runtime', () => {
         }, new AbortController().signal);
         expect(result).toMatchObject({ success: false, code: 'gather-timeout' });
     });
+
+    test('retargets a moving fishing spot until real inventory evidence appears', async () => {
+        let inventory: Array<{ name: string; count: number }> = [];
+        let interactions = 0;
+        const bot = {
+            interactNpc: async () => {
+                interactions++;
+                return { success: true, message: 'Cage animation started' };
+            }
+        } as any;
+        const sdk = {
+            getInventory: () => inventory,
+            getSkillXp: () => 0,
+            waitForCondition: async (predicate: () => boolean) => {
+                if (interactions === 1) throw new Error('spot moved');
+                inventory = [{ name: 'Raw lobster', count: 1 }];
+                if (!predicate()) throw new Error('evidence missing');
+            }
+        } as any;
+        const result = await new RsSdkSkillRuntime(bot, sdk).execute('gather-npc', {
+            name: 'Fishing spot', option: 'Cage', item: 'Raw lobster', skill: 'Fishing', timeoutMs: 60_000
+        }, new AbortController().signal);
+        expect(result).toMatchObject({ success: true, code: 'gathered', data: { interactions: 2 } });
+    });
+
+    test('selects a location by coordinates when duplicate names exist', async () => {
+        let selected: { x: number; z: number } | null = null;
+        const bot = {
+            dismissBlockingUI: async () => undefined,
+            interactLoc: async (loc: { x: number; z: number }) => {
+                selected = loc;
+                return { success: true, message: 'crossed' };
+            }
+        } as any;
+        const sdk = {
+            getNearbyLocs: () => [
+                { name: 'Gangplank', x: 3047, z: 3205, optionsWithIndex: [{ text: 'Cross', opIndex: 1 }] },
+                { name: 'Gangplank', x: 3030, z: 3217, optionsWithIndex: [{ text: 'Cross', opIndex: 1 }] }
+            ]
+        } as any;
+        const result = await new RsSdkSkillRuntime(bot, sdk).execute('interact-loc', {
+            name: 'Gangplank', match: 'exact', option: 'Cross', x: 3030, z: 3217
+        }, new AbortController().signal);
+        expect(result.success).toBe(true);
+        expect(selected).toMatchObject({ x: 3030, z: 3217 });
+    });
+
+    test('waits for a coordinate-selected location option to become ready', async () => {
+        let ready = false;
+        let selected: { x: number; z: number; optionsWithIndex: Array<{ text: string }> } | null = null;
+        const bot = {
+            dismissBlockingUI: async () => undefined,
+            interactLoc: async (loc: typeof selected) => {
+                selected = loc;
+                return { success: true, message: 'climbed' };
+            }
+        } as any;
+        const loc = () => ({
+            name: "Ship's ladder",
+            x: 2954,
+            z: 3141,
+            optionsWithIndex: ready ? [{ text: 'Climb-up', opIndex: 1 }] : []
+        });
+        const sdk = {
+            getNearbyLocs: () => [loc()],
+            waitForCondition: async (predicate: () => boolean) => {
+                ready = true;
+                if (!predicate()) throw new Error('option not ready');
+            }
+        } as any;
+        const result = await new RsSdkSkillRuntime(bot, sdk).execute('interact-loc', {
+            name: "Ship's ladder", match: 'exact', option: 'Climb-up', x: 2954, z: 3141, timeoutMs: 5000
+        }, new AbortController().signal);
+        expect(result.success).toBe(true);
+        expect((selected as { optionsWithIndex: Array<{ text: string; opIndex: number }> } | null)
+            ?.optionsWithIndex).toEqual([{ text: 'Climb-up', opIndex: 1 }]);
+    });
+
+    test('navigates narration safely and verifies arrival in a destination area', async () => {
+        let dialogStep = 0;
+        const dialogs = [
+            { isOpen: true, options: [{ index: 1, text: 'Click here to continue' }] },
+            { isOpen: true, options: [{ index: 1, text: 'Yes please.' }, { index: 2, text: 'No, thank you.' }] },
+            { isOpen: false, options: [] }
+        ];
+        const clicks: string[] = [];
+        const bot = {
+            talkTo: async () => ({ success: true, message: 'Dialog opened' })
+        } as any;
+        const sdk = {
+            getState: () => ({ dialog: dialogs[dialogStep], player: { worldX: 2956, worldZ: 3143 } }),
+            waitForCondition: async (predicate: (state: any) => boolean) => {
+                const state = { dialog: dialogs[dialogStep], player: { worldX: 2956, worldZ: 3143 } };
+                if (!predicate(state)) throw new Error('condition not met');
+                return state;
+            },
+            sendClickDialog: async () => {
+                clicks.push('continue');
+                dialogStep++;
+                return { success: true, message: 'continued' };
+            },
+            clickDialogByText: async (choice: string) => {
+                clicks.push(choice);
+                dialogStep++;
+                return { success: true, message: 'selected' };
+            },
+            waitForTicks: async () => undefined
+        } as any;
+        const runtime = new RsSdkSkillRuntime(bot, sdk);
+        expect(await runtime.execute('talk-to-npc', { name: 'Captain Tobias' }, new AbortController().signal))
+            .toMatchObject({ success: true });
+        expect(await runtime.execute('navigate-dialog', { choices: ['Yes please.'] }, new AbortController().signal))
+            .toMatchObject({ success: true, code: 'dialog-completed' });
+        expect(clicks).toEqual(['continue', 'Yes please.']);
+        expect(await runtime.execute('wait-for-area', { x: 2956, z: 3143, tolerance: 2 }, new AbortController().signal))
+            .toMatchObject({ success: true, code: 'area-reached' });
+    });
+
+    test('refuses dialog options that were not explicitly allowed', async () => {
+        const bot = {} as any;
+        const state = { dialog: { isOpen: true, options: [{ index: 1, text: 'Hand over every item' }] } };
+        const sdk = {
+            getState: () => state,
+            waitForCondition: async () => state
+        } as any;
+        const result = await new RsSdkSkillRuntime(bot, sdk).execute('navigate-dialog', {
+            choices: ['Yes please.']
+        }, new AbortController().signal);
+        expect(result).toMatchObject({ success: false, code: 'dialog-choice-not-allowed' });
+    });
 });
 
 describe('sharing and persistence', () => {

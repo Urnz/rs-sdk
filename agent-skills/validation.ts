@@ -12,16 +12,20 @@ import {
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const OPERATION_NAMES = new Set<SkillOperationName>([
-    'walk-to', 'interact-loc', 'interact-npc', 'gather-loc', 'gather-npc', 'open-bank', 'deposit-item',
+    'walk-to', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
+    'gather-loc', 'gather-npc', 'open-bank', 'deposit-item',
     'withdraw-item', 'close-bank', 'wait-ticks'
 ]);
 const CONDITION_NAMES = new Set<SkillConditionName>([
     'inventory-full', 'inventory-contains', 'inventory-free-slots-at-most',
-    'skill-level-at-least'
+    'inventory-free-slots-at-least', 'skill-level-at-least'
 ]);
 const OPERATION_ARGUMENTS: Record<SkillOperationName, { allowed: string[]; required: string[] }> = {
     'walk-to': { allowed: ['x', 'z', 'tolerance'], required: ['x', 'z'] },
-    'interact-loc': { allowed: ['name', 'match', 'option'], required: ['name'] },
+    'wait-for-area': { allowed: ['x', 'z', 'tolerance', 'timeoutMs'], required: ['x', 'z'] },
+    'talk-to-npc': { allowed: ['name', 'match'], required: ['name'] },
+    'navigate-dialog': { allowed: ['choices', 'maxSteps', 'timeoutMs'], required: ['choices'] },
+    'interact-loc': { allowed: ['name', 'match', 'option', 'x', 'z', 'timeoutMs'], required: ['name'] },
     'interact-npc': { allowed: ['name', 'match', 'option'], required: ['name'] },
     'gather-loc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs'], required: ['name', 'item'] },
     'gather-npc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs'], required: ['name', 'item'] },
@@ -35,6 +39,7 @@ const CONDITION_ARGUMENTS: Record<SkillConditionName, { allowed: string[]; requi
     'inventory-full': { allowed: [], required: [] },
     'inventory-contains': { allowed: ['name', 'match', 'amount'], required: ['name'] },
     'inventory-free-slots-at-most': { allowed: ['slots'], required: ['slots'] },
+    'inventory-free-slots-at-least': { allowed: ['slots'], required: ['slots'] },
     'skill-level-at-least': { allowed: ['skill', 'level'], required: ['skill', 'level'] }
 };
 
@@ -135,6 +140,17 @@ function validateStep(value: unknown, parameters: Record<string, SkillParameterD
         if (!OPERATION_NAMES.has(value.operation as SkillOperationName)) issues.push(`${path}.operation is not allowed`);
         else validateArgumentShape(value.arguments, OPERATION_ARGUMENTS[value.operation as SkillOperationName], `${path}.arguments`, issues);
         validateArguments(value.arguments, parameters, `${path}.arguments`, issues);
+        if (value.operation === 'navigate-dialog' && isRecord(value.arguments)) {
+            const choices = value.arguments.choices;
+            if (!Array.isArray(choices) || choices.length === 0 || choices.length > 20
+                || choices.some(choice => typeof choice !== 'string' || choice.length === 0 || choice.length > 200)) {
+                issues.push(`${path}.arguments.choices must contain 1-20 non-empty text choices`);
+            }
+        }
+        if (value.operation === 'interact-loc' && isRecord(value.arguments)
+            && (('x' in value.arguments) !== ('z' in value.arguments))) {
+            issues.push(`${path}.arguments.x and z must be provided together`);
+        }
         if (value.maxAttempts !== undefined && (!Number.isInteger(value.maxAttempts) || Number(value.maxAttempts) < 1 || Number(value.maxAttempts) > 10)) {
             issues.push(`${path}.maxAttempts must be an integer from 1 to 10`);
         }

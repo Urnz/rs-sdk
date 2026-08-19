@@ -50,6 +50,9 @@ export interface SkillLimits {
 
 export type SkillOperationName =
     | 'walk-to'
+    | 'wait-for-area'
+    | 'talk-to-npc'
+    | 'navigate-dialog'
     | 'interact-loc'
     | 'interact-npc'
     | 'gather-loc'
@@ -64,6 +67,7 @@ export type SkillConditionName =
     | 'inventory-full'
     | 'inventory-contains'
     | 'inventory-free-slots-at-most'
+    | 'inventory-free-slots-at-least'
     | 'skill-level-at-least';
 
 export interface SkillOperationStep {
