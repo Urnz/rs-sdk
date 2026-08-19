@@ -48,6 +48,8 @@ Elfogadási feltétel: friss klónból reprodukálható telepítés és sikeres 
 - [x] Végrehajtani egy minimális smoke tesztet: csatlakozás, állapotlekérés, mozgás,
   egy egyszerű interakció és tiszta leállítás.
 - [x] Ellenőrizni az újraindítás utáni állapotot és adatmegőrzést.
+- [ ] Külön manuális játékosfiókkal belépni, a tutorialt átugrani, és a futó botot
+  ugyanabban a világban vizuálisan ellenőrizni.
 
 Elfogadási feltétel: mindhárom szolgáltatás helyben fut, a bot csatlakozik, és a
 smoke teszt dokumentáltan megismételhető.
@@ -204,9 +206,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## Aktuális következő lépések
 
-1. A baseline branchet PR-on keresztül beolvasztani a saját fork `main` ágába.
-2. Egységes, egyparancsos helyi indító- és leállítófolyamatot készíteni.
-3. Felmérni: XP award pontok, content scriptek, player persistence és az
+1. Külön manuális játékosfiókkal ellenőrizni, hogy a bot látható a világban.
+2. Egységes, egyparancsos helyi indító-, állapot- és leállítófolyamatot készíteni.
+3. Egészségellenőrzést és egységes helyi naplózást készíteni.
+4. Felmérni: XP award pontok, content scriptek, player persistence és az
    `agent-skills` optimális helye.
-4. Megtervezni és implementálni az első saját bányászat + bankolás agent skillt.
-5. Az első játékmódosítás előtt menthető és visszaállítható baseline-t készíteni.
+5. Megtervezni és implementálni az első saját bányászat + bankolás agent skillt.
