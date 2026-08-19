@@ -13,6 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check changed-line formatting
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/check-format.ps1 -Ci
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -26,4 +32,13 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Type-check, test, and verify generated docs
-        run: bun run check
+        run: bun run typecheck && bun run typecheck:webclient && bun run test
+
+  windows-tooling:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate PowerShell developer tooling
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/test-powershell.ps1

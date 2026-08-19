@@ -412,7 +412,7 @@
     </script>
 
     <script type="module">
-        import { Client } from './client/client.js?v=<%= cachebust %>';
+        import { Client } from '/client/client.js?v=<%= cachebust %>';
 
         (() => {
             new Client(<%= nodeid %>, <%= lowmem %>, <%= members %>, undefined, <%= profanityFilter %>);
