@@ -13,6 +13,8 @@
 // quiet without closing. A single bad packet is not an ending; see handlePacket.
 
 import './dom-shim.js';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 import { invalidateCache, loadCache } from './cache.js';
 import { GameConnection, LoginError } from './net/GameConnection.js';
@@ -89,7 +91,7 @@ export async function startSession(opts: SessionOptions): Promise<LiteSession> {
     }
     const secured = opts.secured ?? !(opts.host.startsWith('localhost') || opts.host.startsWith('127.'));
     const origin = `${secured ? 'https' : 'http'}://${opts.host}`;
-    const cacheDir = opts.cacheDir ?? `${process.env.HOME}/.cache/rs-sdk-lite`;
+    const cacheDir = opts.cacheDir ?? join(homedir(), '.cache', 'rs-sdk-lite');
 
     let { checksums } = await loadCache({ origin, cacheDir, members: opts.members, quiet: opts.quiet });
     let locIndex = await LocIndex.load({ origin, cacheDir, versionlistCrc: checksums[5], quiet: opts.quiet });

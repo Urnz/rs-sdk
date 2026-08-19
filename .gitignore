@@ -26,3 +26,9 @@ server/engine/package-lock.json
 # SDK is copied into Docker via Dockerfile; don't duplicate it under server/
 server/sdk/
 jobs/
+
+# Local Windows runtime state
+server/engine/*.sqlite-shm
+server/engine/*.sqlite-wal
+# Legacy cache path created by older lite-client sessions when HOME was unset.
+server/webclient/undefined/
