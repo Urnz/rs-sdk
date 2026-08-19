@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "trade.lumbridge.give-item",
+  "version": "0.1.0",
+  "name": "Give an item in Lumbridge",
+  "description": "Meets a named player in the Lumbridge courtyard and transfers an explicit item quantity through verified player trade.",
+  "status": "draft",
+  "tags": ["trade", "lumbridge", "transfer"],
+  "parameters": {
+    "recipient": {
+      "type": "string",
+      "description": "Exact display name of the receiving player.",
+      "required": true
+    },
+    "item-name": {
+      "type": "string",
+      "description": "Exact inventory item name to give.",
+      "default": "Bronze dagger"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Quantity to transfer.",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 28
+    }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-08-19T18:30:00.000Z",
+    "notes": "Initial pure-gift trade draft. The recipient and item are exact, explicit parameters."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 240000, "maxOperations": 8 },
+  "preconditions": [
+    {
+      "condition": "inventory-contains",
+      "arguments": { "name": { "parameter": "item-name" }, "match": "exact", "amount": { "parameter": "amount" } }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-lumbridge-courtyard",
+      "operation": "walk-to",
+      "arguments": { "x": 3222, "z": 3218, "tolerance": 5 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "give-item",
+      "operation": "trade-give-item",
+      "arguments": {
+        "player": { "parameter": "recipient" },
+        "match": "exact",
+        "item": { "parameter": "item-name" },
+        "itemMatch": "exact",
+        "amount": { "parameter": "amount" },
+        "requestTimeoutMs": 60000,
+        "timeoutMs": 90000
+      },
+      "maxAttempts": 2
+    }
+  ]
+}

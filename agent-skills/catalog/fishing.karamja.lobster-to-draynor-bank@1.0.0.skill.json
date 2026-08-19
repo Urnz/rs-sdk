@@ -1,0 +1,168 @@
+{
+    "schemaVersion": 1,
+    "id": "fishing.karamja.lobster-to-draynor-bank",
+    "version": "1.0.0",
+    "name": "Karamja lobster to Draynor bank",
+    "description": "Sails from Port Sarim to Karamja, catches a requested number of raw lobsters, returns by ship, and deposits the catch in Draynor bank.",
+    "status": "verified",
+    "tags": ["fishing", "banking", "travel", "karamja"],
+    "parameters": {
+        "target-lobsters": {
+            "type": "number",
+            "description": "Number of raw lobsters to catch before returning to Draynor bank.",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 26
+        }
+    },
+    "provenance": {
+        "authorKind": "human",
+        "authorId": "project",
+        "createdAt": "2026-08-19T22:10:12.000Z",
+        "derivedFrom": {
+            "id": "fishing.karamja.lobster-to-draynor-bank",
+            "version": "0.1.0"
+        },
+        "notes": "Promoted after two complete live routes. Run IDs e0415a5f-bb64-4607-8c8c-f67f0973c170 and 1f149254-9397-4437-ab9c-c5fd9db891e0; the second catch required 45 bounded fishing-spot retargets."
+    },
+    "sharing": { "visibility": "shared" },
+    "limits": { "timeoutMs": 900000, "maxOperations": 100 },
+    "preconditions": [
+        { "condition": "inventory-contains", "arguments": { "name": "Lobster pot", "match": "exact" } },
+        { "condition": "inventory-contains", "arguments": { "name": "Coins", "match": "exact", "amount": 60 } },
+        { "condition": "inventory-free-slots-at-least", "arguments": { "slots": { "parameter": "target-lobsters" } } },
+        { "condition": "skill-level-at-least", "arguments": { "skill": "Fishing", "level": 40 } }
+    ],
+    "steps": [
+        {
+            "kind": "operation",
+            "id": "walk-port-sarim-dock",
+            "operation": "walk-to",
+            "arguments": { "x": 3029, "z": 3217, "tolerance": 4 },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "talk-captain-tobias",
+            "operation": "talk-to-npc",
+            "arguments": { "name": "Captain Tobias", "match": "exact" },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "choose-karamja",
+            "operation": "navigate-dialog",
+            "arguments": { "choices": ["Yes please."], "maxSteps": 10, "timeoutMs": 15000 }
+        },
+        {
+            "kind": "operation",
+            "id": "confirm-karamja-arrival",
+            "operation": "wait-for-area",
+            "arguments": { "x": 2956, "z": 3143, "tolerance": 3, "timeoutMs": 30000 }
+        },
+        {
+            "kind": "operation",
+            "id": "cross-karamja-gangplank",
+            "operation": "interact-loc",
+            "arguments": { "name": "Gangplank", "match": "exact", "option": "Cross", "x": 2956, "z": 3144, "timeoutMs": 10000 },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "walk-musa-point-fishing",
+            "operation": "walk-to",
+            "arguments": { "x": 2923, "z": 3179, "tolerance": 6 },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "repeat",
+            "id": "fish-until-target",
+            "until": {
+                "condition": "inventory-contains",
+                "arguments": { "name": "Raw lobster", "match": "exact", "amount": { "parameter": "target-lobsters" } }
+            },
+            "maxIterations": 40,
+            "steps": [
+                {
+                    "kind": "operation",
+                    "id": "catch-lobster",
+                    "operation": "gather-npc",
+                    "arguments": {
+                        "name": "Fishing spot",
+                        "match": "exact",
+                        "option": "Cage",
+                        "item": "Raw lobster",
+                        "skill": "Fishing",
+                        "timeoutMs": 240000,
+                        "maxRetargets": 60
+                    },
+                    "maxAttempts": 2
+                }
+            ]
+        },
+        {
+            "kind": "operation",
+            "id": "walk-karamja-customs",
+            "operation": "walk-to",
+            "arguments": { "x": 2954, "z": 3147, "tolerance": 4 },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "talk-customs-officer",
+            "operation": "talk-to-npc",
+            "arguments": { "name": "Customs officer", "match": "exact" },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "pass-customs-and-return",
+            "operation": "navigate-dialog",
+            "arguments": {
+                "choices": ["Can I journey on this ship?", "Search away, I have nothing to hide.", "Ok."],
+                "maxSteps": 20,
+                "timeoutMs": 15000
+            }
+        },
+        {
+            "kind": "operation",
+            "id": "confirm-port-sarim-arrival",
+            "operation": "wait-for-area",
+            "arguments": { "x": 3032, "z": 3216, "tolerance": 3, "timeoutMs": 30000 }
+        },
+        {
+            "kind": "operation",
+            "id": "cross-port-sarim-gangplank",
+            "operation": "interact-loc",
+            "arguments": { "name": "Gangplank", "match": "exact", "option": "Cross" },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "walk-draynor-bank",
+            "operation": "walk-to",
+            "arguments": { "x": 3092, "z": 3243, "tolerance": 4 },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "open-draynor-bank",
+            "operation": "open-bank",
+            "arguments": { "timeoutMs": 15000 },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "deposit-raw-lobster",
+            "operation": "deposit-item",
+            "arguments": { "name": "Raw lobster", "match": "exact", "amount": -1 },
+            "maxAttempts": 2
+        },
+        {
+            "kind": "operation",
+            "id": "close-draynor-bank",
+            "operation": "close-bank",
+            "arguments": {}
+        }
+    ]
+}

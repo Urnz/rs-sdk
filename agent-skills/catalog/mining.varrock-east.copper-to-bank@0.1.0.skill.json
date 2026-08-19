@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "id": "mining.varrock-east.copper-to-bank",
+  "version": "0.1.0",
+  "name": "Varrock east copper to bank",
+  "description": "Walk to the Varrock east mine, mine until the inventory is full, then walk to Varrock east bank and deposit ore. Requires a pickaxe in inventory.",
+  "status": "draft",
+  "tags": ["mining", "banking", "varrock", "route"],
+  "parameters": {
+    "mine-x": {
+      "type": "number",
+      "description": "X coordinate of the Varrock east mine.",
+      "default": 3285
+    },
+    "mine-z": {
+      "type": "number",
+      "description": "Z coordinate of the Varrock east mine.",
+      "default": 3365
+    },
+    "bank-x": {
+      "type": "number",
+      "description": "X coordinate of Varrock east bank.",
+      "default": 3253
+    },
+    "bank-z": {
+      "type": "number",
+      "description": "Z coordinate of Varrock east bank.",
+      "default": 3420
+    }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-08-19T00:00:00.000Z",
+    "notes": "First framework example; keep draft until a live route test passes."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "limits": {
+    "timeoutMs": 600000,
+    "maxOperations": 80
+  },
+  "preconditions": [
+    {
+      "condition": "inventory-contains",
+      "arguments": {
+        "name": "pickaxe",
+        "match": "contains",
+        "amount": 1
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-to-mine",
+      "operation": "walk-to",
+      "arguments": {
+        "x": { "parameter": "mine-x" },
+        "z": { "parameter": "mine-z" },
+        "tolerance": 5
+      },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "repeat",
+      "id": "mine-until-full",
+      "until": {
+        "condition": "inventory-full",
+        "arguments": {}
+      },
+      "maxIterations": 35,
+      "steps": [
+        {
+          "kind": "operation",
+          "id": "mine-nearby-rock",
+          "operation": "gather-loc",
+          "arguments": {
+            "name": "rocks copper ore",
+            "match": "exact",
+            "option": "mine",
+            "item": "copper ore",
+            "skill": "Mining",
+            "timeoutMs": 15000
+          },
+          "maxAttempts": 3
+        }
+      ]
+    },
+    {
+      "kind": "operation",
+      "id": "walk-to-bank",
+      "operation": "walk-to",
+      "arguments": {
+        "x": { "parameter": "bank-x" },
+        "z": { "parameter": "bank-z" },
+        "tolerance": 5
+      },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "open-bank",
+      "operation": "open-bank",
+      "arguments": {},
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "deposit-ore",
+      "operation": "deposit-item",
+      "arguments": {
+        "name": "ore",
+        "match": "contains",
+        "amount": -1
+      }
+    },
+    {
+      "kind": "operation",
+      "id": "close-bank",
+      "operation": "close-bank",
+      "arguments": {}
+    }
+  ]
+}

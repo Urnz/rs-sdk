@@ -69,23 +69,49 @@ hibák reprodukálásához elegendő napló áll rendelkezésre.
 
 ## 5. Fázis – saját agent skillek
 
-- [ ] Összegyűjteni a gyakran ismételt műveleteket és skill-jelöltekké bontani őket.
-- [ ] Feltérképezni az rs-sdk meglévő magas szintű API-ját, hogy ne építsük újra a
+- [x] Összegyűjteni a gyakran ismételt műveleteket és skill-jelöltekké bontani őket.
+- [x] Feltérképezni az rs-sdk meglévő magas szintű API-ját, hogy ne építsük újra a
   `walkTo`, bankolás, kereskedés, shop- és interakciós képességeket.
-- [ ] Kialakítani az `Agent knows Skill[]` modellt, nem külön `MiningAgent` vagy
+- [x] Kialakítani az `Agent knows Skill[]` modellt, nem külön `MiningAgent` vagy
   `SmithingAgent` osztályokat.
-- [ ] Első stabil skillek: bányászat + bankolás egy konkrét útvonalon.
-- [ ] Következő skillek: smithing/production, shop-vásárlás és player trade.
-- [ ] 5–10 stabil, hosszabb ideig LLM nélkül futó skillt létrehozni.
-- [ ] Minden skillhez egyértelmű bemenetet, kimenetet, korlátokat és hibakezelést írni.
-- [ ] A skill-végeket és megszakítási okokat egységes eseményként jelenteni.
-- [ ] Tiltani a titkok naplózását és a hivatalos OSRS szolgáltatáshoz való kapcsolódást.
-- [ ] A skilleket kis, determinisztikus példákon és hibás bemeneteken is tesztelni.
+- [x] Első stabil skillek: bányászat + bankolás egy konkrét útvonalon.
+- [x] Következő skillek: smithing/production, shop-vásárlás és player trade.
+- [x] 5–10 stabil, hosszabb ideig LLM nélkül futó skillt létrehozni.
+- [x] Minden skillhez egyértelmű bemenetet, kimenetet, korlátokat és hibakezelést írni.
+- [x] A skill-végeket és megszakítási okokat egységes eseményként jelenteni.
+- [x] Tiltani a titkok naplózását és a hivatalos OSRS szolgáltatáshoz való kapcsolódást.
+- [x] A skilleket kis, determinisztikus példákon és hibás bemeneteken is tesztelni.
 
 Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dokumentált,
 és egyikhez sem kell tickenként külső döntéshozó.
 
-## 6. Fázis – modolási keretrendszer
+## 6. Fázis – botadminisztráció és gazdasági telemetria
+
+- [ ] Egységes botkatalógust készíteni az online/offline állapottal, aktuális
+  skillel, pozícióval, futásazonosítóval és utolsó aktivitással.
+- [ ] Read-only bot részletező API-t készíteni: skillek/XP, inventory, bank,
+  felszerelés, coins, pozíció, aktuális skill és legutóbbi hiba.
+- [ ] A meglévő gateway státuszt, player position/traces, hiscore/bank és wealth
+  telemetriát egy admin backend mögött egyesíteni.
+- [ ] Auditált adminparancsokat készíteni online bothoz: leállítás, újraindítás,
+  skill hozzárendelés/megszakítás és biztonságos teleport.
+- [ ] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
+  bank módosítást készíteni; futó játékos mentésfájlját közvetlenül nem írjuk.
+- [ ] Minden állapotmódosításhoz jogosultságot, indoklást, előtte/utána értéket,
+  időpontot és visszakövethető auditbejegyzést követelni.
+- [ ] Webes admin panelt készíteni botlistával, részletes profillal, élő térképpel,
+  skill-futásokkal és kontrollált adminműveletekkel.
+- [ ] Idősoros gazdasági nézetet készíteni: összvagyon, pénzmennyiség, itemkészlet,
+  XP/óra, termelés/fogyasztás, shop és player-trade események.
+- [ ] Exportálható kísérleti snapshotot és összehasonlítható futásjelölést készíteni.
+- [ ] Tesztelni az online/offline ütközést, jogosulatlan módosítást, auditot,
+  újraindítást és több bot párhuzamos frissítését.
+
+Elfogadási feltétel: az összes bot állapota egy helyen követhető, a gazdasági
+idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosultságvédettek
+és teljesen auditálhatók.
+
+## 7. Fázis – modolási keretrendszer
 
 - [ ] Feltérképezni az engine adatmodelljét, scriptjeit, perzisztenciáját és kliensprotokollját.
 - [ ] Meghatározni, mi marad konfiguráció/adat és mi igényel engine-módosítást.
@@ -96,7 +122,7 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
 
 Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és tesztelése tisztázott.
 
-## 7. Fázis – economy rebalance és diminishing XP
+## 8. Fázis – economy rebalance és diminishing XP
 
 - [ ] Megkeresni az XP-jutalmazás központi és content-specifikus pontjait.
 - [ ] Meghatározni az activity kulcsot: tevékenység + nyersanyag/célpont + régió/hely.
@@ -113,7 +139,7 @@ Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és te
 Elfogadási feltétel: az ismételt azonos tevékenység/hely kombináció jutalma
 konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 
-## 8. Fázis – vásárolható ingatlanok (MVP)
+## 9. Fázis – vásárolható ingatlanok (MVP)
 
 - [ ] Véglegesíteni az ingatlan domain-modellt: azonosító, hely, ár, tulajdonos,
   típus, állapot, belépési pontok, bevétel, karbantartás és jogosultságok.
@@ -135,7 +161,7 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdonjog
 újraindítás után is megmarad, és más nem tudja ugyanazt megvenni.
 
-## 9. Fázis – persistent agent state és memória
+## 10. Fázis – persistent agent state és memória
 
 - [ ] Agent-identitás sémája: név, háttértörténet és személyiségjegyek.
 - [ ] Célhierarchia: életcél, hosszú távú, aktuális és azonnali feladat.
@@ -152,7 +178,7 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
 fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context készül.
 
-## 10. Fázis – LLM-integráció (első biztonságos változat)
+## 11. Fázis – LLM-integráció (első biztonságos változat)
 
 - [ ] Pontos use case-t választani: tanácsadó NPC, játékosügynök, operátori segéd
   vagy többügynökös gazdasági kísérlet.
@@ -174,7 +200,7 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
 auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
-## 11. Fázis – multi-agent gazdaság
+## 12. Fázis – multi-agent gazdaság
 
 - [ ] Több agent párhuzamos futása elkülönített állapottal és közös világban.
 - [ ] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
@@ -182,7 +208,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
 - [ ] Kontrollcsoportos kísérlet a diminishing XP és agent diverzitás hatására.
 
-## 12. Fázis – bankrendszer, hitelek és vállalkozások
+## 13. Fázis – bankrendszer, hitelek és vállalkozások
 
 - [ ] Pénzbetét, kamat, tartalék és könyvelési főkönyv modellje.
 - [ ] Hitel, futamidő, kamat, törlesztés és késedelem.
@@ -190,7 +216,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] Atomi, kettős könyveléshez közelítő tranzakciók és auditálás.
 - [ ] Csőd, bankroham és pénzügyi fertőzés biztonságos szimulációs korlátai.
 
-## 13. Fázis – új skillek és termelési láncok
+## 14. Fázis – új skillek és termelési láncok
 
 - [ ] A klasszikus játék-skillektől független, adatvezérelt `Skill[]` rendszer.
 - [ ] Lehetséges új skillek: engineering, machining, accounting, banking,
@@ -206,12 +232,13 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## Aktuális következő lépések
 
-1. Feltérképezni az rs-sdk meglévő magas szintű API-ját, különösen a mozgás,
-   interakció, inventory és bankolás felületeit.
-2. Kialakítani az újrafelhasználható `Agent knows Skill[]` szerződést és az
-   egységes skill-eredményt.
-3. Kijelölni egy konkrét bánya–bank útvonalat az első saját skillhez.
-4. Megvalósítani és determinisztikusan tesztelni a bányászat + bankolás ciklust
-   LLM nélkül.
-5. A tapasztalatok alapján megtervezni a következő production, shop és trade
-   skilleket.
+1. [x] Karamja lobster–bank útvonalhoz szükséges komp/dialog műveleteket szabványosan
+   hozzáadni az engedélyezett adapterhez.
+2. [x] Elkészíteni és élő bottal ellenőrizni az első fishing + banking skillt.
+3. [x] A Karamja fishing draftot második független élő futással ellenőrizni, majd a
+   verifier/promóciós folyamaton át új, változtathatatlan `verified` verzióvá tenni.
+4. [x] A bányászat után production, shop és trade skillekkel elérni az első
+   5–10 stabil, LLM nélkül futó skillt.
+5. A 6. fázis read-only botkatalógusát és állapot-aggregáló API-ját elkészíteni.
+6. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
+7. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

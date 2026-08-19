@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "production.varrock.bronze-daggers",
+  "version": "0.1.0",
+  "name": "Varrock bronze dagger production",
+  "description": "Walks to the west Varrock anvils and smiths a requested batch of bronze daggers from carried bars.",
+  "status": "draft",
+  "tags": ["production", "smithing", "varrock"],
+  "parameters": {
+    "target-items": {
+      "type": "number",
+      "description": "Number of bronze daggers to produce.",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 5
+    }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-08-19T18:30:00.000Z",
+    "notes": "Initial production draft using the rs-sdk smithAtAnvil porcelain action."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 180000, "maxOperations": 20 },
+  "preconditions": [
+    { "condition": "inventory-contains", "arguments": { "name": "Hammer", "match": "exact" } },
+    { "condition": "inventory-contains", "arguments": { "name": "Bronze bar", "match": "exact", "amount": { "parameter": "target-items" } } },
+    { "condition": "inventory-free-slots-at-least", "arguments": { "slots": { "parameter": "target-items" } } },
+    { "condition": "skill-level-at-least", "arguments": { "skill": "Smithing", "level": 1 } }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-varrock-anvils",
+      "operation": "walk-to",
+      "arguments": { "x": 3188, "z": 3426, "tolerance": 3 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "repeat",
+      "id": "smith-requested-daggers",
+      "until": {
+        "condition": "inventory-contains",
+        "arguments": { "name": "Bronze dagger", "match": "exact", "amount": { "parameter": "target-items" } }
+      },
+      "maxIterations": 5,
+      "steps": [
+        {
+          "kind": "operation",
+          "id": "smith-bronze-dagger",
+          "operation": "smith-at-anvil",
+          "arguments": { "product": "bronze dagger", "bar": "Bronze bar", "timeoutMs": 15000 },
+          "maxAttempts": 2
+        }
+      ]
+    }
+  ]
+}

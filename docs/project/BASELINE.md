@@ -4,7 +4,7 @@
 
 - Upstream: `MaxBittker/rs-sdk`
 - Kiinduló commit: `9cd3d7019ad3a8654ee31d22af3272d91fe1881e`
-- Fejlesztői ág: `codex/dev-tooling`
+- Fejlesztői ág: `codex/agent-skill-framework`
 - Git: `2.52.0.windows.1`
 - Bun: `1.3.14` (`0d9b296af`)
 - Node.js: `22.16.0` (a projekt futtatása Bun alatt történik)
@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 261 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 283 teszt sikeres, 0 sikertelen.
 
 ## Smoke teszt
 
@@ -39,6 +39,31 @@
 - A visszaállítás utáni SHA-256 ellenőrzés sikeres volt.
 - Újraindítás után az engine, webclient és gateway egészséges, a tesztbot aktív
   és játékban van.
+
+## Agent-skill baseline
+
+- Önálló `agent-skills/` modul: validálás, registry, per-agent tudáskönyv,
+  shared/private fájltár, korlátos végrehajtó, rs-sdk adapter és auditjournal.
+- Megosztási kísérleti módok: `shared-library` és `isolated-discovery`.
+- Agent által benyújtott skill csak saját provenance-szal és `draft` állapotban
+  menthető; más agent automatikusan csak `verified + shared` skillt fedez fel.
+- Első verified skill: `mining.varrock-east.copper-to-bank@1.0.0`.
+- Három sikeres élő ciklusban a bot 8-8 rézércet bányászott és bankolt; a teljes
+  bank–bánya–bank útvonal is megismételhetően működött.
+- Első tartós verified audit: run `088fce52-901d-437f-8e66-196ccdfce079`, helyileg
+  `.local/agent-skills/runs/088fce52-901d-437f-8e66-196ccdfce079.json`.
+- Verified fishing + banking skill: `fishing.karamja.lobster-to-draynor-bank@1.0.0`.
+- A teljes Port Sarim → Karamja → fishing → vám → Port Sarim → Draynor bank
+  élő útvonal sikeres volt: run `e0415a5f-bb64-4607-8c8c-f67f0973c170`, 16
+  skill-művelet, 18 fishing-spot újracélzás, majd `Raw lobster x1` bankolás.
+- A mozgó erőforrások kezelése inventory- vagy XP-változásig újracéloz; a komp
+  párbeszédei kizárólag előre engedélyezett érdemi válaszokat fogadnak el.
+- A második teljes fishing audit is sikeres volt: run
+  `1f149254-9397-4437-ab9c-c5fd9db891e0`, 45 fishing-spot újracélzással.
+- További verified skillek: `production.varrock.bronze-daggers@1.0.0`,
+  `shopping.lumbridge.buy-hammers@1.0.0` és `trade.lumbridge.give-item@1.0.0`.
+- A production, shopping és trade skillek két-két független élő auditban sikerültek;
+  a trade fogadó inventoryját a futtató külön ellenőrizte.
 
 ## Windows-megjegyzések
 
