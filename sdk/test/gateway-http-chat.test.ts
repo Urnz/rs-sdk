@@ -29,7 +29,7 @@ async function waitFor(check: () => boolean | Promise<boolean>, timeoutMs: numbe
 
 beforeAll(async () => {
     gateway = Bun.spawn({
-        cmd: ['bun', join(REPO_ROOT, 'server', 'gateway', 'gateway.ts')],
+        cmd: [process.execPath, join(REPO_ROOT, 'server', 'gateway', 'gateway.ts')],
         env: { ...process.env, AGENT_PORT: String(PORT), LOGIN_SERVER: 'false' },
         stdout: 'ignore',
         stderr: 'ignore'

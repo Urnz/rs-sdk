@@ -10,6 +10,7 @@ server.json
 .env
 
 backups/
+.local/
 .obsidian/
 
 # Bot folders (except template)
