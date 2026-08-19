@@ -6,48 +6,48 @@ elfogadási feltételek teljesülése után pipáld ki.
 
 ## 0. Fázis – keretek és döntések
 
-- [ ] Rögzíteni, hogy a cél a LostCity/rs-sdk helyi emulátora, nem a hivatalos OSRS.
-- [ ] Eldönteni a kezdeti operációs módot: minden komponens közvetlenül Windowson,
+- [x] Rögzíteni, hogy a cél a LostCity/rs-sdk helyi emulátora, nem a hivatalos OSRS.
+- [x] Eldönteni a kezdeti operációs módot: minden komponens közvetlenül Windowson,
   vagy részben WSL/Docker alatt fusson.
-- [ ] Rögzíteni a támogatott Bun- és Node-verziót az upstream követelményei alapján.
-- [ ] Létrehozni egy rövid döntési naplót minden nehezen visszafordítható választáshoz.
+- [x] Rögzíteni a támogatott Bun- és Node-verziót az upstream követelményei alapján.
+- [x] Létrehozni egy rövid döntési naplót minden nehezen visszafordítható választáshoz.
 
 Elfogadási feltétel: a környezet, a hatókör és a technikai alapok egyértelműek.
 
 ## 1. Fázis – fork és verziókezelés
 
-- [ ] A `MaxBittker/rs-sdk` GitHub-repozitóriumot saját fiókba forkolni.
-- [ ] A forkot a munkatér üres `rs-sdk/` könyvtárába klónozni.
-- [ ] A saját fork legyen az `origin`, az eredeti repo pedig az `upstream` remote.
-- [ ] Ellenőrizni az alapértelmezett ágat és létrehozni egy külön fejlesztői ágat.
-- [ ] Feljegyezni az induláskor használt upstream commit azonosítóját.
-- [ ] Átolvasni az upstream `README.md`, `DEVELOPERS.md`, `AGENTS.md` és licenc fájljait.
+- [x] A `MaxBittker/rs-sdk` GitHub-repozitóriumot saját fiókba forkolni.
+- [x] Az upstream projektet a munkatér üres `rs-sdk/` könyvtárába klónozni.
+- [x] A saját fork legyen az `origin`, az eredeti repo pedig az `upstream` remote.
+- [x] Ellenőrizni az alapértelmezett ágat és létrehozni egy külön fejlesztői ágat.
+- [x] Feljegyezni az induláskor használt upstream commit azonosítóját.
+- [x] Átolvasni az upstream `README.md`, `DEVELOPERS.md`, `AGENTS.md` és licenc fájljait.
 
 Elfogadási feltétel: `origin` és `upstream` helyesen mutat, a munkafa tiszta, az
 alap commit dokumentált.
 
 ## 2. Fázis – helyi környezet és függőségek
 
-- [ ] Telepíteni/ellenőrizni a Git és Bun aktuálisan támogatott verzióját.
-- [ ] A gyökérfüggőségeket zárolt lockfile alapján telepíteni.
-- [ ] A `server/webclient` függőségeit külön telepíteni.
-- [ ] Létrehozni a szükséges helyi `.env` fájlokat kizárólag minta alapján.
-- [ ] Titkokat, lokális adatbázist és generált fájlokat kizárni a verziókezelésből.
-- [ ] Lefuttatni az upstream ellenőrzéseket (`bun run check`).
+- [x] Telepíteni/ellenőrizni a Git és Bun aktuálisan támogatott verzióját.
+- [x] A gyökérfüggőségeket zárolt lockfile alapján telepíteni.
+- [x] A `server/webclient` függőségeit külön telepíteni.
+- [x] Létrehozni a szükséges helyi `.env` fájlokat kizárólag minta alapján.
+- [x] Titkokat, lokális adatbázist és generált fájlokat kizárni a verziókezelésből.
+- [x] Lefuttatni az upstream ellenőrzéseket (`bun run check`).
 
 Elfogadási feltétel: friss klónból reprodukálható telepítés és sikeres alapellenőrzés.
 
 ## 3. Fázis – az rs-sdk helyi futtatása
 
-- [ ] Elindítani a game engine-t a `server/engine` könyvtárból.
-- [ ] Elindítani a webclient figyelő/build folyamatát a `server/webclient` könyvtárból.
-- [ ] Elindítani a gateway-t a `server/gateway` könyvtárból.
-- [ ] Ellenőrizni, hogy a gateway alapértelmezetten a `ws://localhost:7780` címen elérhető.
-- [ ] Létrehozni egy kizárólag lokális tesztbotot.
-- [ ] A bot környezetében üresen hagyni a `SERVER` értéket, hogy a helyi gateway-t használja.
-- [ ] Végrehajtani egy minimális smoke tesztet: csatlakozás, állapotlekérés, mozgás,
+- [x] Elindítani a game engine-t a `server/engine` könyvtárból.
+- [x] Elkészíteni a webclient standard, bot és item-viewer buildjeit.
+- [x] Elindítani a gateway-t a `server/gateway` könyvtárból.
+- [x] Ellenőrizni, hogy a gateway a `ws://localhost:7780` címen elérhető.
+- [x] Létrehozni egy kizárólag lokális tesztbotot.
+- [x] A botot a helyi `localhost:8888` szerverhez és `localhost:7780` gatewayhez kötni.
+- [x] Végrehajtani egy minimális smoke tesztet: csatlakozás, állapotlekérés, mozgás,
   egy egyszerű interakció és tiszta leállítás.
-- [ ] Ellenőrizni az újraindítás utáni állapotot és adatmegőrzést.
+- [x] Ellenőrizni az újraindítás utáni állapotot és adatmegőrzést.
 
 Elfogadási feltétel: mindhárom szolgáltatás helyben fut, a bot csatlakozik, és a
 smoke teszt dokumentáltan megismételhető.
@@ -204,9 +204,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## Aktuális következő lépések
 
-1. GitHubon elkészíteni a forkot.
-2. A forkot az üres `rs-sdk/` könyvtárba klónozni.
-3. A 2–3. fázist végigvinni módosítás nélkül, hogy legyen stabil baseline.
-4. Felmérni: XP award pontok, content scriptek, player persistence és az
+1. A baseline branchet PR-on keresztül beolvasztani a saját fork `main` ágába.
+2. Egységes, egyparancsos helyi indító- és leállítófolyamatot készíteni.
+3. Felmérni: XP award pontok, content scriptek, player persistence és az
    `agent-skills` optimális helye.
-5. Az első saját fejlesztés előtt elmenteni a sikeres smoke teszt eredményét.
+4. Megtervezni és implementálni az első saját bányászat + bankolás agent skillt.
+5. Az első játékmódosítás előtt menthető és visszaállítható baseline-t készíteni.
