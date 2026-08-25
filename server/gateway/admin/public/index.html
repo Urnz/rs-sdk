@@ -133,6 +133,20 @@
         </div>
     </dialog>
 
+    <dialog id="skill-dialog">
+        <form id="skill-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">AGENT SKILL</p><h2>Skill hozzárendelése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="username" type="hidden">
+            <label>Bot<strong id="skill-bot-name" class="field-value">–</strong></label>
+            <label>Verified skill<select id="skill-select" name="skill" required></select></label>
+            <div id="skill-description" class="skill-description"></div>
+            <div id="skill-parameters" class="skill-parameters"></div>
+            <label>Indoklás<input name="reason" value="Kézi agent-skill hozzárendelés" required></label>
+            <p class="dialog-note">Egyszerre egy agent skill futhat egy boton. A futás az auditnaplóba és a skill journalba is bekerül.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Skill indítása</button></div>
+        </form>
+    </dialog>
+
     <div id="toast" class="toast" role="status"></div>
     <script src="admin.js" type="module"></script>
 </body>

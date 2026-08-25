@@ -2,6 +2,7 @@ const state = {
     bots: [],
     economy: null,
     config: null,
+    skills: [],
     sort: { key: 'status', direction: 1 },
     selected: null,
     spectating: null,
@@ -99,10 +100,15 @@ function actionButtons(bot) {
     const spectate = bot.status === 'active'
         ? `<button class="button small spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Spectate</button>`
         : '';
+    const skill = bot.currentSkill
+        ? `<button class="button small danger-outline" data-action="stop-skill" data-name="${escapeHtml(bot.username)}">Skill stop</button>`
+        : bot.status === 'active' && bot.hasCredentials
+            ? `<button class="button small skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill indítás</button>`
+            : '';
     const remove = bot.status === 'offline' || bot.status === 'error'
         ? `<button class="button small ghost" data-action="delete" data-name="${escapeHtml(bot.username)}">Törlés</button>`
         : '';
-    return `<div class="row-actions">${primary}${spectate}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
+    return `<div class="row-actions">${primary}${skill}${spectate}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
 }
 
 function renderTable() {
@@ -136,7 +142,7 @@ function openProfile(username) {
     if (!bot) return;
     state.selected = username;
     $('#profile-content').innerHTML = `
-        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p>${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div>
+        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p><div class="profile-actions">${bot.currentSkill ? `<button class="button danger-outline" data-action="stop-skill" data-name="${escapeHtml(bot.username)}">Skill leállítása</button>` : bot.status === 'active' && bot.hasCredentials ? `<button class="button skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill hozzárendelése</button>` : ''}${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div></div>
         <div class="profile-grid"><div><span>Total level</span><strong>${fmt.format(bot.totalLevel)}</strong></div><div><span>Combat</span><strong>${fmt.format(bot.combatLevel)}</strong></div><div><span>Pénz</span><strong>${fmt.format(bot.coins)} gp</strong></div><div><span>Összes XP</span><strong>${fmt.format(bot.totalXp)}</strong></div><div><span>Pozíció</span><strong>${bot.position ? `${bot.position.x}, ${bot.position.z}` : '–'}</strong></div><div><span>Mentés</span><strong>${bot.hasSave ? 'van' : 'nincs'}</strong></div></div>
         ${bot.currentSkill ? `<p><strong>Aktív agent skill:</strong> ${escapeHtml(bot.currentSkill)}<br><span class="muted">Run: ${escapeHtml(bot.runId || '–')}</span></p>` : ''}
         <h3 class="section-title">Skillek</h3><div class="skill-list">${bot.skills.map(skill => `<div class="skill"><span>${escapeHtml(skill.name)}</span><strong>${skill.level}</strong></div>`).join('')}</div>
@@ -224,6 +230,42 @@ function closeSpectate() {
     $('#spectate-dialog').close();
 }
 
+function selectedSkill() {
+    return state.skills.find(skill => skill.reference === $('#skill-select').value) || null;
+}
+
+function renderSkillParameters() {
+    const skill = selectedSkill();
+    if (!skill) {
+        $('#skill-description').innerHTML = '<span class="muted">Nincs választható verified skill.</span>';
+        $('#skill-parameters').innerHTML = '';
+        return;
+    }
+    $('#skill-description').innerHTML = `<strong>${escapeHtml(skill.name)}</strong><p>${escapeHtml(skill.description)}</p><span>${skill.tags.map(tag => escapeHtml(tag)).join(' · ')} · max. ${Math.round(skill.limits.timeoutMs / 1000)} mp</span>`;
+    const entries = Object.entries(skill.parameters);
+    $('#skill-parameters').innerHTML = entries.length ? entries.map(([name, parameter]) => {
+        const required = parameter.required && parameter.default === undefined ? 'required' : '';
+        const value = parameter.default ?? '';
+        let control;
+        if (parameter.enum) {
+            control = `<select data-param="${escapeHtml(name)}" data-type="${parameter.type}" ${required}>${parameter.enum.map(option => `<option value="${escapeHtml(option)}" ${Object.is(option, value) ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select>`;
+        } else if (parameter.type === 'boolean') {
+            control = `<input data-param="${escapeHtml(name)}" data-type="boolean" type="checkbox" ${value === true ? 'checked' : ''}>`;
+        } else {
+            control = `<input data-param="${escapeHtml(name)}" data-type="${parameter.type}" type="${parameter.type === 'number' ? 'number' : 'text'}" value="${escapeHtml(value)}" ${parameter.minimum !== undefined ? `min="${parameter.minimum}"` : ''} ${parameter.maximum !== undefined ? `max="${parameter.maximum}"` : ''} ${required}>`;
+        }
+        return `<label>${escapeHtml(name)}${control}<span>${escapeHtml(parameter.description)}</span></label>`;
+    }).join('') : '<p class="dialog-note">Ehhez a skillhez nincs beállítandó paraméter.</p>';
+}
+
+function showSkill(username) {
+    const form = $('#skill-form'); form.reset(); form.elements.username.value = username;
+    form.elements.reason.value = 'Kézi agent-skill hozzárendelés';
+    $('#skill-bot-name').textContent = state.bots.find(bot => bot.username === username)?.displayName || username;
+    $('#skill-select').innerHTML = state.skills.map(skill => `<option value="${escapeHtml(skill.reference)}">${escapeHtml(skill.name)} · ${escapeHtml(skill.version)}</option>`).join('');
+    renderSkillParameters(); $('#skill-dialog').showModal();
+}
+
 function drawChart(snapshots) {
     const canvas = $('#economy-chart');
     const rect = canvas.getBoundingClientRect();
@@ -285,6 +327,13 @@ document.addEventListener('click', async event => {
     try {
         if (button.dataset.action === 'profile') openProfile(name);
         if (button.dataset.action === 'spectate') openSpectate(name);
+        if (button.dataset.action === 'start-skill') showSkill(name);
+        if (button.dataset.action === 'stop-skill') {
+            const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
+            if (!reason) return;
+            await api(`/api/admin/bots/${encodeURIComponent(name)}/stop-skill`, { method: 'POST', mutation: true, body: JSON.stringify({ reason }) });
+            toast(`${name} skilljének leállítása elindult.`); await refresh();
+        }
         if (button.dataset.action === 'spawn') showSpawn(name);
         if (button.dataset.action === 'restart') {
             const reason = prompt(`${name} újraindításának oka:`, 'Beragadt vagy nem válaszoló bot újraindítása');
@@ -334,6 +383,24 @@ $('#snapshot-form').addEventListener('submit', async event => {
     } catch (error) { toast(error.message, true); }
 });
 
+$('#skill-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form), parameters = {};
+    for (const control of $('#skill-parameters').querySelectorAll('[data-param]')) {
+        if (control.dataset.type !== 'boolean' && control.value === '' && !control.required) continue;
+        if (control.dataset.type === 'boolean') parameters[control.dataset.param] = control.type === 'checkbox' ? control.checked : control.value === 'true';
+        else if (control.dataset.type === 'number') parameters[control.dataset.param] = Number(control.value);
+        else parameters[control.dataset.param] = control.value;
+    }
+    try {
+        await api(`/api/admin/bots/${encodeURIComponent(data.get('username'))}/start-skill`, {
+            method: 'POST', mutation: true,
+            body: JSON.stringify({ skill: data.get('skill'), parameters, reason: data.get('reason') })
+        });
+        form.closest('dialog').close(); toast(`${data.get('username')} skillje elindult.`); await refresh();
+    } catch (error) { toast(error.message, true); }
+});
+
 for (const selector of ['#search-filter', '#status-filter', '#skill-filter', '#coins-filter']) {
     $(selector).addEventListener('input', renderTable);
 }
@@ -347,11 +414,13 @@ $('thead').addEventListener('click', event => {
 $('#clear-filters').addEventListener('click', () => { for (const id of ['search-filter', 'status-filter', 'skill-filter', 'coins-filter']) $(`#${id}`).value = ''; renderTable(); });
 $('#new-bot-button').addEventListener('click', () => showSpawn());
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });
+$('#skill-select').addEventListener('change', renderSkillParameters);
 $('#close-profile').addEventListener('click', closeProfile); $('#drawer-backdrop').addEventListener('click', closeProfile);
 $('#close-spectate').addEventListener('click', closeSpectate);
 $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault(); closeSpectate(); });
 document.querySelectorAll('.dialog-close:not(#close-spectate)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
-state.config = await api('/api/admin/config');
+const bootstrap = await Promise.all([api('/api/admin/config'), api('/api/admin/skills')]);
+state.config = bootstrap[0]; state.skills = bootstrap[1].skills;
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

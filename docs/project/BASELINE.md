@@ -1,10 +1,10 @@
-# Helyi baseline – 2026-08-19
+# Helyi baseline – 2026-08-25
 
 ## Verziók
 
 - Upstream: `MaxBittker/rs-sdk`
 - Kiinduló commit: `9cd3d7019ad3a8654ee31d22af3272d91fe1881e`
-- Fejlesztői ág: `codex/agent-skill-framework`
+- Fejlesztői ág: `codex/bot-admin-dashboard`
 - Git: `2.52.0.windows.1`
 - Bun: `1.3.14` (`0d9b296af`)
 - Node.js: `22.16.0` (a projekt futtatása Bun alatt történik)
@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 288 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 290 teszt sikeres, 0 sikertelen.
 
 ## Botadmin baseline
 
@@ -34,6 +34,10 @@
   `.local/admin/audit.jsonl` auditnaplóval futnak.
 - A bot eltávolítása csak offline állapotban, pontos névmegerősítéssel lehetséges,
   és első körben visszaállítható karanténba mozgatást jelent.
+- Az adminfelület csak a verziózott, `verified + shared` agent skilleket kínálja
+  fel, a paraméterűrlapot a skill sémájából építi, és szerveroldalon is validálja.
+- Online, helyi hitelesítő adatokkal rendelkező bothoz egy agent skill indítható;
+  a futás külön naplót, aktív futásjelzőt és indítási/leállítási auditot kap.
 
 ## Smoke teszt
 

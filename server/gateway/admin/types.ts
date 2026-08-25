@@ -39,6 +39,16 @@ export interface ManagedProcessSnapshot {
     error?: string;
 }
 
+export interface ManagedSkillRunSnapshot {
+    status: 'starting' | 'running' | 'stopping' | 'exited' | 'error';
+    pid: number | null;
+    skill: string;
+    startedAt: string;
+    exitCode: number | null;
+    logPath: string;
+    error?: string;
+}
+
 export interface BotCatalogEntry {
     username: string;
     displayName: string;

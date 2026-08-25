@@ -16,6 +16,8 @@ Az elkészült funkciók:
 - bejelentkezés nélküli élő Spectate-radar közeli játékosokkal, NPC-kkel,
   objektumokkal, földi itemekkel, inventoryval és játéküzenetekkel;
 - bot spawn, despawn és restart, valamint futó agent-skill megszakítása;
+- verziózott `verified + shared` agent-skill kiválasztása, séma alapján generált
+  paraméterezése és indítása online, kezelt bothoz;
 - új vagy korábban elmentett helyi bot hitelesítő adatainak kezelése;
 - helyi jogosultságvédelem, minden módosításhoz kötelező indoklás és JSONL audit;
 - visszaállítható eltávolítás: az offline bot mentése és helyi konfigurációja
@@ -27,6 +29,12 @@ Az audit és a gazdasági idősor a `.local/admin/` könyvtárban marad, ezért 
 kerül Gitbe. Ha az adminfelületet nem csak localhoston használjuk, indítás előtt
 `ADMIN_TOKEN` szükséges; token nélkül a módosítások kizárólag az azonos eredetű
 helyi oldalról engedélyezettek.
+
+A kézzel indított skill futásnaplója a `.local/admin/skill-logs/<bot>/`
+könyvtárba kerül. Botonként egyszerre egy agent skill indítható. A böngésző csak
+a verified katalógust jeleníti meg, de az engedélyezettséget és minden paramétert
+a backend ismét ellenőriz, ezért módosított böngészőkérés sem tud draft vagy
+ismeretlen skillt elindítani.
 
 Ugyanazzal a névvel és jelszóval a normál vagy botkliensbe belépni nem megfigyelés:
 az engine és a gateway ezt új sessionnek tekinti, ezért az előző headless botot
@@ -67,7 +75,7 @@ Az adminművelet rögzíti az operátort, indoklást, időpontot, előtte/utána
 
 ## Következő kiadás
 
-1. Élő vezérlés: skill hozzárendelés és kontrollált teleport.
+1. Élő vezérlés folytatása: kontrollált teleport.
 2. Offline szerkesztés: XP/szint, pénz, inventory és bank biztonságos módosítása.
 3. Élő világtérkép és részletes skill-futástörténet.
 4. Gazdasági dashboard bővítése: teljes vagyon, termelés,

@@ -10,6 +10,7 @@ export const webclientDir = join(repoRoot, 'server', 'webclient');
 export const adminPublicDir = join(adminDir, 'public');
 export const adminLocalDir = join(repoRoot, '.local', 'admin');
 export const adminLogsDir = join(adminLocalDir, 'logs');
+export const adminSkillLogsDir = join(adminLocalDir, 'skill-logs');
 export const adminTrashDir = join(adminLocalDir, 'trash');
 export const activeSkillsDir = join(adminLocalDir, 'active-skills');
 export const auditLogPath = join(adminLocalDir, 'audit.jsonl');

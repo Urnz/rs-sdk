@@ -46,6 +46,8 @@ input:focus, select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgb
 .button.primary { color: #15140d; background: var(--gold); }
 .button.secondary { background: var(--panel-2); border-color: var(--border); }
 .button.spectate { color: #dcefff; background: #23445b; border-color: #376b8c; }
+.button.skill-button { color: #e8f5dd; background: #315329; border-color: #4f7d43; }
+.button.danger-outline { color: #ffaaa2; background: transparent; border-color: #86443e; }
 .button.ghost { background: transparent; border-color: var(--border); }
 .button.danger { background: var(--red); color: #1c0b09; }
 .button.small { padding: 6px 9px; font-size: 12px; }
@@ -76,6 +78,7 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .backdrop { position: fixed; z-index: 19; inset: 0; visibility: hidden; opacity: 0; background: #0009; transition: opacity .22s; }
 .backdrop.open { visibility: visible; opacity: 1; }
 .profile-header { padding-right: 35px; margin-bottom: 25px; }
+.profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .profile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 18px 0 25px; }
 .profile-grid div { padding: 10px; background: var(--panel-2); border-radius: 8px; }
 .profile-grid span { display: block; color: var(--muted); font-size: 11px; }.profile-grid strong { font-size: 16px; }
@@ -104,6 +107,12 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .dialog-actions { justify-content: flex-end; margin-top: 4px; }
 .check { display: flex; grid-template-columns: auto 1fr; align-items: start; gap: 9px; }.check input { width: auto; margin-top: 3px; }
 .dialog-note { margin: 0; color: var(--muted); font-size: 12px; }
+.field-value { color: var(--text); font-size: 15px; }
+.skill-description { padding: 12px; background: var(--panel-2); border-radius: 8px; }
+.skill-description p { margin: 4px 0; }.skill-description span,.skill-parameters label span { color: var(--muted); font-size: 11px; }
+.skill-parameters { display: grid; gap: 11px; }
+.skill-parameters label { padding-left: 10px; border-left: 2px solid var(--border); }
+.skill-parameters input[type='checkbox'] { width: auto; justify-self: start; }
 .danger-text { color: var(--red); }
 .toast { position: fixed; z-index: 40; left: 50%; bottom: 25px; max-width: min(560px, 90vw); padding: 11px 15px; color: #111; background: var(--green); border-radius: 9px; box-shadow: var(--shadow); opacity: 0; transform: translate(-50%, 15px); pointer-events: none; transition: .2s; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }.toast.error { background: var(--red); }

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { createSaveData, Items, Locations } from '../../../sdk/test/utils/save-generator';
 import { deriveAdminStatus, economySnapshot } from './catalog';
 import { readPlayerSave } from './save-reader';
+import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import type { BotCatalogEntry } from './types';
 
 const temporaryDirectories: string[] = [];
@@ -88,5 +89,27 @@ describe('admin lifecycle status', () => {
     test('keeps a newly spawned process in the starting grace period', () => {
         const now = Date.parse('2026-08-20T00:00:10Z');
         expect(deriveAdminStatus(undefined, process('running', '2026-08-20T00:00:00Z'), now)).toBe('starting');
+    });
+});
+
+describe('admin agent skill catalog', () => {
+    test('lists only the latest verified shared versions', async () => {
+        const skills = await listAdminSkills();
+        expect(skills.length).toBeGreaterThanOrEqual(5);
+        expect(new Set(skills.map(skill => skill.id)).size).toBe(skills.length);
+        expect(skills).toContainEqual(expect.objectContaining({
+            reference: 'mining.varrock-east.copper-to-bank@1.0.0',
+            name: 'Varrock east copper to bank'
+        }));
+    });
+
+    test('applies defaults and rejects missing, unknown or out-of-range parameters', async () => {
+        const production = await resolveAdminSkill('production.varrock.bronze-daggers@1.0.0');
+        expect(validateAdminSkillParameters(production.definition, {})).toEqual({ 'target-items': 1 });
+        expect(() => validateAdminSkillParameters(production.definition, { 'target-items': 6 })).toThrow('legfeljebb 5');
+        expect(() => validateAdminSkillParameters(production.definition, { unexpected: 1 })).toThrow('Ismeretlen');
+
+        const trade = await resolveAdminSkill('trade.lumbridge.give-item@1.0.0');
+        expect(() => validateAdminSkillParameters(trade.definition, {})).toThrow('recipient');
     });
 });

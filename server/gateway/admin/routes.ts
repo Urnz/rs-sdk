@@ -4,6 +4,7 @@ import { appendAudit, readAudit } from './audit';
 import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, recordEconomy } from './catalog';
 import { adminPublicDir, adminTrashDir, botsDir, experimentsDir, playerSavesDir } from './paths';
 import { BotSupervisor } from './supervisor';
+import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import type { GatewayBotSnapshot } from './types';
 
 export interface AdminRouteContext {
@@ -140,6 +141,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ snapshots: files.filter(file => file.endsWith('.json')).sort().reverse() });
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/skills') {
+            return json({ skills: await listAdminSkills() });
+        }
+
         const spectateMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/spectate$/);
         if (req.method === 'GET' && spectateMatch?.[1]) {
             const username = decodeURIComponent(spectateMatch[1]).toLowerCase();
@@ -213,6 +218,36 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 return json({ ok: true, process }, 202);
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'bot.spawn', username, reason, success: false, error: String(error) });
+                throw error;
+            }
+        }
+
+        const startSkillMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/start-skill$/);
+        if (req.method === 'POST' && startSkillMatch?.[1]) {
+            const username = decodeURIComponent(startSkillMatch[1]);
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const requested = text(body, 'skill', true);
+            try {
+                const bot = (await catalog()).find(entry => entry.username === username.toLowerCase());
+                if (!bot) throw new Error('A bot nem található.');
+                if (bot.status !== 'active') throw new Error('Agent skill csak friss, online bothoz indítható.');
+                if (!bot.hasCredentials) throw new Error('Skill indításához a bot helyi bot.env hitelesítő adata szükséges.');
+                if (bot.currentSkill) throw new Error(`${bot.displayName} már a(z) ${bot.currentSkill} skillt futtatja.`);
+                const registered = await resolveAdminSkill(requested);
+                const parameters = validateAdminSkillParameters(registered.definition, body.parameters);
+                const skill = `${registered.definition.id}@${registered.definition.version}`;
+                const process = await context.supervisor.startSkill(username, skill, parameters);
+                await appendAudit({
+                    operator: 'local-admin', action: 'bot.start-skill', username, reason, success: true,
+                    before: { currentSkill: bot.currentSkill }, after: { skill, parameters, process }
+                });
+                return json({ ok: true, skill, parameters, process }, 202);
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'bot.start-skill', username, reason, success: false,
+                    after: { requested }, error: String(error)
+                });
                 throw error;
             }
         }
