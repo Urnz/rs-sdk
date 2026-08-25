@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 290 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 292 teszt sikeres, 0 sikertelen.
 
 ## Botadmin baseline
 
@@ -38,6 +38,12 @@
   fel, a paraméterűrlapot a skill sémájából építi, és szerveroldalon is validálja.
 - Online, helyi hitelesítő adatokkal rendelkező bothoz egy agent skill indítható;
   a futás külön naplót, aktív futásjelzőt és indítási/leállítási auditot kap.
+- Online, éppen nem harcoló és agent skillt nem futtató bot az adminpanel öt
+  jóváhagyott célpontjára teleportálható. A gateway és az engine ugyanazt a
+  verziókezelt célpontlistát használja.
+- A teleport nem a mentést vagy a klienst írja: egyszer használatos belső tokennel
+  védett engine-parancs, amely a következő world tickben ismét ellenőrzi a játékost,
+  a világot és a célmező collision állapotát.
 
 ## Smoke teszt
 

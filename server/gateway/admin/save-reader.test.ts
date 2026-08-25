@@ -6,6 +6,7 @@ import { createSaveData, Items, Locations } from '../../../sdk/test/utils/save-g
 import { deriveAdminStatus, economySnapshot } from './catalog';
 import { readPlayerSave } from './save-reader';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
+import { listAdminTeleportDestinations, resolveAdminTeleportDestination } from './teleport';
 import type { BotCatalogEntry } from './types';
 
 const temporaryDirectories: string[] = [];
@@ -58,7 +59,8 @@ describe('admin economy aggregation', () => {
     test('aggregates bot money, xp, online count and item stock', () => {
         const base = {
             username: 'a', displayName: 'A', status: 'active', managed: true, hasSave: true,
-            hasCredentials: true, canSpawn: false, canDespawn: true, canRestart: true, currentSkill: null, runId: null,
+            hasCredentials: true, canSpawn: false, canDespawn: true, canRestart: true, canTeleport: true,
+            currentSkill: null, runId: null,
             lastError: null, lastActivityAt: null, stateAgeMs: 0, position: null, combatLevel: 3,
             totalLevel: 40, totalXp: 1_000, coins: 500, activity: 'Idle', skills: [], equipment: [],
             process: null
@@ -111,5 +113,22 @@ describe('admin agent skill catalog', () => {
 
         const trade = await resolveAdminSkill('trade.lumbridge.give-item@1.0.0');
         expect(() => validateAdminSkillParameters(trade.definition, {})).toThrow('recipient');
+    });
+});
+
+describe('admin teleport destinations', () => {
+    test('loads unique, bounded, named destinations', async () => {
+        const destinations = await listAdminTeleportDestinations();
+        expect(destinations.length).toBeGreaterThanOrEqual(5);
+        expect(new Set(destinations.map(destination => destination.id)).size).toBe(destinations.length);
+        expect(destinations.every(destination => destination.level >= 0 && destination.level <= 3)).toBe(true);
+        expect(destinations).toContainEqual(expect.objectContaining({
+            id: 'lumbridge-courtyard', x: 3222, z: 3218, level: 0
+        }));
+    });
+
+    test('rejects destinations outside the approved catalog', async () => {
+        await expect(resolveAdminTeleportDestination('lumbridge-courtyard')).resolves.toMatchObject({ label: expect.any(String) });
+        await expect(resolveAdminTeleportDestination('arbitrary-coordinate')).rejects.toThrow('Nem engedélyezett');
     });
 });

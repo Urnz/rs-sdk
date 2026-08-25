@@ -164,6 +164,7 @@ export async function buildBotCatalog(
             canSpawn: !processIsAlive && (status === 'offline' || status === 'error'),
             canDespawn: status === 'active' || status === 'stale' || status === 'starting',
             canRestart: hasCredentials && (status === 'active' || status === 'stale' || status === 'error'),
+            canTeleport: status === 'active' && !activeSkill && !!state?.player && !state.player.combat.inCombat,
             currentSkill: activeSkill ? `${activeSkill.skillId}@${activeSkill.version}` : null,
             runId: activeSkill?.runId ?? null,
             lastError: process?.error ?? save?.error ?? null,

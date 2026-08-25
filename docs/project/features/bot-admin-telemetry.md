@@ -18,6 +18,7 @@ Az elkészült funkciók:
 - bot spawn, despawn és restart, valamint futó agent-skill megszakítása;
 - verziózott `verified + shared` agent-skill kiválasztása, séma alapján generált
   paraméterezése és indítása online, kezelt bothoz;
+- biztonságos online teleport öt névvel ellátott, verziókezelt célpontra;
 - új vagy korábban elmentett helyi bot hitelesítő adatainak kezelése;
 - helyi jogosultságvédelem, minden módosításhoz kötelező indoklás és JSONL audit;
 - visszaállítható eltávolítás: az offline bot mentése és helyi konfigurációja
@@ -35,6 +36,18 @@ könyvtárba kerül. Botonként egyszerre egy agent skill indítható. A böngé
 a verified katalógust jeleníti meg, de az engedélyezettséget és minden paramétert
 a backend ismét ellenőriz, ezért módosított böngészőkérés sem tud draft vagy
 ismeretlen skillt elindítani.
+
+A teleport célpontjai a `config/admin-teleport-destinations.json` fájlban vannak.
+A böngésző és a gateway csak célpontazonosítót küld; tetszőleges koordináta nem
+adható át. Az engine ugyanebből a fájlból oldja fel a koordinátát, majd a következő
+world tickben ellenőrzi, hogy a játékos online és szabad, a zóna betöltött, a cél
+az aktív világ része, valamint a mező nem blokkolt és nincs rajta játékos vagy NPC.
+Aktív agent skill vagy harc közben már a gateway is elutasítja a műveletet.
+
+A gateway–engine módosító csatornát futásonként generált `ENGINE_ADMIN_TOKEN`
+védi. A `scripts/start-local.ps1` ezt csak a gatewaynek és az engine-nek adja át;
+a botfolyamat nem örökli. Kézi komponensindításnál mindkét szolgáltatásnak ugyanazt
+az értéket kell megkapnia.
 
 Ugyanazzal a névvel és jelszóval a normál vagy botkliensbe belépni nem megfigyelés:
 az engine és a gateway ezt új sessionnek tekinti, ezért az előző headless botot
@@ -75,9 +88,8 @@ Az adminművelet rögzíti az operátort, indoklást, időpontot, előtte/utána
 
 ## Következő kiadás
 
-1. Élő vezérlés folytatása: kontrollált teleport.
-2. Offline szerkesztés: XP/szint, pénz, inventory és bank biztonságos módosítása.
-3. Élő világtérkép és részletes skill-futástörténet.
-4. Gazdasági dashboard bővítése: teljes vagyon, termelés,
+1. Offline szerkesztés: XP/szint, pénz, inventory és bank biztonságos módosítása.
+2. Élő világtérkép és részletes skill-futástörténet.
+3. Gazdasági dashboard bővítése: teljes vagyon, termelés,
    fogyasztás, shop-tranzakciók, player trade és XP/óra idősorok.
-5. Kontrollcsoportok és több kísérleti snapshot összehasonlító nézete.
+4. Kontrollcsoportok és több kísérleti snapshot összehasonlító nézete.

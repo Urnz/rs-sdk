@@ -1,0 +1,42 @@
+[
+    {
+        "id": "lumbridge-courtyard",
+        "label": "Lumbridge kastély – udvar",
+        "description": "Nyílt terület a Lumbridge kastély előtt.",
+        "x": 3222,
+        "z": 3218,
+        "level": 0
+    },
+    {
+        "id": "varrock-east-bank",
+        "label": "Varrock keleti bank",
+        "description": "A keleti bank bejáratánál lévő ellenőrzött mező.",
+        "x": 3252,
+        "z": 3420,
+        "level": 0
+    },
+    {
+        "id": "varrock-east-mine",
+        "label": "Varrock keleti bánya",
+        "description": "Nyílt mező a verified rézbányász útvonal célterületén.",
+        "x": 3285,
+        "z": 3365,
+        "level": 0
+    },
+    {
+        "id": "draynor-bank",
+        "label": "Draynor bank",
+        "description": "A verified lobster útvonal banki célterülete.",
+        "x": 3092,
+        "z": 3243,
+        "level": 0
+    },
+    {
+        "id": "musa-point-fishing",
+        "label": "Musa Point – lobster fishing",
+        "description": "Nyílt partszakasz a verified lobster-halász útvonalon.",
+        "x": 2923,
+        "z": 3179,
+        "level": 0
+    }
+]

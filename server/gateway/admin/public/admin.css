@@ -47,6 +47,7 @@ input:focus, select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgb
 .button.secondary { background: var(--panel-2); border-color: var(--border); }
 .button.spectate { color: #dcefff; background: #23445b; border-color: #376b8c; }
 .button.skill-button { color: #e8f5dd; background: #315329; border-color: #4f7d43; }
+.button.teleport { color: #f0e4ff; background: #4c3565; border-color: #76549a; }
 .button.danger-outline { color: #ffaaa2; background: transparent; border-color: #86443e; }
 .button.ghost { background: transparent; border-color: var(--border); }
 .button.danger { background: var(--red); color: #1c0b09; }

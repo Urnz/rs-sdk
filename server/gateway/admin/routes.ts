@@ -5,6 +5,7 @@ import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, re
 import { adminPublicDir, adminTrashDir, botsDir, experimentsDir, playerSavesDir } from './paths';
 import { BotSupervisor } from './supervisor';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
+import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
 import type { GatewayBotSnapshot } from './types';
 
 export interface AdminRouteContext {
@@ -145,6 +146,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ skills: await listAdminSkills() });
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/teleport-destinations') {
+            return json({ destinations: await listAdminTeleportDestinations() });
+        }
+
         const spectateMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/spectate$/);
         if (req.method === 'GET' && spectateMatch?.[1]) {
             const username = decodeURIComponent(spectateMatch[1]).toLowerCase();
@@ -247,6 +252,38 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({
                     operator: 'local-admin', action: 'bot.start-skill', username, reason, success: false,
                     after: { requested }, error: String(error)
+                });
+                throw error;
+            }
+        }
+
+        const teleportMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/teleport$/);
+        if (req.method === 'POST' && teleportMatch?.[1]) {
+            const username = decodeURIComponent(teleportMatch[1]);
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const destinationId = text(body, 'destinationId', true);
+            const commandId = crypto.randomUUID();
+            try {
+                const bot = (await catalog()).find(entry => entry.username === username.toLowerCase());
+                if (!bot) throw new Error('A bot nem található.');
+                if (bot.status !== 'active') throw new Error('Csak friss, online bot teleportálható.');
+                if (bot.currentSkill) throw new Error('Teleport előtt állítsd le a bot aktív agent skilljét.');
+                const gatewayEntry = [...context.gatewayBots().entries()]
+                    .find(([name]) => name.toLowerCase() === username.toLowerCase())?.[1];
+                if (!gatewayEntry?.state?.player) throw new Error('A bot nem küld friss játékállapotot.');
+                if (gatewayEntry.state.player.combat.inCombat) throw new Error('Harcban lévő bot nem teleportálható.');
+                const destination = await resolveAdminTeleportDestination(destinationId);
+                const result = await requestEngineTeleport(username, destination.id, commandId);
+                await appendAudit({
+                    operator: 'local-admin', action: 'bot.teleport', username, reason, success: true,
+                    before: result.before ?? bot.position, after: { destination, position: result.after, engineTick: result.tick, commandId }
+                });
+                return json({ ok: true, destination, result });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'bot.teleport', username, reason, success: false,
+                    after: { destinationId, commandId }, error: String(error)
                 });
                 throw error;
             }

@@ -147,6 +147,20 @@
         </form>
     </dialog>
 
+    <dialog id="teleport-dialog">
+        <form id="teleport-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">ENGINE TICK PARANCS</p><h2>Biztonságos teleport</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="username" type="hidden">
+            <label>Bot<strong id="teleport-bot-name" class="field-value">–</strong></label>
+            <label>Jelenlegi pozíció<strong id="teleport-current-position" class="field-value">–</strong></label>
+            <label>Célpont<select id="teleport-destination" name="destinationId" required></select></label>
+            <p id="teleport-description" class="skill-description"></p>
+            <label>Indoklás<input name="reason" value="Kézi admin teleport" required></label>
+            <p class="dialog-note">Csak előre jóváhagyott, járható célmező választható. Aktív skill, harc vagy foglalt játékállapot közben az engine elutasítja a teleportot.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button teleport" value="submit">Teleport</button></div>
+        </form>
+    </dialog>
+
     <div id="toast" class="toast" role="status"></div>
     <script src="admin.js" type="module"></script>
 </body>

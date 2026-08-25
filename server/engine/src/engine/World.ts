@@ -54,6 +54,7 @@ import { PlayerTelemetryEvent } from '#/engine/entity/tracking/PlayerTelemetry.j
 import { SessionLog } from '#/engine/entity/tracking/SessionLog.js';
 import { WealthTransactionEvent, WealthEvent } from '#/engine/entity/tracking/WealthEvent.js';
 import GameMap, { changeLocCollision, changeNpcCollision, changePlayerCollision } from '#/engine/GameMap.js';
+import { CollisionFlag, isFlagged, isZoneAllocated } from '#/engine/routefinder/index.js';
 import { Inventory } from '#/engine/Inventory.js';
 import ScriptPointer from '#/engine/script/ScriptPointer.js';
 import ScriptProvider from '#/engine/script/ScriptProvider.js';
@@ -109,6 +110,38 @@ const priv = forge.pki.privateKeyFromPem(fs.readFileSync('data/config/private.pe
 type LogoutRequest = {
     save: Uint8Array;
     lastAttempt: number;
+};
+
+export interface AdminTeleportDestination {
+    id: string;
+    label: string;
+    description: string;
+    x: number;
+    z: number;
+    level: number;
+}
+
+export interface AdminTeleportCommand {
+    commandId: string;
+    username: string;
+    destination: AdminTeleportDestination;
+    expiresAt: number;
+}
+
+export interface AdminTeleportResult {
+    ok: boolean;
+    commandId: string;
+    username: string;
+    destination: AdminTeleportDestination;
+    before?: { x: number; z: number; level: number };
+    after?: { x: number; z: number; level: number };
+    tick?: number;
+    code?: string;
+    error?: string;
+}
+
+type PendingAdminTeleport = AdminTeleportCommand & {
+    resolve: (result: AdminTeleportResult) => void;
 };
 
 class World {
@@ -171,6 +204,7 @@ class World {
     readonly queue: LinkList<EntityQueueState> = new LinkList();
     readonly npcEventQueue: LinkList<NpcEventRequest> = new LinkList();
     readonly objDelayedQueue: LinkList<ObjDelayedRequest> = new LinkList();
+    private readonly adminTeleportQueue: PendingAdminTeleport[] = [];
 
     // debug data
     readonly lastCycleStats: Uint16Array = new Uint16Array(12);
@@ -391,6 +425,10 @@ class World {
             // - client input tracking
             this.processClientsIn();
 
+            // Local admin commands execute at an explicit world-tick boundary after
+            // pending client packets are visible, but before entity processing/movement.
+            this.processAdminTeleports();
+
             // Spawn triggers, despawn triggers
             this.processNpcEventQueue();
 
@@ -610,6 +648,95 @@ class World {
 
     // - world queue
     // - npc hunt
+    enqueueAdminTeleport(command: AdminTeleportCommand): Promise<AdminTeleportResult> {
+        if (this.adminTeleportQueue.length >= 50) {
+            return Promise.resolve({
+                ok: false,
+                commandId: command.commandId,
+                username: command.username,
+                destination: command.destination,
+                code: 'queue-full',
+                error: 'The engine admin command queue is full.'
+            });
+        }
+        return new Promise(resolve => this.adminTeleportQueue.push({ ...command, resolve }));
+    }
+
+    private processAdminTeleports(): void {
+        const commands = this.adminTeleportQueue.splice(0);
+        for (const command of commands) {
+            const reject = (code: string, error: string, before?: { x: number; z: number; level: number }) => command.resolve({
+                ok: false,
+                commandId: command.commandId,
+                username: command.username,
+                destination: command.destination,
+                before,
+                tick: this.currentTick,
+                code,
+                error
+            });
+            try {
+                if (Date.now() > command.expiresAt) {
+                    reject('expired', 'The admin teleport command expired before a world tick could execute it.');
+                    continue;
+                }
+                if (this.shutdown) {
+                    reject('world-shutdown', 'The world is shutting down.');
+                    continue;
+                }
+                const player = this.getPlayerByUsername(command.username);
+                if (!player || !isClientConnected(player)) {
+                    reject('player-offline', 'The player is not online.');
+                    continue;
+                }
+                const before = { x: player.x, z: player.z, level: player.level };
+                if (!player.canAccess() || player.hasInteraction()) {
+                    reject('player-busy', 'The player is busy; finish the current interaction before teleporting.', before);
+                    continue;
+                }
+                const { x, z, level } = command.destination;
+                if (!isZoneAllocated(x, z, level)) {
+                    reject('destination-unallocated', 'The destination map zone is not allocated.', before);
+                    continue;
+                }
+                if (!Environment.node.members && !this.gameMap.isFreeToPlay(x, z)) {
+                    reject('destination-members', 'The destination is outside the active free-to-play world.', before);
+                    continue;
+                }
+                const blocked = CollisionFlag.WALK_BLOCKED | CollisionFlag.NPC | CollisionFlag.PLAYER;
+                if (isFlagged(x, z, level, blocked)) {
+                    reject('destination-blocked', 'The destination tile is currently blocked.', before);
+                    continue;
+                }
+
+                player.stopAction();
+                player.teleport(x, z, level);
+                const after = { x: player.x, z: player.z, level: player.level };
+                if (after.x !== x || after.z !== z || after.level !== level) {
+                    reject('teleport-not-applied', 'The engine did not apply the requested teleport.', before);
+                    continue;
+                }
+                player.addSessionLog(
+                    LoggerEventType.MODERATOR,
+                    `Admin teleport to ${command.destination.id}`,
+                    command.commandId
+                );
+                player.messageGame(`Admin teleport: ${command.destination.label}`);
+                command.resolve({
+                    ok: true,
+                    commandId: command.commandId,
+                    username: player.displayName,
+                    destination: command.destination,
+                    before,
+                    after,
+                    tick: this.currentTick
+                });
+            } catch (error) {
+                reject('internal-error', error instanceof Error ? error.message : String(error));
+            }
+        }
+    }
+
     private processWorld(): void {
         const start: number = Date.now();
 

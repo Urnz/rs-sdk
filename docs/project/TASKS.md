@@ -96,7 +96,7 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
 - [x] Auditált adminparancsokat készíteni bot spawnhoz, leállításhoz,
   újraindításhoz és futó agent-skill megszakításához.
 - [x] Online bothoz verified agent-skill hozzárendelést és megszakítást készíteni.
-- [ ] Online bothoz biztonságos teleportot készíteni.
+- [x] Online bothoz biztonságos, előre jóváhagyott célpontos teleportot készíteni.
 - [ ] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
   bank módosítást készíteni; futó játékos mentésfájlját közvetlenül nem írjuk.
 - [x] Minden elkészült állapotmódosításhoz jogosultságot, indoklást,
@@ -248,7 +248,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
    profilok, szűrők, spawn/despawn, audit és gazdasági alapidősor.
 6. [x] A 6. fázis második kiadásából az auditált, paraméterezhető verified
    agent-skill hozzárendelést és megszakítást elkészíteni.
-7. A 6. fázis következő részében biztonságos teleportot, offline szerkesztést,
-   élő térképet és részletes tranzakciós telemetriát készíteni.
-8. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
-9. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+7. [x] A biztonságos, auditált online teleportot előre jóváhagyott célpontokkal
+   és engine-ticken végrehajtott paranccsal elkészíteni.
+8. A 6. fázis következő részében offline szerkesztést, élő térképet és részletes
+   tranzakciós telemetriát készíteni.
+9. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
+10. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

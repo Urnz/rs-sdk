@@ -3,6 +3,7 @@ const state = {
     economy: null,
     config: null,
     skills: [],
+    teleportDestinations: [],
     sort: { key: 'status', direction: 1 },
     selected: null,
     spectating: null,
@@ -105,10 +106,13 @@ function actionButtons(bot) {
         : bot.status === 'active' && bot.hasCredentials
             ? `<button class="button small skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill indítás</button>`
             : '';
+    const teleport = bot.canTeleport
+        ? `<button class="button small teleport" data-action="teleport" data-name="${escapeHtml(bot.username)}">Teleport</button>`
+        : '';
     const remove = bot.status === 'offline' || bot.status === 'error'
         ? `<button class="button small ghost" data-action="delete" data-name="${escapeHtml(bot.username)}">Törlés</button>`
         : '';
-    return `<div class="row-actions">${primary}${skill}${spectate}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
+    return `<div class="row-actions">${primary}${skill}${teleport}${spectate}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
 }
 
 function renderTable() {
@@ -142,7 +146,7 @@ function openProfile(username) {
     if (!bot) return;
     state.selected = username;
     $('#profile-content').innerHTML = `
-        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p><div class="profile-actions">${bot.currentSkill ? `<button class="button danger-outline" data-action="stop-skill" data-name="${escapeHtml(bot.username)}">Skill leállítása</button>` : bot.status === 'active' && bot.hasCredentials ? `<button class="button skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill hozzárendelése</button>` : ''}${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div></div>
+        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p><div class="profile-actions">${bot.currentSkill ? `<button class="button danger-outline" data-action="stop-skill" data-name="${escapeHtml(bot.username)}">Skill leállítása</button>` : bot.status === 'active' && bot.hasCredentials ? `<button class="button skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill hozzárendelése</button>` : ''}${bot.canTeleport ? `<button class="button teleport" data-action="teleport" data-name="${escapeHtml(bot.username)}">Biztonságos teleport</button>` : ''}${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div></div>
         <div class="profile-grid"><div><span>Total level</span><strong>${fmt.format(bot.totalLevel)}</strong></div><div><span>Combat</span><strong>${fmt.format(bot.combatLevel)}</strong></div><div><span>Pénz</span><strong>${fmt.format(bot.coins)} gp</strong></div><div><span>Összes XP</span><strong>${fmt.format(bot.totalXp)}</strong></div><div><span>Pozíció</span><strong>${bot.position ? `${bot.position.x}, ${bot.position.z}` : '–'}</strong></div><div><span>Mentés</span><strong>${bot.hasSave ? 'van' : 'nincs'}</strong></div></div>
         ${bot.currentSkill ? `<p><strong>Aktív agent skill:</strong> ${escapeHtml(bot.currentSkill)}<br><span class="muted">Run: ${escapeHtml(bot.runId || '–')}</span></p>` : ''}
         <h3 class="section-title">Skillek</h3><div class="skill-list">${bot.skills.map(skill => `<div class="skill"><span>${escapeHtml(skill.name)}</span><strong>${skill.level}</strong></div>`).join('')}</div>
@@ -266,6 +270,26 @@ function showSkill(username) {
     renderSkillParameters(); $('#skill-dialog').showModal();
 }
 
+function showTeleport(username) {
+    const form = $('#teleport-form'); form.reset(); form.elements.username.value = username;
+    form.elements.reason.value = 'Kézi admin teleport';
+    const bot = state.bots.find(entry => entry.username === username);
+    $('#teleport-bot-name').textContent = bot?.displayName || username;
+    $('#teleport-current-position').textContent = bot?.position
+        ? `${bot.position.x}, ${bot.position.z}, szint ${bot.position.level}`
+        : 'nincs friss pozíció';
+    $('#teleport-destination').innerHTML = state.teleportDestinations.map(destination =>
+        `<option value="${escapeHtml(destination.id)}">${escapeHtml(destination.label)} · ${destination.x}, ${destination.z}, ${destination.level}</option>`
+    ).join('');
+    $('#teleport-description').textContent = state.teleportDestinations[0]?.description || '';
+    $('#teleport-dialog').showModal();
+}
+
+function updateTeleportDescription() {
+    const destination = state.teleportDestinations.find(entry => entry.id === $('#teleport-destination').value);
+    $('#teleport-description').textContent = destination?.description || '';
+}
+
 function drawChart(snapshots) {
     const canvas = $('#economy-chart');
     const rect = canvas.getBoundingClientRect();
@@ -328,6 +352,7 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'profile') openProfile(name);
         if (button.dataset.action === 'spectate') openSpectate(name);
         if (button.dataset.action === 'start-skill') showSkill(name);
+        if (button.dataset.action === 'teleport') showTeleport(name);
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
             if (!reason) return;
@@ -401,6 +426,20 @@ $('#skill-form').addEventListener('submit', async event => {
     } catch (error) { toast(error.message, true); }
 });
 
+$('#teleport-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    try {
+        const response = await api(`/api/admin/bots/${encodeURIComponent(data.get('username'))}/teleport`, {
+            method: 'POST', mutation: true,
+            body: JSON.stringify({ destinationId: data.get('destinationId'), reason: data.get('reason') })
+        });
+        form.closest('dialog').close();
+        toast(`${data.get('username')} teleportálva: ${response.destination.label}.`);
+        await refresh();
+    } catch (error) { toast(error.message, true); }
+});
+
 for (const selector of ['#search-filter', '#status-filter', '#skill-filter', '#coins-filter']) {
     $(selector).addEventListener('input', renderTable);
 }
@@ -415,12 +454,15 @@ $('#clear-filters').addEventListener('click', () => { for (const id of ['search-
 $('#new-bot-button').addEventListener('click', () => showSpawn());
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });
 $('#skill-select').addEventListener('change', renderSkillParameters);
+$('#teleport-destination').addEventListener('change', updateTeleportDescription);
 $('#close-profile').addEventListener('click', closeProfile); $('#drawer-backdrop').addEventListener('click', closeProfile);
 $('#close-spectate').addEventListener('click', closeSpectate);
 $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault(); closeSpectate(); });
 document.querySelectorAll('.dialog-close:not(#close-spectate)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
-const bootstrap = await Promise.all([api('/api/admin/config'), api('/api/admin/skills')]);
-state.config = bootstrap[0]; state.skills = bootstrap[1].skills;
+const bootstrap = await Promise.all([
+    api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations')
+]);
+state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);
