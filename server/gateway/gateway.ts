@@ -15,7 +15,7 @@ import { ChatHistory } from '../../sdk/chat-history';
 import { chunkMessage } from '../../sdk/chunking';
 import { BotSupervisor } from './admin/supervisor';
 import { handleAdminRequest } from './admin/routes';
-import type { GatewayBotSnapshot } from './admin/types';
+import type { AdminItem, GatewayBotSnapshot } from './admin/types';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 
@@ -125,6 +125,9 @@ interface BotSession {
     clientId: string;
     username: string;
     lastState: BotWorldState | null;
+    lastKnownBankItems: BotWorldState['bank']['items'];
+    bankKnown: boolean;
+    bankDeltas: Map<number, AdminItem>;
     lastStateReceivedAt: number;
     currentActionId: string | null;
     pendingScreenshotId: string | null;
@@ -295,6 +298,9 @@ const SyncModule = {
             clientId,
             username,
             lastState: preservedState?.lastState || null,
+            lastKnownBankItems: preservedState?.lastKnownBankItems || [],
+            bankKnown: preservedState?.bankKnown || false,
+            bankDeltas: new Map(),
             lastStateReceivedAt: preservedState?.lastStateReceivedAt || 0,
             currentActionId: null,
             pendingScreenshotId: null,
@@ -403,6 +409,35 @@ const SyncModule = {
         }
 
         if (message.type === 'state' && message.state) {
+            const previousState = session.lastState;
+            const previousBankOpen = previousState?.bank?.isOpen ?? false;
+            const currentBankOpen = message.state.bank?.isOpen ?? false;
+            if (previousState && (previousBankOpen || currentBankOpen)) {
+                const previousItems = new Map<number, AdminItem>();
+                const nextItems = new Map<number, AdminItem>();
+                for (const item of previousState.inventory) {
+                    const current = previousItems.get(item.id) ?? { id: item.id, name: item.name, count: 0 };
+                    current.count += item.count;
+                    previousItems.set(item.id, current);
+                }
+                for (const item of message.state.inventory) {
+                    const current = nextItems.get(item.id) ?? { id: item.id, name: item.name, count: 0 };
+                    current.count += item.count;
+                    nextItems.set(item.id, current);
+                }
+                for (const id of new Set([...previousItems.keys(), ...nextItems.keys()])) {
+                    const delta = (previousItems.get(id)?.count ?? 0) - (nextItems.get(id)?.count ?? 0);
+                    if (delta === 0) continue;
+                    const existing = session.bankDeltas.get(id);
+                    const name = previousItems.get(id)?.name ?? nextItems.get(id)?.name ?? `Item #${id}`;
+                    session.bankDeltas.set(id, { id, name, count: (existing?.count ?? 0) + delta });
+                }
+            }
+            if (currentBankOpen && message.state.bank?.items?.length > 0) {
+                session.lastKnownBankItems = message.state.bank.items.map(item => ({ ...item }));
+                session.bankKnown = true;
+                session.bankDeltas.clear();
+            }
             session.lastState = message.state;
             session.lastStateReceivedAt = Date.now();
             if (message.state.gameMessages?.length) {
@@ -775,13 +810,24 @@ function findBotSession(username: string): BotSession | null {
 function adminGatewayBots(): Map<string, GatewayBotSnapshot> {
     const snapshots = new Map<string, GatewayBotSnapshot>();
     for (const [username, session] of botSessions) {
+        const state = session.lastState
+            ? {
+                ...session.lastState,
+                bank: {
+                    ...session.lastState.bank,
+                    items: session.bankKnown ? session.lastKnownBankItems : session.lastState.bank.items
+                }
+            }
+            : null;
         snapshots.set(username, {
             username,
             status: getSessionStatus(session),
             connected: !!session.ws,
             connectedAt: session.connectedAt,
             lastStateReceivedAt: session.lastStateReceivedAt,
-            state: session.lastState,
+            state,
+            bankKnown: session.bankKnown,
+            bankDeltas: [...session.bankDeltas.values()],
             controllers: SyncModule.getControllersForBot(username).length,
             observers: SyncModule.getObserversForBot(username).length
         });

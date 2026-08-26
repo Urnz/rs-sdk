@@ -87,6 +87,8 @@ export interface GatewayBotSnapshot {
     connectedAt: number;
     lastStateReceivedAt: number;
     state: BotWorldState | null;
+    bankKnown?: boolean;
+    bankDeltas?: Array<{ id: number; name: string; count: number }>;
     controllers: number;
     observers: number;
 }

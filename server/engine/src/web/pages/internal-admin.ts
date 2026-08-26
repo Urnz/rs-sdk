@@ -68,9 +68,11 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     if (backupListMatch?.[1]) {
         if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
         const username = backupListMatch[1].toLowerCase();
+        const readiness = World.getAdminOfflineSaveReadiness(username);
         return json({
             backups: World.listAdminSaveBackups(username),
-            readiness: World.getAdminOfflineSaveReadiness(username)
+            readiness,
+            state: readiness.editable ? World.getAdminOfflineSaveSummary(username) : null
         });
     }
 

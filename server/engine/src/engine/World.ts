@@ -930,6 +930,16 @@ class World {
         return { editable: true, code: 'ready' };
     }
 
+    getAdminOfflineSaveSummary(username: string): AdminOfflineSaveSummary | null {
+        const normalized = username.toLowerCase();
+        const path = this.adminPlayerSavePath(normalized);
+        if (!fs.existsSync(path)) return null;
+        const bytes = fs.readFileSync(path);
+        if (!PlayerLoading.verify(new Packet(bytes))) throw new Error('The player save failed canonical verification.');
+        const player = PlayerLoading.load(normalized, new Packet(bytes), null);
+        return this.adminSaveSummary(player, fs.statSync(path).mtime.toISOString());
+    }
+
     private processAdminOfflineSaves(): void {
         const commands = this.adminOfflineSaveQueue.splice(0);
         for (const command of commands) {

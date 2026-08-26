@@ -426,20 +426,22 @@ async function showOfflineEditor(username) {
         };
         throw new Error(messages[data.readiness?.code] || 'A mentés még használatban van; próbáld újra rövidesen.');
     }
+    if (!data.state) throw new Error('A hiteles mentésadatokat nem sikerült betölteni.');
+    const saved = data.state;
     state.offlineEditing = username;
     const form = $('#offline-editor-form'); form.reset();
     form.elements.username.value = username;
-    form.elements.expectedSavedAt.value = bot.saveSavedAt;
+    form.elements.expectedSavedAt.value = saved.savedAt;
     form.elements.reason.value = 'Kézi offline botadat-szerkesztés';
     $('#offline-editor-title').textContent = `${bot.displayName} mentésének szerkesztése`;
-    $('#offline-coins').value = bot.coins;
-    $('#offline-skill-rows').innerHTML = bot.skills.map(skill => `<tr class="offline-skill-row" data-skill="${escapeHtml(skill.name)}">
+    $('#offline-coins').value = saved.coins;
+    $('#offline-skill-rows').innerHTML = saved.skills.map(skill => `<tr class="offline-skill-row" data-skill="${escapeHtml(skill.name)}">
         <td><strong>${escapeHtml(skill.name)}</strong></td>
-        <td><input data-field="level" type="number" min="1" max="99" step="1" value="${skill.level}" aria-label="${escapeHtml(skill.name)} level"></td>
+        <td><input data-field="level" type="number" min="1" max="99" step="1" value="${levelForXp(skill.experience)}" aria-label="${escapeHtml(skill.name)} level"></td>
         <td><input data-field="experience" type="number" min="0" max="2000000000" step="1" value="${skill.experience}" aria-label="${escapeHtml(skill.name)} XP"></td>
     </tr>`).join('');
-    renderEditableItems('offline-inventory-rows', bot.inventory);
-    renderEditableItems('offline-bank-rows', bot.bank);
+    renderEditableItems('offline-inventory-rows', saved.inventory);
+    renderEditableItems('offline-bank-rows', saved.bank);
     renderOfflineBackups(data.backups);
     $('#offline-editor-dialog').showModal();
 }

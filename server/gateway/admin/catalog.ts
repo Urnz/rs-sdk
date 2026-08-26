@@ -103,6 +103,17 @@ function stateItems(items: Array<{ id: number; name: string; count: number; slot
     return items.map(item => ({ id: item.id, name: item.name, count: item.count, slot: item.slot }));
 }
 
+function applyItemDeltas(items: AdminItem[], deltas: Array<{ id: number; name: string; count: number }>): AdminItem[] {
+    const result = new Map(items.map(item => [item.id, { ...item }]));
+    for (const delta of deltas) {
+        const current = result.get(delta.id) ?? { id: delta.id, name: delta.name, count: 0 };
+        current.count = Math.max(0, current.count + delta.count);
+        if (current.count === 0) result.delete(delta.id);
+        else result.set(delta.id, current);
+    }
+    return [...result.values()].sort((left, right) => left.id - right.id);
+}
+
 async function readSaveSafe(path: string): Promise<OfflineSaveSnapshot | null> {
     try {
         return await readPlayerSave(path);
@@ -134,23 +145,25 @@ export async function buildBotCatalog(
         const savePath = saveByName.get(key);
         const save = savePath ? await readSaveSafe(savePath) : null;
         const state = session?.state;
+        const status = deriveAdminStatus(session, process);
+        const useLiveState = status === 'active' || status === 'stale';
         const liveSkills = state?.skills?.filter(skill => !/^(?:stat|unused)\s*1[89]$/i.test(skill.name)).map(skill => ({
             name: skill.name,
             level: skill.baseLevel,
             experience: skill.experience
         })) ?? [];
-        const reportingSkills = liveSkills.length > 0 ? liveSkills : (save?.skills ?? []);
+        const reportingSkills = useLiveState && liveSkills.length > 0 ? liveSkills : (save?.skills ?? []);
         const totalLevel = reportingSkills.reduce((sum, skill) => sum + skill.level, 0);
         const totalXp = reportingSkills.reduce((sum, skill) => sum + skill.experience, 0);
-        const inventory = state ? stateItems(state.inventory) : (save?.inventory ?? []);
-        const equipment = state ? stateItems(state.equipment) : (save?.equipment ?? []);
-        const bank = save?.bank ?? [];
-        const coins = state
+        const inventory = useLiveState && state ? stateItems(state.inventory) : (save?.inventory ?? []);
+        const equipment = useLiveState && state ? stateItems(state.equipment) : (save?.equipment ?? []);
+        const bankBase = useLiveState && state && session?.bankKnown ? stateItems(state.bank.items) : (save?.bank ?? []);
+        const bank = useLiveState ? applyItemDeltas(bankBase, session?.bankDeltas ?? []) : bankBase;
+        const coins = useLiveState && state
             ? sumItems(inventory, 995) + sumItems(bank, 995)
             : (save?.coins ?? 0);
         const activeSkill = skills.get(key);
 
-        const status = deriveAdminStatus(session, process);
         const hasCredentials = managed.has(key);
         const processIsAlive = process?.status === 'starting' || process?.status === 'running' || process?.status === 'stopping';
         const saveIsStable = !!save?.valid && Date.now() - new Date(save.savedAt).getTime() >= 1_500;

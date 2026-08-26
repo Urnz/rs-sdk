@@ -19,7 +19,7 @@ const ITEM_NAMES: Record<number, string> = {
     303: 'Small fishing net', 315: 'Shrimps', 317: 'Raw shrimps', 436: 'Copper ore',
     438: 'Tin ore', 526: 'Bones', 590: 'Tinderbox', 841: 'Shortbow', 882: 'Bronze arrow',
     946: 'Knife', 995: 'Coins', 1171: 'Wooden shield', 1205: 'Bronze dagger',
-    1265: 'Bronze pickaxe', 1277: 'Bronze sword', 1351: 'Bronze axe', 1511: 'Logs',
+    1265: 'Bronze pickaxe', 1275: 'Rune pickaxe', 1277: 'Bronze sword', 1351: 'Bronze axe', 1511: 'Logs',
     1521: 'Oak logs', 1733: 'Needle', 1734: 'Thread', 1755: 'Chisel', 1925: 'Bucket',
     1931: 'Pot', 2309: 'Bread', 2347: 'Hammer', 2349: 'Bronze bar', 2351: 'Iron bar',
     2353: 'Steel bar', 301: 'Lobster pot', 377: 'Raw lobster'

@@ -60,6 +60,10 @@ export interface EnginePlayerLogoutResult {
 
 const enabledSkills = new Set(SKILL_NAMES.filter((_, index) => index !== 18 && index !== 19));
 
+function normalizedSkillName(value: string): string {
+    return value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+}
+
 function integer(value: unknown, label: string, minimum: number, maximum: number): number {
     if (!Number.isInteger(value) || Number(value) < minimum || Number(value) > maximum) {
         throw new Error(`${label}: egész szám szükséges ${minimum} és ${maximum} között.`);
@@ -88,8 +92,9 @@ export function validateOfflineSaveDraft(value: unknown): OfflineSaveDraft {
     const skills = draft.skills.map((raw, index): OfflineSaveEditSkill => {
         if (!raw || typeof raw !== 'object') throw new Error(`A(z) ${index + 1}. skill érvénytelen.`);
         const entry = raw as Record<string, unknown>;
-        const name = typeof entry.name === 'string' ? entry.name.trim() : '';
-        if (!enabledSkills.has(name as typeof SKILL_NAMES[number]) || seen.has(name)) throw new Error(`Ismeretlen vagy ismétlődő skill: ${name || index + 1}`);
+        const requestedName = typeof entry.name === 'string' ? entry.name.trim() : '';
+        const name = [...enabledSkills].find(candidate => normalizedSkillName(candidate) === normalizedSkillName(requestedName));
+        if (!name || seen.has(name)) throw new Error(`Ismeretlen vagy ismétlődő skill: ${requestedName || index + 1}`);
         seen.add(name);
         return { name, experience: integer(entry.experience, `${name} XP`, 0, 2_000_000_000) };
     });
@@ -155,8 +160,8 @@ export function requestEngineOfflineRestore(
     });
 }
 
-export async function listEngineOfflineBackups(username: string): Promise<{ backups: OfflineSaveBackup[]; readiness: OfflineSaveReadiness }> {
-    return engineRequest<{ backups: OfflineSaveBackup[]; readiness: OfflineSaveReadiness }>(
+export async function listEngineOfflineBackups(username: string): Promise<{ backups: OfflineSaveBackup[]; readiness: OfflineSaveReadiness; state: OfflineSaveSummary | null }> {
+    return engineRequest<{ backups: OfflineSaveBackup[]; readiness: OfflineSaveReadiness; state: OfflineSaveSummary | null }>(
         `/api/internal/admin/offline-backups/${encodeURIComponent(username)}`,
         { method: 'GET' }
     );

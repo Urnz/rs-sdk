@@ -149,6 +149,13 @@ describe('admin offline save draft', () => {
         expect(validateOfflineSaveDraft(valid)).toEqual(valid);
     });
 
+    test('normalizes canonical engine skill names before saving', () => {
+        expect(validateOfflineSaveDraft({
+            expectedSavedAt: new Date().toISOString(), coins: 0,
+            skills: [{ name: 'ATTACK', experience: 9_984_580 }], inventory: [], bank: []
+        }).skills).toEqual([{ name: 'Attack', experience: 9_984_580 }]);
+    });
+
     test('rejects invalid xp, coin duplication and unsafe quantities', () => {
         expect(() => validateOfflineSaveDraft({ ...valid, skills: [{ name: 'Fishing', experience: -1 }] })).toThrow('Fishing XP');
         expect(() => validateOfflineSaveDraft({ ...valid, inventory: [{ id: 995, count: 10 }] })).toThrow('Pénz mezőben');
