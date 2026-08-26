@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 296 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 298 teszt sikeres, 0 sikertelen.
 
 ## Botadmin baseline
 
@@ -59,6 +59,12 @@
   állapot, bot, skillverzió, időtartam, műveletszám, eredmény és lenyitható
   eseménylista. Az új naplók a bot nevét is tárolják; a régi naplók változatlanul
   olvashatók, ezeknél a bot neve „Korábbi futás”.
+- Az adminból megnyitható élő világtérkép a szerver eredeti MapView rendererét
+  ágyazza be. A 0,75 másodpercenként frissülő pozícióréteg mellett külön online
+  botlista, koordináta-alapú fókusz, kijelölt bot kiemelése és Spectate-átjárás
+  érhető el. A fókuszüzenetet a MapView csak azonos protokollú és hostnevű helyi
+  admineredettől fogadja el, a koordinátát pedig a renderelt tér saját
+  underground/overworld transzformációjával számolja.
 
 ## Smoke teszt
 

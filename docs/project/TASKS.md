@@ -105,7 +105,7 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
   részletes profillal, helyzettel, skill-futásokkal és kontrollált műveletekkel.
 - [x] A befejezett agent-skill futásokat időrendben, eredménnyel, időtartammal,
   műveletszámmal és részletes eseménylistával megjeleníteni.
-- [ ] Élő világtérképet készíteni az online botokhoz.
+- [x] Élő világtérképet készíteni az online botokhoz.
 - [x] Idősoros gazdasági alapnézetet készíteni: pénzmennyiség, itemkészlet,
   össz-XP, átlagos total level és online botszám.
 - [ ] A gazdasági nézetet bővíteni XP/órával, termelés/fogyasztással, valamint
@@ -256,7 +256,8 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
    bankmódosítással, automatikus backuppal és restore-ral elkészíteni.
 9. [x] A befejezett agent-skill futások adminpaneles történetét és részletes
    eseménylistáját elkészíteni.
-10. A 6. fázis következő részében élő térképet és részletes tranzakciós
-   telemetriát készíteni.
-11. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
-12. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+10. [x] A valódi MapView-ra épülő élő világtérképet botlistával, fókuszálással
+   és Spectate-átjárással elkészíteni.
+11. A 6. fázis következő részében részletes tranzakciós telemetriát készíteni.
+12. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
+13. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

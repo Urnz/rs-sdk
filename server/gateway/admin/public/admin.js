@@ -10,6 +10,7 @@ const state = {
     offlineEditing: null,
     spectating: null,
     spectateTimer: null,
+    worldMapSelected: null,
     token: sessionStorage.getItem('rs-admin-token') || ''
 };
 
@@ -176,6 +177,51 @@ function renderSkillRuns() {
             <td><details class="run-details"><summary>${escapeHtml(run.message || run.reason || 'Részletek')}</summary><ul>${events}</ul></details></td>
         </tr>`;
     }).join('') : '<tr><td colspan="7" class="empty">Még nincs befejezett agent-skill futás.</td></tr>';
+}
+
+function renderWorldMapBots() {
+    const container = $('#world-map-bots');
+    const online = state.bots.filter(bot => bot.status === 'active' && bot.position)
+        .sort((left, right) => left.displayName.localeCompare(right.displayName, 'hu'));
+    $('#world-map-count').textContent = `${online.length} online bot`;
+    const selected = online.find(bot => bot.username === state.worldMapSelected);
+    $('#world-map-selected').textContent = selected
+        ? `${selected.displayName} · ${selected.position.x}, ${selected.position.z}, ${selected.position.level}`
+        : 'Nincs kijelölt bot';
+    const spectate = $('#world-map-spectate');
+    spectate.hidden = !selected;
+    spectate.dataset.name = selected?.username || '';
+    container.innerHTML = online.length ? online.map(bot => `<button class="world-map-bot${bot.username === state.worldMapSelected ? ' selected' : ''}" data-action="world-focus" data-name="${escapeHtml(bot.username)}">
+        <span><strong>${escapeHtml(bot.displayName)}</strong><small>${escapeHtml(bot.currentSkill || bot.activity || 'Idle')}</small></span>
+        <span class="world-map-coordinates">${bot.position.x}, ${bot.position.z}<small>szint ${bot.position.level}</small></span>
+    </button>`).join('') : '<p class="muted empty">Nincs friss pozíciót küldő online bot.</p>';
+}
+
+function focusWorldBot(username) {
+    const bot = state.bots.find(entry => entry.username === username && entry.status === 'active' && entry.position);
+    if (!bot) return;
+    state.worldMapSelected = username;
+    renderWorldMapBots();
+    const frame = $('#world-map-frame');
+    const targetOrigin = new URL(state.config.worldMapUrl, location.href).origin;
+    frame.contentWindow?.postMessage({
+        type: 'rs-map-focus', name: bot.displayName,
+        x: bot.position.x, z: bot.position.z, level: bot.position.level
+    }, targetOrigin);
+}
+
+function openWorldMap() {
+    const frame = $('#world-map-frame');
+    if (frame.src === 'about:blank') frame.src = state.config.worldMapUrl;
+    renderWorldMapBots();
+    $('#world-map-dialog').showModal();
+    const first = state.bots.find(bot => bot.status === 'active' && bot.position);
+    if (!state.worldMapSelected && first) state.worldMapSelected = first.username;
+    if (state.worldMapSelected) setTimeout(() => focusWorldBot(state.worldMapSelected), 500);
+}
+
+function closeWorldMap() {
+    $('#world-map-dialog').close();
 }
 
 function itemChips(items) {
@@ -442,6 +488,7 @@ async function refresh() {
         state.skillRuns = skillHistory.runs;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
         renderSummary(); renderTable(); renderSkillRuns();
+        if ($('#world-map-dialog').open) renderWorldMapBots();
         drawChart(history.snapshots);
         if (state.selected && $('#profile-drawer').classList.contains('open')) openProfile(state.selected);
     } catch (error) {
@@ -490,6 +537,8 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'start-skill') showSkill(name);
         if (button.dataset.action === 'teleport') showTeleport(name);
         if (button.dataset.action === 'offline-edit') await showOfflineEditor(name);
+        if (button.dataset.action === 'world-focus') focusWorldBot(name);
+        if (button.dataset.action === 'world-spectate') { closeWorldMap(); openSpectate(name); }
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
             if (!reason) return;
@@ -623,14 +672,21 @@ $('thead').addEventListener('click', event => {
 });
 $('#clear-filters').addEventListener('click', () => { for (const id of ['search-filter', 'status-filter', 'skill-filter', 'coins-filter']) $(`#${id}`).value = ''; renderTable(); });
 $('#new-bot-button').addEventListener('click', () => showSpawn());
+$('#world-map-button').addEventListener('click', openWorldMap);
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });
 $('#skill-select').addEventListener('change', renderSkillParameters);
 $('#teleport-destination').addEventListener('change', updateTeleportDescription);
 $('#offline-editor-dialog').addEventListener('close', () => { state.offlineEditing = null; });
 $('#close-profile').addEventListener('click', closeProfile); $('#drawer-backdrop').addEventListener('click', closeProfile);
 $('#close-spectate').addEventListener('click', closeSpectate);
+$('#close-world-map').addEventListener('click', closeWorldMap);
+$('#world-map-dialog').addEventListener('cancel', event => { event.preventDefault(); closeWorldMap(); });
+window.addEventListener('message', event => {
+    if (!state.config?.worldMapUrl || event.origin !== new URL(state.config.worldMapUrl, location.href).origin) return;
+    if (event.data?.type === 'rs-map-ready' && state.worldMapSelected) focusWorldBot(state.worldMapSelected);
+});
 $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault(); closeSpectate(); });
-document.querySelectorAll('.dialog-close:not(#close-spectate)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-map)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
 const bootstrap = await Promise.all([
     api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations')

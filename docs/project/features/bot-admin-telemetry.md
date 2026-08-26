@@ -23,6 +23,8 @@ Az elkészült funkciók:
   automatikus biztonsági másolattal és visszaállítással;
 - befejezett agent-skill futástörténet állapottal, időtartammal, műveletszámmal
   és lenyitható eseménylistával;
+- élő, húzható és nagyítható RuneScape-világtérkép online botlistával,
+  botfókusszal, kijelöléskiemeléssel és Spectate-átjárással;
 - új vagy korábban elmentett helyi bot hitelesítő adatainak kezelése;
 - helyi jogosultságvédelem, minden módosításhoz kötelező indoklás és JSONL audit;
 - visszaállítható eltávolítás: az offline bot mentése és helyi konfigurációja
@@ -111,7 +113,6 @@ megnyitása külön readiness-lekérdezéssel is ellenőrzi ezt az állapotot.
 
 ## Következő kiadás
 
-1. Élő világtérkép.
-2. Gazdasági dashboard bővítése: teljes vagyon, termelés,
+1. Gazdasági dashboard bővítése: teljes vagyon, termelés,
    fogyasztás, shop-tranzakciók, player trade és XP/óra idősorok.
-3. Kontrollcsoportok és több kísérleti snapshot összehasonlító nézete.
+2. Kontrollcsoportok és több kísérleti snapshot összehasonlító nézete.

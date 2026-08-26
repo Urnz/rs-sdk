@@ -10,6 +10,7 @@ import { downloadUrl, sleep } from '#/util/JsUtil.js';
 import { canvas, saveDataURL } from '#/graphics/Canvas.js';
 import PixMap from '#/graphics/PixMap.js';
 import WorldMapFont from '#/mapview/WorldMapFont.js';
+import { remapWorldMapZ, worldTileToMapFocus } from '#/util/world-map-focus.js';
 
 export class MapView extends GameShell {
     static shouldDrawBorders: boolean = false;
@@ -36,6 +37,7 @@ export class MapView extends GameShell {
 
     // custom: player tracking
     playerPositions: {x: number, z: number, level: number, name: string}[] = [];
+    selectedPlayerName: string | null = null;
     playerTrails: Map<string, {x: number, z: number, time: number}[]> = new Map();
     lastPlayerFetch: number = 0;
     readonly playerPollInterval: number = 750;
@@ -231,6 +233,7 @@ export class MapView extends GameShell {
         this.overviewY = this.sHei - this.overviewHeight - 20;
         this.fullredraw = true;
         canvas.style.cursor = 'grab';
+        window.addEventListener('message', this.handleAdminMapMessage);
 
         const worldmap: JagFile = await this.loadWorldmap();
 
@@ -433,6 +436,31 @@ export class MapView extends GameShell {
         });
 
         this.drawArea?.setPixels();
+        if (window.parent !== window) window.parent.postMessage({ type: 'rs-map-ready' }, '*');
+    }
+
+    private readonly handleAdminMapMessage = (event: MessageEvent): void => {
+        if (event.source !== window.parent || !this.isTrustedControllerOrigin(event.origin)) return;
+        const data = event.data as { type?: unknown; x?: unknown; z?: unknown; name?: unknown } | null;
+        if (!data || data.type !== 'rs-map-focus' || !Number.isInteger(data.x) || !Number.isInteger(data.z)) return;
+        const x = Number(data.x);
+        const z = Number(data.z);
+        if (x < 0 || x > 16_383 || z < 0 || z > 16_383) return;
+        this.selectedPlayerName = typeof data.name === 'string' ? data.name.slice(0, 12) : null;
+        const focus = worldTileToMapFocus(x, z, this.mapOriginX, this.mapOriginZ, this.mapHeight);
+        this.focusX = focus.x;
+        this.focusZ = focus.z;
+        this.targetZoom = Math.max(this.targetZoom, 8);
+        this.redraw = true;
+    };
+
+    private isTrustedControllerOrigin(origin: string): boolean {
+        try {
+            const source = new URL(origin);
+            return source.protocol === window.location.protocol && source.hostname === window.location.hostname;
+        } catch {
+            return false;
+        }
     }
 
     // custom: clear tiles with no data (for unified map)
@@ -2011,10 +2039,7 @@ export class MapView extends GameShell {
 
     // custom: remap z-coordinates into the unified map space
     remapZ(z: number): number {
-        const mz: number = (z >> 6);
-        if (mz >= 144) return z - (82 << 6);
-        if (mz >= 70 && mz <= 76) return z + (10 << 6);
-        return z;
+        return remapWorldMapZ(z);
     }
 
     // custom: fetch player positions from server
@@ -2361,9 +2386,11 @@ export class MapView extends GameShell {
 
             if (screenX < 0 || screenX >= width || screenY < 0 || screenY >= height) continue;
 
-            Pix2D.fillCircle(screenX, screenY, 3, 0xffff00, 256);
+            const selected: boolean = this.selectedPlayerName?.toLowerCase() === p.name.toLowerCase();
+            if (selected) Pix2D.fillCircle(screenX, screenY, 7, 0x42d9ff, 220);
+            Pix2D.fillCircle(screenX, screenY, selected ? 4 : 3, 0xffff00, 256);
 
-            if (this.zoom >= 6 && this.b12) {
+            if ((selected || this.zoom >= 6) && this.b12) {
                 this.b12.centreString(p.name, screenX + 1, screenY - 6, 0);
                 this.b12.centreString(p.name, screenX, screenY - 7, 0xffffff);
             }

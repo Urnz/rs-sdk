@@ -14,6 +14,7 @@
             <p id="last-refresh" class="muted">Adatok betöltése…</p>
         </div>
         <div class="header-actions">
+            <button id="world-map-button" class="button map-button">Élő világtérkép</button>
             <button id="snapshot-button" class="button secondary">Kísérleti snapshot</button>
             <button id="new-bot-button" class="button primary">+ Bot spawn</button>
         </div>
@@ -142,6 +143,27 @@
                     <h3>Inventory</h3><div id="spectate-inventory" class="items"></div>
                     <h3>Legutóbbi üzenetek</h3><div id="spectate-messages" class="live-list"></div>
                 </div>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="world-map-dialog" class="world-map-dialog">
+        <div class="world-map-shell">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">ÉLŐ VILÁG</p><h2>Agentek a világtérképen</h2></div>
+                <button id="close-world-map" type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">A térkép 0,75 másodpercenként frissíti a játékospozíciókat. Húzással mozgatható, görgetéssel nagyítható; válassz botot a fókuszáláshoz.</p>
+            <div class="world-map-layout">
+                <iframe id="world-map-frame" title="Élő RuneScape világtérkép" src="about:blank"></iframe>
+                <aside class="world-map-sidebar">
+                    <div class="world-map-summary">
+                        <strong id="world-map-count">0 online bot</strong>
+                        <span id="world-map-selected" class="muted">Nincs kijelölt bot</span>
+                        <button id="world-map-spectate" class="button small spectate" data-action="world-spectate" hidden>Megnyitás Spectate-ben</button>
+                    </div>
+                    <div id="world-map-bots" class="world-map-bots"></div>
+                </aside>
             </div>
         </div>
     </dialog>

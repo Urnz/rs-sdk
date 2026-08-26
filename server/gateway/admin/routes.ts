@@ -22,6 +22,16 @@ export interface AdminRouteContext {
 }
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN?.trim() || '';
+const WORLD_MAP_URL = (() => {
+    const fallback = 'http://localhost:8888/mapview/';
+    try {
+        const value = new URL(process.env.ENGINE_PUBLIC_URL?.trim() || fallback);
+        return value.protocol === 'http:' || value.protocol === 'https:' ? value.toString() : fallback;
+    } catch {
+        return fallback;
+    }
+})();
+const WORLD_MAP_ORIGIN = new URL(WORLD_MAP_URL).origin;
 
 function json(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body, null, 2), {
@@ -84,7 +94,7 @@ async function serveAdminAsset(url: URL): Promise<Response | null> {
             'Content-Type': contentType(path),
             'Cache-Control': 'no-store',
             'X-Content-Type-Options': 'nosniff',
-            'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+            'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src ${WORLD_MAP_ORIGIN}; frame-ancestors 'none'`
         }
     });
 }
@@ -116,7 +126,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
     try {
         if (req.method === 'GET' && url.pathname === '/api/admin/config') {
-            return json({ authMode: ADMIN_TOKEN ? 'token' : 'local', mutationsEnabled: true, refreshMs: 5000 });
+            return json({ authMode: ADMIN_TOKEN ? 'token' : 'local', mutationsEnabled: true, refreshMs: 5000, worldMapUrl: WORLD_MAP_URL });
         }
 
         const catalog = async () => buildBotCatalog(context.gatewayBots(), context.supervisor.list());
