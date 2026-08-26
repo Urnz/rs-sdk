@@ -79,6 +79,7 @@ function renderSummary() {
     $('#metric-online').textContent = fmt.format(economy.online);
     $('#metric-coins').textContent = `${fmt.format(economy.totalCoins)} gp`;
     $('#metric-xp').textContent = fmt.format(economy.totalXp);
+    $('#metric-xp-hour').textContent = `${fmt.format(economy.totalXpPerHour || 0)} XP/h`;
     $('#metric-level').textContent = fmt.format(economy.averageTotalLevel);
     $('#item-stock').innerHTML = economy.itemStock.length
         ? economy.itemStock.map(item => `<div class="stock-item"><span>${escapeHtml(item.name)}</span><strong>${fmt.format(item.count)}</strong></div>`).join('')
@@ -148,11 +149,12 @@ function renderTable() {
             <td class="number">${fmt.format(bot.totalLevel)}</td>
             <td class="number">${fmt.format(bot.combatLevel)}</td>
             <td class="number">${fmt.format(bot.coins)} gp</td>
+            <td class="number">${bot.xpPerHour === null ? `<span class="muted">${bot.status === 'active' ? 'mérés…' : '–'}</span>` : `${fmt.format(bot.xpPerHour)}<span class="subline">+${fmt.format(bot.sessionXpGained)} session</span>`}</td>
             <td>${position}</td>
             <td title="${escapeHtml(bot.lastActivityAt || '')}">${relativeTime(bot.lastActivityAt)}</td>
             <td>${actionButtons(bot)}</td>
         </tr>`;
-    }).join('') : '<tr><td colspan="9" class="empty">Nincs a szűrőknek megfelelő bot.</td></tr>';
+    }).join('') : '<tr><td colspan="10" class="empty">Nincs a szűrőknek megfelelő bot.</td></tr>';
 }
 
 function formatDuration(milliseconds) {
@@ -236,8 +238,9 @@ function openProfile(username) {
     state.selected = username;
     $('#profile-content').innerHTML = `
         <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p><div class="profile-actions">${bot.currentSkill ? `<button class="button danger-outline" data-action="stop-skill" data-name="${escapeHtml(bot.username)}">Skill leállítása</button>` : bot.status === 'active' && bot.hasCredentials ? `<button class="button skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill hozzárendelése</button>` : ''}${bot.canTeleport ? `<button class="button teleport" data-action="teleport" data-name="${escapeHtml(bot.username)}">Biztonságos teleport</button>` : ''}${bot.canEditOffline ? `<button class="button save-edit" data-action="offline-edit" data-name="${escapeHtml(bot.username)}">Offline mentés szerkesztése</button>` : ''}${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div></div>
-        <div class="profile-grid"><div><span>Total level</span><strong>${fmt.format(bot.totalLevel)}</strong></div><div><span>Combat</span><strong>${fmt.format(bot.combatLevel)}</strong></div><div><span>Pénz</span><strong>${fmt.format(bot.coins)} gp</strong></div><div><span>Összes XP</span><strong>${fmt.format(bot.totalXp)}</strong></div><div><span>Pozíció</span><strong>${bot.position ? `${bot.position.x}, ${bot.position.z}` : '–'}</strong></div><div><span>Mentés</span><strong>${bot.hasSave ? 'van' : 'nincs'}</strong></div></div>
+        <div class="profile-grid"><div><span>Total level</span><strong>${fmt.format(bot.totalLevel)}</strong></div><div><span>Combat</span><strong>${fmt.format(bot.combatLevel)}</strong></div><div><span>Pénz</span><strong>${fmt.format(bot.coins)} gp</strong></div><div><span>Összes XP</span><strong>${fmt.format(bot.totalXp)}</strong></div><div><span>Session XP</span><strong>+${fmt.format(bot.sessionXpGained)}</strong></div><div><span>XP/óra</span><strong>${bot.xpPerHour === null ? bot.status === 'active' ? 'mérés…' : '–' : fmt.format(bot.xpPerHour)}</strong></div><div><span>Pozíció</span><strong>${bot.position ? `${bot.position.x}, ${bot.position.z}` : '–'}</strong></div><div><span>Mentés</span><strong>${bot.hasSave ? 'van' : 'nincs'}</strong></div></div>
         ${bot.currentSkill ? `<p><strong>Aktív agent skill:</strong> ${escapeHtml(bot.currentSkill)}<br><span class="muted">Run: ${escapeHtml(bot.runId || '–')}</span></p>` : ''}
+        ${bot.skillXpGains.length ? `<h3 class="section-title">Session XP-növekedés</h3><div class="skill-list">${bot.skillXpGains.map(skill => `<div class="skill"><span>${escapeHtml(skill.name)}</span><strong>+${fmt.format(skill.gained)}${skill.xpPerHour === null ? '' : ` · ${fmt.format(skill.xpPerHour)}/h`}</strong></div>`).join('')}</div>` : ''}
         <h3 class="section-title">Skillek</h3><div class="skill-list">${bot.skills.map(skill => `<div class="skill"><span>${escapeHtml(skill.name)}</span><strong>${skill.level}</strong></div>`).join('')}</div>
         <h3 class="section-title">Inventory</h3><div class="items">${itemChips(bot.inventory)}</div>
         <h3 class="section-title">Felszerelés</h3><div class="items">${itemChips(bot.equipment)}</div>

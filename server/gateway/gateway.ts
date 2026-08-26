@@ -128,6 +128,8 @@ interface BotSession {
     lastKnownBankItems: BotWorldState['bank']['items'];
     bankKnown: boolean;
     bankDeltas: Map<number, AdminItem>;
+    xpBaselineAt: number | null;
+    xpBaselineBySkill: Map<string, number>;
     lastStateReceivedAt: number;
     currentActionId: string | null;
     pendingScreenshotId: string | null;
@@ -301,6 +303,8 @@ const SyncModule = {
             lastKnownBankItems: preservedState?.lastKnownBankItems || [],
             bankKnown: preservedState?.bankKnown || false,
             bankDeltas: new Map(),
+            xpBaselineAt: null,
+            xpBaselineBySkill: new Map(),
             lastStateReceivedAt: preservedState?.lastStateReceivedAt || 0,
             currentActionId: null,
             pendingScreenshotId: null,
@@ -409,6 +413,13 @@ const SyncModule = {
         }
 
         if (message.type === 'state' && message.state) {
+            const enabledSkills = message.state.skills?.filter(skill => !/^(?:stat|unused)\s*1[89]$/i.test(skill.name)) ?? [];
+            const skillsAreLoaded = message.state.inGame && !!message.state.player
+                && enabledSkills.length >= 19 && enabledSkills.every(skill => skill.baseLevel > 0);
+            if (session.xpBaselineAt === null && skillsAreLoaded) {
+                session.xpBaselineAt = Date.now();
+                session.xpBaselineBySkill = new Map(message.state.skills.map(skill => [skill.name, skill.experience]));
+            }
             const previousState = session.lastState;
             const previousBankOpen = previousState?.bank?.isOpen ?? false;
             const currentBankOpen = message.state.bank?.isOpen ?? false;
@@ -828,6 +839,8 @@ function adminGatewayBots(): Map<string, GatewayBotSnapshot> {
             state,
             bankKnown: session.bankKnown,
             bankDeltas: [...session.bankDeltas.values()],
+            xpBaselineAt: session.xpBaselineAt,
+            xpBaselineSkills: [...session.xpBaselineBySkill].map(([name, experience]) => ({ name, experience })),
             controllers: SyncModule.getControllersForBot(username).length,
             observers: SyncModule.getObserversForBot(username).length
         });

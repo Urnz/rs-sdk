@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createSaveData, Items, Locations } from '../../../sdk/test/utils/save-generator';
-import { deriveAdminStatus, economySnapshot } from './catalog';
+import { deriveAdminStatus, economySnapshot, xpTelemetry } from './catalog';
 import { readPlayerSave } from './save-reader';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, resolveAdminTeleportDestination } from './teleport';
@@ -65,7 +65,7 @@ describe('admin economy aggregation', () => {
             canEditOffline: false, saveSavedAt: null,
             currentSkill: null, runId: null,
             lastError: null, lastActivityAt: null, stateAgeMs: 0, position: null, combatLevel: 3,
-            totalLevel: 40, totalXp: 1_000, coins: 500, activity: 'Idle', skills: [], equipment: [],
+            totalLevel: 40, totalXp: 1_000, sessionXpGained: 100, xpPerHour: 1_200, xpTrackingStartedAt: null, skillXpGains: [], coins: 500, activity: 'Idle', skills: [], equipment: [],
             process: null
         } satisfies Omit<BotCatalogEntry, 'inventory' | 'bank'>;
         const bots: BotCatalogEntry[] = [
@@ -76,8 +76,36 @@ describe('admin economy aggregation', () => {
 
         const snapshot = economySnapshot(bots);
 
-        expect(snapshot).toMatchObject({ bots: 2, online: 1, totalCoins: 1_200, totalXp: 3_000, averageTotalLevel: 50 });
+        expect(snapshot).toMatchObject({ bots: 2, online: 1, totalCoins: 1_200, totalXp: 3_000, sessionXpGained: 200, totalXpPerHour: 2_400, averageTotalLevel: 50 });
         expect(snapshot.itemStock).toContainEqual({ id: 377, name: 'Raw lobster', count: 12 });
+    });
+});
+
+describe('admin XP rate telemetry', () => {
+    test('reports session gains and normalized hourly rates per skill', () => {
+        const baselineAt = Date.parse('2026-08-26T18:00:00.000Z');
+        const telemetry = xpTelemetry(
+            [{ name: 'Mining', level: 50, experience: 1_150 }, { name: 'Attack', level: 1, experience: 100 }],
+            [{ name: 'Mining', experience: 1_000 }, { name: 'Attack', experience: 100 }],
+            baselineAt,
+            baselineAt + 30 * 60_000
+        );
+        expect(telemetry).toEqual({
+            gained: 150,
+            xpPerHour: 300,
+            skills: [{ name: 'Mining', gained: 150, xpPerHour: 300 }]
+        });
+    });
+
+    test('waits for a stable observation window before estimating XP per hour', () => {
+        const telemetry = xpTelemetry(
+            [{ name: 'Fishing', level: 2, experience: 20 }],
+            [{ name: 'Fishing', experience: 0 }],
+            1_000,
+            20_000
+        );
+        expect(telemetry).toMatchObject({ gained: 20, xpPerHour: null });
+        expect(telemetry.skills[0]?.xpPerHour).toBeNull();
     });
 });
 

@@ -71,6 +71,10 @@ export interface BotCatalogEntry {
     combatLevel: number;
     totalLevel: number;
     totalXp: number;
+    sessionXpGained: number;
+    xpPerHour: number | null;
+    xpTrackingStartedAt: string | null;
+    skillXpGains: Array<{ name: string; gained: number; xpPerHour: number | null }>;
     coins: number;
     activity: string;
     skills: AdminSkill[];
@@ -89,6 +93,8 @@ export interface GatewayBotSnapshot {
     state: BotWorldState | null;
     bankKnown?: boolean;
     bankDeltas?: Array<{ id: number; name: string; count: number }>;
+    xpBaselineAt?: number | null;
+    xpBaselineSkills?: Array<{ name: string; experience: number }>;
     controllers: number;
     observers: number;
 }
@@ -99,6 +105,8 @@ export interface EconomySnapshot {
     online: number;
     totalCoins: number;
     totalXp: number;
+    sessionXpGained: number;
+    totalXpPerHour: number;
     averageTotalLevel: number;
     itemStock: Array<{ id: number; name: string; count: number }>;
 }

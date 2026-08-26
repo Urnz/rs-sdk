@@ -4,6 +4,7 @@ import { activeSkillsDir, botsDir, economyLogPath, playerSavesDir } from './path
 import { readPlayerSave } from './save-reader';
 import type {
     AdminItem,
+    AdminSkill,
     BotCatalogEntry,
     EconomySnapshot,
     GatewayBotSnapshot,
@@ -114,6 +115,31 @@ function applyItemDeltas(items: AdminItem[], deltas: Array<{ id: number; name: s
     return [...result.values()].sort((left, right) => left.id - right.id);
 }
 
+export function xpTelemetry(
+    currentSkills: AdminSkill[],
+    baselineSkills: Array<{ name: string; experience: number }>,
+    baselineAt: number | null,
+    now = Date.now()
+): { gained: number; xpPerHour: number | null; skills: Array<{ name: string; gained: number; xpPerHour: number | null }> } {
+    if (baselineAt === null) return { gained: 0, xpPerHour: null, skills: [] };
+    const elapsedMs = Math.max(0, now - baselineAt);
+    const baseline = new Map(baselineSkills.map(skill => [skill.name, skill.experience]));
+    const skills = currentSkills.map(skill => {
+        const gained = Math.max(0, skill.experience - (baseline.get(skill.name) ?? skill.experience));
+        return {
+            name: skill.name,
+            gained,
+            xpPerHour: elapsedMs >= 30_000 ? Math.round(gained * 3_600_000 / elapsedMs) : null
+        };
+    }).filter(skill => skill.gained > 0).sort((left, right) => right.gained - left.gained);
+    const gained = skills.reduce((sum, skill) => sum + skill.gained, 0);
+    return {
+        gained,
+        xpPerHour: elapsedMs >= 30_000 ? Math.round(gained * 3_600_000 / elapsedMs) : null,
+        skills
+    };
+}
+
 async function readSaveSafe(path: string): Promise<OfflineSaveSnapshot | null> {
     try {
         return await readPlayerSave(path);
@@ -155,6 +181,11 @@ export async function buildBotCatalog(
         const reportingSkills = useLiveState && liveSkills.length > 0 ? liveSkills : (save?.skills ?? []);
         const totalLevel = reportingSkills.reduce((sum, skill) => sum + skill.level, 0);
         const totalXp = reportingSkills.reduce((sum, skill) => sum + skill.experience, 0);
+        const xpTrackingStartedAt = useLiveState && session?.xpBaselineAt ? new Date(session.xpBaselineAt).toISOString() : null;
+        const telemetry = xpTelemetry(liveSkills, session?.xpBaselineSkills ?? [], useLiveState ? session?.xpBaselineAt ?? null : null);
+        const skillXpGains = telemetry.skills;
+        const sessionXpGained = telemetry.gained;
+        const xpPerHour = telemetry.xpPerHour;
         const inventory = useLiveState && state ? stateItems(state.inventory) : (save?.inventory ?? []);
         const equipment = useLiveState && state ? stateItems(state.equipment) : (save?.equipment ?? []);
         const bankBase = useLiveState && state && session?.bankKnown ? stateItems(state.bank.items) : (save?.bank ?? []);
@@ -194,6 +225,10 @@ export async function buildBotCatalog(
             combatLevel: state?.player?.combatLevel ?? save?.combatLevel ?? 0,
             totalLevel,
             totalXp,
+            sessionXpGained,
+            xpPerHour,
+            xpTrackingStartedAt,
+            skillXpGains,
             coins,
             activity: activeSkill ? activeSkill.skillId : describeLiveActivity(session),
             skills: reportingSkills,
@@ -225,6 +260,8 @@ export function economySnapshot(entries: BotCatalogEntry[]): EconomySnapshot {
         online: entries.filter(entry => entry.status === 'active').length,
         totalCoins: entries.reduce((sum, entry) => sum + entry.coins, 0),
         totalXp: entries.reduce((sum, entry) => sum + entry.totalXp, 0),
+        sessionXpGained: entries.reduce((sum, entry) => sum + entry.sessionXpGained, 0),
+        totalXpPerHour: entries.reduce((sum, entry) => sum + (entry.xpPerHour ?? 0), 0),
         averageTotalLevel: entries.length === 0 ? 0 : Math.round(entries.reduce((sum, entry) => sum + entry.totalLevel, 0) / entries.length),
         itemStock: [...stock.entries()].map(([id, item]) => ({ id, ...item }))
             .sort((left, right) => right.count - left.count).slice(0, 20)

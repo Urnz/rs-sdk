@@ -259,5 +259,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 10. [x] A valódi MapView-ra épülő élő világtérképet botlistával, fókuszálással
    és Spectate-átjárással elkészíteni.
 11. A 6. fázis következő részében részletes tranzakciós telemetriát készíteni.
+    - [x] Élő session XP-növekedés és XP/óra botonként, skillenként és összesítve.
+    - [ ] Termelés/fogyasztás, shop- és player-trade események naplózása.
 12. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
 13. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
