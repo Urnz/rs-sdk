@@ -1,10 +1,10 @@
-# Helyi baseline – 2026-08-19
+# Helyi baseline – 2026-08-26
 
 ## Verziók
 
 - Upstream: `MaxBittker/rs-sdk`
 - Kiinduló commit: `9cd3d7019ad3a8654ee31d22af3272d91fe1881e`
-- Fejlesztői ág: `codex/agent-skill-framework`
+- Fejlesztői ág: `codex/bot-admin-dashboard`
 - Git: `2.52.0.windows.1`
 - Bun: `1.3.14` (`0d9b296af`)
 - Node.js: `22.16.0` (a projekt futtatása Bun alatt történik)
@@ -19,7 +19,52 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 283 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 298 teszt sikeres, 0 sikertelen.
+
+## Botadmin baseline
+
+- Helyi adminfelület: `http://localhost:7780/admin/`.
+- A katalógus 34 helyi játékosmentést egyesít az élő gateway- és
+  agent-skill-állapottal.
+- Ellenőrzött életciklus: egy offline bot adminfelületről spawnolva aktívvá vált,
+  majd despawn után tisztán lecsatlakozott.
+- Az offline save-olvasó CRC-ellenőrzéssel, írás nélkül szolgáltat skill, XP,
+  pozíció, inventory, equipment, bank és pénz adatokat.
+- A módosító műveletek helyi jogosultságvédelemmel, kötelező indoklással és
+  `.local/admin/audit.jsonl` auditnaplóval futnak.
+- A bot eltávolítása csak offline állapotban, pontos névmegerősítéssel lehetséges,
+  és első körben visszaállítható karanténba mozgatást jelent.
+- Az adminfelület csak a verziózott, `verified + shared` agent skilleket kínálja
+  fel, a paraméterűrlapot a skill sémájából építi, és szerveroldalon is validálja.
+- Online, helyi hitelesítő adatokkal rendelkező bothoz egy agent skill indítható;
+  a futás külön naplót, aktív futásjelzőt és indítási/leállítási auditot kap.
+- Online, éppen nem harcoló és agent skillt nem futtató bot az adminpanel öt
+  jóváhagyott célpontjára teleportálható. A gateway és az engine ugyanazt a
+  verziókezelt célpontlistát használja.
+- A teleport nem a mentést vagy a klienst írja: egyszer használatos belső tokennel
+  védett engine-parancs, amely a következő world tickben ismét ellenőrzi a játékost,
+  a világot és a célmező collision állapotát.
+- A teljesen offline bot mentése az adminpanelen szint/XP, pénz, inventory és bank
+  szerint szerkeszthető. Az engine az eredeti `PlayerLoading`/`Player.save()` codecet
+  használja, majd CRC-visszaolvasással ellenőrzi az eredményt.
+- Minden edit és restore előtt változtathatatlan helyi backup készül a
+  `.local/admin/save-backups/<bot>/` könyvtárban. Elavult editor, párhuzamos írás,
+  online/bejelentkező/kijelentkező játékos és jogosulatlan belső kérés elutasítódik.
+- Az admin-despawn engine-ticken indít kanonikus logoutot; az élő próbán 229 ms
+  alatt lett a mentés engine-oldalon is szerkeszthető.
+- Oda-vissza próba: 25 gp / Fishing 1 / üres extra készlet → 35 gp / Fishing 2
+  (800 XP) / 1 copper ore / 2 raw lobster → eredeti állapot. A tesztbot végül
+  ismét online, 25 gp-vel fut.
+- Az adminpanel a legutóbbi 30 befejezett agent-skill futást időrendben mutatja:
+  állapot, bot, skillverzió, időtartam, műveletszám, eredmény és lenyitható
+  eseménylista. Az új naplók a bot nevét is tárolják; a régi naplók változatlanul
+  olvashatók, ezeknél a bot neve „Korábbi futás”.
+- Az adminból megnyitható élő világtérkép a szerver eredeti MapView rendererét
+  ágyazza be. A 0,75 másodpercenként frissülő pozícióréteg mellett külön online
+  botlista, koordináta-alapú fókusz, kijelölt bot kiemelése és Spectate-átjárás
+  érhető el. A fókuszüzenetet a MapView csak azonos protokollú és hostnevű helyi
+  admineredettől fogadja el, a koordinátát pedig a renderelt tér saját
+  underground/overworld transzformációjával számolja.
 
 ## Smoke teszt
 

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="hu">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RS Agent Admin</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">OSRS AGENT SOCIETY</p>
+            <h1>Bot adminisztráció</h1>
+            <p id="last-refresh" class="muted">Adatok betöltése…</p>
+        </div>
+        <div class="header-actions">
+            <button id="world-map-button" class="button map-button">Élő világtérkép</button>
+            <button id="snapshot-button" class="button secondary">Kísérleti snapshot</button>
+            <button id="new-bot-button" class="button primary">+ Bot spawn</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="summary-grid" aria-label="Gazdasági összesítés">
+            <article class="metric"><span>Összes bot</span><strong id="metric-bots">–</strong></article>
+            <article class="metric"><span>Online</span><strong id="metric-online">–</strong></article>
+            <article class="metric"><span>Teljes pénz</span><strong id="metric-coins">–</strong></article>
+            <article class="metric"><span>Összes XP</span><strong id="metric-xp">–</strong></article>
+            <article class="metric"><span>Átlag total level</span><strong id="metric-level">–</strong></article>
+        </section>
+
+        <section class="panel economy-panel">
+            <div class="panel-heading">
+                <div><p class="eyebrow">GAZDASÁG</p><h2>Idősoros áttekintés</h2></div>
+                <div class="legend"><span><i class="dot gold"></i>Pénz</span><span><i class="dot green"></i>Online bot</span></div>
+            </div>
+            <canvas id="economy-chart" height="130" aria-label="Gazdasági idősor"></canvas>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading table-heading">
+                <div><p class="eyebrow">BOTKATALÓGUS</p><h2>Minden bot</h2></div>
+                <span id="visible-count" class="count-pill">0 / 0</span>
+            </div>
+            <div class="filters">
+                <label class="wide">Keresés<input id="search-filter" type="search" placeholder="Név, skill vagy aktivitás"></label>
+                <label>Állapot<select id="status-filter"><option value="">Mind</option><option value="active">Online</option><option value="offline">Offline</option><option value="starting">Indul</option><option value="stale">Nem válaszol</option><option value="error">Hiba</option></select></label>
+                <label>Skill<input id="skill-filter" placeholder="pl. Fishing"></label>
+                <label>Minimum pénz<input id="coins-filter" type="number" min="0" step="1" placeholder="0"></label>
+                <button id="clear-filters" class="button ghost">Szűrők törlése</button>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr>
+                        <th data-sort="status">Állapot</th>
+                        <th data-sort="displayName">Bot</th>
+                        <th data-sort="activity">Aktivitás / agent skill</th>
+                        <th data-sort="totalLevel" class="number">Total</th>
+                        <th data-sort="combatLevel" class="number">Combat</th>
+                        <th data-sort="coins" class="number">Pénz</th>
+                        <th>Pozíció</th>
+                        <th data-sort="lastActivityAt">Utolsó adat</th>
+                        <th>Műveletek</th>
+                    </tr></thead>
+                    <tbody id="bot-rows"><tr><td colspan="9" class="empty">Betöltés…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div><p class="eyebrow">AGENT SKILLEK</p><h2>Legutóbbi futások</h2></div>
+                <span id="skill-run-count" class="count-pill">0 futás</span>
+            </div>
+            <div class="table-scroll">
+                <table class="run-table">
+                    <thead><tr><th>Állapot</th><th>Bot</th><th>Skill</th><th>Kezdés</th><th class="number">Időtartam</th><th class="number">Művelet</th><th>Eredmény / részletek</th></tr></thead>
+                    <tbody id="skill-run-rows"><tr><td colspan="7" class="empty">Betöltés…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel stock-panel">
+            <div class="panel-heading"><div><p class="eyebrow">KÉSZLETEK</p><h2>Legnagyobb itemállományok</h2></div></div>
+            <div id="item-stock" class="stock-grid"></div>
+        </section>
+    </main>
+
+    <aside id="profile-drawer" class="drawer" aria-hidden="true">
+        <button id="close-profile" class="drawer-close" aria-label="Bezárás">×</button>
+        <div id="profile-content"></div>
+    </aside>
+    <div id="drawer-backdrop" class="backdrop"></div>
+
+    <dialog id="spawn-dialog">
+        <form id="spawn-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">BOT ÉLETCIKLUS</p><h2>Bot indítása</h2></div><button type="button" class="dialog-close">×</button></div>
+            <label>Bot neve<input name="username" maxlength="12" pattern="[A-Za-z0-9]+" required></label>
+            <label>Jelszó <span class="muted">(ha nincs helyben elmentve)</span><input name="password" type="password" autocomplete="new-password"></label>
+            <label>Szerver<input name="server" value="localhost:8888" required></label>
+            <label>Indoklás<input name="reason" value="Kézi admin spawn" required></label>
+            <label class="check"><input name="rememberCredentials" type="checkbox"> A jelszó mentése kizárólag a helyi, gitből kizárt bot.env fájlba</label>
+            <p class="dialog-note">A jelszó nem jelenik meg a botlistában és nem kerül az auditnaplóba.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Indítás</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="delete-dialog">
+        <form id="delete-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow danger-text">VÉDETT MŰVELET</p><h2>Bot törlése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="username" type="hidden">
+            <p>Csak offline bot törölhető. A mentés és a helyi konfiguráció először karanténba kerül, így téves törlés esetén visszaállítható.</p>
+            <label>Írd be pontosan a bot nevét<input name="confirmUsername" autocomplete="off" required></label>
+            <label>Indoklás<input name="reason" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button danger" value="submit">Törlés karanténba</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="snapshot-dialog">
+        <form id="snapshot-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">KÍSÉRLET</p><h2>Snapshot készítése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <label>Címke<input name="label" placeholder="pl. diminishing XP előtt" required></label>
+            <label>Megjegyzés<input name="reason" placeholder="Mit akarunk később összehasonlítani?" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Mentés</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="spectate-dialog" class="spectate-dialog">
+        <div class="spectate-shell">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">ÉLŐ TELEMETRIA</p><h2 id="spectate-title">Spectate</h2></div>
+                <button id="close-spectate" type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">Ez a nézet nem jelentkezik be a bot fiókjával, ezért nem szakítja meg a háttérben futó botot.</p>
+            <div id="spectate-status" class="spectate-status">Kapcsolódás…</div>
+            <div class="spectate-layout">
+                <div>
+                    <canvas id="spectate-radar" width="620" height="460" aria-label="Élő környezeti radar"></canvas>
+                    <div class="radar-legend"><span><i class="radar-dot bot"></i>Bot</span><span><i class="radar-dot player"></i>Játékos</span><span><i class="radar-dot npc"></i>NPC</span><span><i class="radar-dot loc"></i>Objektum</span><span><i class="radar-dot item"></i>Item</span></div>
+                </div>
+                <div class="spectate-details">
+                    <h3>Közeli szereplők</h3><div id="spectate-entities" class="live-list"></div>
+                    <h3>Inventory</h3><div id="spectate-inventory" class="items"></div>
+                    <h3>Legutóbbi üzenetek</h3><div id="spectate-messages" class="live-list"></div>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="world-map-dialog" class="world-map-dialog">
+        <div class="world-map-shell">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">ÉLŐ VILÁG</p><h2>Agentek a világtérképen</h2></div>
+                <button id="close-world-map" type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">A térkép 0,75 másodpercenként frissíti a játékospozíciókat. Húzással mozgatható, görgetéssel nagyítható; válassz botot a fókuszáláshoz.</p>
+            <div class="world-map-layout">
+                <iframe id="world-map-frame" title="Élő RuneScape világtérkép" src="about:blank"></iframe>
+                <aside class="world-map-sidebar">
+                    <div class="world-map-summary">
+                        <strong id="world-map-count">0 online bot</strong>
+                        <span id="world-map-selected" class="muted">Nincs kijelölt bot</span>
+                        <button id="world-map-spectate" class="button small spectate" data-action="world-spectate" hidden>Megnyitás Spectate-ben</button>
+                    </div>
+                    <div id="world-map-bots" class="world-map-bots"></div>
+                </aside>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog id="skill-dialog">
+        <form id="skill-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">AGENT SKILL</p><h2>Skill hozzárendelése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="username" type="hidden">
+            <label>Bot<strong id="skill-bot-name" class="field-value">–</strong></label>
+            <label>Verified skill<select id="skill-select" name="skill" required></select></label>
+            <div id="skill-description" class="skill-description"></div>
+            <div id="skill-parameters" class="skill-parameters"></div>
+            <label>Indoklás<input name="reason" value="Kézi agent-skill hozzárendelés" required></label>
+            <p class="dialog-note">Egyszerre egy agent skill futhat egy boton. A futás az auditnaplóba és a skill journalba is bekerül.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Skill indítása</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="teleport-dialog">
+        <form id="teleport-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">ENGINE TICK PARANCS</p><h2>Biztonságos teleport</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="username" type="hidden">
+            <label>Bot<strong id="teleport-bot-name" class="field-value">–</strong></label>
+            <label>Jelenlegi pozíció<strong id="teleport-current-position" class="field-value">–</strong></label>
+            <label>Célpont<select id="teleport-destination" name="destinationId" required></select></label>
+            <p id="teleport-description" class="skill-description"></p>
+            <label>Indoklás<input name="reason" value="Kézi admin teleport" required></label>
+            <p class="dialog-note">Csak előre jóváhagyott, járható célmező választható. Aktív skill, harc vagy foglalt játékállapot közben az engine elutasítja a teleportot.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button teleport" value="submit">Teleport</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="offline-editor-dialog" class="editor-dialog">
+        <form id="offline-editor-form" method="dialog">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">KANONIKUS OFFLINE MENTÉS</p><h2 id="offline-editor-title">Mentés szerkesztése</h2></div>
+                <button type="button" class="dialog-close">×</button>
+            </div>
+            <input name="username" type="hidden">
+            <input name="expectedSavedAt" type="hidden">
+            <p class="dialog-note">Csak teljesen offline bot szerkeszthető. Mentés előtt automatikus, visszaállítható biztonsági másolat készül; a coinok a bankba kerülnek.</p>
+            <div class="editor-layout">
+                <section>
+                    <div class="editor-section-heading"><h3>Skillek</h3><span class="muted">Level vagy XP módosítható</span></div>
+                    <div class="editor-table-scroll">
+                        <table class="editor-table">
+                            <thead><tr><th>Skill</th><th class="number">Level</th><th class="number">XP</th></tr></thead>
+                            <tbody id="offline-skill-rows"></tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="editor-assets">
+                    <label>Pénz (gp)<input id="offline-coins" name="coins" type="number" min="0" max="2147483647" step="1" required></label>
+                    <div class="editor-section-heading"><h3>Inventory</h3><button type="button" class="button small ghost" data-action="offline-add-item" data-target="offline-inventory-rows">+ Item</button></div>
+                    <div id="offline-inventory-rows" class="editable-items"></div>
+                    <div class="editor-section-heading"><h3>Bank</h3><button type="button" class="button small ghost" data-action="offline-add-item" data-target="offline-bank-rows">+ Item</button></div>
+                    <div id="offline-bank-rows" class="editable-items"></div>
+                </section>
+            </div>
+            <section class="backup-section">
+                <div class="editor-section-heading"><h3>Biztonsági másolatok</h3><span class="muted">A visszaállítás előtt is új másolat készül</span></div>
+                <div id="offline-backups" class="backup-list"><span class="muted">Betöltés…</span></div>
+            </section>
+            <label>Mentés indoklása<input name="reason" value="Kézi offline botadat-szerkesztés" maxlength="240" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Módosítások mentése</button></div>
+        </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="admin.js" type="module"></script>
+</body>
+</html>

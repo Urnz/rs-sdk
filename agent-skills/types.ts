@@ -164,6 +164,7 @@ export type SkillRunStatus = 'completed' | 'failed' | 'cancelled' | 'limit-reach
 
 export interface SkillRunResult {
     runId: string;
+    username?: string;
     skill: SkillReference;
     status: SkillRunStatus;
     reason: string;

@@ -87,23 +87,30 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
 
 ## 6. Fázis – botadminisztráció és gazdasági telemetria
 
-- [ ] Egységes botkatalógust készíteni az online/offline állapottal, aktuális
+- [x] Egységes botkatalógust készíteni az online/offline állapottal, aktuális
   skillel, pozícióval, futásazonosítóval és utolsó aktivitással.
-- [ ] Read-only bot részletező API-t készíteni: skillek/XP, inventory, bank,
+- [x] Read-only bot részletező API-t készíteni: skillek/XP, inventory, bank,
   felszerelés, coins, pozíció, aktuális skill és legutóbbi hiba.
-- [ ] A meglévő gateway státuszt, player position/traces, hiscore/bank és wealth
-  telemetriát egy admin backend mögött egyesíteni.
-- [ ] Auditált adminparancsokat készíteni online bothoz: leállítás, újraindítás,
-  skill hozzárendelés/megszakítás és biztonságos teleport.
-- [ ] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
+- [x] A gateway élő állapotát, az offline player save-okat, a bankot és az
+  agent-skill futásjelzőket egy admin backend mögött egyesíteni.
+- [x] Auditált adminparancsokat készíteni bot spawnhoz, leállításhoz,
+  újraindításhoz és futó agent-skill megszakításához.
+- [x] Online bothoz verified agent-skill hozzárendelést és megszakítást készíteni.
+- [x] Online bothoz biztonságos, előre jóváhagyott célpontos teleportot készíteni.
+- [x] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
   bank módosítást készíteni; futó játékos mentésfájlját közvetlenül nem írjuk.
-- [ ] Minden állapotmódosításhoz jogosultságot, indoklást, előtte/utána értéket,
+- [x] Minden elkészült állapotmódosításhoz jogosultságot, indoklást,
   időpontot és visszakövethető auditbejegyzést követelni.
-- [ ] Webes admin panelt készíteni botlistával, részletes profillal, élő térképpel,
-  skill-futásokkal és kontrollált adminműveletekkel.
-- [ ] Idősoros gazdasági nézetet készíteni: összvagyon, pénzmennyiség, itemkészlet,
-  XP/óra, termelés/fogyasztás, shop és player-trade események.
-- [ ] Exportálható kísérleti snapshotot és összehasonlítható futásjelölést készíteni.
+- [x] Webes admin panelt készíteni kereshető, rendezhető és szűrhető botlistával,
+  részletes profillal, helyzettel, skill-futásokkal és kontrollált műveletekkel.
+- [x] A befejezett agent-skill futásokat időrendben, eredménnyel, időtartammal,
+  műveletszámmal és részletes eseménylistával megjeleníteni.
+- [x] Élő világtérképet készíteni az online botokhoz.
+- [x] Idősoros gazdasági alapnézetet készíteni: pénzmennyiség, itemkészlet,
+  össz-XP, átlagos total level és online botszám.
+- [ ] A gazdasági nézetet bővíteni XP/órával, termelés/fogyasztással, valamint
+  shop- és player-trade eseményekkel.
+- [x] Exportálható kísérleti snapshotot és összehasonlítható futásjelölést készíteni.
 - [ ] Tesztelni az online/offline ütközést, jogosulatlan módosítást, auditot,
   újraindítást és több bot párhuzamos frissítését.
 
@@ -239,6 +246,18 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
    verifier/promóciós folyamaton át új, változtathatatlan `verified` verzióvá tenni.
 4. [x] A bányászat után production, shop és trade skillekkel elérni az első
    5–10 stabil, LLM nélkül futó skillt.
-5. A 6. fázis read-only botkatalógusát és állapot-aggregáló API-ját elkészíteni.
-6. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
-7. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+5. [x] A 6. fázis első használható admin kiadását elkészíteni: botkatalógus,
+   profilok, szűrők, spawn/despawn, audit és gazdasági alapidősor.
+6. [x] A 6. fázis második kiadásából az auditált, paraméterezhető verified
+   agent-skill hozzárendelést és megszakítást elkészíteni.
+7. [x] A biztonságos, auditált online teleportot előre jóváhagyott célpontokkal
+   és engine-ticken végrehajtott paranccsal elkészíteni.
+8. [x] A 6. fázis offline szerkesztőjét szint/XP-, pénz-, inventory- és
+   bankmódosítással, automatikus backuppal és restore-ral elkészíteni.
+9. [x] A befejezett agent-skill futások adminpaneles történetét és részletes
+   eseménylistáját elkészíteni.
+10. [x] A valódi MapView-ra épülő élő világtérképet botlistával, fókuszálással
+   és Spectate-átjárással elkészíteni.
+11. A 6. fázis következő részében részletes tranzakciós telemetriát készíteni.
+12. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
+13. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

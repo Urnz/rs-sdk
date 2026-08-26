@@ -73,6 +73,8 @@ function Start-LocalComponent {
 
 $oldEasyStartup = $env:EASY_STARTUP
 $oldRegistration = $env:WEBSITE_REGISTRATION
+$oldEngineAdminToken = [Environment]::GetEnvironmentVariable('ENGINE_ADMIN_TOKEN', 'Process')
+$env:ENGINE_ADMIN_TOKEN = if ($oldEngineAdminToken) { $oldEngineAdminToken } else { [Guid]::NewGuid().ToString('N') }
 
 try {
     Start-LocalComponent -Name 'gateway' -WorkingDirectory (Join-Path $repoRoot 'server\gateway') -Arguments @('run', 'gateway.ts') | Out-Null
@@ -89,6 +91,9 @@ try {
     Wait-LocalCondition -Description 'webclient JavaScript modul' -TimeoutSeconds $TimeoutSeconds -Condition {
         (Test-LocalHttp -Uri 'http://localhost:8888/client/client.js' -ExpectedContentType 'application/javascript').healthy
     }
+
+    # Only gateway and engine need the internal mutation token. Do not pass it to bot clients.
+    Remove-Item Env:ENGINE_ADMIN_TOKEN -ErrorAction SilentlyContinue
 
     if (-not $NoBot -and $BotName) {
         $botDirectory = Join-Path $repoRoot "bots\$BotName"
@@ -115,4 +120,9 @@ try {
 } finally {
     $env:EASY_STARTUP = $oldEasyStartup
     $env:WEBSITE_REGISTRATION = $oldRegistration
+    if ($oldEngineAdminToken) {
+        $env:ENGINE_ADMIN_TOKEN = $oldEngineAdminToken
+    } else {
+        Remove-Item Env:ENGINE_ADMIN_TOKEN -ErrorAction SilentlyContinue
+    }
 }

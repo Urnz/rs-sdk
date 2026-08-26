@@ -7,6 +7,7 @@ import { handleViewerAssets } from './hiscoresServer.js';
 import { handleScreenshotsListPage, handleScreenshotFilePage } from './pages/screenshots.js';
 import { handleScreenshotUpload, handleExportCollisionApi } from './pages/api.js';
 import { handleBugReport } from './pages/bug-report.js';
+import { handleInternalAdminRequest } from './pages/internal-admin.js';
 import { handleDisclaimerPage, handleMapviewPage, handlePublicFiles } from './pages/static.js';
 import { WebSocketData, handleWebSocketUpgrade, handleGatewayEndpointGet, websocketHandlers } from './websocket.js';
 import { getIp } from './utils.js';
@@ -88,6 +89,11 @@ async function handleRequest(req: Request, server: Bun.Server, url: URL): Promis
             // Gateway endpoint GET request
             const gatewayResponse = handleGatewayEndpointGet(url);
             if (gatewayResponse) return gatewayResponse;
+
+            // Token-protected, localhost-oriented engine mutations. The handler queues
+            // commands for the next world tick instead of mutating players in HTTP code.
+            const internalAdminResponse = await handleInternalAdminRequest(req, url);
+            if (internalAdminResponse) return internalAdminResponse;
 
             // SDK bug report index (GET) / submission (POST), no auth
             const bugReportResponse = await handleBugReport(req, url);

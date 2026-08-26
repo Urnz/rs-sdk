@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { join } from 'node:path';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { runScript } from '../sdk/runner';
 import { FileSkillStore } from './store';
 import { SkillRegistry } from './registry';
@@ -8,6 +9,7 @@ import { SkillLibrary } from './library';
 import { SkillExecutor } from './executor';
 import { RsSdkSkillRuntime } from './rs-sdk-runtime';
 import { FileSkillRunJournal } from './journal';
+import type { SkillRunResult } from './types';
 
 const args = process.argv.slice(2);
 const positional = args.filter(arg => !arg.startsWith('--'));
@@ -50,11 +52,36 @@ const run = await runScript(async ({ bot, sdk }) => {
         : registry.getLatest(requested, { visibleToAgentId: botName });
     if (!registered) throw new Error(`Skill not found: ${requested}`);
 
-    const result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk)).execute(registered.definition, {
-        parameters,
-        allowDraft,
-        onEvent: event => console.log(`[skill] ${event.type}${event.stepId ? ` ${event.stepId}` : ''}${event.message ? ` - ${event.message}` : ''}`)
-    });
+    const markerDirectory = join(process.cwd(), '.local', 'admin', 'active-skills');
+    const markerPath = join(markerDirectory, `${botName.toLowerCase()}.json`);
+    const marker = {
+        username: botName,
+        skillId: registered.definition.id,
+        version: registered.definition.version,
+        runId: `pending-${crypto.randomUUID()}`,
+        startedAt: new Date().toISOString(),
+        pid: process.pid
+    };
+    await mkdir(markerDirectory, { recursive: true });
+    await writeFile(markerPath, JSON.stringify(marker, null, 2), 'utf8');
+
+    let result: SkillRunResult;
+    try {
+        result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk)).execute(registered.definition, {
+            parameters,
+            allowDraft,
+            onEvent: event => {
+                if (marker.runId !== event.runId) {
+                    marker.runId = event.runId;
+                    void writeFile(markerPath, JSON.stringify(marker, null, 2), 'utf8');
+                }
+                console.log(`[skill] ${event.type}${event.stepId ? ` ${event.stepId}` : ''}${event.message ? ` - ${event.message}` : ''}`);
+            }
+        });
+        result.username = botName.toLowerCase();
+    } finally {
+        await unlink(markerPath).catch(() => undefined);
+    }
     const journalPath = await new FileSkillRunJournal(join(process.cwd(), '.local', 'agent-skills', 'runs')).save(result);
     console.log(`[skill] audit saved: ${journalPath}`);
     console.log(JSON.stringify(result, null, 2));
