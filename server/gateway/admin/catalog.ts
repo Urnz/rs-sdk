@@ -153,6 +153,7 @@ export async function buildBotCatalog(
         const status = deriveAdminStatus(session, process);
         const hasCredentials = managed.has(key);
         const processIsAlive = process?.status === 'starting' || process?.status === 'running' || process?.status === 'stopping';
+        const saveIsStable = !!save?.valid && Date.now() - new Date(save.savedAt).getTime() >= 1_500;
 
         return {
             username: key,
@@ -165,6 +166,8 @@ export async function buildBotCatalog(
             canDespawn: status === 'active' || status === 'stale' || status === 'starting',
             canRestart: hasCredentials && (status === 'active' || status === 'stale' || status === 'error'),
             canTeleport: status === 'active' && !activeSkill && !!state?.player && !state.player.combat.inCombat,
+            canEditOffline: saveIsStable && !processIsAlive && (status === 'offline' || status === 'error'),
+            saveSavedAt: save?.valid ? save.savedAt : null,
             currentSkill: activeSkill ? `${activeSkill.skillId}@${activeSkill.version}` : null,
             runId: activeSkill?.runId ?? null,
             lastError: process?.error ?? save?.error ?? null,

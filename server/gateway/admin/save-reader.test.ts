@@ -7,6 +7,7 @@ import { deriveAdminStatus, economySnapshot } from './catalog';
 import { readPlayerSave } from './save-reader';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, resolveAdminTeleportDestination } from './teleport';
+import { validateOfflineSaveDraft } from './offline-editor';
 import type { BotCatalogEntry } from './types';
 
 const temporaryDirectories: string[] = [];
@@ -60,6 +61,7 @@ describe('admin economy aggregation', () => {
         const base = {
             username: 'a', displayName: 'A', status: 'active', managed: true, hasSave: true,
             hasCredentials: true, canSpawn: false, canDespawn: true, canRestart: true, canTeleport: true,
+            canEditOffline: false, saveSavedAt: null,
             currentSkill: null, runId: null,
             lastError: null, lastActivityAt: null, stateAgeMs: 0, position: null, combatLevel: 3,
             totalLevel: 40, totalXp: 1_000, coins: 500, activity: 'Idle', skills: [], equipment: [],
@@ -130,5 +132,30 @@ describe('admin teleport destinations', () => {
     test('rejects destinations outside the approved catalog', async () => {
         await expect(resolveAdminTeleportDestination('lumbridge-courtyard')).resolves.toMatchObject({ label: expect.any(String) });
         await expect(resolveAdminTeleportDestination('arbitrary-coordinate')).rejects.toThrow('Nem engedélyezett');
+    });
+});
+
+describe('admin offline save draft', () => {
+    const valid = {
+        expectedSavedAt: '2026-08-26T12:00:00.000Z',
+        coins: 5_000,
+        skills: [{ name: 'Fishing', experience: 372_240 }],
+        inventory: [{ id: 301, count: 1 }],
+        bank: [{ id: 377, count: 40 }]
+    };
+
+    test('accepts bounded canonical edit data', () => {
+        expect(validateOfflineSaveDraft(valid)).toEqual(valid);
+    });
+
+    test('rejects invalid xp, coin duplication and unsafe quantities', () => {
+        expect(() => validateOfflineSaveDraft({ ...valid, skills: [{ name: 'Fishing', experience: -1 }] })).toThrow('Fishing XP');
+        expect(() => validateOfflineSaveDraft({ ...valid, inventory: [{ id: 995, count: 10 }] })).toThrow('Pénz mezőben');
+        expect(() => validateOfflineSaveDraft({ ...valid, bank: [{ id: 377, count: 0 }] })).toThrow('mennyiség');
+    });
+
+    test('rejects stale or duplicate skill identities before reaching the engine', () => {
+        expect(() => validateOfflineSaveDraft({ ...valid, expectedSavedAt: 'not-a-date' })).toThrow('időbélyege');
+        expect(() => validateOfflineSaveDraft({ ...valid, skills: [valid.skills[0], valid.skills[0]] })).toThrow('ismétlődő');
     });
 });

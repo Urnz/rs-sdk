@@ -60,6 +60,8 @@ export interface BotCatalogEntry {
     canDespawn: boolean;
     canRestart: boolean;
     canTeleport: boolean;
+    canEditOffline: boolean;
+    saveSavedAt: string | null;
     currentSkill: string | null;
     runId: string | null;
     lastError: string | null;

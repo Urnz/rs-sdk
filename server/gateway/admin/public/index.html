@@ -161,6 +161,42 @@
         </form>
     </dialog>
 
+    <dialog id="offline-editor-dialog" class="editor-dialog">
+        <form id="offline-editor-form" method="dialog">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">KANONIKUS OFFLINE MENTÉS</p><h2 id="offline-editor-title">Mentés szerkesztése</h2></div>
+                <button type="button" class="dialog-close">×</button>
+            </div>
+            <input name="username" type="hidden">
+            <input name="expectedSavedAt" type="hidden">
+            <p class="dialog-note">Csak teljesen offline bot szerkeszthető. Mentés előtt automatikus, visszaállítható biztonsági másolat készül; a coinok a bankba kerülnek.</p>
+            <div class="editor-layout">
+                <section>
+                    <div class="editor-section-heading"><h3>Skillek</h3><span class="muted">Level vagy XP módosítható</span></div>
+                    <div class="editor-table-scroll">
+                        <table class="editor-table">
+                            <thead><tr><th>Skill</th><th class="number">Level</th><th class="number">XP</th></tr></thead>
+                            <tbody id="offline-skill-rows"></tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="editor-assets">
+                    <label>Pénz (gp)<input id="offline-coins" name="coins" type="number" min="0" max="2147483647" step="1" required></label>
+                    <div class="editor-section-heading"><h3>Inventory</h3><button type="button" class="button small ghost" data-action="offline-add-item" data-target="offline-inventory-rows">+ Item</button></div>
+                    <div id="offline-inventory-rows" class="editable-items"></div>
+                    <div class="editor-section-heading"><h3>Bank</h3><button type="button" class="button small ghost" data-action="offline-add-item" data-target="offline-bank-rows">+ Item</button></div>
+                    <div id="offline-bank-rows" class="editable-items"></div>
+                </section>
+            </div>
+            <section class="backup-section">
+                <div class="editor-section-heading"><h3>Biztonsági másolatok</h3><span class="muted">A visszaállítás előtt is új másolat készül</span></div>
+                <div id="offline-backups" class="backup-list"><span class="muted">Betöltés…</span></div>
+            </section>
+            <label>Mentés indoklása<input name="reason" value="Kézi offline botadat-szerkesztés" maxlength="240" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Módosítások mentése</button></div>
+        </form>
+    </dialog>
+
     <div id="toast" class="toast" role="status"></div>
     <script src="admin.js" type="module"></script>
 </body>

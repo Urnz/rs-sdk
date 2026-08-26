@@ -1,7 +1,12 @@
 import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import World, { type AdminTeleportResult } from '#/engine/World.js';
+import World, {
+    type AdminOfflineSaveDraft,
+    type AdminOfflineSaveResult,
+    type AdminPlayerLogoutResult,
+    type AdminTeleportResult
+} from '#/engine/World.js';
 
 interface AdminTeleportDestination {
     id: string;
@@ -51,11 +56,27 @@ function authorized(req: Request): boolean {
 }
 
 export async function handleInternalAdminRequest(req: Request, url: URL): Promise<Response | null> {
-    if (url.pathname !== '/api/internal/admin/teleport') return null;
-    if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    const backupListMatch = url.pathname.match(/^\/api\/internal\/admin\/offline-backups\/([a-zA-Z0-9]{1,12})$/);
+    const knownPath = url.pathname === '/api/internal/admin/teleport'
+        || url.pathname === '/api/internal/admin/offline-edit'
+        || url.pathname === '/api/internal/admin/offline-restore'
+        || url.pathname === '/api/internal/admin/player-logout'
+        || !!backupListMatch;
+    if (!knownPath) return null;
     if (!authorized(req)) return json({ error: 'Unauthorized' }, 401);
+
+    if (backupListMatch?.[1]) {
+        if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+        const username = backupListMatch[1].toLowerCase();
+        return json({
+            backups: World.listAdminSaveBackups(username),
+            readiness: World.getAdminOfflineSaveReadiness(username)
+        });
+    }
+
+    if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
     const contentLength = Number(req.headers.get('content-length') || 0);
-    if (contentLength > 4_096) return json({ error: 'Request too large' }, 413);
+    if (contentLength > 128_000) return json({ error: 'Request too large' }, 413);
 
     let body: Record<string, unknown>;
     try {
@@ -64,12 +85,50 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         return json({ error: 'Invalid JSON body' }, 400);
     }
     const username = typeof body.username === 'string' ? body.username.trim() : '';
-    const destinationId = typeof body.destinationId === 'string' ? body.destinationId.trim() : '';
     const commandId = typeof body.commandId === 'string' ? body.commandId.trim() : '';
-    if (!/^[a-zA-Z0-9]{1,12}$/.test(username) || !/^[a-z0-9][a-z0-9-]{1,48}$/.test(destinationId)
-        || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(commandId)) {
-        return json({ error: 'Invalid admin teleport request' }, 400);
+    const validIdentity = /^[a-zA-Z0-9]{1,12}$/.test(username)
+        && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(commandId);
+    if (!validIdentity) return json({ error: 'Invalid admin command identity' }, 400);
+
+    if (url.pathname === '/api/internal/admin/offline-edit') {
+        const draft = body.draft;
+        if (!draft || typeof draft !== 'object') return json({ error: 'Invalid offline save draft' }, 400);
+        const result: AdminOfflineSaveResult = await World.enqueueAdminOfflineSave({
+            commandId,
+            username,
+            operation: 'edit',
+            draft: draft as AdminOfflineSaveDraft,
+            expiresAt: Date.now() + 2_000
+        });
+        return json(result, result.ok ? 200 : 409);
     }
+
+    if (url.pathname === '/api/internal/admin/offline-restore') {
+        const backupId = typeof body.backupId === 'string' ? body.backupId.trim() : '';
+        const expectedSavedAt = typeof body.expectedSavedAt === 'string' ? body.expectedSavedAt.trim() : '';
+        if (!backupId || !expectedSavedAt) return json({ error: 'Invalid offline restore request' }, 400);
+        const result: AdminOfflineSaveResult = await World.enqueueAdminOfflineSave({
+            commandId,
+            username,
+            operation: 'restore',
+            backupId,
+            expectedSavedAt,
+            expiresAt: Date.now() + 2_000
+        });
+        return json(result, result.ok ? 200 : 409);
+    }
+
+    if (url.pathname === '/api/internal/admin/player-logout') {
+        const result: AdminPlayerLogoutResult = await World.enqueueAdminPlayerLogout({
+            commandId,
+            username,
+            expiresAt: Date.now() + 2_000
+        });
+        return json(result, result.ok ? 200 : 409);
+    }
+
+    const destinationId = typeof body.destinationId === 'string' ? body.destinationId.trim() : '';
+    if (!/^[a-z0-9][a-z0-9-]{1,48}$/.test(destinationId)) return json({ error: 'Invalid admin teleport request' }, 400);
     const destination = destinations.get(destinationId);
     if (!destination) return json({ error: `Teleport destination is not approved: ${destinationId}` }, 400);
 

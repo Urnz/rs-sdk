@@ -97,7 +97,7 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
   újraindításhoz és futó agent-skill megszakításához.
 - [x] Online bothoz verified agent-skill hozzárendelést és megszakítást készíteni.
 - [x] Online bothoz biztonságos, előre jóváhagyott célpontos teleportot készíteni.
-- [ ] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
+- [x] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
   bank módosítást készíteni; futó játékos mentésfájlját közvetlenül nem írjuk.
 - [x] Minden elkészült állapotmódosításhoz jogosultságot, indoklást,
   időpontot és visszakövethető auditbejegyzést követelni.
@@ -250,7 +250,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
    agent-skill hozzárendelést és megszakítást elkészíteni.
 7. [x] A biztonságos, auditált online teleportot előre jóváhagyott célpontokkal
    és engine-ticken végrehajtott paranccsal elkészíteni.
-8. A 6. fázis következő részében offline szerkesztést, élő térképet és részletes
-   tranzakciós telemetriát készíteni.
-9. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
-10. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+8. [x] A 6. fázis offline szerkesztőjét szint/XP-, pénz-, inventory- és
+   bankmódosítással, automatikus backuppal és restore-ral elkészíteni.
+9. A 6. fázis következő részében élő térképet és részletes tranzakciós
+   telemetriát készíteni.
+10. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
+11. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

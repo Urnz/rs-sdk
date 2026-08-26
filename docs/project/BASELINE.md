@@ -1,4 +1,4 @@
-# Helyi baseline – 2026-08-25
+# Helyi baseline – 2026-08-26
 
 ## Verziók
 
@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 292 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 295 teszt sikeres, 0 sikertelen.
 
 ## Botadmin baseline
 
@@ -44,6 +44,17 @@
 - A teleport nem a mentést vagy a klienst írja: egyszer használatos belső tokennel
   védett engine-parancs, amely a következő world tickben ismét ellenőrzi a játékost,
   a világot és a célmező collision állapotát.
+- A teljesen offline bot mentése az adminpanelen szint/XP, pénz, inventory és bank
+  szerint szerkeszthető. Az engine az eredeti `PlayerLoading`/`Player.save()` codecet
+  használja, majd CRC-visszaolvasással ellenőrzi az eredményt.
+- Minden edit és restore előtt változtathatatlan helyi backup készül a
+  `.local/admin/save-backups/<bot>/` könyvtárban. Elavult editor, párhuzamos írás,
+  online/bejelentkező/kijelentkező játékos és jogosulatlan belső kérés elutasítódik.
+- Az admin-despawn engine-ticken indít kanonikus logoutot; az élő próbán 229 ms
+  alatt lett a mentés engine-oldalon is szerkeszthető.
+- Oda-vissza próba: 25 gp / Fishing 1 / üres extra készlet → 35 gp / Fishing 2
+  (800 XP) / 1 copper ore / 2 raw lobster → eredeti állapot. A tesztbot végül
+  ismét online, 25 gp-vel fut.
 
 ## Smoke teszt
 

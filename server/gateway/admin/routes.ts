@@ -6,6 +6,13 @@ import { adminPublicDir, adminTrashDir, botsDir, experimentsDir, playerSavesDir 
 import { BotSupervisor } from './supervisor';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
+import {
+    listEngineOfflineBackups,
+    requestEngineOfflineEdit,
+    requestEngineOfflineRestore,
+    requestEnginePlayerLogout,
+    validateOfflineSaveDraft
+} from './offline-editor';
 import type { GatewayBotSnapshot } from './types';
 
 export interface AdminRouteContext {
@@ -74,7 +81,7 @@ async function serveAdminAsset(url: URL): Promise<Response | null> {
     return new Response(file, {
         headers: {
             'Content-Type': contentType(path),
-            'Cache-Control': relative === 'index.html' ? 'no-store' : 'public, max-age=60',
+            'Cache-Control': 'no-store',
             'X-Content-Type-Options': 'nosniff',
             'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
         }
@@ -208,6 +215,69 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
         }
 
+        const offlineEditMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/offline-save$/);
+        if (offlineEditMatch?.[1]) {
+            const username = decodeURIComponent(offlineEditMatch[1]);
+            const bot = (await catalog()).find(entry => entry.username === username.toLowerCase());
+            if (!bot) return json({ error: 'A bot nem található.' }, 404);
+
+            if (req.method === 'GET') {
+                if (!bot.hasSave) return json({ error: 'A botnak nincs mentésfájlja.' }, 404);
+                return json(await listEngineOfflineBackups(username));
+            }
+
+            if (req.method === 'POST') {
+                const body = await requestBody(req);
+                const reason = text(body, 'reason', true);
+                const commandId = crypto.randomUUID();
+                try {
+                    if (!bot.canEditOffline) throw new Error('A mentés csak teljesen offline, nem futó botnál szerkeszthető.');
+                    const draft = validateOfflineSaveDraft(body.draft);
+                    if (draft.expectedSavedAt !== bot.saveSavedAt) throw new Error('A mentés megváltozott az editor megnyitása óta; töltsd újra az adatokat.');
+                    const result = await requestEngineOfflineEdit(username, draft, commandId);
+                    await appendAudit({
+                        operator: 'local-admin', action: 'bot.offline-save.edit', username, reason, success: true,
+                        before: result.before, after: { state: result.after, backupId: result.backupId, engineTick: result.tick, commandId }
+                    });
+                    return json({ ok: true, result });
+                } catch (error) {
+                    await appendAudit({
+                        operator: 'local-admin', action: 'bot.offline-save.edit', username, reason, success: false,
+                        after: { commandId }, error: String(error)
+                    });
+                    throw error;
+                }
+            }
+        }
+
+        const offlineRestoreMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/offline-save\/restore$/);
+        if (req.method === 'POST' && offlineRestoreMatch?.[1]) {
+            const username = decodeURIComponent(offlineRestoreMatch[1]);
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const backupId = text(body, 'backupId', true);
+            const expectedSavedAt = text(body, 'expectedSavedAt', true);
+            const commandId = crypto.randomUUID();
+            try {
+                const bot = (await catalog()).find(entry => entry.username === username.toLowerCase());
+                if (!bot) throw new Error('A bot nem található.');
+                if (!bot.canEditOffline) throw new Error('Mentés csak teljesen offline, nem futó botnál állítható vissza.');
+                if (bot.saveSavedAt !== expectedSavedAt) throw new Error('A mentés megváltozott; frissítsd az oldalt a visszaállítás előtt.');
+                const result = await requestEngineOfflineRestore(username, backupId, expectedSavedAt, commandId);
+                await appendAudit({
+                    operator: 'local-admin', action: 'bot.offline-save.restore', username, reason, success: true,
+                    before: result.before, after: { state: result.after, restoredFrom: backupId, backupId: result.backupId, engineTick: result.tick, commandId }
+                });
+                return json({ ok: true, result });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'bot.offline-save.restore', username, reason, success: false,
+                    after: { backupId, commandId }, error: String(error)
+                });
+                throw error;
+            }
+        }
+
         if (req.method === 'POST' && url.pathname === '/api/admin/bots/spawn') {
             const body = await requestBody(req);
             const username = text(body, 'username', true);
@@ -296,7 +366,11 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
             let result: unknown;
-            if (action === 'despawn') result = await context.supervisor.despawn(username, reason);
+            if (action === 'despawn') {
+                const process = await context.supervisor.despawn(username, reason);
+                const engine = await requestEnginePlayerLogout(username, crypto.randomUUID());
+                result = { process, engine };
+            }
             else if (action === 'restart') result = await context.supervisor.restart({
                 username,
                 password: text(body, 'password'),

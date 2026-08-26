@@ -46,7 +46,7 @@ import Npc from '#/engine/entity/Npc.js';
 import { NpcEventRequest, NpcEventType } from '#/engine/entity/NpcEventRequest.js';
 import { NpcStat } from '#/engine/entity/NpcStat.js';
 import Obj from '#/engine/entity/Obj.js';
-import Player from '#/engine/entity/Player.js';
+import Player, { getLevelByExp } from '#/engine/entity/Player.js';
 import { PlayerLoading } from '#/engine/entity/PlayerLoading.js';
 import { EntityQueueState, PlayerQueueType } from '#/engine/entity/PlayerQueueRequest.js';
 import { PlayerStat, PlayerStatEnabled, PlayerStatNameMap } from '#/engine/entity/PlayerStat.js';
@@ -140,8 +140,94 @@ export interface AdminTeleportResult {
     error?: string;
 }
 
+export interface AdminOfflineSaveItem {
+    id: number;
+    count: number;
+}
+
+export interface AdminOfflineSaveSkill {
+    name: string;
+    experience: number;
+}
+
+export interface AdminOfflineSaveDraft {
+    expectedSavedAt: string;
+    coins: number;
+    skills: AdminOfflineSaveSkill[];
+    inventory: AdminOfflineSaveItem[];
+    bank: AdminOfflineSaveItem[];
+}
+
+export interface AdminOfflineSaveCommand {
+    commandId: string;
+    username: string;
+    operation: 'edit' | 'restore';
+    draft?: AdminOfflineSaveDraft;
+    backupId?: string;
+    expectedSavedAt?: string;
+    expiresAt: number;
+}
+
+export interface AdminOfflineSaveSummary {
+    savedAt: string;
+    skills: AdminOfflineSaveSkill[];
+    inventory: AdminOfflineSaveItem[];
+    bank: AdminOfflineSaveItem[];
+    coins: number;
+}
+
+export interface AdminOfflineSaveResult {
+    ok: boolean;
+    commandId: string;
+    username: string;
+    operation: 'edit' | 'restore';
+    backupId?: string;
+    before?: AdminOfflineSaveSummary;
+    after?: AdminOfflineSaveSummary;
+    tick?: number;
+    code?: string;
+    error?: string;
+}
+
+export interface AdminSaveBackup {
+    id: string;
+    username: string;
+    createdAt: string;
+    operation: 'edit' | 'restore';
+    commandId: string;
+    size: number;
+}
+
+export interface AdminOfflineSaveReadiness {
+    editable: boolean;
+    code: 'ready' | 'player-online' | 'login-pending' | 'logout-pending';
+}
+
+export interface AdminPlayerLogoutCommand {
+    commandId: string;
+    username: string;
+    expiresAt: number;
+}
+
+export interface AdminPlayerLogoutResult {
+    ok: boolean;
+    commandId: string;
+    username: string;
+    tick?: number;
+    code?: 'logout-requested' | 'already-offline' | 'expired' | 'world-shutdown' | 'queue-full' | 'internal-error';
+    error?: string;
+}
+
 type PendingAdminTeleport = AdminTeleportCommand & {
     resolve: (result: AdminTeleportResult) => void;
+};
+
+type PendingAdminOfflineSave = AdminOfflineSaveCommand & {
+    resolve: (result: AdminOfflineSaveResult) => void;
+};
+
+type PendingAdminPlayerLogout = AdminPlayerLogoutCommand & {
+    resolve: (result: AdminPlayerLogoutResult) => void;
 };
 
 class World {
@@ -205,6 +291,8 @@ class World {
     readonly npcEventQueue: LinkList<NpcEventRequest> = new LinkList();
     readonly objDelayedQueue: LinkList<ObjDelayedRequest> = new LinkList();
     private readonly adminTeleportQueue: PendingAdminTeleport[] = [];
+    private readonly adminOfflineSaveQueue: PendingAdminOfflineSave[] = [];
+    private readonly adminPlayerLogoutQueue: PendingAdminPlayerLogout[] = [];
 
     // debug data
     readonly lastCycleStats: Uint16Array = new Uint16Array(12);
@@ -428,6 +516,8 @@ class World {
             // Local admin commands execute at an explicit world-tick boundary after
             // pending client packets are visible, but before entity processing/movement.
             this.processAdminTeleports();
+            this.processAdminPlayerLogouts();
+            this.processAdminOfflineSaves();
 
             // Spawn triggers, despawn triggers
             this.processNpcEventQueue();
@@ -735,6 +825,332 @@ class World {
                 reject('internal-error', error instanceof Error ? error.message : String(error));
             }
         }
+    }
+
+    enqueueAdminOfflineSave(command: AdminOfflineSaveCommand): Promise<AdminOfflineSaveResult> {
+        if (this.adminOfflineSaveQueue.length >= 20) {
+            return Promise.resolve({
+                ok: false,
+                commandId: command.commandId,
+                username: command.username,
+                operation: command.operation,
+                code: 'queue-full',
+                error: 'The engine offline-save admin command queue is full.'
+            });
+        }
+        return new Promise(resolve => this.adminOfflineSaveQueue.push({ ...command, resolve }));
+    }
+
+    enqueueAdminPlayerLogout(command: AdminPlayerLogoutCommand): Promise<AdminPlayerLogoutResult> {
+        if (this.adminPlayerLogoutQueue.length >= 50) {
+            return Promise.resolve({
+                ok: false,
+                commandId: command.commandId,
+                username: command.username,
+                code: 'queue-full',
+                error: 'The engine admin player logout queue is full.'
+            });
+        }
+        return new Promise(resolve => this.adminPlayerLogoutQueue.push({ ...command, resolve }));
+    }
+
+    private processAdminPlayerLogouts(): void {
+        const commands = this.adminPlayerLogoutQueue.splice(0);
+        for (const command of commands) {
+            const reject = (code: AdminPlayerLogoutResult['code'], error: string) => command.resolve({
+                ok: false,
+                commandId: command.commandId,
+                username: command.username,
+                tick: this.currentTick,
+                code,
+                error
+            });
+            try {
+                if (Date.now() > command.expiresAt) {
+                    reject('expired', 'The admin logout command expired before a world tick could execute it.');
+                    continue;
+                }
+                if (this.shutdown) {
+                    reject('world-shutdown', 'The world is shutting down.');
+                    continue;
+                }
+                const player = this.getPlayerByUsername(command.username);
+                if (!player) {
+                    command.resolve({
+                        ok: true,
+                        commandId: command.commandId,
+                        username: command.username,
+                        tick: this.currentTick,
+                        code: 'already-offline'
+                    });
+                    continue;
+                }
+                player.stopAction();
+                player.preventLogoutUntil = 0;
+                player.loggingOut = true;
+                player.addSessionLog(LoggerEventType.MODERATOR, 'Admin despawn requested', command.commandId);
+                command.resolve({
+                    ok: true,
+                    commandId: command.commandId,
+                    username: player.username,
+                    tick: this.currentTick,
+                    code: 'logout-requested'
+                });
+            } catch (error) {
+                reject('internal-error', error instanceof Error ? error.message : String(error));
+            }
+        }
+    }
+
+    listAdminSaveBackups(username: string): AdminSaveBackup[] {
+        const safeName = username.toLowerCase();
+        const directory = this.adminBackupDirectory(safeName);
+        if (!fs.existsSync(directory)) return [];
+        const backups: AdminSaveBackup[] = [];
+        for (const filename of fs.readdirSync(directory)) {
+            if (!filename.endsWith('.json')) continue;
+            try {
+                const parsed = JSON.parse(fs.readFileSync(`${directory}/${filename}`, 'utf8')) as AdminSaveBackup;
+                if (parsed.username !== safeName || parsed.id !== filename.slice(0, -5)) continue;
+                if (!fs.existsSync(`${directory}/${parsed.id}.sav`)) continue;
+                backups.push(parsed);
+            } catch {
+                // Ignore a partial metadata file; the save itself is never selected without valid metadata.
+            }
+        }
+        return backups.sort((left, right) => right.createdAt.localeCompare(left.createdAt)).slice(0, 50);
+    }
+
+    getAdminOfflineSaveReadiness(username: string): AdminOfflineSaveReadiness {
+        const normalized = username.toLowerCase();
+        const matches = (value: string) => value.toLowerCase() === normalized;
+        if (this.getPlayerByUsername(normalized)) return { editable: false, code: 'player-online' };
+        if ([...this.loginRequests.keys()].some(matches)) return { editable: false, code: 'login-pending' };
+        if ([...this.logoutRequests.keys()].some(matches)) return { editable: false, code: 'logout-pending' };
+        return { editable: true, code: 'ready' };
+    }
+
+    private processAdminOfflineSaves(): void {
+        const commands = this.adminOfflineSaveQueue.splice(0);
+        for (const command of commands) {
+            const reject = (code: string, error: string, before?: AdminOfflineSaveSummary) => command.resolve({
+                ok: false,
+                commandId: command.commandId,
+                username: command.username,
+                operation: command.operation,
+                before,
+                tick: this.currentTick,
+                code,
+                error
+            });
+            try {
+                if (Date.now() > command.expiresAt) {
+                    reject('expired', 'The admin offline-save command expired before a world tick could execute it.');
+                    continue;
+                }
+                if (this.shutdown) {
+                    reject('world-shutdown', 'The world is shutting down.');
+                    continue;
+                }
+                if (Environment.login.enabled) {
+                    reject('remote-login-server', 'Offline save editing is only supported by the local file-backed login server.');
+                    continue;
+                }
+                const username = command.username.toLowerCase();
+                if (this.adminSaveIsInUse(username)) {
+                    reject('player-not-offline', 'The player is online, logging in, or still saving.');
+                    continue;
+                }
+                const savePath = this.adminPlayerSavePath(username);
+                if (!fs.existsSync(savePath)) {
+                    reject('save-not-found', 'The player save does not exist.');
+                    continue;
+                }
+                const original = fs.readFileSync(savePath);
+                if (!PlayerLoading.verify(new Packet(original))) {
+                    reject('invalid-current-save', 'The current player save failed canonical verification.');
+                    continue;
+                }
+                const player = PlayerLoading.load(username, new Packet(original), null);
+                const before = this.adminSaveSummary(player, fs.statSync(savePath).mtime.toISOString());
+                let nextBytes: Uint8Array;
+
+                if (command.operation === 'edit') {
+                    if (!command.draft) {
+                        reject('invalid-draft', 'The offline save edit is missing its draft.', before);
+                        continue;
+                    }
+                    if (before.savedAt !== command.draft.expectedSavedAt) {
+                        reject('save-changed', 'The player save changed after the editor was opened. Reload it before saving.', before);
+                        continue;
+                    }
+                    this.applyAdminSaveDraft(player, command.draft);
+                    nextBytes = player.save();
+                } else {
+                    if (before.savedAt !== command.expectedSavedAt) {
+                        reject('save-changed', 'The player save changed after the backup list was opened. Reload it before restoring.', before);
+                        continue;
+                    }
+                    const backupId = command.backupId || '';
+                    if (!/^[0-9A-Za-z-]{20,100}$/.test(backupId)) {
+                        reject('invalid-backup', 'The requested backup id is invalid.', before);
+                        continue;
+                    }
+                    const backupPath = `${this.adminBackupDirectory(username)}/${backupId}.sav`;
+                    if (!fs.existsSync(backupPath)) {
+                        reject('backup-not-found', 'The requested backup does not exist.', before);
+                        continue;
+                    }
+                    const backup = fs.readFileSync(backupPath);
+                    if (!PlayerLoading.verify(new Packet(backup))) {
+                        reject('invalid-backup', 'The requested backup failed canonical verification.', before);
+                        continue;
+                    }
+                    nextBytes = PlayerLoading.load(username, new Packet(backup), null).save();
+                }
+
+                if (!PlayerLoading.verify(new Packet(nextBytes))) {
+                    reject('invalid-generated-save', 'The generated player save failed canonical verification.', before);
+                    continue;
+                }
+                const backupId = this.createAdminSaveBackup(username, command.operation, command.commandId, original);
+                this.replaceAdminPlayerSave(savePath, command.commandId, nextBytes);
+                const persisted = fs.readFileSync(savePath);
+                if (!PlayerLoading.verify(new Packet(persisted))) {
+                    fs.copyFileSync(`${this.adminBackupDirectory(username)}/${backupId}.sav`, savePath);
+                    reject('persist-verification-failed', 'The written save failed verification and the previous save was restored.', before);
+                    continue;
+                }
+                const afterPlayer = PlayerLoading.load(username, new Packet(persisted), null);
+                const after = this.adminSaveSummary(afterPlayer, fs.statSync(savePath).mtime.toISOString());
+                command.resolve({
+                    ok: true,
+                    commandId: command.commandId,
+                    username,
+                    operation: command.operation,
+                    backupId,
+                    before,
+                    after,
+                    tick: this.currentTick
+                });
+            } catch (error) {
+                reject('internal-error', error instanceof Error ? error.message : String(error));
+            }
+        }
+    }
+
+    private adminSaveIsInUse(username: string): boolean {
+        return !this.getAdminOfflineSaveReadiness(username).editable;
+    }
+
+    private adminPlayerSavePath(username: string): string {
+        return `data/players/${Environment.node.profile}/${username}.sav`;
+    }
+
+    private adminBackupDirectory(username: string): string {
+        return `../../.local/admin/save-backups/${username}`;
+    }
+
+    private createAdminSaveBackup(
+        username: string,
+        operation: 'edit' | 'restore',
+        commandId: string,
+        bytes: Uint8Array
+    ): string {
+        const createdAt = new Date().toISOString();
+        const id = `${createdAt.replace(/[:.]/g, '-')}-${commandId}`;
+        const directory = this.adminBackupDirectory(username);
+        if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
+        fs.writeFileSync(`${directory}/${id}.sav`, bytes, { flag: 'wx' });
+        const metadata: AdminSaveBackup = { id, username, createdAt, operation, commandId, size: bytes.length };
+        fs.writeFileSync(`${directory}/${id}.json`, JSON.stringify(metadata, null, 2), { encoding: 'utf8', flag: 'wx' });
+        return id;
+    }
+
+    private replaceAdminPlayerSave(path: string, commandId: string, bytes: Uint8Array): void {
+        const temporaryPath = `${path}.${commandId}.tmp`;
+        try {
+            fs.writeFileSync(temporaryPath, bytes, { flag: 'wx' });
+            const written = fs.readFileSync(temporaryPath);
+            if (!PlayerLoading.verify(new Packet(written))) throw new Error('Temporary save verification failed');
+            fs.renameSync(temporaryPath, path);
+        } finally {
+            if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
+        }
+    }
+
+    private applyAdminSaveDraft(player: Player, draft: AdminOfflineSaveDraft): void {
+        if (!Number.isInteger(draft.coins) || draft.coins < 0 || draft.coins > Inventory.STACK_LIMIT) {
+            throw new Error('Coins must be an integer between 0 and the inventory stack limit.');
+        }
+        if (!Array.isArray(draft.skills) || draft.skills.length > 19) throw new Error('Invalid skill edit list.');
+        const changedStats = new Set<number>();
+        for (const skill of draft.skills) {
+            const normalized = skill.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const stat = [...PlayerStatNameMap].find(([, name]) => name === normalized)?.[0];
+            if (stat === undefined || !PlayerStatEnabled[stat] || changedStats.has(stat)) throw new Error(`Invalid or duplicate skill: ${skill.name}`);
+            if (!Number.isInteger(skill.experience) || skill.experience < 0 || skill.experience > 2_000_000_000) {
+                throw new Error(`Invalid experience for ${skill.name}.`);
+            }
+            changedStats.add(stat);
+        }
+
+        const inventoryId = InvType.INV;
+        const bankId = InvType.getId('bank');
+        if (inventoryId === -1 || bankId === -1) throw new Error('Canonical inventory types are not loaded.');
+        const inventory = this.buildAdminInventory(inventoryId, draft.inventory, false);
+        const bank = this.buildAdminInventory(bankId, draft.bank, false);
+        if (draft.coins > 0 && bank.add(995, draft.coins) !== draft.coins) throw new Error('The bank has no room for the requested coins.');
+
+        for (const skill of draft.skills) {
+            const normalized = skill.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+            const stat = [...PlayerStatNameMap].find(([, name]) => name === normalized)![0];
+            const level = getLevelByExp(skill.experience);
+            player.stats[stat] = skill.experience;
+            player.baseLevels[stat] = level;
+            player.levels[stat] = level;
+        }
+        player.invs.set(inventoryId, inventory);
+        player.invs.set(bankId, bank);
+        player.combatLevel = player.getCombatLevel();
+    }
+
+    private buildAdminInventory(typeId: number, items: AdminOfflineSaveItem[], allowCoins: boolean): Inventory {
+        if (!Array.isArray(items) || items.length > 2048) throw new Error('Invalid inventory item list.');
+        const inventory = Inventory.fromType(typeId);
+        for (const item of items) {
+            if (!Number.isInteger(item.id) || item.id < 0 || item.id >= ObjType.count || !ObjType.get(item.id)) {
+                throw new Error(`Unknown item id: ${item.id}`);
+            }
+            if (!allowCoins && item.id === 995) throw new Error('Coins must be edited through the dedicated coins field.');
+            if (!Number.isInteger(item.count) || item.count < 1 || item.count > Inventory.STACK_LIMIT) {
+                throw new Error(`Invalid item count for item ${item.id}.`);
+            }
+            const itemType = ObjType.get(item.id);
+            if (!Environment.node.members && itemType.members) throw new Error(`Members item ${item.id} is not allowed on this world.`);
+            if (inventory.add(item.id, item.count) !== item.count) throw new Error(`Inventory capacity exceeded while adding item ${item.id}.`);
+        }
+        return inventory;
+    }
+
+    private adminSaveSummary(player: Player, savedAt: string): AdminOfflineSaveSummary {
+        const inventoryId = InvType.INV;
+        const bankId = InvType.getId('bank');
+        const items = (inventory: Inventory | null): AdminOfflineSaveItem[] => inventory
+            ? inventory.itemsFiltered.map(item => ({ id: item.id, count: item.count }))
+            : [];
+        const inventory = items(player.getInventory(inventoryId));
+        const bank = items(player.getInventory(bankId));
+        const coins = [...inventory, ...bank].filter(item => item.id === 995).reduce((sum, item) => sum + item.count, 0);
+        return {
+            savedAt,
+            skills: [...PlayerStatNameMap]
+                .filter(([stat]) => PlayerStatEnabled[stat])
+                .map(([stat, name]) => ({ name, experience: player.stats[stat] })),
+            inventory: inventory.filter(item => item.id !== 995),
+            bank: bank.filter(item => item.id !== 995),
+            coins
+        };
     }
 
     private processWorld(): void {

@@ -19,6 +19,8 @@ Az elkészült funkciók:
 - verziózott `verified + shared` agent-skill kiválasztása, séma alapján generált
   paraméterezése és indítása online, kezelt bothoz;
 - biztonságos online teleport öt névvel ellátott, verziókezelt célpontra;
+- offline mentésszerkesztő level/XP-, pénz-, inventory- és bankmezőkkel,
+  automatikus biztonsági másolattal és visszaállítással;
 - új vagy korábban elmentett helyi bot hitelesítő adatainak kezelése;
 - helyi jogosultságvédelem, minden módosításhoz kötelező indoklás és JSONL audit;
 - visszaállítható eltávolítás: az offline bot mentése és helyi konfigurációja
@@ -86,10 +88,28 @@ előtt automatikus mentés készül, majd validálás és visszaolvasási próba
 Az adminművelet rögzíti az operátort, indoklást, időpontot, előtte/utána értéket
 és a kapcsolódó kísérlet azonosítóját.
 
+Az elkészült editor nem ír közvetlenül bájtpozíciókat. A gateway határolja és
+validálja a kérést, az engine pedig world-tick határon ismét ellenőrzi, hogy a
+játékos nincs online, login alatt vagy logout-mentés közben. Ezután a saját
+`PlayerLoading.load()` betöltőjével készít játékosobjektumot, csak a jóváhagyott
+mezőket módosítja, és a `Player.save()` metódussal állítja elő az új mentést.
+Az írás ideiglenes fájlon át történik, a kész CRC-t visszaolvassa és ellenőrzi.
+
+Az editor megnyitásakor eltárolt mentési időbélyeg optimista zárként működik:
+ha közben login, autosave, másik admin vagy párhuzamos kérés módosította a fájlt,
+az írás elutasítódik. A backupok a `.local/admin/save-backups/<bot>/` könyvtárban
+maradnak, és minden restore előtt az aktuális állapotról is új védőmásolat készül.
+A coin külön mező; az engine eltávolítja a korábbi coinstackeket, és a megadott
+összeget a kanonikus bankinventoryba teszi.
+
+A gateway `despawn` az ügyfél rendezett lekapcsolása mellett engine-tick parancsot
+is küld. Így az engine a normál logout/save útvonalon rögtön felszabadítja a
+játékost, nem kell megvárni a hálózati kapcsolat hosszú timeoutját. Az editor
+megnyitása külön readiness-lekérdezéssel is ellenőrzi ezt az állapotot.
+
 ## Következő kiadás
 
-1. Offline szerkesztés: XP/szint, pénz, inventory és bank biztonságos módosítása.
-2. Élő világtérkép és részletes skill-futástörténet.
-3. Gazdasági dashboard bővítése: teljes vagyon, termelés,
+1. Élő világtérkép és részletes skill-futástörténet.
+2. Gazdasági dashboard bővítése: teljes vagyon, termelés,
    fogyasztás, shop-tranzakciók, player trade és XP/óra idősorok.
-4. Kontrollcsoportok és több kísérleti snapshot összehasonlító nézete.
+3. Kontrollcsoportok és több kísérleti snapshot összehasonlító nézete.

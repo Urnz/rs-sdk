@@ -6,6 +6,7 @@ const state = {
     teleportDestinations: [],
     sort: { key: 'status', direction: 1 },
     selected: null,
+    offlineEditing: null,
     spectating: null,
     spectateTimer: null,
     token: sessionStorage.getItem('rs-admin-token') || ''
@@ -15,6 +16,20 @@ const $ = selector => document.querySelector(selector);
 const fmt = new Intl.NumberFormat('hu-HU');
 const statusLabels = { active: 'Online', offline: 'Offline', stale: 'Nem válaszol', starting: 'Indul', stopping: 'Leáll', error: 'Hiba' };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+const xpThresholds = (() => {
+    const values = []; let accumulator = 0;
+    for (let index = 0; index < 99; index++) {
+        const level = index + 1;
+        accumulator += Math.floor(level + Math.pow(2, level / 10) * 300);
+        values[index] = Math.floor(accumulator / 4) * 10;
+    }
+    return values;
+})();
+const levelForXp = xp => {
+    for (let index = 98; index >= 0; index--) if (xp >= xpThresholds[index]) return Math.min(index + 2, 99);
+    return 1;
+};
+const xpForLevel = level => level <= 1 ? 0 : xpThresholds[Math.min(97, level - 2)];
 
 async function api(path, options = {}) {
     const headers = { ...(options.headers || {}) };
@@ -109,10 +124,13 @@ function actionButtons(bot) {
     const teleport = bot.canTeleport
         ? `<button class="button small teleport" data-action="teleport" data-name="${escapeHtml(bot.username)}">Teleport</button>`
         : '';
+    const editSave = bot.canEditOffline
+        ? `<button class="button small save-edit" data-action="offline-edit" data-name="${escapeHtml(bot.username)}">Mentés szerkesztése</button>`
+        : '';
     const remove = bot.status === 'offline' || bot.status === 'error'
         ? `<button class="button small ghost" data-action="delete" data-name="${escapeHtml(bot.username)}">Törlés</button>`
         : '';
-    return `<div class="row-actions">${primary}${skill}${teleport}${spectate}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
+    return `<div class="row-actions">${primary}${skill}${teleport}${editSave}${spectate}<button class="button small ghost" data-action="profile" data-name="${escapeHtml(bot.username)}">Részletek</button>${remove}</div>`;
 }
 
 function renderTable() {
@@ -146,7 +164,7 @@ function openProfile(username) {
     if (!bot) return;
     state.selected = username;
     $('#profile-content').innerHTML = `
-        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p><div class="profile-actions">${bot.currentSkill ? `<button class="button danger-outline" data-action="stop-skill" data-name="${escapeHtml(bot.username)}">Skill leállítása</button>` : bot.status === 'active' && bot.hasCredentials ? `<button class="button skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill hozzárendelése</button>` : ''}${bot.canTeleport ? `<button class="button teleport" data-action="teleport" data-name="${escapeHtml(bot.username)}">Biztonságos teleport</button>` : ''}${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div></div>
+        <div class="profile-header"><p class="eyebrow">BOTPROFIL</p><h2>${escapeHtml(bot.displayName)}</h2><p class="muted"><span class="status ${bot.status}">${statusLabels[bot.status] || bot.status}</span> · ${escapeHtml(bot.activity)}</p><div class="profile-actions">${bot.currentSkill ? `<button class="button danger-outline" data-action="stop-skill" data-name="${escapeHtml(bot.username)}">Skill leállítása</button>` : bot.status === 'active' && bot.hasCredentials ? `<button class="button skill-button" data-action="start-skill" data-name="${escapeHtml(bot.username)}">Skill hozzárendelése</button>` : ''}${bot.canTeleport ? `<button class="button teleport" data-action="teleport" data-name="${escapeHtml(bot.username)}">Biztonságos teleport</button>` : ''}${bot.canEditOffline ? `<button class="button save-edit" data-action="offline-edit" data-name="${escapeHtml(bot.username)}">Offline mentés szerkesztése</button>` : ''}${bot.status === 'active' ? `<button class="button spectate" data-action="spectate" data-name="${escapeHtml(bot.username)}">Élő Spectate</button>` : ''}</div></div>
         <div class="profile-grid"><div><span>Total level</span><strong>${fmt.format(bot.totalLevel)}</strong></div><div><span>Combat</span><strong>${fmt.format(bot.combatLevel)}</strong></div><div><span>Pénz</span><strong>${fmt.format(bot.coins)} gp</strong></div><div><span>Összes XP</span><strong>${fmt.format(bot.totalXp)}</strong></div><div><span>Pozíció</span><strong>${bot.position ? `${bot.position.x}, ${bot.position.z}` : '–'}</strong></div><div><span>Mentés</span><strong>${bot.hasSave ? 'van' : 'nincs'}</strong></div></div>
         ${bot.currentSkill ? `<p><strong>Aktív agent skill:</strong> ${escapeHtml(bot.currentSkill)}<br><span class="muted">Run: ${escapeHtml(bot.runId || '–')}</span></p>` : ''}
         <h3 class="section-title">Skillek</h3><div class="skill-list">${bot.skills.map(skill => `<div class="skill"><span>${escapeHtml(skill.name)}</span><strong>${skill.level}</strong></div>`).join('')}</div>
@@ -290,6 +308,78 @@ function updateTeleportDescription() {
     $('#teleport-description').textContent = destination?.description || '';
 }
 
+function aggregateEditableItems(items) {
+    const aggregate = new Map();
+    for (const item of items.filter(entry => entry.id !== 995)) {
+        const current = aggregate.get(item.id) || { id: item.id, name: item.name, count: 0 };
+        current.count += item.count;
+        aggregate.set(item.id, current);
+    }
+    return [...aggregate.values()].sort((left, right) => left.id - right.id);
+}
+
+function addEditableItem(targetId, item = { id: '', count: 1, name: '' }) {
+    $(`#${targetId}`).querySelector('.editable-empty')?.remove();
+    const row = document.createElement('div');
+    row.className = 'editable-item';
+    row.innerHTML = `<input data-field="id" type="number" min="0" max="65534" step="1" placeholder="Item ID" value="${escapeHtml(item.id)}" required>
+        <input data-field="count" type="number" min="1" max="2147483647" step="1" placeholder="Mennyiség" value="${escapeHtml(item.count)}" required>
+        <button type="button" class="button small danger-outline" data-action="offline-remove-item" aria-label="Item eltávolítása">×</button>
+        <span class="item-name">${escapeHtml(item.name || 'Új item – az ID-t az engine ellenőrzi')}</span>`;
+    $(`#${targetId}`).append(row);
+}
+
+function renderEditableItems(targetId, items) {
+    const target = $(`#${targetId}`);
+    target.innerHTML = '';
+    for (const item of aggregateEditableItems(items)) addEditableItem(targetId, item);
+    if (!target.children.length) target.innerHTML = '<span class="muted editable-empty">Üres.</span>';
+}
+
+function renderOfflineBackups(backups) {
+    $('#offline-backups').innerHTML = backups.length ? backups.map(backup => `<div class="backup-entry">
+        <span><strong>${new Date(backup.createdAt).toLocaleString('hu-HU')}</strong><small>${backup.operation === 'edit' ? 'Szerkesztés előtti' : 'Visszaállítás előtti'} · ${fmt.format(backup.size)} bájt</small></span>
+        <button type="button" class="button small secondary" data-action="offline-restore" data-backup-id="${escapeHtml(backup.id)}">Visszaállítás</button>
+    </div>`).join('') : '<span class="muted">Még nincs biztonsági másolat.</span>';
+}
+
+async function showOfflineEditor(username) {
+    const bot = state.bots.find(entry => entry.username === username);
+    if (!bot?.canEditOffline || !bot.saveSavedAt) throw new Error('Csak teljesen offline, érvényes mentéssel rendelkező bot szerkeszthető.');
+    const data = await api(`/api/admin/bots/${encodeURIComponent(username)}/offline-save`, { mutation: true });
+    if (!data.readiness?.editable) {
+        const messages = {
+            'player-online': 'A játékos még jelen van az engine-ben. Várd meg a teljes kijelentkezést.',
+            'login-pending': 'A játékos bejelentkezése még folyamatban van.',
+            'logout-pending': 'Az engine még az utolsó kijelentkezési mentést írja.'
+        };
+        throw new Error(messages[data.readiness?.code] || 'A mentés még használatban van; próbáld újra rövidesen.');
+    }
+    state.offlineEditing = username;
+    const form = $('#offline-editor-form'); form.reset();
+    form.elements.username.value = username;
+    form.elements.expectedSavedAt.value = bot.saveSavedAt;
+    form.elements.reason.value = 'Kézi offline botadat-szerkesztés';
+    $('#offline-editor-title').textContent = `${bot.displayName} mentésének szerkesztése`;
+    $('#offline-coins').value = bot.coins;
+    $('#offline-skill-rows').innerHTML = bot.skills.map(skill => `<tr class="offline-skill-row" data-skill="${escapeHtml(skill.name)}">
+        <td><strong>${escapeHtml(skill.name)}</strong></td>
+        <td><input data-field="level" type="number" min="1" max="99" step="1" value="${skill.level}" aria-label="${escapeHtml(skill.name)} level"></td>
+        <td><input data-field="experience" type="number" min="0" max="2000000000" step="1" value="${skill.experience}" aria-label="${escapeHtml(skill.name)} XP"></td>
+    </tr>`).join('');
+    renderEditableItems('offline-inventory-rows', bot.inventory);
+    renderEditableItems('offline-bank-rows', bot.bank);
+    renderOfflineBackups(data.backups);
+    $('#offline-editor-dialog').showModal();
+}
+
+function collectEditableItems(targetId) {
+    return [...$(`#${targetId}`).querySelectorAll('.editable-item')].map(row => ({
+        id: Number(row.querySelector('[data-field="id"]').value),
+        count: Number(row.querySelector('[data-field="count"]').value)
+    }));
+}
+
 function drawChart(snapshots) {
     const canvas = $('#economy-chart');
     const rect = canvas.getBoundingClientRect();
@@ -349,10 +439,30 @@ document.addEventListener('click', async event => {
     if (!button) return;
     const name = button.dataset.name;
     try {
+        if (button.dataset.action === 'offline-add-item') addEditableItem(button.dataset.target);
+        if (button.dataset.action === 'offline-remove-item') {
+            const container = button.closest('.editable-items');
+            button.closest('.editable-item').remove();
+            if (!container.querySelector('.editable-item')) container.innerHTML = '<span class="muted editable-empty">Üres.</span>';
+        }
+        if (button.dataset.action === 'offline-restore') {
+            const username = state.offlineEditing;
+            const form = $('#offline-editor-form');
+            const reason = form.elements.reason.value.trim();
+            if (!username || !reason) throw new Error('A visszaállításhoz indoklás szükséges.');
+            if (!confirm('Biztosan visszaállítod ezt a mentést? A jelenlegi állapotról előtte automatikus másolat készül.')) return;
+            await api(`/api/admin/bots/${encodeURIComponent(username)}/offline-save/restore`, {
+                method: 'POST', mutation: true,
+                body: JSON.stringify({ backupId: button.dataset.backupId, expectedSavedAt: form.elements.expectedSavedAt.value, reason })
+            });
+            $('#offline-editor-dialog').close(); state.offlineEditing = null;
+            toast(`${username} mentése visszaállítva.`); await refresh();
+        }
         if (button.dataset.action === 'profile') openProfile(name);
         if (button.dataset.action === 'spectate') openSpectate(name);
         if (button.dataset.action === 'start-skill') showSkill(name);
         if (button.dataset.action === 'teleport') showTeleport(name);
+        if (button.dataset.action === 'offline-edit') await showOfflineEditor(name);
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
             if (!reason) return;
@@ -440,6 +550,40 @@ $('#teleport-form').addEventListener('submit', async event => {
     } catch (error) { toast(error.message, true); }
 });
 
+$('#offline-editor-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form), username = data.get('username');
+    const skills = [...$('#offline-skill-rows').querySelectorAll('.offline-skill-row')].map(row => ({
+        name: row.dataset.skill,
+        experience: Number(row.querySelector('[data-field="experience"]').value)
+    }));
+    const draft = {
+        expectedSavedAt: data.get('expectedSavedAt'),
+        coins: Number(data.get('coins')),
+        skills,
+        inventory: collectEditableItems('offline-inventory-rows'),
+        bank: collectEditableItems('offline-bank-rows')
+    };
+    try {
+        const response = await api(`/api/admin/bots/${encodeURIComponent(username)}/offline-save`, {
+            method: 'POST', mutation: true,
+            body: JSON.stringify({ draft, reason: data.get('reason') })
+        });
+        form.closest('dialog').close(); state.offlineEditing = null;
+        toast(`${username} offline mentése frissült; backup: ${response.result.backupId.slice(0, 19)}…`);
+        await refresh();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#offline-skill-rows').addEventListener('input', event => {
+    const row = event.target.closest('.offline-skill-row');
+    if (!row) return;
+    const level = row.querySelector('[data-field="level"]');
+    const experience = row.querySelector('[data-field="experience"]');
+    if (event.target === level) experience.value = xpForLevel(Math.max(1, Math.min(99, Number(level.value))));
+    if (event.target === experience) level.value = levelForXp(Math.max(0, Number(experience.value)));
+});
+
 for (const selector of ['#search-filter', '#status-filter', '#skill-filter', '#coins-filter']) {
     $(selector).addEventListener('input', renderTable);
 }
@@ -455,6 +599,7 @@ $('#new-bot-button').addEventListener('click', () => showSpawn());
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });
 $('#skill-select').addEventListener('change', renderSkillParameters);
 $('#teleport-destination').addEventListener('change', updateTeleportDescription);
+$('#offline-editor-dialog').addEventListener('close', () => { state.offlineEditing = null; });
 $('#close-profile').addEventListener('click', closeProfile); $('#drawer-backdrop').addEventListener('click', closeProfile);
 $('#close-spectate').addEventListener('click', closeSpectate);
 $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault(); closeSpectate(); });
