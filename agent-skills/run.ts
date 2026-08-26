@@ -78,6 +78,7 @@ const run = await runScript(async ({ bot, sdk }) => {
                 console.log(`[skill] ${event.type}${event.stepId ? ` ${event.stepId}` : ''}${event.message ? ` - ${event.message}` : ''}`);
             }
         });
+        result.username = botName.toLowerCase();
     } finally {
         await unlink(markerPath).catch(() => undefined);
     }

@@ -103,6 +103,8 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
   időpontot és visszakövethető auditbejegyzést követelni.
 - [x] Webes admin panelt készíteni kereshető, rendezhető és szűrhető botlistával,
   részletes profillal, helyzettel, skill-futásokkal és kontrollált műveletekkel.
+- [x] A befejezett agent-skill futásokat időrendben, eredménnyel, időtartammal,
+  műveletszámmal és részletes eseménylistával megjeleníteni.
 - [ ] Élő világtérképet készíteni az online botokhoz.
 - [x] Idősoros gazdasági alapnézetet készíteni: pénzmennyiség, itemkészlet,
   össz-XP, átlagos total level és online botszám.
@@ -252,7 +254,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
    és engine-ticken végrehajtott paranccsal elkészíteni.
 8. [x] A 6. fázis offline szerkesztőjét szint/XP-, pénz-, inventory- és
    bankmódosítással, automatikus backuppal és restore-ral elkészíteni.
-9. A 6. fázis következő részében élő térképet és részletes tranzakciós
+9. [x] A befejezett agent-skill futások adminpaneles történetét és részletes
+   eseménylistáját elkészíteni.
+10. A 6. fázis következő részében élő térképet és részletes tranzakciós
    telemetriát készíteni.
-10. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
-11. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+11. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
+12. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

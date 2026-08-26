@@ -19,7 +19,7 @@
 - Mind a hat SQLite-migráció sikeresen lefutott.
 - Egyparancsos stack-kezelés, komponensenkénti naplók és egészségellenőrzések
   elérhetők a `scripts/` könyvtárban.
-- Teljes ellenőrzés: 295 teszt sikeres, 0 sikertelen.
+- Teljes ellenőrzés: 296 teszt sikeres, 0 sikertelen.
 
 ## Botadmin baseline
 
@@ -55,6 +55,10 @@
 - Oda-vissza próba: 25 gp / Fishing 1 / üres extra készlet → 35 gp / Fishing 2
   (800 XP) / 1 copper ore / 2 raw lobster → eredeti állapot. A tesztbot végül
   ismét online, 25 gp-vel fut.
+- Az adminpanel a legutóbbi 30 befejezett agent-skill futást időrendben mutatja:
+  állapot, bot, skillverzió, időtartam, műveletszám, eredmény és lenyitható
+  eseménylista. Az új naplók a bot nevét is tárolják; a régi naplók változatlanul
+  olvashatók, ezeknél a bot neve „Korábbi futás”.
 
 ## Smoke teszt
 

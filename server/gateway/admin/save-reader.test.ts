@@ -8,6 +8,7 @@ import { readPlayerSave } from './save-reader';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, resolveAdminTeleportDestination } from './teleport';
 import { validateOfflineSaveDraft } from './offline-editor';
+import { readSkillRunHistory } from './skill-history';
 import type { BotCatalogEntry } from './types';
 
 const temporaryDirectories: string[] = [];
@@ -157,5 +158,30 @@ describe('admin offline save draft', () => {
     test('rejects stale or duplicate skill identities before reaching the engine', () => {
         expect(() => validateOfflineSaveDraft({ ...valid, expectedSavedAt: 'not-a-date' })).toThrow('időbélyege');
         expect(() => validateOfflineSaveDraft({ ...valid, skills: [valid.skills[0], valid.skills[0]] })).toThrow('ismétlődő');
+    });
+});
+
+describe('admin skill run history', () => {
+    test('returns newest valid runs, keeps bot identity and ignores broken journals', async () => {
+        const directory = await mkdtemp(join(tmpdir(), 'rs-admin-skill-runs-'));
+        temporaryDirectories.push(directory);
+        const makeRun = (runId: string, username: string, timestamp: string) => ({
+            runId, username, skill: { id: 'mining.test', version: '1.0.0' }, status: 'completed',
+            reason: 'completed', message: 'Done', operations: 2, durationMs: 1500,
+            events: [
+                { runId, type: 'skill.started', timestamp, skill: { id: 'mining.test', version: '1.0.0' } },
+                { runId, type: 'skill.completed', timestamp, skill: { id: 'mining.test', version: '1.0.0' } }
+            ]
+        });
+        const olderId = '11111111-1111-4111-8111-111111111111';
+        const newerId = '22222222-2222-4222-8222-222222222222';
+        await writeFile(join(directory, `${olderId}.json`), JSON.stringify(makeRun(olderId, 'Miner1', '2026-08-20T10:00:00Z')));
+        await writeFile(join(directory, `${newerId}.json`), JSON.stringify(makeRun(newerId, 'Miner2', '2026-08-21T10:00:00Z')));
+        await writeFile(join(directory, '33333333-3333-4333-8333-333333333333.json'), '{broken');
+
+        const runs = await readSkillRunHistory(1, directory);
+
+        expect(runs).toHaveLength(1);
+        expect(runs[0]).toMatchObject({ runId: newerId, username: 'miner2', operations: 2, durationMs: 1500 });
     });
 });

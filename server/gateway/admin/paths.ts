@@ -13,6 +13,7 @@ export const adminLogsDir = join(adminLocalDir, 'logs');
 export const adminSkillLogsDir = join(adminLocalDir, 'skill-logs');
 export const adminTrashDir = join(adminLocalDir, 'trash');
 export const activeSkillsDir = join(adminLocalDir, 'active-skills');
+export const skillRunsDir = join(repoRoot, '.local', 'agent-skills', 'runs');
 export const auditLogPath = join(adminLocalDir, 'audit.jsonl');
 export const economyLogPath = join(adminLocalDir, 'economy.jsonl');
 export const experimentsDir = join(adminLocalDir, 'experiments');

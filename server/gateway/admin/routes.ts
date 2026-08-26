@@ -6,6 +6,7 @@ import { adminPublicDir, adminTrashDir, botsDir, experimentsDir, playerSavesDir 
 import { BotSupervisor } from './supervisor';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
+import { readSkillRunHistory } from './skill-history';
 import {
     listEngineOfflineBackups,
     requestEngineOfflineEdit,
@@ -151,6 +152,11 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (req.method === 'GET' && url.pathname === '/api/admin/skills') {
             return json({ skills: await listAdminSkills() });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/skill-runs') {
+            const limit = Number(url.searchParams.get('limit') || 30);
+            return json({ runs: await readSkillRunHistory(limit) });
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/teleport-destinations') {

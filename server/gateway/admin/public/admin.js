@@ -4,6 +4,7 @@ const state = {
     config: null,
     skills: [],
     teleportDestinations: [],
+    skillRuns: [],
     sort: { key: 'status', direction: 1 },
     selected: null,
     offlineEditing: null,
@@ -151,6 +152,30 @@ function renderTable() {
             <td>${actionButtons(bot)}</td>
         </tr>`;
     }).join('') : '<tr><td colspan="9" class="empty">Nincs a szűrőknek megfelelő bot.</td></tr>';
+}
+
+function formatDuration(milliseconds) {
+    const seconds = Math.max(0, Math.round(milliseconds / 1000));
+    if (seconds < 60) return `${seconds} mp`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes} p ${seconds % 60} mp`;
+}
+
+function renderSkillRuns() {
+    const statusText = { completed: 'Sikeres', failed: 'Hiba', cancelled: 'Leállítva', 'limit-reached': 'Limit' };
+    $('#skill-run-count').textContent = `${state.skillRuns.length} futás`;
+    $('#skill-run-rows').innerHTML = state.skillRuns.length ? state.skillRuns.map(run => {
+        const events = run.events.map(item => `<li><time>${escapeHtml(new Date(item.timestamp).toLocaleTimeString('hu-HU'))}</time><strong>${escapeHtml(item.type)}</strong>${item.stepId ? ` · ${escapeHtml(item.stepId)}` : ''}${item.message ? `<span>${escapeHtml(item.message)}</span>` : ''}</li>`).join('');
+        return `<tr>
+            <td><span class="run-status ${escapeHtml(run.status)}">${escapeHtml(statusText[run.status] || run.status)}</span></td>
+            <td>${escapeHtml(run.username || 'Korábbi futás')}<span class="subline">${escapeHtml(run.runId.slice(0, 8))}</span></td>
+            <td>${escapeHtml(run.skill.id)}<span class="subline">v${escapeHtml(run.skill.version)}</span></td>
+            <td title="${escapeHtml(run.startedAt)}">${relativeTime(run.startedAt)}</td>
+            <td class="number">${formatDuration(run.durationMs)}</td>
+            <td class="number">${fmt.format(run.operations)}</td>
+            <td><details class="run-details"><summary>${escapeHtml(run.message || run.reason || 'Részletek')}</summary><ul>${events}</ul></details></td>
+        </tr>`;
+    }).join('') : '<tr><td colspan="7" class="empty">Még nincs befejezett agent-skill futás.</td></tr>';
 }
 
 function itemChips(items) {
@@ -409,12 +434,14 @@ function drawChart(snapshots) {
 
 async function refresh() {
     try {
-        const data = await api('/api/admin/bots');
+        const [data, history, skillHistory] = await Promise.all([
+            api('/api/admin/bots'), api('/api/admin/economy?limit=240'), api('/api/admin/skill-runs?limit=30')
+        ]);
         state.bots = data.bots;
         state.economy = data.economy;
+        state.skillRuns = skillHistory.runs;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
-        renderSummary(); renderTable();
-        const history = await api('/api/admin/economy?limit=240');
+        renderSummary(); renderTable(); renderSkillRuns();
         drawChart(history.snapshots);
         if (state.selected && $('#profile-drawer').classList.contains('open')) openProfile(state.selected);
     } catch (error) {
