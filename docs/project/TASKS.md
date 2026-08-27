@@ -133,8 +133,10 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
 - [x] Jogosultságvédett, indoklást és auditot követelő World Admin API-t készíteni.
 - [x] World Admin felületet készíteni a telepített modok áttekintéséhez,
   ki-/bekapcsolásához és séma alapján generált beállításaihoz.
-- [ ] Biztonságos engine-újraindítást, konfigurációs backupot és egykattintásos
-  visszaállítást készíteni a World Admin felülethez.
+- [x] Biztonságos, auditált engine-újraindítást készíteni a World Admin felülethez,
+  kizárólag a fejlesztői indító által nyilvántartott helyi folyamathoz.
+- [ ] Konfigurációs backupot és egykattintásos visszaállítást készíteni a World
+  Admin felülethez.
 - [ ] Meghatározni és tesztelni a `hot-reload`, `restart-required`, migráció és
   rollback állapotátmeneteket, hibánál fail-closed működéssel.
 - [ ] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.

@@ -17,6 +17,7 @@ Admin pedig kizárólag az előre deklarált manifestet és beállításokat kez
   ténylegesen aktív állapot és engine hookok.
 - `/api/internal/admin/world-mods`: az engine aktív snapshotja.
 - `/api/admin/world-mods`: World Admin lekérdezés és auditált konfigurálás.
+- `/api/admin/engine/restart`: indokláshoz kötött, auditált helyi engine-restart.
 
 Az első mintamod a `sample.welcome-message`. Bekapcsolva egy konfigurálható
 játéküzenetet ír ki belépéskor. Szándékosan kicsi, nincs perzisztens domainadata,
@@ -37,9 +38,14 @@ a kért és az aktív revíziót, és eltéréskor nem állítja, hogy a változ
 - Az állapot ideiglenes fájlból, atomi átnevezéssel kerül a helyére.
 - A mutáció helyi adminjogot és indoklást kér, és auditbejegyzést készít.
 - Hibás engine-konfigurációnál az összes mod kikapcsolva marad.
+- Az admin restart csak akkor fut, ha a kérő gateway PID-je egyezik a
+  `.local/runtime.json` nyilvántartott, valóban futó gatewayével. Ezután csak a
+  hozzá tartozó, indulási idővel is ellenőrzött engine-folyamatot állítja le.
+- A gateway és az adminpanel restart közben futva marad; az új engine health
+  check után kerül a runtime-nyilvántartásba, a művelet eredménye auditált.
 
 ## Következő lépések
 
 A 7. fázis befejezéséhez még szükséges a teljes LostCity módosítási térkép,
-konfigurációs backup/restore, adminból vezérelt biztonságos engine-restart,
-migrációs/rollback protokoll, modmetrikák és a mintamod élő ellenőrzése.
+konfigurációs backup/restore, migrációs/rollback protokoll, modmetrikák és a
+mintamod játékbeli belépési üzenetének ellenőrzése.

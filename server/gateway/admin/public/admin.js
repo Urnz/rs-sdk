@@ -8,6 +8,7 @@ const state = {
     economyEvents: [],
     economyEventSummary: null,
     worldMods: null,
+    adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
     selected: null,
     offlineEditing: null,
@@ -64,6 +65,19 @@ function toast(message, error = false) {
     element.classList.add('show');
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => element.classList.remove('show'), 3500);
+}
+
+function selectAdminTab(tab) {
+    if (!['bots', 'economy', 'skills'].includes(tab)) return;
+    state.adminTab = tab;
+    document.querySelectorAll('.admin-tab').forEach(button => {
+        const selected = button.dataset.tab === tab;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-selected', String(selected));
+    });
+    document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
+        panel.hidden = panel.dataset.adminTabPanel !== tab;
+    });
 }
 
 function relativeTime(value) {
@@ -645,6 +659,7 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'world-focus') focusWorldBot(name);
         if (button.dataset.action === 'world-spectate') { closeWorldMap(); openSpectate(name); }
         if (button.dataset.action === 'world-mod-save') await saveWorldMod(button);
+        if (button.dataset.action === 'admin-tab') selectAdminTab(button.dataset.tab);
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
             if (!reason) return;
@@ -790,17 +805,46 @@ $('#close-profile').addEventListener('click', closeProfile); $('#drawer-backdrop
 $('#close-spectate').addEventListener('click', closeSpectate);
 $('#close-world-map').addEventListener('click', closeWorldMap);
 $('#close-world-admin').addEventListener('click', () => $('#world-admin-dialog').close());
+$('#restart-engine-button').addEventListener('click', () => {
+    const form = $('#engine-restart-form');
+    form.reset();
+    $('#engine-restart-dialog').showModal();
+});
+$('#engine-restart-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const reason = new FormData(form).get('reason')?.toString().trim();
+    if (!reason) return;
+    const button = $('#confirm-engine-restart');
+    button.disabled = true;
+    button.textContent = 'Engine újraindítása…';
+    try {
+        const response = await api('/api/admin/engine/restart', {
+            method: 'POST', mutation: true, body: JSON.stringify({ reason })
+        });
+        state.worldMods = await api('/api/admin/world-mods');
+        renderWorldMods();
+        form.closest('dialog').close();
+        toast(`Az engine újraindult (PID ${response.result.pid}).`);
+    } catch (error) {
+        toast(error.message, true);
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Engine újraindítása';
+    }
+});
 $('#world-map-dialog').addEventListener('cancel', event => { event.preventDefault(); closeWorldMap(); });
 window.addEventListener('message', event => {
     if (!state.config?.worldMapUrl || event.origin !== new URL(state.config.worldMapUrl, location.href).origin) return;
     if (event.data?.type === 'rs-map-ready' && state.worldMapSelected) focusWorldBot(state.worldMapSelected);
 });
 $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault(); closeSpectate(); });
-document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-map)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
+document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-map):not(#close-world-admin)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
 const bootstrap = await Promise.all([
     api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
+selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

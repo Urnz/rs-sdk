@@ -26,6 +26,11 @@ h3 { font-size: 17px; }
 .topbar .muted { margin: 6px 0 0; }
 .header-actions, .dialog-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 main { max-width: 1500px; margin: auto; padding: 0 28px 60px; }
+.admin-tabs { display: flex; gap: 7px; padding: 6px; margin-bottom: 14px; overflow-x: auto; background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.admin-tab { flex: none; padding: 9px 16px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px; font-weight: 750; }
+.admin-tab:hover { color: var(--text); background: var(--panel-2); }
+.admin-tab.active { color: #15140d; background: var(--gold); }
+[data-admin-tab-panel][hidden] { display: none !important; }
 .summary-grid { display: grid; grid-template-columns: repeat(6, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .metric, .panel { background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--border); box-shadow: var(--shadow); }
 .metric { border-radius: 13px; padding: 17px 18px; }
@@ -48,6 +53,7 @@ input:focus, select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgb
 .button.spectate { color: #dcefff; background: #23445b; border-color: #376b8c; }
 .button.map-button { color: #ddf7ff; background: #1e5561; border-color: #347c8c; }
 .button.world-admin-button { color: #f3e7ff; background: #49345e; border-color: #76549a; }
+.button.engine-restart { color: #ffe0dc; background: #65352f; border-color: #98534a; }
 .button.skill-button { color: #e8f5dd; background: #315329; border-color: #4f7d43; }
 .button.teleport { color: #f0e4ff; background: #4c3565; border-color: #76549a; }
 .button.save-edit { color: #dcf6f0; background: #28564e; border-color: #3f8276; }
@@ -121,6 +127,7 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .world-map-dialog { width: min(1380px, calc(100vw - 24px)); max-width: none; }
 .world-admin-dialog { width: min(980px, calc(100vw - 24px)); max-width: none; }
 .world-admin-shell { padding: 22px; max-height: 90vh; overflow: auto; }
+.world-admin-heading-actions { display: flex; gap: 10px; align-items: center; }
 .world-mod-summary { margin: 15px 0 10px; padding: 11px 13px; color: var(--muted); background: var(--panel-2); border-radius: 9px; }
 .world-mod-list { display: grid; gap: 12px; }
 .world-mod-card { padding: 16px; background: #11150f; border: 1px solid var(--border); border-radius: 11px; }

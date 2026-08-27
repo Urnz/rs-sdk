@@ -22,7 +22,13 @@
     </header>
 
     <main>
-        <section class="summary-grid" aria-label="Gazdasági összesítés">
+        <nav class="admin-tabs" role="tablist" aria-label="Admin nézetek">
+            <button class="admin-tab active" role="tab" aria-selected="true" data-action="admin-tab" data-tab="bots">Botok</button>
+            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="economy">Gazdaság</button>
+            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="skills">Agent skillek</button>
+        </nav>
+
+        <section class="summary-grid" aria-label="Gazdasági összesítés" data-admin-tab-panel="economy" hidden>
             <article class="metric"><span>Összes bot</span><strong id="metric-bots">–</strong></article>
             <article class="metric"><span>Online</span><strong id="metric-online">–</strong></article>
             <article class="metric"><span>Teljes pénz</span><strong id="metric-coins">–</strong></article>
@@ -31,7 +37,7 @@
             <article class="metric"><span>Átlag total level</span><strong id="metric-level">–</strong></article>
         </section>
 
-        <section class="panel economy-panel">
+        <section class="panel economy-panel" data-admin-tab-panel="economy" hidden>
             <div class="panel-heading">
                 <div><p class="eyebrow">GAZDASÁG</p><h2>Idősoros áttekintés</h2></div>
                 <div class="legend"><span><i class="dot gold"></i>Pénz</span><span><i class="dot green"></i>Online bot</span></div>
@@ -39,7 +45,7 @@
             <canvas id="economy-chart" height="130" aria-label="Gazdasági idősor"></canvas>
         </section>
 
-        <section class="panel transaction-panel">
+        <section class="panel transaction-panel" data-admin-tab-panel="economy" hidden>
             <div class="panel-heading table-heading">
                 <div><p class="eyebrow">TRANZAKCIÓS TELEMETRIA</p><h2>Gazdasági események</h2></div>
                 <span id="economy-event-count" class="count-pill">0 esemény</span>
@@ -68,7 +74,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" data-admin-tab-panel="bots">
             <div class="panel-heading table-heading">
                 <div><p class="eyebrow">BOTKATALÓGUS</p><h2>Minden bot</h2></div>
                 <span id="visible-count" class="count-pill">0 / 0</span>
@@ -99,7 +105,7 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" data-admin-tab-panel="skills" hidden>
             <div class="panel-heading">
                 <div><p class="eyebrow">AGENT SKILLEK</p><h2>Legutóbbi futások</h2></div>
                 <span id="skill-run-count" class="count-pill">0 futás</span>
@@ -112,7 +118,7 @@
             </div>
         </section>
 
-        <section class="panel stock-panel">
+        <section class="panel stock-panel" data-admin-tab-panel="economy" hidden>
             <div class="panel-heading"><div><p class="eyebrow">KÉSZLETEK</p><h2>Legnagyobb itemállományok</h2></div></div>
             <div id="item-stock" class="stock-grid"></div>
         </section>
@@ -268,12 +274,30 @@
         <div class="world-admin-shell">
             <div class="dialog-heading">
                 <div><p class="eyebrow">MODOLÁSI KERETRENDSZER</p><h2>World Admin</h2></div>
-                <button id="close-world-admin" type="button" class="dialog-close" aria-label="Bezárás">×</button>
+                <div class="world-admin-heading-actions">
+                    <button id="restart-engine-button" type="button" class="button engine-restart">Engine újraindítása</button>
+                    <button id="close-world-admin" type="button" class="dialog-close" aria-label="Bezárás">×</button>
+                </div>
             </div>
             <p class="dialog-note">A kódot tartalmazó manifestek határozzák meg az engedélyezett beállításokat. A változtatások auditáltak; a restartot igénylő módosítások csak az engine újraindítása után aktívak.</p>
             <div id="world-mod-summary" class="world-mod-summary">Betöltés…</div>
             <div id="world-mod-list" class="world-mod-list"></div>
         </div>
+    </dialog>
+
+    <dialog id="engine-restart-dialog">
+        <form id="engine-restart-form" method="dialog">
+            <div class="dialog-heading">
+                <div><p class="eyebrow danger-text">WORLD ÉLETCIKLUS</p><h2>Game engine újraindítása</h2></div>
+                <button type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">Az online játékosok és botok kapcsolata megszakadhat. A gateway és az adminpanel elérhető marad, az új modkonfiguráció pedig az új engine-folyamatban aktiválódik.</p>
+            <label>Indoklás<input name="reason" value="World mod konfiguráció aktiválása" maxlength="240" required></label>
+            <div class="dialog-actions">
+                <button type="button" class="button ghost dialog-close">Mégse</button>
+                <button id="confirm-engine-restart" class="button danger" value="submit">Engine újraindítása</button>
+            </div>
+        </form>
     </dialog>
 
     <div id="toast" class="toast" role="status"></div>

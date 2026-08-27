@@ -17,6 +17,7 @@ import {
 } from './offline-editor';
 import type { GatewayBotSnapshot } from './types';
 import { listWorldMods, updateWorldMod } from './world-mods';
+import { restartLocalEngine } from './engine-supervisor';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -245,6 +246,25 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (!authorized(req, url)) {
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/engine/restart') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const result = await restartLocalEngine();
+                await appendAudit({
+                    operator: 'local-admin', action: 'world.engine.restart', reason, success: true,
+                    before: { pid: result.previousPid }, after: result
+                });
+                return json({ ok: true, result });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'world.engine.restart', reason, success: false,
+                    error: String(error)
+                });
+                throw error;
+            }
         }
 
         const worldModMatch = url.pathname.match(/^\/api\/admin\/world-mods\/([a-z0-9.-]+)$/);
