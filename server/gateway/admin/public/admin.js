@@ -22,7 +22,7 @@ const state = {
 const $ = selector => document.querySelector(selector);
 const fmt = new Intl.NumberFormat('hu-HU');
 const statusLabels = { active: 'Online', offline: 'Offline', stale: 'Nem válaszol', starting: 'Indul', stopping: 'Leáll', error: 'Hiba' };
-const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'restart-required': 'Újraindítás szükséges', 'engine-unreachable': 'Engine nem elérhető', 'activation-error': 'Aktiválási hiba' };
+const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'hot-reload-required': 'Hot reload szükséges', 'restart-required': 'Újraindítás szükséges', 'migration-required': 'Migráció szükséges', 'rollback-required': 'Rollback szükséges', 'engine-unreachable': 'Engine nem elérhető', 'activation-error': 'Aktiválási hiba' };
 const worldModBackupOperationLabels = { configure: 'Módosítás előtti', manual: 'Kézi', restore: 'Restore előtti mentőpont' };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const xpThresholds = (() => {
@@ -586,9 +586,10 @@ function worldModInput(setting, value) {
 function renderWorldMods() {
     const data = state.worldMods;
     if (!data) return;
-    const pending = data.mods.filter(mod => mod.status === 'restart-required').length;
+    const pending = data.mods.filter(mod => !['active', 'disabled'].includes(mod.status)).length;
     const loaded = data.engineLoadedAt ? new Date(data.engineLoadedAt).toLocaleString('hu-HU') : 'nem elérhető';
-    $('#world-mod-summary').innerHTML = `Kért revízió: ${fmt.format(data.revision)} · engine revízió: ${data.activeRevision ?? 'nem elérhető'} · engine betöltés: ${escapeHtml(loaded)} · ${pending} függőben lévő módosítás${data.engineLoadError ? `<strong class="danger-text"> · Betöltési hiba: ${escapeHtml(data.engineLoadError)}</strong>` : ''}`;
+    const reloaded = data.engineLastReloadAt ? new Date(data.engineLastReloadAt).toLocaleString('hu-HU') : 'még nem volt';
+    $('#world-mod-summary').innerHTML = `Kért revízió: ${fmt.format(data.revision)} · engine revízió: ${data.activeRevision ?? 'nem elérhető'} · indulás: ${escapeHtml(loaded)} · utolsó hot reload: ${escapeHtml(reloaded)} · ${pending} függőben lévő módosítás${data.engineLoadError ? `<strong class="danger-text"> · Betöltési hiba: ${escapeHtml(data.engineLoadError)}</strong>` : ''}`;
     $('#world-mod-list').innerHTML = data.mods.map(mod => `
         <article class="world-mod-card ${mod.status === 'restart-required' ? 'pending' : mod.status}" data-mod-id="${escapeHtml(mod.id)}">
             <div class="world-mod-heading"><div><h3>${escapeHtml(mod.name)}</h3><p>${escapeHtml(mod.description)}</p></div>
@@ -596,6 +597,7 @@ function renderWorldMods() {
             <div class="world-mod-meta">
                 <span class="world-mod-badge ${mod.status}">${worldModStatusLabels[mod.status] || mod.status}</span>
                 <span class="world-mod-badge">${escapeHtml(mod.id)} @ ${escapeHtml(mod.version)}</span>
+                <span class="world-mod-badge">Adatséma: v${fmt.format(mod.dataSchemaVersion)}</span>
                 <span class="world-mod-badge">${mod.activation === 'restart-required' ? 'Restart életciklus' : 'Hot reload'}</span>
                 <span class="world-mod-badge">Hook: ${escapeHtml(mod.hooks.join(', ') || 'nincs')}</span>
             </div>
@@ -651,7 +653,9 @@ async function saveWorldMod(button) {
         body: JSON.stringify({ expectedRevision: state.worldMods.revision, enabled: card.querySelector('[data-world-mod-enabled]').checked, config, reason })
     });
     await refreshWorldAdminData();
-    toast(result.restartRequired ? 'Mentve. Az engine újraindítása után lép életbe.' : 'A mod beállítása frissült.');
+    if (result.activationError) toast(`Mentve, de a hot reload sikertelen: ${result.activationError}`, true);
+    else if (result.restartRequired) toast('Mentve. Az engine újraindítása után lép életbe.');
+    else toast(result.hotReloaded ? 'A mod mentve és hot reloaddal aktiválva.' : 'A mod beállítása frissült.');
 }
 
 document.addEventListener('click', async event => {
@@ -850,6 +854,27 @@ $('#restart-engine-button').addEventListener('click', () => {
     form.reset();
     $('#engine-restart-dialog').showModal();
 });
+$('#hot-reload-mods-button').addEventListener('click', () => {
+    $('#hot-reload-form').reset();
+    $('#hot-reload-dialog').showModal();
+});
+$('#hot-reload-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const reason = new FormData(form).get('reason')?.toString().trim();
+    if (!reason) return;
+    const button = $('#confirm-hot-reload');
+    button.disabled = true;
+    try {
+        const response = await api('/api/admin/world-mods/reload', { method: 'POST', mutation: true, body: JSON.stringify({ reason }) });
+        await refreshWorldAdminData();
+        form.closest('dialog').close();
+        const result = response.result;
+        const blocked = result.pendingRestartIds.length + result.migrationRequiredIds.length + result.rollbackRequiredIds.length;
+        toast(`${result.appliedIds.length} mod hot reloadja kész${blocked ? `; ${blocked} mod más lifecycle-lépést igényel` : ''}.`);
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
+});
 $('#engine-restart-form').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -895,13 +920,13 @@ $('#world-mod-restore-form').addEventListener('submit', async event => {
     const button = $('#confirm-world-mod-restore');
     button.disabled = true;
     try {
-        await api(`/api/admin/world-mods/backups/${encodeURIComponent(backupId)}/restore`, {
+        const response = await api(`/api/admin/world-mods/backups/${encodeURIComponent(backupId)}/restore`, {
             method: 'POST', mutation: true,
             body: JSON.stringify({ expectedRevision: state.worldMods.revision, reason })
         });
         await refreshWorldAdminData();
         form.closest('dialog').close();
-        toast('A world mod konfiguráció visszaállt. Az eltérő engine-állapot újraindítást igényelhet.');
+        toast(response.activationError ? `A konfiguráció visszaállt, de az aktiválás sikertelen: ${response.activationError}` : 'A konfiguráció visszaállt; a hot-reload kompatibilis modok aktiválódtak.');
     } catch (error) { toast(error.message, true); }
     finally { button.disabled = false; }
 });

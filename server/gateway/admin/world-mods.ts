@@ -19,6 +19,7 @@ export interface WorldModManifest {
     id: string;
     name: string;
     version: string;
+    dataSchemaVersion: number;
     category: string;
     description: string;
     activation: WorldModActivation;
@@ -42,11 +43,19 @@ export interface WorldModState {
 
 export interface ActiveWorldModState {
     revision: number | null;
-    mods: Record<string, { enabled: boolean; config: Record<string, boolean | number | string> }>;
+    mods: Record<string, ActiveWorldModEntry>;
     loadedAt: string | null;
+    lastReloadAt: string | null;
     loadError: string | null;
     metrics: Record<string, WorldModRuntimeMetrics>;
     engineReachable: boolean;
+}
+
+export interface ActiveWorldModEntry extends WorldModStateEntry {
+    version: string | null;
+    dataSchemaVersion: number | null;
+    activation: WorldModActivation | null;
+    appliedRevision: number | null;
 }
 
 export interface WorldModRuntimeMetrics {
@@ -62,7 +71,7 @@ export interface WorldModView extends WorldModManifest {
     requested: WorldModStateEntry;
     active: WorldModStateEntry | null;
     runtime: WorldModRuntimeMetrics | null;
-    status: 'disabled' | 'active' | 'restart-required' | 'engine-unreachable' | 'activation-error';
+    status: 'disabled' | 'active' | 'hot-reload-required' | 'restart-required' | 'migration-required' | 'rollback-required' | 'engine-unreachable' | 'activation-error';
 }
 
 export type WorldModBackupOperation = 'configure' | 'manual' | 'restore';
@@ -102,6 +111,7 @@ function validManifest(value: unknown): value is WorldModManifest {
     if (!isRecord(value) || typeof value.id !== 'string' || !ID_PATTERN.test(value.id)
         || typeof value.name !== 'string' || !value.name || value.name.length > 80
         || typeof value.version !== 'string' || !VERSION_PATTERN.test(value.version)
+        || !Number.isInteger(value.dataSchemaVersion) || Number(value.dataSchemaVersion) < 1
         || typeof value.category !== 'string' || !value.category || value.category.length > 40
         || typeof value.description !== 'string' || !value.description || value.description.length > 400
         || !['hot-reload', 'restart-required'].includes(String(value.activation))) return false;
@@ -384,15 +394,20 @@ export function buildWorldModView(manifests: WorldModManifest[], requested: Worl
         const running = active.mods[manifest.id] ?? null;
         const runtime = active.metrics[manifest.id] ?? null;
         const matches = !!running && running.enabled === desired.enabled && JSON.stringify(running.config) === JSON.stringify(desired.config);
+        const schemaStatus: WorldModView['status'] | null = running?.dataSchemaVersion !== null && running?.dataSchemaVersion !== undefined
+            ? manifest.dataSchemaVersion > running.dataSchemaVersion ? 'migration-required'
+                : manifest.dataSchemaVersion < running.dataSchemaVersion ? 'rollback-required' : null
+            : null;
         const status: WorldModView['status'] = !active.engineReachable ? 'engine-unreachable'
             : active.loadError || runtime?.status === 'error' ? 'activation-error'
-                : matches ? (desired.enabled ? 'active' : 'disabled') : 'restart-required';
+                : schemaStatus ?? (matches ? (desired.enabled ? 'active' : 'disabled')
+                    : manifest.activation === 'hot-reload' ? 'hot-reload-required' : 'restart-required');
         return { ...manifest, requested: desired, active: running, runtime, status };
     });
 }
 
 function unreachableActiveState(): ActiveWorldModState {
-    return { revision: null, mods: {}, loadedAt: null, loadError: null, metrics: {}, engineReachable: false };
+    return { revision: null, mods: {}, loadedAt: null, lastReloadAt: null, loadError: null, metrics: {}, engineReachable: false };
 }
 
 export async function readActiveWorldMods(): Promise<ActiveWorldModState> {
@@ -412,7 +427,13 @@ export async function readActiveWorldMods(): Promise<ActiveWorldModState> {
         const mods: ActiveWorldModState['mods'] = {};
         for (const [id, value] of Object.entries(parsed.mods)) {
             if (isRecord(value) && typeof value.enabled === 'boolean' && isRecord(value.config)) {
-                mods[id] = { enabled: value.enabled, config: value.config as Record<string, boolean | number | string> };
+                mods[id] = {
+                    enabled: value.enabled, config: value.config as Record<string, boolean | number | string>,
+                    version: typeof value.version === 'string' ? value.version : null,
+                    dataSchemaVersion: Number.isInteger(value.dataSchemaVersion) ? Number(value.dataSchemaVersion) : null,
+                    activation: ['hot-reload', 'restart-required'].includes(String(value.activation)) ? value.activation as WorldModActivation : null,
+                    appliedRevision: Number.isInteger(value.appliedRevision) ? Number(value.appliedRevision) : null
+                };
             }
         }
         const metrics: ActiveWorldModState['metrics'] = {};
@@ -434,6 +455,7 @@ export async function readActiveWorldMods(): Promise<ActiveWorldModState> {
         return {
             revision: parsed.revision as number | null, mods, metrics, engineReachable: true,
             loadedAt: typeof parsed.loadedAt === 'string' ? parsed.loadedAt : null,
+            lastReloadAt: typeof parsed.lastReloadAt === 'string' ? parsed.lastReloadAt : null,
             loadError: typeof parsed.loadError === 'string' ? parsed.loadError : null
         };
     } catch {
@@ -441,7 +463,30 @@ export async function readActiveWorldMods(): Promise<ActiveWorldModState> {
     }
 }
 
-export async function listWorldMods(): Promise<{ revision: number; updatedAt: string; activeRevision: number | null; engineLoadedAt: string | null; engineLoadError: string | null; mods: WorldModView[] }> {
+export interface WorldModHotReloadReport {
+    appliedIds: string[];
+    pendingRestartIds: string[];
+    migrationRequiredIds: string[];
+    rollbackRequiredIds: string[];
+}
+
+export async function requestWorldModHotReload(): Promise<WorldModHotReloadReport> {
+    const token = process.env.ENGINE_ADMIN_TOKEN?.trim();
+    const baseUrl = (process.env.ENGINE_ADMIN_URL?.trim() || 'http://localhost:8888').replace(/\/$/, '');
+    if (!token) throw new Error('Az engine admin token nincs beállítva.');
+    const response = await fetch(`${baseUrl}/api/internal/admin/world-mods/reload`, {
+        method: 'POST', headers: { 'X-Engine-Admin-Token': token }, signal: AbortSignal.timeout(5_000)
+    });
+    const parsed = await response.json() as unknown;
+    if (!response.ok || !isRecord(parsed)) throw new Error(isRecord(parsed) && typeof parsed.error === 'string' ? parsed.error : 'A hot reload sikertelen.');
+    const list = (key: string): string[] => Array.isArray(parsed[key]) ? parsed[key].filter((value): value is string => typeof value === 'string') : [];
+    return {
+        appliedIds: list('appliedIds'), pendingRestartIds: list('pendingRestartIds'),
+        migrationRequiredIds: list('migrationRequiredIds'), rollbackRequiredIds: list('rollbackRequiredIds')
+    };
+}
+
+export async function listWorldMods(): Promise<{ revision: number; updatedAt: string; activeRevision: number | null; engineLoadedAt: string | null; engineLastReloadAt: string | null; engineLoadError: string | null; mods: WorldModView[] }> {
     const manifests = await loadWorldModManifests();
     const requested = await readWorldModState(manifests);
     const active = await readActiveWorldMods();
@@ -450,6 +495,7 @@ export async function listWorldMods(): Promise<{ revision: number; updatedAt: st
         updatedAt: requested.updatedAt,
         activeRevision: active.revision,
         engineLoadedAt: active.loadedAt,
+        engineLastReloadAt: active.lastReloadAt,
         engineLoadError: active.loadError,
         mods: buildWorldModView(manifests, requested, active)
     };

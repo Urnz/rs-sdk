@@ -275,6 +275,7 @@
             <div class="dialog-heading">
                 <div><p class="eyebrow">MODOLÁSI KERETRENDSZER</p><h2>World Admin</h2></div>
                 <div class="world-admin-heading-actions">
+                    <button id="hot-reload-mods-button" type="button" class="button hot-reload">Hot reload</button>
                     <button id="restart-engine-button" type="button" class="button engine-restart">Engine újraindítása</button>
                     <button id="close-world-admin" type="button" class="dialog-close" aria-label="Bezárás">×</button>
                 </div>
@@ -290,6 +291,18 @@
                 <div id="world-mod-backups" class="world-mod-backups scroll-region" role="region" aria-label="World mod konfigurációmentések görgethető listája" tabindex="0"><span class="muted">Betöltés…</span></div>
             </section>
         </div>
+    </dialog>
+
+    <dialog id="hot-reload-dialog">
+        <form id="hot-reload-form" method="dialog">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">WORLD ÉLETCIKLUS</p><h2>Hot reload alkalmazása</h2></div>
+                <button type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">Az engine atomi módon csak a hot-reload kompatibilis modokat frissíti. A restartot, migrációt vagy rollbacket igénylő modok aktív állapota változatlan marad.</p>
+            <label>Indoklás<input name="reason" value="Függő world mod hot reload alkalmazása" maxlength="240" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button id="confirm-hot-reload" class="button hot-reload" value="submit">Hot reload</button></div>
+        </form>
     </dialog>
 
     <dialog id="world-mod-backup-dialog">

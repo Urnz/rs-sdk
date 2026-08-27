@@ -17,6 +17,7 @@ import {
 
 const manifest: WorldModManifest = {
     id: 'sample.test', name: 'Test', version: '1.0.0', category: 'test', description: 'Test mod.',
+    dataSchemaVersion: 1,
     activation: 'restart-required', hooks: ['player.login'], dependencies: [], conflicts: [],
     settings: [{ key: 'message', label: 'Message', type: 'string', default: 'hello', minimum: 1, maximum: 12, description: 'Test message.' }]
 };
@@ -96,12 +97,12 @@ describe('world mod registry and state', () => {
     test('distinguishes active, pending and unreachable engine state', async () => {
         const requested = { schemaVersion: 1 as const, revision: 2, updatedAt: new Date().toISOString(), mods: { 'sample.test': { enabled: true, config: { message: 'new' } } } };
         const active: ActiveWorldModState = {
-            revision: 1, engineReachable: true, loadedAt: new Date().toISOString(), loadError: null,
+            revision: 1, engineReachable: true, loadedAt: new Date().toISOString(), lastReloadAt: null, loadError: null,
             metrics: { 'sample.test': { status: 'active', hookInvocations: 2, hookErrors: 0, lastHookAt: null, lastError: null, counters: { messagesSent: 2 } } },
-            mods: { 'sample.test': { enabled: true, config: { message: 'old' } } }
+            mods: { 'sample.test': { enabled: true, config: { message: 'old' }, version: '1.0.0', dataSchemaVersion: 1, activation: 'restart-required', appliedRevision: 1 } }
         };
         expect(buildWorldModView([manifest], requested, active)[0]?.status).toBe('restart-required');
-        active.mods['sample.test'] = requested.mods['sample.test'];
+        active.mods['sample.test'] = { ...active.mods['sample.test']!, ...requested.mods['sample.test'] };
         const view = buildWorldModView([manifest], requested, active)[0];
         expect(view?.status).toBe('active');
         expect(view?.runtime?.counters.messagesSent).toBe(2);
@@ -109,7 +110,19 @@ describe('world mod registry and state', () => {
         active.metrics['sample.test']!.lastError = 'test failure';
         expect(buildWorldModView([manifest], requested, active)[0]?.status).toBe('activation-error');
         expect(buildWorldModView([manifest], requested, {
-            revision: null, mods: {}, metrics: {}, loadedAt: null, loadError: null, engineReachable: false
+            revision: null, mods: {}, metrics: {}, loadedAt: null, lastReloadAt: null, loadError: null, engineReachable: false
         })[0]?.status).toBe('engine-unreachable');
+    });
+
+    test('classifies hot reload, migration and rollback transitions', () => {
+        const requested = { schemaVersion: 1 as const, revision: 2, updatedAt: new Date().toISOString(), mods: { 'sample.test': { enabled: true, config: { message: 'new' } } } };
+        const active: ActiveWorldModState = {
+            revision: 1, engineReachable: true, loadedAt: new Date().toISOString(), lastReloadAt: null, loadError: null, metrics: {},
+            mods: { 'sample.test': { enabled: true, config: { message: 'old' }, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 1 } }
+        };
+        expect(buildWorldModView([{ ...manifest, activation: 'hot-reload' }], requested, active)[0]?.status).toBe('hot-reload-required');
+        expect(buildWorldModView([{ ...manifest, dataSchemaVersion: 2 }], requested, active)[0]?.status).toBe('migration-required');
+        active.mods['sample.test']!.dataSchemaVersion = 2;
+        expect(buildWorldModView([manifest], requested, active)[0]?.status).toBe('rollback-required');
     });
 });

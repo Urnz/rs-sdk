@@ -95,7 +95,8 @@ Konkrét első hookpontok:
 
 ## Feature flag, aktiválás és migráció
 
-Minden mod külön `enabled` flaget, szemantikus modverziót és deklarált aktiválási
+Minden mod külön `enabled` flaget, szemantikus modverziót, `dataSchemaVersion`
+értéket és deklarált aktiválási
 módot kap. A gateway a **kért**, az engine az induláskor betöltött **aktív**
 állapotot mutatja. Érvénytelen manifest vagy state esetén az engine fail-closed
 módon nem aktivál modot.
@@ -103,11 +104,12 @@ módon nem aktivál modot.
 Az életciklus:
 
 1. konfiguráció ellenőrzése, automatikus backup és atomi írás;
-2. `hot-reload` modnál ellenőrzött újratöltés, `restart-required` modnál függő
-   állapot;
+2. `hot-reload` modnál atomi, azonos adatsémájú újratöltés,
+   `restart-required` modnál függő állapot;
 3. engine-induláskor séma- és függőségellenőrzés, majd aktiválás;
 4. sikertelen aktiválásnál a korábbi konfiguráció visszaállítása és újraindítás;
-5. domainadat-sémaváltásnál előbb backup, majd előre mutató, idempotens migráció;
+5. sémaemelésnél `migration-required`, sémacsökkentésnél `rollback-required`
+   blokkolás; domainadat-sémaváltásnál előbb backup, majd előre mutató, idempotens migráció;
    a manifest csak sikeres migráció után válhat aktívvá.
 
 A konfiguráció restore nem csökkenti a globális revíziót: a kiválasztott

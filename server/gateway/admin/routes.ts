@@ -16,7 +16,7 @@ import {
     validateOfflineSaveDraft
 } from './offline-editor';
 import type { GatewayBotSnapshot } from './types';
-import { createWorldModBackup, listWorldModBackups, listWorldMods, restoreWorldModBackup, updateWorldMod } from './world-mods';
+import { createWorldModBackup, listWorldModBackups, listWorldMods, requestWorldModHotReload, restoreWorldModBackup, updateWorldMod } from './world-mods';
 import { restartLocalEngine } from './engine-supervisor';
 
 export interface AdminRouteContext {
@@ -291,6 +291,19 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             }
         }
 
+        if (req.method === 'POST' && url.pathname === '/api/admin/world-mods/reload') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const result = await requestWorldModHotReload();
+                await appendAudit({ operator: 'local-admin', action: 'world-mod.hot-reload', reason, success: true, after: result });
+                return json({ ok: true, result });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'world-mod.hot-reload', reason, success: false, error: String(error) });
+                throw error;
+            }
+        }
+
         const worldModRestoreMatch = url.pathname.match(/^\/api\/admin\/world-mods\/backups\/([^/]+)\/restore$/);
         if (req.method === 'POST' && worldModRestoreMatch?.[1]) {
             const backupId = decodeURIComponent(worldModRestoreMatch[1]);
@@ -300,12 +313,16 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!Number.isInteger(expectedRevision) || Number(expectedRevision) < 0) throw new Error('Érvénytelen modkonfiguráció-revízió.');
             try {
                 const result = await restoreWorldModBackup(backupId, Number(expectedRevision), reason);
+                let activation = null;
+                let activationError = null;
+                try { activation = await requestWorldModHotReload(); }
+                catch (error) { activationError = error instanceof Error ? error.message : String(error); }
                 await appendAudit({
                     operator: 'local-admin', action: 'world-mod.restore', reason, success: true,
                     before: { revision: result.before.revision },
-                    after: { revision: result.after.revision, restoredBackupId: result.restored.id, safetyBackupId: result.safetyBackup.id }
+                    after: { revision: result.after.revision, restoredBackupId: result.restored.id, safetyBackupId: result.safetyBackup.id, activation, activationError }
                 });
-                return json({ ok: true, revision: result.after.revision, restoredBackupId: result.restored.id });
+                return json({ ok: true, revision: result.after.revision, restoredBackupId: result.restored.id, activation, activationError });
             } catch (error) {
                 await appendAudit({
                     operator: 'local-admin', action: 'world-mod.restore', reason, success: false,
@@ -324,12 +341,18 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!Number.isInteger(expectedRevision) || Number(expectedRevision) < 0) throw new Error('Érvénytelen modkonfiguráció-revízió.');
             try {
                 const result = await updateWorldMod(modId, { enabled: body.enabled, config: body.config }, Number(expectedRevision), undefined, undefined, undefined, reason);
+                let activation = null;
+                let activationError = null;
+                if (result.manifest.activation === 'hot-reload') {
+                    try { activation = await requestWorldModHotReload(); }
+                    catch (error) { activationError = error instanceof Error ? error.message : String(error); }
+                }
                 await appendAudit({
                     operator: 'local-admin', action: 'world-mod.configure', reason, success: true,
                     before: { revision: result.before.revision, mod: result.before.mods[modId] },
-                    after: { revision: result.after.revision, mod: result.after.mods[modId], activation: result.manifest.activation, modId, backupId: result.backup.id }
+                    after: { revision: result.after.revision, mod: result.after.mods[modId], activationMode: result.manifest.activation, activation, activationError, modId, backupId: result.backup.id }
                 });
-                return json({ ok: true, restartRequired: result.manifest.activation === 'restart-required', revision: result.after.revision, backupId: result.backup.id });
+                return json({ ok: true, restartRequired: result.manifest.activation === 'restart-required', hotReloaded: !!activation && !activationError, activation, activationError, revision: result.after.revision, backupId: result.backup.id });
             } catch (error) {
                 await appendAudit({
                     operator: 'local-admin', action: 'world-mod.configure', reason, success: false,

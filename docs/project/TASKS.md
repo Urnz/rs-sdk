@@ -139,7 +139,7 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
   kizárólag a fejlesztői indító által nyilvántartott helyi folyamathoz.
 - [x] Konfigurációs backupot és egykattintásos visszaállítást készíteni a World
   Admin felülethez.
-- [ ] Meghatározni és tesztelni a `hot-reload`, `restart-required`, migráció és
+- [x] Meghatározni és tesztelni a `hot-reload`, `restart-required`, migráció és
   rollback állapotátmeneteket, hibánál fail-closed működéssel.
 - [x] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
 - [x] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
@@ -289,7 +289,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       élőben ellenőrizni.
 15. [ ] A 7. fázis lifecycle állapotgépét és regressziós kapuját elkészíteni.
     - [x] Modonkénti runtime-, hookhiba- és domainmetrikákat megjeleníteni.
-    - [ ] A `hot-reload`, `restart-required`, migráció és rollback átmeneteit
+    - [x] A `hot-reload`, `restart-required`, migráció és rollback átmeneteit
       fail-closed tesztekkel lefedni.
     - [ ] A fontos alapmechanikák kikapcsolt mod melletti regressziós tesztjét
       hozzáadni.

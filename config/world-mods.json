@@ -5,9 +5,10 @@
       "id": "sample.welcome-message",
       "name": "Egyedi belépési üzenet",
       "version": "1.0.0",
+      "dataSchemaVersion": 1,
       "category": "world",
       "description": "Kis, visszafordítható mintamod: belépéskor egy konfigurálható üzenetet küld a játékosnak.",
-      "activation": "restart-required",
+      "activation": "hot-reload",
       "hooks": ["player.login"],
       "dependencies": [],
       "conflicts": [],
@@ -20,6 +21,29 @@
           "minimum": 1,
           "maximum": 120,
           "description": "A RuneScape chatben belépés után megjelenő szöveg."
+        }
+      ]
+    },
+    {
+      "id": "sample.restart-message",
+      "name": "Restart-életciklus mintamod",
+      "version": "1.0.0",
+      "dataSchemaVersion": 1,
+      "category": "world",
+      "description": "Kikapcsolt mintamod a restart-required életciklus biztonságos ellenőrzéséhez.",
+      "activation": "restart-required",
+      "hooks": ["player.login"],
+      "dependencies": [],
+      "conflicts": [],
+      "settings": [
+        {
+          "key": "message",
+          "label": "Restart után megjelenő üzenet",
+          "type": "string",
+          "default": "Ez a restart-required mintamod aktív.",
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Csak engine-újraindítás után válik aktívvá. Alapértelmezetten kikapcsolt."
         }
       ]
     }

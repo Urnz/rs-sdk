@@ -54,6 +54,7 @@ input:focus, select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgb
 .button.map-button { color: #ddf7ff; background: #1e5561; border-color: #347c8c; }
 .button.world-admin-button { color: #f3e7ff; background: #49345e; border-color: #76549a; }
 .button.engine-restart { color: #ffe0dc; background: #65352f; border-color: #98534a; }
+.button.hot-reload { color: #dff8ff; background: #225262; border-color: #3d8499; }
 .button.skill-button { color: #e8f5dd; background: #315329; border-color: #4f7d43; }
 .button.teleport { color: #f0e4ff; background: #4c3565; border-color: #76549a; }
 .button.save-edit { color: #dcf6f0; background: #28564e; border-color: #3f8276; }
@@ -144,6 +145,9 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .world-mod-badge { padding: 4px 7px; color: var(--muted); background: var(--panel-2); border-radius: 999px; font-size: 11px; font-weight: 750; }
 .world-mod-badge.active { color: #bde7c5; background: #24452a; }
 .world-mod-badge.restart-required { color: #f0d49a; background: #4d3e21; }
+.world-mod-badge.hot-reload-required { color: #cceffc; background: #244c59; }
+.world-mod-badge.migration-required { color: #ead8ff; background: #49345e; }
+.world-mod-badge.rollback-required { color: #ffd4c7; background: #5b352b; }
 .world-mod-badge.engine-unreachable { color: #ffc1bb; background: #542b27; }
 .world-mod-badge.activation-error { color: #ffc1bb; background: #542b27; }
 .world-mod-card.activation-error { border-color: #a94b43; }

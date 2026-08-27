@@ -7,7 +7,7 @@ import World, {
     type AdminPlayerLogoutResult,
     type AdminTeleportResult
 } from '#/engine/World.js';
-import { getActiveWorldMods } from '#/mods/WorldMods.js';
+import { getActiveWorldMods, reloadHotWorldMods } from '#/mods/WorldMods.js';
 
 interface AdminTeleportDestination {
     id: string;
@@ -60,6 +60,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     const backupListMatch = url.pathname.match(/^\/api\/internal\/admin\/offline-backups\/([a-zA-Z0-9]{1,12})$/);
     const knownPath = url.pathname === '/api/internal/admin/teleport'
         || url.pathname === '/api/internal/admin/world-mods'
+        || url.pathname === '/api/internal/admin/world-mods/reload'
         || url.pathname === '/api/internal/admin/offline-edit'
         || url.pathname === '/api/internal/admin/offline-restore'
         || url.pathname === '/api/internal/admin/player-logout'
@@ -70,6 +71,15 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     if (url.pathname === '/api/internal/admin/world-mods') {
         if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
         return json(getActiveWorldMods());
+    }
+
+    if (url.pathname === '/api/internal/admin/world-mods/reload') {
+        if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+        try {
+            return json(reloadHotWorldMods());
+        } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 409);
+        }
     }
 
     if (backupListMatch?.[1]) {

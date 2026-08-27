@@ -29,10 +29,22 @@ játéküzenetet ír ki belépéskor. Szándékosan kicsi, nincs perzisztens dom
 
 ## Életciklus
 
-A mintamod `restart-required`: a World Admin módosítása a kért revíziót írja,
-az engine viszont csak induláskor olvassa be. Az admin nézet ezért külön mutatja
-a kért és az aktív revíziót, és eltéréskor nem állítja, hogy a változtatás már
-él. A későbbi `hot-reload` csak explicit támogatással kerülhet be.
+A `sample.welcome-message` mintamod `hot-reload`: mentéskor a gateway azonnal
+kéri az engine atomi újratöltését, így a következő belépés már az új üzenetet
+kapja engine-restart nélkül. A `sample.restart-message` alapból kikapcsolt
+mintamod külön lefedi a `restart-required` ágat: kért állapota menthető, de csak
+engine-induláskor válhat aktívvá.
+
+Minden manifest kötelező `dataSchemaVersion` mezőt tartalmaz. Hot reload közben
+az engine csak azonos adatsémájú modot cserél. Magasabb séma
+`migration-required`, alacsonyabb séma `rollback-required` állapotot eredményez;
+mindkettő változatlanul hagyja a működő aktív modot. Hibás manifest vagy state
+szintén fail-closed: a jelölt snapshot nem írhatja felül az aktívat.
+
+A World Admin külön hot-reload gombot ad az ismételt aktiváláshoz. Konfiguráció-
+mentésnél a hot mod automatikusan aktiválódik, restore után pedig az engine
+automatikusan újraalkalmazza az összes kompatibilis hot modot. Minden kézi vagy
+automatikus aktiválási eredmény auditált.
 
 Az engine minden modhoz futásidejű állapotot tart nyilván: hookhívások és hibák
 száma, az utolsó hívás és hiba időpontja/szövege, valamint modul-specifikus
@@ -60,6 +72,5 @@ belépési üzenetek száma. Hookhiba nem állíthatja le a world ticket; a mod
 
 A LostCity rétegeinek térképe és a változtatások elhelyezési szabályai a
 `docs/project/architecture/MODDING_MAP.md` fájlban vannak. A 7. fázis
-befejezéséhez még szükséges a hot-reload/migrációs állapotgép, a modmetrikák,
-a fontos alapmechanikák regressziós tesztje és a mintamod játékbeli belépési
-üzenetének ellenőrzése.
+befejezéséhez már csak a fontos alapmechanikák kikapcsolt mod melletti
+regressziós kapuja szükséges.
