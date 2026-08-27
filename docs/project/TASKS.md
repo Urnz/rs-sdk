@@ -262,4 +262,4 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] Élő session XP-növekedés és XP/óra botonként, skillenként és összesítve.
     - [x] Termelés/fogyasztás, shop- és player-trade események naplózása.
 12. [x] Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
-13. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+13. [x] A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

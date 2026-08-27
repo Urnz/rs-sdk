@@ -102,6 +102,18 @@ to copy it into the source-controlled catalog. Verification reports are stored
 under `.local/agent-skills/verifications/`; neither successful nor failed reports
 can be overwritten.
 
+Compare shared-library and isolated-discovery agents on the same seeded workload:
+
+```powershell
+bun run skill:experiment -- --seed=phase5-baseline --agents=12 --tasks=10 --trials=20
+```
+
+The command writes a detailed JSON report under `.local/admin/experiments/`.
+Its unit is estimated skill operations: execution uses each definition's nominal
+bounded path, while first-time isolated discovery adds the configured multiplier.
+This is a reproducible model of duplicated discovery work, not a claim about
+elapsed game time or LLM token usage.
+
 Travel skills may use `talk-to-npc`, allowlisted `navigate-dialog`, and
 `wait-for-area`. Coordinate-selected location interactions wait for both the
 object and its requested option to become available after a teleport or modal

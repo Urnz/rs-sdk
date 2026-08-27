@@ -104,6 +104,24 @@ megosztható marad.
 A két mód ugyanazt a végrehajtót használja, ezért összehasonlítható lesz a közös
 tudás hatása a felfedezési időre, erőforrás-felhasználásra és gazdasági specializációra.
 
+Az első determinisztikus összehasonlító kísérlet 12 agenttel, agentenként 10
+feladattal és 20 párosított triallal fut. Mindkét mód trialonként ugyanazt a
+seedelt workloadot kapja. A mérési egység becsült skill-művelet: a végrehajtási
+költség a deklarált lépések névleges korlátja, az első izolált felfedezés pedig
+ennek háromszorosa. Ez modell, nem mért játékidő vagy LLM-tokenfelhasználás.
+
+Baseline (`seed=phase5-baseline`, workload fingerprint
+`1678eb3da21fe26bd822d5adafd00cf701a0e9525b065a1e0b0f525a13815415`):
+
+- shared-library: átlagosan 2 564,5 becsült művelet/trial;
+- isolated-discovery: átlagosan 5 980,9 becsült művelet/trial;
+- megtakarítás: 3 416,4 művelet/trial, az izolált költség 57,12%-a;
+- elkerült önálló felfedezés: 53,4/trial;
+- ebből elkerült, más agent által már megismételt felfedezés: 48,4/trial.
+
+A teljes trial- és agentbontású JSON riport a `skill:experiment` paranccsal
+azonos seed mellett újragenerálható, és az admin kísérleti könyvtárába kerül.
+
 ## Első példa
 
 Az `agent-skills/catalog/mining.varrock-east.copper-to-bank@0.1.0.skill.json`
