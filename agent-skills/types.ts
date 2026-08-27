@@ -173,6 +173,8 @@ export interface SkillRunResult {
     message: string;
     operations: number;
     durationMs: number;
+    /** Resolved inputs used for this run; older journals may not contain it. */
+    parameters?: Record<string, string | number | boolean>;
     events: SkillEvent[];
 }
 

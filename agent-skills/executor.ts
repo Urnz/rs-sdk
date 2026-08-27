@@ -46,6 +46,7 @@ export class SkillExecutor {
         const events: SkillEvent[] = [];
         const started = Date.now();
         let operations = 0;
+        let resolvedParameters: Record<string, string | number | boolean> = {};
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort('timeout'), definition.limits.timeoutMs);
         const externalAbort = () => controller.abort(options.signal?.reason ?? 'cancelled');
@@ -71,6 +72,7 @@ export class SkillExecutor {
             message,
             operations,
             durationMs: Date.now() - started,
+            parameters: resolvedParameters,
             events
         });
 
@@ -78,6 +80,7 @@ export class SkillExecutor {
             if (definition.status === 'deprecated') throw new SkillRunError('failed', 'deprecated', 'Deprecated skills cannot be executed');
             if (definition.status === 'draft' && !options.allowDraft) throw new SkillRunError('failed', 'draft-not-allowed', 'Draft skills require explicit allowDraft');
             const parameters = resolveSkillParameters(definition, options.parameters);
+            resolvedParameters = parameters;
             emit({ type: 'skill.started', message: `Starting ${definition.name}` });
 
             const checkAbort = () => {

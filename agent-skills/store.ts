@@ -30,6 +30,10 @@ export class FileSkillStore {
                 throw new Error('An agent may only own its own private skill');
             }
         }
+        if (context.actorKind === 'system'
+            && (definition.provenance.authorKind !== 'system' || definition.provenance.authorId !== context.actorId)) {
+            throw new Error('A system may only save skills under its own provenance');
+        }
 
         const directory = definition.sharing.visibility === 'shared'
             ? join(this.root, 'shared')

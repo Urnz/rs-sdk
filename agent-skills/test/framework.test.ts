@@ -8,14 +8,31 @@ import {
     FileSkillRunJournal,
     RsSdkSkillRuntime,
     SkillExecutor,
+    FileSkillVerificationJournal,
+    SkillLibrary,
     SkillRegistry,
     SkillValidationError,
+    verifyAndPromoteSkill,
     validateSkillDefinition,
     type SkillDefinition,
     type SkillOperationName,
     type SkillOperationResult,
+    type SkillRunResult,
     type SkillRuntime
 } from '../index';
+
+function successfulRun(definition: SkillDefinition, runId: string, username = 'agentbot'): SkillRunResult {
+    const timestamp = '2026-08-27T12:00:00.000Z';
+    return {
+        runId, username, skill: { id: definition.id, version: definition.version },
+        status: 'completed', reason: 'completed', message: 'Done', operations: 3, durationMs: 1_000,
+        parameters: { 'bank-x': 3253, 'bank-z': 3420 },
+        events: [{
+            runId, type: 'skill.completed', timestamp,
+            skill: { id: definition.id, version: definition.version }, message: 'Done'
+        }]
+    };
+}
 
 function skill(overrides: Partial<SkillDefinition> = {}): SkillDefinition {
     return {
@@ -445,5 +462,114 @@ describe('sharing and persistence', () => {
         const path = await journal.save(result);
         expect(JSON.parse(await readFile(path, 'utf8')).runId).toBe(result.runId);
         await expect(journal.save(result)).rejects.toThrow();
+    });
+});
+
+describe('automatic skill verification and promotion', () => {
+    const temporaryRoots: string[] = [];
+    afterEach(async () => {
+        for (const root of temporaryRoots.splice(0)) await rm(root, { recursive: true, force: true });
+    });
+
+    const agentDraft = () => skill({
+        version: '0.1.0', status: 'draft',
+        provenance: { authorKind: 'agent', authorId: 'routebot', createdAt: '2026-08-27T10:00:00.000Z' },
+        sharing: { visibility: 'shared' }
+    });
+
+    test('promotes an agent draft into a new system-authored immutable version after two matching live runs', async () => {
+        const draft = agentDraft();
+        const evidence = [
+            successfulRun(draft, '11111111-1111-4111-8111-111111111111'),
+            successfulRun(draft, '22222222-2222-4222-8222-222222222222')
+        ];
+        const report = verifyAndPromoteSkill(draft, evidence, {
+            targetVersion: '1.0.0', parameters: { 'bank-x': 3253 }, now: '2026-08-27T13:00:00.000Z'
+        });
+
+        expect(report.passed).toBe(true);
+        expect(report.promoted).toMatchObject({
+            version: '1.0.0', status: 'verified',
+            provenance: {
+                authorKind: 'system', authorId: 'deterministic-skill-verifier',
+                derivedFrom: { id: draft.id, version: draft.version }
+            }
+        });
+        expect(report.checks.every(check => check.passed)).toBe(true);
+
+        const root = await mkdtemp(join(tmpdir(), 'agent-skills-promote-'));
+        temporaryRoots.push(root);
+        const library = new SkillLibrary(new SkillRegistry(), new FileSkillStore(root));
+        await library.submitAgentSkill(draft, 'routebot');
+        const outcome = await library.promoteAgentDraft(draft, evidence, {
+            targetVersion: '1.0.0', parameters: { 'bank-x': 3253 }, now: '2026-08-27T13:00:00.000Z'
+        });
+        expect(outcome.registered?.definition.status).toBe('verified');
+        await expect(library.promoteAgentDraft(draft, evidence, {
+            targetVersion: '1.0.0', parameters: { 'bank-x': 3253 }
+        })).rejects.toThrow();
+
+        const reloaded = new SkillLibrary(new SkillRegistry(), new FileSkillStore(root));
+        await reloaded.loadAgentDrafts('anotherbot');
+        expect(reloaded.registry.getLatest(draft.id)?.definition).toMatchObject({ version: '1.0.0', status: 'verified' });
+    });
+
+    test('refuses duplicate, failed, mismatched, or parameterless evidence without writing a promotion', () => {
+        const draft = agentDraft();
+        const first = successfulRun(draft, '11111111-1111-4111-8111-111111111111');
+        const duplicate = structuredClone(first);
+        const report = verifyAndPromoteSkill(draft, [first, duplicate], {
+            targetVersion: '1.0.0', parameters: { 'bank-x': 3253 }
+        });
+        expect(report.passed).toBe(false);
+        expect(report.promoted).toBeUndefined();
+        expect(report.checks.find(check => check.id === 'independent-runs')?.passed).toBe(false);
+
+        const mismatch = successfulRun(draft, '22222222-2222-4222-8222-222222222222');
+        mismatch.parameters = undefined;
+        mismatch.status = 'failed';
+        const failed = verifyAndPromoteSkill(draft, [first, mismatch], {
+            targetVersion: '0.1.1', parameters: { 'bank-x': 3253 }
+        });
+        expect(failed.passed).toBe(false);
+        expect(failed.checks.find(check => check.id === 'successful-live-runs')?.passed).toBe(false);
+        expect(failed.checks.find(check => check.id === 'matching-parameters')?.passed).toBe(false);
+    });
+
+    test('persists an immutable verification report even when promotion is refused', async () => {
+        const draft = agentDraft();
+        const report = verifyAndPromoteSkill(draft, [
+            successfulRun(draft, '11111111-1111-4111-8111-111111111111')
+        ], { targetVersion: '1.0.0', parameters: { 'bank-x': 3253 } });
+        const root = await mkdtemp(join(tmpdir(), 'agent-skill-verifications-'));
+        temporaryRoots.push(root);
+        const journal = new FileSkillVerificationJournal(root);
+        const path = await journal.save(report);
+        expect(JSON.parse(await readFile(path, 'utf8')).passed).toBe(false);
+        await expect(journal.save(report)).rejects.toThrow();
+    });
+
+    test('does not auto-publish human, private, same-version, or under-budget drafts', () => {
+        const base = agentDraft();
+        const evidence = [
+            successfulRun(base, '11111111-1111-4111-8111-111111111111'),
+            successfulRun(base, '22222222-2222-4222-8222-222222222222')
+        ];
+        const verify = (draft: SkillDefinition, targetVersion = '1.0.0') => verifyAndPromoteSkill(draft,
+            evidence.map(run => ({ ...run, skill: { id: draft.id, version: draft.version } })),
+            { targetVersion, parameters: { 'bank-x': 3253 } });
+
+        const human = structuredClone(base);
+        human.provenance = { authorKind: 'human', authorId: 'operator', createdAt: base.provenance.createdAt };
+        expect(verify(human).checks.find(check => check.id === 'agent-draft')?.passed).toBe(false);
+
+        const privateDraft = structuredClone(base);
+        privateDraft.sharing = { visibility: 'private', ownerAgentId: 'routebot' };
+        expect(verify(privateDraft).checks.find(check => check.id === 'shared-visibility')?.passed).toBe(false);
+        expect(verify(base, base.version).checks.find(check => check.id === 'new-version')?.passed).toBe(false);
+
+        const underBudget = structuredClone(base);
+        underBudget.limits.maxOperations = 1;
+        expect(verify(underBudget).checks.find(check => check.id === 'operation-budget')?.passed).toBe(false);
     });
 });

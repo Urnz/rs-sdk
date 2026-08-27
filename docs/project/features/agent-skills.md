@@ -74,6 +74,24 @@ bankolást vagy interakciós protokollt.
    verziót tehet a forráskódban tárolt katalógusba.
 6. A későbbi agent a registryből az egzakt vagy legfrissebb verziót tanulhatja meg.
 
+### Automatikus verifier és promóció
+
+Az automatikus verifier csak `agent` eredetű, kifejezetten `shared` draftot fogad.
+A statikus ellenőrzés feloldja a paramétereket, kiszámolja a deklarált ciklusok
+névleges műveleti felső korlátját, és új szemantikus verziót követel. Ezután
+legalább két külön, változtathatatlan journalból származó élő futást ellenőriz:
+
+- pontosan ugyanazt a draft `id@version` párt futtatták;
+- azonos feloldott paraméterekkel indultak;
+- valódi botnévhez tartoznak, hajtottak végre műveletet és `completed` állapotúak;
+- a lezáró esemény run ID-ja, skillhivatkozása és időbélyege is konzisztens.
+
+Minden döntés külön, felül nem írható verification reportba kerül. Csak az összes
+ellenőrzés sikere után jön létre új, `system` eredetű `verified` verzió, amelynek
+`derivedFrom` mezője az eredeti draftra, provenance megjegyzése pedig a bizonyító
+run ID-kra mutat. A lokálisan promótált skill automatikusan felfedezhető a közös
+skill-könyvtárban, de forráskódba emelése továbbra is emberi Git-review döntés.
+
 Ez megakadályozza, hogy egy prompt injection vagy hibás agent tetszőleges kódot
 terjesszen „skill” néven, miközben a felfedezett útvonal és stratégia valóban
 megosztható marad.

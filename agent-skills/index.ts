@@ -7,3 +7,4 @@ export * from './library';
 export * from './journal';
 export * from './executor';
 export * from './rs-sdk-runtime';
+export * from './verifier';

@@ -12,7 +12,8 @@ arbitrary file, network, shell, engine, or official-OSRS access.
 - `registry.ts` – immutable `id@version` registry and discovery queries.
 - `store.ts` – atomic shared/private JSON persistence.
 - `knowledge.ts` – per-agent `Skill[]` knowledge and sharing-mode switch.
-- `library.ts` – reviewed catalog and generated-draft orchestration.
+- `library.ts` – reviewed catalog, generated-draft orchestration, and verified promotion.
+- `verifier.ts` – deterministic policy checks, live-run evidence validation, and immutable reports.
 - `executor.ts` – limits, retries, cancellation, repeat conditions, and audit events.
 - `journal.ts` – immutable per-run JSON audit records.
 - `rs-sdk-runtime.ts` – adapter from approved operations to `BotActions`/`BotSDK`.
@@ -30,9 +31,12 @@ for their owner. CLI runs are recorded under `.local/agent-skills/runs/<run-id>.
 3. Validation rejects unknown operations, unbounded loops, invalid inputs, and
    attempts to claim verified status.
 4. Draft execution requires explicit `allowDraft: true` and still obeys all limits.
-5. A future deterministic/live verification pipeline may promote a new immutable
-   version into the reviewed catalog.
-6. `shared-library` agents can discover verified shared skills. In an
+5. The deterministic verifier requires a shared agent draft, a newer target
+   version, a bounded operation budget, resolved parameters, and at least two
+   unique successful live runs recorded with those exact parameters.
+6. A passing report promotes a new immutable, system-authored `verified` version;
+   a failing report is retained but never publishes a skill.
+7. `shared-library` agents can discover verified shared skills. In an
    `isolated-discovery` simulation they only discover skills authored by themselves.
 
 Changing an existing `id@version` is rejected. Improvements must publish a new
@@ -82,6 +86,21 @@ bun agent-skills/run.ts 32WTGxrvt mining.varrock-east.copper-to-bank
 
 Draft permission is deliberately explicit. Parameters can be overridden with
 `--param=bank-x=3253`; the validator rejects unknown parameter names.
+
+New run journals include the fully resolved parameter set. After an agent draft
+has completed two live runs, promote it with their immutable run IDs:
+
+```powershell
+bun agent-skills/verify.ts routebot resource.copper-bank@0.1.0 `
+  11111111-1111-4111-8111-111111111111 `
+  22222222-2222-4222-8222-222222222222 `
+  --version=1.0.0 --param=bank-x=3253
+```
+
+The promoted skill remains under `.local/agent-skills/` until a human chooses
+to copy it into the source-controlled catalog. Verification reports are stored
+under `.local/agent-skills/verifications/`; neither successful nor failed reports
+can be overwritten.
 
 Travel skills may use `talk-to-npc`, allowlisted `navigate-dialog`, and
 `wait-for-area`. Coordinate-selected location interactions wait for both the

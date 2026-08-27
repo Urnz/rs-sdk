@@ -4,6 +4,8 @@ import type { AgentSkillBook } from './knowledge';
 import { SkillRegistry } from './registry';
 import type { FileSkillStore } from './store';
 import type { RegisteredSkill } from './types';
+import type { SkillRunResult } from './types';
+import { SKILL_VERIFIER_ID, verifyAndPromoteSkill, type SkillVerificationOptions, type SkillVerificationReport } from './verifier';
 
 export class SkillLibrary {
     constructor(
@@ -31,7 +33,25 @@ export class SkillLibrary {
 
     async loadAgentDrafts(agentId: string): Promise<RegisteredSkill[]> {
         const definitions = await this.store.loadVisibleTo(agentId);
-        return definitions.map(definition => this.registry.register(definition));
+        return definitions.map(definition => this.registry.register(definition, {
+            trusted: definition.status === 'verified'
+                && definition.provenance.authorKind === 'system'
+                && definition.provenance.authorId === SKILL_VERIFIER_ID
+        }));
+    }
+
+    async promoteAgentDraft(
+        input: unknown,
+        evidence: SkillRunResult[],
+        options: SkillVerificationOptions
+    ): Promise<{ report: SkillVerificationReport; registered: RegisteredSkill | null; path: string | null }> {
+        const report = verifyAndPromoteSkill(input, evidence, options);
+        if (!report.promoted) return { report, registered: null, path: null };
+        const path = await this.store.save(report.promoted, {
+            actorKind: 'system', actorId: report.verifierId
+        });
+        const registered = this.registry.register(report.promoted, { trusted: true });
+        return { report, registered, path };
     }
 
     discoverFor(book: AgentSkillBook): RegisteredSkill[] {

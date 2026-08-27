@@ -11,6 +11,7 @@
     "local:status": "pwsh -NoProfile -File scripts/status-local.ps1",
     "local:stop": "pwsh -NoProfile -File scripts/stop-local.ps1",
     "skill:run": "bun agent-skills/run.ts",
+    "skill:verify": "bun agent-skills/verify.ts",
     "test": "bun test agent-skills/test sdk/test server/gateway/admin server/webclient/src/bot server/webclient/src/util server/webclient/src/lite",
     "test:integration": "pwsh -NoProfile -File scripts/status-local.ps1 -Json",
     "test:powershell": "pwsh -NoProfile -File scripts/test-powershell.ps1",
