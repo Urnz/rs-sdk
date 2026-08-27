@@ -268,12 +268,16 @@ export function economySnapshot(entries: BotCatalogEntry[]): EconomySnapshot {
     };
 }
 
-let lastEconomyWrite = 0;
-export async function recordEconomy(snapshot: EconomySnapshot): Promise<void> {
-    if (Date.now() - lastEconomyWrite < 30_000) return;
-    lastEconomyWrite = Date.now();
-    await mkdir(dirname(economyLogPath), { recursive: true });
-    await appendFile(economyLogPath, `${JSON.stringify(snapshot)}\n`, 'utf8');
+const lastEconomyWrite = new Map<string, number>();
+export async function recordEconomy(
+    snapshot: EconomySnapshot,
+    path = economyLogPath,
+    now = Date.now()
+): Promise<void> {
+    if (now - (lastEconomyWrite.get(path) ?? 0) < 30_000) return;
+    lastEconomyWrite.set(path, now);
+    await mkdir(dirname(path), { recursive: true });
+    await appendFile(path, `${JSON.stringify(snapshot)}\n`, 'utf8');
 }
 
 export async function readEconomy(limit = 240): Promise<EconomySnapshot[]> {

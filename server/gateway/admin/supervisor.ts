@@ -45,7 +45,10 @@ export class BotSupervisor {
     private readonly processes = new Map<string, ManagedProcess>();
     private readonly skillProcesses = new Map<string, ManagedSkillProcess>();
 
-    constructor(private readonly requestDisconnect: (username: string, reason: string) => boolean) {}
+    constructor(
+        private readonly requestDisconnect: (username: string, reason: string) => boolean,
+        private readonly pause: (milliseconds: number) => Promise<unknown> = milliseconds => Bun.sleep(milliseconds)
+    ) {}
 
     snapshot(username: string): ManagedProcessSnapshot | null {
         return this.processes.get(username.toLowerCase())?.snapshot ?? null;
@@ -152,7 +155,7 @@ export class BotSupervisor {
     async restart(options: SpawnBotOptions, reason: string): Promise<ManagedProcessSnapshot> {
         try {
             await this.despawn(options.username, reason);
-            await Bun.sleep(1_500);
+            await this.pause(1_500);
         } catch (error) {
             if (!String(error).includes('nincs online')) throw error;
         }

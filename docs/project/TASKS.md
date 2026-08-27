@@ -111,7 +111,7 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
 - [x] A gazdasági nézetet bővíteni XP/órával, termelés/fogyasztással, valamint
   shop- és player-trade eseményekkel.
 - [x] Exportálható kísérleti snapshotot és összehasonlítható futásjelölést készíteni.
-- [ ] Tesztelni az online/offline ütközést, jogosulatlan módosítást, auditot,
+- [x] Tesztelni az online/offline ütközést, jogosulatlan módosítást, auditot,
   újraindítást és több bot párhuzamos frissítését.
 
 Elfogadási feltétel: az összes bot állapota egy helyen követhető, a gazdasági
