@@ -17,3 +17,5 @@ export const skillRunsDir = join(repoRoot, '.local', 'agent-skills', 'runs');
 export const auditLogPath = join(adminLocalDir, 'audit.jsonl');
 export const economyLogPath = join(adminLocalDir, 'economy.jsonl');
 export const experimentsDir = join(adminLocalDir, 'experiments');
+export const worldModManifestPath = join(repoRoot, 'config', 'world-mods.json');
+export const worldModStatePath = join(adminLocalDir, 'world-mod-state.json');

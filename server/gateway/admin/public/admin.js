@@ -7,6 +7,7 @@ const state = {
     skillRuns: [],
     economyEvents: [],
     economyEventSummary: null,
+    worldMods: null,
     sort: { key: 'status', direction: 1 },
     selected: null,
     offlineEditing: null,
@@ -19,6 +20,7 @@ const state = {
 const $ = selector => document.querySelector(selector);
 const fmt = new Intl.NumberFormat('hu-HU');
 const statusLabels = { active: 'Online', offline: 'Offline', stale: 'Nem válaszol', starting: 'Indul', stopping: 'Leáll', error: 'Hiba' };
+const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'restart-required': 'Újraindítás szükséges', 'engine-unreachable': 'Engine nem elérhető' };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const xpThresholds = (() => {
     const values = []; let accumulator = 0;
@@ -553,6 +555,64 @@ function showSpawn(username = '') {
     $('#spawn-dialog').showModal();
 }
 
+function worldModInput(setting, value) {
+    const safeKey = escapeHtml(setting.key);
+    if (setting.type === 'boolean') {
+        return `<label class="check world-mod-setting"><input data-mod-setting="${safeKey}" data-setting-type="boolean" type="checkbox" ${value ? 'checked' : ''}><span>${escapeHtml(setting.label)}<br><small>${escapeHtml(setting.description)}</small></span></label>`;
+    }
+    const type = setting.type === 'string' ? 'text' : 'number';
+    const step = setting.type === 'integer' ? '1' : setting.type === 'number' ? 'any' : '';
+    const minimum = setting.minimum === undefined ? '' : `min="${setting.minimum}"`;
+    const maximum = setting.maximum === undefined ? '' : `max="${setting.maximum}"`;
+    return `<label class="world-mod-setting ${setting.type === 'string' ? 'wide' : ''}">${escapeHtml(setting.label)}<input data-mod-setting="${safeKey}" data-setting-type="${setting.type}" type="${type}" value="${escapeHtml(value)}" ${step ? `step="${step}"` : ''} ${minimum} ${maximum} required><small>${escapeHtml(setting.description)}</small></label>`;
+}
+
+function renderWorldMods() {
+    const data = state.worldMods;
+    if (!data) return;
+    const pending = data.mods.filter(mod => mod.status === 'restart-required').length;
+    $('#world-mod-summary').textContent = `Kért revízió: ${data.revision} · engine revízió: ${data.activeRevision ?? 'nem elérhető'} · ${pending} függőben lévő módosítás`;
+    $('#world-mod-list').innerHTML = data.mods.map(mod => `
+        <article class="world-mod-card ${mod.status === 'restart-required' ? 'pending' : mod.status}" data-mod-id="${escapeHtml(mod.id)}">
+            <div class="world-mod-heading"><div><h3>${escapeHtml(mod.name)}</h3><p>${escapeHtml(mod.description)}</p></div>
+                <label class="check"><input data-world-mod-enabled type="checkbox" ${mod.requested.enabled ? 'checked' : ''}> Engedélyezve</label></div>
+            <div class="world-mod-meta">
+                <span class="world-mod-badge ${mod.status}">${worldModStatusLabels[mod.status] || mod.status}</span>
+                <span class="world-mod-badge">${escapeHtml(mod.id)} @ ${escapeHtml(mod.version)}</span>
+                <span class="world-mod-badge">${mod.activation === 'restart-required' ? 'Restart életciklus' : 'Hot reload'}</span>
+                <span class="world-mod-badge">Hook: ${escapeHtml(mod.hooks.join(', ') || 'nincs')}</span>
+            </div>
+            <div class="world-mod-settings">${mod.settings.map(setting => worldModInput(setting, mod.requested.config[setting.key])).join('')}</div>
+            <div class="world-mod-actions"><label>Indoklás<input data-world-mod-reason value="World mod konfiguráció módosítása" maxlength="240" required></label>
+                <button class="button primary" data-action="world-mod-save">Mentés</button></div>
+        </article>`).join('') || '<p class="empty">Nincs telepített world mod.</p>';
+}
+
+async function openWorldAdmin() {
+    state.worldMods = await api('/api/admin/world-mods');
+    renderWorldMods();
+    $('#world-admin-dialog').showModal();
+}
+
+async function saveWorldMod(button) {
+    const card = button.closest('[data-mod-id]');
+    const modId = card.dataset.modId;
+    const config = {};
+    card.querySelectorAll('[data-mod-setting]').forEach(input => {
+        const type = input.dataset.settingType;
+        config[input.dataset.modSetting] = type === 'boolean' ? input.checked : type === 'string' ? input.value : Number(input.value);
+    });
+    const reason = card.querySelector('[data-world-mod-reason]').value.trim();
+    if (!reason) throw new Error('A módosításhoz indoklás szükséges.');
+    const result = await api(`/api/admin/world-mods/${encodeURIComponent(modId)}`, {
+        method: 'PUT', mutation: true,
+        body: JSON.stringify({ expectedRevision: state.worldMods.revision, enabled: card.querySelector('[data-world-mod-enabled]').checked, config, reason })
+    });
+    state.worldMods = await api('/api/admin/world-mods');
+    renderWorldMods();
+    toast(result.restartRequired ? 'Mentve. Az engine újraindítása után lép életbe.' : 'A mod beállítása frissült.');
+}
+
 document.addEventListener('click', async event => {
     const button = event.target.closest('[data-action]');
     if (!button) return;
@@ -584,6 +644,7 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'offline-edit') await showOfflineEditor(name);
         if (button.dataset.action === 'world-focus') focusWorldBot(name);
         if (button.dataset.action === 'world-spectate') { closeWorldMap(); openSpectate(name); }
+        if (button.dataset.action === 'world-mod-save') await saveWorldMod(button);
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
             if (!reason) return;
@@ -719,6 +780,7 @@ $('thead').addEventListener('click', event => {
 $('#clear-filters').addEventListener('click', () => { for (const id of ['search-filter', 'status-filter', 'skill-filter', 'coins-filter']) $(`#${id}`).value = ''; renderTable(); });
 $('#clear-event-filters').addEventListener('click', () => { $('#event-bot-filter').value = ''; $('#event-kind-filter').value = ''; renderEconomyEvents(); });
 $('#new-bot-button').addEventListener('click', () => showSpawn());
+$('#world-admin-button').addEventListener('click', () => openWorldAdmin().catch(error => toast(error.message, true)));
 $('#world-map-button').addEventListener('click', openWorldMap);
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });
 $('#skill-select').addEventListener('change', renderSkillParameters);
@@ -727,6 +789,7 @@ $('#offline-editor-dialog').addEventListener('close', () => { state.offlineEditi
 $('#close-profile').addEventListener('click', closeProfile); $('#drawer-backdrop').addEventListener('click', closeProfile);
 $('#close-spectate').addEventListener('click', closeSpectate);
 $('#close-world-map').addEventListener('click', closeWorldMap);
+$('#close-world-admin').addEventListener('click', () => $('#world-admin-dialog').close());
 $('#world-map-dialog').addEventListener('cancel', event => { event.preventDefault(); closeWorldMap(); });
 window.addEventListener('message', event => {
     if (!state.config?.worldMapUrl || event.origin !== new URL(state.config.worldMapUrl, location.href).origin) return;

@@ -7,6 +7,7 @@ import World, {
     type AdminPlayerLogoutResult,
     type AdminTeleportResult
 } from '#/engine/World.js';
+import { getActiveWorldMods } from '#/mods/WorldMods.js';
 
 interface AdminTeleportDestination {
     id: string;
@@ -58,12 +59,18 @@ function authorized(req: Request): boolean {
 export async function handleInternalAdminRequest(req: Request, url: URL): Promise<Response | null> {
     const backupListMatch = url.pathname.match(/^\/api\/internal\/admin\/offline-backups\/([a-zA-Z0-9]{1,12})$/);
     const knownPath = url.pathname === '/api/internal/admin/teleport'
+        || url.pathname === '/api/internal/admin/world-mods'
         || url.pathname === '/api/internal/admin/offline-edit'
         || url.pathname === '/api/internal/admin/offline-restore'
         || url.pathname === '/api/internal/admin/player-logout'
         || !!backupListMatch;
     if (!knownPath) return null;
     if (!authorized(req)) return json({ error: 'Unauthorized' }, 401);
+
+    if (url.pathname === '/api/internal/admin/world-mods') {
+        if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+        return json(getActiveWorldMods());
+    }
 
     if (backupListMatch?.[1]) {
         if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);

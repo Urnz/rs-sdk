@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "mods": [
+    {
+      "id": "sample.welcome-message",
+      "name": "Egyedi belépési üzenet",
+      "version": "1.0.0",
+      "category": "world",
+      "description": "Kis, visszafordítható mintamod: belépéskor egy konfigurálható üzenetet küld a játékosnak.",
+      "activation": "restart-required",
+      "hooks": ["player.login"],
+      "dependencies": [],
+      "conflicts": [],
+      "settings": [
+        {
+          "key": "message",
+          "label": "Belépési üzenet",
+          "type": "string",
+          "default": "Az Agent Society kísérleti világába léptél.",
+          "minimum": 1,
+          "maximum": 120,
+          "description": "A RuneScape chatben belépés után megjelenő szöveg."
+        }
+      ]
+    }
+  ]
+}

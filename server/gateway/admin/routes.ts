@@ -16,6 +16,7 @@ import {
     validateOfflineSaveDraft
 } from './offline-editor';
 import type { GatewayBotSnapshot } from './types';
+import { listWorldMods, updateWorldMod } from './world-mods';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -83,7 +84,8 @@ function contentType(path: string): string {
 
 async function serveAdminAsset(url: URL): Promise<Response | null> {
     if (url.pathname !== '/admin' && !url.pathname.startsWith('/admin/')) return null;
-    const relative = url.pathname === '/admin' || url.pathname === '/admin/'
+    if (url.pathname === '/admin') return Response.redirect(new URL('/admin/', url), 308);
+    const relative = url.pathname === '/admin/'
         ? 'index.html'
         : url.pathname.slice('/admin/'.length);
     if (!/^[a-zA-Z0-9._-]+$/.test(relative)) return new Response('Not found', { status: 404 });
@@ -183,6 +185,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ destinations: await listAdminTeleportDestinations() });
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/world-mods') {
+            return json(await listWorldMods());
+        }
+
         const spectateMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/spectate$/);
         if (req.method === 'GET' && spectateMatch?.[1]) {
             const username = decodeURIComponent(spectateMatch[1]).toLowerCase();
@@ -239,6 +245,30 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (!authorized(req, url)) {
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
+        }
+
+        const worldModMatch = url.pathname.match(/^\/api\/admin\/world-mods\/([a-z0-9.-]+)$/);
+        if (req.method === 'PUT' && worldModMatch?.[1]) {
+            const modId = worldModMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = body.expectedRevision;
+            if (!Number.isInteger(expectedRevision) || Number(expectedRevision) < 0) throw new Error('Érvénytelen modkonfiguráció-revízió.');
+            try {
+                const result = await updateWorldMod(modId, { enabled: body.enabled, config: body.config }, Number(expectedRevision));
+                await appendAudit({
+                    operator: 'local-admin', action: 'world-mod.configure', reason, success: true,
+                    before: { revision: result.before.revision, mod: result.before.mods[modId] },
+                    after: { revision: result.after.revision, mod: result.after.mods[modId], activation: result.manifest.activation, modId }
+                });
+                return json({ ok: true, restartRequired: result.manifest.activation === 'restart-required', revision: result.after.revision });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'world-mod.configure', reason, success: false,
+                    after: { modId, expectedRevision }, error: String(error)
+                });
+                throw error;
+            }
         }
 
         const offlineEditMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/offline-save$/);

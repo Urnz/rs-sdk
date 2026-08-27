@@ -14,6 +14,7 @@
             <p id="last-refresh" class="muted">Adatok betöltése…</p>
         </div>
         <div class="header-actions">
+            <button id="world-admin-button" class="button world-admin-button">World Admin</button>
             <button id="world-map-button" class="button map-button">Élő világtérkép</button>
             <button id="snapshot-button" class="button secondary">Kísérleti snapshot</button>
             <button id="new-bot-button" class="button primary">+ Bot spawn</button>
@@ -261,6 +262,18 @@
             <label>Mentés indoklása<input name="reason" value="Kézi offline botadat-szerkesztés" maxlength="240" required></label>
             <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Módosítások mentése</button></div>
         </form>
+    </dialog>
+
+    <dialog id="world-admin-dialog" class="world-admin-dialog">
+        <div class="world-admin-shell">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">MODOLÁSI KERETRENDSZER</p><h2>World Admin</h2></div>
+                <button id="close-world-admin" type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">A kódot tartalmazó manifestek határozzák meg az engedélyezett beállításokat. A változtatások auditáltak; a restartot igénylő módosítások csak az engine újraindítása után aktívak.</p>
+            <div id="world-mod-summary" class="world-mod-summary">Betöltés…</div>
+            <div id="world-mod-list" class="world-mod-list"></div>
+        </div>
     </dialog>
 
     <div id="toast" class="toast" role="status"></div>

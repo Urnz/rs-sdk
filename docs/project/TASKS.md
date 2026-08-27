@@ -124,10 +124,26 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
 - [ ] Meghatározni, mi marad konfiguráció/adat és mi igényel engine-módosítást.
 - [ ] Elkülöníteni a projekt saját módosításait az upstream kódtól, ahol ez ésszerű.
 - [ ] Feature flaget és migrációs stratégiát kialakítani az új funkciókhoz.
+- [x] Szabványos, verziózott mod-manifestet és típusos konfigurációs sémát készíteni.
+- [x] Modfüggőségeket, ütközéseket, hookokat és aktiválási életciklust modellezni.
+- [x] A kért és az engine-ben ténylegesen aktív modállapotot külön kezelni, hogy a
+  restartot igénylő változtatás egyértelműen látható legyen.
+- [x] A lokális modkonfigurációt verziózottan, atomi fájlcserével és optimista
+  revízióvédelemmel perzisztálni.
+- [x] Jogosultságvédett, indoklást és auditot követelő World Admin API-t készíteni.
+- [x] World Admin felületet készíteni a telepített modok áttekintéséhez,
+  ki-/bekapcsolásához és séma alapján generált beállításaihoz.
+- [ ] Biztonságos engine-újraindítást, konfigurációs backupot és egykattintásos
+  visszaállítást készíteni a World Admin felülethez.
+- [ ] Meghatározni és tesztelni a `hot-reload`, `restart-required`, migráció és
+  rollback állapotátmeneteket, hibánál fail-closed működéssel.
+- [ ] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
 - [ ] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
 - [ ] Lefuttatni regressziós tesztet a fontos alapmechanikákra.
 
-Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és tesztelése tisztázott.
+Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és tesztelése
+tisztázott; a World Admin megmutatja a kért és aktív állapotot, a modok
+biztonságosan konfigurálhatók és visszaállíthatók, minden változás auditált.
 
 ## 8. Fázis – economy rebalance és diminishing XP
 
@@ -263,3 +279,5 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] Termelés/fogyasztás, shop- és player-trade események naplózása.
 12. [x] Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
 13. [x] A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+14. [ ] A 7. fázis modolási architektúráját feltérképezni és dokumentálni, majd a
+    mintamodot a World Admin felületről engedélyezve élőben ellenőrizni.
