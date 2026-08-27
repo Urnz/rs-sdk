@@ -1,34 +1,68 @@
-# Diminishing XP – tervezési vázlat
+# Csökkenő XP-jutalmak
 
-## Cél
+## Cél és állapot
 
-Az ismétlődő grind helyett felfedezésre, változatos munkára, specializációra és
-munkamegosztásra ösztönözni az agenteket.
+Az `economy.diminishing-xp` az első valódi economy world mod. Alapból ki van
+kapcsolva, ezért telepítés után nem változtatja meg a játékot. A World Adminban
+hot reloaddal, engine-újraindítás nélkül aktiválható.
 
-## Javasolt kulcs
+## Activity kulcs
 
-A csökkenés ne csak skillenként működjön, hanem például:
+Minden XP-jutalom egy játékosonként elkülönített kulcshoz tartozik:
 
-`player + activity + target/resource + region`
+```text
+SKILL | RuneScript neve | célpont típusa és ID-je | szint:régióX,régióZ
+```
 
-Így az Al Kharid-i aranybányászat kifáradhat, miközben a faladori szén vagy a
-varrocki vas még teljes jutalmat ad.
+A normál content XP-je a `stat_advance` opcode-on halad át. Innen a mod megkapja
+a futó script nevét, az aktív object/loc/NPC célpontot és a játékos helyét. Ha
+nincs célpont, a script és a régió továbbra is elkülöníti a tevékenységet. A
+központi biztonsági hook a `Player.addXp` előtt fut; a mod kikapcsolva szigorú
+no-op, hibánál pedig fail-open módon az eredeti XP kerül kiosztásra.
 
-## Első kísérleti görbe
+## Görbe és regeneráció
 
-- első 100 azonos akció: `1.00x`
-- 101–300: `0.90x`
-- 301–1000: `0.70x`
-- 1001–3000: `0.40x`
-- 3000 felett: `0.15x`
+Az első jutalom 100%. A négy további lépcső kezdete és szorzója külön állítható;
+az alapértékek:
 
-A konkrét számok hipotézisek. Konfigurálhatók és mérési eredmények alapján
-változtathatók legyenek. A számlálók idővel regenerálódjanak.
+- kezdő ismétlések: `5 / 15 / 30 / 60`;
+- szorzók: `0.90 / 0.70 / 0.40 / 0.15`;
+- regeneráció: óránként egy elfelejtett ismétlés;
+- régióméret: 64 tile.
 
-## Mérendő eredmények
+A szorzók csak csökkenhetnek, a küszöböknek szigorúan növekedniük kell. A World
+Admin és az engine is ellenőrzi ezeket. Nulla szorzó valódi nulla XP-t jelent.
+A regeneráció folyamatos; egy teljes regenerációs időszak egy ismétlést töröl.
 
-- hány külön tevékenységet/helyet választ egy agent;
-- nő-e a kereskedelem és munkamegosztás;
-- csökken-e az egyetlen optimális loop dominanciája;
-- kialakulnak-e nem kívánt kerülőutak vagy túlzott váltogatás.
+## World Admin
 
+A modkártya összecsukható szerkesztőjében módosítható:
+
+- az érintett skillek vesszővel elválasztott listája;
+- a térképrégió mérete és a regeneráció ideje;
+- mind a négy csökkentett lépcső küszöbe és szorzója.
+
+Aktiválás és XP-jutalmak után a kártyán játékosonkénti, görgethető állapottábla
+jelenik meg. Ez mutatja az activity kulcsot, a regenerált ismétlésszámot és a
+következő jutalom várható szorzóját. Az összesített base/granted/withheld XP,
+csökkentett jutalmak, játékosok és activity kulcsok a runtime metrikák között
+láthatók.
+
+## Perzisztencia és biztonság
+
+A játékosonkénti számlálók verziózott JSON-állapota a gitből kizárt
+`.local/admin/diminishing-xp-state.json` fájlban van. Minden jutalom atomi
+fájlcserével mentődik, ezért engine-újraindítás után folytatódik a számláló. A
+modkonfiguráció backup/restore rendszere ettől külön működik: konfiguráció
+visszaállítása nem törli a játékosok tanulási állapotát.
+
+Ellenőrzött esetek: activity-kulcs képzése, görbehatárok, folyamatos regeneráció,
+nulla jutalom, gyorsan ütemezett jutalmak, perzisztencia/újraindítás, hibás
+konfiguráció fail-open működése és kikapcsolt mod no-op regressziója.
+
+## Hátralévő kísérleti munka
+
+A mod működőképes, de az economy hipotézis még nincs igazolva. Kontrollcsoportos
+botkísérlet szükséges annak mérésére, hogy valóban növeli-e a hely-, célpont- és
+skilldiverzitást. Ugyanebben a kísérletben külön kell mérni a resource respawn,
+az árak és a késztermékek értékének torzító hatását.

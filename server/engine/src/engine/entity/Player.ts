@@ -73,6 +73,7 @@ import VarBitType from '#/cache/config/VarBitType.js';
 import FriendlistLoaded from '#/network/game/server/model/FriendlistLoaded.js';
 import UpdateIgnoreList from '#/network/game/server/model/UpdateIgnoreList.js';
 import Midi from '#/cache/midi/Midi.js';
+import { applyWorldModXpAward, type XpActivityContext } from '#/mods/WorldMods.js';
 
 const levelExperience = new Int32Array(99);
 
@@ -1826,7 +1827,7 @@ export default class Player extends PathingEntity {
         }
     }
 
-    addXp(stat: number, xp: number, allowMulti: boolean = true) {
+    addXp(stat: number, xp: number, allowMulti: boolean = true, activityContext?: XpActivityContext) {
         // require xp is >= 0. there is no reason for a requested addXp to be negative.
         if (xp < 0) {
             throw new Error(`Invalid xp parameter for addXp call: Stat was: ${stat}, Exp was: ${xp}`);
@@ -1835,6 +1836,13 @@ export default class Player extends PathingEntity {
         // if the xp arg is 0, then we do not have to change anything or send an unnecessary stat packet.
         if (xp == 0) {
             return;
+        }
+
+        if (allowMulti) {
+            xp = applyWorldModXpAward(this, PlayerStatNameMap.get(stat) ?? `STAT_${stat}`, xp, activityContext ?? {
+                script: 'engine.direct', targetKind: 'none', targetId: null, x: this.x, z: this.z, level: this.level
+            });
+            if (xp === 0) return;
         }
 
         const multi = allowMulti ? Environment.node.xpRate : 1;

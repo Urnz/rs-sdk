@@ -804,7 +804,21 @@ const PlayerOps: CommandHandlers = {
         check(stat, NumberNotNull);
         check(xp, NumberNotNull);
 
-        state.activePlayer.addXp(stat, xp);
+        const target = state._activeObj
+            ? { kind: 'obj' as const, id: state._activeObj.type }
+            : state._activeLoc
+                ? { kind: 'loc' as const, id: state._activeLoc.type }
+                : state._activeNpc
+                    ? { kind: 'npc' as const, id: state._activeNpc.type }
+                    : { kind: 'none' as const, id: null };
+        state.activePlayer.addXp(stat, xp, true, {
+            script: state.script.name,
+            targetKind: target.kind,
+            targetId: target.id,
+            x: state.activePlayer.x,
+            z: state.activePlayer.z,
+            level: state.activePlayer.level
+        });
     }),
 
     [ScriptOpcode.DAMAGE]: state => {

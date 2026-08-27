@@ -53,6 +53,22 @@ describe('world mod registry and state', () => {
         expect(() => validateWorldModEntry(manifest, { enabled: true, config: { message: '' } })).toThrow('legalább');
     });
 
+    test('validates diminishing XP skill names, ordered thresholds and non-increasing multipliers', async () => {
+        const diminishing = (await loadWorldModManifests()).find(entry => entry.id === 'economy.diminishing-xp');
+        expect(diminishing).toBeDefined();
+        const defaults = Object.fromEntries(diminishing!.settings.map(setting => [setting.key, setting.default]));
+        expect(validateWorldModEntry(diminishing!, { enabled: true, config: defaults })).toMatchObject({ enabled: true });
+        expect(() => validateWorldModEntry(diminishing!, {
+            enabled: true, config: { ...defaults, affectedSkills: 'FISHING,NOT_A_SKILL' }
+        })).toThrow('ismeretlen nevek');
+        expect(() => validateWorldModEntry(diminishing!, {
+            enabled: true, config: { ...defaults, tier3At: defaults.tier2At }
+        })).toThrow('szigorúan növekedniük');
+        expect(() => validateWorldModEntry(diminishing!, {
+            enabled: true, config: { ...defaults, multiplier4: 0.8 }
+        })).toThrow('nem növekedhetnek');
+    });
+
     test('serializes concurrent writes so the same revision cannot win twice', async () => {
         const { manifestPath, statePath } = await fixture();
         const results = await Promise.allSettled([

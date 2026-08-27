@@ -261,6 +261,9 @@ These are the rules derived from every severed-wire bug found so far:
 5. **tsc is necessary but not sufficient**: run `bunx tsc --noEmit` in BOTH engine and
    webclient after every sync (esbuild bundles despite TS errors), but `as any` client-field
    accesses and bot.ejs `clientInstance.*` references are invisible to it — grep-audit those.
+6. **Diminishing XP context crosses two vendored hook points**: `STAT_ADVANCE` supplies the
+   RuneScript/target/region context and `Player.addXp` applies the fail-open policy. Preserve
+   both when syncing upstream; direct/admin XP with `allowMulti=false` intentionally bypasses it.
 
 ## Post-sync verification (5 minutes)
 

@@ -151,15 +151,15 @@ biztonságosan konfigurálhatók és visszaállíthatók, minden változás audi
 
 ## 8. Fázis – economy rebalance és diminishing XP
 
-- [ ] Megkeresni az XP-jutalmazás központi és content-specifikus pontjait.
-- [ ] Meghatározni az activity kulcsot: tevékenység + nyersanyag/célpont + régió/hely.
-- [ ] Konfigurálható csökkenési görbét készíteni, első hipotézisként
+- [x] Megkeresni az XP-jutalmazás központi és content-specifikus pontjait.
+- [x] Meghatározni az activity kulcsot: tevékenység + nyersanyag/célpont + régió/hely.
+- [x] Konfigurálható csökkenési görbét készíteni, első hipotézisként
   `1.00 / 0.90 / 0.70 / 0.40 / 0.15` szorzókkal.
-- [ ] Időalapú regenerációt/felejtést kialakítani, hogy a korábbi tevékenységek
+- [x] Időalapú regenerációt/felejtést kialakítani, hogy a korábbi tevékenységek
   később ismét értékessé váljanak.
-- [ ] A számlálókat játékosonként tartósan menteni és verziózni.
-- [ ] A játékos/agent számára lekérdezhetővé tenni az aktuális várható XP-szorzót.
-- [ ] Tesztelni a határértékeket, regenerációt, újraindítást és párhuzamos jutalmakat.
+- [x] A számlálókat játékosonként tartósan menteni és verziózni.
+- [x] A játékos/agent számára lekérdezhetővé tenni az aktuális várható XP-szorzót.
+- [x] Tesztelni a határértékeket, regenerációt, újraindítást és párhuzamos jutalmakat.
 - [ ] Mérni, hogy a rendszer ténylegesen növeli-e a felfedezést és diverzifikációt.
 - [ ] Külön vizsgálni a resource respawn, árak és késztermékek értékének hatását.
 
@@ -293,5 +293,11 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       fail-closed tesztekkel lefedni.
     - [x] A fontos alapmechanikák kikapcsolt mod melletti regressziós tesztjét
       hozzáadni.
-16. [ ] A 8. fázis első függőleges szeletét elkészíteni: központi XP-hook,
+16. [x] A 8. fázis első függőleges szeletét elkészíteni: központi XP-hook,
     konfigurálható csökkenési görbe és World Admin megfigyelhetőség.
+    - [x] Az alapból kikapcsolt `economy.diminishing-xp` modot elkészíteni.
+    - [x] A konfigurációt és a játékosonkénti várható szorzót a World Adminban
+      szerkeszthetővé, illetve megfigyelhetővé tenni.
+    - [x] A tartós számlálókat, regenerációt és regressziós teszteket elkészíteni.
+17. [ ] Kontrollcsoportos botkísérlettel mérni a diminishing XP diverzitási és
+    economy hatását, beleértve a respawn-, ár- és késztermék-hatásokat.

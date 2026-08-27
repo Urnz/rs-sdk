@@ -2,17 +2,18 @@ import { describe, expect, test } from 'bun:test';
 import {
     mergeHotReloadSnapshot,
     runWorldModPlayerLoginHooks,
+    runWorldModXpAwardHook,
     type ActiveMod,
     type ActiveWorldModSnapshot,
     type WorldModRuntimeMetrics
-} from './WorldMods';
+} from './WorldMods.js';
 
 function mod(activation: ActiveMod['activation'], message: string, dataSchemaVersion = 1): ActiveMod {
     return { enabled: true, config: { message }, version: '1.0.0', dataSchemaVersion, activation, appliedRevision: 1 };
 }
 
 function metric(): WorldModRuntimeMetrics {
-    return { status: 'active', hookInvocations: 4, hookErrors: 0, lastHookAt: null, lastError: null, counters: { messagesSent: 4 } };
+    return { status: 'active', hookInvocations: 4, hookErrors: 0, lastHookAt: null, lastError: null, counters: { messagesSent: 4 }, details: [] };
 }
 
 function snapshot(mods: Record<string, ActiveMod>, revision = 1): ActiveWorldModSnapshot {
@@ -68,6 +69,63 @@ describe('world mod hot reload lifecycle', () => {
         expect(() => runWorldModPlayerLoginHooks(active, { wrappedMessageGame: () => { throw new Error('client write failed'); } })).not.toThrow();
         expect(active.metrics['sample.welcome-message']).toMatchObject({
             status: 'error', hookInvocations: 5, hookErrors: 1, lastError: 'client write failed', counters: { messagesSent: 4 }
+        });
+    });
+
+    test('keeps XP byte-for-byte unchanged while the diminishing mod is disabled', () => {
+        const disabled: ActiveMod = {
+            enabled: false, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 1,
+            config: {}
+        };
+        const active = snapshot({ 'economy.diminishing-xp': disabled });
+        active.metrics['economy.diminishing-xp']!.status = 'disabled';
+        const before = structuredClone(active.metrics['economy.diminishing-xp']);
+        const granted = runWorldModXpAwardHook(active, { username: 'Ferry14' }, 'FISHING', 100, {
+            script: 'fishing', targetKind: 'npc', targetId: 316, x: 2924, z: 3179, level: 0
+        });
+        expect(granted).toBe(100);
+        expect(active.metrics['economy.diminishing-xp']).toEqual(before);
+    });
+
+    test('applies diminishing XP and exposes aggregate runtime metrics', () => {
+        const config = {
+            affectedSkills: 'FISHING', regionSize: 64, recoveryMinutes: 60,
+            tier2At: 5, tier3At: 15, tier4At: 30, tier5At: 60,
+            multiplier2: 0.9, multiplier3: 0.7, multiplier4: 0.4, multiplier5: 0.15
+        };
+        const active = snapshot({
+            'economy.diminishing-xp': {
+                enabled: true, config, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 1
+            }
+        });
+        active.metrics['economy.diminishing-xp']!.counters = {};
+        const granted = runWorldModXpAwardHook(active, { username: 'Ferry14' }, 'FISHING', 100, {
+            script: 'fishing', targetKind: 'npc', targetId: 316, x: 2924, z: 3179, level: 0
+        }, {
+            award: () => ({
+                activityKey: 'key', baseXp: 100, grantedXp: 70, multiplier: 0.7,
+                repetitionScore: 15, nextRecoveryAt: new Date(0).toISOString()
+            }),
+            summary: () => ({ playersTracked: 2, activitiesTracked: 7 })
+        });
+        expect(granted).toBe(70);
+        expect(active.metrics['economy.diminishing-xp']).toMatchObject({
+            hookInvocations: 5,
+            counters: { baseXp: 100, grantedXp: 70, withheldXp: 30, reducedAwards: 1, playersTracked: 2, activitiesTracked: 7 }
+        });
+    });
+
+    test('fails open to the original XP award when diminishing configuration is invalid', () => {
+        const active = snapshot({
+            'economy.diminishing-xp': {
+                enabled: true, config: {}, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 1
+            }
+        });
+        expect(runWorldModXpAwardHook(active, { username: 'Ferry14' }, 'FISHING', 100, {
+            script: 'fishing', targetKind: 'npc', targetId: 316, x: 2924, z: 3179, level: 0
+        })).toBe(100);
+        expect(active.metrics['economy.diminishing-xp']).toMatchObject({
+            status: 'error', hookErrors: 1, lastError: 'Invalid diminishing XP setting: affectedSkills'
         });
     });
 });

@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type Player from '#/engine/entity/Player.js';
+import {
+    DiminishingXpStore,
+    parseDiminishingXpConfig,
+    type DiminishingXpActivityView,
+    type XpActivityContext
+} from '#/mods/DiminishingXp.js';
 
 type ConfigValue = boolean | number | string;
 export type WorldModActivation = 'hot-reload' | 'restart-required';
@@ -29,6 +35,7 @@ export interface WorldModRuntimeMetrics {
     lastHookAt: string | null;
     lastError: string | null;
     counters: Record<string, number>;
+    details: DiminishingXpActivityView[];
 }
 
 export interface ActiveWorldModSnapshot {
@@ -67,7 +74,7 @@ function validManifest(value: unknown): value is ModManifest {
 function emptyMetrics(enabled: boolean): WorldModRuntimeMetrics {
     return {
         status: enabled ? 'active' : 'disabled', hookInvocations: 0, hookErrors: 0,
-        lastHookAt: null, lastError: null, counters: {}
+        lastHookAt: null, lastError: null, counters: {}, details: []
     };
 }
 
@@ -151,8 +158,10 @@ export function mergeHotReloadSnapshot(current: ActiveWorldModSnapshot, candidat
 }
 
 let snapshot = loadSnapshot();
+let diminishingXpStore: DiminishingXpStore | null = null;
 
 export function getActiveWorldMods(): ActiveWorldModSnapshot {
+    refreshDiminishingXpDetails();
     return structuredClone(snapshot);
 }
 
@@ -164,6 +173,10 @@ export function reloadHotWorldMods(): HotReloadResult {
 
 export interface WorldModPlayerTarget {
     wrappedMessageGame(message: string): void;
+}
+
+export interface WorldModXpTarget {
+    username: string;
 }
 
 function incrementCounter(activeSnapshot: ActiveWorldModSnapshot, modId: string, key: string): void {
@@ -204,3 +217,74 @@ export function runWorldModPlayerLoginHooks(activeSnapshot: ActiveWorldModSnapsh
 export function onWorldModPlayerLogin(player: Player): void {
     runWorldModPlayerLoginHooks(snapshot, player);
 }
+
+function getDiminishingXpStore(): DiminishingXpStore {
+    diminishingXpStore ??= new DiminishingXpStore();
+    return diminishingXpStore;
+}
+
+function refreshDiminishingXpDetails(): void {
+    const modId = 'economy.diminishing-xp';
+    const mod = snapshot.mods[modId];
+    const metric = snapshot.metrics[modId];
+    if (!mod?.enabled || !metric) return;
+    try {
+        const config = parseDiminishingXpConfig(mod.config);
+        const store = getDiminishingXpStore();
+        metric.details = store.inspect(config);
+        const summary = store.summary();
+        metric.counters.playersTracked = summary.playersTracked;
+        metric.counters.activitiesTracked = summary.activitiesTracked;
+    } catch (error) {
+        metric.status = 'error';
+        metric.lastError = error instanceof Error ? error.message : String(error);
+    }
+}
+
+export function applyWorldModXpAward(
+    player: WorldModXpTarget,
+    skill: string,
+    baseXp: number,
+    context: XpActivityContext
+): number {
+    return runWorldModXpAwardHook(snapshot, player, skill, baseXp, context);
+}
+
+export function runWorldModXpAwardHook(
+    activeSnapshot: ActiveWorldModSnapshot,
+    player: WorldModXpTarget,
+    skill: string,
+    baseXp: number,
+    context: XpActivityContext,
+    store?: Pick<DiminishingXpStore, 'award' | 'summary'> & Partial<Pick<DiminishingXpStore, 'inspect'>>
+): number {
+    const modId = 'economy.diminishing-xp';
+    const mod = activeSnapshot.mods[modId];
+    const metric = activeSnapshot.metrics[modId];
+    if (!mod?.enabled || !metric) return baseXp;
+    metric.hookInvocations++;
+    metric.lastHookAt = new Date().toISOString();
+    try {
+        const config = parseDiminishingXpConfig(mod.config);
+        if (!config.affectedSkills.has(skill.toUpperCase())) return baseXp;
+        const activeStore = store ?? getDiminishingXpStore();
+        const award = activeStore.award(player.username, skill, context, baseXp, config);
+        metric.counters.baseXp = (metric.counters.baseXp ?? 0) + award.baseXp;
+        metric.counters.grantedXp = (metric.counters.grantedXp ?? 0) + award.grantedXp;
+        metric.counters.withheldXp = (metric.counters.withheldXp ?? 0) + award.baseXp - award.grantedXp;
+        metric.counters.reducedAwards = (metric.counters.reducedAwards ?? 0) + (award.multiplier < 1 ? 1 : 0);
+        const summary = activeStore.summary();
+        metric.counters.playersTracked = summary.playersTracked;
+        metric.counters.activitiesTracked = summary.activitiesTracked;
+        if (activeStore.inspect) metric.details = activeStore.inspect(config);
+        return award.grantedXp;
+    } catch (error) {
+        metric.status = 'error';
+        metric.hookErrors++;
+        metric.lastError = error instanceof Error ? error.message : String(error);
+        console.error(`[WorldMods] ${modId} hook failed open: ${metric.lastError}`);
+        return baseXp;
+    }
+}
+
+export type { XpActivityContext } from '#/mods/DiminishingXp.js';

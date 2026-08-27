@@ -608,9 +608,16 @@ function renderWorldMods() {
                 ${Object.entries(mod.runtime.counters).map(([key, value]) => `<span>${escapeHtml(key)}: <strong>${fmt.format(value)}</strong></span>`).join('')}
                 ${mod.runtime.lastError ? `<span class="danger-text">Utolsó hiba: <strong>${escapeHtml(mod.runtime.lastError)}</strong></span>` : ''}
             </div>` : '<div class="world-mod-runtime muted">Nincs aktív engine-metrika.</div>'}
-            <div class="world-mod-settings">${mod.settings.map(setting => worldModInput(setting, mod.requested.config[setting.key])).join('')}</div>
-            <div class="world-mod-actions"><label>Indoklás<input data-world-mod-reason value="World mod konfiguráció módosítása" maxlength="240" required></label>
-                <button class="button primary" data-action="world-mod-save">Mentés</button></div>
+            ${mod.runtime?.details?.length ? `<details class="world-mod-telemetry"><summary>Játékosonkénti állapot (${fmt.format(mod.runtime.details.length)})</summary>
+                <div class="world-mod-telemetry-scroll"><table><thead><tr><th>Játékos</th><th>Activity kulcs</th><th class="number">Ismétlés</th><th class="number">Következő szorzó</th></tr></thead><tbody>
+                    ${mod.runtime.details.map(detail => `<tr><td>${escapeHtml(detail.username)}</td><td title="${escapeHtml(detail.activityKey)}">${escapeHtml(detail.activityKey)}</td><td class="number">${detail.repetitionScore.toFixed(2)}</td><td class="number">${Math.round(detail.nextMultiplier * 100)}%</td></tr>`).join('')}
+                </tbody></table></div></details>` : ''}
+            <details class="world-mod-config" ${mod.settings.length <= 4 ? 'open' : ''}>
+                <summary>Beállítások szerkesztése (${fmt.format(mod.settings.length)})</summary>
+                <div class="world-mod-settings">${mod.settings.map(setting => worldModInput(setting, mod.requested.config[setting.key])).join('')}</div>
+                <div class="world-mod-actions"><label>Indoklás<input data-world-mod-reason value="World mod konfiguráció módosítása" maxlength="240" required></label>
+                    <button class="button primary" data-action="world-mod-save">Mentés</button></div>
+            </details>
         </article>`).join('') || '<p class="empty">Nincs telepített world mod.</p>';
 }
 

@@ -156,6 +156,14 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .world-mod-settings { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 11px; }
 .world-mod-settings .wide { grid-column: 1 / -1; }
 .world-mod-setting small { color: var(--muted); font-weight: 400; }
+.world-mod-config,.world-mod-telemetry { margin-top: 11px; padding: 10px 12px; background: var(--panel-2); border-radius: 8px; }
+.world-mod-config > summary,.world-mod-telemetry > summary { cursor: pointer; color: var(--gold); font-weight: 750; }
+.world-mod-config[open] > summary,.world-mod-telemetry[open] > summary { margin-bottom: 12px; }
+.world-mod-telemetry-scroll { max-height: 260px; overflow: auto; }
+.world-mod-telemetry table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.world-mod-telemetry th,.world-mod-telemetry td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.world-mod-telemetry td:nth-child(2) { max-width: 430px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.world-mod-telemetry .number { text-align: right; white-space: nowrap; }
 .world-mod-actions { display: grid; grid-template-columns: minmax(240px, 1fr) auto; gap: 10px; align-items: end; margin-top: 14px; }
 .world-mod-backup-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
 .world-mod-backups { display: grid; gap: 7px; max-height: 260px; margin-top: 10px; padding-right: 4px; overflow: auto; }

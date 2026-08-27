@@ -65,6 +65,16 @@ export interface WorldModRuntimeMetrics {
     lastHookAt: string | null;
     lastError: string | null;
     counters: Record<string, number>;
+    details?: WorldModRuntimeDetail[];
+}
+
+export interface WorldModRuntimeDetail {
+    username: string;
+    activityKey: string;
+    repetitionScore: number;
+    nextMultiplier: number;
+    updatedAt: string;
+    nextRecoveryAt: string;
 }
 
 export interface WorldModView extends WorldModManifest {
@@ -90,6 +100,7 @@ interface WorldModBackupFile extends WorldModBackupSummary {
 }
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9.-]{2,63}$/;
+const SETTING_KEY_PATTERN = /^[a-z][a-zA-Z0-9.-]{1,63}$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 const BACKUP_ID_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[0-9a-f-]{36}$/;
 
@@ -98,7 +109,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function validSetting(value: unknown): value is WorldModSetting {
-    if (!isRecord(value) || typeof value.key !== 'string' || !ID_PATTERN.test(value.key)
+    if (!isRecord(value) || typeof value.key !== 'string' || !SETTING_KEY_PATTERN.test(value.key)
         || typeof value.label !== 'string' || !value.label || value.label.length > 80
         || !['boolean', 'integer', 'number', 'string'].includes(String(value.type))
         || typeof value.description !== 'string' || value.description.length > 240) return false;
@@ -168,13 +179,37 @@ export function validateWorldModEntry(manifest: WorldModManifest, value: unknown
     const requestedConfig = value.config;
     const known = new Set(manifest.settings.map(setting => setting.key));
     for (const key of Object.keys(requestedConfig)) if (!known.has(key)) throw new Error(`Ismeretlen beállítás: ${manifest.id}.${key}`);
-    return {
+    const entry = {
         enabled: value.enabled,
         config: Object.fromEntries(manifest.settings.map(setting => [
             setting.key,
             validateSetting(setting, requestedConfig[setting.key] ?? setting.default)
         ]))
     };
+    validateModSpecificConfig(manifest, entry.config);
+    return entry;
+}
+
+const PLAYER_SKILLS = new Set([
+    'ATTACK', 'DEFENCE', 'STRENGTH', 'HITPOINTS', 'RANGED', 'PRAYER', 'MAGIC', 'COOKING', 'WOODCUTTING',
+    'FLETCHING', 'FISHING', 'FIREMAKING', 'CRAFTING', 'SMITHING', 'MINING', 'HERBLORE', 'AGILITY', 'THIEVING', 'RUNECRAFT'
+]);
+
+function validateModSpecificConfig(manifest: WorldModManifest, config: Record<string, boolean | number | string>): void {
+    if (manifest.id !== 'economy.diminishing-xp') return;
+    const skills = String(config.affectedSkills).split(',').map(value => value.trim().toUpperCase()).filter(Boolean);
+    const unknownSkills = skills.filter(skill => !PLAYER_SKILLS.has(skill));
+    if (skills.length === 0 || unknownSkills.length > 0) {
+        throw new Error(`Érintett skillek: ${unknownSkills.length > 0 ? `ismeretlen nevek: ${unknownSkills.join(', ')}` : 'legalább egy skill szükséges.'}`);
+    }
+    const thresholds = ['tier2At', 'tier3At', 'tier4At', 'tier5At'].map(key => Number(config[key]));
+    if (thresholds.some((value, index) => index > 0 && value <= thresholds[index - 1]!)) {
+        throw new Error('Az XP-lépcsők kezdeteinek szigorúan növekedniük kell.');
+    }
+    const multipliers = [1, ...['multiplier2', 'multiplier3', 'multiplier4', 'multiplier5'].map(key => Number(config[key]))];
+    if (multipliers.some((value, index) => index > 0 && value > multipliers[index - 1]!)) {
+        throw new Error('Az XP-szorzók a későbbi lépcsőkön nem növekedhetnek.');
+    }
 }
 
 export async function readWorldModState(manifests: WorldModManifest[], path = worldModStatePath): Promise<WorldModState> {
@@ -445,10 +480,17 @@ export async function readActiveWorldMods(): Promise<ActiveWorldModState> {
                     || (value.lastError !== null && typeof value.lastError !== 'string') || !isRecord(value.counters)) continue;
                 const counters = Object.fromEntries(Object.entries(value.counters)
                     .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1])));
+                const details = Array.isArray(value.details) ? value.details.filter((entry): entry is WorldModRuntimeDetail => {
+                    if (!isRecord(entry)) return false;
+                    return typeof entry.username === 'string' && typeof entry.activityKey === 'string'
+                        && typeof entry.repetitionScore === 'number' && Number.isFinite(entry.repetitionScore)
+                        && typeof entry.nextMultiplier === 'number' && Number.isFinite(entry.nextMultiplier)
+                        && typeof entry.updatedAt === 'string' && typeof entry.nextRecoveryAt === 'string';
+                }) : [];
                 metrics[id] = {
                     status: value.status as WorldModRuntimeMetrics['status'],
                     hookInvocations: Number(value.hookInvocations), hookErrors: Number(value.hookErrors),
-                    lastHookAt: value.lastHookAt as string | null, lastError: value.lastError as string | null, counters
+                    lastHookAt: value.lastHookAt as string | null, lastError: value.lastError as string | null, counters, details
                 };
             }
         }

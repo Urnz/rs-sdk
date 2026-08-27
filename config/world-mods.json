@@ -46,6 +46,119 @@
           "description": "Csak engine-újraindítás után válik aktívvá. Alapértelmezetten kikapcsolt."
         }
       ]
+    },
+    {
+      "id": "economy.diminishing-xp",
+      "name": "Csökkenő XP-jutalmak",
+      "version": "1.0.0",
+      "dataSchemaVersion": 1,
+      "category": "economy",
+      "description": "Az ismételt azonos tevékenység, célpont és régió XP-jutalmát fokozatosan csökkenti, majd idővel regenerálja.",
+      "activation": "hot-reload",
+      "hooks": ["player.xp"],
+      "dependencies": [],
+      "conflicts": [],
+      "settings": [
+        {
+          "key": "affectedSkills",
+          "label": "Érintett skillek",
+          "type": "string",
+          "default": "COOKING,WOODCUTTING,FLETCHING,FISHING,FIREMAKING,CRAFTING,SMITHING,MINING,HERBLORE,AGILITY,THIEVING,RUNECRAFT",
+          "minimum": 1,
+          "maximum": 240,
+          "description": "Vesszővel elválasztott engine skillnevek. A combat skillek alapból nem érintettek."
+        },
+        {
+          "key": "regionSize",
+          "label": "Régió mérete (tile)",
+          "type": "integer",
+          "default": 64,
+          "minimum": 8,
+          "maximum": 256,
+          "description": "Ekkora térképcellánként számít külön tevékenységnek ugyanaz a célpont."
+        },
+        {
+          "key": "recoveryMinutes",
+          "label": "Regeneráció percenként",
+          "type": "number",
+          "default": 60,
+          "minimum": 0.1,
+          "maximum": 10080,
+          "description": "Ennyi perc alatt felejt el a rendszer egy ismétlést."
+        },
+        {
+          "key": "tier2At",
+          "label": "2. lépcső kezdete",
+          "type": "integer",
+          "default": 5,
+          "minimum": 2,
+          "maximum": 100000,
+          "description": "Ettől az ismétléstől érvényes a második szorzó."
+        },
+        {
+          "key": "tier3At",
+          "label": "3. lépcső kezdete",
+          "type": "integer",
+          "default": 15,
+          "minimum": 3,
+          "maximum": 100000,
+          "description": "Ettől az ismétléstől érvényes a harmadik szorzó."
+        },
+        {
+          "key": "tier4At",
+          "label": "4. lépcső kezdete",
+          "type": "integer",
+          "default": 30,
+          "minimum": 4,
+          "maximum": 100000,
+          "description": "Ettől az ismétléstől érvényes a negyedik szorzó."
+        },
+        {
+          "key": "tier5At",
+          "label": "5. lépcső kezdete",
+          "type": "integer",
+          "default": 60,
+          "minimum": 5,
+          "maximum": 100000,
+          "description": "Ettől az ismétléstől érvényes az ötödik szorzó."
+        },
+        {
+          "key": "multiplier2",
+          "label": "2. XP-szorzó",
+          "type": "number",
+          "default": 0.9,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "A második lépcső jutalma; 0.9 = 90%."
+        },
+        {
+          "key": "multiplier3",
+          "label": "3. XP-szorzó",
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "A harmadik lépcső jutalma; 0.7 = 70%."
+        },
+        {
+          "key": "multiplier4",
+          "label": "4. XP-szorzó",
+          "type": "number",
+          "default": 0.4,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "A negyedik lépcső jutalma; 0.4 = 40%."
+        },
+        {
+          "key": "multiplier5",
+          "label": "5. XP-szorzó",
+          "type": "number",
+          "default": 0.15,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Az ötödik lépcső jutalma; 0.15 = 15%."
+        }
+      ]
     }
   ]
 }
