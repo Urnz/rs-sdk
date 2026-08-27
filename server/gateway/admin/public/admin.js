@@ -5,6 +5,8 @@ const state = {
     skills: [],
     teleportDestinations: [],
     skillRuns: [],
+    economyEvents: [],
+    economyEventSummary: null,
     sort: { key: 'status', direction: 1 },
     selected: null,
     offlineEditing: null,
@@ -179,6 +181,41 @@ function renderSkillRuns() {
             <td><details class="run-details"><summary>${escapeHtml(run.message || run.reason || 'Részletek')}</summary><ul>${events}</ul></details></td>
         </tr>`;
     }).join('') : '<tr><td colspan="7" class="empty">Még nincs befejezett agent-skill futás.</td></tr>';
+}
+
+function eventItems(items) {
+    return items.length
+        ? items.map(item => `${escapeHtml(item.name)} × ${fmt.format(item.quantity)}`).join('<br>')
+        : '<span class="muted">–</span>';
+}
+
+function renderEconomyEvents() {
+    const labels = {
+        production: 'Termelés', consumption: 'Felhasználás', 'shop-buy': 'Bolti vásárlás',
+        'shop-sell': 'Bolti eladás', 'player-trade': 'Player trade', 'bank-transfer': 'Bankmozgatás'
+    };
+    const botFilter = $('#event-bot-filter').value.trim().toLowerCase();
+    const kindFilter = $('#event-kind-filter').value;
+    const events = state.economyEvents.filter(event =>
+        (!botFilter || (event.username || '').includes(botFilter)) && (!kindFilter || event.kind === kindFilter)
+    );
+    const summary = state.economyEventSummary || { producedItems: 0, consumedItems: 0, shopTransactions: 0, playerTrades: 0, netCoins: 0 };
+    $('#event-produced').textContent = fmt.format(summary.producedItems);
+    $('#event-consumed').textContent = fmt.format(summary.consumedItems);
+    $('#event-shops').textContent = fmt.format(summary.shopTransactions);
+    $('#event-trades').textContent = fmt.format(summary.playerTrades);
+    $('#event-coins').textContent = `${summary.netCoins > 0 ? '+' : ''}${fmt.format(summary.netCoins)} gp`;
+    $('#event-coins').classList.toggle('positive', summary.netCoins > 0);
+    $('#event-coins').classList.toggle('negative', summary.netCoins < 0);
+    $('#economy-event-count').textContent = `${events.length} / ${state.economyEvents.length} esemény`;
+    $('#economy-event-rows').innerHTML = events.length ? events.map(event => `<tr>
+        <td title="${escapeHtml(event.timestamp)}">${relativeTime(event.timestamp)}</td>
+        <td>${escapeHtml(event.username || 'Korábbi futás')}</td>
+        <td><span class="event-kind ${escapeHtml(event.kind)}">${escapeHtml(labels[event.kind] || event.kind)}</span>${event.partial ? '<span class="subline">részleges / sikertelen lépés</span>' : ''}</td>
+        <td>${eventItems(event.itemsIn)}</td><td>${eventItems(event.itemsOut)}</td>
+        <td class="number ${event.coinsDelta > 0 ? 'positive' : event.coinsDelta < 0 ? 'negative' : ''}">${event.coinsDelta > 0 ? '+' : ''}${fmt.format(event.coinsDelta)} gp</td>
+        <td>${escapeHtml(event.skillId)}${event.counterparty ? `<span class="subline">partner: ${escapeHtml(event.counterparty)}</span>` : ''}<span class="subline">${escapeHtml(event.runId.slice(0, 8))}</span></td>
+    </tr>`).join('') : '<tr><td colspan="7" class="empty">Nincs a szűrőknek megfelelő gazdasági esemény.</td></tr>';
 }
 
 function renderWorldMapBots() {
@@ -485,14 +522,17 @@ function drawChart(snapshots) {
 
 async function refresh() {
     try {
-        const [data, history, skillHistory] = await Promise.all([
-            api('/api/admin/bots'), api('/api/admin/economy?limit=240'), api('/api/admin/skill-runs?limit=30')
+        const [data, history, skillHistory, economyEvents] = await Promise.all([
+            api('/api/admin/bots'), api('/api/admin/economy?limit=240'), api('/api/admin/skill-runs?limit=30'),
+            api('/api/admin/economy-events?limit=200')
         ]);
         state.bots = data.bots;
         state.economy = data.economy;
         state.skillRuns = skillHistory.runs;
+        state.economyEvents = economyEvents.events;
+        state.economyEventSummary = economyEvents.summary;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
-        renderSummary(); renderTable(); renderSkillRuns();
+        renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents();
         if ($('#world-map-dialog').open) renderWorldMapBots();
         drawChart(history.snapshots);
         if (state.selected && $('#profile-drawer').classList.contains('open')) openProfile(state.selected);
@@ -668,6 +708,7 @@ $('#offline-skill-rows').addEventListener('input', event => {
 for (const selector of ['#search-filter', '#status-filter', '#skill-filter', '#coins-filter']) {
     $(selector).addEventListener('input', renderTable);
 }
+for (const selector of ['#event-bot-filter', '#event-kind-filter']) $(selector).addEventListener('input', renderEconomyEvents);
 $('thead').addEventListener('click', event => {
     const key = event.target.closest('[data-sort]')?.dataset.sort;
     if (!key) return;
@@ -676,6 +717,7 @@ $('thead').addEventListener('click', event => {
     renderTable();
 });
 $('#clear-filters').addEventListener('click', () => { for (const id of ['search-filter', 'status-filter', 'skill-filter', 'coins-filter']) $(`#${id}`).value = ''; renderTable(); });
+$('#clear-event-filters').addEventListener('click', () => { $('#event-bot-filter').value = ''; $('#event-kind-filter').value = ''; renderEconomyEvents(); });
 $('#new-bot-button').addEventListener('click', () => showSpawn());
 $('#world-map-button').addEventListener('click', openWorldMap);
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });

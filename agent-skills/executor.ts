@@ -107,10 +107,10 @@ export class SkillExecutor {
                     const result = await this.runtime.execute(step.operation, args, controller.signal);
                     checkAbort();
                     if (result.success) {
-                        emit({ type: 'step.succeeded', stepId: step.id, operation: step.operation, attempt, code: result.code, message: result.message });
+                        emit({ type: 'step.succeeded', stepId: step.id, operation: step.operation, attempt, code: result.code, message: result.message, data: result.data });
                         return;
                     }
-                    emit({ type: 'step.failed', stepId: step.id, operation: step.operation, attempt, code: result.code, message: result.message });
+                    emit({ type: 'step.failed', stepId: step.id, operation: step.operation, attempt, code: result.code, message: result.message, data: result.data });
                     if (attempt === attempts) {
                         if (step.onFailure === 'continue') return;
                         throw new SkillRunError('failed', result.code ?? 'operation-failed', result.message, step.id);

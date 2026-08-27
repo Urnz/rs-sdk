@@ -7,6 +7,7 @@ import { BotSupervisor } from './supervisor';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
 import { readSkillRunHistory } from './skill-history';
+import { readEconomyEvents, type EconomyEventKind } from './transaction-telemetry';
 import {
     listEngineOfflineBackups,
     requestEngineOfflineEdit,
@@ -167,6 +168,15 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         if (req.method === 'GET' && url.pathname === '/api/admin/skill-runs') {
             const limit = Number(url.searchParams.get('limit') || 30);
             return json({ runs: await readSkillRunHistory(limit) });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/economy-events') {
+            const limit = Number(url.searchParams.get('limit') || 100);
+            const username = url.searchParams.get('username')?.trim() || undefined;
+            const rawKind = url.searchParams.get('kind')?.trim() || undefined;
+            const allowedKinds = new Set<EconomyEventKind>(['production', 'consumption', 'shop-buy', 'shop-sell', 'player-trade', 'bank-transfer']);
+            if (rawKind && !allowedKinds.has(rawKind as EconomyEventKind)) return json({ error: 'Ismeretlen gazdasági eseménytípus.' }, 400);
+            return json(await readEconomyEvents({ limit, username, kind: rawKind as EconomyEventKind | undefined }));
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/teleport-destinations') {

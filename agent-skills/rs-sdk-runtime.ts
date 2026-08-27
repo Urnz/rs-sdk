@@ -30,8 +30,41 @@ function selector(name: string, match: unknown): string | RegExp {
     throw new Error('match must be exact or contains');
 }
 
-function normalized(result: { success: boolean; message: string; reason?: string }): SkillOperationResult {
-    return { success: result.success, message: result.message, code: result.reason };
+interface InventorySnapshotItem {
+    id: number;
+    name: string;
+    count: number;
+}
+
+interface InventoryDeltaItem extends InventorySnapshotItem {
+    delta: number;
+}
+
+function normalized(
+    result: { success: boolean; message: string; reason?: string },
+    data?: Record<string, unknown>
+): SkillOperationResult {
+    return { success: result.success, message: result.message, code: result.reason, data };
+}
+
+function snapshotInventory(sdk: BotSDK): InventorySnapshotItem[] {
+    const aggregate = new Map<number, InventorySnapshotItem>();
+    for (const item of sdk.getInventory()) {
+        const current = aggregate.get(item.id) ?? { id: item.id, name: item.name, count: 0 };
+        current.count += item.count;
+        aggregate.set(item.id, current);
+    }
+    return [...aggregate.values()].sort((left, right) => left.id - right.id);
+}
+
+function inventoryDelta(before: InventorySnapshotItem[], after: InventorySnapshotItem[]): InventoryDeltaItem[] {
+    const entries = new Map<number, InventorySnapshotItem>();
+    for (const item of before) entries.set(item.id, { ...item });
+    for (const item of after) if (!entries.has(item.id)) entries.set(item.id, { ...item, count: 0 });
+    return [...entries.values()].map(item => {
+        const afterItem = after.find(candidate => candidate.id === item.id);
+        return { id: item.id, name: afterItem?.name ?? item.name, count: afterItem?.count ?? 0, delta: (afterItem?.count ?? 0) - item.count };
+    }).filter(item => item.delta !== 0);
 }
 
 function itemCount(items: Array<{ name: string; count: number }>, pattern: string | RegExp): number {
@@ -177,7 +210,8 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 const item = selector(itemName, 'contains');
                 const option = (args.option as string | number | undefined) ?? 1;
                 const skill = typeof args.skill === 'string' ? args.skill : null;
-                const beforeItems = itemCount(this.sdk.getInventory(), item);
+                const beforeInventory = snapshotInventory(this.sdk);
+                const beforeItems = itemCount(beforeInventory, item);
                 const beforeXp = skill ? (this.sdk.getSkillXp(skill) ?? 0) : 0;
                 const timeoutMs = numberArg(args, 'timeoutMs', 15_000, 100, 300_000);
                 const maxRetargets = numberArg(args, 'maxRetargets', 20, 1, 100);
@@ -205,7 +239,7 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                             success: true,
                             message: `Gathered ${itemName} after ${interactions} target interaction${interactions === 1 ? '' : 's'}`,
                             code: 'gathered',
-                            data: { interactions }
+                            data: { interactions, inventoryDelta: inventoryDelta(beforeInventory, snapshotInventory(this.sdk)) }
                         };
                     } catch {
                         if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
@@ -222,29 +256,55 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 const bar = typeof args.bar === 'string'
                     ? new RegExp(args.bar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
                     : undefined;
-                return normalized(await this.bot.smithAtAnvil(stringArg(args, 'product'), {
+                const before = snapshotInventory(this.sdk);
+                const result = await this.bot.smithAtAnvil(stringArg(args, 'product'), {
                     barPattern: bar,
                     timeout: numberArg(args, 'timeoutMs', 10_000, 100, 60_000)
-                }));
+                });
+                return normalized(result, {
+                    product: args.product,
+                    xpGained: result.xpGained,
+                    itemsSmithed: result.itemsSmithed,
+                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                });
             }
             case 'open-shop':
                 return normalized(await this.bot.openShop(args.name === undefined
                     ? undefined
                     : selector(stringArg(args, 'name'), args.match)));
-            case 'buy-from-shop':
-                return normalized(await this.bot.buyFromShop(
+            case 'buy-from-shop': {
+                const before = snapshotInventory(this.sdk);
+                const result = await this.bot.buyFromShop(
                     selector(stringArg(args, 'name'), args.match),
                     numberArg(args, 'amount', undefined, 1, 10_000)
-                ));
-            case 'sell-to-shop':
-                return normalized(await this.bot.sellToShop(
+                );
+                return normalized(result, {
+                    item: args.name,
+                    requestedAmount: result.requestedAmount,
+                    amountBought: result.amountBought,
+                    partial: result.partial,
+                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                });
+            }
+            case 'sell-to-shop': {
+                const before = snapshotInventory(this.sdk);
+                const result = await this.bot.sellToShop(
                     selector(stringArg(args, 'name'), args.match),
                     numberArg(args, 'amount', undefined, -1, 10_000)
-                ));
+                );
+                return normalized(result, {
+                    item: args.name,
+                    requestedAmount: result.requestedAmount,
+                    amountSold: result.amountSold,
+                    partial: result.partial,
+                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                });
+            }
             case 'close-shop':
                 return normalized(await this.bot.closeShop(numberArg(args, 'timeoutMs', 5_000, 100, 60_000)));
-            case 'trade-give-item':
-                return normalized(await this.bot.trade(
+            case 'trade-give-item': {
+                const before = snapshotInventory(this.sdk);
+                const result = await this.bot.trade(
                     selector(stringArg(args, 'player'), args.match),
                     {
                         give: [{
@@ -256,20 +316,46 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                         timeout: numberArg(args, 'timeoutMs', 60_000, 1_000, 180_000),
                         retryOnBusy: true
                     }
-                ));
+                );
+                return normalized(result, {
+                    partner: result.partner ?? args.player,
+                    gave: result.gave,
+                    received: result.received,
+                    possiblyDropped: result.possiblyDropped,
+                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                });
+            }
             case 'open-bank':
                 return normalized(await this.bot.openBank(numberArg(args, 'timeoutMs', 10_000, 100, 60_000)));
-            case 'deposit-item':
-                return normalized(await this.bot.depositItem(
+            case 'deposit-item': {
+                const before = snapshotInventory(this.sdk);
+                const result = await this.bot.depositItem(
                     selector(stringArg(args, 'name'), args.match),
                     numberArg(args, 'amount', -1, -1, 2_147_483_647)
-                ));
-            case 'withdraw-item':
-                return normalized(await this.bot.withdrawItem(
+                );
+                return normalized(result, {
+                    item: args.name,
+                    requestedAmount: result.requestedAmount,
+                    amountDeposited: result.amountDeposited,
+                    partial: result.partial,
+                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                });
+            }
+            case 'withdraw-item': {
+                const before = snapshotInventory(this.sdk);
+                const result = await this.bot.withdrawItem(
                     selector(stringArg(args, 'name'), args.match),
                     numberArg(args, 'amount', 1, 1, 2_147_483_647),
                     { asNote: args.asNote === true }
-                ));
+                );
+                return normalized(result, {
+                    item: args.name,
+                    requestedAmount: result.requestedAmount,
+                    amountWithdrawn: result.amountWithdrawn,
+                    partial: result.partial,
+                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                });
+            }
             case 'close-bank':
                 return normalized(await this.bot.closeBank());
             case 'wait-ticks':

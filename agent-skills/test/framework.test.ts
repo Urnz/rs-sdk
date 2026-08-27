@@ -118,11 +118,21 @@ describe('skill definition validation and registry', () => {
 describe('skill execution', () => {
     test('checks preconditions, retries bounded operations, resolves inputs, and emits standard events', async () => {
         const runtime = new FakeRuntime();
+        runtime.execute = async (operation, args) => {
+            runtime.operations.push({ operation, args });
+            if (operation === 'interact-loc') {
+                runtime.mineAttempts++;
+                if (runtime.mineAttempts === 1) return { success: false, message: 'Rock moved', code: 'target-moved', data: { inventoryDelta: [] } };
+                runtime.inventoryFull = true;
+            }
+            return { success: true, message: 'ok', data: { inventoryDelta: [{ id: 436, name: 'Copper ore', delta: 1 }] } };
+        };
         const result = await new SkillExecutor(runtime).execute(skill(), { parameters: { 'bank-x': 3253 } });
         expect(result.status).toBe('completed');
         expect(result.operations).toBe(3);
         expect(runtime.operations.at(-1)).toEqual({ operation: 'walk-to', args: { x: 3253, z: 3420 } });
         expect(result.events.map(event => event.type)).toContain('step.failed');
+        expect(result.events.find(event => event.type === 'step.succeeded')?.data).toBeDefined();
         expect(result.events.at(-1)?.type).toBe('skill.completed');
     });
 
@@ -343,7 +353,7 @@ describe('rs-sdk skill runtime', () => {
             closeShop: record('closeShop'),
             trade: record('trade')
         } as any;
-        const runtime = new RsSdkSkillRuntime(bot, {} as any);
+        const runtime = new RsSdkSkillRuntime(bot, { getInventory: () => [] } as any);
         const signal = new AbortController().signal;
 
         expect((await runtime.execute('smith-at-anvil', {

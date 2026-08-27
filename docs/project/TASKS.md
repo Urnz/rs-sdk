@@ -108,7 +108,7 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
 - [x] Élő világtérképet készíteni az online botokhoz.
 - [x] Idősoros gazdasági alapnézetet készíteni: pénzmennyiség, itemkészlet,
   össz-XP, átlagos total level és online botszám.
-- [ ] A gazdasági nézetet bővíteni XP/órával, termelés/fogyasztással, valamint
+- [x] A gazdasági nézetet bővíteni XP/órával, termelés/fogyasztással, valamint
   shop- és player-trade eseményekkel.
 - [x] Exportálható kísérleti snapshotot és összehasonlítható futásjelölést készíteni.
 - [ ] Tesztelni az online/offline ütközést, jogosulatlan módosítást, auditot,
@@ -258,8 +258,8 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
    eseménylistáját elkészíteni.
 10. [x] A valódi MapView-ra épülő élő világtérképet botlistával, fókuszálással
    és Spectate-átjárással elkészíteni.
-11. A 6. fázis következő részében részletes tranzakciós telemetriát készíteni.
+11. [x] A 6. fázis következő részében részletes tranzakciós telemetriát készíteni.
     - [x] Élő session XP-növekedés és XP/óra botonként, skillenként és összesítve.
-    - [ ] Termelés/fogyasztás, shop- és player-trade események naplózása.
+    - [x] Termelés/fogyasztás, shop- és player-trade események naplózása.
 12. Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
 13. A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.

@@ -38,6 +38,35 @@
             <canvas id="economy-chart" height="130" aria-label="Gazdasági idősor"></canvas>
         </section>
 
+        <section class="panel transaction-panel">
+            <div class="panel-heading table-heading">
+                <div><p class="eyebrow">TRANZAKCIÓS TELEMETRIA</p><h2>Gazdasági események</h2></div>
+                <span id="economy-event-count" class="count-pill">0 esemény</span>
+            </div>
+            <div class="transaction-summary">
+                <div><span>Termelt tárgy</span><strong id="event-produced">0</strong></div>
+                <div><span>Felhasznált tárgy</span><strong id="event-consumed">0</strong></div>
+                <div><span>Bolti tranzakció</span><strong id="event-shops">0</strong></div>
+                <div><span>Player trade</span><strong id="event-trades">0</strong></div>
+                <div><span>Nettó pénzmozgás</span><strong id="event-coins">0 gp</strong></div>
+            </div>
+            <div class="filters transaction-filters">
+                <label>Bot<input id="event-bot-filter" type="search" placeholder="pl. Ferrye14"></label>
+                <label>Típus<select id="event-kind-filter">
+                    <option value="">Mind</option><option value="production">Termelés</option><option value="consumption">Felhasználás</option>
+                    <option value="shop-buy">Bolti vásárlás</option><option value="shop-sell">Bolti eladás</option>
+                    <option value="player-trade">Player trade</option><option value="bank-transfer">Bankmozgatás</option>
+                </select></label>
+                <button id="clear-event-filters" class="button ghost">Szűrők törlése</button>
+            </div>
+            <div class="table-scroll">
+                <table class="event-table">
+                    <thead><tr><th>Idő</th><th>Bot</th><th>Típus</th><th>Bejövő</th><th>Kimenő</th><th class="number">Pénz</th><th>Skill / partner</th></tr></thead>
+                    <tbody id="economy-event-rows"><tr><td colspan="7" class="empty">Betöltés…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
         <section class="panel">
             <div class="panel-heading table-heading">
                 <div><p class="eyebrow">BOTKATALÓGUS</p><h2>Minden bot</h2></div>

@@ -158,6 +158,8 @@ export interface SkillEvent {
     attempt?: number;
     code?: string;
     message?: string;
+    /** Structured, JSON-safe operation evidence used by audit and economy telemetry. */
+    data?: Record<string, unknown>;
 }
 
 export type SkillRunStatus = 'completed' | 'failed' | 'cancelled' | 'limit-reached';
