@@ -32,6 +32,11 @@ Az elkészült funkciók:
 - pénz-, XP-, online botszám-, total level- és itemkészlet-idősor;
 - címkézett, exportálható kísérleti snapshotok.
 
+A hosszú botkatalógus, tranzakciós eseménylista, agent-skill futástörténet,
+itemkészlet és backup-listák saját, billentyűzettel fókuszálható görgetőterületet
+kapnak. A táblázatfejlécek görgetés közben láthatók maradnak, miközben a teljes
+adminoldal nem nyúlik korlátlan hosszúságúra.
+
 Az audit és a gazdasági idősor a `.local/admin/` könyvtárban marad, ezért nem
 kerül Gitbe. Ha az adminfelületet nem csak localhoston használjuk, indítás előtt
 `ADMIN_TOKEN` szükséges; token nélkül a módosítások kizárólag az azonos eredetű

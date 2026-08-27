@@ -66,7 +66,7 @@
                 </select></label>
                 <button id="clear-event-filters" class="button ghost">Szűrők törlése</button>
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll scrollable-list transaction-list" role="region" aria-label="Gazdasági események görgethető táblázata" tabindex="0">
                 <table class="event-table">
                     <thead><tr><th>Idő</th><th>Bot</th><th>Típus</th><th>Bejövő</th><th>Kimenő</th><th class="number">Pénz</th><th>Skill / partner</th></tr></thead>
                     <tbody id="economy-event-rows"><tr><td colspan="7" class="empty">Betöltés…</td></tr></tbody>
@@ -86,7 +86,7 @@
                 <label>Minimum pénz<input id="coins-filter" type="number" min="0" step="1" placeholder="0"></label>
                 <button id="clear-filters" class="button ghost">Szűrők törlése</button>
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll scrollable-list bot-catalog-list" role="region" aria-label="Botkatalógus görgethető táblázata" tabindex="0">
                 <table>
                     <thead><tr>
                         <th data-sort="status">Állapot</th>
@@ -110,7 +110,7 @@
                 <div><p class="eyebrow">AGENT SKILLEK</p><h2>Legutóbbi futások</h2></div>
                 <span id="skill-run-count" class="count-pill">0 futás</span>
             </div>
-            <div class="table-scroll">
+            <div class="table-scroll scrollable-list skill-history-list" role="region" aria-label="Agent skill futások görgethető táblázata" tabindex="0">
                 <table class="run-table">
                     <thead><tr><th>Állapot</th><th>Bot</th><th>Skill</th><th>Kezdés</th><th class="number">Időtartam</th><th class="number">Művelet</th><th>Eredmény / részletek</th></tr></thead>
                     <tbody id="skill-run-rows"><tr><td colspan="7" class="empty">Betöltés…</td></tr></tbody>
@@ -120,7 +120,7 @@
 
         <section class="panel stock-panel" data-admin-tab-panel="economy" hidden>
             <div class="panel-heading"><div><p class="eyebrow">KÉSZLETEK</p><h2>Legnagyobb itemállományok</h2></div></div>
-            <div id="item-stock" class="stock-grid"></div>
+            <div id="item-stock" class="stock-grid scroll-region" role="region" aria-label="Itemkészletek görgethető listája" tabindex="0"></div>
         </section>
     </main>
 
@@ -263,7 +263,7 @@
             </div>
             <section class="backup-section">
                 <div class="editor-section-heading"><h3>Biztonsági másolatok</h3><span class="muted">A visszaállítás előtt is új másolat készül</span></div>
-                <div id="offline-backups" class="backup-list"><span class="muted">Betöltés…</span></div>
+                <div id="offline-backups" class="backup-list scroll-region" role="region" aria-label="Botmentések görgethető listája" tabindex="0"><span class="muted">Betöltés…</span></div>
             </section>
             <label>Mentés indoklása<input name="reason" value="Kézi offline botadat-szerkesztés" maxlength="240" required></label>
             <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Módosítások mentése</button></div>
@@ -287,7 +287,7 @@
                     <div><h3>Konfigurációmentések</h3><span class="muted">Módosítás és visszaállítás előtt automatikus mentés készül</span></div>
                     <button id="create-world-mod-backup" type="button" class="button ghost">Kézi backup</button>
                 </div>
-                <div id="world-mod-backups" class="world-mod-backups"><span class="muted">Betöltés…</span></div>
+                <div id="world-mod-backups" class="world-mod-backups scroll-region" role="region" aria-label="World mod konfigurációmentések görgethető listája" tabindex="0"><span class="muted">Betöltés…</span></div>
             </section>
         </div>
     </dialog>

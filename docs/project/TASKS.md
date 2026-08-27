@@ -103,6 +103,8 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
   időpontot és visszakövethető auditbejegyzést követelni.
 - [x] Webes admin panelt készíteni kereshető, rendezhető és szűrhető botlistával,
   részletes profillal, helyzettel, skill-futásokkal és kontrollált műveletekkel.
+- [x] A nagy bot-, tranzakció-, skilltörténet-, készlet- és backuplistákat belső,
+  billentyűzettel is fókuszálható görgetőpanelekbe rendezni.
 - [x] A befejezett agent-skill futásokat időrendben, eredménnyel, időtartammal,
   műveletszámmal és részletes eseménylistával megjeleníteni.
 - [x] Élő világtérképet készíteni az online botokhoz.
