@@ -143,7 +143,7 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
   rollback állapotátmeneteket, hibánál fail-closed működéssel.
 - [x] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
 - [x] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
-- [ ] Lefuttatni regressziós tesztet a fontos alapmechanikákra.
+- [x] Lefuttatni regressziós tesztet a fontos alapmechanikákra.
 
 Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és tesztelése
 tisztázott; a World Admin megmutatja a kért és aktív állapotot, a modok
@@ -287,9 +287,11 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] A modolási architektúrát feltérképezni és dokumentálni.
     - [x] A mintamodot a World Admin felületről engedélyezve, játékbeli belépéssel
       élőben ellenőrizni.
-15. [ ] A 7. fázis lifecycle állapotgépét és regressziós kapuját elkészíteni.
+15. [x] A 7. fázis lifecycle állapotgépét és regressziós kapuját elkészíteni.
     - [x] Modonkénti runtime-, hookhiba- és domainmetrikákat megjeleníteni.
     - [x] A `hot-reload`, `restart-required`, migráció és rollback átmeneteit
       fail-closed tesztekkel lefedni.
-    - [ ] A fontos alapmechanikák kikapcsolt mod melletti regressziós tesztjét
+    - [x] A fontos alapmechanikák kikapcsolt mod melletti regressziós tesztjét
       hozzáadni.
+16. [ ] A 8. fázis első függőleges szeletét elkészíteni: központi XP-hook,
+    konfigurálható csökkenési görbe és World Admin megfigyelhetőség.

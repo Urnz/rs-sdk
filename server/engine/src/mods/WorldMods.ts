@@ -162,14 +162,18 @@ export function reloadHotWorldMods(): HotReloadResult {
     return { ...result, snapshot: getActiveWorldMods() };
 }
 
-function incrementCounter(modId: string, key: string): void {
-    const metric = snapshot.metrics[modId];
+export interface WorldModPlayerTarget {
+    wrappedMessageGame(message: string): void;
+}
+
+function incrementCounter(activeSnapshot: ActiveWorldModSnapshot, modId: string, key: string): void {
+    const metric = activeSnapshot.metrics[modId];
     if (metric) metric.counters[key] = (metric.counters[key] ?? 0) + 1;
 }
 
-function runHook(modId: string, action: () => void): void {
-    const mod = snapshot.mods[modId];
-    const metric = snapshot.metrics[modId];
+function runHook(activeSnapshot: ActiveWorldModSnapshot, modId: string, action: () => void): void {
+    const mod = activeSnapshot.mods[modId];
+    const metric = activeSnapshot.metrics[modId];
     if (!mod?.enabled || !metric) return;
     metric.hookInvocations++;
     metric.lastHookAt = new Date().toISOString();
@@ -183,16 +187,20 @@ function runHook(modId: string, action: () => void): void {
     }
 }
 
-function sendLoginMessage(player: Player, modId: string): void {
-    runHook(modId, () => {
-        const message = snapshot.mods[modId]?.config.message;
+function sendLoginMessage(activeSnapshot: ActiveWorldModSnapshot, player: WorldModPlayerTarget, modId: string): void {
+    runHook(activeSnapshot, modId, () => {
+        const message = activeSnapshot.mods[modId]?.config.message;
         if (typeof message !== 'string' || !message) throw new Error('Login message is empty');
         player.wrappedMessageGame(message);
-        incrementCounter(modId, 'messagesSent');
+        incrementCounter(activeSnapshot, modId, 'messagesSent');
     });
 }
 
+export function runWorldModPlayerLoginHooks(activeSnapshot: ActiveWorldModSnapshot, player: WorldModPlayerTarget): void {
+    sendLoginMessage(activeSnapshot, player, 'sample.welcome-message');
+    sendLoginMessage(activeSnapshot, player, 'sample.restart-message');
+}
+
 export function onWorldModPlayerLogin(player: Player): void {
-    sendLoginMessage(player, 'sample.welcome-message');
-    sendLoginMessage(player, 'sample.restart-message');
+    runWorldModPlayerLoginHooks(snapshot, player);
 }

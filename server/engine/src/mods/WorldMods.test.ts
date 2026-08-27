@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
     mergeHotReloadSnapshot,
+    runWorldModPlayerLoginHooks,
     type ActiveMod,
     type ActiveWorldModSnapshot,
     type WorldModRuntimeMetrics
@@ -48,5 +49,25 @@ describe('world mod hot reload lifecycle', () => {
         const invalid = { ...snapshot({}, 2), revision: null, loadError: 'invalid state' };
         expect(() => mergeHotReloadSnapshot(current, invalid)).toThrow('invalid state');
         expect(current.mods.hot?.config.message).toBe('old');
+    });
+
+    test('is a strict no-op for disabled gameplay hooks', () => {
+        const disabled = mod('hot-reload', 'must not be sent');
+        disabled.enabled = false;
+        const active = snapshot({ 'sample.welcome-message': disabled });
+        active.metrics['sample.welcome-message']!.status = 'disabled';
+        const metricsBefore = structuredClone(active.metrics['sample.welcome-message']);
+        const messages: string[] = [];
+        runWorldModPlayerLoginHooks(active, { wrappedMessageGame: message => messages.push(message) });
+        expect(messages).toEqual([]);
+        expect(active.metrics['sample.welcome-message']).toEqual(metricsBefore);
+    });
+
+    test('contains hook failures without throwing into the world tick', () => {
+        const active = snapshot({ 'sample.welcome-message': mod('hot-reload', 'welcome') });
+        expect(() => runWorldModPlayerLoginHooks(active, { wrappedMessageGame: () => { throw new Error('client write failed'); } })).not.toThrow();
+        expect(active.metrics['sample.welcome-message']).toMatchObject({
+            status: 'error', hookInvocations: 5, hookErrors: 1, lastError: 'client write failed', counters: { messagesSent: 4 }
+        });
     });
 });

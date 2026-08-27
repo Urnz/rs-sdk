@@ -68,9 +68,26 @@ belépési üzenetek száma. Hookhiba nem állíthatja le a world ticket; a mod
 - A gateway és az adminpanel restart közben futva marad; az új engine health
   check után kerül a runtime-nyilvántartásba, a művelet eredménye auditált.
 
-## Következő lépések
+## Regressziós kapu és a 7. fázis lezárása
 
 A LostCity rétegeinek térképe és a változtatások elhelyezési szabályai a
-`docs/project/architecture/MODDING_MAP.md` fájlban vannak. A 7. fázis
-befejezéséhez már csak a fontos alapmechanikák kikapcsolt mod melletti
-regressziós kapuja szükséges.
+`docs/project/architecture/MODDING_MAP.md` fájlban vannak.
+
+A 7. fázis ismételhető regressziós kapui:
+
+```powershell
+# Determinisztikus ellenőrzések, futó lokális stack nélkül
+bun run test:phase7
+
+# Ugyanez, majd az engine, gateway és webclient élő health smoke-ja
+bun run test:phase7:live
+```
+
+A kapu ellenőrzi a formázást, mindkét TypeScript projektet, a teljes
+tesztcsomagot, a PowerShell szkriptek szintaxisát, élő módban pedig a lokális
+stack egészségét is. Külön regressziós teszt bizonyítja, hogy a kikapcsolt mod
+szigorú no-op, a hookhiba pedig nem jut ki a world tickbe és mérhető marad.
+
+A lezáró futás 45 fájlban 332 tesztet és 1293 állítást teljesített hiba nélkül;
+az élő health smoke is sikeres volt. Ezzel a 7. fázis elfogadási feltételei
+teljesülnek.

@@ -265,6 +265,9 @@ These are the rules derived from every severed-wire bug found so far:
 ## Post-sync verification (5 minutes)
 
 ```bash
+# Phase 7 world-mod framework gate (PowerShell; add :live for local health smoke)
+bun run test:phase7
+
 # typecheck both (esbuild hides TS errors)
 (cd server/engine && bunx tsc --noEmit) && (cd server/webclient && bunx tsc --noEmit)
 
