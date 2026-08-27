@@ -144,6 +144,8 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
 - [x] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
 - [x] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
 - [x] Lefuttatni regressziós tesztet a fontos alapmechanikákra.
+- [x] Kötelező kikapcsolási lifecycle-szerződést és függőségi preflightot adni,
+  hogy a modkapcsoló ne törölhessen vagy árván hagyhasson domainállapotot.
 
 Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és tesztelése
 tisztázott; a World Admin megmutatja a kért és aktív állapotot, a modok
@@ -299,5 +301,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] A konfigurációt és a játékosonkénti várható szorzót a World Adminban
       szerkeszthetővé, illetve megfigyelhetővé tenni.
     - [x] A tartós számlálókat, regenerációt és regressziós teszteket elkészíteni.
+    - [x] A `stateless`, `suspend`, `read-only` és `blocked` kikapcsolási policyt,
+      admin preflightot, valamint mentés/restore védelmet megvalósítani.
 17. [ ] Kontrollcsoportos botkísérlettel mérni a diminishing XP diverzitási és
     economy hatását, beleértve a respawn-, ár- és késztermék-hatásokat.

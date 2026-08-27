@@ -52,6 +52,29 @@ domain számlálók. A welcome mintamod első domainmetrikája a sikeresen elkü
 belépési üzenetek száma. Hookhiba nem állíthatja le a world ticket; a mod
 `activation-error` állapotba kerül, a hiba pedig látható marad a World Adminban.
 
+### Kötelező kikapcsolási szerződés
+
+Minden manifest kötelező `disablePolicy` mezővel deklarálja, mi történik a mod
+kikapcsolásakor:
+
+- `stateless`: nincs domainadat; a hook nyom nélkül megszűnik;
+- `suspend`: az új modműveletek leállnak, a tartós domainadat változatlanul
+  megmarad;
+- `read-only`: új mutáció nem indulhat, de a meglévő állapot továbbra is
+  olvasható és érvényes;
+- `blocked`: az általános kapcsoló nem állíthatja le; külön, domain-specifikus
+  leállítás vagy migráció szükséges.
+
+A kikapcsolás preflightja felsorolja az engedélyezett függő modokat. Egy mod nem
+kapcsolható ki, amíg másik aktív mod függ tőle. A `blocked` policyt sem közvetlen
+mentés, sem konfigurációs backup restore nem kerülheti meg. Kikapcsolás soha nem
+töröl domainadatot; az adatmegsemmisítés külön, explicit és auditált művelet.
+
+A World Admin minden modnál megmutatja a policyt, az adatmegőrzési viselkedést és
+a blokkolókat. Blokkolt, már bekapcsolt mod kapcsolója le van tiltva, de a mod
+továbbra is konfigurálható. A konkrét domainmod feladata, hogy a `suspend` vagy
+`read-only` runtime viselkedést minden mutációs belépési pontján érvényesítse.
+
 ## Biztonsági határok
 
 - Ismeretlen mod és konfigurációs kulcs elutasítva.
@@ -61,6 +84,8 @@ belépési üzenetek száma. Hookhiba nem állíthatja le a world ticket; a mod
 - Minden konfigurálás előtt automatikus backup, minden restore előtt külön
   mentőpont készül. A restore tartalma új, növekvő revíziót kap.
 - A mutáció helyi adminjogot és indoklást kér, és auditbejegyzést készít.
+- Minden mod kötelező kikapcsolási policyt deklarál; függőség vagy védett
+  domainállapot mellett a gateway a mentést és a restore-t is blokkolja.
 - Hibás engine-konfigurációnál az összes mod kikapcsolva marad.
 - Az admin restart csak akkor fut, ha a kérő gateway PID-je egyezik a
   `.local/runtime.json` nyilvántartott, valóban futó gatewayével. Ezután csak a

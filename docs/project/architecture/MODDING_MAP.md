@@ -101,6 +101,12 @@ módot kap. A gateway a **kért**, az engine az induláskor betöltött **aktív
 állapotot mutatja. Érvénytelen manifest vagy state esetén az engine fail-closed
 módon nem aktivál modot.
 
+Az `enabled` flag nem tulajdonosa a domainadatnak. Kikapcsoláskor adatot törölni
+tilos: a manifest `stateless`, `suspend`, `read-only` vagy `blocked`
+`disablePolicy` módot deklarál. Az általános modkapcsoló kizárólag a policy által
+engedélyezett állapotátmenetet hajthatja végre; védett domain leállításához külön,
+auditált folyamat kell. Az aktív függőségek minden kikapcsolást blokkolnak.
+
 Az életciklus:
 
 1. konfiguráció ellenőrzése, automatikus backup és atomi írás;
@@ -122,6 +128,8 @@ rollback/forward-fix szükséges.
 
 - Manifest- és konfigurációvalidáció, függőség/ütközés teszttel.
 - Engedélyezés, kikapcsolás, restart és restore állapotátmeneteinek tesztje.
+- A `disablePolicy`, adatmegőrzés, függőségi preflight és restore-megkerülés
+  regressziós tesztje.
 - A domain invariáns unit tesztje, tartós adatnál újraindítási integrációs teszt.
 - Alapmechanika regressziója kikapcsolt moddal.
 - Élő ellenőrzés tesztjátékossal vagy bottal, majd az eredmény rögzítése a

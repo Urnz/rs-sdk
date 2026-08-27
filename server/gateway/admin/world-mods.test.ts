@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
     buildWorldModView,
+    buildWorldModDisablePlan,
     createWorldModBackup,
     listWorldModBackups,
     loadWorldModManifests,
@@ -19,6 +20,7 @@ const manifest: WorldModManifest = {
     id: 'sample.test', name: 'Test', version: '1.0.0', category: 'test', description: 'Test mod.',
     dataSchemaVersion: 1,
     activation: 'restart-required', hooks: ['player.login'], dependencies: [], conflicts: [],
+    disablePolicy: { mode: 'stateless', description: 'No state is retained.' },
     settings: [{ key: 'message', label: 'Message', type: 'string', default: 'hello', minimum: 1, maximum: 12, description: 'Test message.' }]
 };
 
@@ -88,6 +90,57 @@ describe('world mod registry and state', () => {
         await expect(updateWorldMod('sample.child', { enabled: true, config: {} }, 0, manifestPath, statePath)).rejects.toThrow('függősége');
         await updateWorldMod('sample.base', { enabled: true, config: {} }, 0, manifestPath, statePath);
         await expect(updateWorldMod('sample.conflict', { enabled: true, config: {} }, 1, manifestPath, statePath)).rejects.toThrow('ütközik');
+    });
+
+    test('allows stateless and suspended mods to disable while declaring data preservation', async () => {
+        const suspended = {
+            ...manifest,
+            id: 'sample.suspend',
+            disablePolicy: { mode: 'suspend' as const, description: 'State is frozen and preserved.' }
+        };
+        const { manifestPath, statePath } = await fixture([suspended]);
+        await updateWorldMod(suspended.id, { enabled: true, config: {} }, 0, manifestPath, statePath);
+        const disabled = await updateWorldMod(suspended.id, { enabled: false, config: {} }, 1, manifestPath, statePath);
+        expect(disabled.after.mods[suspended.id]?.enabled).toBe(false);
+        expect(buildWorldModDisablePlan(suspended, [suspended], disabled.before)).toMatchObject({
+            mode: 'suspend', allowed: true, dataPreserved: true, blockers: []
+        });
+        expect(buildWorldModDisablePlan(manifest, [manifest], {
+            schemaVersion: 1, revision: 0, updatedAt: new Date(0).toISOString(),
+            mods: { [manifest.id]: { enabled: true, config: { message: 'hello' } } }
+        })).toMatchObject({ mode: 'stateless', dataPreserved: false });
+    });
+
+    test('blocks generic disable and backup restore for protected domain mods', async () => {
+        const protectedMod = {
+            ...manifest,
+            id: 'sample.protected',
+            disablePolicy: { mode: 'blocked' as const, description: 'Requires explicit domain shutdown.' }
+        };
+        const { manifestPath, statePath, backupsDir } = await fixture([protectedMod]);
+        const disabledBackup = await createWorldModBackup('before enable', manifestPath, statePath, backupsDir);
+        await updateWorldMod(protectedMod.id, { enabled: true, config: {} }, 0, manifestPath, statePath, backupsDir);
+        await expect(updateWorldMod(
+            protectedMod.id, { enabled: false, config: {} }, 1, manifestPath, statePath, backupsDir
+        )).rejects.toThrow('külön domain-leállítási');
+        await expect(restoreWorldModBackup(
+            disabledBackup.id, 1, 'unsafe disable restore', manifestPath, statePath, backupsDir
+        )).rejects.toThrow('külön domain-leállítási');
+    });
+
+    test('reports enabled dependents as disable preflight blockers', () => {
+        const base = { ...manifest, id: 'sample.base' };
+        const child = { ...manifest, id: 'sample.child', dependencies: [base.id] };
+        const state = {
+            schemaVersion: 1 as const, revision: 2, updatedAt: new Date().toISOString(),
+            mods: {
+                [base.id]: { enabled: true, config: { message: 'base' } },
+                [child.id]: { enabled: true, config: { message: 'child' } }
+            }
+        };
+        expect(buildWorldModDisablePlan(base, [base, child], state)).toMatchObject({
+            allowed: false, blockers: ['Test (sample.child)']
+        });
     });
 
     test('creates manual backups and restores snapshots without rolling revision backwards', async () => {

@@ -9,6 +9,10 @@
       "category": "world",
       "description": "Kis, visszafordítható mintamod: belépéskor egy konfigurálható üzenetet küld a játékosnak.",
       "activation": "hot-reload",
+      "disablePolicy": {
+        "mode": "stateless",
+        "description": "Kikapcsoláskor az üzenethook megszűnik; nincs megőrzendő domainállapot."
+      },
       "hooks": ["player.login"],
       "dependencies": [],
       "conflicts": [],
@@ -32,6 +36,10 @@
       "category": "world",
       "description": "Kikapcsolt mintamod a restart-required életciklus biztonságos ellenőrzéséhez.",
       "activation": "restart-required",
+      "disablePolicy": {
+        "mode": "stateless",
+        "description": "Kikapcsolás után, a szükséges restarttal az üzenethook megszűnik; domainadat nem változik."
+      },
       "hooks": ["player.login"],
       "dependencies": [],
       "conflicts": [],
@@ -55,6 +63,10 @@
       "category": "economy",
       "description": "Az ismételt azonos tevékenység, célpont és régió XP-jutalmát fokozatosan csökkenti, majd idővel regenerálja.",
       "activation": "hot-reload",
+      "disablePolicy": {
+        "mode": "suspend",
+        "description": "Kikapcsolva az alap XP jár, a játékosonkénti számlálók megmaradnak és időalapon tovább regenerálódnak."
+      },
       "hooks": ["player.xp"],
       "dependencies": [],
       "conflicts": [],

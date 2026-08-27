@@ -150,9 +150,14 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .world-mod-badge.rollback-required { color: #ffd4c7; background: #5b352b; }
 .world-mod-badge.engine-unreachable { color: #ffc1bb; background: #542b27; }
 .world-mod-badge.activation-error { color: #ffc1bb; background: #542b27; }
+.world-mod-badge.disable-suspend,.world-mod-badge.disable-read-only { color: #d7e8ff; background: #293e55; }
+.world-mod-badge.disable-blocked { color: #ffc1bb; background: #542b27; }
 .world-mod-card.activation-error { border-color: #a94b43; }
 .world-mod-runtime { display: flex; flex-wrap: wrap; gap: 7px 14px; margin: 0 0 13px; padding: 9px 10px; color: var(--muted); background: var(--panel-2); border-radius: 8px; font-size: 12px; }
 .world-mod-runtime strong { color: var(--text); }
+.world-mod-disable-plan { display: grid; gap: 4px; margin: 0 0 13px; padding: 10px 12px; color: var(--muted); background: #182019; border: 1px solid #304633; border-radius: 8px; font-size: 12px; }
+.world-mod-disable-plan.blocked { background: #261817; border-color: #65362f; }
+.world-mod-disable-plan > strong { color: var(--text); }
 .world-mod-settings { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 11px; }
 .world-mod-settings .wide { grid-column: 1 / -1; }
 .world-mod-setting small { color: var(--muted); font-weight: 400; }

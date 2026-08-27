@@ -4,6 +4,12 @@ import { worldModBackupsDir, worldModManifestPath, worldModStatePath } from './p
 
 export type WorldModActivation = 'hot-reload' | 'restart-required';
 export type WorldModSettingType = 'boolean' | 'integer' | 'number' | 'string';
+export type WorldModDisableMode = 'stateless' | 'suspend' | 'read-only' | 'blocked';
+
+export interface WorldModDisablePolicy {
+    mode: WorldModDisableMode;
+    description: string;
+}
 
 export interface WorldModSetting {
     key: string;
@@ -23,6 +29,7 @@ export interface WorldModManifest {
     category: string;
     description: string;
     activation: WorldModActivation;
+    disablePolicy: WorldModDisablePolicy;
     hooks: string[];
     dependencies: string[];
     conflicts: string[];
@@ -81,7 +88,16 @@ export interface WorldModView extends WorldModManifest {
     requested: WorldModStateEntry;
     active: WorldModStateEntry | null;
     runtime: WorldModRuntimeMetrics | null;
+    disablePlan: WorldModDisablePlan;
     status: 'disabled' | 'active' | 'hot-reload-required' | 'restart-required' | 'migration-required' | 'rollback-required' | 'engine-unreachable' | 'activation-error';
+}
+
+export interface WorldModDisablePlan {
+    mode: WorldModDisableMode;
+    allowed: boolean;
+    dataPreserved: boolean;
+    description: string;
+    blockers: string[];
 }
 
 export type WorldModBackupOperation = 'configure' | 'manual' | 'restore';
@@ -125,7 +141,11 @@ function validManifest(value: unknown): value is WorldModManifest {
         || !Number.isInteger(value.dataSchemaVersion) || Number(value.dataSchemaVersion) < 1
         || typeof value.category !== 'string' || !value.category || value.category.length > 40
         || typeof value.description !== 'string' || !value.description || value.description.length > 400
-        || !['hot-reload', 'restart-required'].includes(String(value.activation))) return false;
+        || !['hot-reload', 'restart-required'].includes(String(value.activation))
+        || !isRecord(value.disablePolicy)
+        || !['stateless', 'suspend', 'read-only', 'blocked'].includes(String(value.disablePolicy.mode))
+        || typeof value.disablePolicy.description !== 'string' || !value.disablePolicy.description
+        || value.disablePolicy.description.length > 240) return false;
     return Array.isArray(value.hooks) && value.hooks.every(entry => typeof entry === 'string')
         && Array.isArray(value.dependencies) && value.dependencies.every(entry => typeof entry === 'string' && ID_PATTERN.test(entry))
         && Array.isArray(value.conflicts) && value.conflicts.every(entry => typeof entry === 'string' && ID_PATTERN.test(entry))
@@ -264,6 +284,35 @@ function validateRelationships(manifests: WorldModManifest[], state: WorldModSta
     }
 }
 
+export function buildWorldModDisablePlan(
+    manifest: WorldModManifest,
+    manifests: WorldModManifest[],
+    state: WorldModState
+): WorldModDisablePlan {
+    const enabledDependents = manifests
+        .filter(candidate => candidate.dependencies.includes(manifest.id) && state.mods[candidate.id]?.enabled)
+        .map(candidate => `${candidate.name} (${candidate.id})`);
+    const blockers = [...enabledDependents];
+    if (manifest.disablePolicy.mode === 'blocked') {
+        blockers.unshift('Ez a mod csak külön domain-leállítási vagy migrációs folyamattal kapcsolható ki.');
+    }
+    return {
+        mode: manifest.disablePolicy.mode,
+        allowed: blockers.length === 0,
+        dataPreserved: manifest.disablePolicy.mode !== 'stateless',
+        description: manifest.disablePolicy.description,
+        blockers
+    };
+}
+
+function validateDisableTransitions(manifests: WorldModManifest[], before: WorldModState, after: WorldModState): void {
+    for (const manifest of manifests) {
+        if (!before.mods[manifest.id]?.enabled || after.mods[manifest.id]?.enabled) continue;
+        const plan = buildWorldModDisablePlan(manifest, manifests, before);
+        if (!plan.allowed) throw new Error(`${manifest.name} nem kapcsolható ki: ${plan.blockers.join(' ')}`);
+    }
+}
+
 let updateQueue: Promise<void> = Promise.resolve();
 
 function backupDirectoryFor(statePath: string): string {
@@ -362,6 +411,7 @@ async function performWorldModUpdate(
         updatedAt: new Date().toISOString(),
         mods: { ...before.mods, [modId]: validateWorldModEntry(manifest, value) }
     };
+    validateDisableTransitions(manifests, before, after);
     validateRelationships(manifests, after);
     const backup = await createBackupFile(before, 'configure', reason, backupsDir);
     await writeAtomic(statePath, after);
@@ -410,6 +460,8 @@ export function restoreWorldModBackup(
             revision: before.revision + 1,
             updatedAt: new Date().toISOString()
         };
+        validateDisableTransitions(manifests, before, after);
+        validateRelationships(manifests, after);
         const safetyBackup = await createBackupFile(before, 'restore', reason, backupsDir);
         await writeAtomic(statePath, after);
         return {
@@ -437,7 +489,14 @@ export function buildWorldModView(manifests: WorldModManifest[], requested: Worl
             : active.loadError || runtime?.status === 'error' ? 'activation-error'
                 : schemaStatus ?? (matches ? (desired.enabled ? 'active' : 'disabled')
                     : manifest.activation === 'hot-reload' ? 'hot-reload-required' : 'restart-required');
-        return { ...manifest, requested: desired, active: running, runtime, status };
+        return {
+            ...manifest,
+            requested: desired,
+            active: running,
+            runtime,
+            disablePlan: buildWorldModDisablePlan(manifest, manifests, requested),
+            status
+        };
     });
 }
 

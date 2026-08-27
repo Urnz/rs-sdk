@@ -24,6 +24,7 @@ const fmt = new Intl.NumberFormat('hu-HU');
 const statusLabels = { active: 'Online', offline: 'Offline', stale: 'Nem válaszol', starting: 'Indul', stopping: 'Leáll', error: 'Hiba' };
 const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'hot-reload-required': 'Hot reload szükséges', 'restart-required': 'Újraindítás szükséges', 'migration-required': 'Migráció szükséges', 'rollback-required': 'Rollback szükséges', 'engine-unreachable': 'Engine nem elérhető', 'activation-error': 'Aktiválási hiba' };
 const worldModBackupOperationLabels = { configure: 'Módosítás előtti', manual: 'Kézi', restore: 'Restore előtti mentőpont' };
+const worldModDisableModeLabels = { stateless: 'Nyom nélküli kikapcsolás', suspend: 'Állapotmegőrző felfüggesztés', 'read-only': 'Csak olvasható mód', blocked: 'Védett leállítás' };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const xpThresholds = (() => {
     const values = []; let accumulator = 0;
@@ -593,12 +594,13 @@ function renderWorldMods() {
     $('#world-mod-list').innerHTML = data.mods.map(mod => `
         <article class="world-mod-card ${mod.status === 'restart-required' ? 'pending' : mod.status}" data-mod-id="${escapeHtml(mod.id)}">
             <div class="world-mod-heading"><div><h3>${escapeHtml(mod.name)}</h3><p>${escapeHtml(mod.description)}</p></div>
-                <label class="check"><input data-world-mod-enabled type="checkbox" ${mod.requested.enabled ? 'checked' : ''}> Engedélyezve</label></div>
+                <label class="check"><input data-world-mod-enabled type="checkbox" ${mod.requested.enabled ? 'checked' : ''} ${mod.requested.enabled && !mod.disablePlan.allowed ? 'disabled' : ''}> Engedélyezve</label></div>
             <div class="world-mod-meta">
                 <span class="world-mod-badge ${mod.status}">${worldModStatusLabels[mod.status] || mod.status}</span>
                 <span class="world-mod-badge">${escapeHtml(mod.id)} @ ${escapeHtml(mod.version)}</span>
                 <span class="world-mod-badge">Adatséma: v${fmt.format(mod.dataSchemaVersion)}</span>
                 <span class="world-mod-badge">${mod.activation === 'restart-required' ? 'Restart életciklus' : 'Hot reload'}</span>
+                <span class="world-mod-badge disable-${escapeHtml(mod.disablePlan.mode)}">${escapeHtml(worldModDisableModeLabels[mod.disablePlan.mode] || mod.disablePlan.mode)}</span>
                 <span class="world-mod-badge">Hook: ${escapeHtml(mod.hooks.join(', ') || 'nincs')}</span>
             </div>
             ${mod.runtime ? `<div class="world-mod-runtime">
@@ -608,6 +610,11 @@ function renderWorldMods() {
                 ${Object.entries(mod.runtime.counters).map(([key, value]) => `<span>${escapeHtml(key)}: <strong>${fmt.format(value)}</strong></span>`).join('')}
                 ${mod.runtime.lastError ? `<span class="danger-text">Utolsó hiba: <strong>${escapeHtml(mod.runtime.lastError)}</strong></span>` : ''}
             </div>` : '<div class="world-mod-runtime muted">Nincs aktív engine-metrika.</div>'}
+            <div class="world-mod-disable-plan ${mod.disablePlan.allowed ? '' : 'blocked'}">
+                <strong>Kikapcsolási szerződés:</strong> ${escapeHtml(mod.disablePlan.description)}
+                <span>${mod.disablePlan.dataPreserved ? 'A domainadatok megmaradnak.' : 'Nincs megőrzendő domainadat.'}</span>
+                ${mod.disablePlan.blockers.length ? `<span class="danger-text"><strong>Blokkolók:</strong> ${escapeHtml(mod.disablePlan.blockers.join(' · '))}</span>` : '<span>Kikapcsolási preflight: rendben.</span>'}
+            </div>
             ${mod.runtime?.details?.length ? `<details class="world-mod-telemetry"><summary>Játékosonkénti állapot (${fmt.format(mod.runtime.details.length)})</summary>
                 <div class="world-mod-telemetry-scroll"><table><thead><tr><th>Játékos</th><th>Activity kulcs</th><th class="number">Ismétlés</th><th class="number">Következő szorzó</th></tr></thead><tbody>
                     ${mod.runtime.details.map(detail => `<tr><td>${escapeHtml(detail.username)}</td><td title="${escapeHtml(detail.activityKey)}">${escapeHtml(detail.activityKey)}</td><td class="number">${detail.repetitionScore.toFixed(2)}</td><td class="number">${Math.round(detail.nextMultiplier * 100)}%</td></tr>`).join('')}

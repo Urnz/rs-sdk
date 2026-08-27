@@ -16,6 +16,7 @@ interface ModManifest {
     version: string;
     dataSchemaVersion: number;
     activation: WorldModActivation;
+    disablePolicy: { mode: 'stateless' | 'suspend' | 'read-only' | 'blocked'; description: string };
     settings: Array<{ key: string; default: ConfigValue }>;
 }
 
@@ -67,6 +68,9 @@ function validManifest(value: unknown): value is ModManifest {
     return isRecord(value) && typeof value.id === 'string' && typeof value.version === 'string'
         && Number.isInteger(value.dataSchemaVersion) && Number(value.dataSchemaVersion) >= 1
         && ['hot-reload', 'restart-required'].includes(String(value.activation))
+        && isRecord(value.disablePolicy)
+        && ['stateless', 'suspend', 'read-only', 'blocked'].includes(String(value.disablePolicy.mode))
+        && typeof value.disablePolicy.description === 'string' && value.disablePolicy.description.length > 0
         && Array.isArray(value.settings) && value.settings.every(setting => isRecord(setting)
             && typeof setting.key === 'string' && ['boolean', 'number', 'string'].includes(typeof setting.default));
 }
