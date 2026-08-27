@@ -4,8 +4,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
     buildWorldModView,
+    createWorldModBackup,
+    listWorldModBackups,
     loadWorldModManifests,
     readWorldModState,
+    restoreWorldModBackup,
     updateWorldMod,
     validateWorldModEntry,
     type ActiveWorldModState,
@@ -23,12 +26,12 @@ async function fixture(mods: WorldModManifest[] = [manifest]) {
     const manifestPath = join(root, 'manifests.json');
     const statePath = join(root, 'state.json');
     await writeFile(manifestPath, JSON.stringify({ schemaVersion: 1, mods }), 'utf8');
-    return { root, manifestPath, statePath };
+    return { root, manifestPath, statePath, backupsDir: join(root, 'world-mod-backups') };
 }
 
 describe('world mod registry and state', () => {
     test('creates disabled defaults and persists a validated revision atomically', async () => {
-        const { manifestPath, statePath } = await fixture();
+        const { manifestPath, statePath, backupsDir } = await fixture();
         const manifests = await loadWorldModManifests(manifestPath);
         expect(await readWorldModState(manifests, statePath)).toMatchObject({
             revision: 0,
@@ -38,6 +41,7 @@ describe('world mod registry and state', () => {
         const result = await updateWorldMod('sample.test', { enabled: true, config: { message: 'welcome' } }, 0, manifestPath, statePath);
         expect(result.after).toMatchObject({ revision: 1, mods: { 'sample.test': { enabled: true, config: { message: 'welcome' } } } });
         expect(JSON.parse(await readFile(statePath, 'utf8')).revision).toBe(1);
+        expect(await listWorldModBackups(30, backupsDir)).toMatchObject([{ operation: 'configure', revision: 0 }]);
     });
 
     test('rejects stale revisions, unknown settings and invalid values', async () => {
@@ -67,6 +71,26 @@ describe('world mod registry and state', () => {
         await expect(updateWorldMod('sample.child', { enabled: true, config: {} }, 0, manifestPath, statePath)).rejects.toThrow('függősége');
         await updateWorldMod('sample.base', { enabled: true, config: {} }, 0, manifestPath, statePath);
         await expect(updateWorldMod('sample.conflict', { enabled: true, config: {} }, 1, manifestPath, statePath)).rejects.toThrow('ütközik');
+    });
+
+    test('creates manual backups and restores snapshots without rolling revision backwards', async () => {
+        const { manifestPath, statePath, backupsDir } = await fixture();
+        await updateWorldMod('sample.test', { enabled: true, config: { message: 'first' } }, 0, manifestPath, statePath);
+        const manual = await createWorldModBackup('known good', manifestPath, statePath, backupsDir);
+        await updateWorldMod('sample.test', { enabled: true, config: { message: 'second' } }, 1, manifestPath, statePath);
+
+        const restored = await restoreWorldModBackup(manual.id, 2, 'rollback test', manifestPath, statePath, backupsDir);
+        expect(restored.after).toMatchObject({ revision: 3, mods: { 'sample.test': { enabled: true, config: { message: 'first' } } } });
+        expect(restored.safetyBackup).toMatchObject({ operation: 'restore', revision: 2 });
+        expect(await listWorldModBackups(30, backupsDir)).toHaveLength(4);
+    });
+
+    test('rejects stale restores and unsafe backup identifiers', async () => {
+        const { manifestPath, statePath, backupsDir } = await fixture();
+        const backup = await createWorldModBackup('initial', manifestPath, statePath, backupsDir);
+        await updateWorldMod('sample.test', { enabled: true, config: { message: 'changed' } }, 0, manifestPath, statePath);
+        await expect(restoreWorldModBackup(backup.id, 0, 'stale', manifestPath, statePath, backupsDir)).rejects.toThrow('megváltoztak');
+        await expect(restoreWorldModBackup('../state', 1, 'unsafe', manifestPath, statePath, backupsDir)).rejects.toThrow('azonosító');
     });
 
     test('distinguishes active, pending and unreachable engine state', async () => {

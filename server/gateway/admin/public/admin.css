@@ -144,6 +144,11 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .world-mod-settings .wide { grid-column: 1 / -1; }
 .world-mod-setting small { color: var(--muted); font-weight: 400; }
 .world-mod-actions { display: grid; grid-template-columns: minmax(240px, 1fr) auto; gap: 10px; align-items: end; margin-top: 14px; }
+.world-mod-backup-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.world-mod-backups { display: grid; gap: 7px; margin-top: 10px; }
+.world-mod-backup-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 11px 12px; background: var(--panel-2); border-radius: 8px; }
+.world-mod-backup-row div { display: grid; gap: 2px; min-width: 0; }
+.world-mod-backup-row small { color: var(--muted); overflow-wrap: anywhere; }
 .world-map-shell { padding: 22px; }
 .world-map-layout { display: grid; grid-template-columns: minmax(620px, 1fr) 310px; gap: 14px; height: min(76vh, 820px); margin-top: 14px; }
 #world-map-frame { width: 100%; height: 100%; background: #000; border: 1px solid var(--border); border-radius: 10px; }

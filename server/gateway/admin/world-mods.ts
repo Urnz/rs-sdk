@@ -1,6 +1,6 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
-import { worldModManifestPath, worldModStatePath } from './paths';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { worldModBackupsDir, worldModManifestPath, worldModStatePath } from './paths';
 
 export type WorldModActivation = 'hot-reload' | 'restart-required';
 export type WorldModSettingType = 'boolean' | 'integer' | 'number' | 'string';
@@ -52,8 +52,24 @@ export interface WorldModView extends WorldModManifest {
     status: 'disabled' | 'active' | 'restart-required' | 'engine-unreachable';
 }
 
+export type WorldModBackupOperation = 'configure' | 'manual' | 'restore';
+
+export interface WorldModBackupSummary {
+    id: string;
+    createdAt: string;
+    operation: WorldModBackupOperation;
+    reason: string;
+    revision: number;
+}
+
+interface WorldModBackupFile extends WorldModBackupSummary {
+    schemaVersion: 1;
+    state: WorldModState;
+}
+
 const ID_PATTERN = /^[a-z0-9][a-z0-9.-]{2,63}$/;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+const BACKUP_ID_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z_[0-9a-f-]{36}$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -159,6 +175,26 @@ export async function readWorldModState(manifests: WorldModManifest[], path = wo
     };
 }
 
+function validateStateSnapshot(manifests: WorldModManifest[], value: unknown): WorldModState {
+    if (!isRecord(value) || value.schemaVersion !== 1 || !Number.isInteger(value.revision)
+        || Number(value.revision) < 0 || typeof value.updatedAt !== 'string' || !isRecord(value.mods)) {
+        throw new Error('A world mod backup állapota érvénytelen.');
+    }
+    const knownIds = new Set(manifests.map(manifest => manifest.id));
+    for (const id of Object.keys(value.mods)) if (!knownIds.has(id)) throw new Error(`A backup ismeretlen modot tartalmaz: ${id}`);
+    const state: WorldModState = {
+        schemaVersion: 1,
+        revision: Number(value.revision),
+        updatedAt: value.updatedAt,
+        mods: Object.fromEntries(manifests.map(manifest => [
+            manifest.id,
+            value.mods[manifest.id] === undefined ? defaultEntry(manifest) : validateWorldModEntry(manifest, value.mods[manifest.id])
+        ]))
+    };
+    validateRelationships(manifests, state);
+    return state;
+}
+
 function validateRelationships(manifests: WorldModManifest[], state: WorldModState): void {
     const byId = new Map(manifests.map(manifest => [manifest.id, manifest]));
     for (const [id, entry] of Object.entries(state.mods)) {
@@ -171,13 +207,91 @@ function validateRelationships(manifests: WorldModManifest[], state: WorldModSta
 
 let updateQueue: Promise<void> = Promise.resolve();
 
+function backupDirectoryFor(statePath: string): string {
+    return statePath === worldModStatePath ? worldModBackupsDir : join(dirname(statePath), 'world-mod-backups');
+}
+
+async function writeAtomic(path: string, value: unknown): Promise<void> {
+    await mkdir(dirname(path), { recursive: true });
+    const temporary = `${path}.${crypto.randomUUID()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+    await rename(temporary, path);
+}
+
+async function createBackupFile(
+    state: WorldModState,
+    operation: WorldModBackupOperation,
+    reason: string,
+    backupsDir: string
+): Promise<WorldModBackupSummary> {
+    const createdAt = new Date().toISOString();
+    const id = `${createdAt.replace(/[:.]/g, '-')}_${crypto.randomUUID()}`;
+    const backup: WorldModBackupFile = {
+        schemaVersion: 1, id, createdAt, operation, reason: reason.trim(), revision: state.revision, state
+    };
+    await writeAtomic(join(backupsDir, `${id}.json`), backup);
+    const { state: _state, schemaVersion: _schemaVersion, ...summary } = backup;
+    return summary;
+}
+
+function queueMutation<T>(action: () => Promise<T>): Promise<T> {
+    const operation = updateQueue.then(action);
+    updateQueue = operation.then(() => undefined, () => undefined);
+    return operation;
+}
+
+export async function listWorldModBackups(
+    limit = 30,
+    backupsDir = worldModBackupsDir
+): Promise<WorldModBackupSummary[]> {
+    let names: string[];
+    try {
+        names = await readdir(backupsDir);
+    } catch {
+        return [];
+    }
+    const backups = await Promise.all(names.filter(name => name.endsWith('.json')).map(async name => {
+        try {
+            const parsed = JSON.parse(await readFile(join(backupsDir, name), 'utf8')) as unknown;
+            if (!isRecord(parsed) || parsed.schemaVersion !== 1 || typeof parsed.id !== 'string'
+                || !BACKUP_ID_PATTERN.test(parsed.id) || typeof parsed.createdAt !== 'string'
+                || !['configure', 'manual', 'restore'].includes(String(parsed.operation))
+                || typeof parsed.reason !== 'string' || !Number.isInteger(parsed.revision)) return null;
+            return {
+                id: parsed.id, createdAt: parsed.createdAt, operation: parsed.operation as WorldModBackupOperation,
+                reason: parsed.reason, revision: Number(parsed.revision)
+            } satisfies WorldModBackupSummary;
+        } catch {
+            return null;
+        }
+    }));
+    return backups.filter((entry): entry is WorldModBackupSummary => entry !== null)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .slice(0, Math.max(1, Math.min(100, Math.trunc(limit) || 30)));
+}
+
+export function createWorldModBackup(
+    reason: string,
+    manifestPath = worldModManifestPath,
+    statePath = worldModStatePath,
+    backupsDir = backupDirectoryFor(statePath)
+): Promise<WorldModBackupSummary> {
+    return queueMutation(async () => {
+        const manifests = await loadWorldModManifests(manifestPath);
+        const state = await readWorldModState(manifests, statePath);
+        return createBackupFile(state, 'manual', reason, backupsDir);
+    });
+}
+
 async function performWorldModUpdate(
     modId: string,
     value: unknown,
     expectedRevision: number,
     manifestPath = worldModManifestPath,
-    statePath = worldModStatePath
-): Promise<{ before: WorldModState; after: WorldModState; manifest: WorldModManifest }> {
+    statePath = worldModStatePath,
+    backupsDir = backupDirectoryFor(statePath),
+    reason = 'World mod konfiguráció módosítása'
+): Promise<{ before: WorldModState; after: WorldModState; manifest: WorldModManifest; backup: WorldModBackupSummary }> {
     const manifests = await loadWorldModManifests(manifestPath);
     const manifest = manifests.find(entry => entry.id === modId);
     if (!manifest) throw new Error(`Ismeretlen world mod: ${modId}`);
@@ -190,11 +304,9 @@ async function performWorldModUpdate(
         mods: { ...before.mods, [modId]: validateWorldModEntry(manifest, value) }
     };
     validateRelationships(manifests, after);
-    await mkdir(dirname(statePath), { recursive: true });
-    const temporary = `${statePath}.${crypto.randomUUID()}.tmp`;
-    await writeFile(temporary, `${JSON.stringify(after, null, 2)}\n`, 'utf8');
-    await rename(temporary, statePath);
-    return { before, after, manifest };
+    const backup = await createBackupFile(before, 'configure', reason, backupsDir);
+    await writeAtomic(statePath, after);
+    return { before, after, manifest, backup };
 }
 
 export function updateWorldMod(
@@ -202,11 +314,54 @@ export function updateWorldMod(
     value: unknown,
     expectedRevision: number,
     manifestPath = worldModManifestPath,
-    statePath = worldModStatePath
-): Promise<{ before: WorldModState; after: WorldModState; manifest: WorldModManifest }> {
-    const operation = updateQueue.then(() => performWorldModUpdate(modId, value, expectedRevision, manifestPath, statePath));
-    updateQueue = operation.then(() => undefined, () => undefined);
-    return operation;
+    statePath = worldModStatePath,
+    backupsDir = backupDirectoryFor(statePath),
+    reason = 'World mod konfiguráció módosítása'
+): Promise<{ before: WorldModState; after: WorldModState; manifest: WorldModManifest; backup: WorldModBackupSummary }> {
+    return queueMutation(() => performWorldModUpdate(modId, value, expectedRevision, manifestPath, statePath, backupsDir, reason));
+}
+
+export function restoreWorldModBackup(
+    backupId: string,
+    expectedRevision: number,
+    reason: string,
+    manifestPath = worldModManifestPath,
+    statePath = worldModStatePath,
+    backupsDir = backupDirectoryFor(statePath)
+): Promise<{ before: WorldModState; after: WorldModState; restored: WorldModBackupSummary; safetyBackup: WorldModBackupSummary }> {
+    return queueMutation(async () => {
+        if (!BACKUP_ID_PATTERN.test(backupId)) throw new Error('Érvénytelen world mod backup azonosító.');
+        const manifests = await loadWorldModManifests(manifestPath);
+        const before = await readWorldModState(manifests, statePath);
+        if (before.revision !== expectedRevision) throw new Error('A modbeállítások időközben megváltoztak; frissítsd a World Admin nézetet.');
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(await readFile(join(backupsDir, `${backupId}.json`), 'utf8')) as unknown;
+        } catch {
+            throw new Error('A world mod backup nem található vagy nem olvasható.');
+        }
+        if (!isRecord(parsed) || parsed.schemaVersion !== 1 || parsed.id !== backupId
+            || typeof parsed.createdAt !== 'string' || typeof parsed.reason !== 'string'
+            || !['configure', 'manual', 'restore'].includes(String(parsed.operation)) || !Number.isInteger(parsed.revision)) {
+            throw new Error('A world mod backup fájl érvénytelen.');
+        }
+        const snapshot = validateStateSnapshot(manifests, parsed.state);
+        const after: WorldModState = {
+            ...snapshot,
+            revision: before.revision + 1,
+            updatedAt: new Date().toISOString()
+        };
+        const safetyBackup = await createBackupFile(before, 'restore', reason, backupsDir);
+        await writeAtomic(statePath, after);
+        return {
+            before, after,
+            restored: {
+                id: parsed.id as string, createdAt: parsed.createdAt, operation: parsed.operation as WorldModBackupOperation,
+                reason: parsed.reason, revision: Number(parsed.revision)
+            },
+            safetyBackup
+        };
+    });
 }
 
 export function buildWorldModView(manifests: WorldModManifest[], requested: WorldModState, active: ActiveWorldModState): WorldModView[] {

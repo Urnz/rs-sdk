@@ -282,7 +282,39 @@
             <p class="dialog-note">A kódot tartalmazó manifestek határozzák meg az engedélyezett beállításokat. A változtatások auditáltak; a restartot igénylő módosítások csak az engine újraindítása után aktívak.</p>
             <div id="world-mod-summary" class="world-mod-summary">Betöltés…</div>
             <div id="world-mod-list" class="world-mod-list"></div>
+            <section class="world-mod-backup-section">
+                <div class="editor-section-heading">
+                    <div><h3>Konfigurációmentések</h3><span class="muted">Módosítás és visszaállítás előtt automatikus mentés készül</span></div>
+                    <button id="create-world-mod-backup" type="button" class="button ghost">Kézi backup</button>
+                </div>
+                <div id="world-mod-backups" class="world-mod-backups"><span class="muted">Betöltés…</span></div>
+            </section>
         </div>
+    </dialog>
+
+    <dialog id="world-mod-backup-dialog">
+        <form id="world-mod-backup-form" method="dialog">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">WORLD ADMIN</p><h2>Konfiguráció mentése</h2></div>
+                <button type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p class="dialog-note">Az aktuális, kért modkonfiguráció külön JSON-pillanatképként kerül elmentésre.</p>
+            <label>Indoklás<input name="reason" value="Kézi world mod konfigurációmentés" maxlength="240" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Backup készítése</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="world-mod-restore-dialog">
+        <form id="world-mod-restore-form" method="dialog">
+            <div class="dialog-heading">
+                <div><p class="eyebrow danger-text">WORLD ADMIN</p><h2>Konfiguráció visszaállítása</h2></div>
+                <button type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p id="world-mod-restore-summary" class="dialog-note"></p>
+            <input name="backupId" type="hidden">
+            <label>Indoklás<input name="reason" value="World mod konfiguráció visszaállítása" maxlength="240" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button id="confirm-world-mod-restore" class="button danger" value="submit">Visszaállítás</button></div>
+        </form>
     </dialog>
 
     <dialog id="engine-restart-dialog">

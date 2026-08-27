@@ -16,7 +16,7 @@ import {
     validateOfflineSaveDraft
 } from './offline-editor';
 import type { GatewayBotSnapshot } from './types';
-import { listWorldMods, updateWorldMod } from './world-mods';
+import { createWorldModBackup, listWorldModBackups, listWorldMods, restoreWorldModBackup, updateWorldMod } from './world-mods';
 import { restartLocalEngine } from './engine-supervisor';
 
 export interface AdminRouteContext {
@@ -190,6 +190,11 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json(await listWorldMods());
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/world-mods/backups') {
+            const limit = Number(url.searchParams.get('limit') || 30);
+            return json({ backups: await listWorldModBackups(limit) });
+        }
+
         const spectateMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/spectate$/);
         if (req.method === 'GET' && spectateMatch?.[1]) {
             const username = decodeURIComponent(spectateMatch[1]).toLowerCase();
@@ -267,6 +272,49 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             }
         }
 
+        if (req.method === 'POST' && url.pathname === '/api/admin/world-mods/backups') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const backup = await createWorldModBackup(reason);
+                await appendAudit({
+                    operator: 'local-admin', action: 'world-mod.backup', reason, success: true,
+                    after: backup
+                });
+                return json({ ok: true, backup });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'world-mod.backup', reason, success: false,
+                    error: String(error)
+                });
+                throw error;
+            }
+        }
+
+        const worldModRestoreMatch = url.pathname.match(/^\/api\/admin\/world-mods\/backups\/([^/]+)\/restore$/);
+        if (req.method === 'POST' && worldModRestoreMatch?.[1]) {
+            const backupId = decodeURIComponent(worldModRestoreMatch[1]);
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = body.expectedRevision;
+            if (!Number.isInteger(expectedRevision) || Number(expectedRevision) < 0) throw new Error('Érvénytelen modkonfiguráció-revízió.');
+            try {
+                const result = await restoreWorldModBackup(backupId, Number(expectedRevision), reason);
+                await appendAudit({
+                    operator: 'local-admin', action: 'world-mod.restore', reason, success: true,
+                    before: { revision: result.before.revision },
+                    after: { revision: result.after.revision, restoredBackupId: result.restored.id, safetyBackupId: result.safetyBackup.id }
+                });
+                return json({ ok: true, revision: result.after.revision, restoredBackupId: result.restored.id });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'world-mod.restore', reason, success: false,
+                    after: { backupId, expectedRevision }, error: String(error)
+                });
+                throw error;
+            }
+        }
+
         const worldModMatch = url.pathname.match(/^\/api\/admin\/world-mods\/([a-z0-9.-]+)$/);
         if (req.method === 'PUT' && worldModMatch?.[1]) {
             const modId = worldModMatch[1];
@@ -275,13 +323,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const expectedRevision = body.expectedRevision;
             if (!Number.isInteger(expectedRevision) || Number(expectedRevision) < 0) throw new Error('Érvénytelen modkonfiguráció-revízió.');
             try {
-                const result = await updateWorldMod(modId, { enabled: body.enabled, config: body.config }, Number(expectedRevision));
+                const result = await updateWorldMod(modId, { enabled: body.enabled, config: body.config }, Number(expectedRevision), undefined, undefined, undefined, reason);
                 await appendAudit({
                     operator: 'local-admin', action: 'world-mod.configure', reason, success: true,
                     before: { revision: result.before.revision, mod: result.before.mods[modId] },
-                    after: { revision: result.after.revision, mod: result.after.mods[modId], activation: result.manifest.activation, modId }
+                    after: { revision: result.after.revision, mod: result.after.mods[modId], activation: result.manifest.activation, modId, backupId: result.backup.id }
                 });
-                return json({ ok: true, restartRequired: result.manifest.activation === 'restart-required', revision: result.after.revision });
+                return json({ ok: true, restartRequired: result.manifest.activation === 'restart-required', revision: result.after.revision, backupId: result.backup.id });
             } catch (error) {
                 await appendAudit({
                     operator: 'local-admin', action: 'world-mod.configure', reason, success: false,

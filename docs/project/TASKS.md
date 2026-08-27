@@ -120,10 +120,10 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
 
 ## 7. Fázis – modolási keretrendszer
 
-- [ ] Feltérképezni az engine adatmodelljét, scriptjeit, perzisztenciáját és kliensprotokollját.
-- [ ] Meghatározni, mi marad konfiguráció/adat és mi igényel engine-módosítást.
-- [ ] Elkülöníteni a projekt saját módosításait az upstream kódtól, ahol ez ésszerű.
-- [ ] Feature flaget és migrációs stratégiát kialakítani az új funkciókhoz.
+- [x] Feltérképezni az engine adatmodelljét, scriptjeit, perzisztenciáját és kliensprotokollját.
+- [x] Meghatározni, mi marad konfiguráció/adat és mi igényel engine-módosítást.
+- [x] Elkülöníteni a projekt saját módosításait az upstream kódtól, ahol ez ésszerű.
+- [x] Feature flaget és migrációs stratégiát kialakítani az új funkciókhoz.
 - [x] Szabványos, verziózott mod-manifestet és típusos konfigurációs sémát készíteni.
 - [x] Modfüggőségeket, ütközéseket, hookokat és aktiválási életciklust modellezni.
 - [x] A kért és az engine-ben ténylegesen aktív modállapotot külön kezelni, hogy a
@@ -135,12 +135,12 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
   ki-/bekapcsolásához és séma alapján generált beállításaihoz.
 - [x] Biztonságos, auditált engine-újraindítást készíteni a World Admin felülethez,
   kizárólag a fejlesztői indító által nyilvántartott helyi folyamathoz.
-- [ ] Konfigurációs backupot és egykattintásos visszaállítást készíteni a World
+- [x] Konfigurációs backupot és egykattintásos visszaállítást készíteni a World
   Admin felülethez.
 - [ ] Meghatározni és tesztelni a `hot-reload`, `restart-required`, migráció és
   rollback állapotátmeneteket, hibánál fail-closed működéssel.
 - [ ] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
-- [ ] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
+- [x] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
 - [ ] Lefuttatni regressziós tesztet a fontos alapmechanikákra.
 
 Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és tesztelése
@@ -281,5 +281,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] Termelés/fogyasztás, shop- és player-trade események naplózása.
 12. [x] Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
 13. [x] A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
-14. [ ] A 7. fázis modolási architektúráját feltérképezni és dokumentálni, majd a
-    mintamodot a World Admin felületről engedélyezve élőben ellenőrizni.
+14. [ ] A 7. fázis alapozását lezárni.
+    - [x] A modolási architektúrát feltérképezni és dokumentálni.
+    - [ ] A mintamodot a World Admin felületről engedélyezve, játékbeli belépéssel
+      élőben ellenőrizni.

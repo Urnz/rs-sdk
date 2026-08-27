@@ -13,10 +13,14 @@ Admin pedig kizárólag az előre deklarált manifestet és beállításokat kez
 - `server/gateway/admin/world-mods.ts`: sémaellenőrzés, függőség/ütközés,
   revízióvédelem és atomi állapotmentés.
 - `.local/admin/world-mod-state.json`: lokális, gitből kizárt kért állapot.
+- `.local/admin/world-mod-backups`: automatikus és kézi konfigurációs
+  pillanatképek.
 - `server/engine/src/mods/WorldMods.ts`: induláskor fail-closed módon betöltött,
   ténylegesen aktív állapot és engine hookok.
 - `/api/internal/admin/world-mods`: az engine aktív snapshotja.
 - `/api/admin/world-mods`: World Admin lekérdezés és auditált konfigurálás.
+- `/api/admin/world-mods/backups`: backup-lista, kézi mentés és revízióvédett
+  restore.
 - `/api/admin/engine/restart`: indokláshoz kötött, auditált helyi engine-restart.
 
 Az első mintamod a `sample.welcome-message`. Bekapcsolva egy konfigurálható
@@ -36,6 +40,8 @@ a kért és az aktív revíziót, és eltéréskor nem állítja, hogy a változ
 - Típus-, tartomány-, függőség- és konfliktusellenőrzés mentés előtt.
 - Elavult kliensrevízió nem írhatja felül az újabb állapotot.
 - Az állapot ideiglenes fájlból, atomi átnevezéssel kerül a helyére.
+- Minden konfigurálás előtt automatikus backup, minden restore előtt külön
+  mentőpont készül. A restore tartalma új, növekvő revíziót kap.
 - A mutáció helyi adminjogot és indoklást kér, és auditbejegyzést készít.
 - Hibás engine-konfigurációnál az összes mod kikapcsolva marad.
 - Az admin restart csak akkor fut, ha a kérő gateway PID-je egyezik a
@@ -46,6 +52,8 @@ a kért és az aktív revíziót, és eltéréskor nem állítja, hogy a változ
 
 ## Következő lépések
 
-A 7. fázis befejezéséhez még szükséges a teljes LostCity módosítási térkép,
-konfigurációs backup/restore, migrációs/rollback protokoll, modmetrikák és a
-mintamod játékbeli belépési üzenetének ellenőrzése.
+A LostCity rétegeinek térképe és a változtatások elhelyezési szabályai a
+`docs/project/architecture/MODDING_MAP.md` fájlban vannak. A 7. fázis
+befejezéséhez még szükséges a hot-reload/migrációs állapotgép, a modmetrikák,
+a fontos alapmechanikák regressziós tesztje és a mintamod játékbeli belépési
+üzenetének ellenőrzése.

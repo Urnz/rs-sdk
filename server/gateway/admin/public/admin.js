@@ -8,6 +8,7 @@ const state = {
     economyEvents: [],
     economyEventSummary: null,
     worldMods: null,
+    worldModBackups: [],
     adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
     selected: null,
@@ -22,6 +23,7 @@ const $ = selector => document.querySelector(selector);
 const fmt = new Intl.NumberFormat('hu-HU');
 const statusLabels = { active: 'Online', offline: 'Offline', stale: 'Nem válaszol', starting: 'Indul', stopping: 'Leáll', error: 'Hiba' };
 const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'restart-required': 'Újraindítás szükséges', 'engine-unreachable': 'Engine nem elérhető' };
+const worldModBackupOperationLabels = { configure: 'Módosítás előtti', manual: 'Kézi', restore: 'Restore előtti mentőpont' };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const xpThresholds = (() => {
     const values = []; let accumulator = 0;
@@ -602,9 +604,27 @@ function renderWorldMods() {
         </article>`).join('') || '<p class="empty">Nincs telepített world mod.</p>';
 }
 
-async function openWorldAdmin() {
-    state.worldMods = await api('/api/admin/world-mods');
+function renderWorldModBackups() {
+    $('#world-mod-backups').innerHTML = state.worldModBackups.map(backup => `
+        <article class="world-mod-backup-row">
+            <div><strong>Revízió ${fmt.format(backup.revision)}</strong><small>${escapeHtml(worldModBackupOperationLabels[backup.operation] || backup.operation)} · ${escapeHtml(new Date(backup.createdAt).toLocaleString('hu-HU'))}</small><small>${escapeHtml(backup.reason)}</small></div>
+            <button type="button" class="button ghost" data-action="world-mod-restore" data-backup-id="${escapeHtml(backup.id)}">Visszaállítás</button>
+        </article>`).join('') || '<p class="empty">Még nincs konfigurációmentés.</p>';
+}
+
+async function refreshWorldAdminData() {
+    const [mods, backups] = await Promise.all([
+        api('/api/admin/world-mods'),
+        api('/api/admin/world-mods/backups?limit=30')
+    ]);
+    state.worldMods = mods;
+    state.worldModBackups = backups.backups;
     renderWorldMods();
+    renderWorldModBackups();
+}
+
+async function openWorldAdmin() {
+    await refreshWorldAdminData();
     $('#world-admin-dialog').showModal();
 }
 
@@ -622,8 +642,7 @@ async function saveWorldMod(button) {
         method: 'PUT', mutation: true,
         body: JSON.stringify({ expectedRevision: state.worldMods.revision, enabled: card.querySelector('[data-world-mod-enabled]').checked, config, reason })
     });
-    state.worldMods = await api('/api/admin/world-mods');
-    renderWorldMods();
+    await refreshWorldAdminData();
     toast(result.restartRequired ? 'Mentve. Az engine újraindítása után lép életbe.' : 'A mod beállítása frissült.');
 }
 
@@ -659,6 +678,15 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'world-focus') focusWorldBot(name);
         if (button.dataset.action === 'world-spectate') { closeWorldMap(); openSpectate(name); }
         if (button.dataset.action === 'world-mod-save') await saveWorldMod(button);
+        if (button.dataset.action === 'world-mod-restore') {
+            const backup = state.worldModBackups.find(entry => entry.id === button.dataset.backupId);
+            if (!backup) throw new Error('A kiválasztott backup már nem található.');
+            const form = $('#world-mod-restore-form');
+            form.reset();
+            form.elements.backupId.value = backup.id;
+            $('#world-mod-restore-summary').textContent = `A ${new Date(backup.createdAt).toLocaleString('hu-HU')} időpontban mentett ${backup.revision}. revízió áll vissza. Előtte az aktuális állapotról új mentőpont készül.`;
+            $('#world-mod-restore-dialog').showModal();
+        }
         if (button.dataset.action === 'admin-tab') selectAdminTab(button.dataset.tab);
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
@@ -796,6 +824,10 @@ $('#clear-filters').addEventListener('click', () => { for (const id of ['search-
 $('#clear-event-filters').addEventListener('click', () => { $('#event-bot-filter').value = ''; $('#event-kind-filter').value = ''; renderEconomyEvents(); });
 $('#new-bot-button').addEventListener('click', () => showSpawn());
 $('#world-admin-button').addEventListener('click', () => openWorldAdmin().catch(error => toast(error.message, true)));
+$('#create-world-mod-backup').addEventListener('click', () => {
+    $('#world-mod-backup-form').reset();
+    $('#world-mod-backup-dialog').showModal();
+});
 $('#world-map-button').addEventListener('click', openWorldMap);
 $('#snapshot-button').addEventListener('click', () => { $('#snapshot-form').reset(); $('#snapshot-dialog').showModal(); });
 $('#skill-select').addEventListener('change', renderSkillParameters);
@@ -832,6 +864,38 @@ $('#engine-restart-form').addEventListener('submit', async event => {
         button.disabled = false;
         button.textContent = 'Engine újraindítása';
     }
+});
+$('#world-mod-backup-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const reason = new FormData(form).get('reason')?.toString().trim();
+    if (!reason) return;
+    try {
+        await api('/api/admin/world-mods/backups', { method: 'POST', mutation: true, body: JSON.stringify({ reason }) });
+        await refreshWorldAdminData();
+        form.closest('dialog').close();
+        toast('A world mod konfiguráció backupja elkészült.');
+    } catch (error) { toast(error.message, true); }
+});
+$('#world-mod-restore-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const backupId = values.get('backupId')?.toString();
+    const reason = values.get('reason')?.toString().trim();
+    if (!backupId || !reason) return;
+    const button = $('#confirm-world-mod-restore');
+    button.disabled = true;
+    try {
+        await api(`/api/admin/world-mods/backups/${encodeURIComponent(backupId)}/restore`, {
+            method: 'POST', mutation: true,
+            body: JSON.stringify({ expectedRevision: state.worldMods.revision, reason })
+        });
+        await refreshWorldAdminData();
+        form.closest('dialog').close();
+        toast('A world mod konfiguráció visszaállt. Az eltérő engine-állapot újraindítást igényelhet.');
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
 });
 $('#world-map-dialog').addEventListener('cancel', event => { event.preventDefault(); closeWorldMap(); });
 window.addEventListener('message', event => {
