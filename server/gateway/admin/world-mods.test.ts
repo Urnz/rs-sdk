@@ -95,10 +95,21 @@ describe('world mod registry and state', () => {
 
     test('distinguishes active, pending and unreachable engine state', async () => {
         const requested = { schemaVersion: 1 as const, revision: 2, updatedAt: new Date().toISOString(), mods: { 'sample.test': { enabled: true, config: { message: 'new' } } } };
-        const active: ActiveWorldModState = { revision: 1, engineReachable: true, mods: { 'sample.test': { enabled: true, config: { message: 'old' } } } };
+        const active: ActiveWorldModState = {
+            revision: 1, engineReachable: true, loadedAt: new Date().toISOString(), loadError: null,
+            metrics: { 'sample.test': { status: 'active', hookInvocations: 2, hookErrors: 0, lastHookAt: null, lastError: null, counters: { messagesSent: 2 } } },
+            mods: { 'sample.test': { enabled: true, config: { message: 'old' } } }
+        };
         expect(buildWorldModView([manifest], requested, active)[0]?.status).toBe('restart-required');
         active.mods['sample.test'] = requested.mods['sample.test'];
-        expect(buildWorldModView([manifest], requested, active)[0]?.status).toBe('active');
-        expect(buildWorldModView([manifest], requested, { revision: null, mods: {}, engineReachable: false })[0]?.status).toBe('engine-unreachable');
+        const view = buildWorldModView([manifest], requested, active)[0];
+        expect(view?.status).toBe('active');
+        expect(view?.runtime?.counters.messagesSent).toBe(2);
+        active.metrics['sample.test']!.status = 'error';
+        active.metrics['sample.test']!.lastError = 'test failure';
+        expect(buildWorldModView([manifest], requested, active)[0]?.status).toBe('activation-error');
+        expect(buildWorldModView([manifest], requested, {
+            revision: null, mods: {}, metrics: {}, loadedAt: null, loadError: null, engineReachable: false
+        })[0]?.status).toBe('engine-unreachable');
     });
 });

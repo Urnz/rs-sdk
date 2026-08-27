@@ -79,6 +79,8 @@ survival) is described in the project memory; this file is the human-readable ch
       verziózott manifestet és a kért lokális állapotot; `World.ts` login hookja
       hívja a visszafordítható welcome-message mintamodot. Az aktív snapshotot a
       tokenvédett `web/pages/internal-admin.ts` adja a gateway World Admin számára.
+      A hook wrapper hibánál nem szakítja meg a world ticket, hanem modonkénti
+      hiba-, hívás- és domainmetrikát tárol az aktív snapshotban.
       Verify: `bun test server/gateway/admin/world-mods.test.ts`
 - [ ] **XP curve** — `entity/Player.ts` `getExpByLevel` table: delta uses `level/10.0`
       (custom curve), table stored in ×10 "fine" units (`Math.floor(acc/4) * 10`), L99 =

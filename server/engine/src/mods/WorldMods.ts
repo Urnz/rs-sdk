@@ -14,11 +14,21 @@ interface ActiveMod {
     config: Record<string, ConfigValue>;
 }
 
+export interface WorldModRuntimeMetrics {
+    status: 'disabled' | 'active' | 'error';
+    hookInvocations: number;
+    hookErrors: number;
+    lastHookAt: string | null;
+    lastError: string | null;
+    counters: Record<string, number>;
+}
+
 export interface ActiveWorldModSnapshot {
     schemaVersion: 1;
     revision: number | null;
     loadedAt: string;
     mods: Record<string, ActiveMod>;
+    metrics: Record<string, WorldModRuntimeMetrics>;
     loadError: string | null;
 }
 
@@ -55,11 +65,15 @@ function loadSnapshot(): ActiveWorldModSnapshot {
             ]));
             return [manifest.id, { enabled: requested?.enabled === true, config }];
         }));
-        return { schemaVersion: 1, revision: state ? Number(state.revision) : 0, loadedAt, mods, loadError: null };
+        const metrics = Object.fromEntries(Object.entries(mods).map(([id, mod]) => [id, {
+            status: mod.enabled ? 'active' : 'disabled', hookInvocations: 0, hookErrors: 0,
+            lastHookAt: null, lastError: null, counters: {}
+        } satisfies WorldModRuntimeMetrics]));
+        return { schemaVersion: 1, revision: state ? Number(state.revision) : 0, loadedAt, mods, metrics, loadError: null };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`[WorldMods] Disabled all mods because configuration loading failed: ${message}`);
-        return { schemaVersion: 1, revision: null, loadedAt, mods: {}, loadError: message };
+        return { schemaVersion: 1, revision: null, loadedAt, mods: {}, metrics: {}, loadError: message };
     }
 }
 
@@ -69,8 +83,33 @@ export function getActiveWorldMods(): ActiveWorldModSnapshot {
     return structuredClone(snapshot);
 }
 
+function incrementCounter(modId: string, key: string): void {
+    const metric = snapshot.metrics[modId];
+    if (metric) metric.counters[key] = (metric.counters[key] ?? 0) + 1;
+}
+
+function runHook(modId: string, action: () => void): void {
+    const mod = snapshot.mods[modId];
+    const metric = snapshot.metrics[modId];
+    if (!mod?.enabled || !metric) return;
+    metric.hookInvocations++;
+    metric.lastHookAt = new Date().toISOString();
+    try {
+        action();
+    } catch (error) {
+        metric.status = 'error';
+        metric.hookErrors++;
+        metric.lastError = error instanceof Error ? error.message : String(error);
+        console.error(`[WorldMods] ${modId} hook failed: ${metric.lastError}`);
+    }
+}
+
 export function onWorldModPlayerLogin(player: Player): void {
-    const welcome = snapshot.mods['sample.welcome-message'];
-    const message = welcome?.config.message;
-    if (welcome?.enabled && typeof message === 'string' && message) player.wrappedMessageGame(message);
+    const modId = 'sample.welcome-message';
+    runHook(modId, () => {
+        const message = snapshot.mods[modId]?.config.message;
+        if (typeof message !== 'string' || !message) throw new Error('Welcome message is empty');
+        player.wrappedMessageGame(message);
+        incrementCounter(modId, 'messagesSent');
+    });
 }

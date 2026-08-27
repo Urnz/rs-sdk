@@ -43,13 +43,26 @@ export interface WorldModState {
 export interface ActiveWorldModState {
     revision: number | null;
     mods: Record<string, { enabled: boolean; config: Record<string, boolean | number | string> }>;
+    loadedAt: string | null;
+    loadError: string | null;
+    metrics: Record<string, WorldModRuntimeMetrics>;
     engineReachable: boolean;
+}
+
+export interface WorldModRuntimeMetrics {
+    status: 'disabled' | 'active' | 'error';
+    hookInvocations: number;
+    hookErrors: number;
+    lastHookAt: string | null;
+    lastError: string | null;
+    counters: Record<string, number>;
 }
 
 export interface WorldModView extends WorldModManifest {
     requested: WorldModStateEntry;
     active: WorldModStateEntry | null;
-    status: 'disabled' | 'active' | 'restart-required' | 'engine-unreachable';
+    runtime: WorldModRuntimeMetrics | null;
+    status: 'disabled' | 'active' | 'restart-required' | 'engine-unreachable' | 'activation-error';
 }
 
 export type WorldModBackupOperation = 'configure' | 'manual' | 'restore';
@@ -180,15 +193,16 @@ function validateStateSnapshot(manifests: WorldModManifest[], value: unknown): W
         || Number(value.revision) < 0 || typeof value.updatedAt !== 'string' || !isRecord(value.mods)) {
         throw new Error('A world mod backup állapota érvénytelen.');
     }
+    const snapshotMods = value.mods;
     const knownIds = new Set(manifests.map(manifest => manifest.id));
-    for (const id of Object.keys(value.mods)) if (!knownIds.has(id)) throw new Error(`A backup ismeretlen modot tartalmaz: ${id}`);
+    for (const id of Object.keys(snapshotMods)) if (!knownIds.has(id)) throw new Error(`A backup ismeretlen modot tartalmaz: ${id}`);
     const state: WorldModState = {
         schemaVersion: 1,
         revision: Number(value.revision),
         updatedAt: value.updatedAt,
         mods: Object.fromEntries(manifests.map(manifest => [
             manifest.id,
-            value.mods[manifest.id] === undefined ? defaultEntry(manifest) : validateWorldModEntry(manifest, value.mods[manifest.id])
+            snapshotMods[manifest.id] === undefined ? defaultEntry(manifest) : validateWorldModEntry(manifest, snapshotMods[manifest.id])
         ]))
     };
     validateRelationships(manifests, state);
@@ -368,26 +382,32 @@ export function buildWorldModView(manifests: WorldModManifest[], requested: Worl
     return manifests.map(manifest => {
         const desired = requested.mods[manifest.id] ?? defaultEntry(manifest);
         const running = active.mods[manifest.id] ?? null;
+        const runtime = active.metrics[manifest.id] ?? null;
         const matches = !!running && running.enabled === desired.enabled && JSON.stringify(running.config) === JSON.stringify(desired.config);
         const status: WorldModView['status'] = !active.engineReachable ? 'engine-unreachable'
-            : matches ? (desired.enabled ? 'active' : 'disabled') : 'restart-required';
-        return { ...manifest, requested: desired, active: running, status };
+            : active.loadError || runtime?.status === 'error' ? 'activation-error'
+                : matches ? (desired.enabled ? 'active' : 'disabled') : 'restart-required';
+        return { ...manifest, requested: desired, active: running, runtime, status };
     });
+}
+
+function unreachableActiveState(): ActiveWorldModState {
+    return { revision: null, mods: {}, loadedAt: null, loadError: null, metrics: {}, engineReachable: false };
 }
 
 export async function readActiveWorldMods(): Promise<ActiveWorldModState> {
     const token = process.env.ENGINE_ADMIN_TOKEN?.trim();
     const baseUrl = (process.env.ENGINE_ADMIN_URL?.trim() || 'http://localhost:8888').replace(/\/$/, '');
-    if (!token) return { revision: null, mods: {}, engineReachable: false };
+    if (!token) return unreachableActiveState();
     try {
         const response = await fetch(`${baseUrl}/api/internal/admin/world-mods`, {
             headers: { 'X-Engine-Admin-Token': token },
             signal: AbortSignal.timeout(3_000)
         });
-        if (!response.ok) return { revision: null, mods: {}, engineReachable: false };
+        if (!response.ok) return unreachableActiveState();
         const parsed = await response.json() as unknown;
         if (!isRecord(parsed) || (parsed.revision !== null && !Number.isInteger(parsed.revision)) || !isRecord(parsed.mods)) {
-            return { revision: null, mods: {}, engineReachable: false };
+            return unreachableActiveState();
         }
         const mods: ActiveWorldModState['mods'] = {};
         for (const [id, value] of Object.entries(parsed.mods)) {
@@ -395,13 +415,33 @@ export async function readActiveWorldMods(): Promise<ActiveWorldModState> {
                 mods[id] = { enabled: value.enabled, config: value.config as Record<string, boolean | number | string> };
             }
         }
-        return { revision: parsed.revision as number | null, mods, engineReachable: true };
+        const metrics: ActiveWorldModState['metrics'] = {};
+        if (isRecord(parsed.metrics)) {
+            for (const [id, value] of Object.entries(parsed.metrics)) {
+                if (!isRecord(value) || !['disabled', 'active', 'error'].includes(String(value.status))
+                    || !Number.isInteger(value.hookInvocations) || !Number.isInteger(value.hookErrors)
+                    || (value.lastHookAt !== null && typeof value.lastHookAt !== 'string')
+                    || (value.lastError !== null && typeof value.lastError !== 'string') || !isRecord(value.counters)) continue;
+                const counters = Object.fromEntries(Object.entries(value.counters)
+                    .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1])));
+                metrics[id] = {
+                    status: value.status as WorldModRuntimeMetrics['status'],
+                    hookInvocations: Number(value.hookInvocations), hookErrors: Number(value.hookErrors),
+                    lastHookAt: value.lastHookAt as string | null, lastError: value.lastError as string | null, counters
+                };
+            }
+        }
+        return {
+            revision: parsed.revision as number | null, mods, metrics, engineReachable: true,
+            loadedAt: typeof parsed.loadedAt === 'string' ? parsed.loadedAt : null,
+            loadError: typeof parsed.loadError === 'string' ? parsed.loadError : null
+        };
     } catch {
-        return { revision: null, mods: {}, engineReachable: false };
+        return unreachableActiveState();
     }
 }
 
-export async function listWorldMods(): Promise<{ revision: number; updatedAt: string; activeRevision: number | null; mods: WorldModView[] }> {
+export async function listWorldMods(): Promise<{ revision: number; updatedAt: string; activeRevision: number | null; engineLoadedAt: string | null; engineLoadError: string | null; mods: WorldModView[] }> {
     const manifests = await loadWorldModManifests();
     const requested = await readWorldModState(manifests);
     const active = await readActiveWorldMods();
@@ -409,6 +449,8 @@ export async function listWorldMods(): Promise<{ revision: number; updatedAt: st
         revision: requested.revision,
         updatedAt: requested.updatedAt,
         activeRevision: active.revision,
+        engineLoadedAt: active.loadedAt,
+        engineLoadError: active.loadError,
         mods: buildWorldModView(manifests, requested, active)
     };
 }

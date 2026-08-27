@@ -140,6 +140,10 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .world-mod-badge.active { color: #bde7c5; background: #24452a; }
 .world-mod-badge.restart-required { color: #f0d49a; background: #4d3e21; }
 .world-mod-badge.engine-unreachable { color: #ffc1bb; background: #542b27; }
+.world-mod-badge.activation-error { color: #ffc1bb; background: #542b27; }
+.world-mod-card.activation-error { border-color: #a94b43; }
+.world-mod-runtime { display: flex; flex-wrap: wrap; gap: 7px 14px; margin: 0 0 13px; padding: 9px 10px; color: var(--muted); background: var(--panel-2); border-radius: 8px; font-size: 12px; }
+.world-mod-runtime strong { color: var(--text); }
 .world-mod-settings { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 11px; }
 .world-mod-settings .wide { grid-column: 1 / -1; }
 .world-mod-setting small { color: var(--muted); font-weight: 400; }

@@ -139,7 +139,7 @@ idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosults�
   Admin felülethez.
 - [ ] Meghatározni és tesztelni a `hot-reload`, `restart-required`, migráció és
   rollback állapotátmeneteket, hibánál fail-closed működéssel.
-- [ ] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
+- [x] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
 - [x] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
 - [ ] Lefuttatni regressziós tesztet a fontos alapmechanikákra.
 
@@ -281,7 +281,13 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] Termelés/fogyasztás, shop- és player-trade események naplózása.
 12. [x] Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
 13. [x] A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
-14. [ ] A 7. fázis alapozását lezárni.
+14. [x] A 7. fázis alapozását lezárni.
     - [x] A modolási architektúrát feltérképezni és dokumentálni.
-    - [ ] A mintamodot a World Admin felületről engedélyezve, játékbeli belépéssel
+    - [x] A mintamodot a World Admin felületről engedélyezve, játékbeli belépéssel
       élőben ellenőrizni.
+15. [ ] A 7. fázis lifecycle állapotgépét és regressziós kapuját elkészíteni.
+    - [x] Modonkénti runtime-, hookhiba- és domainmetrikákat megjeleníteni.
+    - [ ] A `hot-reload`, `restart-required`, migráció és rollback átmeneteit
+      fail-closed tesztekkel lefedni.
+    - [ ] A fontos alapmechanikák kikapcsolt mod melletti regressziós tesztjét
+      hozzáadni.

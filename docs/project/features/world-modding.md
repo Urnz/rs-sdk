@@ -34,6 +34,12 @@ az engine viszont csak induláskor olvassa be. Az admin nézet ezért külön mu
 a kért és az aktív revíziót, és eltéréskor nem állítja, hogy a változtatás már
 él. A későbbi `hot-reload` csak explicit támogatással kerülhet be.
 
+Az engine minden modhoz futásidejű állapotot tart nyilván: hookhívások és hibák
+száma, az utolsó hívás és hiba időpontja/szövege, valamint modul-specifikus
+domain számlálók. A welcome mintamod első domainmetrikája a sikeresen elküldött
+belépési üzenetek száma. Hookhiba nem állíthatja le a world ticket; a mod
+`activation-error` állapotba kerül, a hiba pedig látható marad a World Adminban.
+
 ## Biztonsági határok
 
 - Ismeretlen mod és konfigurációs kulcs elutasítva.

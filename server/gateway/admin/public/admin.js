@@ -22,7 +22,7 @@ const state = {
 const $ = selector => document.querySelector(selector);
 const fmt = new Intl.NumberFormat('hu-HU');
 const statusLabels = { active: 'Online', offline: 'Offline', stale: 'Nem válaszol', starting: 'Indul', stopping: 'Leáll', error: 'Hiba' };
-const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'restart-required': 'Újraindítás szükséges', 'engine-unreachable': 'Engine nem elérhető' };
+const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'restart-required': 'Újraindítás szükséges', 'engine-unreachable': 'Engine nem elérhető', 'activation-error': 'Aktiválási hiba' };
 const worldModBackupOperationLabels = { configure: 'Módosítás előtti', manual: 'Kézi', restore: 'Restore előtti mentőpont' };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const xpThresholds = (() => {
@@ -587,7 +587,8 @@ function renderWorldMods() {
     const data = state.worldMods;
     if (!data) return;
     const pending = data.mods.filter(mod => mod.status === 'restart-required').length;
-    $('#world-mod-summary').textContent = `Kért revízió: ${data.revision} · engine revízió: ${data.activeRevision ?? 'nem elérhető'} · ${pending} függőben lévő módosítás`;
+    const loaded = data.engineLoadedAt ? new Date(data.engineLoadedAt).toLocaleString('hu-HU') : 'nem elérhető';
+    $('#world-mod-summary').innerHTML = `Kért revízió: ${fmt.format(data.revision)} · engine revízió: ${data.activeRevision ?? 'nem elérhető'} · engine betöltés: ${escapeHtml(loaded)} · ${pending} függőben lévő módosítás${data.engineLoadError ? `<strong class="danger-text"> · Betöltési hiba: ${escapeHtml(data.engineLoadError)}</strong>` : ''}`;
     $('#world-mod-list').innerHTML = data.mods.map(mod => `
         <article class="world-mod-card ${mod.status === 'restart-required' ? 'pending' : mod.status}" data-mod-id="${escapeHtml(mod.id)}">
             <div class="world-mod-heading"><div><h3>${escapeHtml(mod.name)}</h3><p>${escapeHtml(mod.description)}</p></div>
@@ -598,6 +599,13 @@ function renderWorldMods() {
                 <span class="world-mod-badge">${mod.activation === 'restart-required' ? 'Restart életciklus' : 'Hot reload'}</span>
                 <span class="world-mod-badge">Hook: ${escapeHtml(mod.hooks.join(', ') || 'nincs')}</span>
             </div>
+            ${mod.runtime ? `<div class="world-mod-runtime">
+                <span>Hook hívások: <strong>${fmt.format(mod.runtime.hookInvocations)}</strong></span>
+                <span>Hook hibák: <strong>${fmt.format(mod.runtime.hookErrors)}</strong></span>
+                <span>Utolsó hívás: <strong>${mod.runtime.lastHookAt ? escapeHtml(new Date(mod.runtime.lastHookAt).toLocaleString('hu-HU')) : 'még nem futott'}</strong></span>
+                ${Object.entries(mod.runtime.counters).map(([key, value]) => `<span>${escapeHtml(key)}: <strong>${fmt.format(value)}</strong></span>`).join('')}
+                ${mod.runtime.lastError ? `<span class="danger-text">Utolsó hiba: <strong>${escapeHtml(mod.runtime.lastError)}</strong></span>` : ''}
+            </div>` : '<div class="world-mod-runtime muted">Nincs aktív engine-metrika.</div>'}
             <div class="world-mod-settings">${mod.settings.map(setting => worldModInput(setting, mod.requested.config[setting.key])).join('')}</div>
             <div class="world-mod-actions"><label>Indoklás<input data-world-mod-reason value="World mod konfiguráció módosítása" maxlength="240" required></label>
                 <button class="button primary" data-action="world-mod-save">Mentés</button></div>
