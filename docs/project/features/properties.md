@@ -50,6 +50,24 @@ kompenzációt kísérel meg. Egy megszakadt `pending` tranzakció ugyanazzal az
 azonosítóval biztonságosan folytatható. A játékbeli coin inventory adapter még a
 következő integrációs lépés része, ezért az atomi vásárlási TASK addig nem kész.
 
+## Első engine-integráció
+
+Az `economy.properties` mod a World Adminból hot reloaddal kapcsolható. Kikapcsolva
+`read-only`: a katalógus és a tulajdon lekérdezhető, de vásárlás nem indítható.
+
+Az első függőleges szeletben az admin egy online játékost választ. A parancs a
+következő engine-ticken fut, kizárólag a játékos inventoryjában lévő coinokat
+fogadja el, majd siker után azonnali autosave-ot kér. A PropertyStore tartós
+foglalása, az inventory-terhelés, a kompenzáció és a tulajdon commitja egyetlen
+sorosított engine-művelet része. A gateway külön auditbejegyzést ír az előtte/utána
+coinmennyiséggel, propertyvel, command ID-val és engine tickkel.
+
+A binary player save és a SQLite domainadatbázis nem alkot közös ACID
+tranzakciót. Ha egy folyamat pontosan a két tartós írás között szakad meg, a
+`pending` vásárlás fail-closed marad: az inventory adapter nem terhel újra vakon,
+hanem adminisztrátori egyeztetést kér. Ezt később a közös gazdasági főkönyv váltja
+fel teljesen egyadatbázisos atomitással.
+
 Az első katalógus három eltérő tesztesetet ad:
 
 - `varrock.east-workshop`: termelési/vállalkozási műhely;

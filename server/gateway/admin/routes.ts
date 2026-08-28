@@ -18,6 +18,7 @@ import {
 import type { GatewayBotSnapshot } from './types';
 import { createWorldModBackup, listWorldModBackups, listWorldMods, requestWorldModHotReload, restoreWorldModBackup, updateWorldMod } from './world-mods';
 import { restartLocalEngine } from './engine-supervisor';
+import { listEngineProperties, requestEnginePropertyPurchase } from './properties';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -195,6 +196,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ backups: await listWorldModBackups(limit) });
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/properties') {
+            return json(await listEngineProperties());
+        }
+
         const spectateMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/spectate$/);
         if (req.method === 'GET' && spectateMatch?.[1]) {
             const username = decodeURIComponent(spectateMatch[1]).toLowerCase();
@@ -267,6 +272,30 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({
                     operator: 'local-admin', action: 'world.engine.restart', reason, success: false,
                     error: String(error)
+                });
+                throw error;
+            }
+        }
+
+        const propertyPurchaseMatch = url.pathname.match(/^\/api\/admin\/properties\/([a-z0-9.-]+)\/purchase$/);
+        if (req.method === 'POST' && propertyPurchaseMatch?.[1]) {
+            const propertyId = propertyPurchaseMatch[1];
+            const body = await requestBody(req);
+            const username = text(body, 'username', true);
+            const reason = text(body, 'reason', true);
+            const commandId = crypto.randomUUID();
+            try {
+                const result = await requestEnginePropertyPurchase(username, propertyId, commandId);
+                await appendAudit({
+                    operator: 'local-admin', action: 'property.purchase', username, reason, success: true,
+                    before: { propertyId, coins: result.coinsBefore },
+                    after: { property: result.property, coins: result.coinsAfter, engineTick: result.tick, commandId }
+                });
+                return json({ ok: true, result });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'property.purchase', username, reason, success: false,
+                    before: { propertyId }, after: { commandId }, error: String(error)
                 });
                 throw error;
             }

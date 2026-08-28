@@ -5,6 +5,7 @@ import World, {
     type AdminOfflineSaveDraft,
     type AdminOfflineSaveResult,
     type AdminPlayerLogoutResult,
+    type AdminPropertyPurchaseResult,
     type AdminTeleportResult
 } from '#/engine/World.js';
 import { getActiveWorldMods, reloadHotWorldMods } from '#/mods/WorldMods.js';
@@ -59,6 +60,8 @@ function authorized(req: Request): boolean {
 export async function handleInternalAdminRequest(req: Request, url: URL): Promise<Response | null> {
     const backupListMatch = url.pathname.match(/^\/api\/internal\/admin\/offline-backups\/([a-zA-Z0-9]{1,12})$/);
     const knownPath = url.pathname === '/api/internal/admin/teleport'
+        || url.pathname === '/api/internal/admin/properties'
+        || url.pathname === '/api/internal/admin/properties/purchase'
         || url.pathname === '/api/internal/admin/world-mods'
         || url.pathname === '/api/internal/admin/world-mods/reload'
         || url.pathname === '/api/internal/admin/offline-edit'
@@ -77,6 +80,15 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
         try {
             return json(reloadHotWorldMods());
+        } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 409);
+        }
+    }
+
+    if (url.pathname === '/api/internal/admin/properties') {
+        if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+        try {
+            return json(World.listAdminProperties());
         } catch (error) {
             return json({ error: error instanceof Error ? error.message : String(error) }, 409);
         }
@@ -141,6 +153,20 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         const result: AdminPlayerLogoutResult = await World.enqueueAdminPlayerLogout({
             commandId,
             username,
+            expiresAt: Date.now() + 2_000
+        });
+        return json(result, result.ok ? 200 : 409);
+    }
+
+    if (url.pathname === '/api/internal/admin/properties/purchase') {
+        const propertyId = typeof body.propertyId === 'string' ? body.propertyId.trim() : '';
+        if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/.test(propertyId)) {
+            return json({ error: 'Invalid property purchase request' }, 400);
+        }
+        const result: AdminPropertyPurchaseResult = await World.enqueueAdminPropertyPurchase({
+            commandId,
+            username,
+            propertyId,
             expiresAt: Date.now() + 2_000
         });
         return json(result, result.ok ? 200 : 409);

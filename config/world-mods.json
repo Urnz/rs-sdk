@@ -56,6 +56,23 @@
       ]
     },
     {
+      "id": "economy.properties",
+      "name": "Vásárolható ingatlanok",
+      "version": "1.0.0",
+      "dataSchemaVersion": 1,
+      "category": "economy",
+      "description": "Tartós tulajdonjog, versenyhelyzet-biztos vásárlás és szerepalapú ingatlan-hozzáférés.",
+      "activation": "hot-reload",
+      "disablePolicy": {
+        "mode": "read-only",
+        "description": "Kikapcsolva új vásárlás és módosítás nem történhet, de a katalógus, a tulajdon és a tranzakciós előzmény olvasható marad."
+      },
+      "hooks": ["property.purchase"],
+      "dependencies": [],
+      "conflicts": [],
+      "settings": []
+    },
+    {
       "id": "economy.diminishing-xp",
       "name": "Csökkenő XP-jutalmak",
       "version": "1.0.0",

@@ -9,6 +9,7 @@ const state = {
     economyEventSummary: null,
     worldMods: null,
     worldModBackups: [],
+    properties: null,
     adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
     selected: null,
@@ -636,15 +637,40 @@ function renderWorldModBackups() {
         </article>`).join('') || '<p class="empty">Még nincs konfigurációmentés.</p>';
 }
 
+function renderProperties() {
+    const data = state.properties;
+    if (!data) return;
+    $('#property-summary').textContent = data.enabled
+        ? 'A mod aktív: az online játékosok inventoryjában lévő coinból tesztvásárlás indítható.'
+        : 'A mod read-only: a tulajdon látható, de új vásárlás nem indítható.';
+    $('#property-list').innerHTML = data.properties.map(property => {
+        const owner = property.state.owner ? `${property.state.owner.kind}: ${property.state.owner.id}` : 'Nincs tulajdonos';
+        const canBuy = data.enabled && property.state.status === 'available';
+        return `<article class="property-card">
+            <div><h4>${escapeHtml(property.displayName)}</h4><p>${escapeHtml(property.description)}</p></div>
+            <div class="property-meta">
+                <span>${escapeHtml(property.type)}</span><span>${escapeHtml(property.location.region)}</span>
+                <span>${fmt.format(property.purchasePrice)} coin</span><span>${escapeHtml(property.state.status)}</span>
+                <span>${escapeHtml(owner)}</span>
+            </div>
+            <button type="button" class="button ${canBuy ? 'primary' : 'ghost'}" data-action="property-purchase"
+                data-property-id="${escapeHtml(property.propertyId)}" ${canBuy ? '' : 'disabled'}>Tesztvásárlás</button>
+        </article>`;
+    }).join('') || '<p class="empty">Nincs konfigurált ingatlan.</p>';
+}
+
 async function refreshWorldAdminData() {
-    const [mods, backups] = await Promise.all([
+    const [mods, backups, properties] = await Promise.all([
         api('/api/admin/world-mods'),
-        api('/api/admin/world-mods/backups?limit=30')
+        api('/api/admin/world-mods/backups?limit=30'),
+        api('/api/admin/properties')
     ]);
     state.worldMods = mods;
     state.worldModBackups = backups.backups;
+    state.properties = properties;
     renderWorldMods();
     renderWorldModBackups();
+    renderProperties();
 }
 
 async function openWorldAdmin() {
@@ -704,6 +730,19 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'world-focus') focusWorldBot(name);
         if (button.dataset.action === 'world-spectate') { closeWorldMap(); openSpectate(name); }
         if (button.dataset.action === 'world-mod-save') await saveWorldMod(button);
+        if (button.dataset.action === 'property-purchase') {
+            const propertyId = button.dataset.propertyId;
+            const username = prompt('Melyik online játékos vásárolja meg az ingatlant?');
+            if (!username?.trim()) return;
+            const reason = prompt('A tesztvásárlás indoklása:', 'Phase 9 ingatlanvásárlási teszt');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/properties/${encodeURIComponent(propertyId)}/purchase`, {
+                method: 'POST', mutation: true,
+                body: JSON.stringify({ username: username.trim(), reason: reason.trim() })
+            });
+            await refreshWorldAdminData();
+            toast('Az ingatlanvásárlás sikeresen lefutott.');
+        }
         if (button.dataset.action === 'world-mod-restore') {
             const backup = state.worldModBackups.find(entry => entry.id === button.dataset.backupId);
             if (!backup) throw new Error('A kiválasztott backup már nem található.');

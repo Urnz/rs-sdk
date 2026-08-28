@@ -104,7 +104,8 @@ import FriendlistLoaded from '#/network/game/server/model/FriendlistLoaded.js';
 import HashTable from '#/datastruct/HashTable.js';
 import Midi from '#/cache/midi/Midi.js';
 import Koth from '#/engine/Koth.js';
-import { onWorldModPlayerLogin } from '#/mods/WorldMods.js';
+import { getPropertyRuntime, type PropertyView } from '#/mods/PropertyRuntime.js';
+import { isWorldModEnabled, onWorldModPlayerLogin, recordWorldModDomainEvent } from '#/mods/WorldMods.js';
 
 const priv = forge.pki.privateKeyFromPem(fs.readFileSync('data/config/private.pem', 'ascii'));
 
@@ -219,6 +220,26 @@ export interface AdminPlayerLogoutResult {
     error?: string;
 }
 
+export interface AdminPropertyPurchaseCommand {
+    commandId: string;
+    username: string;
+    propertyId: string;
+    expiresAt: number;
+}
+
+export interface AdminPropertyPurchaseResult {
+    ok: boolean;
+    commandId: string;
+    username: string;
+    propertyId: string;
+    property?: PropertyView;
+    coinsBefore?: number;
+    coinsAfter?: number;
+    tick?: number;
+    code?: string;
+    error?: string;
+}
+
 type PendingAdminTeleport = AdminTeleportCommand & {
     resolve: (result: AdminTeleportResult) => void;
 };
@@ -229,6 +250,10 @@ type PendingAdminOfflineSave = AdminOfflineSaveCommand & {
 
 type PendingAdminPlayerLogout = AdminPlayerLogoutCommand & {
     resolve: (result: AdminPlayerLogoutResult) => void;
+};
+
+type PendingAdminPropertyPurchase = AdminPropertyPurchaseCommand & {
+    resolve: (result: AdminPropertyPurchaseResult) => void;
 };
 
 class World {
@@ -294,6 +319,7 @@ class World {
     private readonly adminTeleportQueue: PendingAdminTeleport[] = [];
     private readonly adminOfflineSaveQueue: PendingAdminOfflineSave[] = [];
     private readonly adminPlayerLogoutQueue: PendingAdminPlayerLogout[] = [];
+    private readonly adminPropertyPurchaseQueue: PendingAdminPropertyPurchase[] = [];
 
     // debug data
     readonly lastCycleStats: Uint16Array = new Uint16Array(12);
@@ -517,6 +543,7 @@ class World {
             // Local admin commands execute at an explicit world-tick boundary after
             // pending client packets are visible, but before entity processing/movement.
             this.processAdminTeleports();
+            this.processAdminPropertyPurchases();
             this.processAdminPlayerLogouts();
             this.processAdminOfflineSaves();
 
@@ -824,6 +851,92 @@ class World {
                 });
             } catch (error) {
                 reject('internal-error', error instanceof Error ? error.message : String(error));
+            }
+        }
+    }
+
+    listAdminProperties(): { enabled: boolean; properties: PropertyView[] } {
+        return { enabled: isWorldModEnabled('economy.properties'), properties: getPropertyRuntime().list() };
+    }
+
+    enqueueAdminPropertyPurchase(command: AdminPropertyPurchaseCommand): Promise<AdminPropertyPurchaseResult> {
+        if (this.adminPropertyPurchaseQueue.length >= 20) {
+            return Promise.resolve({
+                ok: false,
+                commandId: command.commandId,
+                username: command.username,
+                propertyId: command.propertyId,
+                code: 'queue-full',
+                error: 'The engine property purchase queue is full.'
+            });
+        }
+        return new Promise(resolve => this.adminPropertyPurchaseQueue.push({ ...command, resolve }));
+    }
+
+    private processAdminPropertyPurchases(): void {
+        const commands = this.adminPropertyPurchaseQueue.splice(0);
+        for (const command of commands) {
+            let observedCoins: number | undefined;
+            const reject = (code: string, error: string, coinsBefore?: number) => {
+                recordWorldModDomainEvent('economy.properties', 'purchasesRejected');
+                command.resolve({
+                    ok: false,
+                    commandId: command.commandId,
+                    username: command.username,
+                    propertyId: command.propertyId,
+                    coinsBefore,
+                    coinsAfter: coinsBefore,
+                    tick: this.currentTick,
+                    code,
+                    error
+                });
+            };
+            try {
+                if (Date.now() > command.expiresAt) {
+                    reject('expired', 'The property purchase expired before a world tick could execute it.');
+                    continue;
+                }
+                if (this.shutdown) {
+                    reject('world-shutdown', 'The world is shutting down.');
+                    continue;
+                }
+                const player = this.getPlayerByUsername(command.username);
+                if (!player || !isClientConnected(player)) {
+                    reject('player-offline', 'The player must be online to purchase property.');
+                    continue;
+                }
+                const coinsBefore = player.invTotal(InvType.INV, 995);
+                observedCoins = coinsBefore;
+                const outcome = getPropertyRuntime().purchase({
+                    username: player.username,
+                    coinBalance: () => player.invTotal(InvType.INV, 995),
+                    removeCoins: amount => player.invDel(InvType.INV, 995, amount),
+                    addCoins: amount => player.invAdd(InvType.INV, 995, amount)
+                }, command.propertyId, command.commandId, isWorldModEnabled('economy.properties'));
+                player.addSessionLog(LoggerEventType.MODERATOR, `Property purchase: ${command.propertyId}`, command.commandId);
+                player.messageGame(`Ingatlan megvásárolva: ${outcome.property.displayName}`);
+                this.loginThread.postMessage({
+                    type: 'player_autosave',
+                    username: player.username,
+                    save: player.save()
+                });
+                recordWorldModDomainEvent('economy.properties', 'purchasesCommitted');
+                command.resolve({
+                    ok: true,
+                    commandId: command.commandId,
+                    username: player.displayName,
+                    propertyId: command.propertyId,
+                    property: outcome.property,
+                    coinsBefore,
+                    coinsAfter: outcome.coinsAfter,
+                    tick: this.currentTick
+                });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                const code = message.includes('read-only') ? 'mod-disabled'
+                    : message.includes('Insufficient') ? 'insufficient-funds'
+                        : message.includes('not available') ? 'property-unavailable' : 'purchase-failed';
+                reject(code, message, observedCoins);
             }
         }
     }

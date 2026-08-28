@@ -178,11 +178,18 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 - [x] Kijelölni 1–3 tesztingatlant és hozzájuk szerveroldali konfigurációt készíteni.
 - [ ] Atomi vásárlási tranzakciót megvalósítani: jogosultság, egyenleg, tulajdonjog,
   pénzlevonás és naplózás együtt sikerüljön vagy együtt hiúsuljon meg.
+  - [x] Online játékos inventory-coin walletjét engine-tickre sorosítani,
+    kompenzációval, azonnali autosave-val és fail-closed `pending` kezeléssel.
+  - [x] Auditált gateway API-t és World Admin tesztvásárlási műveletet készíteni.
+  - [ ] Élő játékossal sikeres és elégtelen egyenleges vásárlást ellenőrizni.
+  - [ ] A binary save és a domainadat közötti crash-recovery egyeztető műveletet elkészíteni.
 - [x] Megakadályozni a dupla vásárlást, negatív egyenleget és párhuzamos versenyhelyzetet
   a perzisztált foglalás, idempotenciakulcs és kompenzálható wallet-szerződés szintjén.
 - [x] Perzisztálni a tulajdonjogot, majd újranyitással ellenőrizni.
 - [ ] Játékbeli vizsgálat, vásárlás, belépés és tulajdonosi visszajelzés készítése.
 - [ ] Adminisztrátori lekérdezést és fejlesztői resetet készíteni, naplózással.
+  - [x] Read-only katalógus- és tulajdonlekérdezést adni a World Adminhoz.
+  - [ ] Biztonságos, indoklásköteles fejlesztői resetet és pending-egyeztetést készíteni.
 - [ ] Unit- és integrációs teszteket írni sikeres és sikertelen vásárlásokra.
 - [x] Dokumentálni a gazdasági balansz későbbi kérdéseit: eladás, bérlet, adó,
   fejlesztés, közös tulajdon és inaktív tulajdonos.

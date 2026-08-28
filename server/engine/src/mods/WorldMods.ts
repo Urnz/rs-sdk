@@ -169,6 +169,23 @@ export function getActiveWorldMods(): ActiveWorldModSnapshot {
     return structuredClone(snapshot);
 }
 
+export function isWorldModEnabled(modId: string): boolean {
+    return snapshot.mods[modId]?.enabled === true;
+}
+
+export function recordWorldModDomainEvent(modId: string, counter: string, failed = false, error?: string): void {
+    const metric = snapshot.metrics[modId];
+    if (!metric) return;
+    metric.hookInvocations++;
+    metric.lastHookAt = new Date().toISOString();
+    metric.counters[counter] = (metric.counters[counter] ?? 0) + 1;
+    if (failed) {
+        metric.status = 'error';
+        metric.hookErrors++;
+        metric.lastError = error || 'Unknown domain event failure';
+    }
+}
+
 export function reloadHotWorldMods(): HotReloadResult {
     const result = mergeHotReloadSnapshot(snapshot, loadSnapshot());
     snapshot = result.snapshot;
