@@ -6,10 +6,10 @@
       "displayName": "Varrock keleti műhely",
       "description": "Kis városi műhely az első termelési és vállalkozási kísérletekhez.",
       "type": "workshop",
-      "location": { "x": 3253, "z": 3421, "level": 0, "region": "Varrock East" },
+      "location": { "x": 3247, "z": 3411, "level": 0, "region": "Varrock East" },
       "purchasePrice": 25000,
       "entryPoints": [
-        { "entryPointId": "front-door", "label": "Utcai bejárat", "x": 3253, "z": 3421, "level": 0 }
+        { "entryPointId": "front-door", "label": "Nyugati utcai bejárat", "x": 3247, "z": 3411, "level": 0 }
       ],
       "revenue": { "mode": "none", "amount": 0, "intervalMinutes": 1440 },
       "maintenance": { "amount": 250, "intervalMinutes": 1440 },

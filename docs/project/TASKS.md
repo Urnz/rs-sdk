@@ -189,6 +189,9 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 - [ ] Játékbeli vizsgálat, vásárlás, belépés és tulajdonosi visszajelzés készítése.
   - [x] Dedikált Property sign objektumot, Inspect/Purchase műveletet és
     tulajdonosi/nem tulajdonosi Enter visszajelzést készíteni, élőben ellenőrizve.
+  - [x] A Varrock táblát a bank falából a déli, használaton kívüli műhely utcai
+    bejáratához helyezni, és a banki notice boardokon görgethető, read-only
+    ingatlannyilvántartást adni.
   - [ ] A tulajdonosi Enter engedélyt valódi ajtóhoz vagy belső térhez kötni a
     végleges ingatlanhelyszínek vizuális kijelölése után.
 - [x] Adminisztrátori lekérdezést és fejlesztői resetet készíteni, naplózással.

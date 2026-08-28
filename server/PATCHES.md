@@ -90,6 +90,12 @@ survival) is described in the project memory; this file is the human-readable ch
       modállapotot, inventory coinokat és tulajdont; sikeres vásárlás autosave-ot
       kér. Párosítva a content `properties.loc`, `loc.pack` és `m50_53.jm2`
       bejegyzéseivel. Verify: `bun test server/engine/src/mods/PropertyRuntime.test.ts`
+- [ ] **Játékbeli ingatlannyilvántartás** — a `banknoticeboard` új
+      `Property register` opcióját az `OpLocHandler.ts` és `World.ts` görgethető
+      `questjournal_scroll` nézethez köti. A nézet a PropertyStore aktuális
+      tulajdonosait olvassa, de vásárlást nem kínál. A Varrock műhely táblája a
+      bankfal helyett a `(3247, 3411, 0)` utcai bejáratnál áll. Verify:
+      `bun test server/engine/src/mods/PropertyRegister.test.ts`
 - [ ] **XP curve** — `entity/Player.ts` `getExpByLevel` table: delta uses `level/10.0`
       (custom curve), table stored in ×10 "fine" units (`Math.floor(acc/4) * 10`), L99 =
       10,701,400. **Duplicated in webclient — keep in sync (see below).**

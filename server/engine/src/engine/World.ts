@@ -68,6 +68,8 @@ import Isaac from '#/io/Isaac.js';
 import Packet from '#/io/Packet.js';
 import { ReportAbuseReason } from '#/network/game/client/model/ReportAbuse.js';
 import MessagePrivate from '#/network/game/server/model/MessagePrivate.js';
+import IfSetScrollPos from '#/network/game/server/model/IfSetScrollPos.js';
+import IfSetText from '#/network/game/server/model/IfSetText.js';
 import UpdateFriendList from '#/network/game/server/model/UpdateFriendList.js';
 import UpdateIgnoreList from '#/network/game/server/model/UpdateIgnoreList.js';
 import UpdateRebootTimer from '#/network/game/server/model/UpdateRebootTimer.js';
@@ -106,6 +108,7 @@ import HashTable from '#/datastruct/HashTable.js';
 import Midi from '#/cache/midi/Midi.js';
 import Koth from '#/engine/Koth.js';
 import { getPropertyRuntime, type PropertyView } from '#/mods/PropertyRuntime.js';
+import { formatPropertyRegisterLines } from '#/mods/PropertyRegister.js';
 import type { PropertyPendingResolution, PropertyPurchaseRecord } from '#/mods/PropertyStore.js';
 import { isWorldModEnabled, onWorldModPlayerLogin, recordWorldModDomainEvent } from '#/mods/WorldMods.js';
 
@@ -945,6 +948,27 @@ class World {
             return true;
         }
         return false;
+    }
+
+    handlePropertyRegister(player: Player, x: number, z: number, level: number): boolean {
+        if (Math.max(Math.abs(player.x - x), Math.abs(player.z - z)) > 2 || player.level !== level) {
+            player.messageGame('Walk closer to the bank notice board and try again.');
+            player.unsetMapFlag();
+            return true;
+        }
+
+        const root = Component.getId('questjournal_scroll');
+        const scroll = Component.getId('questjournal_scroll:scroll');
+        const title = Component.getId('questjournal_scroll:ifquestname');
+        const lines = formatPropertyRegisterLines(getPropertyRuntime().list());
+        player.write(new IfSetScrollPos(scroll, 0));
+        player.write(new IfSetText(title, '@dre@Property register'));
+        for (let index = 0; index < 50; index++) {
+            player.write(new IfSetText(Component.getId(`questjournal_scroll:qj${index + 1}`), lines[index] ?? ''));
+        }
+        player.openMainModal(root);
+        recordWorldModDomainEvent('economy.properties', 'registerInspections');
+        return true;
     }
 
     enqueueAdminPropertyPurchase(command: AdminPropertyPurchaseCommand): Promise<AdminPropertyPurchaseResult> {

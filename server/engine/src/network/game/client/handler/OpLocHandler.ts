@@ -46,6 +46,11 @@ export default class OpLocHandler extends ClientGameMessageHandler<OpLoc> {
             return World.handlePropertySign(player, x, z, player.level, message.op);
         }
 
+        if (locId === LocType.getId('banknoticeboard') && message.op === 1) {
+            player.clearPendingAction();
+            return World.handlePropertyRegister(player, x, z, player.level);
+        }
+
         const trigger: ServerTriggerType = ServerTriggerType.APLOC1 + (message.op - 1);
         player.clearPendingAction();
         player.setInteraction(Interaction.ENGINE, loc, trigger);

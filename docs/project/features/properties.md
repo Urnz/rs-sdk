@@ -87,8 +87,11 @@ Az első katalógus három eltérő tesztesetet ad:
 - `falador.south-house`: lakóingatlan és későbbi bérleti alap;
 - `karamja.fishing-hut`: halászati raktár és ellátási lánc.
 
-A Varrock keleti műhely bejárati pontja vizuálisan és élő bottal ellenőrzött. A
-`Property sign` objektum a `(3253, 3421, 0)` mezőn jelenik meg, és három
+A Varrock keleti bank falához tett első tesztpont csak élő bottal volt ellenőrizve,
+normál kliensben a fal eltakarta; ezért nem tekinthető vizuálisan ellenőrzött
+helyszínnek. A véglegesített első tesztingatlan a banktól délre álló, használaton
+kívüli műhely. A `Property sign` objektum a nyugati utcai bejáratnál,
+`(3247, 3411, 0)` mezőn jelenik meg, és három
 szerveroldali műveletet ad:
 
 - `Inspect`: ár, elérhetőség vagy tulajdonos;
@@ -97,13 +100,20 @@ szerveroldali műveletet ad:
 - `Enter`: az MVP-ben tulajdonosi jogosultság-visszajelzés. A valódi ajtó vagy
   belső tér megnyitása a helyszín végleges kialakítása után külön lépés.
 
+A `Bank notice board` objektumok `Property register` művelete központi, csak
+olvasható ingatlannyilvántartást nyit. A görgethető játékbeli felület minden
+katalógusbejegyzés nevét, régióját, típusát, árát és aktuális tulajdonosát mutatja.
+Ez nem váltja ki a helyszíni táblát: vásárolni továbbra is csak az adott ingatlannál
+lehet. A nyilvántartás kikapcsolt modnál is olvasható, összhangban a `read-only`
+lifecycle-szabállyal.
+
 A Falador és Karamja koordináták továbbra is konfigurációs tesztpontok. Valódi
 loc/ajtó bekötés előtt vizuálisan ellenőrizni és szükség esetén módosítani kell
 őket; globális ajtótípusra nem kötünk ingatlanlogikát.
 
 ## Élő ellenőrzés
 
-2026-08-28-án a Varrock táblán egy 70 coinos játékossal ellenőriztük az
+2026-08-28-án a Varrock bankfalhoz tett első teszttáblán egy 70 coinos játékossal ellenőriztük az
 elégtelen egyenleget és a nem tulajdonosi belépés elutasítását. Egy visszaállítható
 tesztbot bankból inventoryba kivett 30 000 coinjával a sikeres vásárlás 25 000
 coint vont le, a tulajdonosi `Enter` engedélyt adott, az `Inspect` pedig az új

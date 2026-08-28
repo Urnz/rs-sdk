@@ -5223,6 +5223,7 @@ desc='Ask about our low, low interest rates!'
 model=model_loc_961
 ambient=50
 active=yes
+op1=Property register
 
 [noticeboard]
 name=Noticeboard
