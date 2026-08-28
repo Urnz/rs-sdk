@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import type { EconomicActorRef } from './EconomicActors.js';
 
 export const propertyTypes = [
     'house', 'farm', 'mine', 'shop', 'workshop', 'inn', 'warehouse', 'castle', 'bank', 'port'
@@ -56,7 +57,7 @@ export interface PropertyCatalog {
 export interface PropertyStateEntry {
     propertyId: string;
     status: PropertyStatus;
-    ownerPlayerId: string | null;
+    owner: EconomicActorRef | null;
     acquiredAt: string | null;
     updatedAt: string;
     version: number;
@@ -199,7 +200,7 @@ export function createInitialPropertyState(catalog: PropertyCatalog, now = new D
         properties: Object.fromEntries(catalog.properties.map(property => [property.propertyId, {
             propertyId: property.propertyId,
             status: 'available',
-            ownerPlayerId: null,
+            owner: null,
             acquiredAt: null,
             updatedAt: now,
             version: 1

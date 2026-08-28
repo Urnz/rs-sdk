@@ -178,17 +178,20 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 - [x] Kijelölni 1–3 tesztingatlant és hozzájuk szerveroldali konfigurációt készíteni.
 - [ ] Atomi vásárlási tranzakciót megvalósítani: jogosultság, egyenleg, tulajdonjog,
   pénzlevonás és naplózás együtt sikerüljön vagy együtt hiúsuljon meg.
-- [ ] Megakadályozni a dupla vásárlást, negatív egyenleget és párhuzamos versenyhelyzetet.
-- [ ] Perzisztálni a tulajdonjogot, majd mentés-visszatöltéssel ellenőrizni.
+- [x] Megakadályozni a dupla vásárlást, negatív egyenleget és párhuzamos versenyhelyzetet
+  a perzisztált foglalás, idempotenciakulcs és kompenzálható wallet-szerződés szintjén.
+- [x] Perzisztálni a tulajdonjogot, majd újranyitással ellenőrizni.
 - [ ] Játékbeli vizsgálat, vásárlás, belépés és tulajdonosi visszajelzés készítése.
 - [ ] Adminisztrátori lekérdezést és fejlesztői resetet készíteni, naplózással.
 - [ ] Unit- és integrációs teszteket írni sikeres és sikertelen vásárlásokra.
-- [ ] Dokumentálni a gazdasági balansz későbbi kérdéseit: eladás, bérlet, adó,
+- [x] Dokumentálni a gazdasági balansz későbbi kérdéseit: eladás, bérlet, adó,
   fejlesztés, közös tulajdon és inaktív tulajdonos.
-- [ ] A modellt úgy kialakítani, hogy később ház, farm, bánya, bolt, műhely,
+- [x] A modellt úgy kialakítani, hogy később ház, farm, bánya, bolt, műhely,
   fogadó, raktár, vár, banképület vagy kikötő is lehessen Property.
-- [ ] Későbbi jogosultságok terve: belépődíj, bérleti díj, alkalmazottak,
+- [x] Későbbi jogosultságok terve: belépődíj, bérleti díj, alkalmazottak,
   hozzáférési területek, árképzés és készletkezelés.
+- [x] A Property, Business és Faction/Governance mod felelősségi határait,
+  stabil hivatkozásait és eseményalapú integrációját dokumentálni.
 
 Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdonjog
 újraindítás után is megmarad, és más nem tudja ugyanazt megvenni.
@@ -269,6 +272,23 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] Mentések verziózása és automatizált migrációs tesztek.
 - [ ] Telemetriai dashboard a szerver, botok, gazdaság és LLM-költségek számára.
 - [ ] Dokumentált kiadási és visszaállítási folyamat.
+
+## 15. Fázis – factionök, államok és joghatóságok
+
+- [ ] Általános Faction és Jurisdiction modell királyságokhoz, városokhoz,
+  uradalmakhoz, céhekhez és más hierarchikus egységekhez.
+- [ ] Területi tagságot és egymásba ágyazott joghatóságot konfigurálni.
+- [ ] Kincstárat és költségvetést a közös gazdasági főkönyvhöz kapcsolni.
+- [ ] Adó-, vám-, illeték- és támogatási szabályokat verziózott policyként kezelni.
+- [ ] Property- és Business-eseményekből idempotens kötelezettségeket képezni.
+- [ ] Adóbeszedést, mentességet, hátralékot és auditálható adminbeavatkozást készíteni.
+- [ ] Az uradalmat joghatósági egységként kezelni, amely több ingatlant birtokolhat,
+  és opcionálisan egy várat vagy más Propertyt használhat székhelyként.
+- [ ] Biztonságos lifecycle: kikapcsolva új kötelezettség ne keletkezzen, de a
+  meglévő kincstár, tartozás és tulajdon read-only módon megmaradjon.
+
+Elfogadási feltétel: két egymásba ágyazott joghatóság szabályai determinisztikusan
+képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla terhelés nélkül.
 
 ## Aktuális következő lépések
 

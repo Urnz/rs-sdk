@@ -12,7 +12,7 @@ elmenti a tulajdonost. Más játékos ugyanazt az ingatlant nem vásárolhatja m
 - `displayName`: játékosnak megjelenő név.
 - `location` és belépési pontok.
 - `purchasePrice`.
-- `ownerPlayerId`: opcionális tulajdonos.
+- `owner`: opcionális `EconomicActorRef`; játékos, vállalkozás vagy faction lehet.
 - `status`: elérhető, foglalt, zárolt vagy letiltott.
 - `version`: későbbi migrációkhoz.
 
@@ -28,6 +28,27 @@ A tulajdonos, a vásárlás időpontja, az aktuális állapot és a revízió k�
 `PropertyState` domainállapot. Ez később tranzakciósan és migrálhatóan
 perzisztálódik. A katalógus cseréje vagy a mod felfüggesztése nem törölhet és nem
 írhat felül tulajdonjogot.
+
+A Property mod nem vállalkozásmanager. A műhely, bolt vagy bánya fizikai és jogi
+eszköz; a benne működő vállalkozás külön modulban él és stabil `propertyId`
+hivatkozással használja vagy bérli. Ugyanígy a királyság, város vagy uradalom
+külön governance domain, amely birtokolhat ingatlant és adót állapíthat meg, de az
+adólogika nem kerül az ingatlanmodba. A részletes határokat az
+`architecture/ECONOMIC_DOMAINS.md` rögzíti.
+
+## Tartós vásárlási állapot
+
+Az első `PropertyStore` külön SQLite-adatbázisban tárolja a tulajdonállapotot és a
+vásárlási tranzakciókat. `BEGIN IMMEDIATE` tranzakció foglalja le az ingatlant,
+ezért egy versenyben csak egy vevő nyerhet. A `transactionId` idempotenciakulcs:
+ugyanaz a kérés nem vonhat le kétszer pénzt, más kérés pedig nem használhatja újra.
+
+A pénztárca adapter `debit` és `refund` művelete szintén idempotens kell legyen.
+A store először tartós `pending` foglalást ír, majd terhel, végül commitolja a
+tulajdont. Terhelési hibánál feloldja a foglalást; commit-hibánál visszatérítést és
+kompenzációt kísérel meg. Egy megszakadt `pending` tranzakció ugyanazzal az
+azonosítóval biztonságosan folytatható. A játékbeli coin inventory adapter még a
+következő integrációs lépés része, ezért az atomi vásárlási TASK addig nem kész.
 
 Az első katalógus három eltérő tesztesetet ad:
 
@@ -49,6 +70,21 @@ mindegyiket vizuálisan ellenőrizni kell, és szükség esetén a katalógusban
 ## Nem része az első MVP-nek
 
 Eladás, bérbeadás, adó, társtulajdon, aukció, berendezés és fejlesztési szintek.
+
+## Későbbi gazdasági és lifecycle-kérdések
+
+- **Eladás:** ki árazhat, mennyi a tranzakciós illeték, és hová kerül a vételár.
+- **Bérlet:** időtartam, kaució, fizetési ütem, hozzáférés és nemfizetés kezelése.
+- **Adó és vám:** a governance mod számítja joghatóság alapján; a Property csak
+  az adóztatható eseményt és értéket közli.
+- **Fejlesztés:** verziózott fejlesztési szint, költség, kapacitás és termelési hatás.
+- **Közös tulajdon:** tulajdoni hányadok, szavazás, bevétel- és költségmegosztás.
+- **Inaktív tulajdonos:** türelmi idő, vagyonkezelés, öröklés vagy szabályozott aukció;
+  automatikus, nyom nélküli elkobzás nem megengedett.
+- **Belépődíj és alkalmazottak:** a Property jogosultságot ellenőriz, a Business
+  adja az alkalmazotti kapcsolatot, a főkönyv pedig végrehajtja a díjfizetést.
+- **Árképzés és készlet:** a vállalkozásmod felelőssége, még akkor is, ha fizikailag
+  egy bolt vagy raktár Propertyben működik.
 
 ## Lifecycle
 

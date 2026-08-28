@@ -41,7 +41,7 @@ describe('property catalog', () => {
                 'varrock.test-workshop': {
                     propertyId: 'varrock.test-workshop',
                     status: 'available',
-                    ownerPlayerId: null,
+                    owner: null,
                     acquiredAt: null,
                     updatedAt: '2026-08-28T12:00:00.000Z',
                     version: 1
