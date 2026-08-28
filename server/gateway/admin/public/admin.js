@@ -279,6 +279,23 @@ function openWorldMap() {
     if (state.worldMapSelected) setTimeout(() => focusWorldBot(state.worldMapSelected), 500);
 }
 
+function openWorldMapAt(x, z, level, label) {
+    const frame = $('#world-map-frame');
+    if (frame.src === 'about:blank') frame.src = state.config.worldMapUrl;
+    state.worldMapSelected = null;
+    renderWorldMapBots();
+    $('#world-map-selected').textContent = `${label} · ${x}, ${z}, ${level}`;
+    $('#world-map-spectate').hidden = true;
+    if ($('#world-admin-dialog').open) $('#world-admin-dialog').close();
+    $('#world-map-dialog').showModal();
+    const focus = () => frame.contentWindow?.postMessage({
+        type: 'rs-map-focus', name: label, x, z, level
+    }, new URL(state.config.worldMapUrl, location.href).origin);
+    if (frame.contentDocument?.readyState === 'complete') focus();
+    else frame.addEventListener('load', focus, { once: true });
+    setTimeout(focus, 400);
+}
+
 function closeWorldMap() {
     $('#world-map-dialog').close();
 }
@@ -652,9 +669,12 @@ function renderProperties() {
             <div class="property-meta">
                 <span>${escapeHtml(property.type)}</span><span>${escapeHtml(property.location.region)}</span>
                 <span>${fmt.format(property.purchasePrice)} coin</span><span>${escapeHtml(property.state.status)}</span>
-                <span>${escapeHtml(owner)}</span>
+                <span>${escapeHtml(owner)}</span><span>${property.location.x}, ${property.location.z}, ${property.location.level}</span>
             </div>
             <div class="property-actions">
+                <button type="button" class="button ghost" data-action="property-map"
+                    data-property-x="${property.location.x}" data-property-z="${property.location.z}"
+                    data-property-level="${property.location.level}" data-property-label="${escapeHtml(property.displayName)}">Térképen</button>
                 <button type="button" class="button ${canBuy ? 'primary' : 'ghost'}" data-action="property-purchase"
                     data-property-id="${escapeHtml(property.propertyId)}" ${canBuy ? '' : 'disabled'}>Tesztvásárlás</button>
                 ${canReset ? `<button type="button" class="button danger" data-action="property-reset"
@@ -744,6 +764,10 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'offline-edit') await showOfflineEditor(name);
         if (button.dataset.action === 'world-focus') focusWorldBot(name);
         if (button.dataset.action === 'world-spectate') { closeWorldMap(); openSpectate(name); }
+        if (button.dataset.action === 'property-map') openWorldMapAt(
+            Number(button.dataset.propertyX), Number(button.dataset.propertyZ),
+            Number(button.dataset.propertyLevel), button.dataset.propertyLabel
+        );
         if (button.dataset.action === 'world-mod-save') await saveWorldMod(button);
         if (button.dataset.action === 'property-purchase') {
             const propertyId = button.dataset.propertyId;

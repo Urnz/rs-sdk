@@ -192,6 +192,8 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
   - [x] A Varrock táblát a bank falából a déli, használaton kívüli műhely utcai
     bejáratához helyezni, és a banki notice boardokon görgethető, read-only
     ingatlannyilvántartást adni.
+  - [x] A World Admin ingatlankártyáin koordinátát és az Élő világtérképre
+    fókuszáló `Térképen` gombot megjeleníteni.
   - [ ] A tulajdonosi Enter engedélyt valódi ajtóhoz vagy belső térhez kötni a
     végleges ingatlanhelyszínek vizuális kijelölése után.
 - [x] Adminisztrátori lekérdezést és fejlesztői resetet készíteni, naplózással.
