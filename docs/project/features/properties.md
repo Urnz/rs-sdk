@@ -47,8 +47,9 @@ A pénztárca adapter `debit` és `refund` művelete szintén idempotens kell le
 A store először tartós `pending` foglalást ír, majd terhel, végül commitolja a
 tulajdont. Terhelési hibánál feloldja a foglalást; commit-hibánál visszatérítést és
 kompenzációt kísérel meg. Egy megszakadt `pending` tranzakció ugyanazzal az
-azonosítóval biztonságosan folytatható. A játékbeli coin inventory adapter még a
-következő integrációs lépés része, ezért az atomi vásárlási TASK addig nem kész.
+azonosítóval biztonságosan folytatható. A játékbeli adapter kizárólag az
+inventory 995-ös coin stackjét használja; a bankban lévő pénz nem elkölthető,
+amíg a játékos ki nem veszi. Siker után az engine azonnali autosave-ot kér.
 
 ## Első engine-integráció
 
@@ -86,8 +87,34 @@ Az első katalógus három eltérő tesztesetet ad:
 - `falador.south-house`: lakóingatlan és későbbi bérleti alap;
 - `karamja.fishing-hut`: halászati raktár és ellátási lánc.
 
-A koordináták jelenleg konfigurációs tesztpontok. Játékbeli loc/ajtó bekötés előtt
-mindegyiket vizuálisan ellenőrizni kell, és szükség esetén a katalógusban módosítani.
+A Varrock keleti műhely bejárati pontja vizuálisan és élő bottal ellenőrzött. A
+`Property sign` objektum a `(3253, 3421, 0)` mezőn jelenik meg, és három
+szerveroldali műveletet ad:
+
+- `Inspect`: ár, elérhetőség vagy tulajdonos;
+- `Purchase`: modállapot-, tulajdon- és inventory-egyenleg ellenőrzés, tartós
+  vásárlás és azonnali autosave;
+- `Enter`: az MVP-ben tulajdonosi jogosultság-visszajelzés. A valódi ajtó vagy
+  belső tér megnyitása a helyszín végleges kialakítása után külön lépés.
+
+A Falador és Karamja koordináták továbbra is konfigurációs tesztpontok. Valódi
+loc/ajtó bekötés előtt vizuálisan ellenőrizni és szükség esetén módosítani kell
+őket; globális ajtótípusra nem kötünk ingatlanlogikát.
+
+## Élő ellenőrzés
+
+2026-08-28-án a Varrock táblán egy 70 coinos játékossal ellenőriztük az
+elégtelen egyenleget és a nem tulajdonosi belépés elutasítását. Egy visszaállítható
+tesztbot bankból inventoryba kivett 30 000 coinjával a sikeres vásárlás 25 000
+coint vont le, a tulajdonosi `Enter` engedélyt adott, az `Inspect` pedig az új
+tulajdonost mutatta. Ezután az ingatlant fejlesztői resettel felszabadítottuk, a
+bot eredeti mentését backupból visszaállítottuk, és a modot a teszt előtti
+kikapcsolt állapotára tettük.
+
+A map build során talált általános `FileStream` cache-hiba is javítva lett: egy
+azonos buildben felülírt archive entry most már az új byte-okat adja vissza. A map
+packer ezt a fájlt is tool dependencyként figyeli, így az `ondemand.zip` és a lite
+botok `LocIndex` cache-e biztosan megkapja az új objektumot.
 
 ## Kötelező szerveroldali szabályok
 

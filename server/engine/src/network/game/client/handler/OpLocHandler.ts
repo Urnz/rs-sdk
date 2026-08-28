@@ -41,6 +41,11 @@ export default class OpLocHandler extends ClientGameMessageHandler<OpLoc> {
             return false;
         }
 
+        if (locId === LocType.getId('property_sign')) {
+            player.clearPendingAction();
+            return World.handlePropertySign(player, x, z, player.level, message.op);
+        }
+
         const trigger: ServerTriggerType = ServerTriggerType.APLOC1 + (message.op - 1);
         player.clearPendingAction();
         player.setInteraction(Interaction.ENGINE, loc, trigger);

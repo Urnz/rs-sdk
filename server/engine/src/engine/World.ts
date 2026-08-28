@@ -1,5 +1,6 @@
 // stdlib
 import fs from 'fs';
+import { randomUUID } from 'node:crypto';
 import { Worker } from 'worker_threads';
 import WSClientSocket from '#/server/ws/WSClientSocket.js';
 
@@ -887,6 +888,63 @@ class World {
         const result = getPropertyRuntime().reconcilePending(transactionId, resolution);
         recordWorldModDomainEvent('economy.properties', 'pendingReconciliations');
         return { ok: true, commandId, ...result, tick: this.currentTick };
+    }
+
+    handlePropertySign(player: Player, x: number, z: number, level: number, op: number): boolean {
+        const runtime = getPropertyRuntime();
+        const property = runtime.findAtEntryPoint(x, z, level);
+        if (!property) return false;
+        if (Math.max(Math.abs(player.x - x), Math.abs(player.z - z)) > 2 || player.level !== level) {
+            player.messageGame('Walk closer to the property sign and try again.');
+            player.unsetMapFlag();
+            return true;
+        }
+        const owner = property.state.owner;
+        const ownsProperty = owner?.kind === 'player' && owner.id === player.username.toLowerCase();
+        if (op === 1) {
+            const ownership = owner ? `Owner: ${owner.kind} ${owner.id}.` : 'This property is available.';
+            player.messageGame(`${property.displayName}: ${property.purchasePrice.toLocaleString('en-GB')} coins.`);
+            player.messageGame(ownership);
+            recordWorldModDomainEvent('economy.properties', 'signInspections');
+            return true;
+        }
+        if (op === 2) {
+            if (ownsProperty) {
+                player.messageGame('You already own this property.');
+                return true;
+            }
+            const transactionId = `game-${randomUUID()}`;
+            try {
+                const outcome = runtime.purchase({
+                    username: player.username,
+                    coinBalance: () => player.invTotal(InvType.INV, 995),
+                    removeCoins: amount => player.invDel(InvType.INV, 995, amount),
+                    addCoins: amount => player.invAdd(InvType.INV, 995, amount)
+                }, property.propertyId, transactionId, isWorldModEnabled('economy.properties'));
+                player.addSessionLog(LoggerEventType.MODERATOR, `Property sign purchase: ${property.propertyId}`, transactionId);
+                player.messageGame(`You purchased ${outcome.property.displayName} for ${outcome.purchase.amount.toLocaleString('en-GB')} coins.`);
+                this.loginThread.postMessage({ type: 'player_autosave', username: player.username, save: player.save() });
+                recordWorldModDomainEvent('economy.properties', 'purchasesCommitted');
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                player.messageGame(message.includes('Insufficient inventory coins')
+                    ? `You need ${property.purchasePrice.toLocaleString('en-GB')} inventory coins to buy this property.`
+                    : `The property purchase failed: ${message}`);
+                recordWorldModDomainEvent('economy.properties', 'purchasesRejected');
+            }
+            return true;
+        }
+        if (op === 3) {
+            if (ownsProperty) {
+                player.messageGame(`The sign recognises you as the owner of ${property.displayName}. Access granted.`);
+                recordWorldModDomainEvent('economy.properties', 'ownerEntries');
+            } else {
+                player.messageGame(owner ? 'Only the property owner may enter.' : 'This property must be purchased before it can be entered.');
+                recordWorldModDomainEvent('economy.properties', 'entriesRejected');
+            }
+            return true;
+        }
+        return false;
     }
 
     enqueueAdminPropertyPurchase(command: AdminPropertyPurchaseCommand): Promise<AdminPropertyPurchaseResult> {

@@ -50,6 +50,12 @@ export class PropertyRuntime {
         return this.store.listPurchases('pending');
     }
 
+    findAtEntryPoint(x: number, z: number, level: number): PropertyView | null {
+        return this.list().find(property => property.entryPoints.some(entry =>
+            entry.x === x && entry.z === z && entry.level === level
+        )) ?? null;
+    }
+
     resetProperty(propertyId: string, expectedVersion: number, now = new Date().toISOString()): PropertyView {
         this.store.resetProperty(propertyId, expectedVersion, now);
         const property = this.list().find(entry => entry.propertyId === propertyId);

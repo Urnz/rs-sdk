@@ -58,6 +58,14 @@ afterEach(() => {
 });
 
 describe('property runtime inventory wallet', () => {
+    test('resolves only an exact configured property entry point', () => {
+        const active = runtime();
+        expect(active.runtime.findAtEntryPoint(3253, 3421, 0)?.propertyId).toBe('varrock.test-workshop');
+        expect(active.runtime.findAtEntryPoint(3253, 3421, 1)).toBeNull();
+        expect(active.runtime.findAtEntryPoint(3254, 3421, 0)).toBeNull();
+        active.store.close();
+    });
+
     test('deducts inventory coins and assigns the property to the normalized player identity', () => {
         const active = runtime();
         const target = player(40000);

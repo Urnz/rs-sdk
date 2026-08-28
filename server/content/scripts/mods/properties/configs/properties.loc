@@ -1,0 +1,11 @@
+[property_sign]
+name=Property sign
+desc=It records the ownership of this property.
+model=model_loc_961
+ambient=50
+active=yes
+op1=Inspect
+op2=Purchase
+op3=Enter
+blockwalk=no
+blockrange=no

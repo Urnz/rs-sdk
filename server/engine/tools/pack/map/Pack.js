@@ -241,7 +241,7 @@ export async function packMaps(cache, modelFlags) {
     const serverStore = openArtifactStore('maps-server', rebuildMapArchive);
     const artifactManifest = loadArtifactManifest(artifactName, rebuildMapArchive);
     let artifactManifestDirty = false;
-    const toolChanged = didFileSetChange('data/pack/.stamps/map-tools.txt', [import.meta.filename]);
+    const toolChanged = didFileSetChange('data/pack/.stamps/map-tools.txt', [import.meta.filename, 'src/io/FileStream.ts']);
     const needsAnyMapPackWork = rebuildMapArchive || shouldBuild(`${Environment.build.srcDir}/maps`, '.jm2', getArtifactManifestPath(artifactName)) || toolChanged;
 
     if (rebuildMapArchive) {

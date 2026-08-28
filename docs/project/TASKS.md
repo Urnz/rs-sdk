@@ -176,21 +176,25 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 - [x] Véglegesíteni az ingatlan domain-modellt: azonosító, hely, ár, tulajdonos,
   típus, állapot, belépési pontok, bevétel, karbantartás és jogosultságok.
 - [x] Kijelölni 1–3 tesztingatlant és hozzájuk szerveroldali konfigurációt készíteni.
-- [ ] Atomi vásárlási tranzakciót megvalósítani: jogosultság, egyenleg, tulajdonjog,
+- [x] Atomi vásárlási tranzakciót megvalósítani: jogosultság, egyenleg, tulajdonjog,
   pénzlevonás és naplózás együtt sikerüljön vagy együtt hiúsuljon meg.
   - [x] Online játékos inventory-coin walletjét engine-tickre sorosítani,
     kompenzációval, azonnali autosave-val és fail-closed `pending` kezeléssel.
   - [x] Auditált gateway API-t és World Admin tesztvásárlási műveletet készíteni.
-  - [ ] Élő játékossal sikeres és elégtelen egyenleges vásárlást ellenőrizni.
+  - [x] Élő játékossal sikeres és elégtelen egyenleges vásárlást ellenőrizni.
   - [x] A binary save és a domainadat közötti crash-recovery egyeztető műveletet elkészíteni.
 - [x] Megakadályozni a dupla vásárlást, negatív egyenleget és párhuzamos versenyhelyzetet
   a perzisztált foglalás, idempotenciakulcs és kompenzálható wallet-szerződés szintjén.
 - [x] Perzisztálni a tulajdonjogot, majd újranyitással ellenőrizni.
 - [ ] Játékbeli vizsgálat, vásárlás, belépés és tulajdonosi visszajelzés készítése.
+  - [x] Dedikált Property sign objektumot, Inspect/Purchase műveletet és
+    tulajdonosi/nem tulajdonosi Enter visszajelzést készíteni, élőben ellenőrizve.
+  - [ ] A tulajdonosi Enter engedélyt valódi ajtóhoz vagy belső térhez kötni a
+    végleges ingatlanhelyszínek vizuális kijelölése után.
 - [x] Adminisztrátori lekérdezést és fejlesztői resetet készíteni, naplózással.
   - [x] Read-only katalógus- és tulajdonlekérdezést adni a World Adminhoz.
   - [x] Biztonságos, indoklásköteles fejlesztői resetet és pending-egyeztetést készíteni.
-- [ ] Unit- és integrációs teszteket írni sikeres és sikertelen vásárlásokra.
+- [x] Unit- és integrációs teszteket írni sikeres és sikertelen vásárlásokra.
 - [x] Dokumentálni a gazdasági balansz későbbi kérdéseit: eladás, bérlet, adó,
   fejlesztés, közös tulajdon és inaktív tulajdonos.
 - [x] A modellt úgy kialakítani, hogy később ház, farm, bánya, bolt, műhely,
@@ -346,4 +350,7 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     a 12. fázis kontrollcsoportos kísérletébe átütemezni.
 18. [x] A 9. fázis ingatlan-domain modelljét, validátorát és három verziózott
     tesztingatlanát elkészíteni, a katalógust a későbbi tulajdonállapottól elválasztva.
-19. [ ] Atomi ingatlanvásárlást és külön perzisztált tulajdonállapotot készíteni.
+19. [x] Atomi ingatlanvásárlást és külön perzisztált tulajdonállapotot készíteni.
+20. [x] A Varrock keleti műhelyhez játékbeli Property sign objektumot és
+    Inspect/Purchase/Enter jogosultsági visszajelzést készíteni, majd a sikeres,
+    elégtelen egyenleges és visszaállítási útvonalat élő botokkal ellenőrizni.

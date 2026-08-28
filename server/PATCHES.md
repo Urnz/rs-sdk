@@ -84,6 +84,12 @@ survival) is described in the project memory; this file is the human-readable ch
       `/api/internal/admin/world-mods/reload` csak azonos adatsémájú `hot-reload`
       modokat cseréli; restart/migráció/rollback esetén megtartja az aktív példányt.
       Verify: `bun test server/gateway/admin/world-mods.test.ts server/engine/src/mods/WorldMods.test.ts`
+- [ ] **Játékbeli Property sign** — `World.ts` és `handler/OpLocHandler.ts` a
+      stabil `property_sign` loc műveleteit a `PropertyRuntime` entry pointjaihoz
+      köti. Az Inspect/Purchase/Enter szerveroldalon újraellenőrzi a távolságot,
+      modállapotot, inventory coinokat és tulajdont; sikeres vásárlás autosave-ot
+      kér. Párosítva a content `properties.loc`, `loc.pack` és `m50_53.jm2`
+      bejegyzéseivel. Verify: `bun test server/engine/src/mods/PropertyRuntime.test.ts`
 - [ ] **XP curve** — `entity/Player.ts` `getExpByLevel` table: delta uses `level/10.0`
       (custom curve), table stored in ×10 "fine" units (`Math.floor(acc/4) * 10`), L99 =
       10,701,400. **Duplicated in webclient — keep in sync (see below).**
@@ -126,6 +132,11 @@ survival) is described in the project memory; this file is the human-readable ch
       dropped in 274. Serves the hiscores ItemViewer at `/ondemand.zip`; without it, newly
       packed item models render as blank hiscores icons. Verify: after `bun run build`,
       `unzip -l data/pack/ondemand.zip` includes the highest model id in `content/pack/model.pack`.
+- [ ] **Pack write-cache coherence** — `src/io/FileStream.ts` sikeres írás után
+      frissíti a folyamaton belüli `packed` cache-t, különben a későbbi
+      `ondemand.zip`-olvasás régi map byte-okat kap. `tools/pack/map/Pack.js` a
+      FileStream változását tool stampként figyeli. Verify:
+      `bun test server/engine/src/io/FileStream.test.ts`
 
 ---
 
