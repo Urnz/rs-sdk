@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "properties": [
+    {
+      "propertyId": "varrock.east-workshop",
+      "displayName": "Varrock keleti műhely",
+      "description": "Kis városi műhely az első termelési és vállalkozási kísérletekhez.",
+      "type": "workshop",
+      "location": { "x": 3253, "z": 3421, "level": 0, "region": "Varrock East" },
+      "purchasePrice": 25000,
+      "entryPoints": [
+        { "entryPointId": "front-door", "label": "Utcai bejárat", "x": 3253, "z": 3421, "level": 0 }
+      ],
+      "revenue": { "mode": "none", "amount": 0, "intervalMinutes": 1440 },
+      "maintenance": { "amount": 250, "intervalMinutes": 1440 },
+      "permissions": {
+        "inspect": ["everyone"],
+        "purchase": ["eligible-player"],
+        "enter": ["owner", "admin"],
+        "manage": ["owner", "admin"]
+      }
+    },
+    {
+      "propertyId": "falador.south-house",
+      "displayName": "Falador déli ház",
+      "description": "Egyszerű lakóingatlan a tulajdonosi belépés és későbbi bérlet teszteléséhez.",
+      "type": "house",
+      "location": { "x": 2969, "z": 3328, "level": 0, "region": "Falador South" },
+      "purchasePrice": 50000,
+      "entryPoints": [
+        { "entryPointId": "front-door", "label": "Főbejárat", "x": 2969, "z": 3328, "level": 0 }
+      ],
+      "revenue": { "mode": "none", "amount": 0, "intervalMinutes": 1440 },
+      "maintenance": { "amount": 500, "intervalMinutes": 1440 },
+      "permissions": {
+        "inspect": ["everyone"],
+        "purchase": ["eligible-player"],
+        "enter": ["owner", "visitor", "admin"],
+        "manage": ["owner", "admin"]
+      }
+    },
+    {
+      "propertyId": "karamja.fishing-hut",
+      "displayName": "Karamjai halászkunyhó",
+      "description": "Kikötőközeli raktár és kunyhó a halászati ellátási lánc későbbi vizsgálatához.",
+      "type": "warehouse",
+      "location": { "x": 2927, "z": 3174, "level": 0, "region": "Musa Point" },
+      "purchasePrice": 35000,
+      "entryPoints": [
+        { "entryPointId": "dock-door", "label": "Kikötői bejárat", "x": 2927, "z": 3174, "level": 0 }
+      ],
+      "revenue": { "mode": "none", "amount": 0, "intervalMinutes": 1440 },
+      "maintenance": { "amount": 350, "intervalMinutes": 1440 },
+      "permissions": {
+        "inspect": ["everyone"],
+        "purchase": ["eligible-player"],
+        "enter": ["owner", "employee", "admin"],
+        "manage": ["owner", "admin"]
+      }
+    }
+  ]
+}

@@ -162,17 +162,20 @@ biztonságosan konfigurálhatók és visszaállíthatók, minden változás audi
 - [x] A számlálókat játékosonként tartósan menteni és verziózni.
 - [x] A játékos/agent számára lekérdezhetővé tenni az aktuális várható XP-szorzót.
 - [x] Tesztelni a határértékeket, regenerációt, újraindítást és párhuzamos jutalmakat.
-- [ ] Mérni, hogy a rendszer ténylegesen növeli-e a felfedezést és diverzifikációt.
-- [ ] Külön vizsgálni a resource respawn, árak és késztermékek értékének hatását.
+- [x] A tényleges felfedezési és diverzifikációs hatás mérését a 12. fázis
+  kontrollcsoportos gazdasági kísérletébe áthelyezni, mert ehhez agentcélok,
+  elegendő skill- és helylefedettség, valamint több párhuzamos agent szükséges.
+- [x] A resource respawn, árak és késztermékek értékének közös kalibrációját a
+  12–14. fázis ismételhető benchmark- és paraméterhangolási feladatai közé sorolni.
 
 Elfogadási feltétel: az ismételt azonos tevékenység/hely kombináció jutalma
 konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 
 ## 9. Fázis – vásárolható ingatlanok (MVP)
 
-- [ ] Véglegesíteni az ingatlan domain-modellt: azonosító, hely, ár, tulajdonos,
+- [x] Véglegesíteni az ingatlan domain-modellt: azonosító, hely, ár, tulajdonos,
   típus, állapot, belépési pontok, bevétel, karbantartás és jogosultságok.
-- [ ] Kijelölni 1–3 tesztingatlant és hozzájuk szerveroldali konfigurációt készíteni.
+- [x] Kijelölni 1–3 tesztingatlant és hozzájuk szerveroldali konfigurációt készíteni.
 - [ ] Atomi vásárlási tranzakciót megvalósítani: jogosultság, egyenleg, tulajdonjog,
   pénzlevonás és naplózás együtt sikerüljön vagy együtt hiúsuljon meg.
 - [ ] Megakadályozni a dupla vásárlást, negatív egyenleget és párhuzamos versenyhelyzetet.
@@ -235,7 +238,15 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
 - [ ] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
-- [ ] Kontrollcsoportos kísérlet a diminishing XP és agent diverzitás hatására.
+- [ ] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
+  egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
+- [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
+  kikapcsolt és bekapcsolt állapotát összehasonlítva.
+- [ ] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
+  termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
+- [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti
+  konfigurációként kezelni; előbb kézi/kereséses, később automatizált vagy
+  tanulásalapú optimalizálással vizsgálni, egyetlen univerzális optimum ígérete nélkül.
 
 ## 13. Fázis – bankrendszer, hitelek és vállalkozások
 
@@ -303,5 +314,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] A tartós számlálókat, regenerációt és regressziós teszteket elkészíteni.
     - [x] A `stateless`, `suspend`, `read-only` és `blocked` kikapcsolási policyt,
       admin preflightot, valamint mentés/restore védelmet megvalósítani.
-17. [ ] Kontrollcsoportos botkísérlettel mérni a diminishing XP diverzitási és
-    economy hatását, beleértve a respawn-, ár- és késztermék-hatásokat.
+17. [x] A 8. fázist technikailag lezárni, a hosszú távú diminishing XP
+    hatásvizsgálatot pedig a szükséges agentcélokkal és skilllefedettséggel együtt
+    a 12. fázis kontrollcsoportos kísérletébe átütemezni.
+18. [x] A 9. fázis ingatlan-domain modelljét, validátorát és három verziózott
+    tesztingatlanát elkészíteni, a katalógust a későbbi tulajdonállapottól elválasztva.
+19. [ ] Atomi ingatlanvásárlást és külön perzisztált tulajdonállapotot készíteni.
