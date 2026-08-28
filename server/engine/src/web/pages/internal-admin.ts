@@ -5,6 +5,7 @@ import World, {
     type AdminOfflineSaveDraft,
     type AdminOfflineSaveResult,
     type AdminPlayerLogoutResult,
+    type AdminPropertyMaintenanceResult,
     type AdminPropertyPurchaseResult,
     type AdminTeleportResult
 } from '#/engine/World.js';
@@ -62,6 +63,8 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     const knownPath = url.pathname === '/api/internal/admin/teleport'
         || url.pathname === '/api/internal/admin/properties'
         || url.pathname === '/api/internal/admin/properties/purchase'
+        || url.pathname === '/api/internal/admin/properties/reset'
+        || url.pathname === '/api/internal/admin/properties/reconcile'
         || url.pathname === '/api/internal/admin/world-mods'
         || url.pathname === '/api/internal/admin/world-mods/reload'
         || url.pathname === '/api/internal/admin/offline-edit'
@@ -117,9 +120,40 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     }
     const username = typeof body.username === 'string' ? body.username.trim() : '';
     const commandId = typeof body.commandId === 'string' ? body.commandId.trim() : '';
-    const validIdentity = /^[a-zA-Z0-9]{1,12}$/.test(username)
-        && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(commandId);
-    if (!validIdentity) return json({ error: 'Invalid admin command identity' }, 400);
+    const validCommandId = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(commandId);
+    if (!validCommandId) return json({ error: 'Invalid admin command identity' }, 400);
+
+    if (url.pathname === '/api/internal/admin/properties/reset') {
+        const propertyId = typeof body.propertyId === 'string' ? body.propertyId.trim() : '';
+        const expectedVersion = body.expectedVersion;
+        if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/.test(propertyId)
+            || !Number.isInteger(expectedVersion) || Number(expectedVersion) < 1) {
+            return json({ error: 'Invalid property reset request' }, 400);
+        }
+        try {
+            const result: AdminPropertyMaintenanceResult = World.adminResetProperty(propertyId, Number(expectedVersion), commandId);
+            return json(result);
+        } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 409);
+        }
+    }
+
+    if (url.pathname === '/api/internal/admin/properties/reconcile') {
+        const transactionId = typeof body.transactionId === 'string' ? body.transactionId.trim() : '';
+        const resolution = body.resolution;
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{7,95}$/.test(transactionId)
+            || (resolution !== 'commit-debited' && resolution !== 'release-unpaid')) {
+            return json({ error: 'Invalid property reconciliation request' }, 400);
+        }
+        try {
+            const result: AdminPropertyMaintenanceResult = World.adminReconcilePending(transactionId, resolution, commandId);
+            return json(result);
+        } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 409);
+        }
+    }
+
+    if (!/^[a-zA-Z0-9]{1,12}$/.test(username)) return json({ error: 'Invalid admin command identity' }, 400);
 
     if (url.pathname === '/api/internal/admin/offline-edit') {
         const draft = body.draft;

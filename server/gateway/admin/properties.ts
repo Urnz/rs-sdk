@@ -22,6 +22,18 @@ export interface AdminPropertyView {
 export interface AdminPropertyList {
     enabled: boolean;
     properties: AdminPropertyView[];
+    pendingPurchases: AdminPropertyPurchaseRecord[];
+}
+
+export interface AdminPropertyPurchaseRecord {
+    transactionId: string;
+    propertyId: string;
+    buyer: AdminPropertyOwner;
+    amount: number;
+    status: 'pending' | 'committed' | 'rejected' | 'compensated';
+    createdAt: string;
+    updatedAt: string;
+    error: string | null;
 }
 
 export interface EnginePropertyPurchaseResult {
@@ -35,6 +47,14 @@ export interface EnginePropertyPurchaseResult {
     tick?: number;
     code?: string;
     error?: string;
+}
+
+export interface EnginePropertyMaintenanceResult {
+    ok: true;
+    commandId: string;
+    property: AdminPropertyView;
+    purchase?: AdminPropertyPurchaseRecord;
+    tick: number;
 }
 
 function engineConfig(): { baseUrl: string; token: string } {
@@ -74,5 +94,29 @@ export function requestEnginePropertyPurchase(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, propertyId, commandId })
+    });
+}
+
+export function requestEnginePropertyReset(
+    propertyId: string,
+    expectedVersion: number,
+    commandId: string
+): Promise<EnginePropertyMaintenanceResult> {
+    return engineRequest('/api/internal/admin/properties/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyId, expectedVersion, commandId })
+    });
+}
+
+export function requestEnginePropertyReconciliation(
+    transactionId: string,
+    resolution: 'commit-debited' | 'release-unpaid',
+    commandId: string
+): Promise<EnginePropertyMaintenanceResult> {
+    return engineRequest('/api/internal/admin/properties/reconcile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId, resolution, commandId })
     });
 }

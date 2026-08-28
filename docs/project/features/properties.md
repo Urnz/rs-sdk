@@ -68,6 +68,18 @@ tranzakciót. Ha egy folyamat pontosan a két tartós írás között szakad meg
 hanem adminisztrátori egyeztetést kér. Ezt később a közös gazdasági főkönyv váltja
 fel teljesen egyadatbázisos atomitással.
 
+A World Admin külön listázza ezeket a félbemaradt tranzakciókat. Az admin a
+játékos mentésének ellenőrzése után két auditált döntést hozhat: `commit-debited`
+esetén újabb coinlevonás nélkül véglegesíti a tulajdont, `release-unpaid` esetén
+coin-visszatérítés nélkül elutasítja a tranzakciót és felszabadítja az ingatlant.
+Ez szándékosan nem automatikus, mert crash után önmagában egyik adattárból sem
+bizonyítható biztonságosan, hogy a másik tartós írás megtörtént-e.
+
+Az indoklásköteles fejlesztői reset optimista verzióellenőrzéssel törli az aktuális
+tulajdonosi állapotot, de nem törli a vásárlási előzményt és nem mozgat coinokat.
+`locked` állapotú ingatlan nem resetelhető: előbb a hozzá tartozó pending
+tranzakciót kell rendezni.
+
 Az első katalógus három eltérő tesztesetet ad:
 
 - `varrock.east-workshop`: termelési/vállalkozási műhely;

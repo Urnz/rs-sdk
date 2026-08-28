@@ -105,6 +105,7 @@ import HashTable from '#/datastruct/HashTable.js';
 import Midi from '#/cache/midi/Midi.js';
 import Koth from '#/engine/Koth.js';
 import { getPropertyRuntime, type PropertyView } from '#/mods/PropertyRuntime.js';
+import type { PropertyPendingResolution, PropertyPurchaseRecord } from '#/mods/PropertyStore.js';
 import { isWorldModEnabled, onWorldModPlayerLogin, recordWorldModDomainEvent } from '#/mods/WorldMods.js';
 
 const priv = forge.pki.privateKeyFromPem(fs.readFileSync('data/config/private.pem', 'ascii'));
@@ -238,6 +239,14 @@ export interface AdminPropertyPurchaseResult {
     tick?: number;
     code?: string;
     error?: string;
+}
+
+export interface AdminPropertyMaintenanceResult {
+    ok: true;
+    commandId: string;
+    property: PropertyView;
+    purchase?: PropertyPurchaseRecord;
+    tick: number;
 }
 
 type PendingAdminTeleport = AdminTeleportCommand & {
@@ -855,8 +864,29 @@ class World {
         }
     }
 
-    listAdminProperties(): { enabled: boolean; properties: PropertyView[] } {
-        return { enabled: isWorldModEnabled('economy.properties'), properties: getPropertyRuntime().list() };
+    listAdminProperties(): { enabled: boolean; properties: PropertyView[]; pendingPurchases: PropertyPurchaseRecord[] } {
+        const runtime = getPropertyRuntime();
+        return {
+            enabled: isWorldModEnabled('economy.properties'),
+            properties: runtime.list(),
+            pendingPurchases: runtime.listPendingPurchases()
+        };
+    }
+
+    adminResetProperty(propertyId: string, expectedVersion: number, commandId: string): AdminPropertyMaintenanceResult {
+        const property = getPropertyRuntime().resetProperty(propertyId, expectedVersion);
+        recordWorldModDomainEvent('economy.properties', 'administratorResets');
+        return { ok: true, commandId, property, tick: this.currentTick };
+    }
+
+    adminReconcilePending(
+        transactionId: string,
+        resolution: PropertyPendingResolution,
+        commandId: string
+    ): AdminPropertyMaintenanceResult {
+        const result = getPropertyRuntime().reconcilePending(transactionId, resolution);
+        recordWorldModDomainEvent('economy.properties', 'pendingReconciliations');
+        return { ok: true, commandId, ...result, tick: this.currentTick };
     }
 
     enqueueAdminPropertyPurchase(command: AdminPropertyPurchaseCommand): Promise<AdminPropertyPurchaseResult> {

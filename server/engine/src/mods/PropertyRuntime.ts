@@ -1,6 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { loadPropertyCatalog, type PropertyCatalog, type PropertyDefinition, type PropertyStateEntry } from './Properties.js';
-import { PropertyStore, type PropertyPurchaseRecord, type PropertyWallet } from './PropertyStore.js';
+import {
+    PropertyStore,
+    type PropertyPendingResolution,
+    type PropertyPurchaseRecord,
+    type PropertyWallet
+} from './PropertyStore.js';
 
 export interface PropertyPlayerWalletTarget {
     username: string;
@@ -39,6 +44,28 @@ export class PropertyRuntime {
             ...property,
             state: states.get(property.propertyId) ?? (() => { throw new Error(`Missing property state: ${property.propertyId}`); })()
         }));
+    }
+
+    listPendingPurchases(): PropertyPurchaseRecord[] {
+        return this.store.listPurchases('pending');
+    }
+
+    resetProperty(propertyId: string, expectedVersion: number, now = new Date().toISOString()): PropertyView {
+        this.store.resetProperty(propertyId, expectedVersion, now);
+        const property = this.list().find(entry => entry.propertyId === propertyId);
+        if (!property) throw new Error(`Reset property disappeared from catalog: ${propertyId}`);
+        return property;
+    }
+
+    reconcilePending(
+        transactionId: string,
+        resolution: PropertyPendingResolution,
+        now = new Date().toISOString()
+    ): { purchase: PropertyPurchaseRecord; property: PropertyView } {
+        const result = this.store.reconcilePending(transactionId, resolution, now);
+        const property = this.list().find(entry => entry.propertyId === result.property.propertyId);
+        if (!property) throw new Error(`Reconciled property disappeared from catalog: ${result.property.propertyId}`);
+        return { purchase: result.purchase, property };
     }
 
     purchase(

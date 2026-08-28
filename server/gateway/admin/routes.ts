@@ -18,7 +18,12 @@ import {
 import type { GatewayBotSnapshot } from './types';
 import { createWorldModBackup, listWorldModBackups, listWorldMods, requestWorldModHotReload, restoreWorldModBackup, updateWorldMod } from './world-mods';
 import { restartLocalEngine } from './engine-supervisor';
-import { listEngineProperties, requestEnginePropertyPurchase } from './properties';
+import {
+    listEngineProperties,
+    requestEnginePropertyPurchase,
+    requestEnginePropertyReconciliation,
+    requestEnginePropertyReset
+} from './properties';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -296,6 +301,60 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({
                     operator: 'local-admin', action: 'property.purchase', username, reason, success: false,
                     before: { propertyId }, after: { commandId }, error: String(error)
+                });
+                throw error;
+            }
+        }
+
+        const propertyResetMatch = url.pathname.match(/^\/api\/admin\/properties\/([a-z0-9.-]+)\/reset$/);
+        if (req.method === 'POST' && propertyResetMatch?.[1]) {
+            const propertyId = propertyResetMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedVersion = body.expectedVersion;
+            if (!Number.isInteger(expectedVersion) || Number(expectedVersion) < 1) {
+                return json({ error: 'Érvénytelen ingatlanverzió.' }, 400);
+            }
+            const commandId = crypto.randomUUID();
+            const before = (await listEngineProperties()).properties.find(property => property.propertyId === propertyId);
+            try {
+                const result = await requestEnginePropertyReset(propertyId, Number(expectedVersion), commandId);
+                await appendAudit({
+                    operator: 'local-admin', action: 'property.developer-reset', reason, success: true,
+                    before, after: { property: result.property, engineTick: result.tick, commandId }
+                });
+                return json({ ok: true, result });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'property.developer-reset', reason, success: false,
+                    before, after: { propertyId, expectedVersion, commandId }, error: String(error)
+                });
+                throw error;
+            }
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/properties/reconcile') {
+            const body = await requestBody(req);
+            const transactionId = text(body, 'transactionId', true);
+            const reason = text(body, 'reason', true);
+            const resolution = body.resolution;
+            if (resolution !== 'commit-debited' && resolution !== 'release-unpaid') {
+                return json({ error: 'Ismeretlen egyeztetési döntés.' }, 400);
+            }
+            const commandId = crypto.randomUUID();
+            const before = (await listEngineProperties()).pendingPurchases
+                .find(purchase => purchase.transactionId === transactionId);
+            try {
+                const result = await requestEnginePropertyReconciliation(transactionId, resolution, commandId);
+                await appendAudit({
+                    operator: 'local-admin', action: 'property.pending-reconcile', reason, success: true,
+                    before, after: { ...result, resolution }
+                });
+                return json({ ok: true, result });
+            } catch (error) {
+                await appendAudit({
+                    operator: 'local-admin', action: 'property.pending-reconcile', reason, success: false,
+                    before, after: { transactionId, resolution, commandId }, error: String(error)
                 });
                 throw error;
             }

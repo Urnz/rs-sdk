@@ -5,6 +5,7 @@ import { validateEconomicActorRef, type EconomicActorRef } from './EconomicActor
 import type { PropertyCatalog, PropertyStateEntry, PropertyStatus } from './Properties.js';
 
 export type PropertyPurchaseStatus = 'pending' | 'committed' | 'rejected' | 'compensated';
+export type PropertyPendingResolution = 'commit-debited' | 'release-unpaid';
 
 export interface PropertyPurchaseRequest {
     transactionId: string;
@@ -133,6 +134,59 @@ export class PropertyStore {
         return row ? purchaseRecord(row as PurchaseRow) : null;
     }
 
+    listPurchases(status?: PropertyPurchaseStatus): PropertyPurchaseRecord[] {
+        const rows = status
+            ? this.database.query('SELECT * FROM property_purchase WHERE status = ?1 ORDER BY created_at').all(status)
+            : this.database.query('SELECT * FROM property_purchase ORDER BY created_at').all();
+        return (rows as PurchaseRow[]).map(purchaseRecord);
+    }
+
+    resetProperty(propertyId: string, expectedVersion: number, now = new Date().toISOString()): PropertyStateEntry {
+        if (!this.definitions.has(propertyId)) throw new Error(`Unknown property: ${propertyId}`);
+        const transaction = this.database.transaction(() => {
+            const pending = this.database.query(`SELECT transaction_id FROM property_purchase
+                WHERE property_id = ?1 AND status = 'pending' LIMIT 1`).get(propertyId);
+            if (pending) throw new Error('Pending property purchase must be reconciled before reset');
+            const result = this.database.run(`UPDATE property_state SET status = 'available', owner_kind = NULL,
+                owner_id = NULL, acquired_at = NULL, updated_at = ?3, version = version + 1
+                WHERE property_id = ?1 AND version = ?2 AND status != 'locked'`, [propertyId, expectedVersion, now]);
+            if (result.changes !== 1) throw new Error('Property state changed before reset; refresh and try again');
+        });
+        transaction.immediate();
+        return this.getProperty(propertyId);
+    }
+
+    reconcilePending(
+        transactionId: string,
+        resolution: PropertyPendingResolution,
+        now = new Date().toISOString()
+    ): { purchase: PropertyPurchaseRecord; property: PropertyStateEntry } {
+        const transaction = this.database.transaction(() => {
+            const purchase = this.getPurchase(transactionId);
+            if (!purchase) throw new Error(`Unknown property purchase: ${transactionId}`);
+            if (purchase.status !== 'pending') throw new Error(`Property purchase already ended as ${purchase.status}`);
+            if (resolution === 'commit-debited') {
+                const state = this.database.run(`UPDATE property_state SET status = 'owned', owner_kind = ?2,
+                    owner_id = ?3, acquired_at = ?4, updated_at = ?4, version = version + 1
+                    WHERE property_id = ?1 AND status = 'locked' AND owner_id IS NULL`,
+                [purchase.propertyId, purchase.buyer.kind, purchase.buyer.id, now]);
+                const record = this.database.run(`UPDATE property_purchase SET status = 'committed', updated_at = ?2,
+                    error = NULL WHERE transaction_id = ?1 AND status = 'pending'`, [transactionId, now]);
+                if (state.changes !== 1 || record.changes !== 1) throw new Error('Pending purchase state is inconsistent');
+            } else {
+                this.releaseProperty(purchase.propertyId, now);
+                const record = this.database.run(`UPDATE property_purchase SET status = 'rejected', updated_at = ?2,
+                    error = 'Administrator reconciled as not debited' WHERE transaction_id = ?1 AND status = 'pending'`,
+                [transactionId, now]);
+                if (record.changes !== 1) throw new Error('Pending purchase state is inconsistent');
+            }
+        });
+        transaction.immediate();
+        const purchase = this.getPurchase(transactionId);
+        if (!purchase) throw new Error(`Reconciled purchase disappeared: ${transactionId}`);
+        return { purchase, property: this.getProperty(purchase.propertyId) };
+    }
+
     purchase(request: PropertyPurchaseRequest, wallet: PropertyWallet, now = new Date().toISOString()): PropertyPurchaseRecord {
         if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{7,95}$/.test(request.transactionId)) {
             throw new Error('Property purchase requires a stable transaction id between 8 and 96 characters');
@@ -188,6 +242,12 @@ export class PropertyStore {
             }
         });
         transaction.immediate();
+    }
+
+    private getProperty(propertyId: string): PropertyStateEntry {
+        const row = this.database.query('SELECT * FROM property_state WHERE property_id = ?1').get(propertyId);
+        if (!row) throw new Error(`Unknown property state: ${propertyId}`);
+        return propertyStateEntry(row as PropertyRow);
     }
 
     private reserve(request: PropertyPurchaseRequest, amount: number, now: string): void {

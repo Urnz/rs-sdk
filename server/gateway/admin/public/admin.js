@@ -646,6 +646,7 @@ function renderProperties() {
     $('#property-list').innerHTML = data.properties.map(property => {
         const owner = property.state.owner ? `${property.state.owner.kind}: ${property.state.owner.id}` : 'Nincs tulajdonos';
         const canBuy = data.enabled && property.state.status === 'available';
+        const canReset = property.state.status === 'owned' || property.state.status === 'disabled';
         return `<article class="property-card">
             <div><h4>${escapeHtml(property.displayName)}</h4><p>${escapeHtml(property.description)}</p></div>
             <div class="property-meta">
@@ -653,10 +654,24 @@ function renderProperties() {
                 <span>${fmt.format(property.purchasePrice)} coin</span><span>${escapeHtml(property.state.status)}</span>
                 <span>${escapeHtml(owner)}</span>
             </div>
-            <button type="button" class="button ${canBuy ? 'primary' : 'ghost'}" data-action="property-purchase"
-                data-property-id="${escapeHtml(property.propertyId)}" ${canBuy ? '' : 'disabled'}>Tesztvásárlás</button>
+            <div class="property-actions">
+                <button type="button" class="button ${canBuy ? 'primary' : 'ghost'}" data-action="property-purchase"
+                    data-property-id="${escapeHtml(property.propertyId)}" ${canBuy ? '' : 'disabled'}>Tesztvásárlás</button>
+                ${canReset ? `<button type="button" class="button danger" data-action="property-reset"
+                    data-property-id="${escapeHtml(property.propertyId)}" data-property-version="${property.state.version}">Fejlesztői reset</button>` : ''}
+            </div>
         </article>`;
     }).join('') || '<p class="empty">Nincs konfigurált ingatlan.</p>';
+    $('#property-pending-list').innerHTML = (data.pendingPurchases || []).map(purchase => `<article class="property-pending-row">
+        <div><strong>${escapeHtml(purchase.propertyId)}</strong><small>${escapeHtml(purchase.transactionId)}</small>
+            <small>${escapeHtml(purchase.buyer.kind)}: ${escapeHtml(purchase.buyer.id)} · ${fmt.format(purchase.amount)} coin · ${escapeHtml(new Date(purchase.createdAt).toLocaleString('hu-HU'))}</small></div>
+        <div class="property-actions">
+            <button type="button" class="button ghost" data-action="property-reconcile" data-resolution="release-unpaid"
+                data-transaction-id="${escapeHtml(purchase.transactionId)}">Nem történt terhelés</button>
+            <button type="button" class="button danger" data-action="property-reconcile" data-resolution="commit-debited"
+                data-transaction-id="${escapeHtml(purchase.transactionId)}">Terhelés megtörtént</button>
+        </div>
+    </article>`).join('') || '<p class="empty">Nincs félbemaradt vásárlás.</p>';
 }
 
 async function refreshWorldAdminData() {
@@ -742,6 +757,35 @@ document.addEventListener('click', async event => {
             });
             await refreshWorldAdminData();
             toast('Az ingatlanvásárlás sikeresen lefutott.');
+        }
+        if (button.dataset.action === 'property-reset') {
+            const propertyId = button.dataset.propertyId;
+            const reason = prompt('A fejlesztői reset indoklása:', 'Phase 9 tesztingatlan felszabadítása');
+            if (!reason?.trim()) return;
+            if (!confirm(`Biztosan felszabadítod ezt az ingatlant: ${propertyId}? A művelet nem térít vissza coinokat.`)) return;
+            await api(`/api/admin/properties/${encodeURIComponent(propertyId)}/reset`, {
+                method: 'POST', mutation: true,
+                body: JSON.stringify({ expectedVersion: Number(button.dataset.propertyVersion), reason: reason.trim() })
+            });
+            await refreshWorldAdminData();
+            toast('Az ingatlan fejlesztői resetje sikeresen lefutott.');
+        }
+        if (button.dataset.action === 'property-reconcile') {
+            const transactionId = button.dataset.transactionId;
+            const resolution = button.dataset.resolution;
+            const debited = resolution === 'commit-debited';
+            const reason = prompt('A pending tranzakció egyeztetésének indoklása:', 'Crash utáni kézi állapotegyeztetés');
+            if (!reason?.trim()) return;
+            const warning = debited
+                ? 'A döntés tulajdonossá teszi a vevőt, de nem von le újabb coinokat.'
+                : 'A döntés felszabadítja az ingatlant, és nem térít vissza coinokat.';
+            if (!confirm(`${warning}\n\nCsak a játékos mentésének ellenőrzése után folytasd.`)) return;
+            await api('/api/admin/properties/reconcile', {
+                method: 'POST', mutation: true,
+                body: JSON.stringify({ transactionId, resolution, reason: reason.trim() })
+            });
+            await refreshWorldAdminData();
+            toast('A félbemaradt vásárlás egyeztetése sikeresen lefutott.');
         }
         if (button.dataset.action === 'world-mod-restore') {
             const backup = state.worldModBackups.find(entry => entry.id === button.dataset.backupId);

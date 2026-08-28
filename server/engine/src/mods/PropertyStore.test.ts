@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { Database } from 'bun:sqlite';
 import { parsePropertyCatalog } from './Properties.js';
 import { PropertyStore, type PropertyWallet } from './PropertyStore.js';
 import type { EconomicActorRef } from './EconomicActors.js';
@@ -134,5 +135,55 @@ describe('property purchase store', () => {
             properties: [{ ...property, propertyId: 'falador.replacement-house', type: 'house' }]
         });
         expect(() => new PropertyStore(replacement, path)).toThrow('cannot remove persisted property');
+    });
+
+    test('resets owned property with optimistic version protection and keeps purchase history', () => {
+        const store = new PropertyStore(catalog, databasePath());
+        store.purchase({ transactionId: 'purchase-reset-01', propertyId: property.propertyId, buyer }, wallet());
+        const owned = store.listProperties()[0]!;
+        expect(() => store.resetProperty(property.propertyId, owned.version - 1)).toThrow('changed before reset');
+        expect(store.resetProperty(property.propertyId, owned.version)).toMatchObject({ status: 'available', owner: null });
+        expect(store.getPurchase('purchase-reset-01')).toMatchObject({ status: 'committed', buyer });
+        store.close();
+    });
+
+    test.each([
+        ['commit-debited' as const, 'committed', 'owned'],
+        ['release-unpaid' as const, 'rejected', 'available']
+    ])('reconciles a pending purchase as %s without moving wallet funds', (resolution, purchaseStatus, propertyStatus) => {
+        const path = databasePath();
+        const initial = new PropertyStore(catalog, path);
+        initial.close();
+        const database = new Database(path, { strict: true });
+        database.run(`UPDATE property_state SET status = 'locked', version = version + 1 WHERE property_id = ?1`, [property.propertyId]);
+        database.run(`INSERT INTO property_purchase
+            (transaction_id, property_id, buyer_kind, buyer_id, amount, status, created_at, updated_at, error)
+            VALUES ('pending-test-01', ?1, 'player', 'ferry14', 25000, 'pending', ?2, ?2, NULL)`,
+        [property.propertyId, '2026-08-28T14:00:00.000Z']);
+        database.close(true);
+
+        const store = new PropertyStore(catalog, path);
+        const result = store.reconcilePending('pending-test-01', resolution, '2026-08-28T14:01:00.000Z');
+        expect(result.purchase.status).toBe(purchaseStatus);
+        expect(result.property.status).toBe(propertyStatus);
+        expect(result.property.owner).toEqual(resolution === 'commit-debited' ? buyer : null);
+        store.close();
+    });
+
+    test('blocks reset while a pending purchase holds the property lock', () => {
+        const path = databasePath();
+        const initial = new PropertyStore(catalog, path);
+        const version = initial.listProperties()[0]!.version;
+        initial.close();
+        const database = new Database(path, { strict: true });
+        database.run(`UPDATE property_state SET status = 'locked' WHERE property_id = ?1`, [property.propertyId]);
+        database.run(`INSERT INTO property_purchase
+            (transaction_id, property_id, buyer_kind, buyer_id, amount, status, created_at, updated_at, error)
+            VALUES ('pending-test-02', ?1, 'player', 'ferry14', 25000, 'pending', ?2, ?2, NULL)`,
+        [property.propertyId, '2026-08-28T14:00:00.000Z']);
+        database.close(true);
+        const store = new PropertyStore(catalog, path);
+        expect(() => store.resetProperty(property.propertyId, version)).toThrow('must be reconciled');
+        store.close();
     });
 });
