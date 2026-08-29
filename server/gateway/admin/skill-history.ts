@@ -19,7 +19,7 @@ export interface AdminSkillRun {
 
 const statuses = new Set<SkillRunStatus>(['completed', 'failed', 'cancelled', 'limit-reached']);
 
-function parseRun(value: unknown): AdminSkillRun | null {
+function parseRun(value: unknown, eventLimit: number): AdminSkillRun | null {
     if (!value || typeof value !== 'object') return null;
     const raw = value as Record<string, unknown>;
     const skill = raw.skill as Record<string, unknown> | undefined;
@@ -30,7 +30,8 @@ function parseRun(value: unknown): AdminSkillRun | null {
         || !skill || typeof skill.id !== 'string' || typeof skill.version !== 'string'
         || typeof raw.status !== 'string' || !statuses.has(raw.status as SkillRunStatus)
         || typeof first !== 'string' || typeof last !== 'string') return null;
-    const username = typeof raw.username === 'string' && /^[a-zA-Z0-9]{1,12}$/.test(raw.username) ? raw.username.toLowerCase() : null;
+    const username = typeof raw.username === 'string' && /^[a-zA-Z0-9 _-]{1,12}$/.test(raw.username)
+        ? raw.username.toLowerCase() : null;
     return {
         runId: raw.runId,
         username,
@@ -42,20 +43,21 @@ function parseRun(value: unknown): AdminSkillRun | null {
         durationMs: Number.isFinite(raw.durationMs) ? Math.max(0, Number(raw.durationMs)) : 0,
         startedAt: first,
         finishedAt: last,
-        events: events.slice(-40)
+        events: events.slice(-eventLimit)
     };
 }
 
-export async function readSkillRunHistory(limit = 30, root = skillRunsDir): Promise<AdminSkillRun[]> {
-    const boundedLimit = Math.max(1, Math.min(100, Math.trunc(limit) || 30));
+export async function readSkillRunHistory(limit = 30, root = skillRunsDir, eventLimit = 40): Promise<AdminSkillRun[]> {
+    const boundedLimit = Math.max(1, Math.min(500, Math.trunc(limit) || 30));
+    const boundedEventLimit = Math.max(1, Math.min(10_000, Math.trunc(eventLimit) || 40));
     const files = (await readdir(root).catch(() => []))
         .filter(file => /^[0-9a-f-]{36}\.json$/i.test(file))
-        .slice(0, 500);
+        .slice(0, 2_000);
     const runs = await Promise.all(files.map(async file => {
         try {
             const contents = await readFile(join(root, file), 'utf8');
             if (contents.length > 1_000_000) return null;
-            return parseRun(JSON.parse(contents));
+            return parseRun(JSON.parse(contents), boundedEventLimit);
         } catch {
             return null;
         }

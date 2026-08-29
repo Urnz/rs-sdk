@@ -16,6 +16,7 @@ import { chunkMessage } from '../../sdk/chunking';
 import { BotSupervisor } from './admin/supervisor';
 import { handleAdminRequest } from './admin/routes';
 import type { AdminItem, GatewayBotSnapshot } from './admin/types';
+import { AgentMemoryIngestionLoop } from './admin/agent-memory-ingestion';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 
@@ -854,6 +855,17 @@ const botSupervisor = new BotSupervisor((username, reason) => {
     SyncModule.sendToBot(session, { type: 'save_and_disconnect', reason });
     return true;
 });
+const agentMemoryIngestion = new AgentMemoryIngestionLoop();
+const memoryIngestionTimer = setInterval(() => {
+    void agentMemoryIngestion.sync().then(result => {
+        if (result.createdEpisodes > 0) {
+            console.log(`[AgentMemory] Created ${result.createdEpisodes} automatic episodes from ${result.matchedRuns} matched runs.`);
+        }
+        for (const error of result.errors) console.error(`[AgentMemory] ${error.runId}: ${error.message}`);
+    }).catch(error => console.error('[AgentMemory] Automatic ingestion failed:', error));
+}, 30_000);
+memoryIngestionTimer.unref?.();
+void agentMemoryIngestion.sync().catch(error => console.error('[AgentMemory] Initial ingestion failed:', error));
 
 // ============ Server Setup ============
 

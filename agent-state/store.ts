@@ -374,6 +374,14 @@ export class AgentStateStore {
         return row ? episode(row as EpisodeRow) : null;
     }
 
+    getEpisodeByExternalKey(agentId: string, externalKey: string): AgentEpisode | null {
+        const normalized = normalizeAgentId(agentId);
+        if (!externalKey || externalKey.length > 160) throw new Error('Episode external key must contain at most 160 characters');
+        const row = this.database.query(`SELECT * FROM agent_episode
+            WHERE agent_id = ?1 AND external_key = ?2`).get(normalized, externalKey);
+        return row ? episode(row as EpisodeRow) : null;
+    }
+
     listEpisodes(agentId: string, options: AgentEpisodeListOptions = {}): AgentEpisode[] {
         const normalized = normalizeAgentId(agentId);
         const limit = options.limit ?? 100;

@@ -167,7 +167,7 @@ function parseRun(value: unknown): JournalRun | null {
     const skill = raw.skill as Record<string, unknown> | undefined;
     if (typeof raw.runId !== 'string' || !/^[0-9a-f-]{36}$/i.test(raw.runId)
         || !skill || typeof skill.id !== 'string' || !Array.isArray(raw.events)) return null;
-    const username = typeof raw.username === 'string' && /^[a-zA-Z0-9]{1,12}$/.test(raw.username)
+    const username = typeof raw.username === 'string' && /^[a-zA-Z0-9 _-]{1,12}$/.test(raw.username)
         ? raw.username.toLowerCase() : null;
     const events = raw.events.filter(event => !!event && typeof event === 'object') as SkillEvent[];
     return { runId: raw.runId, username, skillId: skill.id, events };

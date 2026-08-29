@@ -131,6 +131,7 @@ function renderAgents() {
             return `<div class="agent-episode ${match ? 'relevant' : ''} ${escapeHtml(episode.trust)}">
                 <strong>${escapeHtml(episode.summary)}</strong>
                 <small>${escapeHtml(episodeKindLabels[episode.kind] || episode.kind)} · fontosság ${episode.importance} · ${new Date(episode.occurredAt).toLocaleString('hu-HU')}${match ? ` · relevancia ${match.score}` : ''}</small>
+                <small>forrás: ${escapeHtml(episode.source)} · ${episode.tags.length ? escapeHtml(episode.tags.join(', ')) : 'nincs címke'}</small>
                 ${episode.goalIds.length ? `<small>célok: ${escapeHtml(episode.goalIds.join(', '))}</small>` : ''}
             </div>`;
         }).join('') || '<p class="muted">Még nincs episodic memória.</p>';

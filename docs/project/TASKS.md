@@ -240,6 +240,8 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 - [ ] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
   - [x] Az episodic események idempotens külső kulcsát, opcionális elévülését és
     döntési contextből való automatikus kizárását elkészíteni.
+  - [x] A befejezett skill journalokat és strukturált gazdasági eseményeiket
+    automatikusan, idempotensen trusted episodic memóriává alakítani.
 - [ ] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
 
 Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
@@ -400,3 +402,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 31. [x] A tartós agentet gazdasági szereplőkhöz kapcsolni, majd az aktuális pénzt,
     ingatlant, követelést és kötelezettséget read-only asset-portfólióként az
     adminnézetbe és a korlátozott döntési contextbe illeszteni.
+32. [x] Háttérben futó, LLM nélküli episodic ingestiont készíteni a lezárt
+    agent-skill journalokból és azok termelési, fogyasztási, shop-, trade- és
+    banki eseményeiből, duplikáció- és journal-módosítás elleni védelemmel.

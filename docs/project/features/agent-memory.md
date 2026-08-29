@@ -100,6 +100,19 @@ az utolsó harminc eseményt belső görgetéssel mutatja; a jelenlegi célokhoz
 emlékeket zöld jelölés és a retrieval pontszáma emeli ki. Plannerrel ténylegesen
 elindított skillekről automatikus, célhoz kötött `action` emlék készül.
 
+A gateway háttérfolyamata induláskor, majd harminc másodpercenként átvizsgálja a
+változtathatatlan skill journalokat. A persistent identity játékosneve alapján a
+lezárt futásból trusted `outcome`, a strukturált inventory-bizonyítékból pedig
+`economic` emléket készít termelésről, fogyasztásról, shopműveletről, player
+trade-ről és bankmozgásról. Ismeretlen játékos journalját kihagyja, így nem hoz
+létre automatikusan új agentidentitást.
+
+A `skill-run:<runId>` és `economy:<eventId>` külső kulcs miatt az ismételt scan
+nem duplikál. A feldolgozó az azonos kulcsú rekord tartalmát is újra ellenőrzi:
+ha egy korábban feldolgozott journal később megváltozna, fail-closed ütközést
+jelent, és nem írja át a már létrejött memóriát. Az admin episodic listája a
+forrást és az `automatic` címkét is megmutatja.
+
 ## Semantic memória
 
 A v5 séma az eseményektől elkülönített, tartós tudástárral bővült. A tudás egy

@@ -56,6 +56,12 @@ passes only the bounded result into `buildDecisionContext`. Untrusted statements
 default. Manual episodes can be added on the `Agentek` admin tab, and planner-approved skill starts create a linked
 action episode automatically.
 
+The gateway now reconciles immutable skill-run journals into episodic memory on startup and every 30 seconds. A run
+owned by a persistent identity produces a trusted outcome episode; structured production, consumption, shop, player
+trade and bank evidence produces separate economic episodes. Stable external keys make rescans idempotent, while the
+existing collision check rejects a journal whose content changes after ingestion. Unknown player journals are skipped
+and never create identities implicitly. This ingestion is deterministic and does not require an LLM.
+
 ## Semantic memory
 
 Schema v5 stores durable world, economic, route and procedure knowledge as a structured subject-predicate-object fact
