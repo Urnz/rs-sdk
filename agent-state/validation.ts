@@ -1,9 +1,10 @@
-import type { CreateAgentGoal, CreateAgentIdentity, GoalHorizon, SetAgentWorkingMemory,
-    UpdateAgentIdentity } from './types.js';
+import type { AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentGoal, CreateAgentIdentity,
+    GoalHorizon, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLAYER_PATTERN = /^[a-z0-9 _-]+$/;
 const HORIZONS = new Set<GoalHorizon>(['life', 'long-term', 'current', 'immediate']);
+const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 export class AgentStateValidationError extends Error {
     constructor(public readonly issues: string[]) {
@@ -97,12 +98,34 @@ export function validateCreateGoal(value: CreateAgentGoal): Required<CreateAgent
         horizon,
         title: text(value.title, 'title', issues, 200),
         description: text(value.description ?? '', 'description', issues, 2000, true),
-        priority
+        priority,
+        skill: value.skill === null || value.skill === undefined ? null : validateSkillReference(value.skill, 'skill', issues)
     };
     if (horizon === 'life' && result.parentGoalId !== null) issues.push('a life goal cannot have a parent');
     if (horizon !== 'life' && result.parentGoalId === null) issues.push(`${horizon} goals require a parent`);
     if (issues.length) throw new AgentStateValidationError(issues);
     return result;
+}
+
+function validateSkillReference(value: AgentSkillReference, path: string, issues: string[]): AgentSkillReference {
+    const skillId = id(value?.id, `${path}.id`, issues);
+    const version = text(value?.version, `${path}.version`, issues, 32);
+    if (version && !VERSION_PATTERN.test(version)) issues.push(`${path}.version must use MAJOR.MINOR.PATCH`);
+    return { id: skillId, version };
+}
+
+export function normalizeSkillReference(value: AgentSkillReference): AgentSkillReference {
+    const issues: string[] = [];
+    const normalized = validateSkillReference(value, 'skill', issues);
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return normalized;
+}
+
+export function validateSkillKnowledgeStatus(value: unknown): AgentSkillKnowledgeStatus {
+    if (value !== 'known' && value !== 'preferred' && value !== 'blocked') {
+        throw new AgentStateValidationError(['skill knowledge status must be known, preferred or blocked']);
+    }
+    return value;
 }
 
 export function expectedParentHorizon(horizon: GoalHorizon): GoalHorizon | null {

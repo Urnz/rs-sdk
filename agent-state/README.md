@@ -17,3 +17,10 @@ decision. `buildDecisionContext` may append fresh working memory: current situat
 short observations. Stale working memory is omitted rather than misleading the planner. Both outputs are character
 bounded. Long-lived memory retrieval will be added as separate Phase 10 layers instead of growing the always-present
 context without limit.
+
+Goals may reference an exact immutable agent-skill version. Knowledge of those skills is stored per agent as `known`,
+`preferred` or `blocked`; recording knowledge does not publish or mutate the shared skill definition. The first
+`planNextAction` policy selects the highest-priority active immediate goal. It executes only when working memory is fresh
+and that exact skill version is known, not blocked and present in the caller's trusted catalog. Every result has a
+replayable decision key derived from the input
+revisions. Missing state, goals or knowledge produce explicit non-execution decisions instead of guesses.

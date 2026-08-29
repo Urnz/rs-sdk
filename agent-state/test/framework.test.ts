@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Database } from 'bun:sqlite';
-import { AgentStateStore, AgentStateValidationError, buildCoreIdentity, buildDecisionContext } from '../index.js';
+import { AgentStateStore, AgentStateValidationError, buildCoreIdentity, buildDecisionContext,
+    planNextAction } from '../index.js';
 
 const directories: string[] = [];
 
@@ -196,6 +197,82 @@ describe('working memory', () => {
             observations: Array.from({ length: 13 }, (_, index) => `observation ${index}`), observedAt: 'not-a-date'
         })).toThrow(AgentStateValidationError);
         expect(store.getWorkingMemory('ferrye14')).toBeNull();
+        store.close();
+    });
+});
+
+describe('known skills and deterministic planner', () => {
+    const miningSkill = { id: 'mining.varrock-east.copper-to-bank', version: '1.0.0' };
+
+    function plannedStore(): AgentStateStore {
+        const store = new AgentStateStore(databasePath());
+        addIdentity(store);
+        store.createGoal('ferrye14', { goalId: 'life.main', horizon: 'life', title: 'Build an independent life' });
+        store.createGoal('ferrye14', { goalId: 'long.workshop', parentGoalId: 'life.main',
+            horizon: 'long-term', title: 'Own a workshop' });
+        store.createGoal('ferrye14', { goalId: 'current.capital', parentGoalId: 'long.workshop',
+            horizon: 'current', title: 'Build capital' });
+        store.createGoal('ferrye14', { goalId: 'now.mine', parentGoalId: 'current.capital',
+            horizon: 'immediate', title: 'Mine copper', priority: 80, skill: miningSkill });
+        store.setWorkingMemory('ferrye14', null, { summary: 'Ready in Varrock.',
+            location: { x: 3285, z: 3367, level: 0 }, observedAt: '2026-08-29T12:00:00.000Z' });
+        return store;
+    }
+
+    test('persists versioned skill knowledge with optimistic updates', () => {
+        const path = databasePath();
+        let store = new AgentStateStore(path);
+        addIdentity(store);
+        const learned = store.setSkillKnowledge('ferrye14', miningSkill, 'known', null,
+            '2026-08-29T11:00:00.000Z');
+        expect(learned.revision).toBe(1);
+        expect(() => store.setSkillKnowledge('ferrye14', miningSkill, 'preferred', null)).toThrow('changed before update');
+        const preferred = store.setSkillKnowledge('ferrye14', miningSkill, 'preferred', learned.revision);
+        expect(preferred.status).toBe('preferred');
+        store.close();
+        store = new AgentStateStore(path);
+        expect(store.listSkillKnowledge('ferrye14')).toEqual([expect.objectContaining({
+            skill: miningSkill, status: 'preferred', revision: 2
+        })]);
+        store.close();
+    });
+
+    test('selects the highest-priority immediate goal byte-for-byte deterministically', () => {
+        const store = plannedStore();
+        store.createGoal('ferrye14', { goalId: 'now.lower', parentGoalId: 'current.capital',
+            horizon: 'immediate', title: 'Lower priority task', priority: 20,
+            skill: { id: 'shopping.lumbridge.buy-hammers', version: '1.0.0' } });
+        store.setSkillKnowledge('ferrye14', miningSkill, 'known', null);
+        const snapshot = store.getSnapshot('ferrye14')!;
+        const options = { now: '2026-08-29T12:01:00.000Z', availableSkills: [miningSkill] };
+        const first = planNextAction(snapshot, options);
+        expect(first.kind).toBe('execute-skill');
+        expect(first.goalId).toBe('now.mine');
+        expect(first.skill).toEqual(miningSkill);
+        expect(planNextAction(snapshot, options)).toEqual(first);
+        store.close();
+    });
+
+    test('fails closed for stale observations and unknown or blocked skills', () => {
+        const store = plannedStore();
+        let snapshot = store.getSnapshot('ferrye14')!;
+        expect(planNextAction(snapshot, { now: '2026-08-29T12:06:00.000Z' }).kind).toBe('refresh-state');
+        expect(planNextAction(snapshot, { now: '2026-08-29T12:01:00.000Z' }).reason).toContain('not learned');
+        const learned = store.setSkillKnowledge('ferrye14', miningSkill, 'known', null);
+        snapshot = store.getSnapshot('ferrye14')!;
+        expect(planNextAction(snapshot, { now: '2026-08-29T12:01:00.000Z' }).reason).toContain('trusted catalog');
+        store.setSkillKnowledge('ferrye14', miningSkill, 'blocked', learned.revision);
+        snapshot = store.getSnapshot('ferrye14')!;
+        expect(planNextAction(snapshot, { now: '2026-08-29T12:01:00.000Z', availableSkills: [miningSkill] }).reason)
+            .toContain('blocked');
+        store.close();
+    });
+
+    test('does not demand an observation when no immediate goal exists', () => {
+        const store = new AgentStateStore(databasePath());
+        addIdentity(store);
+        expect(planNextAction(store.getSnapshot('ferrye14')!, { now: '2026-08-29T12:01:00.000Z' }).kind)
+            .toBe('no-immediate-goal');
         store.close();
     });
 });

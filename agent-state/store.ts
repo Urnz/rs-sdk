@@ -2,10 +2,11 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
-    type AgentWorkingMemory, type CreateAgentGoal, type CreateAgentIdentity, type GoalStatus,
-    type SetAgentWorkingMemory, type UpdateAgentIdentity } from './types.js';
+    type AgentSkillKnowledge, type AgentSkillKnowledgeStatus, type AgentSkillReference, type AgentWorkingMemory,
+    type CreateAgentGoal, type CreateAgentIdentity, type GoalStatus, type SetAgentWorkingMemory,
+    type UpdateAgentIdentity } from './types.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
-    validateIdentityPatch, validateWorkingMemory } from './validation.js';
+    normalizeSkillReference, validateIdentityPatch, validateSkillKnowledgeStatus, validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
     agent_id: string; player_username: string; display_name: string; background: string;
@@ -14,11 +15,15 @@ interface IdentityRow {
 interface GoalRow {
     goal_id: string; agent_id: string; parent_goal_id: string | null; horizon: AgentGoal['horizon'];
     title: string; description: string; status: GoalStatus; priority: number; created_at: string;
-    updated_at: string; completed_at: string | null; revision: number;
+    skill_id: string | null; skill_version: string | null; updated_at: string; completed_at: string | null; revision: number;
 }
 interface WorkingMemoryRow {
     agent_id: string; summary: string; current_activity: string | null; location: string | null;
     observations: string; observed_at: string; updated_at: string; revision: number;
+}
+interface SkillKnowledgeRow {
+    agent_id: string; skill_id: string; skill_version: string; status: AgentSkillKnowledgeStatus;
+    learned_at: string; updated_at: string; revision: number;
 }
 
 function identity(row: IdentityRow): AgentIdentity {
@@ -30,7 +35,12 @@ function identity(row: IdentityRow): AgentIdentity {
 function goal(row: GoalRow): AgentGoal {
     return { goalId: row.goal_id, agentId: row.agent_id, parentGoalId: row.parent_goal_id, horizon: row.horizon,
         title: row.title, description: row.description, status: row.status, priority: row.priority,
+        skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
         createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at, revision: row.revision };
+}
+function skillKnowledge(row: SkillKnowledgeRow): AgentSkillKnowledge {
+    return { agentId: row.agent_id, skill: { id: row.skill_id, version: row.skill_version }, status: row.status,
+        learnedAt: row.learned_at, updatedAt: row.updated_at, revision: row.revision };
 }
 function workingMemory(row: WorkingMemoryRow): AgentWorkingMemory {
     return { agentId: row.agent_id, summary: row.summary, currentActivity: row.current_activity,
@@ -104,9 +114,11 @@ export class AgentStateStore {
                 if (parent.status !== 'active') throw new Error('Goal parent must be active');
             }
             this.database.run(`INSERT INTO agent_goal
-                (goal_id, agent_id, parent_goal_id, horizon, title, description, status, priority, created_at, updated_at, completed_at, revision)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'active', ?7, ?8, ?8, NULL, 1)`,
-            [value.goalId, normalizedAgentId, value.parentGoalId, value.horizon, value.title, value.description, value.priority, now]);
+                (goal_id, agent_id, parent_goal_id, horizon, title, description, status, priority, skill_id, skill_version,
+                created_at, updated_at, completed_at, revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'active', ?7, ?8, ?9, ?10, ?10, NULL, 1)`,
+            [value.goalId, normalizedAgentId, value.parentGoalId, value.horizon, value.title, value.description,
+                value.priority, value.skill?.id ?? null, value.skill?.version ?? null, now]);
         });
         transaction.immediate();
         return this.requireGoal(value.goalId);
@@ -189,10 +201,53 @@ export class AgentStateStore {
         return row ? workingMemory(row as WorkingMemoryRow) : null;
     }
 
+    setSkillKnowledge(agentId: string, skill: AgentSkillReference, status: AgentSkillKnowledgeStatus,
+        expectedRevision: number | null, now = new Date().toISOString()): AgentSkillKnowledge {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const normalizedSkill = normalizeSkillReference(skill);
+        const normalizedStatus = validateSkillKnowledgeStatus(status);
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalizedAgentId);
+            const existing = this.getSkillKnowledge(normalizedAgentId, normalizedSkill);
+            if (!existing) {
+                if (expectedRevision !== null) throw new Error('Agent skill knowledge changed before update; refresh and try again');
+                this.database.run(`INSERT INTO agent_skill_knowledge
+                    (agent_id, skill_id, skill_version, status, learned_at, updated_at, revision)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?5, 1)`,
+                [normalizedAgentId, normalizedSkill.id, normalizedSkill.version, normalizedStatus, now]);
+                return;
+            }
+            if (expectedRevision === null || existing.revision !== expectedRevision) {
+                throw new Error('Agent skill knowledge changed before update; refresh and try again');
+            }
+            const result = this.database.run(`UPDATE agent_skill_knowledge SET status = ?5, updated_at = ?6,
+                revision = revision + 1 WHERE agent_id = ?1 AND skill_id = ?2 AND skill_version = ?3 AND revision = ?4`,
+            [normalizedAgentId, normalizedSkill.id, normalizedSkill.version, expectedRevision, normalizedStatus, now]);
+            if (result.changes !== 1) throw new Error('Agent skill knowledge changed before update; refresh and try again');
+        });
+        transaction.immediate();
+        return this.getSkillKnowledge(normalizedAgentId, normalizedSkill)!;
+    }
+
+    getSkillKnowledge(agentId: string, skill: AgentSkillReference): AgentSkillKnowledge | null {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const normalizedSkill = normalizeSkillReference(skill);
+        const row = this.database.query(`SELECT * FROM agent_skill_knowledge
+            WHERE agent_id = ?1 AND skill_id = ?2 AND skill_version = ?3`)
+            .get(normalizedAgentId, normalizedSkill.id, normalizedSkill.version);
+        return row ? skillKnowledge(row as SkillKnowledgeRow) : null;
+    }
+
+    listSkillKnowledge(agentId: string): AgentSkillKnowledge[] {
+        const normalized = normalizeAgentId(agentId);
+        return (this.database.query(`SELECT * FROM agent_skill_knowledge WHERE agent_id = ?1
+            ORDER BY skill_id, skill_version`).all(normalized) as SkillKnowledgeRow[]).map(skillKnowledge);
+    }
+
     getSnapshot(agentId: string): AgentSnapshot | null {
         const found = this.getIdentity(agentId);
         return found ? { identity: found, goals: this.listGoals(found.agentId),
-            workingMemory: this.getWorkingMemory(found.agentId) } : null;
+            workingMemory: this.getWorkingMemory(found.agentId), knownSkills: this.listSkillKnowledge(found.agentId) } : null;
     }
 
     private requireIdentity(agentId: string): AgentIdentity {
@@ -238,6 +293,21 @@ export class AgentStateStore {
                     observed_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                     revision INTEGER NOT NULL CHECK (revision >= 1))`);
                 this.database.run('PRAGMA user_version = 2');
+            });
+            transaction.immediate();
+        }
+        if (version < 3) {
+            const transaction = this.database.transaction(() => {
+                this.database.run('ALTER TABLE agent_goal ADD COLUMN skill_id TEXT');
+                this.database.run('ALTER TABLE agent_goal ADD COLUMN skill_version TEXT');
+                this.database.run(`CREATE TABLE agent_skill_knowledge (
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    skill_id TEXT NOT NULL, skill_version TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('known', 'preferred', 'blocked')),
+                    learned_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    PRIMARY KEY (agent_id, skill_id, skill_version))`);
+                this.database.run('PRAGMA user_version = 3');
             });
             transaction.immediate();
         }

@@ -367,3 +367,5 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     négyszintű célhierarchia és korlátozott core identity context.
 24. [x] Tartós, frissességkorlátos working memoryt és korlátozott döntési
     kontextust készíteni az aktuális helyzethez, tevékenységhez és pozícióhoz.
+25. [x] Az agent céljait egzakt, verziózott agent skillekhez kötni, az ismert
+    skilleket tartósítani, és fail-closed determinisztikus skillválasztót készíteni.

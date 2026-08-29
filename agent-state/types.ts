@@ -1,7 +1,13 @@
-export const AGENT_STATE_SCHEMA_VERSION = 2 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 3 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
+export type AgentSkillKnowledgeStatus = 'known' | 'preferred' | 'blocked';
+
+export interface AgentSkillReference {
+    id: string;
+    version: string;
+}
 
 export interface AgentIdentity {
     schemaVersion: typeof AGENT_STATE_SCHEMA_VERSION;
@@ -42,6 +48,7 @@ export interface AgentGoal {
     description: string;
     status: GoalStatus;
     priority: number;
+    skill: AgentSkillReference | null;
     createdAt: string;
     updatedAt: string;
     completedAt: string | null;
@@ -55,6 +62,7 @@ export interface CreateAgentGoal {
     title: string;
     description?: string;
     priority?: number;
+    skill?: AgentSkillReference | null;
 }
 
 export interface AgentLocation {
@@ -83,8 +91,18 @@ export interface SetAgentWorkingMemory {
     observedAt: string;
 }
 
+export interface AgentSkillKnowledge {
+    agentId: string;
+    skill: AgentSkillReference;
+    status: AgentSkillKnowledgeStatus;
+    learnedAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
 export interface AgentSnapshot {
     identity: AgentIdentity;
     goals: AgentGoal[];
     workingMemory: AgentWorkingMemory | null;
+    knownSkills: AgentSkillKnowledge[];
 }

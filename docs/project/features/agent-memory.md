@@ -34,6 +34,19 @@ optimista revision-védett és újraindítás után is megmarad. A
 illeszti a core identity után; alapértelmezésben az öt percnél régebbi pillanatkép
 kimarad, nehogy a planner elavult helyzetből döntsön.
 
+A v3 sémában az azonnali cél opcionálisan egy egzakt, változtathatatlan
+`skill-id@verzió` hivatkozást kap. Az agentenkénti skillismeret ettől külön,
+tartós rekord: `known`, `preferred` vagy `blocked`. Ettől a közös skillkatalógus
+nem módosul, és egy újabb skillverziót az agent sem kap meg automatikusan.
+
+Az első `planNextAction` szabályalapú planner a legmagasabb prioritású aktív
+azonnali célt választja. Csak friss working memory és az egzakt skillverzió
+ismerete, valamint a futtató által átadott megbízható katalógusban való jelenléte
+mellett ad `execute-skill` döntést. Hiányzó vagy régi megfigyelésnél,
+ismeretlen/blokkolt skillnél, illetve cél hiányában külön, nem végrehajtó eredményt
+ad. A decision key az érintett rekordok revisionjeiből készül, ezért ugyanaz a
+snapshot ugyanazzal az időparaméterrel teljesen reprodukálható.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.
@@ -57,8 +70,8 @@ plannerrel kell bizonyítani. Így az LLM nem rejti el az állapotkezelési hib�
 
 ## Következő szelet
 
-Egy minimális, determinisztikus planner készül, amely játékbeli megfigyelésből
-frissíti a working memoryt, majd az azonnali cél és az ismert agent skillek alapján
-választ következő magas szintű műveletet. Ezután jön az
-episodic, semantic és social memória külön tárolóval és retrieval-szabályokkal.
+A következő integráció a bot élő megfigyeléséből frissíti a working memoryt, majd
+a planner `execute-skill` döntését az agent-skillek meglévő, korlátozott futtatójához
+adja át. Ezután jön az episodic, semantic és social memória külön tárolóval és
+retrieval-szabályokkal.
 
