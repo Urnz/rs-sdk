@@ -138,7 +138,20 @@ Az Agentek fül `+ Tudás` párbeszédében célok és korábbi episodic bizony�
 kapcsolhatók az állításhoz. Korábbi aktív tudás felülírásakor az alany, az állítás
 és a címkék automatikusan kitöltődnek; az új értéket, összefoglalót és confidence-t
 az admin adja meg. A kártyán zöld jelölést kapnak az aktuális döntéshez releváns
-semantic elemek.
+semantic elemek, és külön látszik a tudás forrása és címkézése.
+
+### Automatikus semantic konszolidáció
+
+A v8 séma külön, tartós evidence ledgerben számolja, hogy egy agent ugyanazzal a
+verziózott skillel hányszor termelte meg ugyanazt az itemet. Csak trusted,
+strukturált és nem részleges production esemény számít; egy journal újraolvasása
+nem növeli kétszer a bizonyítékot. Három, öt, tíz és húsz megfigyelésnél a rendszer
+60, 70, 82, illetve 92 confidence-ű eljárástudást hoz létre. Az újabb küszöb a
+korábbit `superseded` állapotba teszi, de a régi változat és bizonyítékai megmaradnak.
+
+A konszolidáció teljesen determinisztikus és nem igényel LLM-et. Automatikusan
+csak saját `consolidation` forrású állítást frissíthet; ha ugyanarra az alany–állítás
+párra kézi vagy rendszereredetű aktív tudás létezik, azt érintetlenül hagyja.
 
 ## Társas memória
 

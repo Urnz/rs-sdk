@@ -142,6 +142,7 @@ function renderAgents() {
                 <strong>${escapeHtml(item.subject)} · ${escapeHtml(item.predicate)} → ${escapeHtml(item.object)}</strong>
                 <small>${escapeHtml(item.summary)}</small>
                 <small>${escapeHtml(knowledgeKindLabels[item.kind] || item.kind)} · bizonyosság ${item.confidence} · ${escapeHtml(item.status)}${match ? ` · relevancia ${match.score}` : ''}</small>
+                <small>forrás: ${escapeHtml(item.source)}${item.tags?.length ? ` · ${item.tags.map(escapeHtml).join(', ')}` : ''}</small>
             </div>`;
         }).join('') || '<p class="muted">Még nincs semantic memória.</p>';
         const relevantSocial = new Map(agent.relevantRelationships

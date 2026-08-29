@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { CreateAgentEpisode } from '../../../agent-state/types.js';
 import { agentStateDbPath, skillRunsDir } from './paths.js';
@@ -9,9 +10,21 @@ export interface AgentMemoryIngestionResult {
     matchedRuns: number;
     createdEpisodes: number;
     existingEpisodes: number;
+    createdKnowledge: number;
+    existingKnowledge: number;
+    blockedConsolidations: number;
     skippedRuns: number;
     errors: Array<{ runId: string; message: string }>;
     completedAt: string;
+}
+
+interface ProductionObservation {
+    agentId: string;
+    skillId: string;
+    skillVersion: string;
+    item: EconomyEvent['itemsIn'][number];
+    event: EconomyEvent;
+    episodeId: string;
 }
 
 function bounded(value: string, maximum: number): string {
@@ -61,6 +74,75 @@ function economyEpisode(event: EconomyEvent): CreateAgentEpisode {
     };
 }
 
+function digest(value: string): string {
+    return createHash('sha256').update(value).digest('hex').slice(0, 24);
+}
+
+function productionRule(observation: ProductionObservation) {
+    const itemKey = observation.item.id === null
+        ? `name:${observation.item.name.toLocaleLowerCase('en-US')}` : `id:${observation.item.id}`;
+    const hash = digest(`${observation.skillId}@${observation.skillVersion}|${itemKey}`);
+    return { ruleKey: `production.${hash}`, subject: `skill-output:${hash}`,
+        predicate: 'produces-item', hash };
+}
+
+function consolidationTier(count: number): { threshold: number; confidence: number } | null {
+    if (count >= 20) return { threshold: 20, confidence: 92 };
+    if (count >= 10) return { threshold: 10, confidence: 82 };
+    if (count >= 5) return { threshold: 5, confidence: 70 };
+    if (count >= 3) return { threshold: 3, confidence: 60 };
+    return null;
+}
+
+function consolidateProductionKnowledge(store: AgentStateStore, observations: ProductionObservation[],
+    result: AgentMemoryIngestionResult): void {
+    const groups = new Map<string, { rule: ReturnType<typeof productionRule>; sample: ProductionObservation }>();
+    for (const observation of observations) {
+        const rule = productionRule(observation);
+        try {
+            store.recordConsolidationEvidence(observation.agentId, {
+                ruleKey: rule.ruleKey,
+                evidenceKey: `economy:${observation.event.id}:item:${rule.hash}`,
+                episodeId: observation.episodeId,
+                occurredAt: observation.event.timestamp
+            }, result.completedAt);
+            groups.set(`${observation.agentId}:${rule.ruleKey}`, { rule, sample: observation });
+        } catch (error) {
+            result.errors.push({ runId: observation.event.runId,
+                message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+    for (const { rule, sample } of groups.values()) {
+        const count = store.countConsolidationEvidence(sample.agentId, rule.ruleKey);
+        const tier = consolidationTier(count);
+        if (!tier) continue;
+        const externalKey = `consolidation:production:${rule.hash}:threshold:${tier.threshold}`;
+        const active = store.listKnowledge(sample.agentId, { status: 'active', limit: 500 })
+            .find(item => item.subject.toLocaleLowerCase('en-US') === rule.subject.toLocaleLowerCase('en-US')
+                && item.predicate === rule.predicate);
+        if (active?.externalKey === externalKey) { result.existingKnowledge++; continue; }
+        if (active && active.source !== 'consolidation') { result.blockedConsolidations++; continue; }
+        const evidence = store.listConsolidationEvidence(sample.agentId, rule.ruleKey, tier.threshold);
+        try {
+            store.createKnowledge(sample.agentId, {
+                knowledgeId: `consolidation.${rule.hash}.${tier.threshold}`,
+                kind: 'procedure', subject: rule.subject, predicate: rule.predicate,
+                object: bounded(sample.item.id === null ? sample.item.name : `item:${sample.item.id}:${sample.item.name}`, 500),
+                summary: bounded(`${sample.skillId}@${sample.skillVersion} repeatedly produced ${sample.item.name} in ${tier.threshold} trusted observations.`, 500),
+                confidence: tier.confidence, tags: ['automatic', 'consolidation', 'production',
+                    bounded(`${sample.skillId}@${sample.skillVersion}`, 100),
+                    `threshold-${tier.threshold}`], evidenceEpisodeIds: evidence.map(item => item.episodeId),
+                source: 'consolidation', supersedesId: active?.knowledgeId ?? null, externalKey,
+                validFrom: evidence.at(-1)?.occurredAt ?? sample.event.timestamp
+            }, result.completedAt);
+            result.createdKnowledge++;
+        } catch (error) {
+            result.errors.push({ runId: `consolidation:${rule.ruleKey}`,
+                message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+}
+
 export async function ingestAgentMemories(options: {
     databasePath?: string;
     runRoot?: string;
@@ -70,29 +152,40 @@ export async function ingestAgentMemories(options: {
     const runs = await readSkillRunHistory(options.limit ?? 500, options.runRoot ?? skillRunsDir, 10_000);
     const store = new AgentStateStore(options.databasePath ?? agentStateDbPath);
     const result: AgentMemoryIngestionResult = { scannedRuns: runs.length, matchedRuns: 0,
-        createdEpisodes: 0, existingEpisodes: 0, skippedRuns: 0, errors: [],
+        createdEpisodes: 0, existingEpisodes: 0, createdKnowledge: 0, existingKnowledge: 0,
+        blockedConsolidations: 0, skippedRuns: 0, errors: [],
         completedAt: options.now ?? new Date().toISOString() };
     try {
         const agentByPlayer = new Map(store.listIdentities().map(identity => [identity.playerUsername, identity.agentId]));
+        const productionObservations: ProductionObservation[] = [];
         for (const run of [...runs].sort((left, right) => left.startedAt.localeCompare(right.startedAt))) {
             const agentId = run.username ? agentByPlayer.get(run.username) : undefined;
             if (!agentId) { result.skippedRuns++; continue; }
             result.matchedRuns++;
-            const episodes = [skillRunEpisode(run), ...extractEconomyEvents({
+            const economicEvents = extractEconomyEvents({
                 runId: run.runId, username: run.username, skillId: run.skill.id, events: run.events
-            }).map(economyEpisode)];
-            for (const episode of episodes) {
+            });
+            const episodes = [{ episode: skillRunEpisode(run), event: null },
+                ...economicEvents.map(event => ({ episode: economyEpisode(event), event }))];
+            for (const { episode, event } of episodes) {
                 try {
                     const existing = store.getEpisodeByExternalKey(agentId, episode.externalKey!);
                     store.createEpisode(agentId, episode, result.completedAt);
                     if (existing) result.existingEpisodes++;
                     else result.createdEpisodes++;
+                    if (event?.kind === 'production' && !event.partial) {
+                        for (const item of event.itemsIn) productionObservations.push({
+                            agentId, skillId: event.skillId, skillVersion: run.skill.version,
+                            item, event, episodeId: episode.episodeId
+                        });
+                    }
                 } catch (error) {
                     result.errors.push({ runId: run.runId,
                         message: error instanceof Error ? error.message : String(error) });
                 }
             }
         }
+        consolidateProductionKnowledge(store, productionObservations, result);
     } finally { store.close(); }
     return result;
 }

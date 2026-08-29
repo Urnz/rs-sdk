@@ -73,7 +73,10 @@ idempotency key as episodic memory.
 The semantic retriever excludes superseded, out-of-validity and low-confidence entries, and disputed facts unless they
 are explicitly requested. It deterministically ranks remaining knowledge by confidence and goal/tag/text relevance,
 then adds only the bounded result to the decision context. The `Agentek` admin tab can record evidence-backed knowledge
-or select an active fact to supersede.
+or select an active fact to supersede. Schema v8 adds a persistent consolidation-evidence ledger. Trusted, complete
+production observations become procedure knowledge at 3, 5, 10 and 20 observations with increasing confidence. Each
+tier preserves the previous semantic revision and its evidence; rescans are idempotent, and automatic consolidation
+never supersedes an active manual or system-authored fact.
 
 ## Social memory
 

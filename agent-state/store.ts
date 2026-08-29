@@ -3,9 +3,11 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
-    type AgentEconomicActorLink, type AgentKnowledge, type AgentKnowledgeListOptions, type AgentRelationship,
+    type AgentConsolidationEvidence, type AgentEconomicActorLink, type AgentKnowledge,
+    type AgentKnowledgeListOptions, type AgentRelationship,
     type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
-    type AgentSkillReference, type AgentWorkingMemory, type CreateAgentCommitment, type CreateAgentEpisode,
+    type AgentSkillReference, type AgentWorkingMemory, type CreateAgentCommitment,
+    type CreateAgentConsolidationEvidence, type CreateAgentEpisode,
     type CreateAgentGoal, type CreateAgentIdentity, type CreateAgentKnowledge, type GoalStatus,
     type SetAgentEconomicActorLink, type SetAgentRelationship, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
@@ -58,6 +60,10 @@ interface EconomicActorLinkRow {
     agent_id: string; actor_kind: AgentEconomicActorLink['actorKind']; actor_id: string;
     role: AgentEconomicActorLink['role']; source: AgentEconomicActorLink['source'];
     created_at: string; updated_at: string; revision: number;
+}
+interface ConsolidationEvidenceRow {
+    agent_id: string; rule_key: string; evidence_key: string; episode_id: string;
+    occurred_at: string; created_at: string;
 }
 
 function identity(row: IdentityRow): AgentIdentity {
@@ -114,6 +120,10 @@ function commitment(row: CommitmentRow): AgentCommitment {
 function economicActorLink(row: EconomicActorLinkRow): AgentEconomicActorLink {
     return { agentId: row.agent_id, actorKind: row.actor_kind, actorId: row.actor_id, role: row.role,
         source: row.source, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
+}
+function consolidationEvidence(row: ConsolidationEvidenceRow): AgentConsolidationEvidence {
+    return { agentId: row.agent_id, ruleKey: row.rule_key, evidenceKey: row.evidence_key,
+        episodeId: row.episode_id, occurredAt: row.occurred_at, createdAt: row.created_at };
 }
 
 export class AgentStateStore {
@@ -400,6 +410,59 @@ export class AgentStateStore {
         const normalized = normalizeAgentId(agentId);
         return (this.database.query('SELECT COUNT(*) AS count FROM agent_episode WHERE agent_id = ?1')
             .get(normalized) as { count: number }).count;
+    }
+
+    recordConsolidationEvidence(agentId: string, input: CreateAgentConsolidationEvidence,
+        createdAt = new Date().toISOString()): { evidence: AgentConsolidationEvidence; created: boolean } {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        if (!input.ruleKey || input.ruleKey.length > 100 || !/^[a-z0-9.-]+$/.test(input.ruleKey)) {
+            throw new Error('Consolidation rule key must be a stable identifier of at most 100 characters');
+        }
+        if (!input.evidenceKey || input.evidenceKey.length > 160) {
+            throw new Error('Consolidation evidence key must contain at most 160 characters');
+        }
+        if (Number.isNaN(Date.parse(input.occurredAt))) throw new Error('Consolidation evidence time must be an ISO timestamp');
+        let created = false;
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalizedAgentId);
+            const source = this.getEpisode(input.episodeId);
+            if (!source || source.agentId !== normalizedAgentId) {
+                throw new Error('Consolidation evidence episode must belong to the same agent');
+            }
+            const row = this.database.query(`SELECT * FROM agent_consolidation_evidence
+                WHERE agent_id = ?1 AND rule_key = ?2 AND evidence_key = ?3`)
+                .get(normalizedAgentId, input.ruleKey, input.evidenceKey) as ConsolidationEvidenceRow | null;
+            if (row) {
+                if (row.episode_id !== input.episodeId || row.occurred_at !== input.occurredAt) {
+                    throw new Error(`Consolidation evidence key collision: ${input.evidenceKey}`);
+                }
+                return;
+            }
+            this.database.run(`INSERT INTO agent_consolidation_evidence
+                (agent_id, rule_key, evidence_key, episode_id, occurred_at, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+            [normalizedAgentId, input.ruleKey, input.evidenceKey, input.episodeId, input.occurredAt, createdAt]);
+            created = true;
+        });
+        transaction.immediate();
+        const evidence = this.database.query(`SELECT * FROM agent_consolidation_evidence
+            WHERE agent_id = ?1 AND rule_key = ?2 AND evidence_key = ?3`)
+            .get(normalizedAgentId, input.ruleKey, input.evidenceKey) as ConsolidationEvidenceRow;
+        return { evidence: consolidationEvidence(evidence), created };
+    }
+
+    listConsolidationEvidence(agentId: string, ruleKey: string, limit = 20): AgentConsolidationEvidence[] {
+        const normalized = normalizeAgentId(agentId);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('Consolidation evidence limit must be from 1 to 20');
+        return (this.database.query(`SELECT * FROM agent_consolidation_evidence
+            WHERE agent_id = ?1 AND rule_key = ?2 ORDER BY occurred_at, evidence_key LIMIT ?3`)
+            .all(normalized, ruleKey, limit) as ConsolidationEvidenceRow[]).map(consolidationEvidence);
+    }
+
+    countConsolidationEvidence(agentId: string, ruleKey: string): number {
+        const normalized = normalizeAgentId(agentId);
+        return (this.database.query(`SELECT COUNT(*) AS count FROM agent_consolidation_evidence
+            WHERE agent_id = ?1 AND rule_key = ?2`).get(normalized, ruleKey) as { count: number }).count;
     }
 
     createKnowledge(agentId: string, input: CreateAgentKnowledge,
@@ -853,6 +916,20 @@ export class AgentStateStore {
                         row.created_at, row.updated_at]);
                 }
                 this.database.run('PRAGMA user_version = 7');
+            });
+            transaction.immediate();
+        }
+        if (version < 8) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_consolidation_evidence (
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    rule_key TEXT NOT NULL, evidence_key TEXT NOT NULL,
+                    episode_id TEXT NOT NULL REFERENCES agent_episode(episode_id) ON DELETE RESTRICT,
+                    occurred_at TEXT NOT NULL, created_at TEXT NOT NULL,
+                    PRIMARY KEY (agent_id, rule_key, evidence_key))`);
+                this.database.run(`CREATE INDEX agent_consolidation_evidence_rule
+                    ON agent_consolidation_evidence(agent_id, rule_key, occurred_at)`);
+                this.database.run('PRAGMA user_version = 8');
             });
             transaction.immediate();
         }

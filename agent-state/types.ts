@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 7 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 8 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -306,6 +306,22 @@ export interface AgentAssetPortfolio {
     properties: AgentPropertyAsset[];
     financialPosition: AgentFinancialPosition;
     unavailableSources: string[];
+}
+
+export interface AgentConsolidationEvidence {
+    agentId: string;
+    ruleKey: string;
+    evidenceKey: string;
+    episodeId: string;
+    occurredAt: string;
+    createdAt: string;
+}
+
+export interface CreateAgentConsolidationEvidence {
+    ruleKey: string;
+    evidenceKey: string;
+    episodeId: string;
+    occurredAt: string;
 }
 
 export interface AgentSnapshot {

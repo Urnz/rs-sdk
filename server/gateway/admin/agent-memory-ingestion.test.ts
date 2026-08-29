@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -21,25 +22,26 @@ async function fixture() {
     return { root, runRoot, databasePath };
 }
 
-function journal(message = 'Finished mining and trading.') {
+function journal(message = 'Finished mining and trading.', id = runId, minute = 0) {
     const skill = { id: 'economy.test', version: '1.0.0' };
+    const timestamp = (second: number) => `2026-08-29T10:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}.000Z`;
     return {
-        runId, username: 'Ferrye14', skill, status: 'completed', reason: 'completed', message,
+        runId: id, username: 'Ferrye14', skill, status: 'completed', reason: 'completed', message,
         operations: 2, durationMs: 2_500,
         events: [
-            { runId, type: 'skill.started', timestamp: '2026-08-29T10:00:00.000Z', skill },
-            { runId, type: 'step.succeeded', timestamp: '2026-08-29T10:00:01.000Z', skill,
+            { runId: id, type: 'skill.started', timestamp: timestamp(0), skill },
+            { runId: id, type: 'step.succeeded', timestamp: timestamp(1), skill,
                 stepId: 'mine', operation: 'gather-loc', data: {
                     inventoryDelta: [{ id: 440, name: 'Iron ore', delta: 1, count: 1 }]
                 } },
-            { runId, type: 'step.succeeded', timestamp: '2026-08-29T10:00:02.000Z', skill,
+            { runId: id, type: 'step.succeeded', timestamp: timestamp(2), skill,
                 stepId: 'trade', operation: 'trade-give-item', data: {
                     partner: 'Buyer1', gave: [{ id: 440, name: 'Iron ore', count: 1 }],
                     received: [{ id: 995, name: 'Coins', count: 75 }],
                     inventoryDelta: [{ id: 440, name: 'Iron ore', delta: -1, count: 0 },
                         { id: 995, name: 'Coins', delta: 75, count: 75 }]
                 } },
-            { runId, type: 'skill.completed', timestamp: '2026-08-29T10:00:03.000Z', skill }
+            { runId: id, type: 'skill.completed', timestamp: timestamp(3), skill }
         ]
     };
 }
@@ -95,5 +97,68 @@ describe('automatic agent memory ingestion', () => {
         expect(first).toBe(second);
         await first;
         expect(loop.snapshot()).not.toBeNull();
+    });
+
+    test('consolidates repeated production at stable evidence thresholds and preserves history', async () => {
+        const { runRoot, databasePath } = await fixture();
+        const ids = [1, 2, 3, 4, 5].map(index =>
+            `${String(index).padStart(8, '0')}-0000-4000-8000-${String(index).padStart(12, '0')}`);
+        for (let index = 0; index < 3; index++) {
+            await writeFile(join(runRoot, `${ids[index]}.json`), JSON.stringify(journal('Done.', ids[index], index)));
+        }
+        const first = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T11:00:00.000Z' });
+        expect(first).toMatchObject({ createdKnowledge: 1, existingKnowledge: 0, blockedConsolidations: 0, errors: [] });
+        let store = new AgentStateStore(databasePath);
+        expect(store.listKnowledge('ferrye14', { status: 'active' })[0]).toMatchObject({
+            source: 'consolidation', confidence: 60, object: 'item:440:Iron ore'
+        });
+        expect(store.listKnowledge('ferrye14', { status: 'active' })[0]?.evidenceEpisodeIds).toHaveLength(3);
+        store.close();
+
+        for (let index = 3; index < 5; index++) {
+            await writeFile(join(runRoot, `${ids[index]}.json`), JSON.stringify(journal('Done.', ids[index], index)));
+        }
+        const second = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T12:00:00.000Z' });
+        expect(second.createdKnowledge).toBe(1);
+        store = new AgentStateStore(databasePath);
+        const active = store.listKnowledge('ferrye14', { status: 'active' })[0]!;
+        expect(active).toMatchObject({ confidence: 70, revision: 1 });
+        expect(store.listKnowledge('ferrye14', { status: 'superseded' })[0]).toMatchObject({ confidence: 60, revision: 2 });
+        const ruleKey = active.subject.replace('skill-output:', 'production.');
+        expect(store.countConsolidationEvidence('ferrye14', ruleKey)).toBe(5);
+        expect(active.evidenceEpisodeIds).toHaveLength(5);
+        store.close();
+
+        const third = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T13:00:00.000Z' });
+        expect(third).toMatchObject({ createdKnowledge: 0, existingKnowledge: 1, errors: [] });
+    });
+
+    test('does not replace manually curated knowledge with automatic consolidation', async () => {
+        const { runRoot, databasePath } = await fixture();
+        const ids = [1, 2, 3].map(index =>
+            `1000000${index}-0000-4000-8000-${String(index).padStart(12, '0')}`);
+        for (let index = 0; index < 2; index++) {
+            await writeFile(join(runRoot, `${ids[index]}.json`), JSON.stringify(journal('Done.', ids[index], index)));
+        }
+        await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T11:00:00.000Z' });
+        const hash = createHash('sha256').update('economy.test@1.0.0|id:440').digest('hex').slice(0, 24);
+        const store = new AgentStateStore(databasePath);
+        store.createKnowledge('ferrye14', {
+            knowledgeId: 'manual.iron-production', kind: 'procedure', subject: `skill-output:${hash}`,
+            predicate: 'produces-item', object: 'The supervised iron workflow',
+            summary: 'An administrator verified the preferred iron production procedure.',
+            confidence: 95, tags: ['manual'], evidenceEpisodeIds: [], source: 'manual',
+            validFrom: '2026-08-29T11:30:00.000Z'
+        }, '2026-08-29T11:30:00.000Z');
+        store.close();
+        await writeFile(join(runRoot, `${ids[2]}.json`), JSON.stringify(journal('Done.', ids[2], 2)));
+
+        const result = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T12:00:00.000Z' });
+        expect(result).toMatchObject({ createdKnowledge: 0, blockedConsolidations: 1, errors: [] });
+        const reopened = new AgentStateStore(databasePath);
+        expect(reopened.listKnowledge('ferrye14', { status: 'active' })[0]).toMatchObject({
+            knowledgeId: 'manual.iron-production', source: 'manual', confidence: 95
+        });
+        reopened.close();
     });
 });

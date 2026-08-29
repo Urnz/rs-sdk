@@ -242,6 +242,9 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
     döntési contextből való automatikus kizárását elkészíteni.
   - [x] A befejezett skill journalokat és strukturált gazdasági eseményeiket
     automatikusan, idempotensen trusted episodic memóriává alakítani.
+  - [x] Az ismétlődő, teljes és strukturált termelési bizonyítékokat tartós
+    evidence ledgerrel, 3/5/10/20 megfigyelési küszöbökön semantic eljárástudássá
+    konszolidálni, verziómegőrző felülírással és kézi tudás védelmével.
 - [ ] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
 
 Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
@@ -405,3 +408,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 32. [x] Háttérben futó, LLM nélküli episodic ingestiont készíteni a lezárt
     agent-skill journalokból és azok termelési, fogyasztási, shop-, trade- és
     banki eseményeiből, duplikáció- és journal-módosítás elleni védelemmel.
+33. [x] A megbízható termelési epizódokból tartós bizonyítékszámlálással,
+    lépcsőzetes confidence-szel és felülírási előzményekkel automatikus semantic
+    eljárástudást képezni úgy, hogy kézi tudást soha ne írjon felül.
