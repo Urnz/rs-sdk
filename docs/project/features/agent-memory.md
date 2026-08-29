@@ -47,6 +47,19 @@ ismeretlen/blokkolt skillnél, illetve cél hiányában külön, nem végrehajt�
 ad. A decision key az érintett rekordok revisionjeiből készül, ezért ugyanaz a
 snapshot ugyanazzal az időparaméterrel teljesen reprodukálható.
 
+Az első élő integráció egyetlen, ellenőrizhető ciklust futtat. A gateway friss
+botállapotából korlátozott working memory készül, a persistent identity
+játékosnevét összeveti a csatlakozott karakterrel, betölti a számára látható
+verified skillkatalógust, majd meghívja a plannert. Alapból dry-run, tehát a döntést
+csak kiírja; `--execute` mellett a már meglévő korlátozott `SkillExecutor` kapja az
+egzakt skilldefiníciót. A futás ugyanazt az aktív marker- és változtathatatlan
+journal-mechanizmust használja, mint a kézi agent-skill futtatás.
+
+A working-memory megfigyelő helyet, HP-t, inventory-összefoglalót, közeli NPC-ket
+és objektumokat, valamint a fő UI-állapotokat rögzíti. Játékosok chatjét nem teszi
+az állandó döntési kontextusba; a későbbi social/episodic feldolgozásnak ezt külön,
+nem megbízható bemenetként kell kezelnie.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.
@@ -70,8 +83,7 @@ plannerrel kell bizonyítani. Így az LLM nem rejti el az állapotkezelési hib�
 
 ## Következő szelet
 
-A következő integráció a bot élő megfigyeléséből frissíti a working memoryt, majd
-a planner `execute-skill` döntését az agent-skillek meglévő, korlátozott futtatójához
-adja át. Ezután jön az episodic, semantic és social memória külön tárolóval és
-retrieval-szabályokkal.
+A következő kezelőfelület az adminpanelről teszi létrehozhatóvá és szerkeszthetővé
+az identitást, célokat és ismert skilleket. Ezután jön az episodic, semantic és
+social memória külön tárolóval és retrieval-szabályokkal.
 

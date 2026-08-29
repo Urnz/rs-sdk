@@ -24,3 +24,18 @@ Goals may reference an exact immutable agent-skill version. Knowledge of those s
 and that exact skill version is known, not blocked and present in the caller's trusted catalog. Every result has a
 replayable decision key derived from the input
 revisions. Missing state, goals or knowledge produce explicit non-execution decisions instead of guesses.
+
+## Live cycle
+
+Once an identity, goal hierarchy and known skill have been configured in the state database, a single live cycle can be
+inspected without taking game actions:
+
+```text
+bun run agent:cycle <bot-name> [agent-id]
+```
+
+Add `--execute` to permit the selected verified skill to run. The command requires a fresh gateway state, verifies that
+the connected player belongs to the persistent identity, writes a bounded working-memory observation, loads only exact
+verified skills from the trusted/agent-visible catalog, runs one planner decision and exits. Executed skills use the
+existing active-run marker and immutable run journal, so they remain visible in the admin history. Player-authored chat
+is deliberately excluded from the always-present working memory.

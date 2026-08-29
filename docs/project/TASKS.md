@@ -369,3 +369,5 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     kontextust készíteni az aktuális helyzethez, tevékenységhez és pozícióhoz.
 25. [x] Az agent céljait egzakt, verziózott agent skillekhez kötni, az ismert
     skilleket tartósítani, és fail-closed determinisztikus skillválasztót készíteni.
+26. [x] Az élő botállapotot working memoryvé alakító, egy planner-döntést végző
+    és csak explicit engedéllyel verified skillt futtató teljes ciklust elkészíteni.

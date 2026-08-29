@@ -13,6 +13,7 @@
     "skill:run": "bun agent-skills/run.ts",
     "skill:verify": "bun agent-skills/verify.ts",
     "skill:experiment": "bun agent-skills/experiment.ts",
+    "agent:cycle": "bun agent-state/run.ts",
     "test": "bun test agent-skills/test agent-state/test sdk/test server/gateway/admin server/engine/src/io/FileStream.test.ts server/engine/src/mods/DiminishingXp.test.ts server/engine/src/mods/Properties.test.ts server/engine/src/mods/PropertyRegister.test.ts server/engine/src/mods/PropertyStore.test.ts server/engine/src/mods/PropertyRuntime.test.ts server/engine/src/mods/WorldMods.test.ts server/webclient/src/bot server/webclient/src/util server/webclient/src/lite",
     "test:integration": "pwsh -NoProfile -File scripts/status-local.ps1 -Json",
     "test:powershell": "pwsh -NoProfile -File scripts/test-powershell.ps1",
