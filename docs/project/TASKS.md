@@ -258,21 +258,21 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 
 ## 11. Fázis – LLM-integráció (első biztonságos változat)
 
-- [ ] Pontos use case-t választani: tanácsadó NPC, játékosügynök, operátori segéd
+- [x] Pontos use case-t választani: tanácsadó NPC, játékosügynök, operátori segéd
   vagy többügynökös gazdasági kísérlet.
-- [ ] Providerfüggetlen adaptert és konfigurációt kialakítani.
-- [ ] Az LLM számára szűk, típusos eszközlistát adni; közvetlen engine- és fájlhozzáférést nem.
-- [ ] Elkülöníteni a megfigyelést, tervezést, műveletjóváhagyást és végrehajtást.
-- [ ] Bevezetni lépés-, idő-, költség- és műveleti limiteket.
+- [x] Providerfüggetlen adaptert és konfigurációt kialakítani.
+- [x] Az LLM számára szűk, típusos eszközlistát adni; közvetlen engine- és fájlhozzáférést nem.
+- [x] Elkülöníteni a megfigyelést, tervezést, műveletjóváhagyást és végrehajtást.
+- [x] Bevezetni lépés-, idő-, költség- és műveleti limiteket.
 - [ ] Eseményvezérelt újratervezést használni: skill vége, váratlan esemény,
   ajánlat, cél teljesülése vagy jelentős gazdasági változás.
-- [ ] Elkerülni a tickenkénti/tile-onkénti LLM-hívást; a modell magas szintű skillt válasszon.
-- [ ] Agentenként külön modell helyett támogatni a közös, sorba állított inference szolgáltatást.
-- [ ] A játékbeli chatet és más külső szöveget nem megbízható bemenetként kezelni.
-- [ ] Naplózni a modellverziót, kéréseket, eszközhívásokat, eredményeket és hibákat,
+- [x] Elkerülni a tickenkénti/tile-onkénti LLM-hívást; a modell magas szintű skillt válasszon.
+- [x] Agentenként külön modell helyett támogatni a közös, sorba állított inference szolgáltatást.
+- [x] A játékbeli chatet és más külső szöveget nem megbízható bemenetként kezelni.
+- [x] Naplózni a modellverziót, kéréseket, eszközhívásokat, eredményeket és hibákat,
   titkok vagy felesleges személyes adatok nélkül.
-- [ ] Determinisztikus mock modellel integrációs teszteket írni.
-- [ ] Vészleállítást, visszajátszható futásazonosítót és sikertelen lépések kezelését bevezetni.
+- [x] Determinisztikus mock modellel integrációs teszteket írni.
+- [x] Vészleállítást, visszajátszható futásazonosítót és sikertelen lépések kezelését bevezetni.
 - [ ] Csak ezután bekötni egy valódi modellt kis jogosultságú lokális tesztkörnyezetben.
 
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése

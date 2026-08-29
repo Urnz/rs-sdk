@@ -1,10 +1,15 @@
 # LLM-integráció – tervezési vázlat
 
-## Első cél
+## Első use case
 
-Egy korlátozott lokális tesztügynök kapjon tömör játékállapotot, válasszon az
-engedélyezett műveletek közül, majd a determinisztikus végrehajtó ellenőrzés után
-hajtsa végre a lépést.
+Egyetlen kezelt játékosügynök kapjon egy már aktív immediate célt és tömör
+játékállapotot. A modell a bot által ismert, nem blokkolt és a megbízható
+katalógusban elérhető magas szintű agent skillek közül választhat. A döntés
+először csak javaslat; a determinisztikus végrehajtó kizárólag egyszer használható
+approval azonosítóval indíthatja el.
+
+Az első változat nem hoz létre célt vagy skillt, nem ír memóriát és nem kap
+alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
 
 ## Rétegek
 
@@ -13,6 +18,23 @@ hajtsa végre a lépést.
 3. **Policy/validator:** jogosultság, séma, költség-, idő- és lépéshatár.
 4. **Végrehajtó:** szűk rs-sdk eszközök; közvetlen fájl- vagy engine-hozzáférés nélkül.
 5. **Audit:** futásazonosító, modell, eszközkérés, eredmény, idő és hibakód.
+
+## Elkészült 11A alap
+
+- `llm-runtime/types.ts`: provider-, kérés-, döntés-, limit- és audit szerződések.
+- `llm-runtime/planning.ts`: az agent snapshot, releváns memória és ellenőrzött
+  skillkatalógus összekötése; a nem megbízható epizódok elkülönítése.
+- `llm-runtime/orchestrator.ts`: közös inference queue, szigorú output-validáció,
+  költség- és időkorlát, egyszer használható approval és emergency stop.
+- `llm-runtime/mock-provider.ts`: hálózatmentes, determinisztikus provider a
+  regressziós tesztekhez.
+- `llm-runtime/audit.ts`: memóriabeli és JSONL audit sink; a nyers context helyett
+  kérés-hash és korlátozott metaadat kerül a naplóba.
+- `config/llm-runtime.json`: alapértelmezetten kikapcsolt mock konfiguráció.
+
+A következő szelet az eseményvezérelt újratervezés és az adminpaneles dry run.
+Valódi provider csak ezek után, explicit kis jogosultságú tesztkonfigurációval
+kapcsolható be.
 
 ## Biztonsági alapok
 

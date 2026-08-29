@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "provider": "mock",
+  "model": "deterministic-scripted-v1",
+  "limits": {
+    "maxDurationMs": 10000,
+    "maxModelRequests": 1,
+    "maxToolCalls": 1,
+    "maxCostMicros": 0
+  }
+}
