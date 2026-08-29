@@ -164,6 +164,18 @@ function renderAgents() {
                 ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ''}<div class="agent-commitments">${commitments}</div>
             </div>`;
         }).join('') || '<p class="muted">Még nincs social memória.</p>';
+        const assets = agent.assets;
+        const money = assets.money
+            ? `${fmt.format(assets.money.balanceGp)} gp · ${assets.money.source === 'live' ? 'élő/aktuális játékállapot' : 'mentés'} · ${assets.money.freshness === 'fresh' ? 'friss' : 'elavulhat'}`
+            : 'Nem érhető el';
+        const properties = assets.properties.length
+            ? assets.properties.map(item => `<div class="agent-asset"><strong>${escapeHtml(item.displayName)}</strong><small>${escapeHtml(item.propertyId)} · ${escapeHtml(item.type)} · ${escapeHtml(item.region)} · state v${item.stateVersion}</small></div>`).join('')
+            : '<p class="muted">Nincs kapcsolt ingatlantulajdon.</p>';
+        const finances = assets.financialPosition;
+        const assetWarnings = assets.unavailableSources.length
+            ? `<p class="muted">Nem elérhető források: ${escapeHtml(assets.unavailableSources.join(', '))}</p>` : '';
+        const actorLinks = assets.actorLinks.map(link =>
+            `<span class="agent-chip">${escapeHtml(link.role)}: ${escapeHtml(link.actorKind)}:${escapeHtml(link.actorId)}</span>`).join('');
         return `<article class="agent-card" data-agent-id="${escapeHtml(identity.agentId)}">
             <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
                 <div class="agent-card-actions">
@@ -187,6 +199,12 @@ function renderAgents() {
                 <section class="agent-section"><h4>Episodic memória (${agent.episodeCount})</h4><div class="agent-episodes">${episodes}</div></section>
                 <section class="agent-section"><h4>Semantic memória (${agent.knowledgeCount})</h4><div class="agent-knowledge-list">${knowledge}</div></section>
                 <section class="agent-section"><h4>Social memória (${agent.relationships.length})</h4><div class="agent-relationships">${relationships}</div></section>
+                <section class="agent-section"><h4>Eszközök</h4>
+                    <div class="agent-tags">${actorLinks}</div>
+                    <p><strong>Pénz:</strong> ${escapeHtml(money)}</p>
+                    <small>Kapcsolati követelés ${fmt.format(finances.receivablesGp)} gp · tartozás ${fmt.format(finances.liabilitiesGp)} gp</small>
+                    <small>Nyitott, értékelt vállalások: követelés ${fmt.format(finances.openCommitmentReceivablesGp)} gp · kötelezettség ${fmt.format(finances.openCommitmentLiabilitiesGp)} gp</small>
+                    <div class="agent-assets">${properties}</div>${assetWarnings}</section>
                 <section class="agent-section"><h4>Planner</h4><p>${escapeHtml(agent.planner.reason)}</p><pre class="agent-context">${escapeHtml(agent.decisionContext)}</pre></section>
             </div></article>`;
     }).join('') : '<p class="empty">Még nincs persistent agent. Hozd létre az elsőt egy meglévő bothoz.</p>';

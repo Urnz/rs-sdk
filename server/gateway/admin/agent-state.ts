@@ -1,5 +1,6 @@
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
+import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
 import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
     retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
@@ -8,6 +9,8 @@ import type { AgentCommitmentStatus, AgentSkillKnowledgeStatus, AgentSkillRefere
     SetAgentRelationship, UpdateAgentIdentity } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 import { listAdminSkills } from './skill-catalog.js';
+import type { BotCatalogEntry } from './types.js';
+import type { AdminPropertyView } from './properties.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
@@ -15,7 +18,14 @@ function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     finally { store.close(); }
 }
 
-export async function listAdminAgents(path = agentStateDbPath) {
+export interface AdminAgentAssetSources {
+    bots?: readonly BotCatalogEntry[];
+    properties?: readonly AdminPropertyView[];
+    unavailableSources?: readonly string[];
+    observedAt?: string;
+}
+
+export async function listAdminAgents(path = agentStateDbPath, assetSources: AdminAgentAssetSources = {}) {
     const skills = await listAdminSkills();
     const availableSkills = skills.map(skill => ({ id: skill.id, version: skill.version }));
     const agents = useStore(path, store => store.listIdentities().map(identity => {
@@ -31,6 +41,22 @@ export async function listAdminAgents(path = agentStateDbPath) {
             relationship, commitments: store.listCommitments(identity.agentId, relationship.actorKey)
         }));
         const relevantRelationships = retrieveSocialMemory(relationships, socialQueryFromSnapshot(snapshot));
+        const actorLinks = store.listEconomicActorLinks(identity.agentId);
+        const bot = assetSources.bots?.find(entry => entry.username === identity.playerUsername);
+        const assets = resolveAgentAssets(actorLinks, relationships.map(entry => entry.relationship),
+            relationships.flatMap(entry => entry.commitments), {
+                observedAt: assetSources.observedAt,
+                money: bot ? [{ actor: { kind: 'player', id: bot.username }, balanceGp: bot.coins,
+                    observedAt: bot.lastActivityAt ?? bot.saveSavedAt ?? assetSources.observedAt ?? new Date().toISOString(),
+                    source: bot.status === 'active' || bot.status === 'stale' ? 'live' : 'save',
+                    freshness: bot.status === 'active' ? 'fresh' : 'stale' }] : [],
+                properties: (assetSources.properties ?? []).filter(property => property.state.owner).map(property => ({
+                    propertyId: property.propertyId, displayName: property.displayName, type: property.type,
+                    region: property.location.region, acquiredAt: property.state.acquiredAt,
+                    stateVersion: property.state.version, owner: property.state.owner!
+                })),
+                unavailableSources: [...(assetSources.unavailableSources ?? []), ...(bot ? [] : ['money'])]
+            });
         return {
             ...snapshot,
             episodeCount: store.countEpisodes(identity.agentId),
@@ -42,10 +68,11 @@ export async function listAdminAgents(path = agentStateDbPath) {
             relevantKnowledge,
             relationships,
             relevantRelationships,
+            assets,
             decisionContext: buildDecisionContext(snapshot, { maxCharacters: 4000,
                 episodicMemories: relevantEpisodes.map(result => result.episode),
                 semanticMemories: relevantKnowledge.map(result => result.knowledge),
-                socialMemories: relevantRelationships }),
+                socialMemories: relevantRelationships, assets }),
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));

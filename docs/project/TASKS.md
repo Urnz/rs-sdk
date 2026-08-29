@@ -220,7 +220,13 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 - [x] Episodic memory: időzített, visszakereshető konkrét események.
 - [x] Semantic memory: megtanult világ-, gazdasági, útvonal- és eljárásismeretek.
 - [x] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
-- [ ] Assets (pénz, ingatlan, vállalkozás, követelés) összekapcsolása az agent állapotával.
+- [x] Assets (pénz, ingatlan, vállalkozás, követelés) összekapcsolása az agent állapotával.
+  - [x] A player pénzét és az EconomicActorRef által birtokolt ingatlanokat az
+    eredeti domainforrásból, read-only portfólióként feloldani.
+  - [x] A kapcsolati tartozásokat és értékelt nyitott vállalásokat külön követelés-
+    és kötelezettségösszegként összesíteni.
+  - [x] Tartós, általános player/business/faction actor-linket készíteni, hogy a
+    későbbi Business és Governance mod állapota adatmásolás nélkül csatlakozhasson.
 - [x] Egzakt, verziózott ismert skillek összekapcsolása az agent állapotával.
 - [ ] Relevancia-, frissesség- és célalapú context-visszakeresés minden tartós
   memóriatípushoz.
@@ -391,3 +397,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 30. [x] Tartós társas memóriát készíteni irányított kapcsolatokkal, kétirányú
     pénztartozással, bizonyítékokkal, lezárható vállalásokkal, relevancia-
     visszakereséssel és adminpaneles kezeléssel.
+31. [x] A tartós agentet gazdasági szereplőkhöz kapcsolni, majd az aktuális pénzt,
+    ingatlant, követelést és kötelezettséget read-only asset-portfólióként az
+    adminnézetbe és a korlátozott döntési contextbe illeszteni.

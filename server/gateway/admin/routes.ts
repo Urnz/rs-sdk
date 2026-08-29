@@ -203,7 +203,14 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/agents') {
-            return json(await listAdminAgents());
+            const bots = await catalog();
+            let properties: Awaited<ReturnType<typeof listEngineProperties>>['properties'] = [];
+            const unavailableSources: string[] = [];
+            try { properties = (await listEngineProperties()).properties; }
+            catch { unavailableSources.push('properties'); }
+            return json(await listAdminAgents(agentStateDbPath, {
+                bots, properties, unavailableSources, observedAt: new Date().toISOString()
+            }));
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/skill-runs') {

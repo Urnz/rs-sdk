@@ -15,6 +15,13 @@ Közös hivatkozási forma az `EconomicActorRef`:
 Az MVP-ben csak játékos vásárol közvetlenül. A tulajdonmodell már most elfogadja
 a további alanytípusokat, hogy később ne kelljen adatot újraértelmezni.
 
+Az agent-state v7 tartós actor-linkje ugyanezt a három azonosítót használja, de
+nem veszi át egyik gazdasági domain állapotának tulajdonjogát sem. Az agent
+portfóliója read-only vetület: a pénzt a játékosállapotból, az ingatlant a Property
+modból, a későbbi vállalkozást és factiontagságot pedig azok saját moduljából oldja
+fel. Így a döntési context friss adatot kap anélkül, hogy párhuzamos főkönyv jönne
+létre az agent-adatbázisban.
+
 ## Property mod
 
 Tulajdonolja:

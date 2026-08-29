@@ -135,6 +135,9 @@ describe('working memory', () => {
 
         const store = new AgentStateStore(path);
         expect(store.getIdentity('legacy')?.displayName).toBe('Legacy agent');
+        expect(store.listEconomicActorLinks('legacy')).toEqual([expect.objectContaining({
+            actorKind: 'player', actorId: 'legacy', role: 'self', source: 'identity'
+        })]);
         expect(store.setWorkingMemory('legacy', null, {
             summary: 'Migrated safely', observedAt: '2026-08-29T12:00:00.000Z'
         }).revision).toBe(1);

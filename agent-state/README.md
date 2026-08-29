@@ -83,3 +83,16 @@ commitments cannot be rewritten. Relationship and commitment updates use optimis
 The deterministic social retriever ranks actor, tag and text matches together with familiarity, trust, affinity, debt
 and open commitments. Only bounded results and still-open commitments enter the decision context. The `Agentek` admin
 tab supports audited relationship editing, commitment creation and explicit commitment resolution.
+
+## Economic actors and assets
+
+Schema v7 stores stable links from an agent to `player`, `business` and `faction` economic actors. The identity-owned
+player link is created and migrated automatically, follows player-username changes transactionally and cannot be
+edited independently. Additional links have explicit owner, manager, member or beneficiary roles and optimistic
+revisions, providing the integration point for future Business and Governance domains.
+
+Money and property ownership are deliberately not copied into the agent database. `resolveAgentAssets` builds a
+read-only current portfolio from external observations matched through those actor links. The admin gateway supplies
+the current bot-catalog balance and Property-mod ownership, marks unavailable sources instead of failing the complete
+agent view, and places the bounded result early in the decision context. Relationship debts and valued open
+commitments are summarized separately as receivables and liabilities; they are not silently netted or double-counted.

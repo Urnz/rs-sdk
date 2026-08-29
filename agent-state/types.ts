@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 6 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 7 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -11,6 +11,9 @@ export type AgentKnowledgeSource = 'manual' | 'system' | 'consolidation';
 export type AgentKnowledgeStatus = 'active' | 'superseded' | 'disputed';
 export type AgentCommitmentDirection = 'owed-by-agent' | 'owed-to-agent';
 export type AgentCommitmentStatus = 'open' | 'fulfilled' | 'broken' | 'cancelled';
+export type AgentEconomicActorKind = 'player' | 'business' | 'faction';
+export type AgentEconomicActorRole = 'self' | 'owner' | 'manager' | 'member' | 'beneficiary';
+export type AgentEconomicActorLinkSource = 'identity' | 'admin' | 'system';
 
 export interface AgentSkillReference {
     id: string;
@@ -252,6 +255,57 @@ export interface CreateAgentCommitment {
     valueGp?: number | null;
     dueAt?: string | null;
     evidenceEpisodeIds?: string[];
+}
+
+export interface AgentEconomicActorLink {
+    agentId: string;
+    actorKind: AgentEconomicActorKind;
+    actorId: string;
+    role: AgentEconomicActorRole;
+    source: AgentEconomicActorLinkSource;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
+export interface SetAgentEconomicActorLink {
+    actorKind: AgentEconomicActorKind;
+    actorId: string;
+    role: AgentEconomicActorRole;
+    source?: Exclude<AgentEconomicActorLinkSource, 'identity'>;
+}
+
+export interface AgentMoneyAsset {
+    balanceGp: number;
+    observedAt: string;
+    source: 'live' | 'save';
+    freshness: 'fresh' | 'stale';
+}
+
+export interface AgentPropertyAsset {
+    propertyId: string;
+    displayName: string;
+    type: string;
+    region: string;
+    acquiredAt: string | null;
+    stateVersion: number;
+    owner: { kind: AgentEconomicActorKind; id: string };
+}
+
+export interface AgentFinancialPosition {
+    receivablesGp: number;
+    liabilitiesGp: number;
+    openCommitmentReceivablesGp: number;
+    openCommitmentLiabilitiesGp: number;
+}
+
+export interface AgentAssetPortfolio {
+    observedAt: string;
+    actorLinks: AgentEconomicActorLink[];
+    money: AgentMoneyAsset | null;
+    properties: AgentPropertyAsset[];
+    financialPosition: AgentFinancialPosition;
+    unavailableSources: string[];
 }
 
 export interface AgentSnapshot {

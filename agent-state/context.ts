@@ -1,4 +1,4 @@
-import type { AgentEpisode, AgentKnowledge, AgentSnapshot, GoalHorizon } from './types.js';
+import type { AgentAssetPortfolio, AgentEpisode, AgentKnowledge, AgentSnapshot, GoalHorizon } from './types.js';
 import type { SocialMemoryEntry } from './retrieval.js';
 
 const LABELS: Record<GoalHorizon, string> = {
@@ -33,6 +33,7 @@ export interface DecisionContextOptions {
     episodicMemories?: readonly AgentEpisode[];
     semanticMemories?: readonly AgentKnowledge[];
     socialMemories?: readonly SocialMemoryEntry[];
+    assets?: AgentAssetPortfolio;
 }
 
 export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionContextOptions = {}): string {
@@ -56,6 +57,19 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
         parts.push(`Activity: ${memory.currentActivity ?? 'idle'}`);
         parts.push(`Location: ${location}`);
         if (memory.observations.length) parts.push(`Recent observations: ${memory.observations.join('; ')}`);
+    }
+    if (options.assets) {
+        const assets = options.assets;
+        const lines = [assets.money
+            ? `Money: ${assets.money.balanceGp} gp (${assets.money.source}, ${assets.money.freshness}; observed ${assets.money.observedAt})`
+            : 'Money: unavailable'];
+        lines.push(...assets.properties.slice(0, 12).map(item =>
+            `Property ${item.propertyId}: ${item.displayName} (${item.type}, ${item.region}; owner ${item.owner.kind}:${item.owner.id})`));
+        const position = assets.financialPosition;
+        lines.push(`Relationship debt: receivable ${position.receivablesGp} gp; liability ${position.liabilitiesGp} gp`);
+        lines.push(`Open valued commitments: receivable ${position.openCommitmentReceivablesGp} gp; liability ${position.openCommitmentLiabilitiesGp} gp`);
+        if (assets.unavailableSources.length) lines.push(`Unavailable asset sources: ${assets.unavailableSources.join(', ')}`);
+        parts.push(`Current assets:\n- ${lines.join('\n- ')}`);
     }
     if (options.episodicMemories?.length) {
         const memories = options.episodicMemories.slice(0, 12).map(item => {

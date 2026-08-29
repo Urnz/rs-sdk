@@ -1,5 +1,6 @@
 import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentSkillKnowledgeStatus,
-    AgentCommitmentDirection, AgentKnowledgeKind, AgentKnowledgeSource, AgentSkillReference,
+    AgentCommitmentDirection, AgentEconomicActorKind, AgentEconomicActorRole, AgentKnowledgeKind,
+    AgentKnowledgeSource, AgentSkillReference,
     CreateAgentCommitment, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge,
     GoalHorizon, SetAgentRelationship, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
@@ -14,6 +15,8 @@ const KNOWLEDGE_KINDS = new Set<AgentKnowledgeKind>(['world', 'economic', 'route
 const KNOWLEDGE_SOURCES = new Set<AgentKnowledgeSource>(['manual', 'system', 'consolidation']);
 const COMMITMENT_DIRECTIONS = new Set<AgentCommitmentDirection>(['owed-by-agent', 'owed-to-agent']);
 const ACTOR_PATTERN = /^[\p{L}\p{N} ._-]+$/u;
+const ECONOMIC_ACTOR_KINDS = new Set<AgentEconomicActorKind>(['player', 'business', 'faction']);
+const ECONOMIC_ACTOR_ROLES = new Set<AgentEconomicActorRole>(['self', 'owner', 'manager', 'member', 'beneficiary']);
 
 export class AgentStateValidationError extends Error {
     constructor(public readonly issues: string[]) {
@@ -79,6 +82,31 @@ export function normalizeActorKey(value: unknown, path = 'actorKey'): string {
     if (normalized && !ACTOR_PATTERN.test(normalized)) issues.push(`${path} contains unsupported characters`);
     if (issues.length) throw new AgentStateValidationError(issues);
     return normalized;
+}
+
+export function normalizeEconomicActorId(value: unknown, path = 'actorId'): string {
+    const issues: string[] = [];
+    const normalized = text(value, path, issues, 64).toLowerCase().replace(/\s+/g, '_');
+    if (normalized && !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(normalized)) {
+        issues.push(`${path} must be a stable normalized economic actor id`);
+    }
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return normalized;
+}
+
+export function validateEconomicActorLink(actorKind: unknown, actorId: unknown, role: unknown) {
+    const issues: string[] = [];
+    if (!ECONOMIC_ACTOR_KINDS.has(actorKind as AgentEconomicActorKind)) issues.push('actorKind is unsupported');
+    if (!ECONOMIC_ACTOR_ROLES.has(role as AgentEconomicActorRole)) issues.push('role is unsupported');
+    let normalizedActorId = '';
+    try { normalizedActorId = normalizeEconomicActorId(actorId); }
+    catch (error) {
+        if (error instanceof AgentStateValidationError) issues.push(...error.issues);
+        else throw error;
+    }
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return { actorKind: actorKind as AgentEconomicActorKind, actorId: normalizedActorId,
+        role: role as AgentEconomicActorRole };
 }
 
 export function validateCreateIdentity(value: CreateAgentIdentity): CreateAgentIdentity {

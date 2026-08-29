@@ -16,6 +16,7 @@ import {
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store';
+import type { BotCatalogEntry } from './types';
 
 const directories: string[] = [];
 
@@ -82,7 +83,15 @@ describe('admin agent-state service', () => {
         });
         store.close();
 
-        const result = await listAdminAgents(path);
+        const result = await listAdminAgents(path, {
+            observedAt: '2026-08-29T12:00:00.000Z',
+            bots: [{ username: 'ferrye14', coins: 68_000, status: 'active',
+                lastActivityAt: '2026-08-29T11:59:59.000Z', saveSavedAt: null } as BotCatalogEntry],
+            properties: [{ propertyId: 'varrock.east-workshop', displayName: 'Varrock East Workshop',
+                description: 'Workshop', type: 'workshop', location: { x: 3253, z: 3421, level: 0, region: 'Varrock' },
+                purchasePrice: 25_000, state: { status: 'owned', owner: { kind: 'player', id: 'ferrye14' },
+                    acquiredAt: '2026-08-28T12:00:00.000Z', updatedAt: '2026-08-28T12:00:00.000Z', version: 2 } }]
+        });
         expect(result.agents).toHaveLength(1);
         expect(result.agents[0]?.identity.displayName).toBe('Ferrye, a bányász');
         expect(result.agents[0]?.goals).toHaveLength(4);
@@ -93,6 +102,8 @@ describe('admin agent-state service', () => {
         expect(result.agents[0]?.relevantKnowledge[0]?.knowledge.knowledgeId).toBe('ferrye.bank-route');
         expect(result.agents[0]?.relationships[0]?.relationship.actorKey).toBe('horvik');
         expect(result.agents[0]?.relevantRelationships[0]?.commitments[0]?.commitmentId).toBe('ferrye.repay-horvik');
+        expect(result.agents[0]?.assets.money?.balanceGp).toBe(68_000);
+        expect(result.agents[0]?.assets.properties[0]?.propertyId).toBe('varrock.east-workshop');
         expect(result.agents[0]?.planner).toMatchObject({
             kind: 'execute-skill', skill: { id: skill!.id, version: skill!.version }
         });
@@ -100,6 +111,7 @@ describe('admin agent-state service', () => {
         expect(result.agents[0]?.decisionContext).toContain('A varrocki vasérc');
         expect(result.agents[0]?.decisionContext).toContain('legközelebbi ismert bank');
         expect(result.agents[0]?.decisionContext).toContain('Fizesse vissza a rune pickaxe');
+        expect(result.agents[0]?.decisionContext).toContain('Varrock East Workshop');
     });
 
     test('enforces agent ownership and optimistic revisions through the admin boundary', () => {

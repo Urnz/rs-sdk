@@ -3,16 +3,16 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
-    type AgentKnowledge, type AgentKnowledgeListOptions, type AgentRelationship,
+    type AgentEconomicActorLink, type AgentKnowledge, type AgentKnowledgeListOptions, type AgentRelationship,
     type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
     type AgentSkillReference, type AgentWorkingMemory, type CreateAgentCommitment, type CreateAgentEpisode,
     type CreateAgentGoal, type CreateAgentIdentity, type CreateAgentKnowledge, type GoalStatus,
-    type SetAgentRelationship, type SetAgentWorkingMemory,
+    type SetAgentEconomicActorLink, type SetAgentRelationship, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
-    normalizeActorKey, normalizeSkillReference, validateCreateCommitment, validateCreateEpisode,
+    normalizeActorKey, normalizeEconomicActorId, normalizeSkillReference, validateCreateCommitment, validateCreateEpisode,
     validateCreateKnowledge, validateIdentityPatch, validateRelationship, validateSkillKnowledgeStatus,
-    validateWorkingMemory } from './validation.js';
+    validateEconomicActorLink, validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
     agent_id: string; player_username: string; display_name: string; background: string;
@@ -53,6 +53,11 @@ interface CommitmentRow {
     commitment_id: string; agent_id: string; actor_key: string; direction: AgentCommitment['direction'];
     description: string; status: AgentCommitmentStatus; value_gp: number | null; due_at: string | null;
     evidence_episode_ids: string; created_at: string; updated_at: string; resolved_at: string | null; revision: number;
+}
+interface EconomicActorLinkRow {
+    agent_id: string; actor_kind: AgentEconomicActorLink['actorKind']; actor_id: string;
+    role: AgentEconomicActorLink['role']; source: AgentEconomicActorLink['source'];
+    created_at: string; updated_at: string; revision: number;
 }
 
 function identity(row: IdentityRow): AgentIdentity {
@@ -106,6 +111,10 @@ function commitment(row: CommitmentRow): AgentCommitment {
         dueAt: row.due_at, evidenceEpisodeIds: JSON.parse(row.evidence_episode_ids) as string[],
         createdAt: row.created_at, updatedAt: row.updated_at, resolvedAt: row.resolved_at, revision: row.revision };
 }
+function economicActorLink(row: EconomicActorLinkRow): AgentEconomicActorLink {
+    return { agentId: row.agent_id, actorKind: row.actor_kind, actorId: row.actor_id, role: row.role,
+        source: row.source, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
+}
 
 export class AgentStateStore {
     private readonly database: Database;
@@ -127,11 +136,18 @@ export class AgentStateStore {
 
     createIdentity(input: CreateAgentIdentity, now = new Date().toISOString()): AgentIdentity {
         const value = validateCreateIdentity(input);
-        this.database.run(`INSERT INTO agent_identity
-            (agent_id, player_username, display_name, background, personality_traits, agent_values, created_at, updated_at, revision)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, 1)`,
-        [value.agentId, value.playerUsername, value.displayName, value.background, JSON.stringify(value.personalityTraits),
-            JSON.stringify(value.values ?? []), now]);
+        const playerActorId = normalizeEconomicActorId(value.playerUsername, 'playerUsername');
+        const transaction = this.database.transaction(() => {
+            this.database.run(`INSERT INTO agent_identity
+                (agent_id, player_username, display_name, background, personality_traits, agent_values, created_at, updated_at, revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, 1)`,
+            [value.agentId, value.playerUsername, value.displayName, value.background, JSON.stringify(value.personalityTraits),
+                JSON.stringify(value.values ?? []), now]);
+            this.database.run(`INSERT INTO agent_economic_actor_link
+                (agent_id, actor_kind, actor_id, role, source, created_at, updated_at, revision)
+                VALUES (?1, 'player', ?2, 'self', 'identity', ?3, ?3, 1)`, [value.agentId, playerActorId, now]);
+        });
+        transaction.immediate();
         return this.requireIdentity(value.agentId);
     }
 
@@ -140,11 +156,19 @@ export class AgentStateStore {
         const current = this.requireIdentity(agentId);
         const value = validateIdentityPatch(patch);
         const next = { ...current, ...value };
-        const result = this.database.run(`UPDATE agent_identity SET player_username = ?3, display_name = ?4,
-            background = ?5, personality_traits = ?6, agent_values = ?7, updated_at = ?8, revision = revision + 1
-            WHERE agent_id = ?1 AND revision = ?2`, [current.agentId, expectedRevision, next.playerUsername,
-            next.displayName, next.background, JSON.stringify(next.personalityTraits), JSON.stringify(next.values), now]);
-        if (result.changes !== 1) throw new Error('Agent identity changed before update; refresh and try again');
+        const transaction = this.database.transaction(() => {
+            const result = this.database.run(`UPDATE agent_identity SET player_username = ?3, display_name = ?4,
+                background = ?5, personality_traits = ?6, agent_values = ?7, updated_at = ?8, revision = revision + 1
+                WHERE agent_id = ?1 AND revision = ?2`, [current.agentId, expectedRevision, next.playerUsername,
+                next.displayName, next.background, JSON.stringify(next.personalityTraits), JSON.stringify(next.values), now]);
+            if (result.changes !== 1) throw new Error('Agent identity changed before update; refresh and try again');
+            if (next.playerUsername !== current.playerUsername) {
+                this.database.run(`UPDATE agent_economic_actor_link SET actor_id = ?2, updated_at = ?3,
+                    revision = revision + 1 WHERE agent_id = ?1 AND source = 'identity'`,
+                [current.agentId, normalizeEconomicActorId(next.playerUsername, 'playerUsername'), now]);
+            }
+        });
+        transaction.immediate();
         return this.requireIdentity(current.agentId);
     }
 
@@ -588,6 +612,55 @@ export class AgentStateStore {
         return (rows as CommitmentRow[]).map(commitment);
     }
 
+    setEconomicActorLink(agentId: string, expectedRevision: number | null, input: SetAgentEconomicActorLink,
+        now = new Date().toISOString()): AgentEconomicActorLink {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const value = validateEconomicActorLink(input.actorKind, input.actorId, input.role);
+        if (value.role === 'self') throw new Error('Only the identity may own the self economic actor link');
+        const source = input.source ?? 'admin';
+        if (source !== 'admin' && source !== 'system') throw new Error('Economic actor link source must be admin or system');
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalizedAgentId);
+            const current = this.getEconomicActorLink(normalizedAgentId, value.actorKind, value.actorId);
+            if (!current) {
+                if (expectedRevision !== null) throw new Error('Economic actor link changed before update; refresh and try again');
+                this.database.run(`INSERT INTO agent_economic_actor_link
+                    (agent_id, actor_kind, actor_id, role, source, created_at, updated_at, revision)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, 1)`,
+                [normalizedAgentId, value.actorKind, value.actorId, value.role, source, now]);
+                return;
+            }
+            if (current.source === 'identity') throw new Error('The identity economic actor link cannot be edited directly');
+            if (expectedRevision === null || current.revision !== expectedRevision) {
+                throw new Error('Economic actor link changed before update; refresh and try again');
+            }
+            const result = this.database.run(`UPDATE agent_economic_actor_link SET role = ?5, source = ?6,
+                updated_at = ?7, revision = revision + 1
+                WHERE agent_id = ?1 AND actor_kind = ?2 AND actor_id = ?3 AND revision = ?4`,
+            [normalizedAgentId, value.actorKind, value.actorId, expectedRevision, value.role, source, now]);
+            if (result.changes !== 1) throw new Error('Economic actor link changed before update; refresh and try again');
+        });
+        transaction.immediate();
+        return this.getEconomicActorLink(normalizedAgentId, value.actorKind, value.actorId)!;
+    }
+
+    getEconomicActorLink(agentId: string, actorKind: AgentEconomicActorLink['actorKind'], actorId: string): AgentEconomicActorLink | null {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const value = validateEconomicActorLink(actorKind, actorId, 'member');
+        const row = this.database.query(`SELECT * FROM agent_economic_actor_link
+            WHERE agent_id = ?1 AND actor_kind = ?2 AND actor_id = ?3`)
+            .get(normalizedAgentId, value.actorKind, value.actorId);
+        return row ? economicActorLink(row as EconomicActorLinkRow) : null;
+    }
+
+    listEconomicActorLinks(agentId: string): AgentEconomicActorLink[] {
+        const normalized = normalizeAgentId(agentId);
+        return (this.database.query(`SELECT * FROM agent_economic_actor_link WHERE agent_id = ?1
+            ORDER BY CASE role WHEN 'self' THEN 0 WHEN 'owner' THEN 1 WHEN 'manager' THEN 2
+                WHEN 'member' THEN 3 ELSE 4 END, actor_kind, actor_id`).all(normalized) as EconomicActorLinkRow[])
+            .map(economicActorLink);
+    }
+
     getSnapshot(agentId: string): AgentSnapshot | null {
         const found = this.getIdentity(agentId);
         return found ? { identity: found, goals: this.listGoals(found.agentId),
@@ -745,6 +818,33 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_commitment_agent_status
                     ON agent_commitment(agent_id, status, due_at)`);
                 this.database.run('PRAGMA user_version = 6');
+            });
+            transaction.immediate();
+        }
+        if (version < 7) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_economic_actor_link (
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('player', 'business', 'faction')),
+                    actor_id TEXT NOT NULL, role TEXT NOT NULL
+                        CHECK (role IN ('self', 'owner', 'manager', 'member', 'beneficiary')),
+                    source TEXT NOT NULL CHECK (source IN ('identity', 'admin', 'system')),
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    PRIMARY KEY (agent_id, actor_kind, actor_id))`);
+                this.database.run(`CREATE UNIQUE INDEX one_identity_actor_link_per_agent
+                    ON agent_economic_actor_link(agent_id) WHERE source = 'identity'`);
+                const rows = this.database.query(`SELECT agent_id, player_username, created_at, updated_at
+                    FROM agent_identity`).all() as Array<{ agent_id: string; player_username: string;
+                        created_at: string; updated_at: string }>;
+                for (const row of rows) {
+                    this.database.run(`INSERT INTO agent_economic_actor_link
+                        (agent_id, actor_kind, actor_id, role, source, created_at, updated_at, revision)
+                        VALUES (?1, 'player', ?2, 'self', 'identity', ?3, ?4, 1)`,
+                    [row.agent_id, normalizeEconomicActorId(row.player_username, 'playerUsername'),
+                        row.created_at, row.updated_at]);
+                }
+                this.database.run('PRAGMA user_version = 7');
             });
             transaction.immediate();
         }

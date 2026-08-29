@@ -149,6 +149,29 @@ memory` blokkjába, és abban már lezárt vállalás nem jelenik meg. Az Agente
 kapcsolat rögzíthető és szerkeszthető, vállalás nyitható és lezárható; minden írás
 indokláskötött admin auditot készít.
 
+## Gazdasági szereplők és eszközportfólió
+
+A v7 séma nem másolja az agent-adatbázisba a pénzt vagy az ingatlant. Ehelyett az
+agentet tartós `EconomicActorRef`-szerű kapcsolatokhoz rendeli: `player`,
+`business` vagy `faction` szereplőhöz, `self`, `owner`, `manager`, `member` vagy
+`beneficiary` szerepben. Az identitáshoz tartozó player-kapcsolat automatikusan
+létrejön, a játékosnév módosításával tranzakciósan együtt változik, és közvetlenül
+nem írható át. A modell már vállalkozást és factiont is elfogad, miközben ezek
+konkrét domainállapotát majd a saját modjuk birtokolja.
+
+Az admin gateway minden Agentek-lekérésnél read-only portfóliót állít össze. A
+pénz a botkatalógus élő vagy mentett állapotából, az ingatlan a Property-mod
+aktuális tulajdonnyilvántartásából érkezik. A stabil gazdasági szereplőhivatkozás
+alapján csak az agenthez kapcsolt tulajdon kerül be; egy nem elérhető engine nem
+töri el az agentnézetet, hanem név szerint `unavailable` forrásként jelenik meg.
+
+A társas memóriából külön összegződik a kapcsolati követelés és tartozás, valamint
+a pénzértékkel rendelkező nyitott vállalások két iránya. Ezek szándékosan külön
+számok, mert ugyanannak az ügyletnek eltérő bizonyosságú nézetei lehetnek, ezért
+nem adódnak össze automatikusan nettó vagyonná. A pénz, ingatlanok és pénzügyi
+pozíció a memóriafolyamok előtt kerül a korlátozott döntési contextbe, így hosszú
+emléktörténet mellett sem szorul ki könnyen.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.
@@ -172,8 +195,7 @@ plannerrel kell bizonyítani. Így az LLM nem rejti el az állapotkezelési hib�
 
 ## Következő szelet
 
-Az agent pénz-, ingatlan-, később vállalkozás- és követelésállapotának stabil
-hivatkozásokkal való összekapcsolása következik. Ezután a memóriakonszolidáció és
-az összes tartós memóriatípust együtt használó szabályalapú planner-teszt zárhatja
-le a 10. fázist.
+A memóriakonszolidáció, duplikáció- és elévülési szabályok, majd az összes tartós
+memóriatípust és az asset-portfóliót együtt használó szabályalapú planner-teszt
+következik a 10. fázis lezárása előtt.
 
