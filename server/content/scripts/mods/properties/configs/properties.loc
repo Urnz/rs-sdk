@@ -10,3 +10,25 @@ op2=Purchase
 op3=Enter
 blockwalk=no
 blockrange=no
+
+[property_door_closed]
+name=Property door
+desc=The entrance to a privately owned property.
+model=model_loc_3
+active=yes
+op1=Open
+retex1s=wall
+retex1d=door
+recol2s=6342
+recol2d=11458
+category=door_open_and_close
+param=next_loc_stage,property_door_open
+
+[property_door_open]
+model=model_loc_3
+retex1s=wall
+retex1d=door
+recol2s=6342
+recol2d=11458
+category=door_open_and_close
+param=next_loc_stage,property_door_closed

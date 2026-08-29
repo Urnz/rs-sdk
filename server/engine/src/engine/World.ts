@@ -895,7 +895,7 @@ class World {
 
     handlePropertySign(player: Player, x: number, z: number, level: number, op: number): boolean {
         const runtime = getPropertyRuntime();
-        const property = runtime.findAtEntryPoint(x, z, level);
+        const property = runtime.findAtLocation(x, z, level);
         if (!property) return false;
         if (Math.max(Math.abs(player.x - x), Math.abs(player.z - z)) > 2 || player.level !== level) {
             player.messageGame('Walk closer to the property sign and try again.');
@@ -938,9 +938,8 @@ class World {
             return true;
         }
         if (op === 3) {
-            if (ownsProperty) {
-                player.messageGame(`The sign recognises you as the owner of ${property.displayName}. Access granted.`);
-                recordWorldModDomainEvent('economy.properties', 'ownerEntries');
+            if (runtime.canPlayerEnter(property, player.username, player.staffModLevel >= 2)) {
+                player.messageGame(`Access granted. Use the property door beside this sign to enter ${property.displayName}.`);
             } else {
                 player.messageGame(owner ? 'Only the property owner may enter.' : 'This property must be purchased before it can be entered.');
                 recordWorldModDomainEvent('economy.properties', 'entriesRejected');
@@ -948,6 +947,33 @@ class World {
             return true;
         }
         return false;
+    }
+
+    authorizePropertyDoor(player: Player, x: number, z: number, level: number): boolean {
+        const runtime = getPropertyRuntime();
+        const property = runtime.findAtEntryPoint(x, z, level);
+        if (!property) {
+            player.messageGame('This property door has no configured entry point.');
+            player.unsetMapFlag();
+            recordWorldModDomainEvent('economy.properties', 'entriesRejected');
+            return false;
+        }
+        if (Math.max(Math.abs(player.x - x), Math.abs(player.z - z)) > 2 || player.level !== level) {
+            player.messageGame('Walk closer to the property door and try again.');
+            player.unsetMapFlag();
+            return false;
+        }
+        if (!runtime.canPlayerEnter(property, player.username, player.staffModLevel >= 2)) {
+            player.messageGame(property.state.owner
+                ? 'The property door is locked. Only an authorised owner may enter.'
+                : 'The property door is locked. Purchase the property before entering.');
+            player.unsetMapFlag();
+            recordWorldModDomainEvent('economy.properties', 'entriesRejected');
+            return false;
+        }
+        player.messageGame(`You unlock the door to ${property.displayName}.`);
+        recordWorldModDomainEvent('economy.properties', 'ownerEntries');
+        return true;
     }
 
     handlePropertyRegister(player: Player, x: number, z: number, level: number): boolean {

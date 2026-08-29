@@ -98,8 +98,15 @@ szerveroldali műveletet ad:
 - `Inspect`: ár, elérhetőség vagy tulajdonos;
 - `Purchase`: modállapot-, tulajdon- és inventory-egyenleg ellenőrzés, tartós
   vásárlás és azonnali autosave;
-- `Enter`: az MVP-ben tulajdonosi jogosultság-visszajelzés. A valódi ajtó vagy
-  belső tér megnyitása a helyszín végleges kialakítása után külön lépés.
+- `Enter`: tulajdonosi jogosultság-visszajelzés és útmutatás a szomszédos ajtóhoz.
+
+A műhely tényleges ajtaja a `(3248, 3411, 0)` mezőn külön `Property door` loc.
+Nyitáskor a szerver a stabil `front-door` entry point alapján ellenőrzi az
+`enter` szerepkört. Tulajdonos vagy engedélyezett admin áthaladhat; más játékosnál
+az ajtó zárva marad. A sikeres nyitás a meglévő három tickes door scriptet használja,
+amely átviszi a játékost, majd automatikusan visszazár, így az ajtó nem hagy hosszú
+hozzáférési ablakot más szereplőknek. A mod read-only kikapcsolása nem vonja vissza
+a már megszerzett tulajdonosi hozzáférést, csak az új vásárlást és módosítást tiltja.
 
 A `Bank notice board` objektumok `Property register` művelete központi, csak
 olvasható ingatlannyilvántartást nyit. A görgethető játékbeli felület minden

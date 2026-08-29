@@ -17,7 +17,7 @@ const catalog = parsePropertyCatalog({
         type: 'workshop',
         location: { x: 3253, z: 3421, level: 0, region: 'Varrock East' },
         purchasePrice: 25000,
-        entryPoints: [{ entryPointId: 'front-door', label: 'Front door', x: 3253, z: 3421, level: 0 }],
+        entryPoints: [{ entryPointId: 'front-door', label: 'Front door', x: 3254, z: 3421, level: 0 }],
         revenue: { mode: 'none', amount: 0, intervalMinutes: 1440 },
         maintenance: { amount: 250, intervalMinutes: 1440 },
         permissions: {
@@ -60,9 +60,23 @@ afterEach(() => {
 describe('property runtime inventory wallet', () => {
     test('resolves only an exact configured property entry point', () => {
         const active = runtime();
-        expect(active.runtime.findAtEntryPoint(3253, 3421, 0)?.propertyId).toBe('varrock.test-workshop');
-        expect(active.runtime.findAtEntryPoint(3253, 3421, 1)).toBeNull();
-        expect(active.runtime.findAtEntryPoint(3254, 3421, 0)).toBeNull();
+        expect(active.runtime.findAtLocation(3253, 3421, 0)?.propertyId).toBe('varrock.test-workshop');
+        expect(active.runtime.findAtEntryPoint(3254, 3421, 0)?.propertyId).toBe('varrock.test-workshop');
+        expect(active.runtime.findAtEntryPoint(3254, 3421, 1)).toBeNull();
+        expect(active.runtime.findAtEntryPoint(3253, 3421, 0)).toBeNull();
+        active.store.close();
+    });
+
+    test('grants entry only to configured roles without requiring property writes', () => {
+        const active = runtime();
+        const available = active.runtime.list()[0]!;
+        expect(active.runtime.canPlayerEnter(available, 'Ferry14')).toBeFalse();
+        expect(active.runtime.canPlayerEnter(available, 'Moderator', true)).toBeTrue();
+
+        const target = player(40000);
+        const owned = active.runtime.purchase(target, 'varrock.test-workshop', 'runtime-entry-0001', true).property;
+        expect(active.runtime.canPlayerEnter(owned, 'Ferry14')).toBeTrue();
+        expect(active.runtime.canPlayerEnter(owned, 'SomeoneElse')).toBeFalse();
         active.store.close();
     });
 

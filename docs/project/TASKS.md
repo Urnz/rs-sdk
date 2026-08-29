@@ -194,8 +194,8 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
     ingatlannyilvántartást adni.
   - [x] A World Admin ingatlankártyáin koordinátát és az Élő világtérképre
     fókuszáló `Térképen` gombot megjeleníteni.
-  - [ ] A tulajdonosi Enter engedélyt valódi ajtóhoz vagy belső térhez kötni a
-    végleges ingatlanhelyszínek vizuális kijelölése után.
+  - [x] A Varrock műhely tulajdonosi Enter engedélyét a tényleges ajtóhoz kötni,
+    rövid automatikus áthaladással és visszazárással.
 - [x] Adminisztrátori lekérdezést és fejlesztői resetet készíteni, naplózással.
   - [x] Read-only katalógus- és tulajdonlekérdezést adni a World Adminhoz.
   - [x] Biztonságos, indoklásköteles fejlesztői resetet és pending-egyeztetést készíteni.

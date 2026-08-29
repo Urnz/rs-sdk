@@ -50,10 +50,24 @@ export class PropertyRuntime {
         return this.store.listPurchases('pending');
     }
 
+    findAtLocation(x: number, z: number, level: number): PropertyView | null {
+        return this.list().find(property =>
+            property.location.x === x && property.location.z === z && property.location.level === level
+        ) ?? null;
+    }
+
     findAtEntryPoint(x: number, z: number, level: number): PropertyView | null {
         return this.list().find(property => property.entryPoints.some(entry =>
             entry.x === x && entry.z === z && entry.level === level
         )) ?? null;
+    }
+
+    canPlayerEnter(property: PropertyView, username: string, isAdmin = false): boolean {
+        const roles = property.permissions.enter;
+        if (roles.includes('everyone') || roles.includes('eligible-player')) return true;
+        if (isAdmin && roles.includes('admin')) return true;
+        return roles.includes('owner') && property.state.owner?.kind === 'player'
+            && property.state.owner.id === username.toLowerCase();
     }
 
     resetProperty(propertyId: string, expectedVersion: number, now = new Date().toISOString()): PropertyView {
