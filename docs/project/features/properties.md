@@ -90,7 +90,8 @@ Az első katalógus három eltérő tesztesetet ad:
 A Varrock keleti bank falához tett első tesztpont csak élő bottal volt ellenőrizve,
 normál kliensben a fal eltakarta; ezért nem tekinthető vizuálisan ellenőrzött
 helyszínnek. A véglegesített első tesztingatlan a banktól délre álló, használaton
-kívüli műhely. A `Property sign` objektum a nyugati utcai bejáratnál,
+kívüli műhely. A `Property sign` valódi, szabadon álló signpost modellt használ,
+és a nyugati utcai bejáratnál,
 `(3247, 3411, 0)` mezőn jelenik meg, és három
 szerveroldali műveletet ad:
 

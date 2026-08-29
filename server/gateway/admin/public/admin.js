@@ -10,6 +10,7 @@ const state = {
     worldMods: null,
     worldModBackups: [],
     properties: null,
+    worldPlayers: [],
     adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
     selected: null,
@@ -17,6 +18,7 @@ const state = {
     spectating: null,
     spectateTimer: null,
     worldMapSelected: null,
+    worldMapPinned: null,
     token: sessionStorage.getItem('rs-admin-token') || ''
 };
 
@@ -242,24 +244,36 @@ function renderWorldMapBots() {
     const container = $('#world-map-bots');
     const online = state.bots.filter(bot => bot.status === 'active' && bot.position)
         .sort((left, right) => left.displayName.localeCompare(right.displayName, 'hu'));
-    $('#world-map-count').textContent = `${online.length} online bot`;
-    const selected = online.find(bot => bot.username === state.worldMapSelected);
+    const botNames = new Set(online.map(bot => bot.displayName.toLowerCase()));
+    const players = state.worldPlayers.filter(player => !botNames.has(player.name.toLowerCase()))
+        .sort((left, right) => left.name.localeCompare(right.name, 'hu'));
+    $('#world-map-count').textContent = `${online.length} bot · ${players.length} játékos`;
+    const selected = online.find(bot => `bot:${bot.username}` === state.worldMapSelected);
+    const selectedPlayer = players.find(player => `player:${player.name}` === state.worldMapSelected);
     $('#world-map-selected').textContent = selected
         ? `${selected.displayName} · ${selected.position.x}, ${selected.position.z}, ${selected.position.level}`
-        : 'Nincs kijelölt bot';
+        : selectedPlayer ? `${selectedPlayer.name} · ${selectedPlayer.x}, ${selectedPlayer.z}, ${selectedPlayer.level}`
+            : state.worldMapPinned ? `${state.worldMapPinned.label} · ${state.worldMapPinned.x}, ${state.worldMapPinned.z}, ${state.worldMapPinned.level}`
+                : 'Nincs kijelölt szereplő';
     const spectate = $('#world-map-spectate');
     spectate.hidden = !selected;
     spectate.dataset.name = selected?.username || '';
-    container.innerHTML = online.length ? online.map(bot => `<button class="world-map-bot${bot.username === state.worldMapSelected ? ' selected' : ''}" data-action="world-focus" data-name="${escapeHtml(bot.username)}">
+    const botRows = online.map(bot => `<button class="world-map-bot${`bot:${bot.username}` === state.worldMapSelected ? ' selected' : ''}" data-action="world-focus" data-name="${escapeHtml(bot.username)}">
         <span><strong>${escapeHtml(bot.displayName)}</strong><small>${escapeHtml(bot.currentSkill || bot.activity || 'Idle')}</small></span>
         <span class="world-map-coordinates">${bot.position.x}, ${bot.position.z}<small>szint ${bot.position.level}</small></span>
-    </button>`).join('') : '<p class="muted empty">Nincs friss pozíciót küldő online bot.</p>';
+    </button>`);
+    const playerRows = players.map(player => `<button class="world-map-bot${`player:${player.name}` === state.worldMapSelected ? ' selected' : ''}" data-action="world-player-focus" data-name="${escapeHtml(player.name)}">
+        <span><strong>${escapeHtml(player.name)}</strong><small>Kézi játékos</small></span>
+        <span class="world-map-coordinates">${player.x}, ${player.z}<small>szint ${player.level}</small></span>
+    </button>`);
+    container.innerHTML = [...botRows, ...playerRows].join('') || '<p class="muted empty">Nincs online szereplő.</p>';
 }
 
 function focusWorldBot(username) {
     const bot = state.bots.find(entry => entry.username === username && entry.status === 'active' && entry.position);
     if (!bot) return;
-    state.worldMapSelected = username;
+    state.worldMapSelected = `bot:${username}`;
+    state.worldMapPinned = null;
     renderWorldMapBots();
     const frame = $('#world-map-frame');
     const targetOrigin = new URL(state.config.worldMapUrl, location.href).origin;
@@ -269,22 +283,32 @@ function focusWorldBot(username) {
     }, targetOrigin);
 }
 
+function focusWorldPlayer(name) {
+    const player = state.worldPlayers.find(entry => entry.name === name);
+    if (!player) return;
+    state.worldMapSelected = `player:${name}`;
+    state.worldMapPinned = null;
+    renderWorldMapBots();
+    const frame = $('#world-map-frame');
+    frame.contentWindow?.postMessage({ type: 'rs-map-focus', name, x: player.x, z: player.z, level: player.level },
+        new URL(state.config.worldMapUrl, location.href).origin);
+}
+
 function openWorldMap() {
     const frame = $('#world-map-frame');
     if (frame.src === 'about:blank') frame.src = state.config.worldMapUrl;
     renderWorldMapBots();
     $('#world-map-dialog').showModal();
     const first = state.bots.find(bot => bot.status === 'active' && bot.position);
-    if (!state.worldMapSelected && first) state.worldMapSelected = first.username;
-    if (state.worldMapSelected) setTimeout(() => focusWorldBot(state.worldMapSelected), 500);
+    if (!state.worldMapSelected && first) setTimeout(() => focusWorldBot(first.username), 500);
 }
 
 function openWorldMapAt(x, z, level, label) {
     const frame = $('#world-map-frame');
     if (frame.src === 'about:blank') frame.src = state.config.worldMapUrl;
     state.worldMapSelected = null;
+    state.worldMapPinned = { x, z, level, label };
     renderWorldMapBots();
-    $('#world-map-selected').textContent = `${label} · ${x}, ${z}, ${level}`;
     $('#world-map-spectate').hidden = true;
     if ($('#world-admin-dialog').open) $('#world-admin-dialog').close();
     $('#world-map-dialog').showModal();
@@ -559,15 +583,16 @@ function drawChart(snapshots) {
 
 async function refresh() {
     try {
-        const [data, history, skillHistory, economyEvents] = await Promise.all([
+        const [data, history, skillHistory, economyEvents, worldPlayers] = await Promise.all([
             api('/api/admin/bots'), api('/api/admin/economy?limit=240'), api('/api/admin/skill-runs?limit=30'),
-            api('/api/admin/economy-events?limit=200')
+            api('/api/admin/economy-events?limit=200'), api('/api/admin/world-players')
         ]);
         state.bots = data.bots;
         state.economy = data.economy;
         state.skillRuns = skillHistory.runs;
         state.economyEvents = economyEvents.events;
         state.economyEventSummary = economyEvents.summary;
+        state.worldPlayers = worldPlayers.players;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
         renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents();
         if ($('#world-map-dialog').open) renderWorldMapBots();
@@ -763,6 +788,7 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'teleport') showTeleport(name);
         if (button.dataset.action === 'offline-edit') await showOfflineEditor(name);
         if (button.dataset.action === 'world-focus') focusWorldBot(name);
+        if (button.dataset.action === 'world-player-focus') focusWorldPlayer(name);
         if (button.dataset.action === 'world-spectate') { closeWorldMap(); openSpectate(name); }
         if (button.dataset.action === 'property-map') openWorldMapAt(
             Number(button.dataset.propertyX), Number(button.dataset.propertyZ),

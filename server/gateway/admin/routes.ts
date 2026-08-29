@@ -205,6 +205,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json(await listEngineProperties());
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/world-players') {
+            const response = await fetch(`${WORLD_MAP_ORIGIN}/playerpositions`, { signal: AbortSignal.timeout(4_000) });
+            if (!response.ok) return json({ error: `Az engine játékoslistája nem elérhető (HTTP ${response.status}).` }, 502);
+            const players = await response.json();
+            return json({ players: Array.isArray(players) ? players : [] });
+        }
+
         const spectateMatch = url.pathname.match(/^\/api\/admin\/bots\/([^/]+)\/spectate$/);
         if (req.method === 'GET' && spectateMatch?.[1]) {
             const username = decodeURIComponent(spectateMatch[1]).toLowerCase();

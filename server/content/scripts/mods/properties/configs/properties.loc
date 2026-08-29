@@ -1,7 +1,7 @@
 [property_sign]
 name=Property sign
 desc=It records the ownership of this property.
-model=model_loc_961
+model=model_loc_1033
 ambient=50
 active=yes
 op1=Inspect
