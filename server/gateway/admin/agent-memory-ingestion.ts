@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { CreateAgentEpisode } from '../../../agent-state/types.js';
+import { normalizeActorKey } from '../../../agent-state/validation.js';
 import { agentStateDbPath, skillRunsDir } from './paths.js';
 import { readSkillRunHistory, type AdminSkillRun } from './skill-history.js';
 import { extractEconomyEvents, type EconomyEvent } from './transaction-telemetry.js';
@@ -13,6 +14,9 @@ export interface AgentMemoryIngestionResult {
     createdKnowledge: number;
     existingKnowledge: number;
     blockedConsolidations: number;
+    createdRelationships: number;
+    updatedRelationships: number;
+    existingRelationships: number;
     skippedRuns: number;
     errors: Array<{ runId: string; message: string }>;
     completedAt: string;
@@ -23,6 +27,13 @@ interface ProductionObservation {
     skillId: string;
     skillVersion: string;
     item: EconomyEvent['itemsIn'][number];
+    event: EconomyEvent;
+    episodeId: string;
+}
+
+interface SocialObservation {
+    agentId: string;
+    counterparty: string;
     event: EconomyEvent;
     episodeId: string;
 }
@@ -143,6 +154,63 @@ function consolidateProductionKnowledge(store: AgentStateStore, observations: Pr
     }
 }
 
+function reconcileTradeRelationships(store: AgentStateStore, observations: SocialObservation[],
+    result: AgentMemoryIngestionResult): void {
+    const groups = new Map<string, { ruleKey: string; actorKey: string; sample: SocialObservation }>();
+    for (const observation of observations) {
+        try {
+            const actorKey = normalizeActorKey(observation.counterparty);
+            const ruleKey = `social.trade.${digest(actorKey)}`;
+            store.recordConsolidationEvidence(observation.agentId, {
+                ruleKey, evidenceKey: `economy:${observation.event.id}:social`,
+                episodeId: observation.episodeId, occurredAt: observation.event.timestamp
+            }, result.completedAt);
+            groups.set(`${observation.agentId}:${ruleKey}`, { ruleKey, actorKey, sample: observation });
+        } catch (error) {
+            result.errors.push({ runId: observation.event.runId,
+                message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+    for (const { ruleKey, actorKey, sample } of groups.values()) {
+        try {
+            const current = store.getRelationship(sample.agentId, actorKey);
+            const recent = store.listRecentConsolidationEvidence(sample.agentId, ruleKey, 20);
+            const familiarity = Math.max(current?.familiarity ?? 0,
+                Math.min(100, store.countConsolidationEvidence(sample.agentId, ruleKey) * 5));
+            const lastInteractionAt = [current?.lastInteractionAt, recent.at(-1)?.occurredAt]
+                .filter((value): value is string => !!value).sort().at(-1) ?? null;
+            const tags = [...new Set([...(current?.tags ?? []), 'automatic', 'player-trade'])].slice(0, 12);
+            const curatedEvidence = (current?.evidenceEpisodeIds ?? []).filter(episodeId =>
+                !store.hasConsolidationEvidence(sample.agentId, ruleKey, episodeId));
+            const availableEvidenceSlots = 20 - Math.min(20, curatedEvidence.length);
+            const automaticEvidence = availableEvidenceSlots > 0
+                ? recent.map(item => item.episodeId).slice(-availableEvidenceSlots) : [];
+            const evidenceEpisodeIds = [...new Set([...curatedEvidence.slice(0, 20), ...automaticEvidence])];
+            const desired = {
+                actorKey, displayName: current?.displayName ?? sample.counterparty,
+                trust: current?.trust ?? 0, affinity: current?.affinity ?? 0, familiarity,
+                agentOwesGp: current?.agentOwesGp ?? 0, actorOwesGp: current?.actorOwesGp ?? 0,
+                notes: current?.notes ?? '', tags, evidenceEpisodeIds, lastInteractionAt
+            };
+            if (current && current.displayName === desired.displayName && current.trust === desired.trust
+                && current.affinity === desired.affinity && current.familiarity === desired.familiarity
+                && current.agentOwesGp === desired.agentOwesGp && current.actorOwesGp === desired.actorOwesGp
+                && current.notes === desired.notes && current.lastInteractionAt === desired.lastInteractionAt
+                && JSON.stringify(current.tags) === JSON.stringify(desired.tags)
+                && JSON.stringify(current.evidenceEpisodeIds) === JSON.stringify(desired.evidenceEpisodeIds)) {
+                result.existingRelationships++;
+                continue;
+            }
+            store.setRelationship(sample.agentId, current?.revision ?? null, desired, result.completedAt);
+            if (current) result.updatedRelationships++;
+            else result.createdRelationships++;
+        } catch (error) {
+            result.errors.push({ runId: `social:${sample.event.runId}`,
+                message: error instanceof Error ? error.message : String(error) });
+        }
+    }
+}
+
 export async function ingestAgentMemories(options: {
     databasePath?: string;
     runRoot?: string;
@@ -153,11 +221,13 @@ export async function ingestAgentMemories(options: {
     const store = new AgentStateStore(options.databasePath ?? agentStateDbPath);
     const result: AgentMemoryIngestionResult = { scannedRuns: runs.length, matchedRuns: 0,
         createdEpisodes: 0, existingEpisodes: 0, createdKnowledge: 0, existingKnowledge: 0,
-        blockedConsolidations: 0, skippedRuns: 0, errors: [],
+        blockedConsolidations: 0, createdRelationships: 0, updatedRelationships: 0,
+        existingRelationships: 0, skippedRuns: 0, errors: [],
         completedAt: options.now ?? new Date().toISOString() };
     try {
         const agentByPlayer = new Map(store.listIdentities().map(identity => [identity.playerUsername, identity.agentId]));
         const productionObservations: ProductionObservation[] = [];
+        const socialObservations: SocialObservation[] = [];
         for (const run of [...runs].sort((left, right) => left.startedAt.localeCompare(right.startedAt))) {
             const agentId = run.username ? agentByPlayer.get(run.username) : undefined;
             if (!agentId) { result.skippedRuns++; continue; }
@@ -179,6 +249,10 @@ export async function ingestAgentMemories(options: {
                             item, event, episodeId: episode.episodeId
                         });
                     }
+                    if (event?.kind === 'player-trade' && !event.partial && event.counterparty) {
+                        socialObservations.push({ agentId, counterparty: event.counterparty,
+                            event, episodeId: episode.episodeId });
+                    }
                 } catch (error) {
                     result.errors.push({ runId: run.runId,
                         message: error instanceof Error ? error.message : String(error) });
@@ -186,6 +260,7 @@ export async function ingestAgentMemories(options: {
             }
         }
         consolidateProductionKnowledge(store, productionObservations, result);
+        reconcileTradeRelationships(store, socialObservations, result);
     } finally { store.close(); }
     return result;
 }

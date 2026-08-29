@@ -175,6 +175,19 @@ memory` blokkjába, és abban már lezárt vállalás nem jelenik meg. Az Agente
 kapcsolat rögzíthető és szerkeszthető, vállalás nyitható és lezárható; minden írás
 indokláskötött admin auditot készít.
 
+A journal-ingestion a teljes, strukturált player trade események másik résztvevőjét
+automatikusan social kapcsolatként is felismeri. Minden egyedi trade öt ponttal,
+legfeljebb százig növeli a számított ismertséget, frissíti az utolsó interakciót,
+és legfeljebb húsz episodic bizonyítékot kapcsol a rekordhoz. Az evidence ledger
+miatt ugyanaz a journal újraolvasva nem számít új találkozásnak és nem növeli a
+revisiont sem. A kézi kapcsolat nevét, magasabb ismertségét, bizalmát, rokonszenvét,
+tartozásait és jegyzetét a feldolgozó megőrzi. Pusztán a csere tényéből nem állapít
+meg barátságot, megbízhatóságot, hitelt vagy teljesített ígéretet.
+
+Az admin social kártyája megmutatja az utolsó interakció relatív idejét, a címkéket
+és a kapcsolathoz rendelt bizonyítékok számát, ezért az automatikus eredet kézzel is
+ellenőrizhető.
+
 ## Gazdasági szereplők és eszközportfólió
 
 A v7 séma nem másolja az agent-adatbázisba a pénzt vagy az ingatlant. Ehelyett az

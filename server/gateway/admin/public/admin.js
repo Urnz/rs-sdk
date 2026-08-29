@@ -163,6 +163,7 @@ function renderAgents() {
                     <button class="button small secondary" data-action="agent-commitment-add" data-agent-id="${escapeHtml(identity.agentId)}" data-actor-key="${escapeHtml(item.actorKey)}">+ Kötelezettség</button></span></div>
                 <small>bizalom ${item.trust} · rokonszenv ${item.affinity} · ismertség ${item.familiarity}</small>
                 <small>agent tartozása ${fmt.format(item.agentOwesGp)} gp · másik fél tartozása ${fmt.format(item.actorOwesGp)} gp</small>
+                <small>${item.lastInteractionAt ? `utolsó interakció: ${escapeHtml(relativeTime(item.lastInteractionAt))}` : 'nincs időzített interakció'}${item.tags?.length ? ` · ${item.tags.map(escapeHtml).join(', ')}` : ''} · ${item.evidenceEpisodeIds.length} bizonyíték</small>
                 ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ''}<div class="agent-commitments">${commitments}</div>
             </div>`;
         }).join('') || '<p class="muted">Még nincs social memória.</p>';

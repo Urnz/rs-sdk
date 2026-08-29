@@ -858,8 +858,10 @@ const botSupervisor = new BotSupervisor((username, reason) => {
 const agentMemoryIngestion = new AgentMemoryIngestionLoop();
 const memoryIngestionTimer = setInterval(() => {
     void agentMemoryIngestion.sync().then(result => {
-        if (result.createdEpisodes > 0 || result.createdKnowledge > 0) {
-            console.log(`[AgentMemory] Created ${result.createdEpisodes} automatic episodes and ${result.createdKnowledge} semantic memories from ${result.matchedRuns} matched runs.`);
+        if (result.createdEpisodes > 0 || result.createdKnowledge > 0
+            || result.createdRelationships > 0 || result.updatedRelationships > 0) {
+            console.log(`[AgentMemory] Created ${result.createdEpisodes} episodes, ${result.createdKnowledge} semantic memories, `
+                + `${result.createdRelationships} relationships and updated ${result.updatedRelationships} relationships from ${result.matchedRuns} matched runs.`);
         }
         for (const error of result.errors) console.error(`[AgentMemory] ${error.runId}: ${error.message}`);
     }).catch(error => console.error('[AgentMemory] Automatic ingestion failed:', error));

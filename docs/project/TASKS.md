@@ -245,6 +245,9 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
   - [x] Az ismétlődő, teljes és strukturált termelési bizonyítékokat tartós
     evidence ledgerrel, 3/5/10/20 megfigyelési küszöbökön semantic eljárástudássá
     konszolidálni, verziómegőrző felülírással és kézi tudás védelmével.
+  - [x] A teljes player trade eseményekből automatikusan social kapcsolatot és
+    ismertséget építeni úgy, hogy a kézi bizalom-, rokonszenv-, tartozás- és
+    jegyzetértékek változatlanok maradjanak.
 - [ ] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
 
 Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
@@ -411,3 +414,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 33. [x] A megbízható termelési epizódokból tartós bizonyítékszámlálással,
     lépcsőzetes confidence-szel és felülírási előzményekkel automatikus semantic
     eljárástudást képezni úgy, hogy kézi tudást soha ne írjon felül.
+34. [x] A strukturált player trade-okból idempotens social kapcsolatot,
+    bizonyítéklistát, utolsó interakciót és fokozatos ismertséget képezni anélkül,
+    hogy az automatika bizalmat, rokonszenvet vagy tartozást találna ki.

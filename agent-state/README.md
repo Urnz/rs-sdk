@@ -93,6 +93,11 @@ The deterministic social retriever ranks actor, tag and text matches together wi
 and open commitments. Only bounded results and still-open commitments enter the decision context. The `Agentek` admin
 tab supports audited relationship editing, commitment creation and explicit commitment resolution.
 
+Trusted, complete player-trade journals also reconcile social memory automatically. Each unique trade contributes five
+familiarity points up to 100, advances the last interaction time and attaches bounded episodic evidence. Rescans are
+idempotent. Existing display names, higher familiarity, trust, affinity, debt and notes are preserved; a trade alone
+never implies trust, affection, credit or a fulfilled commitment.
+
 ## Economic actors and assets
 
 Schema v7 stores stable links from an agent to `player`, `business` and `faction` economic actors. The identity-owned

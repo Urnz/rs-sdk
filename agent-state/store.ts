@@ -459,10 +459,24 @@ export class AgentStateStore {
             .all(normalized, ruleKey, limit) as ConsolidationEvidenceRow[]).map(consolidationEvidence);
     }
 
+    listRecentConsolidationEvidence(agentId: string, ruleKey: string, limit = 20): AgentConsolidationEvidence[] {
+        const normalized = normalizeAgentId(agentId);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('Consolidation evidence limit must be from 1 to 20');
+        return (this.database.query(`SELECT * FROM agent_consolidation_evidence
+            WHERE agent_id = ?1 AND rule_key = ?2 ORDER BY occurred_at DESC, evidence_key DESC LIMIT ?3`)
+            .all(normalized, ruleKey, limit) as ConsolidationEvidenceRow[]).map(consolidationEvidence).reverse();
+    }
+
     countConsolidationEvidence(agentId: string, ruleKey: string): number {
         const normalized = normalizeAgentId(agentId);
         return (this.database.query(`SELECT COUNT(*) AS count FROM agent_consolidation_evidence
             WHERE agent_id = ?1 AND rule_key = ?2`).get(normalized, ruleKey) as { count: number }).count;
+    }
+
+    hasConsolidationEvidence(agentId: string, ruleKey: string, episodeId: string): boolean {
+        const normalized = normalizeAgentId(agentId);
+        return !!this.database.query(`SELECT 1 FROM agent_consolidation_evidence
+            WHERE agent_id = ?1 AND rule_key = ?2 AND episode_id = ?3 LIMIT 1`).get(normalized, ruleKey, episodeId);
     }
 
     createKnowledge(agentId: string, input: CreateAgentKnowledge,

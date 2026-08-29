@@ -57,7 +57,7 @@ describe('automatic agent memory ingestion', () => {
 
         const first = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T10:01:00.000Z' });
         expect(first).toMatchObject({ scannedRuns: 1, matchedRuns: 1, createdEpisodes: 3,
-            existingEpisodes: 0, skippedRuns: 0, errors: [] });
+            existingEpisodes: 0, createdRelationships: 1, skippedRuns: 0, errors: [] });
         const store = new AgentStateStore(databasePath);
         const episodes = store.listEpisodes('ferrye14');
         expect(episodes).toHaveLength(3);
@@ -66,10 +66,18 @@ describe('automatic agent memory ingestion', () => {
             source: 'skill', trust: 'trusted', tags: ['automatic', 'skill-run', 'completed', 'economy.test']
         });
         expect(episodes.find(item => item.tags.includes('player-trade'))).toMatchObject({ actors: ['Buyer1'] });
+        expect(store.getRelationship('ferrye14', 'buyer1')).toMatchObject({
+            displayName: 'Buyer1', trust: 0, affinity: 0, familiarity: 5,
+            agentOwesGp: 0, actorOwesGp: 0, tags: ['automatic', 'player-trade'], revision: 1
+        });
         store.close();
 
         const second = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T10:02:00.000Z' });
-        expect(second).toMatchObject({ createdEpisodes: 0, existingEpisodes: 3, errors: [] });
+        expect(second).toMatchObject({ createdEpisodes: 0, existingEpisodes: 3,
+            createdRelationships: 0, updatedRelationships: 0, existingRelationships: 1, errors: [] });
+        const reopened = new AgentStateStore(databasePath);
+        expect(reopened.getRelationship('ferrye14', 'buyer1')?.revision).toBe(1);
+        reopened.close();
     });
 
     test('skips unmatched players and rejects changed journal content instead of rewriting memory', async () => {
@@ -159,6 +167,39 @@ describe('automatic agent memory ingestion', () => {
         expect(reopened.listKnowledge('ferrye14', { status: 'active' })[0]).toMatchObject({
             knowledgeId: 'manual.iron-production', source: 'manual', confidence: 95
         });
+        reopened.close();
+    });
+
+    test('adds trade evidence without inventing or lowering manually curated relationship values', async () => {
+        const { runRoot, databasePath } = await fixture();
+        const store = new AgentStateStore(databasePath);
+        const curatedEvidence = store.createEpisode('ferrye14', { episodeId: 'manual.buyer-note',
+            kind: 'interaction', summary: 'The buyer negotiated fairly.', source: 'manual',
+            actors: ['Buyer1'], occurredAt: '2026-08-29T08:00:00.000Z' });
+        store.setRelationship('ferrye14', null, { actorKey: 'Buyer1', displayName: 'Preferred buyer',
+            trust: 55, affinity: 30, familiarity: 80, agentOwesGp: 900, actorOwesGp: 150,
+            notes: 'Manually curated relationship.', tags: ['merchant'],
+            evidenceEpisodeIds: [curatedEvidence.episodeId] }, '2026-08-29T09:00:00.000Z');
+        store.close();
+        const ids = [1, 2, 3].map(index =>
+            `2000000${index}-0000-4000-8000-${String(index).padStart(12, '0')}`);
+        for (let index = 0; index < ids.length; index++) {
+            await writeFile(join(runRoot, `${ids[index]}.json`), JSON.stringify(journal('Done.', ids[index], index)));
+        }
+
+        const result = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T11:00:00.000Z' });
+        expect(result).toMatchObject({ createdRelationships: 0, updatedRelationships: 1, errors: [] });
+        const reopened = new AgentStateStore(databasePath);
+        expect(reopened.getRelationship('ferrye14', 'buyer1')).toMatchObject({
+            displayName: 'Preferred buyer', trust: 55, affinity: 30, familiarity: 80,
+            agentOwesGp: 900, actorOwesGp: 150, notes: 'Manually curated relationship.',
+            tags: ['merchant', 'automatic', 'player-trade'], revision: 2,
+            lastInteractionAt: '2026-08-29T10:02:02.000Z'
+        });
+        expect(reopened.getRelationship('ferrye14', 'buyer1')?.evidenceEpisodeIds).toEqual([
+            'manual.buyer-note', expect.stringMatching(/^economy\./),
+            expect.stringMatching(/^economy\./), expect.stringMatching(/^economy\./)
+        ]);
         reopened.close();
     });
 });
