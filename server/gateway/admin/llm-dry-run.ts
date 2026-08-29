@@ -28,16 +28,46 @@ function words(value: string): Set<string> {
 }
 
 function mockResponse(agent: AdminAgentView, request: LlmProviderRequest): LlmProviderResponse {
-    const immediate = agent.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
-        .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0]!;
-    const assigned = immediate.skill && request.tools[0].allowedSkills.find(skill => skill.id === immediate.skill!.id
-        && skill.version === immediate.skill!.version);
+    const anchor = agent.goals.find(goal => goal.goalId === request.goal.goalId)!;
+    const assigned = anchor.skill && request.tools[0].allowedSkills.find(skill => skill.id === anchor.skill!.id
+        && skill.version === anchor.skill!.version);
     const goalWords = words(`${request.goal.title} ${request.goal.description}`);
     const ranked = request.tools[0].allowedSkills.map(skill => ({ skill, score: [...goalWords]
         .filter(word => `${skill.id} ${skill.name} ${skill.description}`.toLocaleLowerCase('en-US').includes(word)).length }))
         .sort((left, right) => right.score - left.score || left.skill.id.localeCompare(right.skill.id)
             || left.skill.version.localeCompare(right.skill.version));
-    const selected = assigned ?? (ranked[0]?.score ? ranked[0].skill : null);
+    const preferred = agent.knownSkills.find(item => item.status === 'preferred' && request.tools[0].allowedSkills
+        .some(skill => skill.id === item.skill.id && skill.version === item.skill.version));
+    const matched = assigned ?? (ranked[0]?.score ? ranked[0].skill : null);
+    const selected = request.mode === 'derive-immediate-goal'
+        ? matched ?? (preferred ? request.tools[0].allowedSkills.find(skill => skill.id === preferred.skill.id
+            && skill.version === preferred.skill.version) : null) ?? request.tools[0].allowedSkills[0] ?? null
+        : matched;
+    if (request.mode === 'derive-immediate-goal') {
+        const remaining = anchor.horizon === 'life' ? ['long-term', 'current', 'immediate'] as const
+            : anchor.horizon === 'long-term' ? ['current', 'immediate'] as const
+                : ['immediate'] as const;
+        let parentGoalId = anchor.goalId;
+        const goals = remaining.map(horizon => {
+            const suffix = horizon === 'long-term' ? 'strategy' : horizon === 'current' ? 'progress' : 'next-action';
+            const goalId = `plan-${suffix}-${anchor.goalId}`.slice(0, 64).replace(/[.-]+$/, '');
+            const title = (horizon === 'long-term' ? `Advance toward ${anchor.title}`
+                : horizon === 'current' ? `Build measurable progress toward ${anchor.title}`
+                    : selected ? `Use ${selected.name}` : `Find a practical next action for ${anchor.title}`).slice(0, 200);
+            const goal = { goalId, parentGoalId, horizon, title,
+                description: selected
+                    ? `Make measurable progress toward "${anchor.title}" with the reviewed ${selected.name} skill.`.slice(0, 2000)
+                    : `Identify a safe, measurable action that advances "${anchor.title}".`.slice(0, 2000),
+                priority: anchor.priority };
+            parentGoalId = goalId;
+            return goal;
+        });
+        return { output: { decision: 'propose_goal_plan', goalId: request.goal.goalId, goals,
+            tool: selected ? { name: 'execute_skill', arguments: { skillId: selected.id, version: selected.version } } : undefined,
+            reason: selected ? 'The proposed goal chain turns the strategic objective into one reviewed executable skill.'
+                : 'The proposed goal chain reaches an immediate objective, but no reviewed skill is currently available.' },
+        usage: { inputTokens: 0, outputTokens: 0, costMicros: 0 }, providerRequestId: `mock:${request.runId}` };
+    }
     const output = selected ? {
         decision: 'select_skill', goalId: request.goal.goalId,
         tool: { name: 'execute_skill', arguments: { skillId: selected.id, version: selected.version } },

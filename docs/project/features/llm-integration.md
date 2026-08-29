@@ -2,13 +2,16 @@
 
 ## Első use case
 
-Egyetlen kezelt játékosügynök kapjon egy már aktív immediate célt és tömör
-játékállapotot. A modell a bot által ismert, nem blokkolt és a megbízható
+Egyetlen kezelt játékosügynök kapja meg az aktív célhierarchiáját és tömör
+játékállapotát. Ha van immediate cél, a modell ahhoz választ skillt. Ha nincs,
+az élet-, hosszú távú vagy aktuális célból szabályos, immediate célig vezető
+cél-láncot javasol. A modell a bot által ismert, nem blokkolt és a megbízható
 katalógusban elérhető magas szintű agent skillek közül választhat. A döntés
 először csak javaslat; a determinisztikus végrehajtó kizárólag egyszer használható
 approval azonosítóval indíthatja el.
 
-Az első változat nem hoz létre célt vagy skillt, nem ír memóriát és nem kap
+Az első változat csak javasol célokat: nem menti őket, nem hoz létre skillt,
+nem ír memóriát és nem kap
 alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
 
 ## Rétegek
@@ -52,6 +55,11 @@ alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
 - Az automatikus eredmények a `.local/admin/llm-replans.jsonl` fájlba kerülnek,
   és a `/api/admin/llm-replans` helyi admin végponton lekérhetők. Ezek továbbra
   is csak mock javaslatok: automatikus skillvégrehajtás nincs.
+- Immediate cél hiányában a planner a legmélyebb aktív stratégiai célt választja
+  horgonynak. A mock előnézet egyetlen kérésben pontosan a hiányzó horizontokat
+  (`long-term`, `current`, `immediate`) javasolja, és az utolsó célhoz legfeljebb
+  egy, már ismert és ellenőrzött skillt rendel. A javaslat nem módosítja az
+  agentadatbázist.
 
 Valódi provider csak az admin jóváhagyási folyamat után, explicit kis
 jogosultságú tesztkonfigurációval kapcsolható be.

@@ -65,3 +65,36 @@ test('admin UI exposes the LLM preview without an execution control', () => {
     expect(script).toContain('/llm-dry-run`');
     expect(html).not.toContain('id="llm-dry-run-execute"');
 });
+
+test('admin LLM dry-run proposes the missing goal hierarchy from a long-term goal', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'rs-admin-llm-goals-'));
+    directories.push(root);
+    const databasePath = join(root, 'agents.sqlite');
+    const configPath = join(root, 'llm.json');
+    writeFileSync(configPath, JSON.stringify({ schemaVersion: 1, enabled: false, provider: 'mock',
+        model: 'deterministic-scripted-v1', limits: { maxDurationMs: 1000, maxModelRequests: 1,
+            maxToolCalls: 1, maxCostMicros: 0 } }));
+    createAdminAgent({ agentId: 'ferrye14', playerUsername: 'Ferrye14', displayName: 'Ferrye',
+        background: 'An ambitious miner.', personalityTraits: ['patient'] }, databasePath);
+    createAdminAgentGoal('ferrye14', { goalId: 'life', horizon: 'life', title: 'Become wealthy' }, databasePath);
+    createAdminAgentGoal('ferrye14', { goalId: 'workshop', parentGoalId: 'life', horizon: 'long-term',
+        title: 'Buy the Varrock workshop', priority: 90 }, databasePath);
+    updateAdminAgentSkill('ferrye14', { id: 'varrock-east-mining', version: '1.0.0' }, 'known', null, databasePath);
+    const store = new AgentStateStore(databasePath);
+    store.setWorkingMemory('ferrye14', null, { summary: 'Ready to work.', currentActivity: null,
+        location: { x: 3285, z: 3367, level: 0 }, observations: [],
+        observedAt: '2026-08-29T12:00:00.000Z' }, '2026-08-29T12:00:00.000Z');
+    store.close();
+    const catalog = await listAdminAgents(databasePath);
+    const skill = { reference: 'varrock-east-mining@1.0.0', id: 'varrock-east-mining', version: '1.0.0',
+        name: 'Varrock East mining', description: 'Mine ore and bank it.', tags: ['mining'], parameters: {},
+        limits: { timeoutMs: 60_000, maxOperations: 100 } };
+    const result = await runAdminLlmDryRun(catalog.agents[0]!, [skill], {
+        now: '2026-08-29T12:00:00.000Z', configPath, audit: new MemoryLlmAuditSink()
+    });
+    expect(result.request?.mode).toBe('derive-immediate-goal');
+    expect(result.plan.decision).toMatchObject({ kind: 'propose-goal-plan', goals: [
+        { horizon: 'current', parentGoalId: 'workshop' }, { horizon: 'immediate' }
+    ], skill: { id: 'varrock-east-mining', version: '1.0.0' } });
+    expect(result.plan.approvalId).toBeNull();
+});

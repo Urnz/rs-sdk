@@ -1,4 +1,4 @@
-import type { AgentSkillReference } from '../agent-state/types.js';
+import type { AgentSkillReference, GoalHorizon } from '../agent-state/types.js';
 
 export const LLM_RUNTIME_SCHEMA_VERSION = 1 as const;
 
@@ -22,9 +22,26 @@ export interface AllowedAgentSkill extends AgentSkillReference {
     description: string;
 }
 
+export type LlmPlanningMode = 'execute-immediate-goal' | 'derive-immediate-goal';
+
+export interface LlmGoalSummary {
+    goalId: string;
+    parentGoalId: string | null;
+    horizon: GoalHorizon;
+    title: string;
+    description: string;
+    priority: number;
+}
+
+export interface ProposedAgentGoal extends Omit<LlmGoalSummary, 'horizon'> {
+    horizon: Exclude<GoalHorizon, 'life'>;
+}
+
 export interface LlmPlanningInput {
     agentId: string;
+    mode: LlmPlanningMode;
     goal: { goalId: string; title: string; description: string };
+    goalHierarchy: readonly LlmGoalSummary[];
     trustedContext: string;
     /** Chat, mod text and other external strings stay isolated as untrusted data. */
     untrustedText?: readonly string[];
@@ -36,7 +53,9 @@ export interface LlmProviderRequest {
     runId: string;
     agentId: string;
     model: string;
+    mode: LlmPlanningMode;
     goal: LlmPlanningInput['goal'];
+    goalHierarchy: readonly LlmGoalSummary[];
     trustedContext: string;
     untrustedText: readonly string[];
     tools: readonly [{
@@ -68,6 +87,12 @@ export type LlmDecision = {
     kind: 'execute-skill';
     goalId: string;
     skill: AgentSkillReference;
+    reason: string;
+} | {
+    kind: 'propose-goal-plan';
+    goalId: string;
+    goals: ProposedAgentGoal[];
+    skill: AgentSkillReference | null;
     reason: string;
 } | {
     kind: 'abstain';

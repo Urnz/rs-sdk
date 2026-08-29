@@ -11,9 +11,13 @@ export interface BuildLlmPlanningInputOptions {
 
 export function buildLlmPlanningInput(snapshot: AgentSnapshot,
     options: BuildLlmPlanningInputOptions): LlmPlanningInput {
-    const goal = snapshot.goals.filter(item => item.status === 'active' && item.horizon === 'immediate')
+    const active = snapshot.goals.filter(item => item.status === 'active');
+    const depth = { life: 0, 'long-term': 1, current: 2, immediate: 3 } as const;
+    const immediate = active.filter(item => item.horizon === 'immediate')
         .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
-    if (!goal) throw new Error(`Agent ${snapshot.identity.agentId} has no active immediate goal`);
+    const goal = immediate ?? active.sort((left, right) => depth[right.horizon] - depth[left.horizon]
+        || right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
+    if (!goal) throw new Error(`Agent ${snapshot.identity.agentId} has no active strategic goal`);
 
     const now = Date.parse(options.context?.now ?? new Date().toISOString());
     const maxAge = options.context?.workingMemoryMaxAgeMs ?? 5 * 60_000;
@@ -34,7 +38,13 @@ export function buildLlmPlanningInput(snapshot: AgentSnapshot,
 
     return {
         agentId: snapshot.identity.agentId,
+        mode: immediate ? 'execute-immediate-goal' : 'derive-immediate-goal',
         goal: { goalId: goal.goalId, title: goal.title, description: goal.description },
+        goalHierarchy: active.sort((left, right) => depth[left.horizon] - depth[right.horizon]
+            || right.priority - left.priority || left.goalId.localeCompare(right.goalId)).map(item => ({
+            goalId: item.goalId, parentGoalId: item.parentGoalId, horizon: item.horizon,
+            title: item.title, description: item.description, priority: item.priority
+        })),
         trustedContext: buildDecisionContext(snapshot, context),
         untrustedText: [...(options.untrustedText ?? []), ...untrustedEpisodes],
         allowedSkills,

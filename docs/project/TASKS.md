@@ -280,7 +280,18 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 - [x] Adminpaneles mock LLM dry-runt készíteni, amely friss élő állapotból
   megmutatja a trusted contextet, a nem megbízható szöveget, az engedélyezett
   skilleket és a modell javaslatát, végrehajtás nélkül.
-- [ ] Csak ezután bekötni egy valódi modellt kis jogosultságú lokális tesztkörnyezetben.
+- [x] Hierarchikus céltervezést készíteni: aktív immediate cél hiányában az
+  élet-, hosszú távú vagy aktuális célból egyetlen modellhívással szabályos,
+  immediate célig vezető cél-láncot és opcionális ellenőrzött skillt javasolni.
+- [ ] Valódi provider adaptert és biztonságos, környezeti változós API-kulcs
+  konfigurációt készíteni kis jogosultságú lokális tesztkörnyezethez.
+- [ ] Admin jóváhagyással atomikusan létrehozni a javasolt cél-láncot, majd
+  egyszer használható approval azonosítóval elindítani a kiválasztott skillt.
+- [ ] Korlátozott autonóm agent-életciklust készíteni: eseményre újratervezés,
+  veszélytelen ellenőrzött skillek policy szerinti futtatása és skill-gap jelzés.
+- [ ] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
+  jóváhagyandó skill-készítési folyamatot indítani; a futó agent ne kapjon
+  közvetlen tetszőleges kódfuttatást.
 
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
 auditálható, és hibánál vagy limitnél biztonságosan leáll.

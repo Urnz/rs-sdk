@@ -112,11 +112,15 @@ function dateTimeLocalValue(value = new Date()) {
 function showLlmDryRun(result) {
     const plan = result.plan;
     const request = result.request;
-    const skill = plan.decision?.kind === 'execute-skill'
-        ? `${plan.decision.skill.id}@${plan.decision.skill.version}` : 'Nincs kiválasztott skill';
+    const skillRef = plan.decision?.kind === 'execute-skill' ? plan.decision.skill
+        : plan.decision?.kind === 'propose-goal-plan' ? plan.decision.skill : null;
+    const skill = skillRef ? `${skillRef.id}@${skillRef.version}` : 'Nincs kiválasztott skill';
     $('#llm-dry-run-status').textContent = llmPlanLabels[plan.status] || plan.status;
     $('#llm-dry-run-meta').textContent = `Run ID: ${plan.runId} · ${request?.model || 'ismeretlen modell'} · ${plan.usage.costMicros} µköltség`;
-    $('#llm-dry-run-goal').textContent = request ? `${request.goal.title} (${request.goal.goalId})` : 'Nem készült modellkérés';
+    const proposedGoals = plan.decision?.kind === 'propose-goal-plan'
+        ? `\n\nJavasolt célhierarchia:\n${plan.decision.goals.map(goal => `• ${goal.horizon}: ${goal.title} (${goal.goalId})`).join('\n')}` : '';
+    $('#llm-dry-run-goal').textContent = request
+        ? `Stratégiai horgony: ${request.goal.title} (${request.goal.goalId})${proposedGoals}` : 'Nem készült modellkérés';
     $('#llm-dry-run-skill').textContent = skill;
     $('#llm-dry-run-reason').textContent = plan.reason;
     $('#llm-dry-run-context').textContent = request?.trustedContext || 'Nincs átadott trusted context.';

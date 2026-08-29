@@ -2,7 +2,8 @@
 
 Providerfüggetlen, biztonsági határ a stratégiai modell és a determinisztikus
 agent-skill végrehajtó között. Az első use case egyetlen kezelt játékosügynök:
-egy már aktív immediate célhoz választ egy ellenőrzött magas szintű skillt.
+egy aktív immediate célhoz ellenőrzött magas szintű skillt választ, immediate
+cél hiányában pedig a stratégiai célból szabályos cél-láncot javasol.
 
 Az orchestration négy külön lépése:
 
@@ -10,7 +11,8 @@ Az orchestration négy külön lépése:
    szöveget pedig `untrustedText` adatként elkülöníti;
 2. a közös inference queue meghívja a konfigurált providert;
 3. a validator csak az adott célhoz és az engedélyezett skillverziókhoz tartozó
-   `execute_skill` javaslatot fogadja el;
+   `execute_skill`, illetve a hiányzó horizontokat pontosan kitöltő célterv
+   javaslatot fogadja el;
 4. a javaslat csak egyszer használható approval azonosítóval hajtható végre.
 
 A `ScriptedMockProvider` determinisztikus teszteket tesz lehetővé hálózat és

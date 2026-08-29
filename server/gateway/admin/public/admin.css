@@ -181,6 +181,7 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .llm-result-grid section,.llm-dialog form > section { padding: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 9px; }
 .llm-dialog h3 { margin: 0 0 7px; color: var(--gold); font-size: 13px; }
 .llm-dialog p { margin: 0; }
+.llm-plan-text { white-space: pre-line; }
 .llm-preview { max-height: 260px; margin: 0; padding: 10px; overflow: auto; color: #cbd5c6; background: #0d100c; border-radius: 7px; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.45 ui-monospace, monospace; }
 .world-admin-shell { padding: 22px; max-height: 90vh; overflow: auto; }
 .world-admin-heading-actions { display: flex; gap: 10px; align-items: center; }

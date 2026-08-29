@@ -34,10 +34,25 @@ describe('LLM planning input', () => {
             { id: 'unknown', version: '1.0.0', name: 'Unknown', description: 'Not learned.' }
         ], context: { now: '2026-08-29T12:00:00.000Z', episodicMemories: [episode('trusted'), episode('untrusted')] } });
         expect(result.goal.goalId).toBe('mine');
+        expect(result.mode).toBe('execute-immediate-goal');
         expect(result.allowedSkills.map(item => item.id)).toEqual(['mining']);
         expect(result.trustedContext).toContain('trusted memory');
         expect(result.trustedContext).not.toContain('untrusted memory');
         expect(result.untrustedText?.[0]).toContain('untrusted memory');
+    });
+
+    test('uses the deepest active strategic goal when no immediate goal exists', () => {
+        const strategic = { ...snapshot, goals: [
+            { ...snapshot.goals[0]!, goalId: 'life', horizon: 'life' as const, title: 'Become wealthy' },
+            { ...snapshot.goals[0]!, goalId: 'workshop', parentGoalId: 'life', horizon: 'long-term' as const,
+                title: 'Buy the Varrock workshop' }
+        ] } satisfies AgentSnapshot;
+        const result = buildLlmPlanningInput(strategic, { availableSkills: [
+            { id: 'mining', version: '1.0.0', name: 'Mining', description: 'Mine and bank ore.' }
+        ], context: { now: '2026-08-29T12:00:00.000Z' } });
+        expect(result.mode).toBe('derive-immediate-goal');
+        expect(result.goal.goalId).toBe('workshop');
+        expect(result.goalHierarchy.map(goal => goal.goalId)).toEqual(['life', 'workshop']);
     });
 
     test('refuses to plan from missing or stale working memory', () => {
