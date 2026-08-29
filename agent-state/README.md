@@ -39,3 +39,10 @@ the connected player belongs to the persistent identity, writes a bounded workin
 verified skills from the trusted/agent-visible catalog, runs one planner decision and exits. Executed skills use the
 existing active-run marker and immutable run journal, so they remain visible in the admin history. Player-authored chat
 is deliberately excluded from the always-present working memory.
+
+## Admin UI
+
+The local admin panel has an `Agentek` tab for creating an identity linked to an existing bot, editing identity fields,
+building the four-level goal hierarchy and assigning exact verified skill knowledge. Each card exposes the bounded
+decision context and current planner preview. A dry-run refreshes working memory from a fresh online bot without taking
+an action; execution is a separate confirmed, audited operation and still uses the existing supervised skill runner.

@@ -20,3 +20,4 @@ export const experimentsDir = join(adminLocalDir, 'experiments');
 export const worldModManifestPath = join(repoRoot, 'config', 'world-mods.json');
 export const worldModStatePath = join(adminLocalDir, 'world-mod-state.json');
 export const worldModBackupsDir = join(adminLocalDir, 'world-mod-backups');
+export const agentStateDbPath = join(repoRoot, '.local', 'agent-state', 'agents.sqlite');

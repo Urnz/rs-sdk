@@ -26,6 +26,7 @@
             <button class="admin-tab active" role="tab" aria-selected="true" data-action="admin-tab" data-tab="bots">Botok</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="economy">Gazdaság</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="skills">Agent skillek</button>
+            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="agents">Agentek</button>
         </nav>
 
         <section class="summary-grid" aria-label="Gazdasági összesítés" data-admin-tab-panel="economy" hidden>
@@ -118,6 +119,18 @@
             </div>
         </section>
 
+        <section class="panel agent-panel" data-admin-tab-panel="agents" hidden>
+            <div class="panel-heading table-heading">
+                <div><p class="eyebrow">PERSISTENT AGENT STATE</p><h2>Identitások és célok</h2></div>
+                <div class="agent-heading-actions"><span id="agent-count" class="count-pill">0 agent</span>
+                    <button id="new-agent-button" class="button primary">+ Agent létrehozása</button></div>
+            </div>
+            <p class="agent-intro">Az identitás a botsessiontől független. A planner csak friss élő állapotból, ismert verified skillből és aktív azonnali célból indíthat műveletet.</p>
+            <div id="agent-list" class="agent-list scrollable-list" role="region" aria-label="Persistent agentek" tabindex="0">
+                <p class="empty">Betöltés…</p>
+            </div>
+        </section>
+
         <section class="panel stock-panel" data-admin-tab-panel="economy" hidden>
             <div class="panel-heading"><div><p class="eyebrow">KÉSZLETEK</p><h2>Legnagyobb itemállományok</h2></div></div>
             <div id="item-stock" class="stock-grid scroll-region" role="region" aria-label="Itemkészletek görgethető listája" tabindex="0"></div>
@@ -140,6 +153,48 @@
             <label class="check"><input name="rememberCredentials" type="checkbox"> A jelszó mentése kizárólag a helyi, gitből kizárt bot.env fájlba</label>
             <p class="dialog-note">A jelszó nem jelenik meg a botlistában és nem kerül az auditnaplóba.</p>
             <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Indítás</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="agent-create-dialog">
+        <form id="agent-create-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">PERSISTENT IDENTITY</p><h2>Agent létrehozása</h2></div><button type="button" class="dialog-close">×</button></div>
+            <label>Kapcsolt bot<select name="playerUsername" required></select></label>
+            <label>Stabil agent ID<input name="agentId" pattern="[a-z0-9]+([.-][a-z0-9]+)*" maxlength="64" placeholder="pl. ferrye14" required></label>
+            <label>Megjelenített név<input name="displayName" maxlength="100" required></label>
+            <label>Háttértörténet<textarea name="background" maxlength="4000" rows="4" required></textarea></label>
+            <label>Személyiségjegyek <span class="muted">(vesszővel, 1–12)</span><input name="personalityTraits" placeholder="türelmes, kíváncsi, takarékos" required></label>
+            <label>Értékek <span class="muted">(vesszővel, opcionális)</span><input name="values" placeholder="függetlenség, mesterségbeli tudás"></label>
+            <label>Indoklás<input name="reason" value="Persistent agent létrehozása" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Létrehozás</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="agent-goal-dialog">
+        <form id="agent-goal-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">CÉLHIERARCHIA</p><h2>Új cél</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="agentId" type="hidden">
+            <label>Szint<select name="horizon" required><option value="life">Életcél</option><option value="long-term">Hosszú távú</option><option value="current">Aktuális</option><option value="immediate">Azonnali feladat</option></select></label>
+            <label>Szülőcél<select name="parentGoalId"><option value="">Nincs</option></select></label>
+            <label>Stabil cél ID<input name="goalId" pattern="[a-z0-9]+([.-][a-z0-9]+)*" maxlength="64" required></label>
+            <label>Cím<input name="title" maxlength="200" required></label>
+            <label>Leírás<textarea name="description" maxlength="2000" rows="3"></textarea></label>
+            <label>Prioritás (0–100)<input name="priority" type="number" min="0" max="100" step="1" value="50" required></label>
+            <label>Végrehajtó verified skill<select name="skill"><option value="">Nincs közvetlen skill</option></select></label>
+            <label>Indoklás<input name="reason" value="Agent cél hozzáadása" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Cél mentése</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="agent-skill-dialog">
+        <form id="agent-skill-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">SKILLISMERET</p><h2>Agent skill frissítése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="agentId" type="hidden"><input name="expectedRevision" type="hidden">
+            <label>Verified skill<select name="skill" required></select></label>
+            <label>Állapot<select name="status" required><option value="known">Ismert</option><option value="preferred">Preferált</option><option value="blocked">Blokkolt</option></select></label>
+            <label>Indoklás<input name="reason" value="Agent skillismeret frissítése" required></label>
+            <p class="dialog-note">Egy új verzió külön skillismeretnek számít; nem írja felül automatikusan a régit.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Mentés</button></div>
         </form>
     </dialog>
 

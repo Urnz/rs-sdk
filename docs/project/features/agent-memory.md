@@ -60,6 +60,21 @@ A working-memory megfigyelő helyet, HP-t, inventory-összefoglalót, közeli NP
 az állandó döntési kontextusba; a későbbi social/episodic feldolgozásnak ezt külön,
 nem megbízható bemenetként kell kezelnie.
 
+## Adminpaneles kezelés
+
+Az adminpanel `Agentek` füle a botkatalógusban már létező játékoshoz tud persistent
+identitást létrehozni. Itt szerkeszthető a háttértörténet, a személyiség és az
+értéklista, felépíthető a négyszintű célhierarchia, illetve egy verified, megosztott
+skill egzakt verziója `known`, `preferred` vagy `blocked` állapotba helyezhető.
+Minden írás optimista revision-védett és indoklásköteles auditált adminművelet.
+
+Az agentkártya megmutatja a friss working memoryt, a korlátozott döntési contextet
+és a planner aktuális, nem végrehajtott előnézetét. A `Planner dry-run` friss online
+botállapotból új working memoryt ír és döntést készít, de nem indít játékbeli
+műveletet. A külön `Döntés végrehajtása` gomb újabb indoklást és megerősítést kér;
+csak friss online bot, elérhető credential, üres futási slot és egzakt verified
+skill esetén indítja el a meglévő, naplózott skillfuttatót.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.
@@ -83,7 +98,6 @@ plannerrel kell bizonyítani. Így az LLM nem rejti el az állapotkezelési hib�
 
 ## Következő szelet
 
-A következő kezelőfelület az adminpanelről teszi létrehozhatóvá és szerkeszthetővé
-az identitást, célokat és ismert skilleket. Ezután jön az episodic, semantic és
-social memória külön tárolóval és retrieval-szabályokkal.
+Az episodic memória következik külön, időrendben visszakereshető eseménytárral és
+korlátozott retrieval-szabályokkal. Erre épülhet majd a semantic és social memória.
 

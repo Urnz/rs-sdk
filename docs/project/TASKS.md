@@ -220,7 +220,8 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 - [ ] Episodic memory: időzített, visszakereshető konkrét események.
 - [ ] Semantic memory: megtanult világ- és gazdasági ismeretek.
 - [ ] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
-- [ ] Assets és ismert skillek összekapcsolása az agent állapotával.
+- [ ] Assets (pénz, ingatlan, vállalkozás, követelés) összekapcsolása az agent állapotával.
+- [x] Egzakt, verziózott ismert skillek összekapcsolása az agent állapotával.
 - [ ] Relevancia-, frissesség- és célalapú context-visszakeresés készítése.
 - [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
 - [ ] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
@@ -371,3 +372,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     skilleket tartósítani, és fail-closed determinisztikus skillválasztót készíteni.
 26. [x] Az élő botállapotot working memoryvé alakító, egy planner-döntést végző
     és csak explicit engedéllyel verified skillt futtató teljes ciklust elkészíteni.
+27. [x] Az Agentek adminfület elkészíteni identitás-, cél- és skillismeret-kezeléssel,
+    korlátozott döntési contexttel, planner dry-runnal és megerősített kézi
+    skillvégrehajtással.

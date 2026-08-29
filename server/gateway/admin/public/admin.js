@@ -10,6 +10,8 @@ const state = {
     worldMods: null,
     worldModBackups: [],
     properties: null,
+    agents: [],
+    agentSkills: [],
     worldPlayers: [],
     adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
@@ -74,7 +76,7 @@ function toast(message, error = false) {
 }
 
 function selectAdminTab(tab) {
-    if (!['bots', 'economy', 'skills'].includes(tab)) return;
+    if (!['bots', 'economy', 'skills', 'agents'].includes(tab)) return;
     state.adminTab = tab;
     document.querySelectorAll('.admin-tab').forEach(button => {
         const selected = button.dataset.tab === tab;
@@ -84,6 +86,101 @@ function selectAdminTab(tab) {
     document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
         panel.hidden = panel.dataset.adminTabPanel !== tab;
     });
+}
+
+const goalHorizonLabels = { life: 'Életcél', 'long-term': 'Hosszú távú', current: 'Aktuális', immediate: 'Azonnali' };
+const goalStatusLabels = { active: 'Aktív', completed: 'Teljesítve', blocked: 'Blokkolt', abandoned: 'Elvetve' };
+const plannerLabels = { 'execute-skill': 'Végrehajtható', 'refresh-state': 'Friss állapot kell',
+    'no-immediate-goal': 'Nincs azonnali cél', 'skill-unavailable': 'Skill nem elérhető' };
+
+function csvValues(value) {
+    return String(value || '').split(',').map(entry => entry.trim()).filter(Boolean);
+}
+
+function renderAgents() {
+    $('#agent-count').textContent = `${state.agents.length} agent`;
+    $('#agent-list').innerHTML = state.agents.length ? state.agents.map(agent => {
+        const identity = agent.identity;
+        const memory = agent.workingMemory;
+        const goals = agent.goals.map(goal => `<div class="agent-goal">
+            <span><strong>${escapeHtml(goal.title)}</strong><small>${escapeHtml(goalHorizonLabels[goal.horizon])} · ${escapeHtml(goalStatusLabels[goal.status])} · prioritás ${goal.priority}</small>
+                <small>${escapeHtml(goal.goalId)}${goal.skill ? ` · ${escapeHtml(goal.skill.id)}@${escapeHtml(goal.skill.version)}` : ''}</small></span>
+            ${goal.status === 'active' ? `<span class="agent-inline-actions">
+                <button class="button small ghost" data-action="agent-goal-status" data-agent-id="${escapeHtml(identity.agentId)}" data-goal-id="${escapeHtml(goal.goalId)}" data-goal-revision="${goal.revision}" data-goal-status="completed">Kész</button>
+                <button class="button small ghost" data-action="agent-goal-status" data-agent-id="${escapeHtml(identity.agentId)}" data-goal-id="${escapeHtml(goal.goalId)}" data-goal-revision="${goal.revision}" data-goal-status="blocked">Blokkol</button>
+                <button class="button small danger-outline" data-action="agent-goal-status" data-agent-id="${escapeHtml(identity.agentId)}" data-goal-id="${escapeHtml(goal.goalId)}" data-goal-revision="${goal.revision}" data-goal-status="abandoned">Elvet</button>
+            </span>` : ''}</div>`).join('') || '<p class="muted">Még nincs célhierarchia.</p>';
+        const skills = agent.knownSkills.map(known => `<div class="agent-skill-row">
+            <span><strong>${escapeHtml(known.skill.id)}</strong><small>${escapeHtml(known.skill.version)} · rev ${known.revision}</small></span>
+            <button class="agent-chip ${escapeHtml(known.status)}" data-action="agent-skill-edit" data-agent-id="${escapeHtml(identity.agentId)}"
+                data-skill="${escapeHtml(`${known.skill.id}@${known.skill.version}`)}" data-skill-status="${escapeHtml(known.status)}" data-skill-revision="${known.revision}">${escapeHtml(known.status)}</button>
+        </div>`).join('') || '<p class="muted">Nincs nyilvántartott skillismeret.</p>';
+        return `<article class="agent-card" data-agent-id="${escapeHtml(identity.agentId)}">
+            <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
+                <div class="agent-card-actions">
+                    <button class="button small ghost" data-action="agent-edit" data-agent-id="${escapeHtml(identity.agentId)}">Identitás szerkesztése</button>
+                    <button class="button small secondary" data-action="agent-goal-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Cél</button>
+                    <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Skillismeret</button>
+                    <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
+                    <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
+                </div></div>
+            <div class="agent-meta"><span class="agent-chip">${escapeHtml(identity.agentId)}</span><span class="agent-chip">player: ${escapeHtml(identity.playerUsername)}</span>
+                ${identity.personalityTraits.map(trait => `<span class="agent-chip">${escapeHtml(trait)}</span>`).join('')}
+                <span class="agent-chip ${escapeHtml(agent.planner.kind)}">${escapeHtml(plannerLabels[agent.planner.kind] || agent.planner.kind)}</span></div>
+            <div class="agent-grid"><section class="agent-section"><h4>Célhierarchia</h4><div class="agent-goals">${goals}</div></section>
+                <section class="agent-section"><h4>Ismert skillek</h4><div class="agent-skills">${skills}</div></section>
+                <section class="agent-section"><h4>Working memory</h4>${memory
+                    ? `<p>${escapeHtml(memory.summary)}</p><small class="muted">${escapeHtml(relativeTime(memory.observedAt))} · rev ${memory.revision}</small>`
+                    : '<p class="muted">Még nincs élő megfigyelés.</p>'}</section>
+                <section class="agent-section"><h4>Planner</h4><p>${escapeHtml(agent.planner.reason)}</p><pre class="agent-context">${escapeHtml(agent.decisionContext)}</pre></section>
+            </div></article>`;
+    }).join('') : '<p class="empty">Még nincs persistent agent. Hozd létre az elsőt egy meglévő bothoz.</p>';
+}
+
+async function refreshAgents() {
+    const data = await api('/api/admin/agents');
+    state.agents = data.agents;
+    state.agentSkills = data.skills;
+    renderAgents();
+}
+
+function showAgentCreate() {
+    const form = $('#agent-create-form'); form.reset();
+    const used = new Set(state.agents.map(agent => agent.identity.playerUsername));
+    const choices = state.bots.filter(bot => !used.has(bot.username));
+    form.elements.playerUsername.innerHTML = choices.map(bot => `<option value="${escapeHtml(bot.username)}">${escapeHtml(bot.displayName)} (${escapeHtml(bot.username)})</option>`).join('');
+    if (!choices.length) throw new Error('Nincs olyan bot, amelyhez még nem tartozik persistent agent.');
+    form.elements.agentId.value = choices[0].username;
+    form.elements.displayName.value = choices[0].displayName;
+    form.elements.reason.value = 'Persistent agent létrehozása';
+    $('#agent-create-dialog').showModal();
+}
+
+function showAgentGoal(agentId) {
+    const form = $('#agent-goal-form'); form.reset(); form.elements.agentId.value = agentId;
+    form.elements.priority.value = 50; form.elements.reason.value = 'Agent cél hozzáadása';
+    form.elements.skill.innerHTML = '<option value="">Nincs közvetlen skill</option>' + state.agentSkills
+        .map(skill => `<option value="${escapeHtml(skill.reference)}">${escapeHtml(skill.name)} (${escapeHtml(skill.reference)})</option>`).join('');
+    updateAgentGoalParents(); $('#agent-goal-dialog').showModal();
+}
+
+function updateAgentGoalParents() {
+    const form = $('#agent-goal-form');
+    const agent = state.agents.find(entry => entry.identity.agentId === form.elements.agentId.value);
+    const parentHorizon = { life: null, 'long-term': 'life', current: 'long-term', immediate: 'current' }[form.elements.horizon.value];
+    form.elements.parentGoalId.disabled = !parentHorizon;
+    form.elements.parentGoalId.innerHTML = '<option value="">Nincs</option>' + (agent?.goals || [])
+        .filter(goal => goal.status === 'active' && goal.horizon === parentHorizon)
+        .map(goal => `<option value="${escapeHtml(goal.goalId)}">${escapeHtml(goal.title)}</option>`).join('');
+}
+
+function showAgentSkill(agentId, reference = '', status = 'known', revision = null) {
+    const form = $('#agent-skill-form'); form.reset(); form.elements.agentId.value = agentId;
+    form.elements.expectedRevision.value = revision === null ? '' : String(revision);
+    form.elements.skill.innerHTML = state.agentSkills.map(skill => `<option value="${escapeHtml(skill.reference)}">${escapeHtml(skill.name)} (${escapeHtml(skill.reference)})</option>`).join('');
+    form.elements.skill.value = reference || state.agentSkills[0]?.reference || '';
+    form.elements.skill.disabled = Boolean(reference); form.elements.status.value = status;
+    form.elements.reason.value = 'Agent skillismeret frissítése'; $('#agent-skill-dialog').showModal();
 }
 
 function relativeTime(value) {
@@ -584,9 +681,9 @@ function drawChart(snapshots) {
 
 async function refresh() {
     try {
-        const [data, history, skillHistory, economyEvents, worldPlayers] = await Promise.all([
+        const [data, history, skillHistory, economyEvents, worldPlayers, agents] = await Promise.all([
             api('/api/admin/bots'), api('/api/admin/economy?limit=240'), api('/api/admin/skill-runs?limit=30'),
-            api('/api/admin/economy-events?limit=200'), api('/api/admin/world-players')
+            api('/api/admin/economy-events?limit=200'), api('/api/admin/world-players'), api('/api/admin/agents')
         ]);
         state.bots = data.bots;
         state.economy = data.economy;
@@ -594,8 +691,9 @@ async function refresh() {
         state.economyEvents = economyEvents.events;
         state.economyEventSummary = economyEvents.summary;
         state.worldPlayers = worldPlayers.players;
+        state.agents = agents.agents; state.agentSkills = agents.skills;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
-        renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents();
+        renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents(); renderAgents();
         if ($('#world-map-dialog').open) renderWorldMapBots();
         drawChart(history.snapshots);
         if (state.selected && $('#profile-drawer').classList.contains('open')) openProfile(state.selected);
@@ -847,6 +945,62 @@ document.addEventListener('click', async event => {
             $('#world-mod-restore-summary').textContent = `A ${new Date(backup.createdAt).toLocaleString('hu-HU')} időpontban mentett ${backup.revision}. revízió áll vissza. Előtte az aktuális állapotról új mentőpont készül.`;
             $('#world-mod-restore-dialog').showModal();
         }
+        if (button.dataset.action === 'agent-edit') {
+            const agent = state.agents.find(entry => entry.identity.agentId === button.dataset.agentId);
+            if (!agent) throw new Error('Az agent már nem található.');
+            const identity = agent.identity;
+            const displayName = prompt('Megjelenített név:', identity.displayName);
+            if (displayName === null) return;
+            const background = prompt('Háttértörténet:', identity.background);
+            if (background === null) return;
+            const personalityTraits = prompt('Személyiségjegyek vesszővel:', identity.personalityTraits.join(', '));
+            if (personalityTraits === null) return;
+            const values = prompt('Értékek vesszővel:', identity.values.join(', '));
+            if (values === null) return;
+            const reason = prompt('A módosítás indoklása:', 'Agent identitás szerkesztése');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/agents/${encodeURIComponent(identity.agentId)}`, {
+                method: 'PUT', mutation: true,
+                body: JSON.stringify({
+                    expectedRevision: identity.revision,
+                    displayName: displayName.trim(), background: background.trim(),
+                    personalityTraits: csvValues(personalityTraits), values: csvValues(values), reason: reason.trim()
+                })
+            });
+            toast(`${identity.displayName} identitása frissült.`); await refreshAgents();
+        }
+        if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
+        if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
+        if (button.dataset.action === 'agent-skill-edit') showAgentSkill(
+            button.dataset.agentId, button.dataset.skill, button.dataset.skillStatus,
+            Number(button.dataset.skillRevision)
+        );
+        if (button.dataset.action === 'agent-goal-status') {
+            const label = goalStatusLabels[button.dataset.goalStatus] || button.dataset.goalStatus;
+            const reason = prompt(`A cél „${label}” állapotba helyezésének indoklása:`, 'Agent cél állapotának frissítése');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/goals/${encodeURIComponent(button.dataset.goalId)}/status`, {
+                method: 'PUT', mutation: true,
+                body: JSON.stringify({ expectedRevision: Number(button.dataset.goalRevision), status: button.dataset.goalStatus, reason: reason.trim() })
+            });
+            toast(`A cél új állapota: ${label}.`); await refreshAgents();
+        }
+        if (button.dataset.action === 'agent-plan' || button.dataset.action === 'agent-plan-execute') {
+            const execute = button.dataset.action === 'agent-plan-execute';
+            const reason = prompt(execute ? 'A planner döntés végrehajtásának indoklása:' : 'A planner dry-run indoklása:',
+                execute ? 'Agent planner döntés kézi végrehajtása' : 'Agent planner kézi előnézete');
+            if (!reason?.trim()) return;
+            if (execute && !confirm('A planner által kiválasztott verified skill ténylegesen elindul az online boton. Folytatod?')) return;
+            button.disabled = true;
+            try {
+                const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/plan`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ execute, reason: reason.trim() })
+                });
+                const decision = plannerLabels[response.decision.kind] || response.decision.kind;
+                toast(execute ? `${decision}: a skill indítása megtörtént.` : `Planner eredmény: ${decision}.`);
+                await refresh();
+            } finally { button.disabled = false; }
+        }
         if (button.dataset.action === 'admin-tab') selectAdminTab(button.dataset.tab);
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
@@ -870,6 +1024,53 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'delete') {
             const form = $('#delete-form'); form.reset(); form.elements.username.value = name; $('#delete-dialog').showModal();
         }
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#agent-create-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    try {
+        await api('/api/admin/agents', { method: 'POST', mutation: true, body: JSON.stringify({
+            agentId: data.get('agentId'), playerUsername: data.get('playerUsername'),
+            displayName: data.get('displayName'), background: data.get('background'),
+            personalityTraits: csvValues(data.get('personalityTraits')), values: csvValues(data.get('values')),
+            reason: data.get('reason')
+        }) });
+        form.closest('dialog').close(); toast(`${data.get('displayName')} persistent agentként létrejött.`); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#agent-goal-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    const skillReference = data.get('skill')?.toString() || '';
+    const separator = skillReference.lastIndexOf('@');
+    const skill = separator > 0 ? { id: skillReference.slice(0, separator), version: skillReference.slice(separator + 1) } : null;
+    try {
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('agentId'))}/goals`, {
+            method: 'POST', mutation: true, body: JSON.stringify({
+                goalId: data.get('goalId'), parentGoalId: data.get('parentGoalId') || null,
+                horizon: data.get('horizon'), title: data.get('title'), description: data.get('description'),
+                priority: Number(data.get('priority')), skill, reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('Az agent célja létrejött.'); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#agent-skill-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    const revision = form.elements.expectedRevision.value;
+    try {
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('agentId'))}/skills`, {
+            method: 'PUT', mutation: true, body: JSON.stringify({
+                skill: form.elements.skill.value, status: data.get('status'),
+                expectedRevision: revision === '' ? null : Number(revision), reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('Az agent skillismerete frissült.'); await refreshAgents();
     } catch (error) { toast(error.message, true); }
 });
 
@@ -983,6 +1184,15 @@ $('thead').addEventListener('click', event => {
 $('#clear-filters').addEventListener('click', () => { for (const id of ['search-filter', 'status-filter', 'skill-filter', 'coins-filter']) $(`#${id}`).value = ''; renderTable(); });
 $('#clear-event-filters').addEventListener('click', () => { $('#event-bot-filter').value = ''; $('#event-kind-filter').value = ''; renderEconomyEvents(); });
 $('#new-bot-button').addEventListener('click', () => showSpawn());
+$('#new-agent-button').addEventListener('click', () => { try { showAgentCreate(); } catch (error) { toast(error.message, true); } });
+$('#agent-create-form').elements.playerUsername.addEventListener('change', event => {
+    const bot = state.bots.find(entry => entry.username === event.target.value);
+    if (!bot) return;
+    const form = event.target.form;
+    form.elements.agentId.value = bot.username;
+    form.elements.displayName.value = bot.displayName;
+});
+$('#agent-goal-form').elements.horizon.addEventListener('change', updateAgentGoalParents);
 $('#world-admin-button').addEventListener('click', () => openWorldAdmin().catch(error => toast(error.message, true)));
 $('#create-world-mod-backup').addEventListener('click', () => {
     $('#world-mod-backup-form').reset();

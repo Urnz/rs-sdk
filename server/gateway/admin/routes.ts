@@ -24,6 +24,18 @@ import {
     requestEnginePropertyReconciliation,
     requestEnginePropertyReset
 } from './properties';
+import {
+    createAdminAgent,
+    createAdminAgentGoal,
+    listAdminAgents,
+    updateAdminAgent,
+    updateAdminAgentGoalStatus,
+    updateAdminAgentSkill
+} from './agent-state';
+import { AgentStateStore } from '../../../agent-state/store.js';
+import { runLivePlannerCycle } from '../../../agent-state/live.js';
+import type { AgentSkillKnowledgeStatus, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
+import { agentStateDbPath } from './paths.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -80,6 +92,16 @@ function text(body: Record<string, unknown>, key: string, required = false): str
     const value = typeof body[key] === 'string' ? body[key].trim() : '';
     if (required && !value) throw new Error(`Hiányzó mező: ${key}`);
     return value;
+}
+
+function oneOf<T extends string>(value: unknown, values: readonly T[], field: string): T {
+    if (typeof value !== 'string' || !values.includes(value as T)) throw new Error(`Érvénytelen mező: ${field}`);
+    return value as T;
+}
+
+function stringList(value: unknown, field: string): string[] {
+    if (!Array.isArray(value) || value.some(entry => typeof entry !== 'string')) throw new Error(`Érvénytelen mező: ${field}`);
+    return value.map(entry => entry.trim());
 }
 
 function contentType(path: string): string {
@@ -172,6 +194,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (req.method === 'GET' && url.pathname === '/api/admin/skills') {
             return json({ skills: await listAdminSkills() });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/agents') {
+            return json(await listAdminAgents());
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/skill-runs') {
@@ -268,6 +294,133 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (!authorized(req, url)) {
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/agents') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const playerUsername = text(body, 'playerUsername', true).toLowerCase();
+            const knownBot = (await catalog()).some(bot => bot.username === playerUsername);
+            if (!knownBot) throw new Error('Agent csak a botkatalógusban létező játékoshoz hozható létre.');
+            try {
+                const identity = createAdminAgent({
+                    agentId: text(body, 'agentId', true), playerUsername,
+                    displayName: text(body, 'displayName', true), background: text(body, 'background', true),
+                    personalityTraits: stringList(body.personalityTraits, 'personalityTraits'),
+                    values: body.values === undefined ? [] : stringList(body.values, 'values')
+                });
+                await appendAudit({ operator: 'local-admin', action: 'agent.identity.create', username: playerUsername,
+                    reason, success: true, after: identity });
+                return json({ ok: true, identity }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.identity.create', username: playerUsername,
+                    reason, success: false, error: String(error) });
+                throw error;
+            }
+        }
+
+        const agentMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)$/);
+        if (req.method === 'PUT' && agentMatch?.[1]) {
+            const agentId = agentMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) throw new Error('Érvénytelen identity revízió.');
+            const before = (await listAdminAgents()).agents.find(agent => agent.identity.agentId === agentId)?.identity;
+            const identity = updateAdminAgent(agentId, expectedRevision, {
+                ...(body.displayName !== undefined ? { displayName: text(body, 'displayName', true) } : {}),
+                ...(body.background !== undefined ? { background: text(body, 'background', true) } : {}),
+                ...(body.personalityTraits !== undefined ? { personalityTraits: stringList(body.personalityTraits, 'personalityTraits') } : {}),
+                ...(body.values !== undefined ? { values: stringList(body.values, 'values') } : {})
+            });
+            await appendAudit({ operator: 'local-admin', action: 'agent.identity.update', username: identity.playerUsername,
+                reason, success: true, before, after: identity });
+            return json({ ok: true, identity });
+        }
+
+        const agentGoalMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/goals$/);
+        if (req.method === 'POST' && agentGoalMatch?.[1]) {
+            const agentId = agentGoalMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const goal = createAdminAgentGoal(agentId, {
+                goalId: text(body, 'goalId', true), parentGoalId: body.parentGoalId === null ? null : text(body, 'parentGoalId'),
+                horizon: oneOf<GoalHorizon>(body.horizon, ['life', 'long-term', 'current', 'immediate'], 'horizon'),
+                title: text(body, 'title', true), description: text(body, 'description'),
+                priority: Number(body.priority),
+                skill: body.skill && typeof body.skill === 'object' ? body.skill as { id: string; version: string } : null
+            });
+            await appendAudit({ operator: 'local-admin', action: 'agent.goal.create', reason, success: true,
+                username: agentId, after: goal });
+            return json({ ok: true, goal }, 201);
+        }
+
+        const agentGoalStatusMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/goals\/([a-z0-9.-]+)\/status$/);
+        if (req.method === 'PUT' && agentGoalStatusMatch?.[1] && agentGoalStatusMatch[2]) {
+            const [agentId, goalId] = [agentGoalStatusMatch[1], agentGoalStatusMatch[2]];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const goal = updateAdminAgentGoalStatus(agentId!, goalId!, Number(body.expectedRevision),
+                oneOf<GoalStatus>(body.status, ['active', 'completed', 'blocked', 'abandoned'], 'status'));
+            await appendAudit({ operator: 'local-admin', action: 'agent.goal.status', reason, success: true,
+                username: agentId, after: goal });
+            return json({ ok: true, goal });
+        }
+
+        const agentSkillMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/skills$/);
+        if (req.method === 'PUT' && agentSkillMatch?.[1]) {
+            const agentId = agentSkillMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const requested = text(body, 'skill', true);
+            const registered = await resolveAdminSkill(requested);
+            const reference = { id: registered.definition.id, version: registered.definition.version };
+            const knowledge = updateAdminAgentSkill(agentId, reference,
+                oneOf<AgentSkillKnowledgeStatus>(body.status, ['known', 'preferred', 'blocked'], 'status'),
+                body.expectedRevision === null ? null : Number(body.expectedRevision));
+            await appendAudit({ operator: 'local-admin', action: 'agent.skill-knowledge.update', reason, success: true,
+                username: agentId, after: knowledge });
+            return json({ ok: true, knowledge });
+        }
+
+        const agentPlanMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/plan$/);
+        if (req.method === 'POST' && agentPlanMatch?.[1]) {
+            const agentId = agentPlanMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const execute = body.execute === true;
+            const agents = await listAdminAgents();
+            const agent = agents.agents.find(entry => entry.identity.agentId === agentId);
+            if (!agent) throw new Error('Az agent nem található.');
+            const gatewayEntry = [...context.gatewayBots().entries()]
+                .find(([name]) => name.toLowerCase() === agent.identity.playerUsername)?.[1];
+            if (!gatewayEntry?.state?.player || gatewayEntry.status !== 'active'
+                || Date.now() - gatewayEntry.lastStateReceivedAt > 5_000) throw new Error('A kapcsolt botnak friss online állapotban kell lennie.');
+            const store = new AgentStateStore(agentStateDbPath);
+            try {
+                const cycle = await runLivePlannerCycle({ store, agentId, state: gatewayEntry.state,
+                    availableSkills: agents.skills.map(skill => ({ id: skill.id, version: skill.version })) });
+                let process = null;
+                if (execute) {
+                    if (cycle.decision.kind !== 'execute-skill' || !cycle.decision.skill) {
+                        throw new Error(`A planner nem adott végrehajtható döntést: ${cycle.decision.reason}`);
+                    }
+                    const bot = (await catalog()).find(entry => entry.username === agent.identity.playerUsername);
+                    if (!bot?.hasCredentials || bot.currentSkill) throw new Error('A bot nem indíthat új skillt: nincs credential vagy már fut skill.');
+                    const requested = `${cycle.decision.skill.id}@${cycle.decision.skill.version}`;
+                    const registered = await resolveAdminSkill(requested);
+                    const parameters = validateAdminSkillParameters(registered.definition, {});
+                    process = await context.supervisor.startSkill(agent.identity.playerUsername, requested, parameters);
+                }
+                await appendAudit({ operator: 'local-admin', action: execute ? 'agent.plan.execute' : 'agent.plan.preview',
+                    username: agent.identity.playerUsername, reason, success: true,
+                    after: { decision: cycle.decision, process } });
+                return json({ ok: true, decision: cycle.decision, process }, execute ? 202 : 200);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: execute ? 'agent.plan.execute' : 'agent.plan.preview',
+                    username: agent.identity.playerUsername, reason, success: false, error: String(error) });
+                throw error;
+            } finally { store.close(); }
         }
 
         if (req.method === 'POST' && url.pathname === '/api/admin/engine/restart') {
