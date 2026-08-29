@@ -28,6 +28,7 @@ export interface AdminAgentAssetSources {
 export async function listAdminAgents(path = agentStateDbPath, assetSources: AdminAgentAssetSources = {}) {
     const skills = await listAdminSkills();
     const availableSkills = skills.map(skill => ({ id: skill.id, version: skill.version }));
+    const generatedAt = new Date().toISOString();
     const agents = useStore(path, store => store.listIdentities().map(identity => {
         const snapshot = store.getSnapshot(identity.agentId)!;
         const recentEpisodes = store.listEpisodes(identity.agentId, { limit: 30 });
@@ -62,6 +63,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             episodeCount: store.countEpisodes(identity.agentId),
             recentEpisodes,
             relevantEpisodes,
+            retention: store.previewEpisodeRetention(identity.agentId, generatedAt),
             knowledgeCount: store.countKnowledge(identity.agentId),
             recentKnowledge,
             activeKnowledge,
@@ -76,7 +78,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
-    return { agents, skills, generatedAt: new Date().toISOString() };
+    return { agents, skills, generatedAt };
 }
 
 export function createAdminAgent(input: CreateAgentIdentity, path = agentStateDbPath) {
@@ -108,6 +110,10 @@ export function updateAdminAgentSkill(agentId: string, skill: AgentSkillReferenc
 
 export function createAdminAgentEpisode(agentId: string, input: CreateAgentEpisode, path = agentStateDbPath) {
     return useStore(path, store => store.createEpisode(agentId, input));
+}
+
+export function pruneAdminAgentEpisodes(agentId: string, path = agentStateDbPath, asOf = new Date().toISOString()) {
+    return useStore(path, store => store.pruneExpiredEpisodes(agentId, asOf));
 }
 
 export function createAdminAgentKnowledge(agentId: string, input: CreateAgentKnowledge, path = agentStateDbPath) {

@@ -113,6 +113,21 @@ ha egy korábban feldolgozott journal később megváltozna, fail-closed ütköz
 jelent, és nem írja át a már létrejött memóriát. Az admin episodic listája a
 forrást és az `automatic` címkét is megmutatja.
 
+### Elévülés és biztonságos törlés
+
+Az `expiresAt` elérése az emléket azonnal kizárja a retrievalből, de önmagában nem
+töröl adatot. Az Agentek fül minden agentnél retention-előnézetet mutat, és csak
+külön megerősítéssel, indoklással indítható fizikai törlés. A művelet kizárólag az
+előnézet szerint már elévült és nem hivatkozott episodic emlékeket távolítja el.
+
+Egy emlék védett marad, ha semantic tudás, social kapcsolat, commitment vagy a
+konszolidáció evidence ledgerje hivatkozik rá. A stabil külső kulccsal rendelkező,
+journalból vagy más külső forrásból rekonstruálható emlék szintén védett, hogy ne
+alakuljon ki törlés–újraingestion ciklus. A retention legfeljebb ötszáz jelöltet
+kezel egy műveletben, nagyobb mennyiségnél az adminfelület jelzi a csonkolt
+előnézetet, és a következő kör újraértékeli a maradékot. Minden törlés admin auditba
+kerül; automatikus háttértörlés nincs.
+
 ## Semantic memória
 
 A v5 séma az eseményektől elkülönített, tartós tudástárral bővült. A tudás egy

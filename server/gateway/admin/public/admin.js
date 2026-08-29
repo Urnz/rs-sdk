@@ -126,12 +126,14 @@ function renderAgents() {
                 data-skill="${escapeHtml(`${known.skill.id}@${known.skill.version}`)}" data-skill-status="${escapeHtml(known.status)}" data-skill-revision="${known.revision}">${escapeHtml(known.status)}</button>
         </div>`).join('') || '<p class="muted">Nincs nyilvántartott skillismeret.</p>';
         const relevant = new Map(agent.relevantEpisodes.map(result => [result.episode.episodeId, result]));
+        const retention = agent.retention;
         const episodes = agent.recentEpisodes.map(episode => {
             const match = relevant.get(episode.episodeId);
             return `<div class="agent-episode ${match ? 'relevant' : ''} ${escapeHtml(episode.trust)}">
                 <strong>${escapeHtml(episode.summary)}</strong>
                 <small>${escapeHtml(episodeKindLabels[episode.kind] || episode.kind)} · fontosság ${episode.importance} · ${new Date(episode.occurredAt).toLocaleString('hu-HU')}${match ? ` · relevancia ${match.score}` : ''}</small>
                 <small>forrás: ${escapeHtml(episode.source)} · ${episode.tags.length ? escapeHtml(episode.tags.join(', ')) : 'nincs címke'}</small>
+                ${episode.expiresAt ? `<small>elévülés: ${new Date(episode.expiresAt).toLocaleString('hu-HU')}</small>` : ''}
                 ${episode.goalIds.length ? `<small>célok: ${escapeHtml(episode.goalIds.join(', '))}</small>` : ''}
             </div>`;
         }).join('') || '<p class="muted">Még nincs episodic memória.</p>';
@@ -199,7 +201,10 @@ function renderAgents() {
                 <section class="agent-section"><h4>Working memory</h4>${memory
                     ? `<p>${escapeHtml(memory.summary)}</p><small class="muted">${escapeHtml(relativeTime(memory.observedAt))} · rev ${memory.revision}</small>`
                     : '<p class="muted">Még nincs élő megfigyelés.</p>'}</section>
-                <section class="agent-section"><h4>Episodic memória (${agent.episodeCount})</h4><div class="agent-episodes">${episodes}</div></section>
+                <section class="agent-section"><div class="agent-section-heading"><h4>Episodic memória (${agent.episodeCount})</h4>
+                    <button class="button small danger-outline" data-action="agent-episodes-prune" data-agent-id="${escapeHtml(identity.agentId)}" ${retention.eligibleCount ? '' : 'disabled'}>Elévültek törlése (${retention.eligibleCount})</button></div>
+                    <small class="muted">${retention.expiredCount} elévült · ${retention.protectedCount} hivatkozás miatt védett${retention.truncated ? ' · az előnézet első 500 rekordja' : ''}</small>
+                    <div class="agent-episodes">${episodes}</div></section>
                 <section class="agent-section"><h4>Semantic memória (${agent.knowledgeCount})</h4><div class="agent-knowledge-list">${knowledge}</div></section>
                 <section class="agent-section"><h4>Social memória (${agent.relationships.length})</h4><div class="agent-relationships">${relationships}</div></section>
                 <section class="agent-section"><h4>Eszközök</h4>
@@ -1115,6 +1120,18 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
         if (button.dataset.action === 'agent-episode-add') showAgentEpisode(button.dataset.agentId);
+        if (button.dataset.action === 'agent-episodes-prune') {
+            const agent = state.agents.find(entry => entry.identity.agentId === button.dataset.agentId);
+            if (!agent) throw new Error('Az agent már nem található.');
+            const eligible = agent.retention.eligibleCount;
+            if (!eligible || !confirm(`${eligible} elévült, nem hivatkozott emlék végleges törlése?`)) return;
+            const reason = prompt('A törlés indoklása:', 'Elévült, nem hivatkozott episodic emlékek törlése');
+            if (!reason?.trim()) return;
+            const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/episodes/prune`, {
+                method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
+            });
+            toast(`${response.result.deletedEpisodeIds.length} elévült emlék törölve.`); await refreshAgents();
+        }
         if (button.dataset.action === 'agent-knowledge-add') showAgentKnowledge(button.dataset.agentId);
         if (button.dataset.action === 'agent-relationship-add') showAgentRelationship(button.dataset.agentId);
         if (button.dataset.action === 'agent-relationship-edit') showAgentRelationship(button.dataset.agentId, button.dataset.actorKey);

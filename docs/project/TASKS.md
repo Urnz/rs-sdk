@@ -237,7 +237,7 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
   - [x] Determinisztikus social retrieval szereplő-, címke-, szöveg-, kapcsolat-,
     tartozás- és nyitottvállalás-pontozással.
 - [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
-- [ ] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
+- [x] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
   - [x] Az episodic események idempotens külső kulcsát, opcionális elévülését és
     döntési contextből való automatikus kizárását elkészíteni.
   - [x] A befejezett skill journalokat és strukturált gazdasági eseményeiket
@@ -248,6 +248,9 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
   - [x] A teljes player trade eseményekből automatikusan social kapcsolatot és
     ismertséget építeni úgy, hogy a kézi bizalom-, rokonszenv-, tartozás- és
     jegyzetértékek változatlanok maradjanak.
+  - [x] Előnézetes, explicit és auditált retention műveletet készíteni, amely
+    kizárólag elévült, semmilyen tartós bizonyítékként vagy külső forrásból nem
+    hivatkozott episodic emléket törölhet.
 - [ ] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
 
 Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
@@ -417,3 +420,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 34. [x] A strukturált player trade-okból idempotens social kapcsolatot,
     bizonyítéklistát, utolsó interakciót és fokozatos ismertséget képezni anélkül,
     hogy az automatika bizalmat, rokonszenvet vagy tartozást találna ki.
+35. [x] Az elévült episodic emlékekhez védettségi előnézetet és explicit,
+    auditált admin törlést készíteni; minden semantic, social, commitment,
+    konszolidációs vagy külső forráshivatkozással rendelkező emléket megőrizni.

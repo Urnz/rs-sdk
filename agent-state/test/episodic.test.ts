@@ -64,6 +64,45 @@ describe('episodic memory persistence', () => {
             .toThrow('at most 12');
         store.close();
     });
+
+    test('previews and prunes only expired episodes that have no durable references', () => {
+        const store = new AgentStateStore(databasePath());
+        createAgent(store);
+        const base = { kind: 'interaction' as const, source: 'manual' as const,
+            occurredAt: '2026-08-28T10:00:00.000Z', expiresAt: '2026-08-29T10:00:00.000Z' };
+        store.createEpisode('ferrye14', { ...base, episodeId: 'expired.eligible', summary: 'Temporary detail.' });
+        const protectedEpisode = store.createEpisode('ferrye14', { ...base, episodeId: 'expired.protected',
+            summary: 'Durable evidence.', externalKey: 'external:durable-evidence' });
+        store.createEpisode('ferrye14', { ...base, episodeId: 'future.episode', summary: 'Not expired yet.',
+            expiresAt: '2026-09-10T10:00:00.000Z' });
+        store.createKnowledge('ferrye14', { knowledgeId: 'knowledge.protected', kind: 'world',
+            subject: 'retention', predicate: 'keeps', object: 'evidence', summary: 'Keep its evidence.',
+            source: 'manual', evidenceEpisodeIds: [protectedEpisode.episodeId],
+            validFrom: '2026-08-28T10:00:00.000Z' });
+        const relationship = store.setRelationship('ferrye14', null, { actorKey: 'buyer1', displayName: 'Buyer1',
+            evidenceEpisodeIds: [protectedEpisode.episodeId] });
+        store.createCommitment('ferrye14', { commitmentId: 'commitment.protected', actorKey: relationship.actorKey,
+            direction: 'owed-by-agent', description: 'Preserve the promise.',
+            evidenceEpisodeIds: [protectedEpisode.episodeId] });
+        store.recordConsolidationEvidence('ferrye14', { ruleKey: 'retention.test', evidenceKey: 'evidence:test',
+            episodeId: protectedEpisode.episodeId, occurredAt: protectedEpisode.occurredAt });
+
+        const preview = store.previewEpisodeRetention('ferrye14', '2026-08-30T10:00:00.000Z');
+        expect(preview).toMatchObject({ expiredCount: 2, eligibleCount: 1, protectedCount: 1, truncated: false });
+        expect(preview.candidates.find(item => item.episodeId === 'expired.protected')?.protectionReasons).toEqual([
+            'semantic-evidence', 'relationship-evidence', 'commitment-evidence',
+            'consolidation-evidence', 'external-source'
+        ]);
+
+        const pruned = store.pruneExpiredEpisodes('ferrye14', '2026-08-30T10:00:00.000Z');
+        expect(pruned.deletedEpisodeIds).toEqual(['expired.eligible']);
+        expect(store.getEpisode('expired.eligible')).toBeNull();
+        expect(store.getEpisode('expired.protected')).not.toBeNull();
+        expect(store.getEpisode('future.episode')).not.toBeNull();
+        expect(store.pruneExpiredEpisodes('ferrye14', '2026-08-30T10:00:00.000Z').deletedEpisodeIds).toEqual([]);
+        expect(() => store.previewEpisodeRetention('ferrye14', 'not-a-date')).toThrow('ISO timestamp');
+        store.close();
+    });
 });
 
 describe('episodic retrieval', () => {

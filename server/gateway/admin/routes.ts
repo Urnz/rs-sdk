@@ -31,6 +31,7 @@ import {
     createAdminAgentGoal,
     createAdminAgentKnowledge,
     listAdminAgents,
+    pruneAdminAgentEpisodes,
     updateAdminAgent,
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
@@ -392,6 +393,23 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 return json({ ok: true, episode }, 201);
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'agent.episode.create', reason, success: false,
+                    username: agentId, error: String(error) });
+                throw error;
+            }
+        }
+
+        const agentEpisodePruneMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/episodes\/prune$/);
+        if (req.method === 'POST' && agentEpisodePruneMatch?.[1]) {
+            const agentId = agentEpisodePruneMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const result = pruneAdminAgentEpisodes(agentId);
+                await appendAudit({ operator: 'local-admin', action: 'agent.episodes.prune', reason, success: true,
+                    username: agentId, after: result });
+                return json({ ok: true, result });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.episodes.prune', reason, success: false,
                     username: agentId, error: String(error) });
                 throw error;
             }

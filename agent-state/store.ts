@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
+    type AgentEpisodeProtectionReason, type AgentEpisodePruneResult, type AgentEpisodeRetentionPreview,
     type AgentConsolidationEvidence, type AgentEconomicActorLink, type AgentKnowledge,
     type AgentKnowledgeListOptions, type AgentRelationship,
     type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
@@ -64,6 +65,9 @@ interface EconomicActorLinkRow {
 interface ConsolidationEvidenceRow {
     agent_id: string; rule_key: string; evidence_key: string; episode_id: string;
     occurred_at: string; created_at: string;
+}
+interface EpisodeRetentionRow extends EpisodeRow {
+    semantic_ref: number; relationship_ref: number; commitment_ref: number; consolidation_ref: number;
 }
 
 function identity(row: IdentityRow): AgentIdentity {
@@ -410,6 +414,58 @@ export class AgentStateStore {
         const normalized = normalizeAgentId(agentId);
         return (this.database.query('SELECT COUNT(*) AS count FROM agent_episode WHERE agent_id = ?1')
             .get(normalized) as { count: number }).count;
+    }
+
+    previewEpisodeRetention(agentId: string, asOf = new Date().toISOString(), limit = 500): AgentEpisodeRetentionPreview {
+        const normalized = normalizeAgentId(agentId);
+        if (Number.isNaN(Date.parse(asOf))) throw new Error('Retention cutoff must be an ISO timestamp');
+        if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error('Retention preview limit must be from 1 to 500');
+        this.requireIdentity(normalized);
+        const expiredCount = (this.database.query(`SELECT COUNT(*) AS count FROM agent_episode
+            WHERE agent_id = ?1 AND expires_at IS NOT NULL AND expires_at <= ?2`)
+            .get(normalized, asOf) as { count: number }).count;
+        const rows = this.database.query(`SELECT e.*,
+            EXISTS (SELECT 1 FROM agent_semantic_memory k, json_each(k.evidence_episode_ids) j
+                WHERE k.agent_id = e.agent_id AND j.value = e.episode_id) AS semantic_ref,
+            EXISTS (SELECT 1 FROM agent_relationship r, json_each(r.evidence_episode_ids) j
+                WHERE r.agent_id = e.agent_id AND j.value = e.episode_id) AS relationship_ref,
+            EXISTS (SELECT 1 FROM agent_commitment c, json_each(c.evidence_episode_ids) j
+                WHERE c.agent_id = e.agent_id AND j.value = e.episode_id) AS commitment_ref,
+            EXISTS (SELECT 1 FROM agent_consolidation_evidence ce
+                WHERE ce.agent_id = e.agent_id AND ce.episode_id = e.episode_id) AS consolidation_ref
+            FROM agent_episode e WHERE e.agent_id = ?1 AND e.expires_at IS NOT NULL AND e.expires_at <= ?2
+            ORDER BY e.expires_at, e.episode_id LIMIT ?3`)
+            .all(normalized, asOf, limit) as EpisodeRetentionRow[];
+        const candidates = rows.map(row => {
+            const reasons: AgentEpisodeProtectionReason[] = [];
+            if (row.semantic_ref) reasons.push('semantic-evidence');
+            if (row.relationship_ref) reasons.push('relationship-evidence');
+            if (row.commitment_ref) reasons.push('commitment-evidence');
+            if (row.consolidation_ref) reasons.push('consolidation-evidence');
+            if (row.external_key) reasons.push('external-source');
+            return { episodeId: row.episode_id, occurredAt: row.occurred_at, expiresAt: row.expires_at!,
+                protectionReasons: reasons, eligible: reasons.length === 0 };
+        });
+        const eligibleCount = candidates.filter(candidate => candidate.eligible).length;
+        return { agentId: normalized, asOf, expiredCount, eligibleCount,
+            protectedCount: candidates.length - eligibleCount, truncated: expiredCount > candidates.length, candidates };
+    }
+
+    pruneExpiredEpisodes(agentId: string, asOf = new Date().toISOString(), limit = 500): AgentEpisodePruneResult {
+        let preview!: AgentEpisodeRetentionPreview;
+        const deletedEpisodeIds: string[] = [];
+        const transaction = this.database.transaction(() => {
+            preview = this.previewEpisodeRetention(agentId, asOf, limit);
+            for (const candidate of preview.candidates) {
+                if (!candidate.eligible) continue;
+                const result = this.database.run(`DELETE FROM agent_episode
+                    WHERE agent_id = ?1 AND episode_id = ?2 AND expires_at IS NOT NULL AND expires_at <= ?3`,
+                [preview.agentId, candidate.episodeId, asOf]);
+                if (result.changes === 1) deletedEpisodeIds.push(candidate.episodeId);
+            }
+        });
+        transaction.immediate();
+        return { ...preview, deletedEpisodeIds };
     }
 
     recordConsolidationEvidence(agentId: string, input: CreateAgentConsolidationEvidence,

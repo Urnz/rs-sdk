@@ -151,6 +151,31 @@ export interface AgentEpisodeListOptions {
     kind?: AgentEpisodeKind;
 }
 
+export type AgentEpisodeProtectionReason = 'semantic-evidence' | 'relationship-evidence'
+    | 'commitment-evidence' | 'consolidation-evidence' | 'external-source';
+
+export interface AgentEpisodeRetentionCandidate {
+    episodeId: string;
+    occurredAt: string;
+    expiresAt: string;
+    protectionReasons: AgentEpisodeProtectionReason[];
+    eligible: boolean;
+}
+
+export interface AgentEpisodeRetentionPreview {
+    agentId: string;
+    asOf: string;
+    expiredCount: number;
+    eligibleCount: number;
+    protectedCount: number;
+    truncated: boolean;
+    candidates: AgentEpisodeRetentionCandidate[];
+}
+
+export interface AgentEpisodePruneResult extends AgentEpisodeRetentionPreview {
+    deletedEpisodeIds: string[];
+}
+
 export interface AgentKnowledge {
     knowledgeId: string;
     agentId: string;

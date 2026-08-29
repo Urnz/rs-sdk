@@ -9,6 +9,7 @@ import {
     createAdminAgentGoal,
     createAdminAgentKnowledge,
     listAdminAgents,
+    pruneAdminAgentEpisodes,
     updateAdminAgent,
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
@@ -137,5 +138,21 @@ describe('admin agent-state service', () => {
             'fulfilled', path)).toThrow('nem ehhez az agenthez');
         expect(updateAdminAgentCommitmentStatus('ferrye14', commitment.commitmentId, commitment.revision,
             'fulfilled', path).status).toBe('fulfilled');
+    });
+
+    test('exposes retention preview and prunes only eligible expired memories', async () => {
+        const path = databasePath();
+        createAdminAgent({ agentId: 'ferrye14', playerUsername: 'Ferrye14', displayName: 'Ferrye',
+            background: 'Retention test agent.', personalityTraits: ['careful'] }, path);
+        createAdminAgentEpisode('ferrye14', { episodeId: 'expired.admin', kind: 'observation',
+            summary: 'Temporary admin observation.', source: 'manual', occurredAt: '2026-08-20T10:00:00.000Z',
+            expiresAt: '2026-08-21T10:00:00.000Z' }, path);
+
+        const before = await listAdminAgents(path);
+        expect(before.agents[0]?.retention).toMatchObject({ expiredCount: 1, eligibleCount: 1, protectedCount: 0 });
+        const result = pruneAdminAgentEpisodes('ferrye14', path, '2026-08-30T10:00:00.000Z');
+        expect(result.deletedEpisodeIds).toEqual(['expired.admin']);
+        const after = await listAdminAgents(path);
+        expect(after.agents[0]?.retention.expiredCount).toBe(0);
     });
 });

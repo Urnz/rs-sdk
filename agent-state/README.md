@@ -62,6 +62,12 @@ trade and bank evidence produces separate economic episodes. Stable external key
 existing collision check rejects a journal whose content changes after ingestion. Unknown player journals are skipped
 and never create identities implicitly. This ingestion is deterministic and does not require an LLM.
 
+Episode expiry is retrieval-time first: reaching `expiresAt` hides a memory from decision context without deleting it.
+Physical cleanup requires an explicit audited admin action and deletes at most 500 expired, unreferenced episodes per
+run. Semantic, relationship, commitment and consolidation evidence is protected, as are externally keyed episodes,
+preventing broken history and delete/re-ingest loops. The admin preview reports eligible and protected records before
+the action; there is no automatic background deletion.
+
 ## Semantic memory
 
 Schema v5 stores durable world, economic, route and procedure knowledge as a structured subject-predicate-object fact
