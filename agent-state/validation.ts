@@ -1,4 +1,5 @@
-import type { CreateAgentGoal, CreateAgentIdentity, GoalHorizon, UpdateAgentIdentity } from './types.js';
+import type { CreateAgentGoal, CreateAgentIdentity, GoalHorizon, SetAgentWorkingMemory,
+    UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLAYER_PATTERN = /^[a-z0-9 _-]+$/;
@@ -113,3 +114,27 @@ export function expectedParentHorizon(horizon: GoalHorizon): GoalHorizon | null 
     }
 }
 
+export function validateWorkingMemory(value: SetAgentWorkingMemory): Required<SetAgentWorkingMemory> {
+    const issues: string[] = [];
+    const observedAt = text(value.observedAt, 'observedAt', issues, 40);
+    if (observedAt && Number.isNaN(Date.parse(observedAt))) issues.push('observedAt must be an ISO timestamp');
+    const currentActivity = value.currentActivity === null || value.currentActivity === undefined
+        ? null : text(value.currentActivity, 'currentActivity', issues, 200);
+    let location = value.location ?? null;
+    if (location) {
+        if (!Number.isInteger(location.x) || location.x < 0 || location.x > 16383) issues.push('location.x must be an integer from 0 to 16383');
+        if (!Number.isInteger(location.z) || location.z < 0 || location.z > 16383) issues.push('location.z must be an integer from 0 to 16383');
+        if (!Number.isInteger(location.level) || location.level < 0 || location.level > 3) issues.push('location.level must be an integer from 0 to 3');
+        const region = location.region === undefined ? undefined : text(location.region, 'location.region', issues, 100);
+        location = { x: location.x, z: location.z, level: location.level, ...(region ? { region } : {}) };
+    }
+    const result: Required<SetAgentWorkingMemory> = {
+        summary: text(value.summary, 'summary', issues, 1000),
+        currentActivity,
+        location,
+        observations: stringList(value.observations ?? [], 'observations', issues, false),
+        observedAt
+    };
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return result;
+}

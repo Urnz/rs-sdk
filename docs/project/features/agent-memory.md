@@ -26,6 +26,14 @@ célokat, és beállítható karakterkorláttal állítja elő a minden stratég
 adható rövid kontextust. Ebbe szándékosan még nem kerül memória: a későbbi
 visszakeresés csak releváns elemekkel egészítheti ki.
 
+A v2 séma már egyetlen, felülírható working-memory rekordot is tart agentenként.
+Ez rövid helyzetösszefoglalót, aktuális tevékenységet, opcionális világpozíciót és
+legfeljebb tizenkét rövid megfigyelést őriz az észlelés időpontjával. A frissítés
+optimista revision-védett és újraindítás után is megmarad. A
+`buildDecisionContext` csak a beállított korhatárnál frissebb working memoryt
+illeszti a core identity után; alapértelmezésben az öt percnél régebbi pillanatkép
+kimarad, nehogy a planner elavult helyzetből döntsön.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.
@@ -49,8 +57,8 @@ plannerrel kell bizonyítani. Így az LLM nem rejti el az állapotkezelési hib�
 
 ## Következő szelet
 
-Working memory és egy minimális, determinisztikus planner készül, amely játékbeli
-megfigyelésből frissíti az aktuális helyzetet, majd az azonnali cél és az ismert
-agent skillek alapján választ következő magas szintű műveletet. Ezután jön az
+Egy minimális, determinisztikus planner készül, amely játékbeli megfigyelésből
+frissíti a working memoryt, majd az azonnali cél és az ismert agent skillek alapján
+választ következő magas szintű műveletet. Ezután jön az
 episodic, semantic és social memória külön tárolóval és retrieval-szabályokkal.
 

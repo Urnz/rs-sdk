@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { AgentStateStore, AgentStateValidationError, buildCoreIdentity } from '../index.js';
+import { Database } from 'bun:sqlite';
+import { AgentStateStore, AgentStateValidationError, buildCoreIdentity, buildDecisionContext } from '../index.js';
 
 const directories: string[] = [];
 
@@ -111,3 +112,90 @@ describe('core identity context', () => {
     });
 });
 
+describe('working memory', () => {
+    test('migrates a v1 identity database without losing its agent', () => {
+        const path = databasePath();
+        const legacy = new Database(path, { create: true, strict: true });
+        legacy.run(`CREATE TABLE agent_identity (
+            agent_id TEXT PRIMARY KEY, player_username TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
+            background TEXT NOT NULL, personality_traits TEXT NOT NULL, agent_values TEXT NOT NULL,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1))`);
+        legacy.run(`CREATE TABLE agent_goal (
+            goal_id TEXT PRIMARY KEY, agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+            parent_goal_id TEXT REFERENCES agent_goal(goal_id) ON DELETE RESTRICT,
+            horizon TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL, status TEXT NOT NULL,
+            priority INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            completed_at TEXT, revision INTEGER NOT NULL)`);
+        legacy.run(`INSERT INTO agent_identity VALUES
+            ('legacy', 'legacy', 'Legacy agent', 'Existing identity', '["careful"]', '[]',
+            '2026-08-29T10:00:00.000Z', '2026-08-29T10:00:00.000Z', 1)`);
+        legacy.run('PRAGMA user_version = 1');
+        legacy.close(true);
+
+        const store = new AgentStateStore(path);
+        expect(store.getIdentity('legacy')?.displayName).toBe('Legacy agent');
+        expect(store.setWorkingMemory('legacy', null, {
+            summary: 'Migrated safely', observedAt: '2026-08-29T12:00:00.000Z'
+        }).revision).toBe(1);
+        store.close();
+    });
+
+    test('persists a bounded current situation and protects concurrent updates', () => {
+        const path = databasePath();
+        let store = new AgentStateStore(path);
+        addIdentity(store);
+        const first = store.setWorkingMemory('ferrye14', null, {
+            summary: 'Mining east of Varrock with free inventory space.',
+            currentActivity: 'mining iron ore',
+            location: { x: 3285, z: 3367, level: 0, region: 'Varrock east mine' },
+            observations: ['Three iron rocks are reachable', 'Inventory has 12 free slots'],
+            observedAt: '2026-08-29T12:00:00.000Z'
+        }, '2026-08-29T12:00:01.000Z');
+        expect(first.revision).toBe(1);
+        store.close();
+
+        store = new AgentStateStore(path);
+        expect(store.getSnapshot('ferrye14')?.workingMemory?.location?.x).toBe(3285);
+        const second = store.setWorkingMemory('ferrye14', first.revision, {
+            summary: 'Inventory is full and the agent is ready to bank.',
+            currentActivity: 'walking to bank', observations: ['Inventory is full'],
+            observedAt: '2026-08-29T12:02:00.000Z'
+        });
+        expect(second.revision).toBe(2);
+        expect(second.location).toBeNull();
+        expect(() => store.setWorkingMemory('ferrye14', first.revision, {
+            summary: 'Stale update', observedAt: '2026-08-29T12:03:00.000Z'
+        })).toThrow('changed before update');
+        store.close();
+    });
+
+    test('includes only fresh working memory in the bounded decision context', () => {
+        const store = new AgentStateStore(databasePath());
+        addIdentity(store);
+        store.setWorkingMemory('ferrye14', null, {
+            summary: 'Standing beside the east Varrock bank.', currentActivity: null,
+            location: { x: 3253, z: 3421, level: 0 }, observations: ['Bank door is open'],
+            observedAt: '2026-08-29T12:00:00.000Z'
+        });
+        const snapshot = store.getSnapshot('ferrye14')!;
+        const fresh = buildDecisionContext(snapshot, { now: '2026-08-29T12:04:00.000Z' });
+        expect(fresh).toContain('Current situation: Standing beside');
+        expect(fresh).toContain('Location: 3253,3421,0');
+        const stale = buildDecisionContext(snapshot, { now: '2026-08-29T12:06:00.001Z' });
+        expect(stale).not.toContain('Current situation:');
+        expect(buildDecisionContext(snapshot, { now: '2026-08-29T12:04:00.000Z', maxCharacters: 240 }).length)
+            .toBeLessThanOrEqual(240);
+        store.close();
+    });
+
+    test('rejects invalid coordinates, timestamps and oversized observations', () => {
+        const store = new AgentStateStore(databasePath());
+        addIdentity(store);
+        expect(() => store.setWorkingMemory('ferrye14', null, {
+            summary: 'Invalid location', location: { x: -1, z: 1, level: 8 },
+            observations: Array.from({ length: 13 }, (_, index) => `observation ${index}`), observedAt: 'not-a-date'
+        })).toThrow(AgentStateValidationError);
+        expect(store.getWorkingMemory('ferrye14')).toBeNull();
+        store.close();
+    });
+});

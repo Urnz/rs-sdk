@@ -216,7 +216,7 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 
 - [x] Agent-identitás sémája: név, háttértörténet és személyiségjegyek.
 - [x] Célhierarchia: életcél, hosszú távú, aktuális és azonnali feladat.
-- [ ] Working memory: kis méretű, mindig elérhető aktuális helyzet.
+- [x] Working memory: kis méretű, mindig elérhető aktuális helyzet.
 - [ ] Episodic memory: időzített, visszakereshető konkrét események.
 - [ ] Semantic memory: megtanult világ- és gazdasági ismeretek.
 - [ ] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
@@ -365,3 +365,5 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     ingatlannyilvántartással kézzel elfogadni.
 23. [x] A 10. fázis első tartós szeletét elkészíteni: verziózott agent-identitás,
     négyszintű célhierarchia és korlátozott core identity context.
+24. [x] Tartós, frissességkorlátos working memoryt és korlátozott döntési
+    kontextust készíteni az aktuális helyzethez, tevékenységhez és pozícióhoz.
