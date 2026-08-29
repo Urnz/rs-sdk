@@ -322,6 +322,7 @@ function openWorldMapAt(x, z, level, label) {
 
 function closeWorldMap() {
     $('#world-map-dialog').close();
+    state.worldMapPinned = null;
 }
 
 function itemChips(items) {

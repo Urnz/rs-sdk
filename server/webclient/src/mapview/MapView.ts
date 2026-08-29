@@ -11,6 +11,7 @@ import { canvas, saveDataURL } from '#/graphics/Canvas.js';
 import PixMap from '#/graphics/PixMap.js';
 import WorldMapFont from '#/mapview/WorldMapFont.js';
 import { remapWorldMapZ, worldTileToMapFocus } from '#/util/world-map-focus.js';
+import { createPropertyMapIconPixels, PROPERTY_MAPFUNCTION_ID, PROPERTY_MAP_ICON_SIZE } from '#/util/property-map-icon.js';
 
 export class MapView extends GameShell {
     static shouldDrawBorders: boolean = false;
@@ -217,7 +218,9 @@ export class MapView extends GameShell {
         'Chainmail Shop',
         'Silver Shop',
         'Fur Trader',
-        'Spice Shop'
+        'Spice Shop',
+        'Agility Training',
+        'Property'
     ];
 
     constructor() {
@@ -316,6 +319,9 @@ export class MapView extends GameShell {
         } catch (_e) {
             // empty
         }
+        const propertyMapIcon: Pix32 = new Pix32(PROPERTY_MAP_ICON_SIZE, PROPERTY_MAP_ICON_SIZE);
+        propertyMapIcon.data.set(createPropertyMapIconPixels());
+        this.mapfunction[PROPERTY_MAPFUNCTION_ID] = propertyMapIcon;
 
         // custom:
         try {

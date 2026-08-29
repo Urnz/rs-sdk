@@ -4,6 +4,7 @@ desc=It records the ownership of this property.
 model=model_loc_1033
 ambient=50
 active=yes
+mapfunction=50
 op1=Inspect
 op2=Purchase
 op3=Enter

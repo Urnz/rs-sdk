@@ -359,3 +359,5 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 20. [x] A Varrock keleti műhelyhez játékbeli Property sign objektumot és
     Inspect/Purchase/Enter jogosultsági visszajelzést készíteni, majd a sikeres,
     elégtelen egyenleges és visszaállítási útvonalat élő botokkal ellenőrizni.
+21. [x] A Property sign saját világtérképi ikonját és Key-szűrőjét elkészíteni,
+    az admin egyszeri koordinátafókuszát pedig bezáráskor törölni.

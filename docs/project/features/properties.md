@@ -108,6 +108,12 @@ Ez nem váltja ki a helyszíni táblát: vásárolni továbbra is csak az adott 
 lehet. A nyilvántartás kikapcsolt modnál is olvasható, összhangban a `read-only`
 lifecycle-szabállyal.
 
+A helyszíni `Property sign` a világtérképen saját arany-barna táblaikonnal jelenik
+meg. A Key második oldalán található `Property` sorra kattintva az összes ilyen
+helyszín felvillan, ugyanúgy, mint a játék eredeti térképi funkciói. Az adminból
+indított egyszeri koordinátafókusz csak a térkép bezárásáig marad kijelölve; az
+állandó tájékozódási pont maga a Property ikon.
+
 A Falador és Karamja koordináták továbbra is konfigurációs tesztpontok. Valódi
 loc/ajtó bekötés előtt vizuálisan ellenőrizni és szükség esetén módosítani kell
 őket; globális ajtótípusra nem kötünk ingatlanlogikát.
