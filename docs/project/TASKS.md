@@ -264,11 +264,11 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 - [x] Az LLM számára szűk, típusos eszközlistát adni; közvetlen engine- és fájlhozzáférést nem.
 - [x] Elkülöníteni a megfigyelést, tervezést, műveletjóváhagyást és végrehajtást.
 - [x] Bevezetni lépés-, idő-, költség- és műveleti limiteket.
-- [ ] Eseményvezérelt újratervezést használni: skill vége, váratlan esemény,
+- [x] Eseményvezérelt újratervezést használni: skill vége, váratlan esemény,
   ajánlat, cél teljesülése vagy jelentős gazdasági változás.
   - [x] Típusos eseményszerződés, forráskulcsos deduplikálás és agentenkénti
     cooldown elkészítése tickenkénti belépési pont nélkül.
-  - [ ] A skill-, cél-, ajánlat- és gazdasági eseményforrásokat rákötni az
+  - [x] A skill-, cél-, ajánlat- és gazdasági eseményforrásokat rákötni az
     újratervezési kapura és a közös inference queue-ra.
 - [x] Elkerülni a tickenkénti/tile-onkénti LLM-hívást; a modell magas szintű skillt válasszon.
 - [x] Agentenként külön modell helyett támogatni a közös, sorba állított inference szolgáltatást.

@@ -4,18 +4,22 @@ import { validateLlmRuntimeConfig } from '../../../llm-runtime/config.js';
 import { ScriptedMockProvider } from '../../../llm-runtime/mock-provider.js';
 import { LlmOrchestrator } from '../../../llm-runtime/orchestrator.js';
 import { buildLlmPlanningInput } from '../../../llm-runtime/planning.js';
+import { InferenceQueue } from '../../../llm-runtime/queue.js';
 import type { LlmAuditSink, LlmProviderRequest, LlmProviderResponse } from '../../../llm-runtime/types.js';
 import type { listAdminAgents } from './agent-state.js';
 import type { AdminSkillSummary } from './skill-catalog.js';
 import { llmAuditLogPath, llmRuntimeConfigPath } from './paths.js';
 
 type AdminAgentView = Awaited<ReturnType<typeof listAdminAgents>>['agents'][number];
+const sharedAdminInferenceQueue = new InferenceQueue();
 
 export interface AdminLlmDryRunOptions {
     now?: string;
     runId?: string;
     configPath?: string;
     audit?: LlmAuditSink;
+    untrustedText?: readonly string[];
+    queue?: InferenceQueue;
 }
 
 function words(value: string): Set<string> {
@@ -62,11 +66,12 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
             socialMemories: agent.relevantRelationships,
             assets: agent.assets
         },
+        untrustedText: options.untrustedText,
         runId: options.runId
     });
     const provider = new ScriptedMockProvider([request => mockResponse(agent, request)]);
     const orchestrator = new LlmOrchestrator(config, provider,
-        options.audit ?? new JsonlLlmAuditSink(llmAuditLogPath));
+        options.audit ?? new JsonlLlmAuditSink(llmAuditLogPath), options.queue ?? sharedAdminInferenceQueue);
     const plan = await orchestrator.plan(input);
     return {
         simulation: true,

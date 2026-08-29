@@ -43,12 +43,18 @@ alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
 - Az orchestration audit külön `.local/admin/llm-audit.jsonl` naplóba kerül; a
   szokásos admin audit csak a futásazonosítót, státuszt, döntést és usage adatot
   tartja meg.
-- Az eseményvezérelt réteghez elkészült a típusos domain-event gate, az ismételt
-  forrásesemények deduplikálása és az agentenkénti burst cooldown. A valódi
-  skill-/cél-/ajánlat-/gazdasági eseményforrások bekötése a következő részfeladat.
+- A gateway a skillfolyamat befejezését vagy hibáját, az immediate cél
+  létrehozását és státuszváltását, az új trade-kérést, a halálátmenetet és a
+  küszöbértéket átlépő aggregált gazdasági változást domain-eseménnyé alakítja.
+- A tickek csak átmenetet érzékelnek: változatlan világállapotból nem keletkezik
+  modellhívás. A forráskulcsos deduplikálás és cooldown a zajos ajánlat- és
+  gazdasági burstöket összevonja, míg a skill-, cél- és halálesemények sürgősek.
+- Az automatikus eredmények a `.local/admin/llm-replans.jsonl` fájlba kerülnek,
+  és a `/api/admin/llm-replans` helyi admin végponton lekérhetők. Ezek továbbra
+  is csak mock javaslatok: automatikus skillvégrehajtás nincs.
 
-Valódi provider csak az eseményforrások és az admin jóváhagyási folyamat után,
-explicit kis jogosultságú tesztkonfigurációval kapcsolható be.
+Valódi provider csak az admin jóváhagyási folyamat után, explicit kis
+jogosultságú tesztkonfigurációval kapcsolható be.
 
 ## Biztonsági alapok
 

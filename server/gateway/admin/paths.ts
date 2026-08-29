@@ -23,3 +23,4 @@ export const worldModBackupsDir = join(adminLocalDir, 'world-mod-backups');
 export const agentStateDbPath = join(repoRoot, '.local', 'agent-state', 'agents.sqlite');
 export const llmRuntimeConfigPath = join(repoRoot, 'config', 'llm-runtime.json');
 export const llmAuditLogPath = join(adminLocalDir, 'llm-audit.jsonl');
+export const llmReplanLogPath = join(adminLocalDir, 'llm-replans.jsonl');

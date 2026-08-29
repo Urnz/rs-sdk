@@ -44,10 +44,13 @@ import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind,
     AgentKnowledgeKind, AgentSkillKnowledgeStatus, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 import { runAdminLlmDryRun } from './llm-dry-run.js';
+import type { AgentReplanCoordinator } from './replan-coordinator.js';
+import { readReplanRecords } from './replan-runtime.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
     supervisor: BotSupervisor;
+    replanCoordinator?: AgentReplanCoordinator;
 }
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN?.trim() || '';
@@ -193,6 +196,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         if (req.method === 'GET' && url.pathname === '/api/admin/audit') {
             const limit = Number(url.searchParams.get('limit') || 100);
             return json({ entries: await readAudit(limit) });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/llm-replans') {
+            return json({ records: await readReplanRecords(Number(url.searchParams.get('limit') || 100)) });
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/experiments') {
@@ -367,6 +374,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             });
             await appendAudit({ operator: 'local-admin', action: 'agent.goal.create', reason, success: true,
                 username: agentId, after: goal });
+            if (goal.horizon === 'immediate') {
+                const occurredAt = new Date().toISOString();
+                void context.replanCoordinator?.submit({ eventId: crypto.randomUUID(), agentId,
+                    type: 'goal-changed', sourceKey: `goal:${goal.goalId}:revision:${goal.revision}`,
+                    occurredAt, summary: `Immediate goal ${goal.goalId} was created or changed.` }, occurredAt)
+                    .catch(error => console.error('[AgentReplan] Goal event failed:', error));
+            }
             return json({ ok: true, goal }, 201);
         }
 
@@ -526,6 +540,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 oneOf<GoalStatus>(body.status, ['active', 'completed', 'blocked', 'abandoned'], 'status'));
             await appendAudit({ operator: 'local-admin', action: 'agent.goal.status', reason, success: true,
                 username: agentId, after: goal });
+            if (goal.horizon === 'immediate') {
+                const occurredAt = new Date().toISOString();
+                void context.replanCoordinator?.submit({ eventId: crypto.randomUUID(), agentId: agentId!,
+                    type: 'goal-changed', sourceKey: `goal:${goal.goalId}:revision:${goal.revision}`,
+                    occurredAt, summary: `Immediate goal ${goal.goalId} changed to ${goal.status}.` }, occurredAt)
+                    .catch(error => console.error('[AgentReplan] Goal event failed:', error));
+            }
             return json({ ok: true, goal });
         }
 

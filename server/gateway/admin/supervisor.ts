@@ -21,6 +21,11 @@ type ManagedSkillProcess = {
     snapshot: ManagedSkillRunSnapshot;
 };
 
+export interface ManagedSkillExitEvent {
+    username: string;
+    snapshot: ManagedSkillRunSnapshot;
+}
+
 function assertUsername(username: string): string {
     const value = username.trim();
     if (!/^[a-zA-Z0-9]{1,12}$/.test(value)) {
@@ -44,6 +49,7 @@ async function readBotEnvironment(username: string): Promise<Record<string, stri
 export class BotSupervisor {
     private readonly processes = new Map<string, ManagedProcess>();
     private readonly skillProcesses = new Map<string, ManagedSkillProcess>();
+    private readonly skillExitHandlers = new Set<(event: ManagedSkillExitEvent) => void>();
 
     constructor(
         private readonly requestDisconnect: (username: string, reason: string) => boolean,
@@ -60,6 +66,11 @@ export class BotSupervisor {
 
     skillSnapshot(username: string): ManagedSkillRunSnapshot | null {
         return this.skillProcesses.get(username.toLowerCase())?.snapshot ?? null;
+    }
+
+    onSkillExit(handler: (event: ManagedSkillExitEvent) => void): () => void {
+        this.skillExitHandlers.add(handler);
+        return () => this.skillExitHandlers.delete(handler);
     }
 
     async spawn(options: SpawnBotOptions): Promise<ManagedProcessSnapshot> {
@@ -255,6 +266,11 @@ export class BotSupervisor {
             }
             const currentMarker = await Bun.file(markerPath).json().catch(() => null) as { pid?: number } | null;
             if (currentMarker?.pid === child.pid) await unlink(markerPath).catch(() => undefined);
+            const event = { username: key, snapshot: structuredClone(active.snapshot) };
+            for (const handler of this.skillExitHandlers) {
+                try { handler(event); }
+                catch (error) { console.error('[AgentReplan] Skill exit handler failed:', error); }
+            }
         });
         return snapshot;
     }

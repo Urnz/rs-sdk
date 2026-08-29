@@ -47,7 +47,9 @@ export class LlmReplanEventGate {
         if (this.seen.has(key)) {
             return { accepted: false, reason: 'duplicate', nextAllowedAt: new Date(Math.max(current, nextAllowed)).toISOString() };
         }
-        if (event.type !== 'manual-request' && current < nextAllowed) {
+        const urgent = event.type === 'manual-request' || event.type === 'unexpected-world-event'
+            || event.type === 'skill-finished' || event.type === 'skill-failed' || event.type === 'goal-changed';
+        if (!urgent && current < nextAllowed) {
             return { accepted: false, reason: 'cooldown', nextAllowedAt: new Date(nextAllowed).toISOString() };
         }
         this.seen.set(key, current);

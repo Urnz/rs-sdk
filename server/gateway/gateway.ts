@@ -17,8 +17,12 @@ import { BotSupervisor } from './admin/supervisor';
 import { handleAdminRequest } from './admin/routes';
 import type { AdminItem, GatewayBotSnapshot } from './admin/types';
 import { AgentMemoryIngestionLoop } from './admin/agent-memory-ingestion';
+import { createGatewayAgentReplanCoordinator } from './admin/replan-runtime';
+import type { AgentReplanCoordinator } from './admin/replan-coordinator';
+import { buildBotCatalog, economySnapshot, recordEconomy } from './admin/catalog';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
+let agentReplanCoordinator: AgentReplanCoordinator | null = null;
 
 // Login server configuration - when enabled, SDK connections require per-bot authentication
 const LOGIN_SERVER_ENABLED = process.env.LOGIN_SERVER === 'true';
@@ -452,6 +456,7 @@ const SyncModule = {
             }
             session.lastState = message.state;
             session.lastStateReceivedAt = Date.now();
+            agentReplanCoordinator?.observeWorldState(session.username, message.state);
             if (message.state.gameMessages?.length) {
                 chatHistoryFor(session.username).record(message.state.gameMessages);
             }
@@ -855,6 +860,16 @@ const botSupervisor = new BotSupervisor((username, reason) => {
     SyncModule.sendToBot(session, { type: 'save_and_disconnect', reason });
     return true;
 });
+agentReplanCoordinator = createGatewayAgentReplanCoordinator(adminGatewayBots);
+botSupervisor.onSkillExit(event => {
+    const occurredAt = new Date().toISOString();
+    const failed = event.snapshot.status === 'error';
+    void agentReplanCoordinator?.submitForPlayer(event.username, { eventId: crypto.randomUUID(),
+        type: failed ? 'skill-failed' : 'skill-finished',
+        sourceKey: `skill:${event.snapshot.startedAt}:${event.snapshot.skill}`,
+        occurredAt, summary: `${event.snapshot.skill} ${failed ? 'failed' : 'finished'} with exit code ${event.snapshot.exitCode}.` },
+    occurredAt).catch(error => console.error('[AgentReplan] Skill event failed:', error));
+});
 const agentMemoryIngestion = new AgentMemoryIngestionLoop();
 const memoryIngestionTimer = setInterval(() => {
     void agentMemoryIngestion.sync().then(result => {
@@ -868,6 +883,13 @@ const memoryIngestionTimer = setInterval(() => {
 }, 30_000);
 memoryIngestionTimer.unref?.();
 void agentMemoryIngestion.sync().catch(error => console.error('[AgentMemory] Initial ingestion failed:', error));
+const economyObservationTimer = setInterval(() => {
+    void buildBotCatalog(adminGatewayBots(), botSupervisor.list()).then(entries => {
+        const snapshot = economySnapshot(entries);
+        return Promise.all([recordEconomy(snapshot), agentReplanCoordinator?.observeEconomy(snapshot)]);
+    }).catch(error => console.error('[AgentReplan] Economy observation failed:', error));
+}, 30_000);
+economyObservationTimer.unref?.();
 
 // ============ Server Setup ============
 
@@ -899,7 +921,8 @@ const server = Bun.serve({
 
         const adminResponse = await handleAdminRequest(req, url, {
             gatewayBots: adminGatewayBots,
-            supervisor: botSupervisor
+            supervisor: botSupervisor,
+            replanCoordinator: agentReplanCoordinator ?? undefined
         });
         if (adminResponse) return adminResponse;
 
