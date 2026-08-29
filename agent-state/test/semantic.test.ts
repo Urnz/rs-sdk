@@ -135,4 +135,15 @@ describe('semantic retrieval', () => {
         expect(context.length).toBeLessThanOrEqual(800);
         store.close();
     });
+
+    test('uses update freshness as a bounded ranking signal without expiring durable knowledge', () => {
+        const entries = [
+            fact('old', { updatedAt: '2026-01-01T00:00:00.000Z' }),
+            fact('recent', { updatedAt: '2026-08-29T11:00:00.000Z' })
+        ];
+        const result = retrieveSemanticMemory(entries, { now: '2026-08-29T12:00:00.000Z' });
+        expect(result.map(item => item.knowledge.knowledgeId)).toEqual(['recent', 'old']);
+        expect(result[0]?.reasons).toContain('recency:30');
+        expect(result[1]?.reasons).toContain('recency:0');
+    });
 });

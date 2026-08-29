@@ -77,7 +77,7 @@ previous fact superseded while retaining its history and revision. External inge
 idempotency key as episodic memory.
 
 The semantic retriever excludes superseded, out-of-validity and low-confidence entries, and disputed facts unless they
-are explicitly requested. It deterministically ranks remaining knowledge by confidence and goal/tag/text relevance,
+are explicitly requested. It deterministically ranks remaining knowledge by confidence, bounded update freshness and goal/tag/text relevance,
 then adds only the bounded result to the decision context. The `Agentek` admin tab can record evidence-backed knowledge
 or select an active fact to supersede. Schema v8 adds a persistent consolidation-evidence ledger. Trusted, complete
 production observations become procedure knowledge at 3, 5, 10 and 20 observations with increasing confidence. Each
@@ -95,8 +95,8 @@ Relationships own immutable-history commitments. An open commitment records who 
 optional GP value, due time and episodic evidence. It may be resolved once as fulfilled, broken or cancelled; resolved
 commitments cannot be rewritten. Relationship and commitment updates use optimistic revisions.
 
-The deterministic social retriever ranks actor, tag and text matches together with familiarity, trust, affinity, debt
-and open commitments. Only bounded results and still-open commitments enter the decision context. The `Agentek` admin
+The deterministic social retriever ranks actor, tag, active-goal and current-context text matches together with
+interaction freshness, familiarity, trust, affinity, debt and open commitments. Only bounded results and still-open commitments enter the decision context. The `Agentek` admin
 tab supports audited relationship editing, commitment creation and explicit commitment resolution.
 
 Trusted, complete player-trade journals also reconcile social memory automatically. Each unique trade contributes five

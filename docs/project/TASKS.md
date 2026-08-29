@@ -228,14 +228,14 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
   - [x] Tartós, általános player/business/faction actor-linket készíteni, hogy a
     későbbi Business és Governance mod állapota adatmásolás nélkül csatlakozhasson.
 - [x] Egzakt, verziózott ismert skillek összekapcsolása az agent állapotával.
-- [ ] Relevancia-, frissesség- és célalapú context-visszakeresés minden tartós
+- [x] Relevancia-, frissesség- és célalapú context-visszakeresés minden tartós
   memóriatípushoz.
   - [x] Determinisztikus episodic retrieval cél-, szereplő-, címke-, szöveg-,
     fontosság- és frissességi pontozással.
-  - [x] Determinisztikus semantic retrieval cél-, címke-, szöveg- és
-    confidence-pontozással, érvényességi szűréssel.
-  - [x] Determinisztikus social retrieval szereplő-, címke-, szöveg-, kapcsolat-,
-    tartozás- és nyitottvállalás-pontozással.
+  - [x] Determinisztikus semantic retrieval cél-, címke-, szöveg-, confidence-
+    és frissességi pontozással, érvényességi szűréssel.
+  - [x] Determinisztikus social retrieval szereplő-, címke-, cél-, szöveg-,
+    interakciófrissesség-, kapcsolat-, tartozás- és nyitottvállalás-pontozással.
 - [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
 - [x] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
   - [x] Az episodic események idempotens külső kulcsát, opcionális elévülését és
@@ -423,3 +423,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 35. [x] Az elévült episodic emlékekhez védettségi előnézetet és explicit,
     auditált admin törlést készíteni; minden semantic, social, commitment,
     konszolidációs vagy külső forráshivatkozással rendelkező emléket megőrizni.
+36. [x] A semantic retrievalt korlátozott frissességi ponttal, a social retrievalt
+    interakciófrissességgel és az aktív cél szövegének külön súlyozásával bővíteni,
+    majd az admin context minden részét közös időpillanatból felépíteni.

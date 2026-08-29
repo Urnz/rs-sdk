@@ -123,6 +123,7 @@ export function retrieveSemanticMemory(entries: readonly AgentKnowledge[],
     return entries.flatMap(entry => {
         const validFrom = Date.parse(entry.validFrom);
         const validUntil = entry.validUntil ? Date.parse(entry.validUntil) : null;
+        const updatedAt = Date.parse(entry.updatedAt);
         if (Number.isNaN(validFrom) || validFrom > now || (validUntil !== null && validUntil <= now)
             || entry.status === 'superseded' || (entry.status === 'disputed' && !options.includeDisputed)
             || entry.confidence < minimumConfidence) return [];
@@ -133,11 +134,12 @@ export function retrieveSemanticMemory(entries: readonly AgentKnowledge[],
         const haystack = `${entry.subject} ${entry.predicate} ${entry.object} ${entry.summary} ${entry.tags.join(' ')}`
             .toLocaleLowerCase('en-US');
         const textMatches = queryTokens.filter(token => haystack.includes(token)).length;
-        const reasons = [`confidence:${entry.confidence}`];
+        const freshness = Number.isNaN(updatedAt) ? 0 : recencyScore(Math.max(0, now - updatedAt));
+        const reasons = [`confidence:${entry.confidence}`, `recency:${freshness}`];
         if (goalMatches) reasons.push(`goal:${goalMatches}`);
         if (tagMatches) reasons.push(`tag:${tagMatches}`);
         if (textMatches) reasons.push(`text:${textMatches}`);
-        const score = Math.round(entry.confidence * 0.8) + Math.min(60, goalMatches * 40)
+        const score = Math.round(entry.confidence * 0.8) + freshness + Math.min(60, goalMatches * 40)
             + Math.min(24, tagMatches * 12) + Math.min(32, textMatches * 4);
         return [{ knowledge: entry, score, reasons }];
     }).sort((left, right) => right.score - left.score
@@ -160,9 +162,11 @@ export interface SocialMemoryEntry {
 }
 
 export interface SocialRetrievalOptions {
+    now?: string;
     actors?: readonly string[];
     tags?: readonly string[];
     query?: string;
+    goalQuery?: string;
     limit?: number;
 }
 
@@ -173,11 +177,14 @@ export interface RetrievedSocialMemory extends SocialMemoryEntry {
 
 export function retrieveSocialMemory(entries: readonly SocialMemoryEntry[],
     options: SocialRetrievalOptions = {}): RetrievedSocialMemory[] {
+    const now = Date.parse(options.now ?? new Date().toISOString());
     const limit = options.limit ?? 6;
+    if (Number.isNaN(now)) throw new Error('Social retrieval now must be an ISO timestamp');
     if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('Social retrieval limit must be from 1 to 20');
     const actors = normalized(options.actors);
     const tags = normalized(options.tags);
     const queryTokens = tokens(options.query);
+    const goalTokens = tokens(options.goalQuery);
     return entries.map(entry => {
         const itemTags = normalized(entry.relationship.tags);
         const actorMatch = actors.has(entry.relationship.actorKey)
@@ -188,17 +195,24 @@ export function retrieveSocialMemory(entries: readonly SocialMemoryEntry[],
             + `${entry.relationship.tags.join(' ')} ${open.map(item => item.description).join(' ')}`;
         const normalizedHaystack = haystack.toLocaleLowerCase('en-US');
         const textMatches = queryTokens.filter(token => normalizedHaystack.includes(token)).length;
+        const goalMatches = goalTokens.filter(token => normalizedHaystack.includes(token)).length;
         const debtRelevant = entry.relationship.agentOwesGp > 0 || entry.relationship.actorOwesGp > 0;
-        const reasons = [`familiarity:${entry.relationship.familiarity}`];
+        const freshnessSource = entry.relationship.lastInteractionAt ?? entry.relationship.updatedAt;
+        const freshnessAt = Date.parse(freshnessSource);
+        const freshness = Number.isNaN(freshnessAt) ? 0 : recencyScore(Math.max(0, now - freshnessAt));
+        const reasons = [`familiarity:${entry.relationship.familiarity}`, `recency:${freshness}`];
         if (actorMatch) reasons.push('actor:1');
         if (tagMatches) reasons.push(`tag:${tagMatches}`);
         if (textMatches) reasons.push(`text:${textMatches}`);
+        if (goalMatches) reasons.push(`goal:${goalMatches}`);
         if (open.length) reasons.push(`open-commitments:${open.length}`);
         if (debtRelevant) reasons.push('debt:1');
         const score = Math.round(entry.relationship.familiarity * 0.5)
             + Math.round(Math.abs(entry.relationship.trust) * 0.25)
             + Math.round(Math.abs(entry.relationship.affinity) * 0.1)
+            + freshness
             + (actorMatch ? 60 : 0) + Math.min(24, tagMatches * 12) + Math.min(32, textMatches * 4)
+            + Math.min(48, goalMatches * 8)
             + Math.min(30, open.length * 15) + (debtRelevant ? 15 : 0);
         return { ...entry, score, reasons };
     }).sort((left, right) => right.score - left.score
@@ -208,6 +222,6 @@ export function retrieveSocialMemory(entries: readonly SocialMemoryEntry[],
 
 export function socialQueryFromSnapshot(snapshot: AgentSnapshot): SocialRetrievalOptions {
     const activeGoals = snapshot.goals.filter(goal => goal.status === 'active');
-    return { query: [snapshot.workingMemory?.summary ?? '',
-        ...activeGoals.map(goal => `${goal.title} ${goal.description}`)].join(' '), limit: 6 };
+    return { query: snapshot.workingMemory?.summary ?? '',
+        goalQuery: activeGoals.map(goal => `${goal.title} ${goal.description}`).join(' '), limit: 6 };
 }

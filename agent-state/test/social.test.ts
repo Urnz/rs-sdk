@@ -125,4 +125,20 @@ describe('social retrieval', () => {
         expect(context.length).toBeLessThanOrEqual(800);
         store.close();
     });
+
+    test('ranks interaction freshness and active-goal text independently from working-memory text', () => {
+        const entries = [
+            { relationship: relationship('lobster-buyer', { notes: 'Buys lobster near the Karamja ferry.',
+                lastInteractionAt: '2026-01-01T00:00:00.000Z' }), commitments: [] },
+            { relationship: relationship('recent-stranger', {
+                lastInteractionAt: '2026-08-29T11:00:00.000Z' }), commitments: [] }
+        ];
+        const recentFirst = retrieveSocialMemory(entries, { now: '2026-08-29T12:00:00.000Z' });
+        expect(recentFirst[0]?.relationship.actorKey).toBe('recent-stranger');
+        expect(recentFirst[0]?.reasons).toContain('recency:30');
+        const goalFirst = retrieveSocialMemory(entries, { now: '2026-08-29T12:00:00.000Z',
+            query: 'standing idle', goalQuery: 'Sell lobster near Karamja ferry' });
+        expect(goalFirst[0]?.relationship.actorKey).toBe('lobster-buyer');
+        expect(goalFirst[0]?.reasons).toContain('goal:4');
+    });
 });

@@ -33,15 +33,16 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         const snapshot = store.getSnapshot(identity.agentId)!;
         const recentEpisodes = store.listEpisodes(identity.agentId, { limit: 30 });
         const relevantEpisodes = retrieveEpisodicMemory(store.listEpisodes(identity.agentId, { limit: 500 }),
-            episodicQueryFromSnapshot(snapshot));
+            { ...episodicQueryFromSnapshot(snapshot), now: generatedAt });
         const recentKnowledge = store.listKnowledge(identity.agentId, { limit: 30 });
         const activeKnowledge = store.listKnowledge(identity.agentId, { status: 'active', limit: 500 });
         const relevantKnowledge = retrieveSemanticMemory(store.listKnowledge(identity.agentId, { limit: 500 }),
-            semanticQueryFromSnapshot(snapshot));
+            { ...semanticQueryFromSnapshot(snapshot), now: generatedAt });
         const relationships = store.listRelationships(identity.agentId).map(relationship => ({
             relationship, commitments: store.listCommitments(identity.agentId, relationship.actorKey)
         }));
-        const relevantRelationships = retrieveSocialMemory(relationships, socialQueryFromSnapshot(snapshot));
+        const relevantRelationships = retrieveSocialMemory(relationships,
+            { ...socialQueryFromSnapshot(snapshot), now: generatedAt });
         const actorLinks = store.listEconomicActorLinks(identity.agentId);
         const bot = assetSources.bots?.find(entry => entry.username === identity.playerUsername);
         const assets = resolveAgentAssets(actorLinks, relationships.map(entry => entry.relationship),
@@ -71,7 +72,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             relationships,
             relevantRelationships,
             assets,
-            decisionContext: buildDecisionContext(snapshot, { maxCharacters: 4000,
+            decisionContext: buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 4000,
                 episodicMemories: relevantEpisodes.map(result => result.episode),
                 semanticMemories: relevantKnowledge.map(result => result.knowledge),
                 socialMemories: relevantRelationships, assets }),

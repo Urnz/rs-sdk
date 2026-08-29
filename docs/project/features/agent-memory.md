@@ -144,10 +144,12 @@ visszakövethető. Külső konszolidációhoz itt is rendelkezésre áll idempot
 `externalKey`, eltérő tartalmú kulcsütközésnél fail-closed viselkedéssel.
 
 A semantic retrieval csak az időben érvényes, aktív és minimális confidence fölötti
-tudást használja. Confidence-, cél-, címke- és szövegegyezés alapján stabil sorrendet
-képez; a felülírt tudást kizárja, a vitatott állítást pedig csak explicit kérésre
-engedi vissza. A döntési context külön `Relevant semantic knowledge` blokkot kap,
-de továbbra is a teljes karakterkorláton belül marad.
+tudást használja. Confidence-, frissesség-, cél-, címke- és szövegegyezés alapján
+stabil sorrendet képez; a felülírt tudást kizárja, a vitatott állítást pedig csak
+explicit kérésre engedi vissza. A frissesség korlátozott rangsorolási bónusz, ezért
+egy régi, továbbra is érvényes tartós tudás nem tűnik el. A döntési context külön
+`Relevant semantic knowledge` blokkot kap, de továbbra is a teljes
+karakterkorláton belül marad.
 
 Az Agentek fül `+ Tudás` párbeszédében célok és korábbi episodic bizonyítékok
 kapcsolhatók az állításhoz. Korábbi aktív tudás felülírásakor az alany, az állítás
@@ -183,8 +185,10 @@ mely episodic emlék bizonyítja. Az `open` állapot egyszer válthat `fulfilled
 `broken` vagy `cancelled` állapotra; a lezárt vállalás változtathatatlan marad.
 Minden módosítható társas rekord optimista revision-védett.
 
-A determinisztikus social retrieval az aktuális cél szövegét, a szereplőt, címkéket,
-bizalmat, vonzalmat, ismerősséget, tartozást és nyitott vállalásokat pontozza. Csak
+A determinisztikus social retrieval az aktuális cél szövegét a pillanatnyi
+working-memory szövegétől külön súlyozza, továbbá a legutóbbi interakció
+frissességét, a szereplőt, címkéket, bizalmat, vonzalmat, ismerősséget, tartozást
+és nyitott vállalásokat pontozza. Csak
 a korlátozott, stabil sorrendű eredmény kerül a döntési context `Relevant social
 memory` blokkjába, és abban már lezárt vállalás nem jelenik meg. Az Agentek fülön
 kapcsolat rögzíthető és szerkeszthető, vállalás nyitható és lezárható; minden írás
@@ -202,6 +206,10 @@ meg barátságot, megbízhatóságot, hitelt vagy teljesített ígéretet.
 Az admin social kártyája megmutatja az utolsó interakció relatív idejét, a címkéket
 és a kapcsolathoz rendelt bizonyítékok számát, ezért az automatikus eredet kézzel is
 ellenőrizhető.
+
+Az admin egyetlen közös `generatedAt` időpillanatot ad az episodic, semantic és
+social retrievalnek, a retention-előnézetnek és a context-buildernek. Így egy
+határidő vagy frissességi sáv közepén készülő nézet sem kever eltérő időállapotokat.
 
 ## Gazdasági szereplők és eszközportfólió
 
