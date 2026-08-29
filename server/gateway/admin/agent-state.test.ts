@@ -6,6 +6,7 @@ import {
     createAdminAgent,
     createAdminAgentEpisode,
     createAdminAgentGoal,
+    createAdminAgentKnowledge,
     listAdminAgents,
     updateAdminAgent,
     updateAdminAgentGoalStatus,
@@ -51,10 +52,17 @@ describe('admin agent-state service', () => {
         }, path);
         updateAdminAgentSkill('ferrye14', { id: skill!.id, version: skill!.version }, 'preferred', null, path);
         updateAdminAgent('ferrye14', identity.revision, { displayName: 'Ferrye, a bányász' }, path);
-        createAdminAgentEpisode('ferrye14', {
+        const memory = createAdminAgentEpisode('ferrye14', {
             episodeId: 'ferrye.iron-memory', kind: 'discovery', summary: 'A varrocki vasérc közel van a bankhoz.',
             importance: 80, goalIds: ['ferrye.work'], tags: ['mining', 'varrock'], actors: [],
             source: 'manual', occurredAt: new Date().toISOString()
+        }, path);
+        createAdminAgentKnowledge('ferrye14', {
+            knowledgeId: 'ferrye.bank-route', kind: 'route', subject: 'Varrock east iron mine',
+            predicate: 'nearest-bank', object: 'Varrock east bank',
+            summary: 'A varrocki keleti bank a legközelebbi ismert bank.', confidence: 85,
+            goalIds: ['ferrye.work'], tags: ['mining', 'varrock'], evidenceEpisodeIds: [memory.episodeId],
+            source: 'manual', validFrom: new Date().toISOString()
         }, path);
         const store = new AgentStateStore(path);
         store.setWorkingMemory('ferrye14', null, {
@@ -71,11 +79,14 @@ describe('admin agent-state service', () => {
         expect(result.agents[0]?.knownSkills[0]?.status).toBe('preferred');
         expect(result.agents[0]?.episodeCount).toBe(1);
         expect(result.agents[0]?.relevantEpisodes[0]?.episode.episodeId).toBe('ferrye.iron-memory');
+        expect(result.agents[0]?.knowledgeCount).toBe(1);
+        expect(result.agents[0]?.relevantKnowledge[0]?.knowledge.knowledgeId).toBe('ferrye.bank-route');
         expect(result.agents[0]?.planner).toMatchObject({
             kind: 'execute-skill', skill: { id: skill!.id, version: skill!.version }
         });
         expect(result.agents[0]?.decisionContext).toContain('Ferrye, a bányász');
         expect(result.agents[0]?.decisionContext).toContain('A varrocki vasérc');
+        expect(result.agents[0]?.decisionContext).toContain('legközelebbi ismert bank');
     });
 
     test('enforces agent ownership and optimistic revisions through the admin boundary', () => {

@@ -94,6 +94,7 @@ const plannerLabels = { 'execute-skill': 'Végrehajtható', 'refresh-state': 'Fr
     'no-immediate-goal': 'Nincs azonnali cél', 'skill-unavailable': 'Skill nem elérhető' };
 const episodeKindLabels = { observation: 'Megfigyelés', action: 'Cselekvés', outcome: 'Eredmény',
     interaction: 'Interakció', discovery: 'Felfedezés', economic: 'Gazdasági esemény' };
+const knowledgeKindLabels = { world: 'Világismeret', economic: 'Gazdasági ismeret', route: 'Útvonal', procedure: 'Eljárás' };
 
 function csvValues(value) {
     return String(value || '').split(',').map(entry => entry.trim()).filter(Boolean);
@@ -131,6 +132,15 @@ function renderAgents() {
                 ${episode.goalIds.length ? `<small>célok: ${escapeHtml(episode.goalIds.join(', '))}</small>` : ''}
             </div>`;
         }).join('') || '<p class="muted">Még nincs episodic memória.</p>';
+        const relevantKnowledge = new Map(agent.relevantKnowledge.map(result => [result.knowledge.knowledgeId, result]));
+        const knowledge = agent.recentKnowledge.map(item => {
+            const match = relevantKnowledge.get(item.knowledgeId);
+            return `<div class="agent-knowledge ${match ? 'relevant' : ''} ${escapeHtml(item.status)}">
+                <strong>${escapeHtml(item.subject)} · ${escapeHtml(item.predicate)} → ${escapeHtml(item.object)}</strong>
+                <small>${escapeHtml(item.summary)}</small>
+                <small>${escapeHtml(knowledgeKindLabels[item.kind] || item.kind)} · bizonyosság ${item.confidence} · ${escapeHtml(item.status)}${match ? ` · relevancia ${match.score}` : ''}</small>
+            </div>`;
+        }).join('') || '<p class="muted">Még nincs semantic memória.</p>';
         return `<article class="agent-card" data-agent-id="${escapeHtml(identity.agentId)}">
             <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
                 <div class="agent-card-actions">
@@ -138,6 +148,7 @@ function renderAgents() {
                     <button class="button small secondary" data-action="agent-goal-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Cél</button>
                     <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Skillismeret</button>
                     <button class="button small secondary" data-action="agent-episode-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Emlék</button>
+                    <button class="button small skill-button" data-action="agent-knowledge-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Tudás</button>
                     <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
                     <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
                 </div></div>
@@ -150,6 +161,7 @@ function renderAgents() {
                     ? `<p>${escapeHtml(memory.summary)}</p><small class="muted">${escapeHtml(relativeTime(memory.observedAt))} · rev ${memory.revision}</small>`
                     : '<p class="muted">Még nincs élő megfigyelés.</p>'}</section>
                 <section class="agent-section"><h4>Episodic memória (${agent.episodeCount})</h4><div class="agent-episodes">${episodes}</div></section>
+                <section class="agent-section"><h4>Semantic memória (${agent.knowledgeCount})</h4><div class="agent-knowledge-list">${knowledge}</div></section>
                 <section class="agent-section"><h4>Planner</h4><p>${escapeHtml(agent.planner.reason)}</p><pre class="agent-context">${escapeHtml(agent.decisionContext)}</pre></section>
             </div></article>`;
     }).join('') : '<p class="empty">Még nincs persistent agent. Hozd létre az elsőt egy meglévő bothoz.</p>';
@@ -211,6 +223,22 @@ function showAgentEpisode(agentId) {
     form.elements.occurredAt.value = dateTimeLocalValue();
     form.elements.reason.value = 'Agent episodic memória kézi rögzítése';
     $('#agent-episode-dialog').showModal();
+}
+
+function showAgentKnowledge(agentId) {
+    const form = $('#agent-knowledge-form'); form.reset(); form.elements.agentId.value = agentId;
+    const agent = state.agents.find(entry => entry.identity.agentId === agentId);
+    if (!agent) throw new Error('Az agent már nem található.');
+    form.elements.goalIds.innerHTML = agent.goals.filter(goal => goal.status === 'active')
+        .map(goal => `<option value="${escapeHtml(goal.goalId)}">${escapeHtml(goalHorizonLabels[goal.horizon])}: ${escapeHtml(goal.title)}</option>`).join('');
+    form.elements.evidenceEpisodeIds.innerHTML = agent.recentEpisodes
+        .map(episode => `<option value="${escapeHtml(episode.episodeId)}">${new Date(episode.occurredAt).toLocaleDateString('hu-HU')} · ${escapeHtml(episode.summary)}</option>`).join('');
+    form.elements.supersedesId.innerHTML = '<option value="">Nincs</option>' + agent.activeKnowledge
+        .map(item => `<option value="${escapeHtml(item.knowledgeId)}">${escapeHtml(item.subject)} · ${escapeHtml(item.predicate)} → ${escapeHtml(item.object)}</option>`).join('');
+    form.elements.confidence.value = 70;
+    form.elements.validFrom.value = dateTimeLocalValue();
+    form.elements.reason.value = 'Agent semantic memória kézi rögzítése';
+    $('#agent-knowledge-dialog').showModal();
 }
 
 function relativeTime(value) {
@@ -1002,6 +1030,7 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
         if (button.dataset.action === 'agent-episode-add') showAgentEpisode(button.dataset.agentId);
+        if (button.dataset.action === 'agent-knowledge-add') showAgentKnowledge(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-edit') showAgentSkill(
             button.dataset.agentId, button.dataset.skill, button.dataset.skillStatus,
             Number(button.dataset.skillRevision)
@@ -1125,6 +1154,25 @@ $('#agent-episode-form').addEventListener('submit', async event => {
     } catch (error) { toast(error.message, true); }
 });
 
+$('#agent-knowledge-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    const validUntil = data.get('validUntil')?.toString();
+    try {
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('agentId'))}/knowledge`, {
+            method: 'POST', mutation: true, body: JSON.stringify({
+                kind: data.get('kind'), subject: data.get('subject'), predicate: data.get('predicate'),
+                object: data.get('object'), summary: data.get('summary'), confidence: Number(data.get('confidence')),
+                goalIds: data.getAll('goalIds'), evidenceEpisodeIds: data.getAll('evidenceEpisodeIds'),
+                tags: csvValues(data.get('tags')), supersedesId: data.get('supersedesId') || null,
+                validFrom: new Date(data.get('validFrom')).toISOString(),
+                validUntil: validUntil ? new Date(validUntil).toISOString() : null, reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('A semantic tudás tartósan elmentve.'); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
 $('#spawn-form').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget, data = new FormData(form);
@@ -1244,6 +1292,17 @@ $('#agent-create-form').elements.playerUsername.addEventListener('change', event
     form.elements.displayName.value = bot.displayName;
 });
 $('#agent-goal-form').elements.horizon.addEventListener('change', updateAgentGoalParents);
+$('#agent-knowledge-form').elements.supersedesId.addEventListener('change', event => {
+    if (!event.target.value) return;
+    const form = event.target.form;
+    const agent = state.agents.find(entry => entry.identity.agentId === form.elements.agentId.value);
+    const previous = agent?.activeKnowledge.find(item => item.knowledgeId === event.target.value);
+    if (!previous) return;
+    form.elements.kind.value = previous.kind;
+    form.elements.subject.value = previous.subject;
+    form.elements.predicate.value = previous.predicate;
+    form.elements.tags.value = previous.tags.join(', ');
+});
 $('#world-admin-button').addEventListener('click', () => openWorldAdmin().catch(error => toast(error.message, true)));
 $('#create-world-mod-backup').addEventListener('click', () => {
     $('#world-mod-backup-form').reset();

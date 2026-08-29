@@ -1,9 +1,10 @@
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
 import { planNextAction } from '../../../agent-state/planner.js';
-import { episodicQueryFromSnapshot, retrieveEpisodicMemory } from '../../../agent-state/retrieval.js';
+import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
+    semanticQueryFromSnapshot } from '../../../agent-state/retrieval.js';
 import type { AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity,
-    GoalStatus, UpdateAgentIdentity } from '../../../agent-state/types.js';
+    CreateAgentKnowledge, GoalStatus, UpdateAgentIdentity } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 import { listAdminSkills } from './skill-catalog.js';
 
@@ -21,13 +22,22 @@ export async function listAdminAgents(path = agentStateDbPath) {
         const recentEpisodes = store.listEpisodes(identity.agentId, { limit: 30 });
         const relevantEpisodes = retrieveEpisodicMemory(store.listEpisodes(identity.agentId, { limit: 500 }),
             episodicQueryFromSnapshot(snapshot));
+        const recentKnowledge = store.listKnowledge(identity.agentId, { limit: 30 });
+        const activeKnowledge = store.listKnowledge(identity.agentId, { status: 'active', limit: 500 });
+        const relevantKnowledge = retrieveSemanticMemory(store.listKnowledge(identity.agentId, { limit: 500 }),
+            semanticQueryFromSnapshot(snapshot));
         return {
             ...snapshot,
             episodeCount: store.countEpisodes(identity.agentId),
             recentEpisodes,
             relevantEpisodes,
+            knowledgeCount: store.countKnowledge(identity.agentId),
+            recentKnowledge,
+            activeKnowledge,
+            relevantKnowledge,
             decisionContext: buildDecisionContext(snapshot, { maxCharacters: 4000,
-                episodicMemories: relevantEpisodes.map(result => result.episode) }),
+                episodicMemories: relevantEpisodes.map(result => result.episode),
+                semanticMemories: relevantKnowledge.map(result => result.knowledge) }),
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
@@ -63,4 +73,8 @@ export function updateAdminAgentSkill(agentId: string, skill: AgentSkillReferenc
 
 export function createAdminAgentEpisode(agentId: string, input: CreateAgentEpisode, path = agentStateDbPath) {
     return useStore(path, store => store.createEpisode(agentId, input));
+}
+
+export function createAdminAgentKnowledge(agentId: string, input: CreateAgentKnowledge, path = agentStateDbPath) {
+    return useStore(path, store => store.createKnowledge(agentId, input));
 }

@@ -2,12 +2,13 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
-    type AgentEpisode, type AgentEpisodeListOptions, type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
+    type AgentEpisode, type AgentEpisodeListOptions, type AgentKnowledge, type AgentKnowledgeListOptions,
+    type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
     type AgentSkillReference, type AgentWorkingMemory, type CreateAgentEpisode, type CreateAgentGoal,
-    type CreateAgentIdentity, type GoalStatus, type SetAgentWorkingMemory,
+    type CreateAgentIdentity, type CreateAgentKnowledge, type GoalStatus, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
-    normalizeSkillReference, validateCreateEpisode, validateIdentityPatch, validateSkillKnowledgeStatus,
+    normalizeSkillReference, validateCreateEpisode, validateCreateKnowledge, validateIdentityPatch, validateSkillKnowledgeStatus,
     validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
@@ -32,6 +33,13 @@ interface EpisodeRow {
     importance: number; goal_ids: string; actors: string; tags: string; source: AgentEpisode['source'];
     trust: AgentEpisode['trust']; external_key: string | null; occurred_at: string; expires_at: string | null;
     created_at: string;
+}
+interface KnowledgeRow {
+    knowledge_id: string; agent_id: string; kind: AgentKnowledge['kind']; subject: string; predicate: string;
+    object: string; summary: string; confidence: number; goal_ids: string; tags: string;
+    evidence_episode_ids: string; source: AgentKnowledge['source']; status: AgentKnowledge['status'];
+    supersedes_id: string | null; external_key: string | null; valid_from: string; valid_until: string | null;
+    created_at: string; updated_at: string; revision: number;
 }
 
 function identity(row: IdentityRow): AgentIdentity {
@@ -62,6 +70,14 @@ function episode(row: EpisodeRow): AgentEpisode {
         actors: JSON.parse(row.actors) as string[], tags: JSON.parse(row.tags) as string[], source: row.source,
         trust: row.trust, externalKey: row.external_key, occurredAt: row.occurred_at,
         expiresAt: row.expires_at, createdAt: row.created_at };
+}
+function knowledge(row: KnowledgeRow): AgentKnowledge {
+    return { knowledgeId: row.knowledge_id, agentId: row.agent_id, kind: row.kind, subject: row.subject,
+        predicate: row.predicate, object: row.object, summary: row.summary, confidence: row.confidence,
+        goalIds: JSON.parse(row.goal_ids) as string[], tags: JSON.parse(row.tags) as string[],
+        evidenceEpisodeIds: JSON.parse(row.evidence_episode_ids) as string[], source: row.source, status: row.status,
+        supersedesId: row.supersedes_id, externalKey: row.external_key, validFrom: row.valid_from,
+        validUntil: row.valid_until, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
 }
 
 export class AgentStateStore {
@@ -327,6 +343,106 @@ export class AgentStateStore {
             .get(normalized) as { count: number }).count;
     }
 
+    createKnowledge(agentId: string, input: CreateAgentKnowledge,
+        now = new Date().toISOString()): AgentKnowledge {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const value = validateCreateKnowledge(input);
+        let existing: AgentKnowledge | null = null;
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalizedAgentId);
+            if (value.externalKey) {
+                const row = this.database.query(`SELECT * FROM agent_semantic_memory
+                    WHERE agent_id = ?1 AND external_key = ?2`).get(normalizedAgentId, value.externalKey) as KnowledgeRow | null;
+                if (row) {
+                    existing = knowledge(row);
+                    if (existing.kind !== value.kind || existing.subject !== value.subject
+                        || existing.predicate !== value.predicate || existing.object !== value.object
+                        || existing.summary !== value.summary || existing.confidence !== value.confidence
+                        || JSON.stringify(existing.goalIds) !== JSON.stringify(value.goalIds)
+                        || JSON.stringify(existing.tags) !== JSON.stringify(value.tags)
+                        || JSON.stringify(existing.evidenceEpisodeIds) !== JSON.stringify(value.evidenceEpisodeIds)
+                        || existing.source !== value.source || existing.supersedesId !== value.supersedesId
+                        || existing.validFrom !== value.validFrom || existing.validUntil !== value.validUntil) {
+                        throw new Error(`Knowledge external key collision: ${value.externalKey}`);
+                    }
+                    return;
+                }
+            }
+            for (const goalId of value.goalIds) {
+                const goal = this.getGoal(goalId);
+                if (!goal || goal.agentId !== normalizedAgentId) {
+                    throw new Error(`Knowledge goal must belong to the same agent: ${goalId}`);
+                }
+            }
+            for (const episodeId of value.evidenceEpisodeIds) {
+                const evidence = this.getEpisode(episodeId);
+                if (!evidence || evidence.agentId !== normalizedAgentId) {
+                    throw new Error(`Knowledge evidence must belong to the same agent: ${episodeId}`);
+                }
+            }
+            if (value.supersedesId) {
+                const previous = this.getKnowledge(value.supersedesId);
+                if (!previous || previous.agentId !== normalizedAgentId) {
+                    throw new Error('Superseded knowledge must belong to the same agent');
+                }
+                if (previous.status !== 'active') throw new Error('Only active knowledge can be superseded');
+                if (previous.subject.toLocaleLowerCase('en-US') !== value.subject.toLocaleLowerCase('en-US')
+                    || previous.predicate.toLocaleLowerCase('en-US') !== value.predicate.toLocaleLowerCase('en-US')) {
+                    throw new Error('Superseding knowledge must keep the same subject and predicate');
+                }
+                const updated = this.database.run(`UPDATE agent_semantic_memory SET status = 'superseded',
+                    updated_at = ?2, revision = revision + 1 WHERE knowledge_id = ?1 AND status = 'active'`,
+                [previous.knowledgeId, now]);
+                if (updated.changes !== 1) throw new Error('Knowledge changed before supersession; refresh and try again');
+            }
+            this.database.run(`INSERT INTO agent_semantic_memory
+                (knowledge_id, agent_id, kind, subject, predicate, object, summary, confidence, goal_ids, tags,
+                evidence_episode_ids, source, status, supersedes_id, external_key, valid_from, valid_until,
+                created_at, updated_at, revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'active', ?13, ?14, ?15, ?16, ?17, ?17, 1)`,
+            [value.knowledgeId, normalizedAgentId, value.kind, value.subject, value.predicate, value.object,
+                value.summary, value.confidence, JSON.stringify(value.goalIds), JSON.stringify(value.tags),
+                JSON.stringify(value.evidenceEpisodeIds), value.source, value.supersedesId, value.externalKey,
+                value.validFrom, value.validUntil, now]);
+        });
+        transaction.immediate();
+        return existing ?? this.requireKnowledge(value.knowledgeId);
+    }
+
+    getKnowledge(knowledgeId: string): AgentKnowledge | null {
+        const normalized = normalizeAgentId(knowledgeId, 'knowledgeId');
+        const row = this.database.query('SELECT * FROM agent_semantic_memory WHERE knowledge_id = ?1').get(normalized);
+        return row ? knowledge(row as KnowledgeRow) : null;
+    }
+
+    listKnowledge(agentId: string, options: AgentKnowledgeListOptions = {}): AgentKnowledge[] {
+        const normalized = normalizeAgentId(agentId);
+        const limit = options.limit ?? 100;
+        const offset = options.offset ?? 0;
+        if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error('Knowledge limit must be from 1 to 500');
+        if (!Number.isInteger(offset) || offset < 0) throw new Error('Knowledge offset must be a non-negative integer');
+        let rows: unknown[];
+        if (options.status && options.kind) rows = this.database.query(`SELECT * FROM agent_semantic_memory
+            WHERE agent_id = ?1 AND status = ?2 AND kind = ?3
+            ORDER BY updated_at DESC, knowledge_id LIMIT ?4 OFFSET ?5`)
+            .all(normalized, options.status, options.kind, limit, offset);
+        else if (options.status) rows = this.database.query(`SELECT * FROM agent_semantic_memory
+            WHERE agent_id = ?1 AND status = ?2 ORDER BY updated_at DESC, knowledge_id LIMIT ?3 OFFSET ?4`)
+            .all(normalized, options.status, limit, offset);
+        else if (options.kind) rows = this.database.query(`SELECT * FROM agent_semantic_memory
+            WHERE agent_id = ?1 AND kind = ?2 ORDER BY updated_at DESC, knowledge_id LIMIT ?3 OFFSET ?4`)
+            .all(normalized, options.kind, limit, offset);
+        else rows = this.database.query(`SELECT * FROM agent_semantic_memory WHERE agent_id = ?1
+            ORDER BY updated_at DESC, knowledge_id LIMIT ?2 OFFSET ?3`).all(normalized, limit, offset);
+        return (rows as KnowledgeRow[]).map(knowledge);
+    }
+
+    countKnowledge(agentId: string): number {
+        const normalized = normalizeAgentId(agentId);
+        return (this.database.query('SELECT COUNT(*) AS count FROM agent_semantic_memory WHERE agent_id = ?1')
+            .get(normalized) as { count: number }).count;
+    }
+
     getSnapshot(agentId: string): AgentSnapshot | null {
         const found = this.getIdentity(agentId);
         return found ? { identity: found, goals: this.listGoals(found.agentId),
@@ -346,6 +462,11 @@ export class AgentStateStore {
     private requireEpisode(episodeId: string): AgentEpisode {
         const found = this.getEpisode(episodeId);
         if (!found) throw new Error(`Unknown episode: ${episodeId}`);
+        return found;
+    }
+    private requireKnowledge(knowledgeId: string): AgentKnowledge {
+        const found = this.getKnowledge(knowledgeId);
+        if (!found) throw new Error(`Unknown knowledge: ${knowledgeId}`);
         return found;
     }
     private migrate(): void {
@@ -418,6 +539,33 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_episode_agent_importance
                     ON agent_episode(agent_id, importance DESC)`);
                 this.database.run('PRAGMA user_version = 4');
+            });
+            transaction.immediate();
+        }
+        if (version < 5) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_semantic_memory (
+                    knowledge_id TEXT PRIMARY KEY,
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL CHECK (kind IN ('world', 'economic', 'route', 'procedure')),
+                    subject TEXT NOT NULL COLLATE NOCASE, predicate TEXT NOT NULL COLLATE NOCASE,
+                    object TEXT NOT NULL, summary TEXT NOT NULL,
+                    confidence INTEGER NOT NULL CHECK (confidence BETWEEN 0 AND 100),
+                    goal_ids TEXT NOT NULL, tags TEXT NOT NULL, evidence_episode_ids TEXT NOT NULL,
+                    source TEXT NOT NULL CHECK (source IN ('manual', 'system', 'consolidation')),
+                    status TEXT NOT NULL CHECK (status IN ('active', 'superseded', 'disputed')),
+                    supersedes_id TEXT REFERENCES agent_semantic_memory(knowledge_id) ON DELETE RESTRICT,
+                    external_key TEXT, valid_from TEXT NOT NULL, valid_until TEXT,
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    CHECK (knowledge_id != supersedes_id))`);
+                this.database.run(`CREATE UNIQUE INDEX agent_semantic_external_key
+                    ON agent_semantic_memory(agent_id, external_key) WHERE external_key IS NOT NULL`);
+                this.database.run(`CREATE UNIQUE INDEX one_active_semantic_fact
+                    ON agent_semantic_memory(agent_id, subject, predicate) WHERE status = 'active'`);
+                this.database.run(`CREATE INDEX agent_semantic_agent_status
+                    ON agent_semantic_memory(agent_id, status, updated_at DESC)`);
+                this.database.run('PRAGMA user_version = 5');
             });
             transaction.immediate();
         }

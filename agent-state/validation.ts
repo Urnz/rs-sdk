@@ -1,5 +1,6 @@
 import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentSkillKnowledgeStatus,
-    AgentSkillReference, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity,
+    AgentKnowledgeKind, AgentKnowledgeSource, AgentSkillReference, CreateAgentEpisode, CreateAgentGoal,
+    CreateAgentIdentity, CreateAgentKnowledge,
     GoalHorizon, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
@@ -9,6 +10,8 @@ const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const EPISODE_KINDS = new Set<AgentEpisodeKind>(['observation', 'action', 'outcome', 'interaction', 'discovery', 'economic']);
 const EPISODE_SOURCES = new Set<AgentEpisodeSource>(['manual', 'system', 'skill', 'planner']);
 const EPISODE_TRUST = new Set<AgentEpisodeTrust>(['trusted', 'untrusted']);
+const KNOWLEDGE_KINDS = new Set<AgentKnowledgeKind>(['world', 'economic', 'route', 'procedure']);
+const KNOWLEDGE_SOURCES = new Set<AgentKnowledgeSource>(['manual', 'system', 'consolidation']);
 
 export class AgentStateValidationError extends Error {
     constructor(public readonly issues: string[]) {
@@ -214,6 +217,49 @@ export function validateCreateEpisode(value: CreateAgentEpisode): Required<Creat
         occurredAt,
         expiresAt
     };
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return result;
+}
+
+export function validateCreateKnowledge(value: CreateAgentKnowledge): Required<CreateAgentKnowledge> {
+    const issues: string[] = [];
+    if (!KNOWLEDGE_KINDS.has(value.kind)) issues.push('knowledge kind is invalid');
+    if (!KNOWLEDGE_SOURCES.has(value.source)) issues.push('knowledge source is invalid');
+    const confidence = value.confidence ?? 50;
+    if (!Number.isInteger(confidence) || confidence < 0 || confidence > 100) {
+        issues.push('confidence must be an integer from 0 to 100');
+    }
+    const validFrom = text(value.validFrom, 'validFrom', issues, 40);
+    if (validFrom && Number.isNaN(Date.parse(validFrom))) issues.push('validFrom must be an ISO timestamp');
+    const validUntil = value.validUntil === null || value.validUntil === undefined
+        ? null : text(value.validUntil, 'validUntil', issues, 40);
+    if (validUntil && Number.isNaN(Date.parse(validUntil))) issues.push('validUntil must be an ISO timestamp');
+    if (validUntil && validFrom && Date.parse(validUntil) <= Date.parse(validFrom)) {
+        issues.push('validUntil must be later than validFrom');
+    }
+    const result: Required<CreateAgentKnowledge> = {
+        knowledgeId: id(value.knowledgeId, 'knowledgeId', issues),
+        kind: value.kind,
+        subject: text(value.subject, 'subject', issues, 200),
+        predicate: text(value.predicate, 'predicate', issues, 100),
+        object: text(value.object, 'object', issues, 500),
+        summary: text(value.summary, 'summary', issues, 800),
+        confidence,
+        goalIds: boundedStringList(value.goalIds ?? [], 'goalIds', issues, 8)
+            .map((goalId, index) => id(goalId, `goalIds[${index}]`, issues)),
+        tags: boundedStringList(value.tags ?? [], 'tags', issues, 12)
+            .map(tag => tag.toLocaleLowerCase('en-US')),
+        evidenceEpisodeIds: boundedStringList(value.evidenceEpisodeIds ?? [], 'evidenceEpisodeIds', issues, 20)
+            .map((episodeId, index) => id(episodeId, `evidenceEpisodeIds[${index}]`, issues)),
+        source: value.source,
+        supersedesId: value.supersedesId === null || value.supersedesId === undefined
+            ? null : id(value.supersedesId, 'supersedesId', issues),
+        externalKey: value.externalKey === null || value.externalKey === undefined
+            ? null : text(value.externalKey, 'externalKey', issues, 160),
+        validFrom,
+        validUntil
+    };
+    if (result.supersedesId === result.knowledgeId) issues.push('knowledge cannot supersede itself');
     if (issues.length) throw new AgentStateValidationError(issues);
     return result;
 }

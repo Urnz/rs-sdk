@@ -55,3 +55,16 @@ deterministic retriever ranks trusted, non-expired episodes by importance, recen
 passes only the bounded result into `buildDecisionContext`. Untrusted statements remain inspectable but are excluded by
 default. Manual episodes can be added on the `Agentek` admin tab, and planner-approved skill starts create a linked
 action episode automatically.
+
+## Semantic memory
+
+Schema v5 stores durable world, economic, route and procedure knowledge as a structured subject-predicate-object fact
+plus a readable summary, confidence, goal links, tags, validity and evidence episode ids. Evidence and goals must belong
+to the same agent. Only one active fact may exist per agent and subject-predicate pair; replacement atomically marks the
+previous fact superseded while retaining its history and revision. External ingestion can use the same collision-safe
+idempotency key as episodic memory.
+
+The semantic retriever excludes superseded, out-of-validity and low-confidence entries, and disputed facts unless they
+are explicitly requested. It deterministically ranks remaining knowledge by confidence and goal/tag/text relevance,
+then adds only the bounded result to the decision context. The `Agentek` admin tab can record evidence-backed knowledge
+or select an active fact to supersede.

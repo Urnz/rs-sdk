@@ -1,4 +1,4 @@
-import type { AgentEpisode, AgentSnapshot } from './types.js';
+import type { AgentEpisode, AgentKnowledge, AgentSnapshot } from './types.js';
 
 export interface EpisodicRetrievalOptions {
     now?: string;
@@ -83,6 +83,69 @@ export function retrieveEpisodicMemory(episodes: readonly AgentEpisode[],
 }
 
 export function episodicQueryFromSnapshot(snapshot: AgentSnapshot): Omit<EpisodicRetrievalOptions, 'now'> {
+    const activeGoals = snapshot.goals.filter(goal => goal.status === 'active');
+    return {
+        goalIds: activeGoals.map(goal => goal.goalId),
+        query: [snapshot.workingMemory?.summary ?? '', ...activeGoals.map(goal => `${goal.title} ${goal.description}`)].join(' '),
+        limit: 6
+    };
+}
+
+export interface SemanticRetrievalOptions {
+    now?: string;
+    goalIds?: readonly string[];
+    tags?: readonly string[];
+    query?: string;
+    limit?: number;
+    minimumConfidence?: number;
+    includeDisputed?: boolean;
+}
+
+export interface RetrievedAgentKnowledge {
+    knowledge: AgentKnowledge;
+    score: number;
+    reasons: string[];
+}
+
+export function retrieveSemanticMemory(entries: readonly AgentKnowledge[],
+    options: SemanticRetrievalOptions = {}): RetrievedAgentKnowledge[] {
+    const now = Date.parse(options.now ?? new Date().toISOString());
+    const limit = options.limit ?? 6;
+    const minimumConfidence = options.minimumConfidence ?? 25;
+    if (Number.isNaN(now)) throw new Error('Semantic retrieval now must be an ISO timestamp');
+    if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('Semantic retrieval limit must be from 1 to 20');
+    if (!Number.isInteger(minimumConfidence) || minimumConfidence < 0 || minimumConfidence > 100) {
+        throw new Error('Semantic retrieval minimum confidence must be from 0 to 100');
+    }
+    const goalIds = normalized(options.goalIds);
+    const tags = normalized(options.tags);
+    const queryTokens = tokens(options.query);
+    return entries.flatMap(entry => {
+        const validFrom = Date.parse(entry.validFrom);
+        const validUntil = entry.validUntil ? Date.parse(entry.validUntil) : null;
+        if (Number.isNaN(validFrom) || validFrom > now || (validUntil !== null && validUntil <= now)
+            || entry.status === 'superseded' || (entry.status === 'disputed' && !options.includeDisputed)
+            || entry.confidence < minimumConfidence) return [];
+        const entryGoals = normalized(entry.goalIds);
+        const entryTags = normalized(entry.tags);
+        const goalMatches = [...goalIds].filter(value => entryGoals.has(value)).length;
+        const tagMatches = [...tags].filter(value => entryTags.has(value)).length;
+        const haystack = `${entry.subject} ${entry.predicate} ${entry.object} ${entry.summary} ${entry.tags.join(' ')}`
+            .toLocaleLowerCase('en-US');
+        const textMatches = queryTokens.filter(token => haystack.includes(token)).length;
+        const reasons = [`confidence:${entry.confidence}`];
+        if (goalMatches) reasons.push(`goal:${goalMatches}`);
+        if (tagMatches) reasons.push(`tag:${tagMatches}`);
+        if (textMatches) reasons.push(`text:${textMatches}`);
+        const score = Math.round(entry.confidence * 0.8) + Math.min(60, goalMatches * 40)
+            + Math.min(24, tagMatches * 12) + Math.min(32, textMatches * 4);
+        return [{ knowledge: entry, score, reasons }];
+    }).sort((left, right) => right.score - left.score
+        || right.knowledge.updatedAt.localeCompare(left.knowledge.updatedAt)
+        || left.knowledge.knowledgeId.localeCompare(right.knowledge.knowledgeId)).slice(0, limit);
+}
+
+export function semanticQueryFromSnapshot(snapshot: AgentSnapshot): Omit<SemanticRetrievalOptions, 'now'> {
     const activeGoals = snapshot.goals.filter(goal => goal.status === 'active');
     return {
         goalIds: activeGoals.map(goal => goal.goalId),

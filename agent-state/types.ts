@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 4 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 5 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -6,6 +6,9 @@ export type AgentSkillKnowledgeStatus = 'known' | 'preferred' | 'blocked';
 export type AgentEpisodeKind = 'observation' | 'action' | 'outcome' | 'interaction' | 'discovery' | 'economic';
 export type AgentEpisodeSource = 'manual' | 'system' | 'skill' | 'planner';
 export type AgentEpisodeTrust = 'trusted' | 'untrusted';
+export type AgentKnowledgeKind = 'world' | 'economic' | 'route' | 'procedure';
+export type AgentKnowledgeSource = 'manual' | 'system' | 'consolidation';
+export type AgentKnowledgeStatus = 'active' | 'superseded' | 'disputed';
 
 export interface AgentSkillReference {
     id: string;
@@ -141,6 +144,54 @@ export interface AgentEpisodeListOptions {
     limit?: number;
     offset?: number;
     kind?: AgentEpisodeKind;
+}
+
+export interface AgentKnowledge {
+    knowledgeId: string;
+    agentId: string;
+    kind: AgentKnowledgeKind;
+    subject: string;
+    predicate: string;
+    object: string;
+    summary: string;
+    confidence: number;
+    goalIds: string[];
+    tags: string[];
+    evidenceEpisodeIds: string[];
+    source: AgentKnowledgeSource;
+    status: AgentKnowledgeStatus;
+    supersedesId: string | null;
+    externalKey: string | null;
+    validFrom: string;
+    validUntil: string | null;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
+export interface CreateAgentKnowledge {
+    knowledgeId: string;
+    kind: AgentKnowledgeKind;
+    subject: string;
+    predicate: string;
+    object: string;
+    summary: string;
+    confidence?: number;
+    goalIds?: string[];
+    tags?: string[];
+    evidenceEpisodeIds?: string[];
+    source: AgentKnowledgeSource;
+    supersedesId?: string | null;
+    externalKey?: string | null;
+    validFrom: string;
+    validUntil?: string | null;
+}
+
+export interface AgentKnowledgeListOptions {
+    limit?: number;
+    offset?: number;
+    status?: AgentKnowledgeStatus;
+    kind?: AgentKnowledgeKind;
 }
 
 export interface AgentSnapshot {

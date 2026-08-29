@@ -100,6 +100,33 @@ az utolsó harminc eseményt belső görgetéssel mutatja; a jelenlegi célokhoz
 emlékeket zöld jelölés és a retrieval pontszáma emeli ki. Plannerrel ténylegesen
 elindított skillekről automatikus, célhoz kötött `action` emlék készül.
 
+## Semantic memória
+
+A v5 séma az eseményektől elkülönített, tartós tudástárral bővült. A tudás egy
+strukturált `subject – predicate – object` állítás és egy ember számára olvasható
+összefoglaló. Típusa világ-, gazdasági, útvonal- vagy eljárásismeret; tartozhat
+hozzá confidence, aktív cél, címkék, érvényességi idő és legfeljebb húsz bizonyító
+episodic emlék. A bizonyíték és a cél csak ugyanahhoz az agenthez tartozhat.
+
+Ugyanarra az agentre és azonos alany–állítás párra egyszerre csak egy aktív tudás
+engedélyezett. Megváltozott ár, útvonal vagy világszabály esetén az új tudás explicit
+`supersedesId` kapcsolattal, egyetlen tranzakcióban teszi felülírttá a régit. A régi
+rekord, revisionje és bizonyítéka megmarad, ezért a tudás változása később is
+visszakövethető. Külső konszolidációhoz itt is rendelkezésre áll idempotens
+`externalKey`, eltérő tartalmú kulcsütközésnél fail-closed viselkedéssel.
+
+A semantic retrieval csak az időben érvényes, aktív és minimális confidence fölötti
+tudást használja. Confidence-, cél-, címke- és szövegegyezés alapján stabil sorrendet
+képez; a felülírt tudást kizárja, a vitatott állítást pedig csak explicit kérésre
+engedi vissza. A döntési context külön `Relevant semantic knowledge` blokkot kap,
+de továbbra is a teljes karakterkorláton belül marad.
+
+Az Agentek fül `+ Tudás` párbeszédében célok és korábbi episodic bizonyítékok
+kapcsolhatók az állításhoz. Korábbi aktív tudás felülírásakor az alany, az állítás
+és a címkék automatikusan kitöltődnek; az új értéket, összefoglalót és confidence-t
+az admin adja meg. A kártyán zöld jelölést kapnak az aktuális döntéshez releváns
+semantic elemek.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.

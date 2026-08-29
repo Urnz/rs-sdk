@@ -218,6 +218,28 @@
         </form>
     </dialog>
 
+    <dialog id="agent-knowledge-dialog">
+        <form id="agent-knowledge-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">SEMANTIC MEMORY</p><h2>Tartós tudás rögzítése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="agentId" type="hidden">
+            <label>Tudástípus<select name="kind" required><option value="world">Világismeret</option><option value="economic">Gazdasági ismeret</option><option value="route">Útvonalismeret</option><option value="procedure">Eljárásismeret</option></select></label>
+            <label>Alany<input name="subject" maxlength="200" placeholder="pl. Varrock east iron mine" required></label>
+            <label>Állítás/kapcsolat<input name="predicate" maxlength="100" placeholder="pl. nearest-bank" required></label>
+            <label>Érték/tárgy<input name="object" maxlength="500" placeholder="pl. Varrock east bank" required></label>
+            <label>Emberi összefoglaló<textarea name="summary" maxlength="800" rows="3" required></textarea></label>
+            <label>Bizonyosság (0–100)<input name="confidence" type="number" min="0" max="100" step="1" value="70" required></label>
+            <label>Kapcsolt aktív célok<select name="goalIds" multiple size="4"></select></label>
+            <label>Bizonyító episodic emlékek<select name="evidenceEpisodeIds" multiple size="4"></select></label>
+            <label>Címkék <span class="muted">(vesszővel)</span><input name="tags" maxlength="500" placeholder="pl. varrock, mining, banking"></label>
+            <label>Korábbi tudás felülírása<select name="supersedesId"><option value="">Nincs</option></select></label>
+            <label>Érvényes ettől<input name="validFrom" type="datetime-local" required></label>
+            <label>Érvényes eddig <span class="muted">(opcionális)</span><input name="validUntil" type="datetime-local"></label>
+            <label>Indoklás<input name="reason" value="Agent semantic memória kézi rögzítése" required></label>
+            <p class="dialog-note">Egy agentnél ugyanarra az alany–állítás párra csak egy aktív tudás lehet. Változásnál a régi rekord felülírtként megmarad.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Tudás mentése</button></div>
+        </form>
+    </dialog>
+
     <dialog id="delete-dialog">
         <form id="delete-form" method="dialog">
             <div class="dialog-heading"><div><p class="eyebrow danger-text">VÉDETT MŰVELET</p><h2>Bot törlése</h2></div><button type="button" class="dialog-close">×</button></div>

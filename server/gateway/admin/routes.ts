@@ -28,6 +28,7 @@ import {
     createAdminAgent,
     createAdminAgentEpisode,
     createAdminAgentGoal,
+    createAdminAgentKnowledge,
     listAdminAgents,
     updateAdminAgent,
     updateAdminAgentGoalStatus,
@@ -35,7 +36,7 @@ import {
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { runLivePlannerCycle } from '../../../agent-state/live.js';
-import type { AgentEpisodeKind, AgentEpisodeTrust, AgentSkillKnowledgeStatus, GoalHorizon,
+import type { AgentEpisodeKind, AgentEpisodeTrust, AgentKnowledgeKind, AgentSkillKnowledgeStatus, GoalHorizon,
     GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 
@@ -381,6 +382,35 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 return json({ ok: true, episode }, 201);
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'agent.episode.create', reason, success: false,
+                    username: agentId, error: String(error) });
+                throw error;
+            }
+        }
+
+        const agentKnowledgeMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/knowledge$/);
+        if (req.method === 'POST' && agentKnowledgeMatch?.[1]) {
+            const agentId = agentKnowledgeMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const knowledge = createAdminAgentKnowledge(agentId, {
+                    knowledgeId: text(body, 'knowledgeId') || crypto.randomUUID(),
+                    kind: oneOf<AgentKnowledgeKind>(body.kind, ['world', 'economic', 'route', 'procedure'], 'kind'),
+                    subject: text(body, 'subject', true), predicate: text(body, 'predicate', true),
+                    object: text(body, 'object', true), summary: text(body, 'summary', true),
+                    confidence: Number(body.confidence),
+                    goalIds: body.goalIds === undefined ? [] : stringList(body.goalIds, 'goalIds'),
+                    tags: body.tags === undefined ? [] : stringList(body.tags, 'tags'),
+                    evidenceEpisodeIds: body.evidenceEpisodeIds === undefined
+                        ? [] : stringList(body.evidenceEpisodeIds, 'evidenceEpisodeIds'),
+                    source: 'manual', supersedesId: body.supersedesId ? text(body, 'supersedesId') : null,
+                    validFrom: text(body, 'validFrom', true), validUntil: body.validUntil ? text(body, 'validUntil') : null
+                });
+                await appendAudit({ operator: 'local-admin', action: 'agent.knowledge.create', reason, success: true,
+                    username: agentId, after: knowledge });
+                return json({ ok: true, knowledge }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.knowledge.create', reason, success: false,
                     username: agentId, error: String(error) });
                 throw error;
             }

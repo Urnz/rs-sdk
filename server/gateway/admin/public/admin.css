@@ -121,6 +121,11 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .agent-episode.relevant { border-left-color: var(--green); }
 .agent-episode.untrusted { opacity: .72; border-left-color: #a97a42; }
 .agent-episode small { display: block; margin-top: 3px; color: var(--muted); overflow-wrap: anywhere; }
+.agent-knowledge-list { display: grid; gap: 7px; max-height: 260px; overflow: auto; }
+.agent-knowledge { padding: 7px 8px; background: #151a14; border-left: 3px solid var(--blue); border-radius: 6px; }
+.agent-knowledge.relevant { border-left-color: var(--green); }
+.agent-knowledge.superseded,.agent-knowledge.disputed { opacity: .62; border-left-color: var(--muted); }
+.agent-knowledge small { display: block; margin-top: 3px; color: var(--muted); overflow-wrap: anywhere; }
 textarea { width: 100%; resize: vertical; color: var(--text); background: #11150f; border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; }
 .transaction-summary { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 9px; padding: 14px 20px 7px; }
 .transaction-summary div { padding: 10px 12px; background: var(--panel-2); border-radius: 8px; }

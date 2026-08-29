@@ -218,7 +218,7 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 - [x] Célhierarchia: életcél, hosszú távú, aktuális és azonnali feladat.
 - [x] Working memory: kis méretű, mindig elérhető aktuális helyzet.
 - [x] Episodic memory: időzített, visszakereshető konkrét események.
-- [ ] Semantic memory: megtanult világ- és gazdasági ismeretek.
+- [x] Semantic memory: megtanult világ-, gazdasági, útvonal- és eljárásismeretek.
 - [ ] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
 - [ ] Assets (pénz, ingatlan, vállalkozás, követelés) összekapcsolása az agent állapotával.
 - [x] Egzakt, verziózott ismert skillek összekapcsolása az agent állapotával.
@@ -226,6 +226,8 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
   memóriatípushoz.
   - [x] Determinisztikus episodic retrieval cél-, szereplő-, címke-, szöveg-,
     fontosság- és frissességi pontozással.
+  - [x] Determinisztikus semantic retrieval cél-, címke-, szöveg- és
+    confidence-pontozással, érvényességi szűréssel.
 - [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
 - [ ] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
   - [x] Az episodic események idempotens külső kulcsát, opcionális elévülését és
@@ -382,3 +384,5 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     skillvégrehajtással.
 28. [x] Tartós episodic eseménytárat, determinisztikus relevancia-visszakeresést,
     korlátozott context-integrációt és adminpaneles emlékrögzítést készíteni.
+29. [x] Bizonyítékhoz kapcsolható semantic tudástárat, verziómegőrző felülírást,
+    determinisztikus retrievalt és adminpaneles tudásrögzítést készíteni.
