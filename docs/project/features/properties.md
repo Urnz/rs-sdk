@@ -127,6 +127,12 @@ loc/ajtó bekötés előtt vizuálisan ellenőrizni és szükség esetén módos
 
 ## Élő ellenőrzés
 
+2026-08-29-én normál játékosklienssel is megtörtént a teljes elfogadási próba:
+a még gazdátlan műhely ajtaja elutasította a belépést, a helyszíni vásárlás
+sikerült, ezután a tulajdonos át tudott haladni az ajtón, a banki Property
+register pedig az új tulajdonost mutatta. Ezzel a 9. fázis elfogadási feltétele
+teljesült.
+
 2026-08-28-án a Varrock bankfalhoz tett első teszttáblán egy 70 coinos játékossal ellenőriztük az
 elégtelen egyenleget és a nem tulajdonosi belépés elutasítását. Egy visszaállítható
 tesztbot bankból inventoryba kivett 30 000 coinjával a sikeres vásárlás 25 000

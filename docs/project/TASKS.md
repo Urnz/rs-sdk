@@ -186,7 +186,7 @@ konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
 - [x] Megakadályozni a dupla vásárlást, negatív egyenleget és párhuzamos versenyhelyzetet
   a perzisztált foglalás, idempotenciakulcs és kompenzálható wallet-szerződés szintjén.
 - [x] Perzisztálni a tulajdonjogot, majd újranyitással ellenőrizni.
-- [ ] Játékbeli vizsgálat, vásárlás, belépés és tulajdonosi visszajelzés készítése.
+- [x] Játékbeli vizsgálat, vásárlás, belépés és tulajdonosi visszajelzés készítése.
   - [x] Dedikált Property sign objektumot, Inspect/Purchase műveletet és
     tulajdonosi/nem tulajdonosi Enter visszajelzést készíteni, élőben ellenőrizve.
   - [x] A Varrock táblát a bank falából a déli, használaton kívüli műhely utcai
@@ -214,15 +214,15 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 
 ## 10. Fázis – persistent agent state és memória
 
-- [ ] Agent-identitás sémája: név, háttértörténet és személyiségjegyek.
-- [ ] Célhierarchia: életcél, hosszú távú, aktuális és azonnali feladat.
+- [x] Agent-identitás sémája: név, háttértörténet és személyiségjegyek.
+- [x] Célhierarchia: életcél, hosszú távú, aktuális és azonnali feladat.
 - [ ] Working memory: kis méretű, mindig elérhető aktuális helyzet.
 - [ ] Episodic memory: időzített, visszakereshető konkrét események.
 - [ ] Semantic memory: megtanult világ- és gazdasági ismeretek.
 - [ ] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
 - [ ] Assets és ismert skillek összekapcsolása az agent állapotával.
 - [ ] Relevancia-, frissesség- és célalapú context-visszakeresés készítése.
-- [ ] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
+- [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
 - [ ] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
 - [ ] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
 
@@ -361,3 +361,7 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     elégtelen egyenleges és visszaállítási útvonalat élő botokkal ellenőrizni.
 21. [x] A Property sign saját világtérképi ikonját és Key-szűrőjét elkészíteni,
     az admin egyszeri koordinátafókuszát pedig bezáráskor törölni.
+22. [x] A 9. fázist normál klienses vásárlással, belépés-ellenőrzéssel és a banki
+    ingatlannyilvántartással kézzel elfogadni.
+23. [x] A 10. fázis első tartós szeletét elkészíteni: verziózott agent-identitás,
+    négyszintű célhierarchia és korlátozott core identity context.
