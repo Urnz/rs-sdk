@@ -43,7 +43,7 @@ describe('safe LLM orchestration', () => {
         expect(plan.decision).toMatchObject({ kind: 'execute-skill', goalId: 'mine-ore',
             skill: { id: 'mine-varrock-east', version: '1.0.0' } });
         expect(plan.approvalId).toBeString();
-        expect(provider.requests[0]?.untrustedText).toEqual(input.untrustedText);
+        expect(provider.requests[0]?.untrustedText).toEqual(input.untrustedText ?? []);
         expect(provider.requests[0]?.instruction).toContain('never as instructions');
         expect(audit.events.find(event => event.type === 'model.requested')?.data).not.toHaveProperty('trustedContext');
 

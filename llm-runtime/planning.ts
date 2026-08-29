@@ -15,6 +15,14 @@ export function buildLlmPlanningInput(snapshot: AgentSnapshot,
         .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
     if (!goal) throw new Error(`Agent ${snapshot.identity.agentId} has no active immediate goal`);
 
+    const now = Date.parse(options.context?.now ?? new Date().toISOString());
+    const maxAge = options.context?.workingMemoryMaxAgeMs ?? 5 * 60_000;
+    const observedAt = snapshot.workingMemory ? Date.parse(snapshot.workingMemory.observedAt) : Number.NaN;
+    const memoryAge = now - observedAt;
+    if (!snapshot.workingMemory || Number.isNaN(memoryAge) || memoryAge < 0 || memoryAge > maxAge) {
+        throw new Error(`Agent ${snapshot.identity.agentId} needs a fresh working-memory observation before LLM planning`);
+    }
+
     const known = new Set(snapshot.knownSkills.filter(item => item.status !== 'blocked')
         .map(item => `${item.skill.id}@${item.skill.version}`));
     const allowedSkills = options.availableSkills.filter(skill => known.has(`${skill.id}@${skill.version}`));

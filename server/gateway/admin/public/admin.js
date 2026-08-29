@@ -92,6 +92,8 @@ const goalHorizonLabels = { life: 'Életcél', 'long-term': 'Hosszú távú', cu
 const goalStatusLabels = { active: 'Aktív', completed: 'Teljesítve', blocked: 'Blokkolt', abandoned: 'Elvetve' };
 const plannerLabels = { 'execute-skill': 'Végrehajtható', 'refresh-state': 'Friss állapot kell',
     'no-immediate-goal': 'Nincs azonnali cél', 'skill-unavailable': 'Skill nem elérhető' };
+const llmPlanLabels = { proposed: 'Javaslat elkészült', abstained: 'A modell tartózkodott', rejected: 'Elutasítva',
+    failed: 'Modellhiba', 'limit-reached': 'Limit elérve', stopped: 'Leállítva' };
 const episodeKindLabels = { observation: 'Megfigyelés', action: 'Cselekvés', outcome: 'Eredmény',
     interaction: 'Interakció', discovery: 'Felfedezés', economic: 'Gazdasági esemény' };
 const knowledgeKindLabels = { world: 'Világismeret', economic: 'Gazdasági ismeret', route: 'Útvonal', procedure: 'Eljárás' };
@@ -105,6 +107,26 @@ function csvValues(value) {
 function dateTimeLocalValue(value = new Date()) {
     const date = value instanceof Date ? value : new Date(value);
     return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
+function showLlmDryRun(result) {
+    const plan = result.plan;
+    const request = result.request;
+    const skill = plan.decision?.kind === 'execute-skill'
+        ? `${plan.decision.skill.id}@${plan.decision.skill.version}` : 'Nincs kiválasztott skill';
+    $('#llm-dry-run-status').textContent = llmPlanLabels[plan.status] || plan.status;
+    $('#llm-dry-run-meta').textContent = `Run ID: ${plan.runId} · ${request?.model || 'ismeretlen modell'} · ${plan.usage.costMicros} µköltség`;
+    $('#llm-dry-run-goal').textContent = request ? `${request.goal.title} (${request.goal.goalId})` : 'Nem készült modellkérés';
+    $('#llm-dry-run-skill').textContent = skill;
+    $('#llm-dry-run-reason').textContent = plan.reason;
+    $('#llm-dry-run-context').textContent = request?.trustedContext || 'Nincs átadott trusted context.';
+    $('#llm-dry-run-untrusted').textContent = request?.untrustedText?.length
+        ? request.untrustedText.map((entry, index) => `${index + 1}. ${entry}`).join('\n')
+        : 'Nem volt elkülönített, nem megbízható szöveg.';
+    $('#llm-dry-run-tools').textContent = request?.tools?.[0]?.allowedSkills?.length
+        ? request.tools[0].allowedSkills.map(item => `${item.id}@${item.version} — ${item.name}\n${item.description}`).join('\n\n')
+        : 'Nem volt engedélyezett skill.';
+    $('#llm-dry-run-dialog').showModal();
 }
 
 function renderAgents() {
@@ -190,6 +212,7 @@ function renderAgents() {
                     <button class="button small secondary" data-action="agent-episode-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Emlék</button>
                     <button class="button small skill-button" data-action="agent-knowledge-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Tudás</button>
                     <button class="button small secondary" data-action="agent-relationship-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kapcsolat</button>
+                    <button class="button small skill-button" data-action="agent-llm-dry-run" data-agent-id="${escapeHtml(identity.agentId)}">LLM dry-run</button>
                     <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
                     <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
                 </div></div>
@@ -1161,6 +1184,18 @@ document.addEventListener('click', async event => {
                 })
             });
             toast(`A kötelezettség új állapota: ${label}.`); await refreshAgents();
+        }
+        if (button.dataset.action === 'agent-llm-dry-run') {
+            const reason = prompt('Az LLM dry-run indoklása:', 'Agent LLM döntés biztonságos előnézete');
+            if (!reason?.trim()) return;
+            button.disabled = true;
+            try {
+                const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/llm-dry-run`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
+                });
+                showLlmDryRun(response);
+                toast(`LLM dry-run: ${llmPlanLabels[response.plan.status] || response.plan.status}.`);
+            } finally { button.disabled = false; }
         }
         if (button.dataset.action === 'agent-plan' || button.dataset.action === 'agent-plan-execute') {
             const execute = button.dataset.action === 'agent-plan-execute';

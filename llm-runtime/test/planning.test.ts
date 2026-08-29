@@ -9,7 +9,9 @@ const snapshot = {
     goals: [{ goalId: 'mine', agentId: 'ferrye14', parentGoalId: null, horizon: 'immediate', title: 'Mine ore',
         description: 'Bank iron ore.', status: 'active', priority: 90, skill: null, createdAt: '2026-08-29T12:00:00.000Z',
         updatedAt: '2026-08-29T12:00:00.000Z', completedAt: null, revision: 1 }],
-    workingMemory: null,
+    workingMemory: { agentId: 'ferrye14', summary: 'At Varrock East.', currentActivity: null,
+        location: { x: 3285, z: 3367, level: 0 }, observations: ['Rune pickaxe equipped'],
+        observedAt: '2026-08-29T12:00:00.000Z', updatedAt: '2026-08-29T12:00:00.000Z', revision: 1 },
     knownSkills: [
         { agentId: 'ferrye14', skill: { id: 'mining', version: '1.0.0' }, status: 'known',
             learnedAt: '2026-08-29T12:00:00.000Z', updatedAt: '2026-08-29T12:00:00.000Z', revision: 1 },
@@ -36,5 +38,12 @@ describe('LLM planning input', () => {
         expect(result.trustedContext).toContain('trusted memory');
         expect(result.trustedContext).not.toContain('untrusted memory');
         expect(result.untrustedText?.[0]).toContain('untrusted memory');
+    });
+
+    test('refuses to plan from missing or stale working memory', () => {
+        expect(() => buildLlmPlanningInput({ ...snapshot, workingMemory: null }, { availableSkills: [],
+            context: { now: '2026-08-29T12:00:00.000Z' } })).toThrow('fresh working-memory');
+        expect(() => buildLlmPlanningInput(snapshot, { availableSkills: [],
+            context: { now: '2026-08-29T12:10:00.000Z' } })).toThrow('fresh working-memory');
     });
 });

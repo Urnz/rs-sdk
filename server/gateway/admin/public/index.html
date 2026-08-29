@@ -487,6 +487,28 @@
         </form>
     </dialog>
 
+    <dialog id="llm-dry-run-dialog" class="llm-dialog">
+        <form method="dialog">
+            <div class="dialog-heading">
+                <div><p class="eyebrow">LLM STRATÉGIAI ELŐNÉZET</p><h2 id="llm-dry-run-status">Dry-run</h2></div>
+                <button type="button" class="dialog-close" aria-label="Bezárás">×</button>
+            </div>
+            <p id="llm-dry-run-meta" class="dialog-note"></p>
+            <div class="llm-result-grid">
+                <section><h3>Cél</h3><p id="llm-dry-run-goal"></p></section>
+                <section><h3>Javasolt skill</h3><p id="llm-dry-run-skill"></p></section>
+            </div>
+            <section><h3>Modell indoklása</h3><p id="llm-dry-run-reason"></p></section>
+            <section><h3>Trusted context</h3><pre id="llm-dry-run-context" class="llm-preview"></pre></section>
+            <div class="llm-result-grid">
+                <section><h3>Nem megbízható szöveg</h3><pre id="llm-dry-run-untrusted" class="llm-preview"></pre></section>
+                <section><h3>Engedélyezett skilllista</h3><pre id="llm-dry-run-tools" class="llm-preview"></pre></section>
+            </div>
+            <p class="dialog-note">Ez a mock dry-run nem indít skillt és nem változtatja meg az agent állapotát.</p>
+            <div class="dialog-actions"><button class="button primary" value="close">Bezárás</button></div>
+        </form>
+    </dialog>
+
     <div id="toast" class="toast" role="status"></div>
     <script src="admin.js" type="module"></script>
 </body>

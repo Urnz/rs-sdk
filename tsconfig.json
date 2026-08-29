@@ -26,6 +26,6 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["*.ts", "agent-skills/**/*.ts", "agent-state/**/*.ts", "server/gateway/**/*.ts", "sdk/**/*.ts"],
+  "include": ["*.ts", "agent-skills/**/*.ts", "agent-state/**/*.ts", "llm-runtime/**/*.ts", "server/gateway/**/*.ts", "sdk/**/*.ts"],
   "exclude": ["server/engine", "server/webclient", "node_modules"]
 }

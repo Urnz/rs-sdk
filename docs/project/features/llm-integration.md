@@ -32,9 +32,23 @@ alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
   kérés-hash és korlátozott metaadat kerül a naplóba.
 - `config/llm-runtime.json`: alapértelmezetten kikapcsolt mock konfiguráció.
 
-A következő szelet az eseményvezérelt újratervezés és az adminpaneles dry run.
-Valódi provider csak ezek után, explicit kis jogosultságú tesztkonfigurációval
-kapcsolható be.
+## Elkészült 11B előnézet
+
+- Az Agentek adminfülön külön `LLM dry-run` gomb kér friss, legfeljebb öt
+  másodperces online botállapotot.
+- A felület külön mutatja a célt, a trusted contextet, a nem megbízható adatot,
+  a szűrt skilllistát, a mock modell döntését és annak futásazonosítóját.
+- A dry-run mindig szimuláció: approval azonosítót ugyan a teljes pipeline állít
+  elő, de az admin végpont nem kínál hozzá végrehajtási műveletet.
+- Az orchestration audit külön `.local/admin/llm-audit.jsonl` naplóba kerül; a
+  szokásos admin audit csak a futásazonosítót, státuszt, döntést és usage adatot
+  tartja meg.
+- Az eseményvezérelt réteghez elkészült a típusos domain-event gate, az ismételt
+  forrásesemények deduplikálása és az agentenkénti burst cooldown. A valódi
+  skill-/cél-/ajánlat-/gazdasági eseményforrások bekötése a következő részfeladat.
+
+Valódi provider csak az eseményforrások és az admin jóváhagyási folyamat után,
+explicit kis jogosultságú tesztkonfigurációval kapcsolható be.
 
 ## Biztonsági alapok
 

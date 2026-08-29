@@ -39,10 +39,11 @@ import {
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
-import { runLivePlannerCycle } from '../../../agent-state/live.js';
+import { observeLiveState, runLivePlannerCycle } from '../../../agent-state/live.js';
 import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind, AgentEpisodeTrust,
     AgentKnowledgeKind, AgentSkillKnowledgeStatus, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
+import { runAdminLlmDryRun } from './llm-dry-run.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -596,6 +597,42 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     username: agent.identity.playerUsername, reason, success: false, error: String(error) });
                 throw error;
             } finally { store.close(); }
+        }
+
+        const agentLlmDryRunMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/llm-dry-run$/);
+        if (req.method === 'POST' && agentLlmDryRunMatch?.[1]) {
+            const agentId = agentLlmDryRunMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const initial = await listAdminAgents();
+            const agent = initial.agents.find(entry => entry.identity.agentId === agentId);
+            if (!agent) throw new Error('Az agent nem található.');
+            const gatewayEntry = [...context.gatewayBots().entries()]
+                .find(([name]) => name.toLowerCase() === agent.identity.playerUsername)?.[1];
+            if (!gatewayEntry?.state?.player || gatewayEntry.status !== 'active'
+                || Date.now() - gatewayEntry.lastStateReceivedAt > 5_000) {
+                throw new Error('Az LLM dry-runhoz a kapcsolt botnak friss online állapotban kell lennie.');
+            }
+            const now = new Date().toISOString();
+            const store = new AgentStateStore(agentStateDbPath);
+            try {
+                const previous = store.getWorkingMemory(agentId);
+                store.setWorkingMemory(agentId, previous?.revision ?? null,
+                    observeLiveState(gatewayEntry.state, now), now);
+            } finally { store.close(); }
+            try {
+                const refreshed = await listAdminAgents();
+                const current = refreshed.agents.find(entry => entry.identity.agentId === agentId)!;
+                const result = await runAdminLlmDryRun(current, refreshed.skills, { now });
+                await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: true,
+                    username: agent.identity.playerUsername, after: { runId: result.plan.runId,
+                        status: result.plan.status, decision: result.plan.decision, usage: result.plan.usage } });
+                return json({ ok: true, ...result });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: false,
+                    username: agent.identity.playerUsername, error: String(error) });
+                throw error;
+            }
         }
 
         if (req.method === 'POST' && url.pathname === '/api/admin/engine/restart') {

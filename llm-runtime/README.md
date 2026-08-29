@@ -22,3 +22,7 @@ Az audit JSONL vagy memóriabeli sinkbe írható. A nyers context helyett hash,
 modellazonosító, token-/költségadat, döntés, approval és végrehajtási eredmény
 kerül a naplóba. A `runId` kívülről is megadható, így a teszt és a későbbi
 visszajátszás ugyanahhoz a futáshoz köthető.
+
+Az `LlmReplanEventGate` kizárólag jelentős domain-eseményt fogad; nincs tick- vagy
+tile-szintű belépési pontja. A forráskulcs megakadályozza ugyanannak az eseménynek
+az újrafeldolgozását, a cooldown pedig egyetlen agent eseményburstjét vonja össze.

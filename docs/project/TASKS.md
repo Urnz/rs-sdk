@@ -266,6 +266,10 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 - [x] Bevezetni lépés-, idő-, költség- és műveleti limiteket.
 - [ ] Eseményvezérelt újratervezést használni: skill vége, váratlan esemény,
   ajánlat, cél teljesülése vagy jelentős gazdasági változás.
+  - [x] Típusos eseményszerződés, forráskulcsos deduplikálás és agentenkénti
+    cooldown elkészítése tickenkénti belépési pont nélkül.
+  - [ ] A skill-, cél-, ajánlat- és gazdasági eseményforrásokat rákötni az
+    újratervezési kapura és a közös inference queue-ra.
 - [x] Elkerülni a tickenkénti/tile-onkénti LLM-hívást; a modell magas szintű skillt válasszon.
 - [x] Agentenként külön modell helyett támogatni a közös, sorba állított inference szolgáltatást.
 - [x] A játékbeli chatet és más külső szöveget nem megbízható bemenetként kezelni.
@@ -273,6 +277,9 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
   titkok vagy felesleges személyes adatok nélkül.
 - [x] Determinisztikus mock modellel integrációs teszteket írni.
 - [x] Vészleállítást, visszajátszható futásazonosítót és sikertelen lépések kezelését bevezetni.
+- [x] Adminpaneles mock LLM dry-runt készíteni, amely friss élő állapotból
+  megmutatja a trusted contextet, a nem megbízható szöveget, az engedélyezett
+  skilleket és a modell javaslatát, végrehajtás nélkül.
 - [ ] Csak ezután bekötni egy valódi modellt kis jogosultságú lokális tesztkörnyezetben.
 
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
