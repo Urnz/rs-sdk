@@ -95,6 +95,8 @@ const plannerLabels = { 'execute-skill': 'Végrehajtható', 'refresh-state': 'Fr
 const episodeKindLabels = { observation: 'Megfigyelés', action: 'Cselekvés', outcome: 'Eredmény',
     interaction: 'Interakció', discovery: 'Felfedezés', economic: 'Gazdasági esemény' };
 const knowledgeKindLabels = { world: 'Világismeret', economic: 'Gazdasági ismeret', route: 'Útvonal', procedure: 'Eljárás' };
+const commitmentStatusLabels = { open: 'Nyitott', fulfilled: 'Teljesítve', broken: 'Megszegve', cancelled: 'Törölve' };
+const commitmentDirectionLabels = { 'owed-by-agent': 'Az agent kötelezettsége', 'owed-to-agent': 'A másik fél kötelezettsége' };
 
 function csvValues(value) {
     return String(value || '').split(',').map(entry => entry.trim()).filter(Boolean);
@@ -141,6 +143,27 @@ function renderAgents() {
                 <small>${escapeHtml(knowledgeKindLabels[item.kind] || item.kind)} · bizonyosság ${item.confidence} · ${escapeHtml(item.status)}${match ? ` · relevancia ${match.score}` : ''}</small>
             </div>`;
         }).join('') || '<p class="muted">Még nincs semantic memória.</p>';
+        const relevantSocial = new Map(agent.relevantRelationships
+            .map(result => [result.relationship.actorKey, result]));
+        const relationships = agent.relationships.map(entry => {
+            const item = entry.relationship;
+            const match = relevantSocial.get(item.actorKey);
+            const commitments = entry.commitments.map(commitment => `<div class="agent-commitment ${commitment.status === 'open' ? '' : 'resolved'}">
+                <span><strong>${escapeHtml(commitment.description)}</strong><small>${escapeHtml(commitmentDirectionLabels[commitment.direction])} · ${escapeHtml(commitmentStatusLabels[commitment.status])}${commitment.valueGp !== null ? ` · ${fmt.format(commitment.valueGp)} gp` : ''}${commitment.dueAt ? ` · határidő ${new Date(commitment.dueAt).toLocaleString('hu-HU')}` : ''}</small></span>
+                ${commitment.status === 'open' ? `<span class="agent-inline-actions">
+                    <button class="button small ghost" data-action="agent-commitment-status" data-agent-id="${escapeHtml(identity.agentId)}" data-commitment-id="${escapeHtml(commitment.commitmentId)}" data-commitment-revision="${commitment.revision}" data-commitment-status="fulfilled">Teljesült</button>
+                    <button class="button small danger-outline" data-action="agent-commitment-status" data-agent-id="${escapeHtml(identity.agentId)}" data-commitment-id="${escapeHtml(commitment.commitmentId)}" data-commitment-revision="${commitment.revision}" data-commitment-status="broken">Megszegve</button>
+                    <button class="button small ghost" data-action="agent-commitment-status" data-agent-id="${escapeHtml(identity.agentId)}" data-commitment-id="${escapeHtml(commitment.commitmentId)}" data-commitment-revision="${commitment.revision}" data-commitment-status="cancelled">Törlés</button>
+                </span>` : ''}</div>`).join('');
+            return `<div class="agent-relationship ${match ? 'relevant' : ''}">
+                <div class="agent-relationship-heading"><span><strong>${escapeHtml(item.displayName)}</strong><small>${escapeHtml(item.actorKey)}${match ? ` · relevancia ${match.score}` : ''}</small></span>
+                    <span class="agent-inline-actions"><button class="button small ghost" data-action="agent-relationship-edit" data-agent-id="${escapeHtml(identity.agentId)}" data-actor-key="${escapeHtml(item.actorKey)}">Szerkesztés</button>
+                    <button class="button small secondary" data-action="agent-commitment-add" data-agent-id="${escapeHtml(identity.agentId)}" data-actor-key="${escapeHtml(item.actorKey)}">+ Kötelezettség</button></span></div>
+                <small>bizalom ${item.trust} · rokonszenv ${item.affinity} · ismertség ${item.familiarity}</small>
+                <small>agent tartozása ${fmt.format(item.agentOwesGp)} gp · másik fél tartozása ${fmt.format(item.actorOwesGp)} gp</small>
+                ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ''}<div class="agent-commitments">${commitments}</div>
+            </div>`;
+        }).join('') || '<p class="muted">Még nincs social memória.</p>';
         return `<article class="agent-card" data-agent-id="${escapeHtml(identity.agentId)}">
             <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
                 <div class="agent-card-actions">
@@ -149,6 +172,7 @@ function renderAgents() {
                     <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Skillismeret</button>
                     <button class="button small secondary" data-action="agent-episode-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Emlék</button>
                     <button class="button small skill-button" data-action="agent-knowledge-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Tudás</button>
+                    <button class="button small secondary" data-action="agent-relationship-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kapcsolat</button>
                     <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
                     <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
                 </div></div>
@@ -162,6 +186,7 @@ function renderAgents() {
                     : '<p class="muted">Még nincs élő megfigyelés.</p>'}</section>
                 <section class="agent-section"><h4>Episodic memória (${agent.episodeCount})</h4><div class="agent-episodes">${episodes}</div></section>
                 <section class="agent-section"><h4>Semantic memória (${agent.knowledgeCount})</h4><div class="agent-knowledge-list">${knowledge}</div></section>
+                <section class="agent-section"><h4>Social memória (${agent.relationships.length})</h4><div class="agent-relationships">${relationships}</div></section>
                 <section class="agent-section"><h4>Planner</h4><p>${escapeHtml(agent.planner.reason)}</p><pre class="agent-context">${escapeHtml(agent.decisionContext)}</pre></section>
             </div></article>`;
     }).join('') : '<p class="empty">Még nincs persistent agent. Hozd létre az elsőt egy meglévő bothoz.</p>';
@@ -239,6 +264,45 @@ function showAgentKnowledge(agentId) {
     form.elements.validFrom.value = dateTimeLocalValue();
     form.elements.reason.value = 'Agent semantic memória kézi rögzítése';
     $('#agent-knowledge-dialog').showModal();
+}
+
+function relationshipEvidenceOptions(agent) {
+    return agent.recentEpisodes.map(episode => `<option value="${escapeHtml(episode.episodeId)}">${new Date(episode.occurredAt).toLocaleDateString('hu-HU')} · ${escapeHtml(episode.summary)}</option>`).join('');
+}
+
+function showAgentRelationship(agentId, actorKey = '') {
+    const form = $('#agent-relationship-form'); form.reset(); form.elements.agentId.value = agentId;
+    const agent = state.agents.find(entry => entry.identity.agentId === agentId);
+    if (!agent) throw new Error('Az agent már nem található.');
+    const existing = actorKey ? agent.relationships.find(entry => entry.relationship.actorKey === actorKey)?.relationship : null;
+    form.elements.expectedRevision.value = existing ? String(existing.revision) : '';
+    form.elements.actorKey.disabled = Boolean(existing);
+    form.elements.actorKey.value = existing?.actorKey || '';
+    form.elements.displayName.value = existing?.displayName || '';
+    for (const field of ['trust', 'affinity', 'familiarity', 'agentOwesGp', 'actorOwesGp']) {
+        form.elements[field].value = String(existing?.[field] ?? 0);
+    }
+    form.elements.notes.value = existing?.notes || '';
+    form.elements.tags.value = existing?.tags.join(', ') || '';
+    form.elements.evidenceEpisodeIds.innerHTML = relationshipEvidenceOptions(agent);
+    for (const option of form.elements.evidenceEpisodeIds.options) {
+        option.selected = existing?.evidenceEpisodeIds.includes(option.value) || false;
+    }
+    form.elements.lastInteractionAt.value = existing?.lastInteractionAt ? dateTimeLocalValue(existing.lastInteractionAt) : '';
+    form.elements.reason.value = existing ? 'Agent kapcsolat kézi szerkesztése' : 'Agent kapcsolat kézi létrehozása';
+    $('#agent-relationship-dialog').showModal();
+}
+
+function showAgentCommitment(agentId, actorKey) {
+    const form = $('#agent-commitment-form'); form.reset();
+    const agent = state.agents.find(entry => entry.identity.agentId === agentId);
+    const relationship = agent?.relationships.find(entry => entry.relationship.actorKey === actorKey)?.relationship;
+    if (!agent || !relationship) throw new Error('A kapcsolat már nem található.');
+    form.elements.agentId.value = agentId; form.elements.actorKey.value = actorKey;
+    form.querySelector('[name="actorLabel"]').textContent = relationship.displayName;
+    form.elements.evidenceEpisodeIds.innerHTML = relationshipEvidenceOptions(agent);
+    form.elements.reason.value = 'Agent kötelezettség kézi rögzítése';
+    $('#agent-commitment-dialog').showModal();
 }
 
 function relativeTime(value) {
@@ -1031,6 +1095,9 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
         if (button.dataset.action === 'agent-episode-add') showAgentEpisode(button.dataset.agentId);
         if (button.dataset.action === 'agent-knowledge-add') showAgentKnowledge(button.dataset.agentId);
+        if (button.dataset.action === 'agent-relationship-add') showAgentRelationship(button.dataset.agentId);
+        if (button.dataset.action === 'agent-relationship-edit') showAgentRelationship(button.dataset.agentId, button.dataset.actorKey);
+        if (button.dataset.action === 'agent-commitment-add') showAgentCommitment(button.dataset.agentId, button.dataset.actorKey);
         if (button.dataset.action === 'agent-skill-edit') showAgentSkill(
             button.dataset.agentId, button.dataset.skill, button.dataset.skillStatus,
             Number(button.dataset.skillRevision)
@@ -1044,6 +1111,18 @@ document.addEventListener('click', async event => {
                 body: JSON.stringify({ expectedRevision: Number(button.dataset.goalRevision), status: button.dataset.goalStatus, reason: reason.trim() })
             });
             toast(`A cél új állapota: ${label}.`); await refreshAgents();
+        }
+        if (button.dataset.action === 'agent-commitment-status') {
+            const label = commitmentStatusLabels[button.dataset.commitmentStatus] || button.dataset.commitmentStatus;
+            const reason = prompt(`A kötelezettség „${label}” állapotba helyezésének indoklása:`, 'Agent kötelezettség lezárása');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/commitments/${encodeURIComponent(button.dataset.commitmentId)}/status`, {
+                method: 'PUT', mutation: true, body: JSON.stringify({
+                    expectedRevision: Number(button.dataset.commitmentRevision), status: button.dataset.commitmentStatus,
+                    reason: reason.trim()
+                })
+            });
+            toast(`A kötelezettség új állapota: ${label}.`); await refreshAgents();
         }
         if (button.dataset.action === 'agent-plan' || button.dataset.action === 'agent-plan-execute') {
             const execute = button.dataset.action === 'agent-plan-execute';
@@ -1170,6 +1249,44 @@ $('#agent-knowledge-form').addEventListener('submit', async event => {
             })
         });
         form.closest('dialog').close(); toast('A semantic tudás tartósan elmentve.'); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#agent-relationship-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    const revision = form.elements.expectedRevision.value;
+    const lastInteractionAt = data.get('lastInteractionAt')?.toString();
+    try {
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('agentId'))}/relationships`, {
+            method: 'PUT', mutation: true, body: JSON.stringify({
+                expectedRevision: revision === '' ? null : Number(revision), actorKey: form.elements.actorKey.value,
+                displayName: data.get('displayName'), trust: Number(data.get('trust')), affinity: Number(data.get('affinity')),
+                familiarity: Number(data.get('familiarity')), agentOwesGp: Number(data.get('agentOwesGp')),
+                actorOwesGp: Number(data.get('actorOwesGp')), notes: data.get('notes'), tags: csvValues(data.get('tags')),
+                evidenceEpisodeIds: data.getAll('evidenceEpisodeIds'),
+                lastInteractionAt: lastInteractionAt ? new Date(lastInteractionAt).toISOString() : null,
+                reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('A social kapcsolat tartósan elmentve.'); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#agent-commitment-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    const value = data.get('valueGp')?.toString();
+    const dueAt = data.get('dueAt')?.toString();
+    try {
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('agentId'))}/relationships/${encodeURIComponent(data.get('actorKey'))}/commitments`, {
+            method: 'POST', mutation: true, body: JSON.stringify({
+                direction: data.get('direction'), description: data.get('description'),
+                valueGp: value === '' ? null : Number(value), dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+                evidenceEpisodeIds: data.getAll('evidenceEpisodeIds'), reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('A kötelezettség tartósan elmentve.'); await refreshAgents();
     } catch (error) { toast(error.message, true); }
 });
 

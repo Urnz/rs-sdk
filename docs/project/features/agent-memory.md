@@ -127,6 +127,28 @@ kapcsolhatók az állításhoz. Korábbi aktív tudás felülírásakor az alany
 az admin adja meg. A kártyán zöld jelölést kapnak az aktuális döntéshez releváns
 semantic elemek.
 
+## Társas memória
+
+A v6 séma agentenként irányított kapcsolatokat tárol stabil szereplőkulccsal és
+megjelenített névvel. A bizalom és a vonzalom `-100..100`, az ismerősség
+`0..100` skálán szerepel. Az `agent tartozik a szereplőnek` és a `szereplő
+tartozik az agentnek` pénzösszeg külön mező, így a követelés iránya nem veszhet
+el. Jegyzetek, címkék, utolsó interakció és ugyanazon agent episodic bizonyítékai
+kapcsolhatók a rekordhoz; önmagával az agent nem hozhat létre kapcsolatot.
+
+A kapcsolathoz tartós vállalások adhatók. Egy vállalás leírja, ki tartozik a
+teljesítéssel, mi a feladat, mekkora opcionális GP-értéke és határideje van, illetve
+mely episodic emlék bizonyítja. Az `open` állapot egyszer válthat `fulfilled`,
+`broken` vagy `cancelled` állapotra; a lezárt vállalás változtathatatlan marad.
+Minden módosítható társas rekord optimista revision-védett.
+
+A determinisztikus social retrieval az aktuális cél szövegét, a szereplőt, címkéket,
+bizalmat, vonzalmat, ismerősséget, tartozást és nyitott vállalásokat pontozza. Csak
+a korlátozott, stabil sorrendű eredmény kerül a döntési context `Relevant social
+memory` blokkjába, és abban már lezárt vállalás nem jelenik meg. Az Agentek fülön
+kapcsolat rögzíthető és szerkeszthető, vállalás nyitható és lezárható; minden írás
+indokláskötött admin auditot készít.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.
@@ -150,6 +172,8 @@ plannerrel kell bizonyítani. Így az LLM nem rejti el az állapotkezelési hib�
 
 ## Következő szelet
 
-Az episodic memória következik külön, időrendben visszakereshető eseménytárral és
-korlátozott retrieval-szabályokkal. Erre épülhet majd a semantic és social memória.
+Az agent pénz-, ingatlan-, később vállalkozás- és követelésállapotának stabil
+hivatkozásokkal való összekapcsolása következik. Ezután a memóriakonszolidáció és
+az összes tartós memóriatípust együtt használó szabályalapú planner-teszt zárhatja
+le a 10. fázist.
 

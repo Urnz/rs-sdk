@@ -2,9 +2,10 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
 import { planNextAction } from '../../../agent-state/planner.js';
 import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
-    semanticQueryFromSnapshot } from '../../../agent-state/retrieval.js';
-import type { AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity,
-    CreateAgentKnowledge, GoalStatus, UpdateAgentIdentity } from '../../../agent-state/types.js';
+    retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
+import type { AgentCommitmentStatus, AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentCommitment,
+    CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
+    SetAgentRelationship, UpdateAgentIdentity } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 import { listAdminSkills } from './skill-catalog.js';
 
@@ -26,6 +27,10 @@ export async function listAdminAgents(path = agentStateDbPath) {
         const activeKnowledge = store.listKnowledge(identity.agentId, { status: 'active', limit: 500 });
         const relevantKnowledge = retrieveSemanticMemory(store.listKnowledge(identity.agentId, { limit: 500 }),
             semanticQueryFromSnapshot(snapshot));
+        const relationships = store.listRelationships(identity.agentId).map(relationship => ({
+            relationship, commitments: store.listCommitments(identity.agentId, relationship.actorKey)
+        }));
+        const relevantRelationships = retrieveSocialMemory(relationships, socialQueryFromSnapshot(snapshot));
         return {
             ...snapshot,
             episodeCount: store.countEpisodes(identity.agentId),
@@ -35,9 +40,12 @@ export async function listAdminAgents(path = agentStateDbPath) {
             recentKnowledge,
             activeKnowledge,
             relevantKnowledge,
+            relationships,
+            relevantRelationships,
             decisionContext: buildDecisionContext(snapshot, { maxCharacters: 4000,
                 episodicMemories: relevantEpisodes.map(result => result.episode),
-                semanticMemories: relevantKnowledge.map(result => result.knowledge) }),
+                semanticMemories: relevantKnowledge.map(result => result.knowledge),
+                socialMemories: relevantRelationships }),
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
@@ -77,4 +85,24 @@ export function createAdminAgentEpisode(agentId: string, input: CreateAgentEpiso
 
 export function createAdminAgentKnowledge(agentId: string, input: CreateAgentKnowledge, path = agentStateDbPath) {
     return useStore(path, store => store.createKnowledge(agentId, input));
+}
+
+export function updateAdminAgentRelationship(agentId: string, expectedRevision: number | null,
+    input: SetAgentRelationship, path = agentStateDbPath) {
+    return useStore(path, store => store.setRelationship(agentId, expectedRevision, input));
+}
+
+export function createAdminAgentCommitment(agentId: string, input: CreateAgentCommitment, path = agentStateDbPath) {
+    return useStore(path, store => store.createCommitment(agentId, input));
+}
+
+export function updateAdminAgentCommitmentStatus(agentId: string, commitmentId: string, expectedRevision: number,
+    status: AgentCommitmentStatus, path = agentStateDbPath) {
+    return useStore(path, store => {
+        const commitment = store.getCommitment(commitmentId);
+        if (!commitment || commitment.agentId !== agentId.toLowerCase()) {
+            throw new Error('A kötelezettség nem ehhez az agenthez tartozik.');
+        }
+        return store.setCommitmentStatus(commitmentId, expectedRevision, status);
+    });
 }

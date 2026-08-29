@@ -240,6 +240,41 @@
         </form>
     </dialog>
 
+    <dialog id="agent-relationship-dialog">
+        <form id="agent-relationship-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">SOCIAL MEMORY</p><h2>Kapcsolat szerkesztése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="agentId" type="hidden"><input name="expectedRevision" type="hidden">
+            <label>Stabil szereplőkulcs<input name="actorKey" maxlength="100" placeholder="pl. horvik vagy ferrye15" required></label>
+            <label>Megjelenített név<input name="displayName" maxlength="100" required></label>
+            <label>Bizalom (-100…100)<input name="trust" type="number" min="-100" max="100" step="1" value="0" required></label>
+            <label>Rokonszenv (-100…100)<input name="affinity" type="number" min="-100" max="100" step="1" value="0" required></label>
+            <label>Ismertség (0–100)<input name="familiarity" type="number" min="0" max="100" step="1" value="0" required></label>
+            <label>Az agent tartozása (gp)<input name="agentOwesGp" type="number" min="0" max="2147483647" step="1" value="0" required></label>
+            <label>A másik szereplő tartozása (gp)<input name="actorOwesGp" type="number" min="0" max="2147483647" step="1" value="0" required></label>
+            <label>Kapcsolati jegyzet<textarea name="notes" maxlength="2000" rows="3"></textarea></label>
+            <label>Címkék <span class="muted">(vesszővel)</span><input name="tags" maxlength="500" placeholder="pl. merchant, friend, varrock"></label>
+            <label>Bizonyító episodic emlékek<select name="evidenceEpisodeIds" multiple size="4"></select></label>
+            <label>Legutóbbi interakció <span class="muted">(opcionális)</span><input name="lastInteractionAt" type="datetime-local"></label>
+            <label>Indoklás<input name="reason" value="Agent kapcsolat kézi frissítése" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Kapcsolat mentése</button></div>
+        </form>
+    </dialog>
+
+    <dialog id="agent-commitment-dialog">
+        <form id="agent-commitment-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">ÍGÉRET / KÖTELEZETTSÉG</p><h2>Új kötelezettség</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="agentId" type="hidden"><input name="actorKey" type="hidden">
+            <label>Kapcsolat<strong name="actorLabel" class="field-value">–</strong></label>
+            <label>Irány<select name="direction" required><option value="owed-by-agent">Az agent ígérte / tartozik vele</option><option value="owed-to-agent">A másik szereplő ígérte / tartozik vele</option></select></label>
+            <label>Leírás<textarea name="description" maxlength="1000" rows="3" required></textarea></label>
+            <label>Becsült pénzérték (gp) <span class="muted">(opcionális)</span><input name="valueGp" type="number" min="0" max="2147483647" step="1"></label>
+            <label>Határidő <span class="muted">(opcionális)</span><input name="dueAt" type="datetime-local"></label>
+            <label>Bizonyító episodic emlékek<select name="evidenceEpisodeIds" multiple size="4"></select></label>
+            <label>Indoklás<input name="reason" value="Agent kötelezettség kézi rögzítése" required></label>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Kötelezettség mentése</button></div>
+        </form>
+    </dialog>
+
     <dialog id="delete-dialog">
         <form id="delete-form" method="dialog">
             <div class="dialog-heading"><div><p class="eyebrow danger-text">VÉDETT MŰVELET</p><h2>Bot törlése</h2></div><button type="button" class="dialog-close">×</button></div>

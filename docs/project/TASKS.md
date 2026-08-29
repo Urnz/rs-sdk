@@ -219,7 +219,7 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 - [x] Working memory: kis méretű, mindig elérhető aktuális helyzet.
 - [x] Episodic memory: időzített, visszakereshető konkrét események.
 - [x] Semantic memory: megtanult világ-, gazdasági, útvonal- és eljárásismeretek.
-- [ ] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
+- [x] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
 - [ ] Assets (pénz, ingatlan, vállalkozás, követelés) összekapcsolása az agent állapotával.
 - [x] Egzakt, verziózott ismert skillek összekapcsolása az agent állapotával.
 - [ ] Relevancia-, frissesség- és célalapú context-visszakeresés minden tartós
@@ -228,6 +228,8 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
     fontosság- és frissességi pontozással.
   - [x] Determinisztikus semantic retrieval cél-, címke-, szöveg- és
     confidence-pontozással, érvényességi szűréssel.
+  - [x] Determinisztikus social retrieval szereplő-, címke-, szöveg-, kapcsolat-,
+    tartozás- és nyitottvállalás-pontozással.
 - [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
 - [ ] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
   - [x] Az episodic események idempotens külső kulcsát, opcionális elévülését és
@@ -386,3 +388,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
     korlátozott context-integrációt és adminpaneles emlékrögzítést készíteni.
 29. [x] Bizonyítékhoz kapcsolható semantic tudástárat, verziómegőrző felülírást,
     determinisztikus retrievalt és adminpaneles tudásrögzítést készíteni.
+30. [x] Tartós társas memóriát készíteni irányított kapcsolatokkal, kétirányú
+    pénztartozással, bizonyítékokkal, lezárható vállalásokkal, relevancia-
+    visszakereséssel és adminpaneles kezeléssel.

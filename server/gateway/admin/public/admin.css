@@ -126,6 +126,14 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .agent-knowledge.relevant { border-left-color: var(--green); }
 .agent-knowledge.superseded,.agent-knowledge.disputed { opacity: .62; border-left-color: var(--muted); }
 .agent-knowledge small { display: block; margin-top: 3px; color: var(--muted); overflow-wrap: anywhere; }
+.agent-relationships { display: grid; gap: 8px; max-height: 340px; overflow: auto; }
+.agent-relationship { padding: 8px; background: #151a14; border-left: 3px solid #9a78be; border-radius: 7px; }
+.agent-relationship.relevant { border-left-color: var(--green); }
+.agent-relationship-heading { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.agent-relationship small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.agent-commitments { display: grid; gap: 5px; margin-top: 7px; }
+.agent-commitment { display: flex; justify-content: space-between; gap: 8px; padding: 6px; background: #10140f; border-radius: 5px; }
+.agent-commitment.resolved { opacity: .58; }
 textarea { width: 100%; resize: vertical; color: var(--text); background: #11150f; border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; }
 .transaction-summary { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 9px; padding: 14px 20px 7px; }
 .transaction-summary div { padding: 10px 12px; background: var(--panel-2); border-radius: 8px; }

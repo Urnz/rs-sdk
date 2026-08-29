@@ -1,4 +1,5 @@
 import type { AgentEpisode, AgentKnowledge, AgentSnapshot, GoalHorizon } from './types.js';
+import type { SocialMemoryEntry } from './retrieval.js';
 
 const LABELS: Record<GoalHorizon, string> = {
     life: 'Life goal', 'long-term': 'Long-term goals', current: 'Current goals', immediate: 'Immediate tasks'
@@ -31,6 +32,7 @@ export interface DecisionContextOptions {
     workingMemoryMaxAgeMs?: number;
     episodicMemories?: readonly AgentEpisode[];
     semanticMemories?: readonly AgentKnowledge[];
+    socialMemories?: readonly SocialMemoryEntry[];
 }
 
 export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionContextOptions = {}): string {
@@ -67,6 +69,16 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
         const knowledge = options.semanticMemories.slice(0, 12)
             .map(item => `${item.subject} ${item.predicate} ${item.object} (confidence ${item.confidence}): ${item.summary}`);
         parts.push(`Relevant semantic knowledge:\n- ${knowledge.join('\n- ')}`);
+    }
+    if (options.socialMemories?.length) {
+        const relationships = options.socialMemories.slice(0, 12).map(item => {
+            const relation = item.relationship;
+            const open = item.commitments.filter(commitment => commitment.status === 'open');
+            const debts = [`agent owes ${relation.agentOwesGp} gp`, `${relation.displayName} owes ${relation.actorOwesGp} gp`];
+            return `${relation.displayName}: trust ${relation.trust}, affinity ${relation.affinity}, familiarity ${relation.familiarity}; `
+                + `${debts.join(', ')}${open.length ? `; open commitments: ${open.map(entry => entry.description).join('; ')}` : ''}`;
+        });
+        parts.push(`Relevant social memory:\n- ${relationships.join('\n- ')}`);
     }
     const full = parts.join('\n');
     if (full.length <= maxCharacters) return full;

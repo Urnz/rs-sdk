@@ -1,4 +1,4 @@
-import type { AgentEpisode, AgentKnowledge, AgentSnapshot } from './types.js';
+import type { AgentCommitment, AgentEpisode, AgentKnowledge, AgentRelationship, AgentSnapshot } from './types.js';
 
 export interface EpisodicRetrievalOptions {
     now?: string;
@@ -152,4 +152,62 @@ export function semanticQueryFromSnapshot(snapshot: AgentSnapshot): Omit<Semanti
         query: [snapshot.workingMemory?.summary ?? '', ...activeGoals.map(goal => `${goal.title} ${goal.description}`)].join(' '),
         limit: 6
     };
+}
+
+export interface SocialMemoryEntry {
+    relationship: AgentRelationship;
+    commitments: AgentCommitment[];
+}
+
+export interface SocialRetrievalOptions {
+    actors?: readonly string[];
+    tags?: readonly string[];
+    query?: string;
+    limit?: number;
+}
+
+export interface RetrievedSocialMemory extends SocialMemoryEntry {
+    score: number;
+    reasons: string[];
+}
+
+export function retrieveSocialMemory(entries: readonly SocialMemoryEntry[],
+    options: SocialRetrievalOptions = {}): RetrievedSocialMemory[] {
+    const limit = options.limit ?? 6;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new Error('Social retrieval limit must be from 1 to 20');
+    const actors = normalized(options.actors);
+    const tags = normalized(options.tags);
+    const queryTokens = tokens(options.query);
+    return entries.map(entry => {
+        const itemTags = normalized(entry.relationship.tags);
+        const actorMatch = actors.has(entry.relationship.actorKey)
+            || actors.has(entry.relationship.displayName.toLocaleLowerCase('en-US'));
+        const tagMatches = [...tags].filter(value => itemTags.has(value)).length;
+        const open = entry.commitments.filter(item => item.status === 'open');
+        const haystack = `${entry.relationship.actorKey} ${entry.relationship.displayName} ${entry.relationship.notes} `
+            + `${entry.relationship.tags.join(' ')} ${open.map(item => item.description).join(' ')}`;
+        const normalizedHaystack = haystack.toLocaleLowerCase('en-US');
+        const textMatches = queryTokens.filter(token => normalizedHaystack.includes(token)).length;
+        const debtRelevant = entry.relationship.agentOwesGp > 0 || entry.relationship.actorOwesGp > 0;
+        const reasons = [`familiarity:${entry.relationship.familiarity}`];
+        if (actorMatch) reasons.push('actor:1');
+        if (tagMatches) reasons.push(`tag:${tagMatches}`);
+        if (textMatches) reasons.push(`text:${textMatches}`);
+        if (open.length) reasons.push(`open-commitments:${open.length}`);
+        if (debtRelevant) reasons.push('debt:1');
+        const score = Math.round(entry.relationship.familiarity * 0.5)
+            + Math.round(Math.abs(entry.relationship.trust) * 0.25)
+            + Math.round(Math.abs(entry.relationship.affinity) * 0.1)
+            + (actorMatch ? 60 : 0) + Math.min(24, tagMatches * 12) + Math.min(32, textMatches * 4)
+            + Math.min(30, open.length * 15) + (debtRelevant ? 15 : 0);
+        return { ...entry, score, reasons };
+    }).sort((left, right) => right.score - left.score
+        || right.relationship.updatedAt.localeCompare(left.relationship.updatedAt)
+        || left.relationship.actorKey.localeCompare(right.relationship.actorKey)).slice(0, limit);
+}
+
+export function socialQueryFromSnapshot(snapshot: AgentSnapshot): SocialRetrievalOptions {
+    const activeGoals = snapshot.goals.filter(goal => goal.status === 'active');
+    return { query: [snapshot.workingMemory?.summary ?? '',
+        ...activeGoals.map(goal => `${goal.title} ${goal.description}`)].join(' '), limit: 6 };
 }

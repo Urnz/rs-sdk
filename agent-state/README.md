@@ -68,3 +68,18 @@ The semantic retriever excludes superseded, out-of-validity and low-confidence e
 are explicitly requested. It deterministically ranks remaining knowledge by confidence and goal/tag/text relevance,
 then adds only the bounded result to the decision context. The `Agentek` admin tab can record evidence-backed knowledge
 or select an active fact to supersede.
+
+## Social memory
+
+Schema v6 stores a directed relationship from an agent to a stable actor key. Trust and affinity use a -100..100 scale,
+familiarity uses 0..100, and GP debt has separate `agent owes actor` and `actor owes agent` fields so its direction is
+never ambiguous. Relationships may reference same-agent episodic evidence and carry notes, tags and the latest known
+interaction time. Self-relationships and cross-agent evidence fail closed.
+
+Relationships own immutable-history commitments. An open commitment records who owes the action, its description,
+optional GP value, due time and episodic evidence. It may be resolved once as fulfilled, broken or cancelled; resolved
+commitments cannot be rewritten. Relationship and commitment updates use optimistic revisions.
+
+The deterministic social retriever ranks actor, tag and text matches together with familiarity, trust, affinity, debt
+and open commitments. Only bounded results and still-open commitments enter the decision context. The `Agentek` admin
+tab supports audited relationship editing, commitment creation and explicit commitment resolution.

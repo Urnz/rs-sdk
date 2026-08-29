@@ -26,18 +26,21 @@ import {
 } from './properties';
 import {
     createAdminAgent,
+    createAdminAgentCommitment,
     createAdminAgentEpisode,
     createAdminAgentGoal,
     createAdminAgentKnowledge,
     listAdminAgents,
     updateAdminAgent,
+    updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
+    updateAdminAgentRelationship,
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { runLivePlannerCycle } from '../../../agent-state/live.js';
-import type { AgentEpisodeKind, AgentEpisodeTrust, AgentKnowledgeKind, AgentSkillKnowledgeStatus, GoalHorizon,
-    GoalStatus } from '../../../agent-state/types.js';
+import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind, AgentEpisodeTrust,
+    AgentKnowledgeKind, AgentSkillKnowledgeStatus, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 
 export interface AdminRouteContext {
@@ -411,6 +414,78 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 return json({ ok: true, knowledge }, 201);
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'agent.knowledge.create', reason, success: false,
+                    username: agentId, error: String(error) });
+                throw error;
+            }
+        }
+
+        const agentRelationshipMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/relationships$/);
+        if (req.method === 'PUT' && agentRelationshipMatch?.[1]) {
+            const agentId = agentRelationshipMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const relationship = updateAdminAgentRelationship(agentId,
+                    body.expectedRevision === null ? null : Number(body.expectedRevision), {
+                        actorKey: text(body, 'actorKey', true), displayName: text(body, 'displayName', true),
+                        trust: Number(body.trust), affinity: Number(body.affinity), familiarity: Number(body.familiarity),
+                        agentOwesGp: Number(body.agentOwesGp), actorOwesGp: Number(body.actorOwesGp),
+                        notes: text(body, 'notes'), tags: body.tags === undefined ? [] : stringList(body.tags, 'tags'),
+                        evidenceEpisodeIds: body.evidenceEpisodeIds === undefined
+                            ? [] : stringList(body.evidenceEpisodeIds, 'evidenceEpisodeIds'),
+                        lastInteractionAt: body.lastInteractionAt ? text(body, 'lastInteractionAt') : null
+                    });
+                await appendAudit({ operator: 'local-admin', action: 'agent.relationship.update', reason, success: true,
+                    username: agentId, after: relationship });
+                return json({ ok: true, relationship });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.relationship.update', reason, success: false,
+                    username: agentId, error: String(error) });
+                throw error;
+            }
+        }
+
+        const agentCommitmentMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/relationships\/([^/]+)\/commitments$/);
+        if (req.method === 'POST' && agentCommitmentMatch?.[1] && agentCommitmentMatch[2]) {
+            const agentId = agentCommitmentMatch[1];
+            const actorKey = decodeURIComponent(agentCommitmentMatch[2]);
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const commitment = createAdminAgentCommitment(agentId!, {
+                    commitmentId: text(body, 'commitmentId') || crypto.randomUUID(), actorKey,
+                    direction: oneOf<AgentCommitmentDirection>(body.direction,
+                        ['owed-by-agent', 'owed-to-agent'], 'direction'),
+                    description: text(body, 'description', true),
+                    valueGp: body.valueGp === null || body.valueGp === undefined ? null : Number(body.valueGp),
+                    dueAt: body.dueAt ? text(body, 'dueAt') : null,
+                    evidenceEpisodeIds: body.evidenceEpisodeIds === undefined
+                        ? [] : stringList(body.evidenceEpisodeIds, 'evidenceEpisodeIds')
+                });
+                await appendAudit({ operator: 'local-admin', action: 'agent.commitment.create', reason, success: true,
+                    username: agentId, after: commitment });
+                return json({ ok: true, commitment }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.commitment.create', reason, success: false,
+                    username: agentId, error: String(error) });
+                throw error;
+            }
+        }
+
+        const agentCommitmentStatusMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/commitments\/([a-z0-9.-]+)\/status$/);
+        if (req.method === 'PUT' && agentCommitmentStatusMatch?.[1] && agentCommitmentStatusMatch[2]) {
+            const [agentId, commitmentId] = [agentCommitmentStatusMatch[1], agentCommitmentStatusMatch[2]];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const commitment = updateAdminAgentCommitmentStatus(agentId!, commitmentId!,
+                    Number(body.expectedRevision), oneOf<AgentCommitmentStatus>(body.status,
+                        ['open', 'fulfilled', 'broken', 'cancelled'], 'status'));
+                await appendAudit({ operator: 'local-admin', action: 'agent.commitment.status', reason, success: true,
+                    username: agentId, after: commitment });
+                return json({ ok: true, commitment });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.commitment.status', reason, success: false,
                     username: agentId, error: String(error) });
                 throw error;
             }

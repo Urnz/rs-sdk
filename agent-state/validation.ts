@@ -1,7 +1,7 @@
 import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentSkillKnowledgeStatus,
-    AgentKnowledgeKind, AgentKnowledgeSource, AgentSkillReference, CreateAgentEpisode, CreateAgentGoal,
-    CreateAgentIdentity, CreateAgentKnowledge,
-    GoalHorizon, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
+    AgentCommitmentDirection, AgentKnowledgeKind, AgentKnowledgeSource, AgentSkillReference,
+    CreateAgentCommitment, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge,
+    GoalHorizon, SetAgentRelationship, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLAYER_PATTERN = /^[a-z0-9 _-]+$/;
@@ -12,6 +12,8 @@ const EPISODE_SOURCES = new Set<AgentEpisodeSource>(['manual', 'system', 'skill'
 const EPISODE_TRUST = new Set<AgentEpisodeTrust>(['trusted', 'untrusted']);
 const KNOWLEDGE_KINDS = new Set<AgentKnowledgeKind>(['world', 'economic', 'route', 'procedure']);
 const KNOWLEDGE_SOURCES = new Set<AgentKnowledgeSource>(['manual', 'system', 'consolidation']);
+const COMMITMENT_DIRECTIONS = new Set<AgentCommitmentDirection>(['owed-by-agent', 'owed-to-agent']);
+const ACTOR_PATTERN = /^[\p{L}\p{N} ._-]+$/u;
 
 export class AgentStateValidationError extends Error {
     constructor(public readonly issues: string[]) {
@@ -67,6 +69,14 @@ function boundedStringList(value: unknown, path: string, issues: string[], maxim
 export function normalizeAgentId(value: unknown, path = 'agentId'): string {
     const issues: string[] = [];
     const normalized = id(value, path, issues);
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return normalized;
+}
+
+export function normalizeActorKey(value: unknown, path = 'actorKey'): string {
+    const issues: string[] = [];
+    const normalized = text(value, path, issues, 100).replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
+    if (normalized && !ACTOR_PATTERN.test(normalized)) issues.push(`${path} contains unsupported characters`);
     if (issues.length) throw new AgentStateValidationError(issues);
     return normalized;
 }
@@ -260,6 +270,74 @@ export function validateCreateKnowledge(value: CreateAgentKnowledge): Required<C
         validUntil
     };
     if (result.supersedesId === result.knowledgeId) issues.push('knowledge cannot supersede itself');
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return result;
+}
+
+export function validateRelationship(value: SetAgentRelationship): Required<SetAgentRelationship> {
+    const issues: string[] = [];
+    const integer = (input: unknown, path: string, minimum: number, maximum: number, fallback: number): number => {
+        const result = input ?? fallback;
+        if (!Number.isInteger(result) || Number(result) < minimum || Number(result) > maximum) {
+            issues.push(`${path} must be an integer from ${minimum} to ${maximum}`);
+        }
+        return Number(result);
+    };
+    const lastInteractionAt = value.lastInteractionAt === null || value.lastInteractionAt === undefined
+        ? null : text(value.lastInteractionAt, 'lastInteractionAt', issues, 40);
+    if (lastInteractionAt && Number.isNaN(Date.parse(lastInteractionAt))) {
+        issues.push('lastInteractionAt must be an ISO timestamp');
+    }
+    let actorKey = '';
+    try { actorKey = normalizeActorKey(value.actorKey); }
+    catch (error) {
+        if (error instanceof AgentStateValidationError) issues.push(...error.issues);
+        else throw error;
+    }
+    const result: Required<SetAgentRelationship> = {
+        actorKey,
+        displayName: text(value.displayName, 'displayName', issues, 100),
+        trust: integer(value.trust, 'trust', -100, 100, 0),
+        affinity: integer(value.affinity, 'affinity', -100, 100, 0),
+        familiarity: integer(value.familiarity, 'familiarity', 0, 100, 0),
+        agentOwesGp: integer(value.agentOwesGp, 'agentOwesGp', 0, 2_147_483_647, 0),
+        actorOwesGp: integer(value.actorOwesGp, 'actorOwesGp', 0, 2_147_483_647, 0),
+        notes: text(value.notes ?? '', 'notes', issues, 2000, true),
+        tags: boundedStringList(value.tags ?? [], 'tags', issues, 12)
+            .map(tag => tag.toLocaleLowerCase('en-US')),
+        evidenceEpisodeIds: boundedStringList(value.evidenceEpisodeIds ?? [], 'evidenceEpisodeIds', issues, 20)
+            .map((episodeId, index) => id(episodeId, `evidenceEpisodeIds[${index}]`, issues)),
+        lastInteractionAt
+    };
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return result;
+}
+
+export function validateCreateCommitment(value: CreateAgentCommitment): Required<CreateAgentCommitment> {
+    const issues: string[] = [];
+    if (!COMMITMENT_DIRECTIONS.has(value.direction)) issues.push('commitment direction is invalid');
+    let actorKey = '';
+    try { actorKey = normalizeActorKey(value.actorKey); }
+    catch (error) {
+        if (error instanceof AgentStateValidationError) issues.push(...error.issues);
+        else throw error;
+    }
+    const valueGp = value.valueGp === null || value.valueGp === undefined ? null : Number(value.valueGp);
+    if (valueGp !== null && (!Number.isInteger(valueGp) || valueGp < 0 || valueGp > 2_147_483_647)) {
+        issues.push('valueGp must be a non-negative 32-bit integer');
+    }
+    const dueAt = value.dueAt === null || value.dueAt === undefined ? null : text(value.dueAt, 'dueAt', issues, 40);
+    if (dueAt && Number.isNaN(Date.parse(dueAt))) issues.push('dueAt must be an ISO timestamp');
+    const result: Required<CreateAgentCommitment> = {
+        commitmentId: id(value.commitmentId, 'commitmentId', issues),
+        actorKey,
+        direction: value.direction,
+        description: text(value.description, 'description', issues, 1000),
+        valueGp,
+        dueAt,
+        evidenceEpisodeIds: boundedStringList(value.evidenceEpisodeIds ?? [], 'evidenceEpisodeIds', issues, 20)
+            .map((episodeId, index) => id(episodeId, `evidenceEpisodeIds[${index}]`, issues))
+    };
     if (issues.length) throw new AgentStateValidationError(issues);
     return result;
 }

@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 5 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 6 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -9,6 +9,8 @@ export type AgentEpisodeTrust = 'trusted' | 'untrusted';
 export type AgentKnowledgeKind = 'world' | 'economic' | 'route' | 'procedure';
 export type AgentKnowledgeSource = 'manual' | 'system' | 'consolidation';
 export type AgentKnowledgeStatus = 'active' | 'superseded' | 'disputed';
+export type AgentCommitmentDirection = 'owed-by-agent' | 'owed-to-agent';
+export type AgentCommitmentStatus = 'open' | 'fulfilled' | 'broken' | 'cancelled';
 
 export interface AgentSkillReference {
     id: string;
@@ -192,6 +194,64 @@ export interface AgentKnowledgeListOptions {
     offset?: number;
     status?: AgentKnowledgeStatus;
     kind?: AgentKnowledgeKind;
+}
+
+export interface AgentRelationship {
+    agentId: string;
+    actorKey: string;
+    displayName: string;
+    trust: number;
+    affinity: number;
+    familiarity: number;
+    agentOwesGp: number;
+    actorOwesGp: number;
+    notes: string;
+    tags: string[];
+    evidenceEpisodeIds: string[];
+    lastInteractionAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
+export interface SetAgentRelationship {
+    actorKey: string;
+    displayName: string;
+    trust?: number;
+    affinity?: number;
+    familiarity?: number;
+    agentOwesGp?: number;
+    actorOwesGp?: number;
+    notes?: string;
+    tags?: string[];
+    evidenceEpisodeIds?: string[];
+    lastInteractionAt?: string | null;
+}
+
+export interface AgentCommitment {
+    commitmentId: string;
+    agentId: string;
+    actorKey: string;
+    direction: AgentCommitmentDirection;
+    description: string;
+    status: AgentCommitmentStatus;
+    valueGp: number | null;
+    dueAt: string | null;
+    evidenceEpisodeIds: string[];
+    createdAt: string;
+    updatedAt: string;
+    resolvedAt: string | null;
+    revision: number;
+}
+
+export interface CreateAgentCommitment {
+    commitmentId: string;
+    actorKey: string;
+    direction: AgentCommitmentDirection;
+    description: string;
+    valueGp?: number | null;
+    dueAt?: string | null;
+    evidenceEpisodeIds?: string[];
 }
 
 export interface AgentSnapshot {

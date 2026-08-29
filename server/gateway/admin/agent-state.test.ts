@@ -4,12 +4,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
     createAdminAgent,
+    createAdminAgentCommitment,
     createAdminAgentEpisode,
     createAdminAgentGoal,
     createAdminAgentKnowledge,
     listAdminAgents,
     updateAdminAgent,
+    updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
+    updateAdminAgentRelationship,
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store';
@@ -64,6 +67,13 @@ describe('admin agent-state service', () => {
             goalIds: ['ferrye.work'], tags: ['mining', 'varrock'], evidenceEpisodeIds: [memory.episodeId],
             source: 'manual', validFrom: new Date().toISOString()
         }, path);
+        updateAdminAgentRelationship('ferrye14', null, { actorKey: 'Horvik', displayName: 'Horvik',
+            trust: 55, affinity: 20, familiarity: 65, agentOwesGp: 32_000, actorOwesGp: 0,
+            notes: 'Megbízható varrocki kovács.', tags: ['merchant'], evidenceEpisodeIds: [memory.episodeId],
+            lastInteractionAt: new Date().toISOString() }, path);
+        createAdminAgentCommitment('ferrye14', { commitmentId: 'ferrye.repay-horvik', actorKey: 'Horvik',
+            direction: 'owed-by-agent', description: 'Fizesse vissza a rune pickaxe árát.', valueGp: 32_000,
+            evidenceEpisodeIds: [memory.episodeId] }, path);
         const store = new AgentStateStore(path);
         store.setWorkingMemory('ferrye14', null, {
             summary: 'Ferrye készen áll a következő feladatra.', currentActivity: 'Idle',
@@ -81,12 +91,15 @@ describe('admin agent-state service', () => {
         expect(result.agents[0]?.relevantEpisodes[0]?.episode.episodeId).toBe('ferrye.iron-memory');
         expect(result.agents[0]?.knowledgeCount).toBe(1);
         expect(result.agents[0]?.relevantKnowledge[0]?.knowledge.knowledgeId).toBe('ferrye.bank-route');
+        expect(result.agents[0]?.relationships[0]?.relationship.actorKey).toBe('horvik');
+        expect(result.agents[0]?.relevantRelationships[0]?.commitments[0]?.commitmentId).toBe('ferrye.repay-horvik');
         expect(result.agents[0]?.planner).toMatchObject({
             kind: 'execute-skill', skill: { id: skill!.id, version: skill!.version }
         });
         expect(result.agents[0]?.decisionContext).toContain('Ferrye, a bányász');
         expect(result.agents[0]?.decisionContext).toContain('A varrocki vasérc');
         expect(result.agents[0]?.decisionContext).toContain('legközelebbi ismert bank');
+        expect(result.agents[0]?.decisionContext).toContain('Fizesse vissza a rune pickaxe');
     });
 
     test('enforces agent ownership and optimistic revisions through the admin boundary', () => {
@@ -105,5 +118,12 @@ describe('admin agent-state service', () => {
             .toThrow('nem ehhez az agenthez');
         expect(updateAdminAgentGoalStatus('ferrye14', goal.goalId, goal.revision, 'completed', path).status)
             .toBe('completed');
+        updateAdminAgentRelationship('ferrye14', null, { actorKey: 'Horvik', displayName: 'Horvik' }, path);
+        const commitment = createAdminAgentCommitment('ferrye14', { commitmentId: 'promise.test', actorKey: 'Horvik',
+            direction: 'owed-to-agent', description: 'Deliver ore.' }, path);
+        expect(() => updateAdminAgentCommitmentStatus('other', commitment.commitmentId, commitment.revision,
+            'fulfilled', path)).toThrow('nem ehhez az agenthez');
+        expect(updateAdminAgentCommitmentStatus('ferrye14', commitment.commitmentId, commitment.revision,
+            'fulfilled', path).status).toBe('fulfilled');
     });
 });

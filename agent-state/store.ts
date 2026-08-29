@@ -2,13 +2,16 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
-    type AgentEpisode, type AgentEpisodeListOptions, type AgentKnowledge, type AgentKnowledgeListOptions,
+    type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
+    type AgentKnowledge, type AgentKnowledgeListOptions, type AgentRelationship,
     type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
-    type AgentSkillReference, type AgentWorkingMemory, type CreateAgentEpisode, type CreateAgentGoal,
-    type CreateAgentIdentity, type CreateAgentKnowledge, type GoalStatus, type SetAgentWorkingMemory,
+    type AgentSkillReference, type AgentWorkingMemory, type CreateAgentCommitment, type CreateAgentEpisode,
+    type CreateAgentGoal, type CreateAgentIdentity, type CreateAgentKnowledge, type GoalStatus,
+    type SetAgentRelationship, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
-    normalizeSkillReference, validateCreateEpisode, validateCreateKnowledge, validateIdentityPatch, validateSkillKnowledgeStatus,
+    normalizeActorKey, normalizeSkillReference, validateCreateCommitment, validateCreateEpisode,
+    validateCreateKnowledge, validateIdentityPatch, validateRelationship, validateSkillKnowledgeStatus,
     validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
@@ -40,6 +43,16 @@ interface KnowledgeRow {
     evidence_episode_ids: string; source: AgentKnowledge['source']; status: AgentKnowledge['status'];
     supersedes_id: string | null; external_key: string | null; valid_from: string; valid_until: string | null;
     created_at: string; updated_at: string; revision: number;
+}
+interface RelationshipRow {
+    agent_id: string; actor_key: string; display_name: string; trust: number; affinity: number; familiarity: number;
+    agent_owes_gp: number; actor_owes_gp: number; notes: string; tags: string; evidence_episode_ids: string;
+    last_interaction_at: string | null; created_at: string; updated_at: string; revision: number;
+}
+interface CommitmentRow {
+    commitment_id: string; agent_id: string; actor_key: string; direction: AgentCommitment['direction'];
+    description: string; status: AgentCommitmentStatus; value_gp: number | null; due_at: string | null;
+    evidence_episode_ids: string; created_at: string; updated_at: string; resolved_at: string | null; revision: number;
 }
 
 function identity(row: IdentityRow): AgentIdentity {
@@ -78,6 +91,20 @@ function knowledge(row: KnowledgeRow): AgentKnowledge {
         evidenceEpisodeIds: JSON.parse(row.evidence_episode_ids) as string[], source: row.source, status: row.status,
         supersedesId: row.supersedes_id, externalKey: row.external_key, validFrom: row.valid_from,
         validUntil: row.valid_until, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
+}
+function relationship(row: RelationshipRow): AgentRelationship {
+    return { agentId: row.agent_id, actorKey: row.actor_key, displayName: row.display_name, trust: row.trust,
+        affinity: row.affinity, familiarity: row.familiarity, agentOwesGp: row.agent_owes_gp,
+        actorOwesGp: row.actor_owes_gp, notes: row.notes, tags: JSON.parse(row.tags) as string[],
+        evidenceEpisodeIds: JSON.parse(row.evidence_episode_ids) as string[],
+        lastInteractionAt: row.last_interaction_at, createdAt: row.created_at, updatedAt: row.updated_at,
+        revision: row.revision };
+}
+function commitment(row: CommitmentRow): AgentCommitment {
+    return { commitmentId: row.commitment_id, agentId: row.agent_id, actorKey: row.actor_key,
+        direction: row.direction, description: row.description, status: row.status, valueGp: row.value_gp,
+        dueAt: row.due_at, evidenceEpisodeIds: JSON.parse(row.evidence_episode_ids) as string[],
+        createdAt: row.created_at, updatedAt: row.updated_at, resolvedAt: row.resolved_at, revision: row.revision };
 }
 
 export class AgentStateStore {
@@ -443,6 +470,124 @@ export class AgentStateStore {
             .get(normalized) as { count: number }).count;
     }
 
+    setRelationship(agentId: string, expectedRevision: number | null, input: SetAgentRelationship,
+        now = new Date().toISOString()): AgentRelationship {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const value = validateRelationship(input);
+        const transaction = this.database.transaction(() => {
+            const identity = this.requireIdentity(normalizedAgentId);
+            if (value.actorKey === identity.agentId || value.actorKey === identity.playerUsername) {
+                throw new Error('An agent cannot have a social relationship with itself');
+            }
+            for (const episodeId of value.evidenceEpisodeIds) {
+                const evidence = this.getEpisode(episodeId);
+                if (!evidence || evidence.agentId !== normalizedAgentId) {
+                    throw new Error(`Relationship evidence must belong to the same agent: ${episodeId}`);
+                }
+            }
+            const current = this.getRelationship(normalizedAgentId, value.actorKey);
+            if (!current) {
+                if (expectedRevision !== null) throw new Error('Relationship changed before update; refresh and try again');
+                this.database.run(`INSERT INTO agent_relationship
+                    (agent_id, actor_key, display_name, trust, affinity, familiarity, agent_owes_gp, actor_owes_gp,
+                    notes, tags, evidence_episode_ids, last_interaction_at, created_at, updated_at, revision)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13, 1)`,
+                [normalizedAgentId, value.actorKey, value.displayName, value.trust, value.affinity, value.familiarity,
+                    value.agentOwesGp, value.actorOwesGp, value.notes, JSON.stringify(value.tags),
+                    JSON.stringify(value.evidenceEpisodeIds), value.lastInteractionAt, now]);
+                return;
+            }
+            if (expectedRevision === null || current.revision !== expectedRevision) {
+                throw new Error('Relationship changed before update; refresh and try again');
+            }
+            const result = this.database.run(`UPDATE agent_relationship SET display_name = ?4, trust = ?5,
+                affinity = ?6, familiarity = ?7, agent_owes_gp = ?8, actor_owes_gp = ?9, notes = ?10,
+                tags = ?11, evidence_episode_ids = ?12, last_interaction_at = ?13, updated_at = ?14,
+                revision = revision + 1 WHERE agent_id = ?1 AND actor_key = ?2 AND revision = ?3`,
+            [normalizedAgentId, value.actorKey, expectedRevision, value.displayName, value.trust, value.affinity,
+                value.familiarity, value.agentOwesGp, value.actorOwesGp, value.notes, JSON.stringify(value.tags),
+                JSON.stringify(value.evidenceEpisodeIds), value.lastInteractionAt, now]);
+            if (result.changes !== 1) throw new Error('Relationship changed before update; refresh and try again');
+        });
+        transaction.immediate();
+        return this.getRelationship(normalizedAgentId, value.actorKey)!;
+    }
+
+    getRelationship(agentId: string, actorKey: string): AgentRelationship | null {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const normalizedActor = normalizeActorKey(actorKey);
+        const row = this.database.query(`SELECT * FROM agent_relationship
+            WHERE agent_id = ?1 AND actor_key = ?2`).get(normalizedAgentId, normalizedActor);
+        return row ? relationship(row as RelationshipRow) : null;
+    }
+
+    listRelationships(agentId: string): AgentRelationship[] {
+        const normalized = normalizeAgentId(agentId);
+        return (this.database.query(`SELECT * FROM agent_relationship WHERE agent_id = ?1
+            ORDER BY familiarity DESC, updated_at DESC, actor_key`).all(normalized) as RelationshipRow[]).map(relationship);
+    }
+
+    createCommitment(agentId: string, input: CreateAgentCommitment,
+        now = new Date().toISOString()): AgentCommitment {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const value = validateCreateCommitment(input);
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalizedAgentId);
+            if (!this.getRelationship(normalizedAgentId, value.actorKey)) {
+                throw new Error('Commitment requires an existing relationship');
+            }
+            for (const episodeId of value.evidenceEpisodeIds) {
+                const evidence = this.getEpisode(episodeId);
+                if (!evidence || evidence.agentId !== normalizedAgentId) {
+                    throw new Error(`Commitment evidence must belong to the same agent: ${episodeId}`);
+                }
+            }
+            this.database.run(`INSERT INTO agent_commitment
+                (commitment_id, agent_id, actor_key, direction, description, status, value_gp, due_at,
+                evidence_episode_ids, created_at, updated_at, resolved_at, revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, 'open', ?6, ?7, ?8, ?9, ?9, NULL, 1)`,
+            [value.commitmentId, normalizedAgentId, value.actorKey, value.direction, value.description,
+                value.valueGp, value.dueAt, JSON.stringify(value.evidenceEpisodeIds), now]);
+        });
+        transaction.immediate();
+        return this.requireCommitment(value.commitmentId);
+    }
+
+    setCommitmentStatus(commitmentId: string, expectedRevision: number, status: AgentCommitmentStatus,
+        now = new Date().toISOString()): AgentCommitment {
+        if (!['open', 'fulfilled', 'broken', 'cancelled'].includes(status)) throw new Error('Invalid commitment status');
+        const current = this.requireCommitment(commitmentId);
+        if (current.status === status) return current;
+        if (current.status !== 'open') throw new Error('Resolved commitments cannot change status');
+        const result = this.database.run(`UPDATE agent_commitment SET status = ?3, updated_at = ?4,
+            resolved_at = CASE WHEN ?3 = 'open' THEN NULL ELSE ?4 END, revision = revision + 1
+            WHERE commitment_id = ?1 AND revision = ?2`, [current.commitmentId, expectedRevision, status, now]);
+        if (result.changes !== 1) throw new Error('Commitment changed before update; refresh and try again');
+        return this.requireCommitment(current.commitmentId);
+    }
+
+    getCommitment(commitmentId: string): AgentCommitment | null {
+        const normalized = normalizeAgentId(commitmentId, 'commitmentId');
+        const row = this.database.query('SELECT * FROM agent_commitment WHERE commitment_id = ?1').get(normalized);
+        return row ? commitment(row as CommitmentRow) : null;
+    }
+
+    listCommitments(agentId: string, actorKey?: string, status?: AgentCommitmentStatus): AgentCommitment[] {
+        const normalized = normalizeAgentId(agentId);
+        let rows: unknown[];
+        if (actorKey && status) rows = this.database.query(`SELECT * FROM agent_commitment
+            WHERE agent_id = ?1 AND actor_key = ?2 AND status = ?3 ORDER BY created_at DESC, commitment_id`)
+            .all(normalized, normalizeActorKey(actorKey), status);
+        else if (actorKey) rows = this.database.query(`SELECT * FROM agent_commitment
+            WHERE agent_id = ?1 AND actor_key = ?2 ORDER BY created_at DESC, commitment_id`)
+            .all(normalized, normalizeActorKey(actorKey));
+        else if (status) rows = this.database.query(`SELECT * FROM agent_commitment
+            WHERE agent_id = ?1 AND status = ?2 ORDER BY created_at DESC, commitment_id`).all(normalized, status);
+        else rows = this.database.query(`SELECT * FROM agent_commitment
+            WHERE agent_id = ?1 ORDER BY created_at DESC, commitment_id`).all(normalized);
+        return (rows as CommitmentRow[]).map(commitment);
+    }
+
     getSnapshot(agentId: string): AgentSnapshot | null {
         const found = this.getIdentity(agentId);
         return found ? { identity: found, goals: this.listGoals(found.agentId),
@@ -467,6 +612,11 @@ export class AgentStateStore {
     private requireKnowledge(knowledgeId: string): AgentKnowledge {
         const found = this.getKnowledge(knowledgeId);
         if (!found) throw new Error(`Unknown knowledge: ${knowledgeId}`);
+        return found;
+    }
+    private requireCommitment(commitmentId: string): AgentCommitment {
+        const found = this.getCommitment(commitmentId);
+        if (!found) throw new Error(`Unknown commitment: ${commitmentId}`);
         return found;
     }
     private migrate(): void {
@@ -566,6 +716,35 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_semantic_agent_status
                     ON agent_semantic_memory(agent_id, status, updated_at DESC)`);
                 this.database.run('PRAGMA user_version = 5');
+            });
+            transaction.immediate();
+        }
+        if (version < 6) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_relationship (
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    actor_key TEXT NOT NULL COLLATE NOCASE, display_name TEXT NOT NULL,
+                    trust INTEGER NOT NULL CHECK (trust BETWEEN -100 AND 100),
+                    affinity INTEGER NOT NULL CHECK (affinity BETWEEN -100 AND 100),
+                    familiarity INTEGER NOT NULL CHECK (familiarity BETWEEN 0 AND 100),
+                    agent_owes_gp INTEGER NOT NULL CHECK (agent_owes_gp >= 0),
+                    actor_owes_gp INTEGER NOT NULL CHECK (actor_owes_gp >= 0),
+                    notes TEXT NOT NULL, tags TEXT NOT NULL, evidence_episode_ids TEXT NOT NULL,
+                    last_interaction_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1), PRIMARY KEY (agent_id, actor_key))`);
+                this.database.run(`CREATE TABLE agent_commitment (
+                    commitment_id TEXT PRIMARY KEY,
+                    agent_id TEXT NOT NULL, actor_key TEXT NOT NULL COLLATE NOCASE,
+                    direction TEXT NOT NULL CHECK (direction IN ('owed-by-agent', 'owed-to-agent')),
+                    description TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('open', 'fulfilled', 'broken', 'cancelled')),
+                    value_gp INTEGER CHECK (value_gp IS NULL OR value_gp >= 0), due_at TEXT,
+                    evidence_episode_ids TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    resolved_at TEXT, revision INTEGER NOT NULL CHECK (revision >= 1),
+                    FOREIGN KEY (agent_id, actor_key) REFERENCES agent_relationship(agent_id, actor_key) ON DELETE RESTRICT)`);
+                this.database.run(`CREATE INDEX agent_commitment_agent_status
+                    ON agent_commitment(agent_id, status, due_at)`);
+                this.database.run('PRAGMA user_version = 6');
             });
             transaction.immediate();
         }
