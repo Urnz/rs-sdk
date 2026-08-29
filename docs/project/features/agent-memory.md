@@ -211,6 +211,15 @@ Az admin egyetlen közös `generatedAt` időpillanatot ad az episodic, semantic 
 social retrievalnek, a retention-előnézetnek és a context-buildernek. Így egy
 határidő vagy frissességi sáv közepén készülő nézet sem kever eltérő időállapotokat.
 
+## LLM nélküli végponttól végpontig ellenőrzés
+
+A 10. fázis integrációs tesztje három változtathatatlan skill journalból automatikus
+episodic, semantic és social memóriát képez, majd új adatbázis-kapcsolattal olvassa
+vissza az agentet. A releváns elemekből korlátozott döntési context készül, amely
+mindhárom memóriablokkot tartalmazza. A planner friss working memory, aktív azonnali
+cél, megtanult skill és trusted katalógus mellett kétszer byte-for-byte azonos
+`execute-skill` döntést ad, LLM és tényleges játékvezérlés nélkül.
+
 ## Gazdasági szereplők és eszközportfólió
 
 A v7 séma nem másolja az agent-adatbázisba a pénzt vagy az ingatlant. Ehelyett az

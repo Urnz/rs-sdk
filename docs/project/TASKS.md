@@ -251,7 +251,7 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
   - [x] Előnézetes, explicit és auditált retention műveletet készíteni, amely
     kizárólag elévült, semmilyen tartós bizonyítékként vagy külső forrásból nem
     hivatkozott episodic emléket törölhet.
-- [ ] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
+- [x] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
 
 Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
 fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context készül.
@@ -426,3 +426,6 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 36. [x] A semantic retrievalt korlátozott frissességi ponttal, a social retrievalt
     interakciófrissességgel és az aktív cél szövegének külön súlyozásával bővíteni,
     majd az admin context minden részét közös időpillanatból felépíteni.
+37. [x] Újraindítást szimuláló end-to-end tesztben skill journalból automatikus
+    episodic, semantic és social memóriát képezni, releváns korlátozott contextet
+    építeni, majd ugyanazt a verified skillt kétszer azonos döntéssel kiválasztani.

@@ -4,6 +4,10 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AgentStateStore } from '../../../agent-state/store.js';
+import { buildDecisionContext } from '../../../agent-state/context.js';
+import { planNextAction } from '../../../agent-state/planner.js';
+import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
+    retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
 import { AgentMemoryIngestionLoop, ingestAgentMemories } from './agent-memory-ingestion.js';
 
 const roots: string[] = [];
@@ -201,5 +205,55 @@ describe('automatic agent memory ingestion', () => {
             expect.stringMatching(/^economy\./), expect.stringMatching(/^economy\./)
         ]);
         reopened.close();
+    });
+
+    test('feeds persisted automatic memories into a deterministic LLM-free planner context after restart', async () => {
+        const { runRoot, databasePath } = await fixture();
+        const skill = { id: 'economy.test', version: '1.0.0' };
+        let store = new AgentStateStore(databasePath);
+        store.createGoal('ferrye14', { goalId: 'goal.life', horizon: 'life', title: 'Build a prosperous life' });
+        store.createGoal('ferrye14', { goalId: 'goal.trade', parentGoalId: 'goal.life', horizon: 'long-term',
+            title: 'Become a reliable merchant' });
+        store.createGoal('ferrye14', { goalId: 'goal.iron', parentGoalId: 'goal.trade', horizon: 'current',
+            title: 'Produce and sell iron ore' });
+        store.createGoal('ferrye14', { goalId: 'goal.now', parentGoalId: 'goal.iron', horizon: 'immediate',
+            title: 'Produce iron and trade Buyer1', priority: 90, skill });
+        store.setSkillKnowledge('ferrye14', skill, 'preferred', null, '2026-08-29T10:50:00.000Z');
+        store.setWorkingMemory('ferrye14', null, { summary: 'Ready to produce iron for Buyer1.',
+            currentActivity: 'Idle', location: { x: 3285, z: 3367, level: 0 },
+            observations: ['Rune pickaxe equipped.'], observedAt: '2026-08-29T10:59:00.000Z' });
+        store.close();
+        const ids = [1, 2, 3].map(index =>
+            `3000000${index}-0000-4000-8000-${String(index).padStart(12, '0')}`);
+        for (let index = 0; index < ids.length; index++) {
+            await writeFile(join(runRoot, `${ids[index]}.json`), JSON.stringify(journal('Done.', ids[index], index)));
+        }
+        await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T11:00:00.000Z' });
+
+        store = new AgentStateStore(databasePath);
+        const snapshot = store.getSnapshot('ferrye14')!;
+        const now = '2026-08-29T11:00:00.000Z';
+        const episodes = retrieveEpisodicMemory(store.listEpisodes('ferrye14', { limit: 500 }),
+            { ...episodicQueryFromSnapshot(snapshot), now });
+        const knowledge = retrieveSemanticMemory(store.listKnowledge('ferrye14', { limit: 500 }),
+            { ...semanticQueryFromSnapshot(snapshot), now });
+        const relationships = store.listRelationships('ferrye14').map(relationship => ({ relationship,
+            commitments: store.listCommitments('ferrye14', relationship.actorKey) }));
+        const social = retrieveSocialMemory(relationships, { ...socialQueryFromSnapshot(snapshot), now });
+        const context = buildDecisionContext(snapshot, { now, maxCharacters: 4000,
+            episodicMemories: episodes.map(item => item.episode),
+            semanticMemories: knowledge.map(item => item.knowledge), socialMemories: social });
+        const firstDecision = planNextAction(snapshot, { now, availableSkills: [skill] });
+        const secondDecision = planNextAction(snapshot, { now, availableSkills: [skill] });
+
+        expect(context).toContain('Relevant episodic memories');
+        expect(context).toContain('Relevant semantic knowledge');
+        expect(context).toContain('Relevant social memory');
+        expect(context).toContain('Iron ore');
+        expect(context).toContain('Buyer1');
+        expect(context.length).toBeLessThanOrEqual(4000);
+        expect(firstDecision).toEqual(secondDecision);
+        expect(firstDecision).toMatchObject({ kind: 'execute-skill', goalId: 'goal.now', skill });
+        store.close();
     });
 });
