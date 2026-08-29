@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { MemoryLlmAuditSink } from '../../../llm-runtime/audit.js';
+import { OpenAIResponsesProvider } from '../../../llm-runtime/openai-provider.js';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { createAdminAgent, createAdminAgentGoal, listAdminAgents, updateAdminAgentSkill } from './agent-state.js';
 import { runAdminLlmDryRun } from './llm-dry-run.js';
@@ -97,4 +98,48 @@ test('admin LLM dry-run proposes the missing goal hierarchy from a long-term goa
         { horizon: 'current', parentGoalId: 'workshop' }, { horizon: 'immediate' }
     ], skill: { id: 'varrock-east-mining', version: '1.0.0' } });
     expect(result.plan.approvalId).toBeNull();
+});
+
+test('admin LLM dry-run can use the real provider boundary without executing the plan', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'rs-admin-openai-'));
+    directories.push(root);
+    const databasePath = join(root, 'agents.sqlite');
+    const configPath = join(root, 'llm.json');
+    const pricing = { inputMicrosPerMillionTokens: 2_000_000, outputMicrosPerMillionTokens: 12_000_000 };
+    writeFileSync(configPath, JSON.stringify({ schemaVersion: 1, enabled: true, provider: 'openai',
+        model: 'gpt-5.6-terra', pricing, limits: { maxDurationMs: 1000, maxModelRequests: 1,
+            maxToolCalls: 1, maxCostMicros: 50_000 } }));
+    createAdminAgent({ agentId: 'ferrye14', playerUsername: 'Ferrye14', displayName: 'Ferrye',
+        background: 'A miner.', personalityTraits: ['patient'] }, databasePath);
+    createAdminAgentGoal('ferrye14', { goalId: 'life', horizon: 'life', title: 'Become wealthy' }, databasePath);
+    const store = new AgentStateStore(databasePath);
+    store.setWorkingMemory('ferrye14', null, { summary: 'Idle.', currentActivity: null,
+        location: { x: 3285, z: 3367, level: 0 }, observations: [],
+        observedAt: '2026-08-29T12:00:00.000Z' }, '2026-08-29T12:00:00.000Z');
+    store.close();
+    const catalog = await listAdminAgents(databasePath);
+    const provider = new OpenAIResponsesProvider({ apiKey: 'not-a-real-key', pricing, fetch: async () =>
+        new Response(JSON.stringify({ id: 'resp_test', status: 'completed', usage: {
+            input_tokens: 100, output_tokens: 50 }, output_text: JSON.stringify({ decision: 'propose_goal_plan',
+            goalId: 'life', goals: [
+                { goalId: 'wealth-strategy', parentGoalId: 'life', horizon: 'long-term', title: 'Build wealth',
+                    description: '', priority: 80 },
+                { goalId: 'earn-money', parentGoalId: 'wealth-strategy', horizon: 'current', title: 'Earn money',
+                    description: '', priority: 80 },
+                { goalId: 'find-work', parentGoalId: 'earn-money', horizon: 'immediate', title: 'Find work',
+                    description: '', priority: 80 }
+            ], tool: null, reason: 'No reviewed skill is known yet.' }) }), { status: 200 }) });
+    const result = await runAdminLlmDryRun(catalog.agents[0]!, [], {
+        now: '2026-08-29T12:00:00.000Z', configPath, provider, audit: new MemoryLlmAuditSink()
+    });
+    expect(result.configuredEnabled).toBeTrue();
+    expect(result.plan).toMatchObject({ status: 'proposed', approvalId: null,
+        decision: { kind: 'propose-goal-plan', skill: null } });
+    expect(result.request?.model).toBe('gpt-5.6-terra');
+    expect(provider.requests).toHaveLength(1);
+    await expect(runAdminLlmDryRun(catalog.agents[0]!, [], {
+        now: '2026-08-29T12:00:00.000Z', configPath, provider, automatic: true,
+        audit: new MemoryLlmAuditSink()
+    })).rejects.toThrow('automatikus LLM újratervezés ki van kapcsolva');
+    expect(provider.requests).toHaveLength(1);
 });

@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "enabled": false,
+  "automaticReplanning": false,
   "provider": "mock",
   "model": "deterministic-scripted-v1",
   "limits": {

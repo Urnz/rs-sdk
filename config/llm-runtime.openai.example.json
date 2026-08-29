@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "enabled": true,
+  "automaticReplanning": false,
+  "provider": "openai",
+  "model": "gpt-5.6-terra",
+  "pricing": {
+    "inputMicrosPerMillionTokens": 2000000,
+    "outputMicrosPerMillionTokens": 12000000
+  },
+  "limits": {
+    "maxDurationMs": 30000,
+    "maxModelRequests": 1,
+    "maxToolCalls": 1,
+    "maxCostMicros": 50000
+  }
+}

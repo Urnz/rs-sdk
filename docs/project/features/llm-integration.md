@@ -61,8 +61,29 @@ alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
   egy, már ismert és ellenőrzött skillt rendel. A javaslat nem módosítja az
   agentadatbázist.
 
-Valódi provider csak az admin jóváhagyási folyamat után, explicit kis
-jogosultságú tesztkonfigurációval kapcsolható be.
+## OpenAI provider helyi beállítása
+
+Az OpenAI adapter a Responses API-t használja `store: false` és szigorú JSON
+sémás kimenettel. A kulcs kizárólag az `OPENAI_API_KEY` környezeti változóból
+olvasható; JSON-ba, adatbázisba és auditnaplóba nem kerül. Az adapter a HTTP
+hibákat a válasz és a kulcs visszaidézése nélkül jelenti.
+
+1. A `config/llm-runtime.openai.example.json` tartalmát másold a
+   `config/llm-runtime.json` fájlba. A példa `gpt-5.6-terra` modellt, egyetlen
+   modellkérést és 0,05 USD futásonkénti utólagos költséghatárt használ.
+2. Ugyanabban a PowerShell ablakban, amelyből a gateway indul, állítsd be:
+   `$env:OPENAI_API_KEY = "sk-..."`.
+3. Indítsd újra a gatewayt. Az admin `LLM dry-run` valódi modellhívást végez,
+   de továbbra sem ment célt és nem indít skillt.
+
+A mintában az `automaticReplanning` értéke `false`: így csak a kézzel indított
+dry-run kerül pénzbe. Az eseményvezérelt automatikus modellhívások csak ennek a
+kapcsolónak a tudatos `true` értékre állítása és gateway-újraindítás után indulnak.
+
+Az ármezők modellváltáskor kézzel frissítendők a szolgáltató aktuális díjaihoz.
+A gateway a válasz tokenhasználatából számolja a becsült `costMicros` értéket;
+API-hívás előtti teljes költséggarancia nincs, ezért a szolgáltatói projekt- és
+felhasználási limitet is alacsonyan kell tartani.
 
 ## Biztonsági alapok
 
@@ -72,4 +93,6 @@ jogosultságú tesztkonfigurációval kapcsolható be.
 - Minden futásnak van maximális lépésszáma, ideje és költségkerete.
 - Vészleállítás után újabb modell- vagy eszközhívás nem indulhat.
 - A tesztek alapértelmezetten determinisztikus mock modellt használnak.
+- Az OpenAI provider tesztjei injektált helyi HTTP-válaszokat használnak, ezért
+  nem olvasnak valódi kulcsot és nem fogyasztanak API-egyenleget.
 

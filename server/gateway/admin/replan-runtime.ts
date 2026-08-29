@@ -63,7 +63,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             if (!current) return { runId: event.eventId, status: 'skipped', reason: 'Agent state disappeared before planning.' };
             try {
                 const result = await runAdminLlmDryRun(current, refreshed.skills, { now, runId: event.eventId,
-                    untrustedText: event.type === 'offer-received' ? [event.summary] : [] });
+                    untrustedText: event.type === 'offer-received' ? [event.summary] : [], automatic: true });
                 return { runId: result.plan.runId, status: result.plan.status,
                     decision: result.plan.decision, reason: result.plan.reason };
             } catch (error) {

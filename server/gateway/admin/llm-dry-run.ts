@@ -2,10 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { JsonlLlmAuditSink } from '../../../llm-runtime/audit.js';
 import { validateLlmRuntimeConfig } from '../../../llm-runtime/config.js';
 import { ScriptedMockProvider } from '../../../llm-runtime/mock-provider.js';
+import { createOpenAIProvider, OpenAIResponsesProvider } from '../../../llm-runtime/openai-provider.js';
 import { LlmOrchestrator } from '../../../llm-runtime/orchestrator.js';
 import { buildLlmPlanningInput } from '../../../llm-runtime/planning.js';
 import { InferenceQueue } from '../../../llm-runtime/queue.js';
-import type { LlmAuditSink, LlmProviderRequest, LlmProviderResponse } from '../../../llm-runtime/types.js';
+import type { LlmAuditSink, LlmProvider, LlmProviderRequest, LlmProviderResponse } from '../../../llm-runtime/types.js';
 import type { listAdminAgents } from './agent-state.js';
 import type { AdminSkillSummary } from './skill-catalog.js';
 import { llmAuditLogPath, llmRuntimeConfigPath } from './paths.js';
@@ -20,6 +21,9 @@ export interface AdminLlmDryRunOptions {
     audit?: LlmAuditSink;
     untrustedText?: readonly string[];
     queue?: InferenceQueue;
+    provider?: LlmProvider;
+    environment?: Record<string, string | undefined>;
+    automatic?: boolean;
 }
 
 function words(value: string): Set<string> {
@@ -83,8 +87,16 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
     options: AdminLlmDryRunOptions = {}) {
     const rawConfig = JSON.parse(await readFile(options.configPath ?? llmRuntimeConfigPath, 'utf8')) as unknown;
     const configured = validateLlmRuntimeConfig(rawConfig);
-    if (configured.provider !== 'mock') throw new Error('Az admin dry-run jelenleg kizárólag a mock providert támogatja.');
-    const config = { ...configured, enabled: true };
+    if (!['mock', 'openai'].includes(configured.provider)) {
+        throw new Error(`Nem támogatott LLM provider: ${configured.provider}`);
+    }
+    if (configured.provider === 'openai' && !configured.enabled) {
+        throw new Error('Az OpenAI provider ki van kapcsolva a config/llm-runtime.json fájlban.');
+    }
+    if (options.automatic && !configured.automaticReplanning) {
+        throw new Error('Az automatikus LLM újratervezés ki van kapcsolva.');
+    }
+    const config = configured.provider === 'mock' ? { ...configured, enabled: true } : configured;
     const input = buildLlmPlanningInput(agent, {
         availableSkills: skills.map(skill => ({ id: skill.id, version: skill.version,
             name: skill.name, description: skill.description })),
@@ -99,7 +111,10 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         untrustedText: options.untrustedText,
         runId: options.runId
     });
-    const provider = new ScriptedMockProvider([request => mockResponse(agent, request)]);
+    const provider = options.provider ?? (configured.provider === 'mock'
+        ? new ScriptedMockProvider([request => mockResponse(agent, request)])
+        : createOpenAIProvider(configured, options.environment));
+    if (provider.id !== configured.provider) throw new Error('A beadott LLM provider nem egyezik a konfigurációval.');
     const orchestrator = new LlmOrchestrator(config, provider,
         options.audit ?? new JsonlLlmAuditSink(llmAuditLogPath), options.queue ?? sharedAdminInferenceQueue);
     const plan = await orchestrator.plan(input);
@@ -107,6 +122,7 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         simulation: true,
         configuredEnabled: configured.enabled,
         plan,
-        request: provider.requests[0] ?? null
+        request: provider instanceof ScriptedMockProvider || provider instanceof OpenAIResponsesProvider
+            ? provider.requests[0] ?? null : null
     };
 }

@@ -16,9 +16,10 @@ Az orchestration négy külön lépése:
 4. a javaslat csak egyszer használható approval azonosítóval hajtható végre.
 
 A `ScriptedMockProvider` determinisztikus teszteket tesz lehetővé hálózat és
-API-kulcs nélkül. A minta-konfiguráció ezért alapértelmezetten ki van kapcsolva.
-A valódi provider külön adapter lesz; nem kaphat engine-, fájl- vagy tetszőleges
-kódfuttatási hozzáférést.
+API-kulcs nélkül. Az alapkonfiguráció ezért kikapcsolt mock marad. Az
+`OpenAIResponsesProvider` a Responses API-n strukturált, nem tárolt választ kér,
+és csak az `OPENAI_API_KEY` környezeti változóból olvas titkot. A valódi provider
+sem kap engine-, fájl- vagy tetszőleges kódfuttatási hozzáférést.
 
 Az audit JSONL vagy memóriabeli sinkbe írható. A nyers context helyett hash,
 modellazonosító, token-/költségadat, döntés, approval és végrehajtási eredmény

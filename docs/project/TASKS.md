@@ -283,7 +283,7 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 - [x] Hierarchikus céltervezést készíteni: aktív immediate cél hiányában az
   élet-, hosszú távú vagy aktuális célból egyetlen modellhívással szabályos,
   immediate célig vezető cél-láncot és opcionális ellenőrzött skillt javasolni.
-- [ ] Valódi provider adaptert és biztonságos, környezeti változós API-kulcs
+- [x] Valódi provider adaptert és biztonságos, környezeti változós API-kulcs
   konfigurációt készíteni kis jogosultságú lokális tesztkörnyezethez.
 - [ ] Admin jóváhagyással atomikusan létrehozni a javasolt cél-láncot, majd
   egyszer használható approval azonosítóval elindítani a kiválasztott skillt.

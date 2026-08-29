@@ -12,8 +12,13 @@ export interface LlmRuntimeLimits {
 export interface LlmRuntimeConfig {
     schemaVersion: typeof LLM_RUNTIME_SCHEMA_VERSION;
     enabled: boolean;
+    automaticReplanning: boolean;
     provider: string;
     model: string;
+    pricing?: {
+        inputMicrosPerMillionTokens: number;
+        outputMicrosPerMillionTokens: number;
+    };
     limits: LlmRuntimeLimits;
 }
 
