@@ -26,6 +26,7 @@ import {
 } from './properties';
 import {
     createAdminAgent,
+    createAdminAgentEpisode,
     createAdminAgentGoal,
     listAdminAgents,
     updateAdminAgent,
@@ -34,7 +35,8 @@ import {
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { runLivePlannerCycle } from '../../../agent-state/live.js';
-import type { AgentSkillKnowledgeStatus, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
+import type { AgentEpisodeKind, AgentEpisodeTrust, AgentSkillKnowledgeStatus, GoalHorizon,
+    GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 
 export interface AdminRouteContext {
@@ -355,6 +357,35 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ ok: true, goal }, 201);
         }
 
+        const agentEpisodeMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/episodes$/);
+        if (req.method === 'POST' && agentEpisodeMatch?.[1]) {
+            const agentId = agentEpisodeMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const episode = createAdminAgentEpisode(agentId, {
+                    episodeId: text(body, 'episodeId') || crypto.randomUUID(),
+                    kind: oneOf<AgentEpisodeKind>(body.kind,
+                        ['observation', 'action', 'outcome', 'interaction', 'discovery', 'economic'], 'kind'),
+                    summary: text(body, 'summary', true), details: text(body, 'details'),
+                    importance: Number(body.importance),
+                    goalIds: body.goalIds === undefined ? [] : stringList(body.goalIds, 'goalIds'),
+                    actors: body.actors === undefined ? [] : stringList(body.actors, 'actors'),
+                    tags: body.tags === undefined ? [] : stringList(body.tags, 'tags'),
+                    source: 'manual',
+                    trust: oneOf<AgentEpisodeTrust>(body.trust ?? 'trusted', ['trusted', 'untrusted'], 'trust'),
+                    occurredAt: text(body, 'occurredAt', true), expiresAt: body.expiresAt ? text(body, 'expiresAt') : null
+                });
+                await appendAudit({ operator: 'local-admin', action: 'agent.episode.create', reason, success: true,
+                    username: agentId, after: episode });
+                return json({ ok: true, episode }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.episode.create', reason, success: false,
+                    username: agentId, error: String(error) });
+                throw error;
+            }
+        }
+
         const agentGoalStatusMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/goals\/([a-z0-9.-]+)\/status$/);
         if (req.method === 'PUT' && agentGoalStatusMatch?.[1] && agentGoalStatusMatch[2]) {
             const [agentId, goalId] = [agentGoalStatusMatch[1], agentGoalStatusMatch[2]];
@@ -401,6 +432,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 const cycle = await runLivePlannerCycle({ store, agentId, state: gatewayEntry.state,
                     availableSkills: agents.skills.map(skill => ({ id: skill.id, version: skill.version })) });
                 let process = null;
+                let episode = null;
+                let episodeError = null;
                 if (execute) {
                     if (cycle.decision.kind !== 'execute-skill' || !cycle.decision.skill) {
                         throw new Error(`A planner nem adott végrehajtható döntést: ${cycle.decision.reason}`);
@@ -411,11 +444,23 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     const registered = await resolveAdminSkill(requested);
                     const parameters = validateAdminSkillParameters(registered.definition, {});
                     process = await context.supervisor.startSkill(agent.identity.playerUsername, requested, parameters);
+                    try {
+                        episode = store.createEpisode(agentId, {
+                            episodeId: crypto.randomUUID(), kind: 'action', source: 'planner', trust: 'trusted',
+                            summary: `Started ${requested} for goal ${cycle.decision.goalId}.`,
+                            details: cycle.decision.reason, importance: 60,
+                            goalIds: cycle.decision.goalId ? [cycle.decision.goalId] : [],
+                            tags: ['planner', 'skill-start'], actors: [], occurredAt: process.startedAt,
+                            externalKey: `planner:${process.startedAt}:${requested}`
+                        });
+                    } catch (error) {
+                        episodeError = error instanceof Error ? error.message : String(error);
+                    }
                 }
                 await appendAudit({ operator: 'local-admin', action: execute ? 'agent.plan.execute' : 'agent.plan.preview',
                     username: agent.identity.playerUsername, reason, success: true,
-                    after: { decision: cycle.decision, process } });
-                return json({ ok: true, decision: cycle.decision, process }, execute ? 202 : 200);
+                    after: { decision: cycle.decision, process, episode, episodeError } });
+                return json({ ok: true, decision: cycle.decision, process, episode, episodeError }, execute ? 202 : 200);
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: execute ? 'agent.plan.execute' : 'agent.plan.preview',
                     username: agent.identity.playerUsername, reason, success: false, error: String(error) });

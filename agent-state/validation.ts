@@ -1,10 +1,14 @@
-import type { AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentGoal, CreateAgentIdentity,
+import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentSkillKnowledgeStatus,
+    AgentSkillReference, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity,
     GoalHorizon, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLAYER_PATTERN = /^[a-z0-9 _-]+$/;
 const HORIZONS = new Set<GoalHorizon>(['life', 'long-term', 'current', 'immediate']);
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const EPISODE_KINDS = new Set<AgentEpisodeKind>(['observation', 'action', 'outcome', 'interaction', 'discovery', 'economic']);
+const EPISODE_SOURCES = new Set<AgentEpisodeSource>(['manual', 'system', 'skill', 'planner']);
+const EPISODE_TRUST = new Set<AgentEpisodeTrust>(['trusted', 'untrusted']);
 
 export class AgentStateValidationError extends Error {
     constructor(public readonly issues: string[]) {
@@ -39,6 +43,18 @@ function stringList(value: unknown, path: string, issues: string[], required: bo
     if ((required && value.length === 0) || value.length > 12) {
         issues.push(`${path} must contain ${required ? '1-12' : 'at most 12'} entries`);
     }
+    const entries = value.map((entry, index) => text(entry, `${path}[${index}]`, issues, 100));
+    const keys = entries.map(entry => entry.toLocaleLowerCase('en-US'));
+    if (new Set(keys).size !== keys.length) issues.push(`${path} must not contain duplicates`);
+    return entries;
+}
+
+function boundedStringList(value: unknown, path: string, issues: string[], maximum: number): string[] {
+    if (!Array.isArray(value)) {
+        issues.push(`${path} must be an array`);
+        return [];
+    }
+    if (value.length > maximum) issues.push(`${path} must contain at most ${maximum} entries`);
     const entries = value.map((entry, index) => text(entry, `${path}[${index}]`, issues, 100));
     const keys = entries.map(entry => entry.toLocaleLowerCase('en-US'));
     if (new Set(keys).size !== keys.length) issues.push(`${path} must not contain duplicates`);
@@ -157,6 +173,46 @@ export function validateWorkingMemory(value: SetAgentWorkingMemory): Required<Se
         location,
         observations: stringList(value.observations ?? [], 'observations', issues, false),
         observedAt
+    };
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return result;
+}
+
+export function validateCreateEpisode(value: CreateAgentEpisode): Required<CreateAgentEpisode> {
+    const issues: string[] = [];
+    const occurredAt = text(value.occurredAt, 'occurredAt', issues, 40);
+    if (occurredAt && Number.isNaN(Date.parse(occurredAt))) issues.push('occurredAt must be an ISO timestamp');
+    const expiresAt = value.expiresAt === null || value.expiresAt === undefined
+        ? null : text(value.expiresAt, 'expiresAt', issues, 40);
+    if (expiresAt && Number.isNaN(Date.parse(expiresAt))) issues.push('expiresAt must be an ISO timestamp');
+    if (expiresAt && occurredAt && Date.parse(expiresAt) <= Date.parse(occurredAt)) {
+        issues.push('expiresAt must be later than occurredAt');
+    }
+    const importance = value.importance ?? 50;
+    if (!Number.isInteger(importance) || importance < 0 || importance > 100) {
+        issues.push('importance must be an integer from 0 to 100');
+    }
+    if (!EPISODE_KINDS.has(value.kind)) issues.push('episode kind is invalid');
+    if (!EPISODE_SOURCES.has(value.source)) issues.push('episode source is invalid');
+    const trust = value.trust ?? 'trusted';
+    if (!EPISODE_TRUST.has(trust)) issues.push('episode trust is invalid');
+    const result: Required<CreateAgentEpisode> = {
+        episodeId: id(value.episodeId, 'episodeId', issues),
+        kind: value.kind,
+        summary: text(value.summary, 'summary', issues, 500),
+        details: text(value.details ?? '', 'details', issues, 2000, true),
+        importance,
+        goalIds: boundedStringList(value.goalIds ?? [], 'goalIds', issues, 8)
+            .map((goalId, index) => id(goalId, `goalIds[${index}]`, issues)),
+        actors: boundedStringList(value.actors ?? [], 'actors', issues, 12),
+        tags: boundedStringList(value.tags ?? [], 'tags', issues, 12)
+            .map(tag => tag.toLocaleLowerCase('en-US')),
+        source: value.source,
+        trust,
+        externalKey: value.externalKey === null || value.externalKey === undefined
+            ? null : text(value.externalKey, 'externalKey', issues, 160),
+        occurredAt,
+        expiresAt
     };
     if (issues.length) throw new AgentStateValidationError(issues);
     return result;

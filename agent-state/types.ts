@@ -1,8 +1,11 @@
-export const AGENT_STATE_SCHEMA_VERSION = 3 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 4 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
 export type AgentSkillKnowledgeStatus = 'known' | 'preferred' | 'blocked';
+export type AgentEpisodeKind = 'observation' | 'action' | 'outcome' | 'interaction' | 'discovery' | 'economic';
+export type AgentEpisodeSource = 'manual' | 'system' | 'skill' | 'planner';
+export type AgentEpisodeTrust = 'trusted' | 'untrusted';
 
 export interface AgentSkillReference {
     id: string;
@@ -98,6 +101,46 @@ export interface AgentSkillKnowledge {
     learnedAt: string;
     updatedAt: string;
     revision: number;
+}
+
+export interface AgentEpisode {
+    episodeId: string;
+    agentId: string;
+    kind: AgentEpisodeKind;
+    summary: string;
+    details: string;
+    importance: number;
+    goalIds: string[];
+    actors: string[];
+    tags: string[];
+    source: AgentEpisodeSource;
+    trust: AgentEpisodeTrust;
+    externalKey: string | null;
+    occurredAt: string;
+    expiresAt: string | null;
+    createdAt: string;
+}
+
+export interface CreateAgentEpisode {
+    episodeId: string;
+    kind: AgentEpisodeKind;
+    summary: string;
+    details?: string;
+    importance?: number;
+    goalIds?: string[];
+    actors?: string[];
+    tags?: string[];
+    source: AgentEpisodeSource;
+    trust?: AgentEpisodeTrust;
+    externalKey?: string | null;
+    occurredAt: string;
+    expiresAt?: string | null;
+}
+
+export interface AgentEpisodeListOptions {
+    limit?: number;
+    offset?: number;
+    kind?: AgentEpisodeKind;
 }
 
 export interface AgentSnapshot {

@@ -1,7 +1,8 @@
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
 import { planNextAction } from '../../../agent-state/planner.js';
-import type { AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentGoal, CreateAgentIdentity,
+import { episodicQueryFromSnapshot, retrieveEpisodicMemory } from '../../../agent-state/retrieval.js';
+import type { AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity,
     GoalStatus, UpdateAgentIdentity } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 import { listAdminSkills } from './skill-catalog.js';
@@ -17,9 +18,16 @@ export async function listAdminAgents(path = agentStateDbPath) {
     const availableSkills = skills.map(skill => ({ id: skill.id, version: skill.version }));
     const agents = useStore(path, store => store.listIdentities().map(identity => {
         const snapshot = store.getSnapshot(identity.agentId)!;
+        const recentEpisodes = store.listEpisodes(identity.agentId, { limit: 30 });
+        const relevantEpisodes = retrieveEpisodicMemory(store.listEpisodes(identity.agentId, { limit: 500 }),
+            episodicQueryFromSnapshot(snapshot));
         return {
             ...snapshot,
-            decisionContext: buildDecisionContext(snapshot, { maxCharacters: 2400 }),
+            episodeCount: store.countEpisodes(identity.agentId),
+            recentEpisodes,
+            relevantEpisodes,
+            decisionContext: buildDecisionContext(snapshot, { maxCharacters: 4000,
+                episodicMemories: relevantEpisodes.map(result => result.episode) }),
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
@@ -53,3 +61,6 @@ export function updateAdminAgentSkill(agentId: string, skill: AgentSkillReferenc
     return useStore(path, store => store.setSkillKnowledge(agentId, skill, status, expectedRevision));
 }
 
+export function createAdminAgentEpisode(agentId: string, input: CreateAgentEpisode, path = agentStateDbPath) {
+    return useStore(path, store => store.createEpisode(agentId, input));
+}

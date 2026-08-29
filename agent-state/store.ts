@@ -2,11 +2,13 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
-    type AgentSkillKnowledge, type AgentSkillKnowledgeStatus, type AgentSkillReference, type AgentWorkingMemory,
-    type CreateAgentGoal, type CreateAgentIdentity, type GoalStatus, type SetAgentWorkingMemory,
+    type AgentEpisode, type AgentEpisodeListOptions, type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
+    type AgentSkillReference, type AgentWorkingMemory, type CreateAgentEpisode, type CreateAgentGoal,
+    type CreateAgentIdentity, type GoalStatus, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
-    normalizeSkillReference, validateIdentityPatch, validateSkillKnowledgeStatus, validateWorkingMemory } from './validation.js';
+    normalizeSkillReference, validateCreateEpisode, validateIdentityPatch, validateSkillKnowledgeStatus,
+    validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
     agent_id: string; player_username: string; display_name: string; background: string;
@@ -24,6 +26,12 @@ interface WorkingMemoryRow {
 interface SkillKnowledgeRow {
     agent_id: string; skill_id: string; skill_version: string; status: AgentSkillKnowledgeStatus;
     learned_at: string; updated_at: string; revision: number;
+}
+interface EpisodeRow {
+    episode_id: string; agent_id: string; kind: AgentEpisode['kind']; summary: string; details: string;
+    importance: number; goal_ids: string; actors: string; tags: string; source: AgentEpisode['source'];
+    trust: AgentEpisode['trust']; external_key: string | null; occurred_at: string; expires_at: string | null;
+    created_at: string;
 }
 
 function identity(row: IdentityRow): AgentIdentity {
@@ -47,6 +55,13 @@ function workingMemory(row: WorkingMemoryRow): AgentWorkingMemory {
         location: row.location ? JSON.parse(row.location) as AgentWorkingMemory['location'] : null,
         observations: JSON.parse(row.observations) as string[], observedAt: row.observed_at,
         updatedAt: row.updated_at, revision: row.revision };
+}
+function episode(row: EpisodeRow): AgentEpisode {
+    return { episodeId: row.episode_id, agentId: row.agent_id, kind: row.kind, summary: row.summary,
+        details: row.details, importance: row.importance, goalIds: JSON.parse(row.goal_ids) as string[],
+        actors: JSON.parse(row.actors) as string[], tags: JSON.parse(row.tags) as string[], source: row.source,
+        trust: row.trust, externalKey: row.external_key, occurredAt: row.occurred_at,
+        expiresAt: row.expires_at, createdAt: row.created_at };
 }
 
 export class AgentStateStore {
@@ -244,6 +259,74 @@ export class AgentStateStore {
             ORDER BY skill_id, skill_version`).all(normalized) as SkillKnowledgeRow[]).map(skillKnowledge);
     }
 
+    createEpisode(agentId: string, input: CreateAgentEpisode,
+        createdAt = new Date().toISOString()): AgentEpisode {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const value = validateCreateEpisode(input);
+        let existing: AgentEpisode | null = null;
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalizedAgentId);
+            for (const goalId of value.goalIds) {
+                const goal = this.getGoal(goalId);
+                if (!goal || goal.agentId !== normalizedAgentId) {
+                    throw new Error(`Episode goal must belong to the same agent: ${goalId}`);
+                }
+            }
+            if (value.externalKey) {
+                const row = this.database.query(`SELECT * FROM agent_episode
+                    WHERE agent_id = ?1 AND external_key = ?2`).get(normalizedAgentId, value.externalKey) as EpisodeRow | null;
+                if (row) {
+                    existing = episode(row);
+                    if (existing.kind !== value.kind || existing.summary !== value.summary
+                        || existing.details !== value.details || existing.importance !== value.importance
+                        || JSON.stringify(existing.goalIds) !== JSON.stringify(value.goalIds)
+                        || JSON.stringify(existing.actors) !== JSON.stringify(value.actors)
+                        || JSON.stringify(existing.tags) !== JSON.stringify(value.tags)
+                        || existing.source !== value.source || existing.trust !== value.trust
+                        || existing.occurredAt !== value.occurredAt || existing.expiresAt !== value.expiresAt) {
+                        throw new Error(`Episode external key collision: ${value.externalKey}`);
+                    }
+                    return;
+                }
+            }
+            this.database.run(`INSERT INTO agent_episode
+                (episode_id, agent_id, kind, summary, details, importance, goal_ids, actors, tags, source, trust,
+                external_key, occurred_at, expires_at, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`,
+            [value.episodeId, normalizedAgentId, value.kind, value.summary, value.details, value.importance,
+                JSON.stringify(value.goalIds), JSON.stringify(value.actors), JSON.stringify(value.tags), value.source,
+                value.trust, value.externalKey, value.occurredAt, value.expiresAt, createdAt]);
+        });
+        transaction.immediate();
+        return existing ?? this.requireEpisode(value.episodeId);
+    }
+
+    getEpisode(episodeId: string): AgentEpisode | null {
+        const normalized = normalizeAgentId(episodeId, 'episodeId');
+        const row = this.database.query('SELECT * FROM agent_episode WHERE episode_id = ?1').get(normalized);
+        return row ? episode(row as EpisodeRow) : null;
+    }
+
+    listEpisodes(agentId: string, options: AgentEpisodeListOptions = {}): AgentEpisode[] {
+        const normalized = normalizeAgentId(agentId);
+        const limit = options.limit ?? 100;
+        const offset = options.offset ?? 0;
+        if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error('Episode limit must be from 1 to 500');
+        if (!Number.isInteger(offset) || offset < 0) throw new Error('Episode offset must be a non-negative integer');
+        const rows = options.kind
+            ? this.database.query(`SELECT * FROM agent_episode WHERE agent_id = ?1 AND kind = ?2
+                ORDER BY occurred_at DESC, episode_id LIMIT ?3 OFFSET ?4`).all(normalized, options.kind, limit, offset)
+            : this.database.query(`SELECT * FROM agent_episode WHERE agent_id = ?1
+                ORDER BY occurred_at DESC, episode_id LIMIT ?2 OFFSET ?3`).all(normalized, limit, offset);
+        return (rows as EpisodeRow[]).map(episode);
+    }
+
+    countEpisodes(agentId: string): number {
+        const normalized = normalizeAgentId(agentId);
+        return (this.database.query('SELECT COUNT(*) AS count FROM agent_episode WHERE agent_id = ?1')
+            .get(normalized) as { count: number }).count;
+    }
+
     getSnapshot(agentId: string): AgentSnapshot | null {
         const found = this.getIdentity(agentId);
         return found ? { identity: found, goals: this.listGoals(found.agentId),
@@ -258,6 +341,11 @@ export class AgentStateStore {
     private requireGoal(goalId: string): AgentGoal {
         const found = this.getGoal(goalId);
         if (!found) throw new Error(`Unknown goal: ${goalId}`);
+        return found;
+    }
+    private requireEpisode(episodeId: string): AgentEpisode {
+        const found = this.getEpisode(episodeId);
+        if (!found) throw new Error(`Unknown episode: ${episodeId}`);
         return found;
     }
     private migrate(): void {
@@ -308,6 +396,28 @@ export class AgentStateStore {
                     revision INTEGER NOT NULL CHECK (revision >= 1),
                     PRIMARY KEY (agent_id, skill_id, skill_version))`);
                 this.database.run('PRAGMA user_version = 3');
+            });
+            transaction.immediate();
+        }
+        if (version < 4) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_episode (
+                    episode_id TEXT PRIMARY KEY,
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    kind TEXT NOT NULL CHECK (kind IN ('observation', 'action', 'outcome', 'interaction', 'discovery', 'economic')),
+                    summary TEXT NOT NULL, details TEXT NOT NULL,
+                    importance INTEGER NOT NULL CHECK (importance BETWEEN 0 AND 100),
+                    goal_ids TEXT NOT NULL, actors TEXT NOT NULL, tags TEXT NOT NULL,
+                    source TEXT NOT NULL CHECK (source IN ('manual', 'system', 'skill', 'planner')),
+                    trust TEXT NOT NULL CHECK (trust IN ('trusted', 'untrusted')),
+                    external_key TEXT, occurred_at TEXT NOT NULL, expires_at TEXT, created_at TEXT NOT NULL)`);
+                this.database.run(`CREATE UNIQUE INDEX agent_episode_external_key
+                    ON agent_episode(agent_id, external_key) WHERE external_key IS NOT NULL`);
+                this.database.run(`CREATE INDEX agent_episode_agent_time
+                    ON agent_episode(agent_id, occurred_at DESC)`);
+                this.database.run(`CREATE INDEX agent_episode_agent_importance
+                    ON agent_episode(agent_id, importance DESC)`);
+                this.database.run('PRAGMA user_version = 4');
             });
             transaction.immediate();
         }

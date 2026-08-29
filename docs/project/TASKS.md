@@ -217,14 +217,19 @@ Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdo
 - [x] Agent-identitás sémája: név, háttértörténet és személyiségjegyek.
 - [x] Célhierarchia: életcél, hosszú távú, aktuális és azonnali feladat.
 - [x] Working memory: kis méretű, mindig elérhető aktuális helyzet.
-- [ ] Episodic memory: időzített, visszakereshető konkrét események.
+- [x] Episodic memory: időzített, visszakereshető konkrét események.
 - [ ] Semantic memory: megtanult világ- és gazdasági ismeretek.
 - [ ] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
 - [ ] Assets (pénz, ingatlan, vállalkozás, követelés) összekapcsolása az agent állapotával.
 - [x] Egzakt, verziózott ismert skillek összekapcsolása az agent állapotával.
-- [ ] Relevancia-, frissesség- és célalapú context-visszakeresés készítése.
+- [ ] Relevancia-, frissesség- és célalapú context-visszakeresés minden tartós
+  memóriatípushoz.
+  - [x] Determinisztikus episodic retrieval cél-, szereplő-, címke-, szöveg-,
+    fontosság- és frissességi pontozással.
 - [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
 - [ ] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
+  - [x] Az episodic események idempotens külső kulcsát, opcionális elévülését és
+    döntési contextből való automatikus kizárását elkészíteni.
 - [ ] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
 
 Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
@@ -375,3 +380,5 @@ képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla ter
 27. [x] Az Agentek adminfület elkészíteni identitás-, cél- és skillismeret-kezeléssel,
     korlátozott döntési contexttel, planner dry-runnal és megerősített kézi
     skillvégrehajtással.
+28. [x] Tartós episodic eseménytárat, determinisztikus relevancia-visszakeresést,
+    korlátozott context-integrációt és adminpaneles emlékrögzítést készíteni.

@@ -75,6 +75,31 @@ műveletet. A külön `Döntés végrehajtása` gomb újabb indoklást és meger
 csak friss online bot, elérhető credential, üres futási slot és egzakt verified
 skill esetén indítja el a meglévő, naplózott skillfuttatót.
 
+## Episodic memória
+
+A v4 séma append-only, konkrét eseményeket tartalmazó episodic tárral bővült.
+Egy emléknek stabil azonosítója, típusa, eseményideje, rövid összefoglalója,
+részlete, 0–100 fontossága, kapcsolt céljai, szereplői és címkéi van. A forrás
+`manual`, `system`, `skill` vagy `planner`; a megbízhatóság külön `trusted` vagy
+`untrusted`, ezért például egy játékos chatállítása tárolható anélkül, hogy
+automatikusan ténnyé válna. Az opcionális elévülési idő után az emlék megmarad az
+auditálható történetben, de nem kerül elő döntéshez.
+
+Az `externalKey` azonos külső esemény ismételt feldolgozását idempotenssé teszi.
+Azonos kulcs és azonos tartalom a már létező emléket adja vissza; eltérő tartalom
+ütközésként, fail-closed hibával áll le.
+
+A determinisztikus retrieval fontosságot és kor szerinti frissességet pontoz,
+majd az aktív cél-, szereplő-, címke- és szövegegyezést súlyozza. Lejárt, jövőbeli,
+túl régi és alapértelmezésben nem megbízható emléket kizár. Az eredmény stabil
+sorrendű, darabszám-korlátos, és csak ez a kiválasztott rész kerülhet a karakterben
+is korlátozott döntési contextbe.
+
+Az Agentek fül `+ Emlék` művelete kézi eseményrögzítést ad aktív célokhoz. A kártya
+az utolsó harminc eseményt belső görgetéssel mutatja; a jelenlegi célokhoz releváns
+emlékeket zöld jelölés és a retrieval pontszáma emeli ki. Plannerrel ténylegesen
+elindított skillekről automatikus, célhoz kötött `action` emlék készül.
+
 ## Tartós agentmodell
 
 - **Identity:** név, háttértörténet, személyiség.

@@ -198,6 +198,26 @@
         </form>
     </dialog>
 
+    <dialog id="agent-episode-dialog">
+        <form id="agent-episode-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">EPISODIC MEMORY</p><h2>Konkrét emlék rögzítése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="agentId" type="hidden">
+            <label>Eseménytípus<select name="kind" required><option value="observation">Megfigyelés</option><option value="action">Cselekvés</option><option value="outcome">Eredmény</option><option value="interaction">Interakció</option><option value="discovery">Felfedezés</option><option value="economic">Gazdasági esemény</option></select></label>
+            <label>Rövid összefoglaló<input name="summary" maxlength="500" required></label>
+            <label>Részletek<textarea name="details" maxlength="2000" rows="4"></textarea></label>
+            <label>Fontosság (0–100)<input name="importance" type="number" min="0" max="100" step="1" value="50" required></label>
+            <label>Kapcsolt aktív célok<select name="goalIds" multiple size="4"></select></label>
+            <label>Érintett szereplők <span class="muted">(vesszővel)</span><input name="actors" maxlength="500" placeholder="pl. Horvik, ferrye15"></label>
+            <label>Címkék <span class="muted">(vesszővel)</span><input name="tags" maxlength="500" placeholder="pl. varrock, mining, market"></label>
+            <label>Megbízhatóság<select name="trust" required><option value="trusted">Megbízható tapasztalat</option><option value="untrusted">Nem megbízható külső állítás</option></select></label>
+            <label>Esemény időpontja<input name="occurredAt" type="datetime-local" required></label>
+            <label>Elévülés <span class="muted">(opcionális)</span><input name="expiresAt" type="datetime-local"></label>
+            <label>Indoklás<input name="reason" value="Agent episodic memória kézi rögzítése" required></label>
+            <p class="dialog-note">A nem megbízható emlékek megmaradnak auditáláshoz, de alapból nem kerülnek a döntési contextbe.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Emlék mentése</button></div>
+        </form>
+    </dialog>
+
     <dialog id="delete-dialog">
         <form id="delete-form" method="dialog">
             <div class="dialog-heading"><div><p class="eyebrow danger-text">VÉDETT MŰVELET</p><h2>Bot törlése</h2></div><button type="button" class="dialog-close">×</button></div>

@@ -1,4 +1,4 @@
-import type { AgentSnapshot, GoalHorizon } from './types.js';
+import type { AgentEpisode, AgentSnapshot, GoalHorizon } from './types.js';
 
 const LABELS: Record<GoalHorizon, string> = {
     life: 'Life goal', 'long-term': 'Long-term goals', current: 'Current goals', immediate: 'Immediate tasks'
@@ -29,6 +29,7 @@ export interface DecisionContextOptions {
     now?: string;
     maxCharacters?: number;
     workingMemoryMaxAgeMs?: number;
+    episodicMemories?: readonly AgentEpisode[];
 }
 
 export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionContextOptions = {}): string {
@@ -52,6 +53,14 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
         parts.push(`Activity: ${memory.currentActivity ?? 'idle'}`);
         parts.push(`Location: ${location}`);
         if (memory.observations.length) parts.push(`Recent observations: ${memory.observations.join('; ')}`);
+    }
+    if (options.episodicMemories?.length) {
+        const memories = options.episodicMemories.slice(0, 12).map(item => {
+            const links = [item.goalIds.length ? `goals=${item.goalIds.join(',')}` : '',
+                item.actors.length ? `actors=${item.actors.join(',')}` : ''].filter(Boolean).join('; ');
+            return `${item.occurredAt}: ${item.summary}${links ? ` [${links}]` : ''}`;
+        });
+        parts.push(`Relevant episodic memories:\n- ${memories.join('\n- ')}`);
     }
     const full = parts.join('\n');
     if (full.length <= maxCharacters) return full;

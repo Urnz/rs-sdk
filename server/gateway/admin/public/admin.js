@@ -92,9 +92,16 @@ const goalHorizonLabels = { life: 'Életcél', 'long-term': 'Hosszú távú', cu
 const goalStatusLabels = { active: 'Aktív', completed: 'Teljesítve', blocked: 'Blokkolt', abandoned: 'Elvetve' };
 const plannerLabels = { 'execute-skill': 'Végrehajtható', 'refresh-state': 'Friss állapot kell',
     'no-immediate-goal': 'Nincs azonnali cél', 'skill-unavailable': 'Skill nem elérhető' };
+const episodeKindLabels = { observation: 'Megfigyelés', action: 'Cselekvés', outcome: 'Eredmény',
+    interaction: 'Interakció', discovery: 'Felfedezés', economic: 'Gazdasági esemény' };
 
 function csvValues(value) {
     return String(value || '').split(',').map(entry => entry.trim()).filter(Boolean);
+}
+
+function dateTimeLocalValue(value = new Date()) {
+    const date = value instanceof Date ? value : new Date(value);
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
 function renderAgents() {
@@ -115,12 +122,22 @@ function renderAgents() {
             <button class="agent-chip ${escapeHtml(known.status)}" data-action="agent-skill-edit" data-agent-id="${escapeHtml(identity.agentId)}"
                 data-skill="${escapeHtml(`${known.skill.id}@${known.skill.version}`)}" data-skill-status="${escapeHtml(known.status)}" data-skill-revision="${known.revision}">${escapeHtml(known.status)}</button>
         </div>`).join('') || '<p class="muted">Nincs nyilvántartott skillismeret.</p>';
+        const relevant = new Map(agent.relevantEpisodes.map(result => [result.episode.episodeId, result]));
+        const episodes = agent.recentEpisodes.map(episode => {
+            const match = relevant.get(episode.episodeId);
+            return `<div class="agent-episode ${match ? 'relevant' : ''} ${escapeHtml(episode.trust)}">
+                <strong>${escapeHtml(episode.summary)}</strong>
+                <small>${escapeHtml(episodeKindLabels[episode.kind] || episode.kind)} · fontosság ${episode.importance} · ${new Date(episode.occurredAt).toLocaleString('hu-HU')}${match ? ` · relevancia ${match.score}` : ''}</small>
+                ${episode.goalIds.length ? `<small>célok: ${escapeHtml(episode.goalIds.join(', '))}</small>` : ''}
+            </div>`;
+        }).join('') || '<p class="muted">Még nincs episodic memória.</p>';
         return `<article class="agent-card" data-agent-id="${escapeHtml(identity.agentId)}">
             <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
                 <div class="agent-card-actions">
                     <button class="button small ghost" data-action="agent-edit" data-agent-id="${escapeHtml(identity.agentId)}">Identitás szerkesztése</button>
                     <button class="button small secondary" data-action="agent-goal-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Cél</button>
                     <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Skillismeret</button>
+                    <button class="button small secondary" data-action="agent-episode-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Emlék</button>
                     <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
                     <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
                 </div></div>
@@ -132,6 +149,7 @@ function renderAgents() {
                 <section class="agent-section"><h4>Working memory</h4>${memory
                     ? `<p>${escapeHtml(memory.summary)}</p><small class="muted">${escapeHtml(relativeTime(memory.observedAt))} · rev ${memory.revision}</small>`
                     : '<p class="muted">Még nincs élő megfigyelés.</p>'}</section>
+                <section class="agent-section"><h4>Episodic memória (${agent.episodeCount})</h4><div class="agent-episodes">${episodes}</div></section>
                 <section class="agent-section"><h4>Planner</h4><p>${escapeHtml(agent.planner.reason)}</p><pre class="agent-context">${escapeHtml(agent.decisionContext)}</pre></section>
             </div></article>`;
     }).join('') : '<p class="empty">Még nincs persistent agent. Hozd létre az elsőt egy meglévő bothoz.</p>';
@@ -181,6 +199,18 @@ function showAgentSkill(agentId, reference = '', status = 'known', revision = nu
     form.elements.skill.value = reference || state.agentSkills[0]?.reference || '';
     form.elements.skill.disabled = Boolean(reference); form.elements.status.value = status;
     form.elements.reason.value = 'Agent skillismeret frissítése'; $('#agent-skill-dialog').showModal();
+}
+
+function showAgentEpisode(agentId) {
+    const form = $('#agent-episode-form'); form.reset(); form.elements.agentId.value = agentId;
+    const agent = state.agents.find(entry => entry.identity.agentId === agentId);
+    if (!agent) throw new Error('Az agent már nem található.');
+    form.elements.goalIds.innerHTML = agent.goals.filter(goal => goal.status === 'active')
+        .map(goal => `<option value="${escapeHtml(goal.goalId)}">${escapeHtml(goalHorizonLabels[goal.horizon])}: ${escapeHtml(goal.title)}</option>`).join('');
+    form.elements.importance.value = 50;
+    form.elements.occurredAt.value = dateTimeLocalValue();
+    form.elements.reason.value = 'Agent episodic memória kézi rögzítése';
+    $('#agent-episode-dialog').showModal();
 }
 
 function relativeTime(value) {
@@ -971,6 +1001,7 @@ document.addEventListener('click', async event => {
         }
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
+        if (button.dataset.action === 'agent-episode-add') showAgentEpisode(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-edit') showAgentSkill(
             button.dataset.agentId, button.dataset.skill, button.dataset.skillStatus,
             Number(button.dataset.skillRevision)
@@ -997,7 +1028,9 @@ document.addEventListener('click', async event => {
                     method: 'POST', mutation: true, body: JSON.stringify({ execute, reason: reason.trim() })
                 });
                 const decision = plannerLabels[response.decision.kind] || response.decision.kind;
-                toast(execute ? `${decision}: a skill indítása megtörtént.` : `Planner eredmény: ${decision}.`);
+                toast(execute
+                    ? `${decision}: a skill indítása megtörtént.${response.episodeError ? ` Az emléknapló hibája: ${response.episodeError}` : ''}`
+                    : `Planner eredmény: ${decision}.`, Boolean(response.episodeError));
                 await refresh();
             } finally { button.disabled = false; }
         }
@@ -1071,6 +1104,24 @@ $('#agent-skill-form').addEventListener('submit', async event => {
             })
         });
         form.closest('dialog').close(); toast('Az agent skillismerete frissült.'); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#agent-episode-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    const expiresAt = data.get('expiresAt')?.toString();
+    try {
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('agentId'))}/episodes`, {
+            method: 'POST', mutation: true, body: JSON.stringify({
+                kind: data.get('kind'), summary: data.get('summary'), details: data.get('details'),
+                importance: Number(data.get('importance')), goalIds: data.getAll('goalIds'),
+                actors: csvValues(data.get('actors')), tags: csvValues(data.get('tags')), trust: data.get('trust'),
+                occurredAt: new Date(data.get('occurredAt')).toISOString(),
+                expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('Az episodic emlék tartósan elmentve.'); await refreshAgents();
     } catch (error) { toast(error.message, true); }
 });
 

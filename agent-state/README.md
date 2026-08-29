@@ -46,3 +46,12 @@ The local admin panel has an `Agentek` tab for creating an identity linked to an
 building the four-level goal hierarchy and assigning exact verified skill knowledge. Each card exposes the bounded
 decision context and current planner preview. A dry-run refreshes working memory from a fresh online bot without taking
 an action; execution is a separate confirmed, audited operation and still uses the existing supervised skill runner.
+
+## Episodic memory
+
+Schema v4 adds immutable concrete events with timestamps, importance, goal links, actors, tags, provenance, trust and
+optional expiry. An optional external key makes source-event ingestion idempotent and rejects content collisions. The
+deterministic retriever ranks trusted, non-expired episodes by importance, recency and goal/actor/tag/text matches, then
+passes only the bounded result into `buildDecisionContext`. Untrusted statements remain inspectable but are excluded by
+default. Manual episodes can be added on the `Agentek` admin tab, and planner-approved skill starts create a linked
+action episode automatically.
