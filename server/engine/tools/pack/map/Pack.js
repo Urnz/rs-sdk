@@ -7,7 +7,7 @@ import Environment from '#/util/Environment.js';
 import { printWarning } from '#/util/Logger.js';
 
 import { getArtifactManifestPath, getArtifactSourceStamp, loadArtifactManifest, openArtifactStore, saveArtifactManifest } from '#tools/pack/ArtifactCache.js';
-import { MapPack, shouldBuild, shouldBuildFile } from '#tools/pack/PackFile.js';
+import { MapPack, shouldBuild, shouldBuildFile, shouldBuildFileAny, shouldBuildFileList } from '#tools/pack/PackFile.js';
 import { didFileSetChange } from '#tools/pack/FsCache.js';
 
 let npcTypePromise = null;
@@ -243,16 +243,35 @@ export async function packMaps(cache, modelFlags) {
     let artifactManifestDirty = false;
     const toolChanged = didFileSetChange('data/pack/.stamps/map-tools.txt', [import.meta.filename, 'src/io/FileStream.ts']);
     const needsAnyMapPackWork = rebuildMapArchive || shouldBuild(`${Environment.build.srcDir}/maps`, '.jm2', getArtifactManifestPath(artifactName)) || toolChanged;
+    const worldmapPath = 'data/pack/mapview/worldmap.jag';
+    const needsWorldmapRebuild =
+        !fs.existsSync(worldmapPath) ||
+        shouldBuildFileList(
+            [
+                'data/pack/server/flo.dat',
+                'data/pack/server/flo.idx',
+                'data/pack/server/loc.dat',
+                'data/pack/server/loc.idx',
+                'data/pack/server/npc.dat',
+                'data/pack/server/npc.idx',
+                'tools/pack/PixPack.ts'
+            ],
+            worldmapPath
+        ) ||
+        shouldBuildFileAny(`${Environment.build.srcDir}/maps`, worldmapPath) ||
+        shouldBuildFileAny(`${Environment.build.srcDir}/sprites`, worldmapPath) ||
+        shouldBuildFileAny(`${Environment.build.srcDir}/fonts`, worldmapPath) ||
+        shouldBuildFileAny('tools/pack/map', worldmapPath);
 
     if (rebuildMapArchive) {
         cache.clearArchive(4);
     }
 
-    if (!needsAnyMapPackWork && !needsMapHydration) {
+    if (!needsAnyMapPackWork && !needsMapHydration && !needsWorldmapRebuild) {
         return false;
     }
 
-    let rebuildWorldmap = !fs.existsSync('data/pack/mapview/worldmap.jag');
+    let rebuildWorldmap = needsWorldmapRebuild;
     let rebuiltAnyMap = false;
     let NpcType = null;
     for (const name of maps) {
