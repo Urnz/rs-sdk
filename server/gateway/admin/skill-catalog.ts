@@ -3,7 +3,10 @@ import { FileSkillStore } from '../../../agent-skills/store';
 import { SkillLibrary } from '../../../agent-skills/library';
 import { SkillRegistry } from '../../../agent-skills/registry';
 import type { RegisteredSkill, SkillDefinition } from '../../../agent-skills/types';
-import { repoRoot } from './paths';
+import { PolicySkillStore } from '../../../agent-skills/policy-store.js';
+import { SkillLearningStore } from '../../../agent-skills/learning.js';
+import { legacySkillPolicy, type SkillSharingPolicy } from '../../../agent-skills/sharing-policy.js';
+import { policySkillsDir, repoRoot, skillLearningPath } from './paths';
 
 export interface AdminSkillSummary {
     reference: string;
@@ -14,6 +17,7 @@ export interface AdminSkillSummary {
     tags: string[];
     parameters: SkillDefinition['parameters'];
     limits: SkillDefinition['limits'];
+    policy: SkillSharingPolicy;
 }
 
 async function loadVerifiedRegistry(): Promise<SkillRegistry> {
@@ -23,8 +27,18 @@ async function loadVerifiedRegistry(): Promise<SkillRegistry> {
     return registry;
 }
 
-function reference(skill: RegisteredSkill): string {
-    return `${skill.definition.id}@${skill.definition.version}`;
+function summary(definition: SkillDefinition, policy: SkillSharingPolicy): AdminSkillSummary {
+    return {
+        reference: `${definition.id}@${definition.version}`,
+        id: definition.id,
+        version: definition.version,
+        name: definition.name,
+        description: definition.description,
+        tags: definition.tags,
+        parameters: definition.parameters,
+        limits: definition.limits,
+        policy
+    };
 }
 
 export async function listAdminSkills(): Promise<AdminSkillSummary[]> {
@@ -34,16 +48,50 @@ export async function listAdminSkills(): Promise<AdminSkillSummary[]> {
         if (skill.definition.sharing.visibility !== 'shared' || latest.has(skill.definition.id)) continue;
         latest.set(skill.definition.id, skill);
     }
-    return [...latest.values()].map(skill => ({
-        reference: reference(skill),
-        id: skill.definition.id,
-        version: skill.definition.version,
-        name: skill.definition.name,
-        description: skill.definition.description,
-        tags: skill.definition.tags,
-        parameters: skill.definition.parameters,
-        limits: skill.definition.limits
-    }));
+    return [...latest.values()].map(skill => summary(skill.definition, legacySkillPolicy(skill.definition.sharing)));
+}
+
+export interface AdminAgentSkillCatalogOptions {
+    learningPath?: string;
+    policyRoot?: string;
+    at?: string;
+}
+
+export async function listAdminSkillsForAgent(agentId: string, options: AdminAgentSkillCatalogOptions = {}) {
+    const subject = await new SkillLearningStore(options.learningPath ?? skillLearningPath)
+        .accessSubject(agentId, options.at);
+    const [legacy, policyEnvelopes] = await Promise.all([
+        listAdminSkills(),
+        new PolicySkillStore(options.policyRoot ?? policySkillsDir).loadAccessibleTo(subject)
+    ]);
+    const byReference = new Map<string, AdminSkillSummary>();
+    for (const skill of legacy) byReference.set(skill.reference, skill);
+    for (const envelope of policyEnvelopes) {
+        if (envelope.definition.status !== 'verified') continue;
+        const value = summary(envelope.definition, envelope.policy);
+        byReference.set(value.reference, value);
+    }
+    const latest = new Map<string, AdminSkillSummary>();
+    for (const skill of [...byReference.values()].sort((left, right) => left.id.localeCompare(right.id)
+        || right.version.localeCompare(left.version, undefined, { numeric: true }))) {
+        if (!latest.has(skill.id)) latest.set(skill.id, skill);
+    }
+    return [...latest.values()];
+}
+
+export async function resolveAdminSkillForAgent(requested: string, agentId: string,
+    options: AdminAgentSkillCatalogOptions = {}): Promise<{ definition: SkillDefinition; policy: SkillSharingPolicy }> {
+    const subject = await new SkillLearningStore(options.learningPath ?? skillLearningPath)
+        .accessSubject(agentId, options.at);
+    const envelopes = await new PolicySkillStore(options.policyRoot ?? policySkillsDir).loadAccessibleTo(subject);
+    const separator = requested.lastIndexOf('@');
+    const policyMatches = envelopes.filter(envelope => envelope.definition.status === 'verified'
+        && envelope.definition.id === (separator > 0 ? requested.slice(0, separator) : requested)
+        && (separator <= 0 || envelope.definition.version === requested.slice(separator + 1)))
+        .sort((left, right) => right.definition.version.localeCompare(left.definition.version, undefined, { numeric: true }));
+    if (policyMatches[0]) return { definition: policyMatches[0].definition, policy: policyMatches[0].policy };
+    const legacy = await resolveAdminSkill(requested);
+    return { definition: legacy.definition, policy: legacySkillPolicy(legacy.definition.sharing) };
 }
 
 export async function resolveAdminSkill(requested: string): Promise<RegisteredSkill> {

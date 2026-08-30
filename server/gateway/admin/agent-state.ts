@@ -8,7 +8,7 @@ import type { AgentCommitmentStatus, AgentSkillKnowledgeStatus, AgentSkillRefere
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
     SetAgentRelationship, UpdateAgentIdentity } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
-import { listAdminSkills } from './skill-catalog.js';
+import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { BotCatalogEntry } from './types.js';
 import type { AdminPropertyView } from './properties.js';
 
@@ -23,6 +23,7 @@ export interface AdminAgentAssetSources {
     properties?: readonly AdminPropertyView[];
     unavailableSources?: readonly string[];
     observedAt?: string;
+    skillCatalog?: AdminAgentSkillCatalogOptions;
 }
 
 export async function listAdminAgents(path = agentStateDbPath, assetSources: AdminAgentAssetSources = {}) {
@@ -91,7 +92,26 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
-    return { agents, skills, generatedAt };
+    const enrichedAgents = await Promise.all(agents.map(async agent => {
+        const catalogSkills = await listAdminSkillsForAgent(agent.identity.agentId, {
+            ...assetSources.skillCatalog, at: assetSources.skillCatalog?.at ?? generatedAt
+        });
+        const knownByReference = new Map(agent.knownSkills.map(item => [`${item.skill.id}@${item.skill.version}`, item]));
+        const skillRelationships = catalogSkills.map(skill => {
+            const knowledge = knownByReference.get(skill.reference) ?? null;
+            return {
+                reference: { id: skill.id, version: skill.version }, name: skill.name,
+                exists: true as const, access: 'accessible' as const, policy: skill.policy,
+                knowledge: knowledge?.status ?? 'unlearned' as const,
+                executable: knowledge?.status === 'known' || knowledge?.status === 'preferred'
+            };
+        });
+        return { ...agent, catalogSkills, skillRelationships,
+            planner: planNextAction(agent, { availableSkills: catalogSkills.map(skill => ({
+                id: skill.id, version: skill.version
+            })) }) };
+    }));
+    return { agents: enrichedAgents, skills, generatedAt };
 }
 
 export function createAdminAgent(input: CreateAgentIdentity, path = agentStateDbPath) {

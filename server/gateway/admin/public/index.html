@@ -127,6 +127,18 @@
                     <button id="new-agent-button" class="button primary">+ Agent létrehozása</button></div>
             </div>
             <p class="agent-intro">Az identitás a botsessiontől független. A planner csak friss élő állapotból, ismert verified skillből és aktív azonnali célból indíthat műveletet.</p>
+            <section class="skill-access-admin">
+                <div class="agent-section-heading">
+                    <div><p class="eyebrow">SKILL HOZZÁFÉRÉS</p><h3>Tagságok, oktatók és licencek</h3></div>
+                    <div class="agent-heading-actions"><span id="skill-grant-count" class="count-pill">0 aktív grant</span>
+                        <button id="new-skill-grant-button" class="button secondary">+ Jogosultság</button></div>
+                </div>
+                <p class="dialog-note">A grant hozzáférést adhat egy korlátozott skillhez, de önmagában nem jelenti azt, hogy az agent már meg is tanulta.</p>
+                <div id="skill-grant-list" class="skill-grant-list scroll-region" role="region" aria-label="Skill-hozzáférési jogosultságok" tabindex="0"><p class="empty">Betöltés…</p></div>
+                <details class="skill-learning-history"><summary>Tanulási események (<span id="skill-learning-count">0</span>)</summary>
+                    <div id="skill-learning-list" class="skill-grant-list scroll-region"><p class="empty">Még nincs tanulási esemény.</p></div>
+                </details>
+            </section>
             <div id="agent-list" class="agent-list scrollable-list" role="region" aria-label="Persistent agentek" tabindex="0">
                 <p class="empty">Betöltés…</p>
             </div>
@@ -255,6 +267,24 @@
         </form>
     </dialog>
 
+    <dialog id="skill-grant-dialog">
+        <form id="skill-grant-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">SKILL HOZZÁFÉRÉS</p><h2>Új jogosultság</h2></div><button type="button" class="dialog-close">×</button></div>
+            <label>Agent<select name="agentId" required></select></label>
+            <label>Jogosultság típusa<select name="kind" required>
+                <option value="organization-membership">Szervezeti tagság</option>
+                <option value="teacher-relationship">Oktatói kapcsolat</option>
+                <option value="license">Licenc</option>
+            </select></label>
+            <label>Erőforrás stabil ID-je<input name="resourceId" pattern="[a-z0-9]+([._:-][a-z0-9]+)*" maxlength="100" placeholder="pl. miners-guild" required></label>
+            <label>Érvényes ettől<input name="validFrom" type="datetime-local" required></label>
+            <label>Érvényes eddig <span class="muted">(opcionális)</span><input name="validUntil" type="datetime-local"></label>
+            <label>Indoklás<input name="reason" maxlength="500" value="Agent skill-hozzáférés kiosztása" required></label>
+            <p class="dialog-note">Szervezeti skillnél a szervezet ID-jét, tanítható skillnél az oktató agent ID-jét, licencelt skillnél a licenc ID-jét add meg.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Jogosultság kiosztása</button></div>
+        </form>
+    </dialog>
+
     <dialog id="agent-goal-dialog">
         <form id="agent-goal-form" method="dialog">
             <div class="dialog-heading"><div><p class="eyebrow">CÉLHIERARCHIA</p><h2>Új cél</h2></div><button type="button" class="dialog-close">×</button></div>
@@ -273,12 +303,12 @@
 
     <dialog id="agent-skill-dialog">
         <form id="agent-skill-form" method="dialog">
-            <div class="dialog-heading"><div><p class="eyebrow">SKILLISMERET</p><h2>Agent skill frissítése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <div class="dialog-heading"><div><p class="eyebrow">KÉZI FELÜLBÍRÁLÁS</p><h2>Agent skillállapot frissítése</h2></div><button type="button" class="dialog-close">×</button></div>
             <input name="agentId" type="hidden"><input name="expectedRevision" type="hidden">
             <label>Verified skill<select name="skill" required></select></label>
             <label>Állapot<select name="status" required><option value="known">Ismert</option><option value="preferred">Preferált</option><option value="blocked">Blokkolt</option></select></label>
             <label>Indoklás<input name="reason" value="Agent skillismeret frissítése" required></label>
-            <p class="dialog-note">Egy új verzió külön skillismeretnek számít; nem írja felül automatikusan a régit.</p>
+            <p class="dialog-note">Ez admin felülbírálás tanulási esemény nélkül. Normál tanuláshoz használd a hozzáférhető katalógus „Tanulás rögzítése” gombját. Egy új verzió külön skillismeret.</p>
             <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Mentés</button></div>
         </form>
     </dialog>

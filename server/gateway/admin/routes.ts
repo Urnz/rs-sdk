@@ -5,7 +5,7 @@ import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, re
 import { adminPublicDir, adminTrashDir, agentSkillsLocalDir, botsDir, experimentsDir, playerSavesDir,
     skillRunsDir, skillTrialsPath, skillVerificationsDir } from './paths';
 import { BotSupervisor } from './supervisor';
-import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
+import { listAdminSkills, resolveAdminSkill, resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
 import { readSkillRunHistory } from './skill-history';
 import { readEconomyEvents, type EconomyEventKind } from './transaction-telemetry';
@@ -57,6 +57,9 @@ import { FileSkillStore } from '../../../agent-skills/store.js';
 import { FileSkillVerificationJournal, SKILL_VERIFIER_ID, verifyAndPromoteSkill,
     type SkillVerificationReport } from '../../../agent-skills/verifier.js';
 import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/types.js';
+import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
+import type { SkillGrantKind } from '../../../agent-skills/learning.js';
+import { resolveLearnAndPlan } from './deterministic-learning.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -279,6 +282,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json(await listAdminAgents(agentStateDbPath, {
                 bots, properties, unavailableSources, observedAt: new Date().toISOString()
             }));
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/skill-learning') {
+            return json(await listAdminSkillLearning());
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/skill-runs') {
@@ -533,6 +540,51 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             }
         }
 
+        if (req.method === 'POST' && url.pathname === '/api/admin/skill-grants') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const agentId = text(body, 'agentId', true).toLowerCase();
+            try {
+                const result = await createAdminSkillGrant({
+                    agentId,
+                    kind: oneOf<SkillGrantKind>(body.kind,
+                        ['organization-membership', 'teacher-relationship', 'license'], 'kind'),
+                    resourceId: text(body, 'resourceId', true),
+                    validFrom: body.validFrom ? text(body, 'validFrom') : undefined,
+                    validUntil: body.validUntil ? text(body, 'validUntil') : null
+                });
+                await appendAudit({ operator: 'local-admin', action: 'agent.skill-grant.create', reason,
+                    success: true, username: agentId, after: result.grant });
+                return json({ ok: true, ...result }, result.created ? 201 : 200);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.skill-grant.create', reason,
+                    success: false, username: agentId, error: String(error) });
+                throw error;
+            }
+        }
+
+        const skillGrantRevokeMatch = url.pathname.match(/^\/api\/admin\/skill-grants\/([^/]+)\/revoke$/);
+        if (req.method === 'POST' && skillGrantRevokeMatch?.[1]) {
+            const grantId = decodeURIComponent(skillGrantRevokeMatch[1]);
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen grant revízió.');
+            }
+            try {
+                const before = (await listAdminSkillLearning()).grants.find(grant => grant.grantId === grantId);
+                const grant = await revokeAdminSkillGrant(grantId, expectedRevision, reason);
+                await appendAudit({ operator: 'local-admin', action: 'agent.skill-grant.revoke', reason,
+                    success: true, username: grant.agentId, before, after: grant });
+                return json({ ok: true, grant });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.skill-grant.revoke', reason,
+                    success: false, error: String(error), before: { grantId, expectedRevision } });
+                throw error;
+            }
+        }
+
         if (req.method === 'POST' && url.pathname === '/api/admin/agents') {
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
@@ -766,13 +818,31 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         }
 
         const agentSkillMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/skills$/);
+        const agentSkillLearnMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/skills\/learn$/);
+        if (req.method === 'POST' && agentSkillLearnMatch?.[1]) {
+            const agentId = agentSkillLearnMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const requested = text(body, 'skill', true);
+            try {
+                const candidate = await resolveAdminSkillForAgent(requested, agentId);
+                const result = await learnAdminSkill(agentId, candidate.definition, { policy: candidate.policy });
+                await appendAudit({ operator: 'local-admin', action: 'agent.skill.learn', reason, success: true,
+                    username: agentId, after: { event: result.event, knowledge: result.knowledge } });
+                return json({ ok: true, ...result }, result.created || result.knowledgeCreated ? 201 : 200);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.skill.learn', reason, success: false,
+                    username: agentId, after: { requested }, error: String(error) });
+                throw error;
+            }
+        }
         if (req.method === 'PUT' && agentSkillMatch?.[1]) {
             const agentId = agentSkillMatch[1];
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
             const requested = text(body, 'skill', true);
-            const registered = await resolveAdminSkill(requested);
-            const reference = { id: registered.definition.id, version: registered.definition.version };
+            const candidate = await resolveAdminSkillForAgent(requested, agentId);
+            const reference = { id: candidate.definition.id, version: candidate.definition.version };
             const knowledge = updateAdminAgentSkill(agentId, reference,
                 oneOf<AgentSkillKnowledgeStatus>(body.status, ['known', 'preferred', 'blocked'], 'status'),
                 body.expectedRevision === null ? null : Number(body.expectedRevision));
@@ -796,8 +866,14 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 || Date.now() - gatewayEntry.lastStateReceivedAt > 5_000) throw new Error('A kapcsolt botnak friss online állapotban kell lennie.');
             const store = new AgentStateStore(agentStateDbPath);
             try {
+                if (execute) {
+                    const immediate = agent.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
+                        .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
+                    if (immediate) await resolveLearnAndPlan(agentId, immediate, agent.catalogSkills,
+                        agent.knownSkills, { now: new Date().toISOString() });
+                }
                 const cycle = await runLivePlannerCycle({ store, agentId, state: gatewayEntry.state,
-                    availableSkills: agents.skills.map(skill => ({ id: skill.id, version: skill.version })) });
+                    availableSkills: agent.catalogSkills.map(skill => ({ id: skill.id, version: skill.version })) });
                 let process = null;
                 let episode = null;
                 let episodeError = null;
@@ -808,8 +884,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     const bot = (await catalog()).find(entry => entry.username === agent.identity.playerUsername);
                     if (!bot?.hasCredentials || bot.currentSkill) throw new Error('A bot nem indíthat új skillt: nincs credential vagy már fut skill.');
                     const requested = `${cycle.decision.skill.id}@${cycle.decision.skill.version}`;
-                    const registered = await resolveAdminSkill(requested);
-                    const parameters = validateAdminSkillParameters(registered.definition, {});
+                    const candidate = await resolveAdminSkillForAgent(requested, agentId);
+                    const parameters = validateAdminSkillParameters(candidate.definition, {});
                     process = await context.supervisor.startSkill(agent.identity.playerUsername, requested, parameters);
                     try {
                         episode = store.createEpisode(agentId, {
@@ -859,7 +935,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             try {
                 const refreshed = await listAdminAgents();
                 const current = refreshed.agents.find(entry => entry.identity.agentId === agentId)!;
-                const result = await runAdminLlmDryRun(current, refreshed.skills, { now,
+                const result = await runAdminLlmDryRun(current, current.catalogSkills, { now,
                     capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
                 await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: true,
                     username: agent.identity.playerUsername, after: { runId: result.plan.runId,

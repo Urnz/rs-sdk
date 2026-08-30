@@ -328,13 +328,25 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       tartós verifier-jelentés és külön admin human approval bekötése.
   - [x] A skill objektív létezését, az agent hozzáférését és az agent megtanult
     tudását külön kezelni; a globális katalógus ne jelentsen automatikus ismeretet.
-  - [ ] A megosztási policy-t `public/common`, `organization`, `teachable/licensed`
+  - [x] A megosztási policy-t `public/common`, `organization`, `teachable/licensed`
     és `private` szintekre bővíteni, determinisztikus tanulási eseményekkel.
-  - [ ] Shared/public verified skillhez determinisztikus resolverrel, LLM-hívás
+    - [x] Fail-closed policy döntési motor a hat tanulási/hozzáférési módhoz,
+      szervezeti tagság-, oktató- és licencgrant explicit ellenőrzésével.
+    - [x] Policy-specifikus, elkülönített perzisztencia és grantből előre számított,
+      fail-closed katalógusbetöltés, korlátozott könyvtárak végigolvasása nélkül.
+    - [x] Tartós, idempotens tanulási események, időablakos organization/teacher/license
+      grantok, optimista visszavonás és az aktuális grantből képzett access subject.
+    - [x] Auditált admin API és kezelőfelület szervezeti tagságok, oktatói kapcsolatok
+      és licencek kiosztásához, időzítéséhez, listázásához és visszavonásához.
+    - [x] A verified public katalógusskill adminból indított, szerveroldali policyből
+      engedélyezett, idempotens tanulása és AgentState skillismeretté egyeztetése.
+    - [x] A policy-katalógust és a tanulási eseményeket az AgentState ismert skilljeivel,
+      a plannerrel és a futtatási engedélyezéssel egyetlen determinisztikus folyammá kötni.
+  - [x] Shared/public verified skillhez determinisztikus resolverrel, LLM-hívás
     nélkül lehessen megfelelő találatot és tanulási módot választani.
     - [x] Determinisztikus resolver ismert-skill prioritással, megosztási módokkal
       és többértelmű találat esetén biztonságos visszautasítással.
-    - [ ] A találatból explicit tanulási eseményt és LLM nélküli determinisztikus
+    - [x] A találatból explicit tanulási eseményt és LLM nélküli determinisztikus
       végrehajtási döntést készíteni.
   - [ ] Az általánosítható skilleket paraméterezni és kisebb eljárásokból építeni,
     hogy ne keletkezzen külön skill minden érc–lelőhely–bank kombinációra.

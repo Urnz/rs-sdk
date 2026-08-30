@@ -261,6 +261,28 @@ export class AgentStateStore {
         return (rows as GoalRow[]).map(goal);
     }
 
+    setGoalSkill(agentId: string, goalId: string, expectedRevision: number,
+        skill: AgentSkillReference, now = new Date().toISOString()): AgentGoal {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const normalizedGoalId = normalizeAgentId(goalId, 'goalId');
+        const normalizedSkill = normalizeSkillReference(skill);
+        if (!Number.isInteger(expectedRevision) || expectedRevision < 1) throw new Error('Goal revision is invalid');
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalizedAgentId);
+            const current = this.getGoal(normalizedGoalId);
+            if (!current || current.agentId !== normalizedAgentId) throw new Error('Goal must belong to the same agent');
+            if (current.horizon !== 'immediate' || current.status !== 'active') {
+                throw new Error('Only an active immediate goal may receive an executable skill');
+            }
+            const result = this.database.run(`UPDATE agent_goal SET skill_id = ?4, skill_version = ?5,
+                updated_at = ?6, revision = revision + 1 WHERE goal_id = ?1 AND agent_id = ?2 AND revision = ?3`,
+            [normalizedGoalId, normalizedAgentId, expectedRevision, normalizedSkill.id, normalizedSkill.version, now]);
+            if (result.changes !== 1) throw new Error('Agent goal changed before skill assignment; refresh and try again');
+        });
+        transaction.immediate();
+        return this.getGoal(normalizedGoalId)!;
+    }
+
     setWorkingMemory(agentId: string, expectedRevision: number | null, input: SetAgentWorkingMemory,
         now = new Date().toISOString()): AgentWorkingMemory {
         const normalizedAgentId = normalizeAgentId(agentId);

@@ -99,6 +99,16 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .stock-item strong { color: var(--gold); font-variant-numeric: tabular-nums; }
 .agent-heading-actions { display: flex; align-items: center; gap: 9px; }
 .agent-intro { margin: -4px 20px 16px; color: var(--muted); }
+.skill-access-admin { margin: 0 20px 18px; padding: 14px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; }
+.skill-access-admin .agent-section-heading { margin-bottom: 5px; }
+.skill-access-admin h3 { font-size: 15px; }
+.skill-grant-list { display: grid; gap: 7px; max-height: 230px; margin-top: 12px; overflow: auto; }
+.skill-grant-row { display: flex; justify-content: space-between; align-items: start; gap: 10px; padding: 9px 10px; background: #151a14; border-left: 3px solid var(--green); border-radius: 7px; }
+.skill-grant-row.inactive { opacity: .65; border-left-color: var(--muted); }
+.skill-grant-row > span { display: grid; min-width: 0; }
+.skill-grant-row small { color: var(--muted); overflow-wrap: anywhere; }
+.skill-learning-history { margin-top: 12px; color: var(--muted); }
+.skill-learning-history summary { cursor: pointer; }
 .agent-list { display: grid; gap: 12px; max-height: 68vh; padding: 0 20px 22px; overflow: auto; }
 .agent-card { padding: 16px; background: #11150f; border: 1px solid var(--border); border-radius: 11px; }
 .agent-card-heading { display: flex; justify-content: space-between; align-items: start; gap: 14px; }

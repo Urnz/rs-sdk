@@ -6,6 +6,8 @@ import type { FileSkillStore } from './store';
 import type { RegisteredSkill } from './types';
 import type { SkillRunResult } from './types';
 import { SKILL_VERIFIER_ID, verifyAndPromoteSkill, type SkillVerificationOptions, type SkillVerificationReport } from './verifier';
+import type { PolicySkillStore } from './policy-store.js';
+import type { SkillAccessSubject } from './sharing-policy.js';
 
 export class SkillLibrary {
     constructor(
@@ -37,6 +39,13 @@ export class SkillLibrary {
             trusted: definition.status === 'verified'
                 && definition.provenance.authorKind === 'system'
                 && definition.provenance.authorId === SKILL_VERIFIER_ID
+        }));
+    }
+
+    async loadPolicyCatalog(store: PolicySkillStore, subject: SkillAccessSubject): Promise<RegisteredSkill[]> {
+        const envelopes = await store.loadAccessibleTo(subject);
+        return envelopes.map(envelope => this.registry.register(envelope.definition, {
+            trusted: envelope.definition.status === 'verified'
         }));
     }
 

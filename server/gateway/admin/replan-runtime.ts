@@ -9,6 +9,7 @@ import { agentStateDbPath, capabilityGapsPath, llmReplanLogPath } from './paths.
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
 import { AgentReplanCoordinator, type ReplanOutcome, type ReplanRecord } from './replan-coordinator.js';
 import type { GatewayBotSnapshot } from './types.js';
+import { resolveLearnAndPlan } from './deterministic-learning.js';
 
 let appendTail: Promise<void> = Promise.resolve();
 
@@ -63,7 +64,17 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             const current = refreshed.agents.find(entry => entry.identity.agentId === agentId);
             if (!current) return { runId: event.eventId, status: 'skipped', reason: 'Agent state disappeared before planning.' };
             try {
-                const result = await runAdminLlmDryRun(current, refreshed.skills, { now, runId: event.eventId,
+                const immediate = current.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
+                    .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
+                if (immediate) {
+                    const deterministic = await resolveLearnAndPlan(agentId, immediate, current.catalogSkills,
+                        current.knownSkills, { now });
+                    if (deterministic?.decision.kind === 'execute-skill') {
+                        return { runId: event.eventId, status: 'deterministic', decision: deterministic.decision,
+                            reason: `Resolved without an LLM call; learned=${deterministic.learned}, assigned=${deterministic.assigned}.` };
+                    }
+                }
+                const result = await runAdminLlmDryRun(current, current.catalogSkills, { now, runId: event.eventId,
                     untrustedText: event.type === 'offer-received' ? [event.summary] : [], automatic: true,
                     capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
                 return { runId: result.plan.runId, status: result.plan.status,

@@ -12,6 +12,8 @@ const state = {
     properties: null,
     agents: [],
     agentSkills: [],
+    skillGrants: [],
+    skillLearningEvents: [],
     worldPlayers: [],
     llmSettings: null,
     capabilityGaps: [],
@@ -33,6 +35,9 @@ const statusLabels = { active: 'Online', offline: 'Offline', stale: 'Nem válasz
 const worldModStatusLabels = { active: 'Aktív', disabled: 'Kikapcsolva', 'hot-reload-required': 'Hot reload szükséges', 'restart-required': 'Újraindítás szükséges', 'migration-required': 'Migráció szükséges', 'rollback-required': 'Rollback szükséges', 'engine-unreachable': 'Engine nem elérhető', 'activation-error': 'Aktiválási hiba' };
 const worldModBackupOperationLabels = { configure: 'Módosítás előtti', manual: 'Kézi', restore: 'Restore előtti mentőpont' };
 const worldModDisableModeLabels = { stateless: 'Nyom nélküli kikapcsolás', suspend: 'Állapotmegőrző felfüggesztés', 'read-only': 'Csak olvasható mód', blocked: 'Védett leállítás' };
+const skillGrantKindLabels = { 'organization-membership': 'Szervezeti tagság', 'teacher-relationship': 'Oktatói kapcsolat', license: 'Licenc' };
+const skillLearningModeLabels = { 'common-knowledge': 'Közös tudás', 'self-study': 'Önálló tanulás', 'organization-training': 'Szervezeti képzés', 'teacher-training': 'Oktatói képzés', 'licensed-use': 'Licencelt használat', 'author-knowledge': 'Saját alkotás' };
+const skillPolicyLabels = { common: 'közös tudás', public: 'public', organization: 'szervezeti', teachable: 'oktatóhoz kötött', licensed: 'licencelt', private: 'privát' };
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
 const xpThresholds = (() => {
     const values = []; let accumulator = 0;
@@ -258,7 +263,7 @@ function renderAgents() {
                 data-skill="${escapeHtml(`${known.skill.id}@${known.skill.version}`)}" data-skill-status="${escapeHtml(known.status)}" data-skill-revision="${known.revision}">${escapeHtml(known.status)}</button>
         </div>`).join('') || '<p class="muted">Nincs nyilvántartott skillismeret.</p>';
         const accessibleSkills = agent.skillRelationships.filter(item => item.knowledge === 'unlearned')
-            .map(item => `<div class="agent-skill-row"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.reference.id)}@${escapeHtml(item.reference.version)} · hozzáférhető, nincs megtanulva</small></span><button class="button small ghost" data-action="agent-skill-learn" data-agent-id="${escapeHtml(identity.agentId)}" data-skill="${escapeHtml(`${item.reference.id}@${item.reference.version}`)}">Tanulás rögzítése</button></div>`).join('')
+            .map(item => `<div class="agent-skill-row"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.reference.id)}@${escapeHtml(item.reference.version)} · ${escapeHtml(skillPolicyLabels[item.policy.kind] || item.policy.kind)} · hozzáférhető, nincs megtanulva</small></span><button class="button small ghost" data-action="agent-skill-learn" data-agent-id="${escapeHtml(identity.agentId)}" data-skill="${escapeHtml(`${item.reference.id}@${item.reference.version}`)}">Tanulás rögzítése</button></div>`).join('')
             || '<p class="muted">Nincs további hozzáférhető, ismeretlen skill.</p>';
         const relevant = new Map(agent.relevantEpisodes.map(result => [result.episode.episodeId, result]));
         const retention = agent.retention;
@@ -321,7 +326,7 @@ function renderAgents() {
                 <div class="agent-card-actions">
                     <button class="button small ghost" data-action="agent-edit" data-agent-id="${escapeHtml(identity.agentId)}">Identitás szerkesztése</button>
                     <button class="button small secondary" data-action="agent-goal-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Cél</button>
-                    <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Skillismeret</button>
+                    <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kézi skillállapot</button>
                     <button class="button small secondary" data-action="agent-episode-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Emlék</button>
                     <button class="button small skill-button" data-action="agent-knowledge-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Tudás</button>
                     <button class="button small secondary" data-action="agent-relationship-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kapcsolat</button>
@@ -354,11 +359,39 @@ function renderAgents() {
     }).join('') : '<p class="empty">Még nincs persistent agent. Hozd létre az elsőt egy meglévő bothoz.</p>';
 }
 
+function renderSkillLearning() {
+    const active = state.skillGrants.filter(grant => grant.active).length;
+    $('#skill-grant-count').textContent = `${active} aktív grant`;
+    const grants = [...state.skillGrants].reverse();
+    $('#skill-grant-list').innerHTML = grants.length ? grants.map(grant => `<div class="skill-grant-row ${grant.active ? '' : 'inactive'}">
+        <span><strong>${escapeHtml(skillGrantKindLabels[grant.kind] || grant.kind)} · ${escapeHtml(grant.agentId)}</strong>
+            <small>${escapeHtml(grant.resourceId)} · ${grant.active ? 'aktív' : grant.revokedAt ? 'visszavonva' : 'nem aktív'}</small>
+            <small>${new Date(grant.validFrom).toLocaleString('hu-HU')} → ${grant.validUntil ? new Date(grant.validUntil).toLocaleString('hu-HU') : 'határozatlan'}${grant.revokeReason ? ` · ${escapeHtml(grant.revokeReason)}` : ''}</small></span>
+        ${grant.active ? `<button class="button small danger-outline" data-action="skill-grant-revoke" data-grant-id="${escapeHtml(grant.grantId)}" data-grant-revision="${grant.revision}">Visszavonás</button>` : ''}
+    </div>`).join('') : '<p class="empty">Még nincs skill-hozzáférési jogosultság.</p>';
+    $('#skill-learning-count').textContent = String(state.skillLearningEvents.length);
+    $('#skill-learning-list').innerHTML = state.skillLearningEvents.length ? [...state.skillLearningEvents].reverse().map(event =>
+        `<div class="skill-grant-row"><span><strong>${escapeHtml(event.agentId)} · ${escapeHtml(event.skill.id)}@${escapeHtml(event.skill.version)}</strong>
+        <small>${escapeHtml(skillLearningModeLabels[event.learningMode] || event.learningMode)} · ${new Date(event.occurredAt).toLocaleString('hu-HU')}</small>
+        <small>${event.supportingGrantId ? `grant: ${escapeHtml(event.supportingGrantId)}` : 'nem igényelt grantet'}</small></span></div>`).join('')
+        : '<p class="empty">Még nincs tanulási esemény.</p>';
+}
+
 async function refreshAgents() {
-    const data = await api('/api/admin/agents');
+    const [data, learning] = await Promise.all([api('/api/admin/agents'), api('/api/admin/skill-learning')]);
     state.agents = data.agents;
     state.agentSkills = data.skills;
-    renderAgents();
+    state.skillGrants = learning.grants; state.skillLearningEvents = learning.events;
+    renderAgents(); renderSkillLearning();
+}
+
+function showSkillGrant() {
+    if (!state.agents.length) throw new Error('A jogosultsághoz előbb hozz létre egy persistent agentet.');
+    const form = $('#skill-grant-form'); form.reset();
+    form.elements.agentId.innerHTML = state.agents.map(agent => `<option value="${escapeHtml(agent.identity.agentId)}">${escapeHtml(agent.identity.displayName)} (${escapeHtml(agent.identity.agentId)})</option>`).join('');
+    form.elements.validFrom.value = dateTimeLocalValue();
+    form.elements.reason.value = 'Agent skill-hozzáférés kiosztása';
+    $('#skill-grant-dialog').showModal();
 }
 
 function showAgentCreate() {
@@ -394,7 +427,9 @@ function updateAgentGoalParents() {
 function showAgentSkill(agentId, reference = '', status = 'known', revision = null) {
     const form = $('#agent-skill-form'); form.reset(); form.elements.agentId.value = agentId;
     form.elements.expectedRevision.value = revision === null ? '' : String(revision);
-    form.elements.skill.innerHTML = state.agentSkills.map(skill => `<option value="${escapeHtml(skill.reference)}">${escapeHtml(skill.name)} (${escapeHtml(skill.reference)})</option>`).join('');
+    const agent = state.agents.find(entry => entry.identity.agentId === agentId);
+    const skills = agent?.catalogSkills ?? state.agentSkills;
+    form.elements.skill.innerHTML = skills.map(skill => `<option value="${escapeHtml(skill.reference)}">${escapeHtml(skill.name)} (${escapeHtml(skill.reference)})</option>`).join('');
     form.elements.skill.value = reference || state.agentSkills[0]?.reference || '';
     form.elements.skill.disabled = Boolean(reference); form.elements.status.value = status;
     form.elements.reason.value = 'Agent skillismeret frissítése'; $('#agent-skill-dialog').showModal();
@@ -965,9 +1000,10 @@ function drawChart(snapshots) {
 
 async function refresh() {
     try {
-        const [data, history, skillHistory, economyEvents, worldPlayers, agents] = await Promise.all([
+        const [data, history, skillHistory, economyEvents, worldPlayers, agents, skillLearning] = await Promise.all([
             api('/api/admin/bots'), api('/api/admin/economy?limit=240'), api('/api/admin/skill-runs?limit=30'),
-            api('/api/admin/economy-events?limit=200'), api('/api/admin/world-players'), api('/api/admin/agents')
+            api('/api/admin/economy-events?limit=200'), api('/api/admin/world-players'), api('/api/admin/agents'),
+            api('/api/admin/skill-learning')
         ]);
         state.bots = data.bots;
         state.economy = data.economy;
@@ -976,8 +1012,9 @@ async function refresh() {
         state.economyEventSummary = economyEvents.summary;
         state.worldPlayers = worldPlayers.players;
         state.agents = agents.agents; state.agentSkills = agents.skills;
+        state.skillGrants = skillLearning.grants; state.skillLearningEvents = skillLearning.events;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
-        renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents(); renderAgents();
+        renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents(); renderAgents(); renderSkillLearning();
         if ($('#world-map-dialog').open) renderWorldMapBots();
         drawChart(history.snapshots);
         if (state.selected && $('#profile-drawer').classList.contains('open')) openProfile(state.selected);
@@ -1255,7 +1292,16 @@ document.addEventListener('click', async event => {
         }
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
-        if (button.dataset.action === 'agent-skill-learn') showAgentSkill(button.dataset.agentId, button.dataset.skill);
+        if (button.dataset.action === 'agent-skill-learn') {
+            const reason = prompt('A verified katalógusskill megtanulásának indoklása:', 'Verified public skill önálló megtanulása');
+            if (!reason?.trim()) return;
+            const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/skills/learn`, {
+                method: 'POST', mutation: true,
+                body: JSON.stringify({ skill: button.dataset.skill, reason: reason.trim() })
+            });
+            toast(response.created ? 'A tanulási esemény és a skillismeret rögzítve.' : 'A korábbi tanulási esemény alapján a skillismeret egyeztetve.');
+            await refreshAgents();
+        }
         if (button.dataset.action === 'agent-episode-add') showAgentEpisode(button.dataset.agentId);
         if (button.dataset.action === 'agent-episodes-prune') {
             const agent = state.agents.find(entry => entry.identity.agentId === button.dataset.agentId);
@@ -1277,6 +1323,17 @@ document.addEventListener('click', async event => {
             button.dataset.agentId, button.dataset.skill, button.dataset.skillStatus,
             Number(button.dataset.skillRevision)
         );
+        if (button.dataset.action === 'skill-grant-revoke') {
+            const grant = state.skillGrants.find(entry => entry.grantId === button.dataset.grantId);
+            if (!grant || !grant.active) throw new Error('A jogosultság már nem aktív.');
+            const reason = prompt('A jogosultság visszavonásának indoklása:', 'Skill-hozzáférés visszavonása');
+            if (!reason?.trim() || !confirm(`Visszavonod a(z) ${grant.resourceId} jogosultságot ${grant.agentId} agenttől?`)) return;
+            await api(`/api/admin/skill-grants/${encodeURIComponent(grant.grantId)}/revoke`, {
+                method: 'POST', mutation: true,
+                body: JSON.stringify({ expectedRevision: grant.revision, reason: reason.trim() })
+            });
+            toast('A skill-hozzáférési jogosultság visszavonva.'); await refreshAgents();
+        }
         if (button.dataset.action === 'agent-goal-status') {
             const label = goalStatusLabels[button.dataset.goalStatus] || button.dataset.goalStatus;
             const reason = prompt(`A cél „${label}” állapotba helyezésének indoklása:`, 'Agent cél állapotának frissítése');
@@ -1426,6 +1483,21 @@ $('#agent-create-form').addEventListener('submit', async event => {
             reason: data.get('reason')
         }) });
         form.closest('dialog').close(); toast(`${data.get('displayName')} persistent agentként létrejött.`); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#skill-grant-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    const validUntil = data.get('validUntil')?.toString();
+    try {
+        await api('/api/admin/skill-grants', { method: 'POST', mutation: true, body: JSON.stringify({
+            agentId: data.get('agentId'), kind: data.get('kind'), resourceId: data.get('resourceId'),
+            validFrom: new Date(data.get('validFrom')).toISOString(),
+            validUntil: validUntil ? new Date(validUntil).toISOString() : null,
+            reason: data.get('reason')
+        }) });
+        form.closest('dialog').close(); toast('A skill-hozzáférési jogosultság létrejött.'); await refreshAgents();
     } catch (error) { toast(error.message, true); }
 });
 
@@ -1648,6 +1720,7 @@ $('#clear-filters').addEventListener('click', () => { for (const id of ['search-
 $('#clear-event-filters').addEventListener('click', () => { $('#event-bot-filter').value = ''; $('#event-kind-filter').value = ''; renderEconomyEvents(); });
 $('#new-bot-button').addEventListener('click', () => showSpawn());
 $('#new-agent-button').addEventListener('click', () => { try { showAgentCreate(); } catch (error) { toast(error.message, true); } });
+$('#new-skill-grant-button').addEventListener('click', () => { try { showSkillGrant(); } catch (error) { toast(error.message, true); } });
 $('#agent-create-form').elements.playerUsername.addEventListener('change', event => {
     const bot = state.bots.find(entry => entry.username === event.target.value);
     if (!bot) return;

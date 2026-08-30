@@ -91,6 +91,63 @@ to the LLM as an allowed tool. Blocked versions are excluded even when globally
 shared. The admin Agent view displays learned skills separately from accessible but
 unlearned catalog entries, and recording learning remains an explicit audited action.
 
+`sharing-policy.ts` defines the fail-closed policy boundary for the next catalog
+schema: common knowledge, public self-study, organization training, designated
+teacher training, licensed use, and private ownership. Organization, teacher, and
+license access require exact grants supplied by the caller; isolated-discovery mode
+denies every non-author policy. This decision layer intentionally precedes storage
+migration so restricted definitions cannot accidentally pass through the legacy
+shared directory before their grant checks exist.
+
+`PolicySkillStore` persists immutable policy envelopes in physically separate
+`common`, `public`, `organization/<id>`, `teachable/<teacher>`,
+`licensed/<license>`, and `private/<owner>` directories. Its loader derives the
+only directories it may open from the subject's exact grants; it never scans the
+store and filters restricted definitions afterwards. `SkillLibrary.loadPolicyCatalog`
+registers only this already-authorized result. Existing v1 skill documents remain
+unchanged while this side-by-side store is exercised and migrated deliberately.
+
+`SkillLearningStore` keeps the corresponding event-sourced authorization history.
+Organization memberships, teacher relationships, and licenses have explicit
+validity windows, optimistic revisions, revocation timestamps, and stable external
+keys. Learning re-evaluates policy at the event time, records the supporting grant,
+and is idempotent by external key. Revocation never deletes earlier learning
+evidence, but immediately prevents later learning and disappears from newly derived
+access subjects.
+
+The admin Agent view exposes this authorization ledger without treating a grant as
+knowledge. An operator can create time-bounded organization memberships, designated
+teacher relationships, and licenses, inspect their history, and revoke them with an
+optimistic revision check. Every mutation passes through the normal admin authorization
+and audit boundary. Learning events remain a separate list until deterministic catalog
+resolution records learning and reconciles it into `AgentState`.
+
+For the legacy verified public catalog, the Agent view's explicit learning action now
+performs that reconciliation. The browser submits only the exact skill reference; the
+gateway resolves the trusted definition and derives its policy server-side. It writes a
+stable, idempotent learning event before setting `AgentState` knowledge to `known` and
+re-reads current knowledge before reconciliation, so retries and concurrent requests do
+not duplicate either record. A manual `blocked` state always wins and is never silently
+overwritten.
+
+Agent catalog construction now derives an access subject from the current grant ledger
+and asks `PolicySkillStore` to open only its public/common, owned, and explicitly granted
+directories. The resulting policy-aware catalog feeds the Agent view, deterministic
+planner, LLM capability resolver, manual learning action, and the final execution gate.
+Revoking a membership, teacher relationship, or license preserves historical knowledge
+and learning evidence but immediately removes the restricted definition from that
+agent's executable catalog. The execution route resolves access again immediately before
+starting a skill, closing the stale-planner window.
+
+Automatic replanning has an LLM-free fast path for the highest-priority immediate
+goal. It deterministically resolves one unambiguous known, common, or public catalog
+skill; records public/common learning when necessary; assigns the exact version to the
+goal with an optimistic revision; and returns the normal `execute-skill` planner
+decision. Ambiguous matches fall through without mutation. Unlearned organization,
+teacher, licensed, and private skills are deliberately excluded from automatic learning
+even when discoverable, so their explicit training or authorization semantics remain
+observable. The replan record states when this path avoided an LLM call.
+
 ## Minimal use
 
 ```typescript

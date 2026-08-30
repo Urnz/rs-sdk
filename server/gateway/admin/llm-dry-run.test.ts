@@ -44,7 +44,7 @@ test('admin LLM dry-run shows the bounded request and never executes the propose
     const catalog = await listAdminAgents(databasePath);
     const skill = { reference: 'varrock-east-mining@1.0.0', id: 'varrock-east-mining', version: '1.0.0',
         name: 'Varrock East mining', description: 'Mine iron ore and bank it.', tags: ['mining'], parameters: {},
-        limits: { timeoutMs: 60_000, maxOperations: 100 } };
+        limits: { timeoutMs: 60_000, maxOperations: 100 }, policy: { kind: 'public' as const } };
     const audit = new MemoryLlmAuditSink();
     const result = await runAdminLlmDryRun(catalog.agents[0]!, [skill], {
         now: '2026-08-29T12:00:00.000Z', runId: '11111111-1111-4111-8111-111111111111', configPath, audit
@@ -110,7 +110,7 @@ test('admin LLM dry-run proposes the missing goal hierarchy from a long-term goa
     const catalog = await listAdminAgents(databasePath);
     const skill = { reference: 'varrock-east-mining@1.0.0', id: 'varrock-east-mining', version: '1.0.0',
         name: 'Varrock East mining', description: 'Mine ore and bank it.', tags: ['mining'], parameters: {},
-        limits: { timeoutMs: 60_000, maxOperations: 100 } };
+        limits: { timeoutMs: 60_000, maxOperations: 100 }, policy: { kind: 'public' as const } };
     const result = await runAdminLlmDryRun(catalog.agents[0]!, [skill], {
         now: '2026-08-29T12:00:00.000Z', configPath, audit: new MemoryLlmAuditSink()
     });
@@ -141,7 +141,7 @@ test('keeps an accessible catalog skill out of LLM tools until the agent learns 
     const skill = { reference: 'mining.varrock-east.copper-to-bank@1.0.0',
         id: 'mining.varrock-east.copper-to-bank', version: '1.0.0', name: 'Varrock copper mining',
         description: 'Mine copper ore and bank the copper.', tags: ['mining', 'copper'], parameters: {},
-        limits: { timeoutMs: 60_000, maxOperations: 100 } };
+        limits: { timeoutMs: 60_000, maxOperations: 100 }, policy: { kind: 'public' as const } };
     const provider = new ScriptedMockProvider([{ output: { decision: 'propose_goal_plan', goalId: 'life', goals: [
         { goalId: 'career', parentGoalId: 'life', horizon: 'long-term', title: 'Build a mining career', description: '', priority: 80 },
         { goalId: 'capital', parentGoalId: 'career', horizon: 'current', title: 'Build capital', description: '', priority: 80 },

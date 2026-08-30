@@ -31,3 +31,5 @@ export const skillBuilderLedgerPath = join(adminLocalDir, 'skill-builder.jsonl')
 export const skillTrialsPath = join(repoRoot, '.local', 'agent-skills', 'trials.json');
 export const skillVerificationsDir = join(repoRoot, '.local', 'agent-skills', 'verifications');
 export const agentSkillsLocalDir = join(repoRoot, '.local', 'agent-skills');
+export const skillLearningPath = join(agentSkillsLocalDir, 'learning.json');
+export const policySkillsDir = join(agentSkillsLocalDir, 'policy-catalog');

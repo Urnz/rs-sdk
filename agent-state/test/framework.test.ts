@@ -271,6 +271,18 @@ describe('known skills and deterministic planner', () => {
         store.close();
     });
 
+    test('assigns a resolved skill only to an active immediate goal with an optimistic revision', () => {
+        const store = plannedStore();
+        const goal = store.getGoal('now.mine')!;
+        const replacement = { id: 'mining.varrock-east.iron-to-bank', version: '1.0.0' };
+        const assigned = store.setGoalSkill('ferrye14', goal.goalId, goal.revision, replacement,
+            '2026-08-29T12:01:00.000Z');
+        expect(assigned).toMatchObject({ skill: replacement, revision: goal.revision + 1 });
+        expect(() => store.setGoalSkill('ferrye14', goal.goalId, goal.revision, miningSkill)).toThrow('changed');
+        expect(() => store.setGoalSkill('other', assigned.goalId, assigned.revision, miningSkill)).toThrow();
+        store.close();
+    });
+
     test('does not demand an observation when no immediate goal exists', () => {
         const store = new AgentStateStore(databasePath());
         addIdentity(store);

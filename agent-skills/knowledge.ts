@@ -1,5 +1,6 @@
 import type { RegisteredSkill, SkillReference, SkillSharingMode } from './types';
 import type { SkillRegistry } from './registry';
+import { decideSkillPolicy, legacySkillPolicy, type SkillAccessSubject, type SkillLearningMode } from './sharing-policy';
 
 export type SkillAccessState = 'accessible' | 'denied';
 export type SkillKnowledgeState = 'unlearned' | 'known' | 'preferred' | 'blocked';
@@ -9,6 +10,7 @@ export interface SkillRelationship {
     exists: boolean;
     access: { state: SkillAccessState; reason: string };
     knowledge: SkillKnowledgeState;
+    learning: { eligible: boolean; mode: SkillLearningMode; reason: string };
     executable: boolean;
 }
 
@@ -17,29 +19,35 @@ export function inspectSkillRelationship(
     agentId: string,
     reference: SkillReference,
     knowledge: Exclude<SkillKnowledgeState, 'unlearned'> | null = null,
-    sharingMode: SkillSharingMode = 'shared-library'
+    sharingMode: SkillSharingMode = 'shared-library',
+    accessSubject: Omit<SkillAccessSubject, 'agentId' | 'isolatedDiscovery'> = {}
 ): SkillRelationship {
     const descriptor = registry.describe(reference);
     const normalizedAgentId = agentId.toLocaleLowerCase('en-US');
     let state: SkillAccessState = 'denied';
     let reason = 'The exact skill version does not exist in the registry.';
+    let learning: SkillRelationship['learning'] = { eligible: false, mode: 'unavailable', reason };
     if (descriptor) {
         const own = descriptor.authorKind === 'agent'
             && descriptor.authorId.toLocaleLowerCase('en-US') === normalizedAgentId;
-        if (descriptor.visibility === 'private' && descriptor.ownerAgentId?.toLocaleLowerCase('en-US') !== normalizedAgentId) {
-            reason = 'The skill is private to another agent.';
-        } else if (descriptor.status === 'draft' && !own) {
+        const policy = decideSkillPolicy(legacySkillPolicy({ visibility: descriptor.visibility,
+            ...(descriptor.ownerAgentId ? { ownerAgentId: descriptor.ownerAgentId } : {}) }), {
+            agentId, ...accessSubject, isolatedDiscovery: sharingMode === 'isolated-discovery'
+        }, own ? descriptor.authorId : undefined);
+        learning = { eligible: policy.learningEligible, mode: policy.learningMode, reason: policy.reason };
+        if (descriptor.status === 'draft' && !own) {
             reason = 'Another agent draft is not accessible.';
-        } else if (sharingMode === 'isolated-discovery' && !own) {
-            reason = 'The simulation uses isolated discovery.';
+        } else if (!policy.accessible) {
+            reason = policy.reason;
         } else {
             state = 'accessible';
-            reason = own ? 'The skill belongs to this agent.' : 'The verified shared skill is accessible from the catalog.';
+            reason = policy.reason;
         }
     }
     const knowledgeState = knowledge ?? 'unlearned';
     return {
         reference: { ...reference }, exists: descriptor !== null, access: { state, reason }, knowledge: knowledgeState,
+        learning,
         executable: descriptor?.status === 'verified' && state === 'accessible'
             && (knowledgeState === 'known' || knowledgeState === 'preferred')
     };
