@@ -3,7 +3,7 @@ import { extname, join } from 'node:path';
 import { appendAudit, readAudit } from './audit';
 import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, recordEconomy } from './catalog';
 import { adminPublicDir, adminTrashDir, agentSkillsLocalDir, botsDir, experimentsDir, playerSavesDir,
-    skillRunsDir, skillTrialsPath, skillVerificationsDir } from './paths';
+    repoRoot, skillRunsDir, skillTrialsPath, skillVerificationsDir } from './paths';
 import { BotSupervisor } from './supervisor';
 import { listAdminSkills, resolveAdminSkill, resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
@@ -452,7 +452,15 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!trial || !['running', 'verification-failed'].includes(trial.status)) throw new Error('Ez a próba nem ellenőrizhető.');
             const draft = await loadTrialDraft(trial);
             const evidence = await collectTrialEvidence(trial);
-            const report = verifyAndPromoteSkill(draft, evidence, { targetVersion: trial.targetVersion, parameters: trial.parameters });
+            const verificationLibrary = new SkillLibrary(new SkillRegistry(), new FileSkillStore(agentSkillsLocalDir));
+            await verificationLibrary.loadReviewedCatalog(join(repoRoot, 'agent-skills', 'catalog'));
+            await verificationLibrary.loadAgentDrafts('admin-trial-runner');
+            const report = verifyAndPromoteSkill(draft, evidence, {
+                targetVersion: trial.targetVersion,
+                parameters: trial.parameters,
+                resolveDefinition: reference => verificationLibrary.registry
+                    .get(reference, 'admin-trial-runner')?.definition ?? null
+            });
             await new FileSkillVerificationJournal(skillVerificationsDir).save(report);
             const updated = await trials.transition(trial.trialId, trial.revision,
                 report.passed ? 'verification-passed' : 'verification-failed', {

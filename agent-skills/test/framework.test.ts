@@ -181,6 +181,85 @@ describe('skill execution', () => {
         expect(result.reason).toBe('operation-limit');
     });
 
+    test('composes exact skill versions and forwards typed parameters', async () => {
+        const runtime = new FakeRuntime();
+        runtime.execute = async (operation, args) => {
+            runtime.operations.push({ operation, args });
+            return { success: true, message: 'ok' };
+        };
+        const bankProcedure = skill({
+            id: 'procedure.bank.deposit',
+            parameters: {
+                x: { type: 'number', description: 'Bank X', required: true },
+                z: { type: 'number', description: 'Bank Z', required: true },
+                item: { type: 'string', description: 'Item name', required: true }
+            },
+            preconditions: [],
+            steps: [
+                { kind: 'operation', id: 'walk', operation: 'walk-to',
+                    arguments: { x: { parameter: 'x' }, z: { parameter: 'z' } } },
+                { kind: 'operation', id: 'open', operation: 'open-bank', arguments: {} },
+                { kind: 'operation', id: 'deposit', operation: 'deposit-item',
+                    arguments: { name: { parameter: 'item' }, amount: -1 } },
+                { kind: 'operation', id: 'close', operation: 'close-bank', arguments: {} }
+            ]
+        });
+        const composed = skill({
+            preconditions: [],
+            steps: [{ kind: 'call', id: 'bank-copper',
+                skill: { id: bankProcedure.id, version: bankProcedure.version },
+                arguments: { x: { parameter: 'bank-x' }, z: { parameter: 'bank-z' }, item: 'Copper ore' } }]
+        });
+        const result = await new SkillExecutor(runtime, reference =>
+            reference.id === bankProcedure.id && reference.version === bankProcedure.version
+                ? bankProcedure : null).execute(composed, { parameters: { 'bank-x': 3253 } });
+        expect(result.status).toBe('completed');
+        expect(result.operations).toBe(4);
+        expect(runtime.operations[0]).toEqual({ operation: 'walk-to', args: { x: 3253, z: 3420 } });
+        expect(runtime.operations[2]).toEqual({ operation: 'deposit-item', args: { name: 'Copper ore', amount: -1 } });
+        expect(result.events.find(event => event.operation === 'deposit-item')?.stepId).toBe('bank-copper/deposit');
+    });
+
+    test('rejects missing procedures and composition cycles before any operation', async () => {
+        const runtime = new FakeRuntime();
+        const missing = skill({ preconditions: [], steps: [{ kind: 'call', id: 'missing',
+            skill: { id: 'procedure.missing', version: '1.0.0' }, arguments: {} }] });
+        const missingResult = await new SkillExecutor(runtime, () => null).execute(missing,
+            { parameters: { 'bank-x': 3253 } });
+        expect(missingResult.reason).toBe('procedure-not-found');
+
+        const first = skill({ id: 'procedure.first', preconditions: [], steps: [{ kind: 'call', id: 'second',
+            skill: { id: 'procedure.second', version: '1.0.0' }, arguments: { 'bank-x': 3253 } }] });
+        const second = skill({ id: 'procedure.second', preconditions: [], steps: [{ kind: 'call', id: 'first',
+            skill: { id: 'procedure.first', version: '1.0.0' }, arguments: { 'bank-x': 3253 } }] });
+        const definitions = new Map([[`${first.id}@${first.version}`, first], [`${second.id}@${second.version}`, second]]);
+        const cycleResult = await new SkillExecutor(runtime, reference =>
+            definitions.get(`${reference.id}@${reference.version}`) ?? null).execute(first,
+            { parameters: { 'bank-x': 3253 } });
+        expect(cycleResult.reason).toBe('procedure-cycle');
+        expect(runtime.operations).toHaveLength(0);
+    });
+
+    test('nested procedures cannot bypass the root operation budget', async () => {
+        const runtime = new FakeRuntime();
+        runtime.execute = async (operation, args) => {
+            runtime.operations.push({ operation, args });
+            return { success: true, message: 'ok' };
+        };
+        const child = skill({ id: 'procedure.three-waits', preconditions: [], steps: [
+            { kind: 'operation', id: 'one', operation: 'wait-ticks', arguments: { ticks: 1 } },
+            { kind: 'operation', id: 'two', operation: 'wait-ticks', arguments: { ticks: 1 } },
+            { kind: 'operation', id: 'three', operation: 'wait-ticks', arguments: { ticks: 1 } }
+        ] });
+        const root = skill({ preconditions: [], limits: { timeoutMs: 60_000, maxOperations: 2 },
+            steps: [{ kind: 'call', id: 'bounded', skill: { id: child.id, version: child.version },
+                arguments: { 'bank-x': 3253 } }] });
+        const result = await new SkillExecutor(runtime, () => child).execute(root,
+            { parameters: { 'bank-x': 3253 } });
+        expect(result.reason).toBe('operation-limit');
+        expect(result.operations).toBe(2);
+    });
+
     test('honours a signal that was already cancelled before execution', async () => {
         const runtime = new FakeRuntime();
         const controller = new AbortController();
@@ -537,6 +616,34 @@ describe('automatic skill verification and promotion', () => {
         const reloaded = new SkillLibrary(new SkillRegistry(), new FileSkillStore(root));
         await reloaded.loadAgentDrafts('anotherbot');
         expect(reloaded.registry.getLatest(draft.id)?.definition).toMatchObject({ version: '1.0.0', status: 'verified' });
+    });
+
+    test('verifies the complete bounded graph of a composed draft', () => {
+        const dependency = skill({ id: 'procedure.walk-bank', parameters: {
+            x: { type: 'number', description: 'Destination X', required: true }
+        }, preconditions: [], steps: [{ kind: 'operation', id: 'walk', operation: 'walk-to',
+            arguments: { x: { parameter: 'x' }, z: 3420 }, maxAttempts: 2 }] });
+        const draft = agentDraft();
+        draft.preconditions = [];
+        draft.steps = [{ kind: 'call', id: 'bank', skill: { id: dependency.id, version: dependency.version },
+            arguments: { x: { parameter: 'bank-x' } } }];
+        const evidence = [
+            successfulRun(draft, '11111111-1111-4111-8111-111111111111'),
+            successfulRun(draft, '22222222-2222-4222-8222-222222222222')
+        ];
+        const withoutResolver = verifyAndPromoteSkill(draft, evidence, {
+            targetVersion: '1.0.0', parameters: { 'bank-x': 3253 }
+        });
+        expect(withoutResolver.checks.find(check => check.id === 'composition-graph')?.passed).toBe(false);
+
+        const report = verifyAndPromoteSkill(draft, evidence, {
+            targetVersion: '1.0.0', parameters: { 'bank-x': 3253 },
+            resolveDefinition: reference => reference.id === dependency.id
+                && reference.version === dependency.version ? dependency : null
+        });
+        expect(report.checks.find(check => check.id === 'composition-graph')?.passed).toBe(true);
+        expect(report.checks.find(check => check.id === 'operation-budget')?.message).toContain('2 of 20');
+        expect(report.passed).toBe(true);
     });
 
     test('refuses duplicate, failed, mismatched, or parameterless evidence without writing a promotion', () => {

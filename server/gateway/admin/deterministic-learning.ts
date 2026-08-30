@@ -43,7 +43,8 @@ export async function resolveLearnAndPlan(agentId: string, goal: AgentGoal,
             knowledge: learned ? 'learned' as const : 'unlearned' as const,
             requiresLearning: !learned, score: Number.MAX_SAFE_INTEGER, matchedTerms: [] };
         })()
-        : resolveSkillForCapability({ title: goal.title, description: goal.description }, candidates.map(skill => ({
+        : resolveSkillForCapability({ title: goal.title, description: goal.description }, candidates
+            .filter(skill => !skill.tags.includes('procedure')).map(skill => ({
             id: skill.id, version: skill.version, name: skill.name, description: skill.description,
             tags: skill.tags, status: 'verified' as const, visibility: 'shared' as const
         })), knownSkills.map(item => ({ ...item.skill, status: item.status })));

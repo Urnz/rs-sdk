@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.bank.deposit-item",
+  "version": "1.0.0",
+  "name": "Walk to a bank and deposit an item",
+  "description": "Reusable bounded procedure that walks to a bank, opens it, deposits matching items, and closes it.",
+  "status": "verified",
+  "tags": ["procedure", "banking", "composition"],
+  "parameters": {
+    "bank-x": { "type": "number", "description": "Bank X coordinate.", "required": true },
+    "bank-z": { "type": "number", "description": "Bank Z coordinate.", "required": true },
+    "tolerance": { "type": "number", "description": "Accepted distance from the bank coordinate.", "default": 5, "minimum": 0, "maximum": 20 },
+    "item": { "type": "string", "description": "Item name to deposit.", "required": true },
+    "match": { "type": "string", "description": "Item matching mode.", "default": "contains", "enum": ["exact", "contains"] }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-08-30T12:00:00.000Z",
+    "derivedFrom": { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" },
+    "notes": "Reviewed extraction of the bank sequence proven by live route runs fa7d4ec3-aa74-4d92-b042-d4004aa6fefe and b5cb3d56-80d8-4b1e-833f-e7365345275e. New parameter combinations still require route-level live verification."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 180000, "maxOperations": 10 },
+  "preconditions": [],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-to-bank",
+      "operation": "walk-to",
+      "arguments": {
+        "x": { "parameter": "bank-x" },
+        "z": { "parameter": "bank-z" },
+        "tolerance": { "parameter": "tolerance" }
+      },
+      "maxAttempts": 2
+    },
+    { "kind": "operation", "id": "open-bank", "operation": "open-bank", "arguments": {}, "maxAttempts": 2 },
+    {
+      "kind": "operation",
+      "id": "deposit-item",
+      "operation": "deposit-item",
+      "arguments": { "name": { "parameter": "item" }, "match": { "parameter": "match" }, "amount": -1 }
+    },
+    { "kind": "operation", "id": "close-bank", "operation": "close-bank", "arguments": {} }
+  ]
+}

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
-import type { SkillDefinition, SkillRunResult } from './types';
-import { resolveSkillParameters, validateSkillDefinition } from './validation';
+import type { SkillDefinition, SkillDefinitionResolver, SkillRunResult, SkillStep, SkillValue } from './types';
+import { resolveSkillParameters, skillReferenceKey, validateSkillDefinition } from './validation';
 
 export interface SkillVerificationCheck {
     id: string;
@@ -27,6 +27,7 @@ export interface SkillVerificationOptions {
     parameters?: Record<string, unknown>;
     minimumSuccessfulRuns?: number;
     now?: string;
+    resolveDefinition?: SkillDefinitionResolver;
 }
 
 export const SKILL_VERIFIER_ID = 'deterministic-skill-verifier';
@@ -44,10 +45,40 @@ function versionIsNewer(candidate: string, existing: string): boolean {
         || (left[0] === right[0] && left[1] === right[1] && left[2] > right[2]);
 }
 
-function operationCount(steps: SkillDefinition['steps']): number {
-    return steps.reduce((total, step) => total + (step.kind === 'operation'
-        ? 1
-        : step.maxIterations * operationCount(step.steps)), 0);
+function resolveValue(value: SkillValue, parameters: Record<string, string | number | boolean>): unknown {
+    if (Array.isArray(value)) return value.map(entry => resolveValue(entry, parameters));
+    if (value && typeof value === 'object') {
+        if (Object.keys(value).length === 1 && 'parameter' in value && typeof value.parameter === 'string') {
+            if (parameters[value.parameter] === undefined) throw new Error(`Parameter "${value.parameter}" has no value`);
+            return parameters[value.parameter];
+        }
+        return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, resolveValue(entry, parameters)]));
+    }
+    return value;
+}
+
+function operationCount(steps: SkillStep[], resolveDefinition: SkillDefinitionResolver | undefined,
+    stack: string[], parameters: Record<string, string | number | boolean>): number {
+    return steps.reduce((total, step) => {
+        if (step.kind === 'operation') return total + (step.maxAttempts ?? 1);
+        if (step.kind === 'repeat') {
+            return total + step.maxIterations * operationCount(step.steps, resolveDefinition, stack, parameters);
+        }
+        const key = skillReferenceKey(step.skill);
+        if (!resolveDefinition) throw new Error(`No resolver is available for composed dependency ${key}`);
+        const input = resolveDefinition(step.skill);
+        if (input === null || input === undefined) throw new Error(`Composed dependency ${key} was not found or is not visible`);
+        const child = validateSkillDefinition(input);
+        if (child.id !== step.skill.id || child.version !== step.skill.version) {
+            throw new Error(`Resolver returned a different skill for ${key}`);
+        }
+        if (child.status !== 'verified') throw new Error(`Composed dependency ${key} is not verified`);
+        if (stack.includes(key)) throw new Error(`Composition cycle detected: ${[...stack, key].join(' -> ')}`);
+        if (stack.length > 8) throw new Error('Composition exceeds 8 nested skill calls');
+        const childArguments = resolveValue(step.arguments, parameters) as Record<string, unknown>;
+        const childParameters = resolveSkillParameters(child, childArguments);
+        return total + operationCount(child.steps, resolveDefinition, [...stack, key], childParameters);
+    }, 0);
 }
 
 function sameParameters(
@@ -87,8 +118,15 @@ export function verifyAndPromoteSkill(
         check('parameters', false, error instanceof Error ? error.message : String(error));
     }
 
-    const nominalOperations = operationCount(draft.steps);
-    check('operation-budget', nominalOperations <= draft.limits.maxOperations,
+    let nominalOperations = 0;
+    try {
+        nominalOperations = operationCount(draft.steps, options.resolveDefinition,
+            [`${draft.id}@${draft.version}`], parameters);
+        check('composition-graph', true, 'Every composed dependency is exact-versioned, verified, visible and acyclic.');
+    } catch (error) {
+        check('composition-graph', false, error instanceof Error ? error.message : String(error));
+    }
+    check('operation-budget', nominalOperations > 0 && nominalOperations <= draft.limits.maxOperations,
         `Nominal bounded path requires ${nominalOperations} of ${draft.limits.maxOperations} allowed operations.`);
 
     const uniqueEvidence = [...new Map(evidence.map(run => [run.runId, run])).values()];

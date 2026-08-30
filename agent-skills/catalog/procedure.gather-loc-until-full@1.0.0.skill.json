@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.gather-loc-until-full",
+  "version": "1.0.0",
+  "name": "Gather from locations until inventory is full",
+  "description": "Reusable bounded procedure for gathering one item from a matching world location until the inventory is full.",
+  "status": "verified",
+  "tags": ["procedure", "gathering", "composition"],
+  "parameters": {
+    "location-name": { "type": "string", "description": "Location name used by the rs-sdk matcher.", "required": true },
+    "match": { "type": "string", "description": "Name matching mode.", "default": "exact", "enum": ["exact", "contains"] },
+    "option": { "type": "string", "description": "Interaction option, such as mine or chop.", "required": true },
+    "item": { "type": "string", "description": "Inventory item that proves progress.", "required": true },
+    "skill": { "type": "string", "description": "Game skill whose XP can prove progress.", "required": true },
+    "timeout-ms": { "type": "number", "description": "Maximum wait for one gathering attempt.", "default": 15000, "minimum": 1000, "maximum": 240000 }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-08-30T12:00:00.000Z",
+    "derivedFrom": { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" },
+    "notes": "Reviewed extraction of the gathering loop proven by live route runs fa7d4ec3-aa74-4d92-b042-d4004aa6fefe and b5cb3d56-80d8-4b1e-833f-e7365345275e. New parameter combinations still require route-level live verification."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 600000, "maxOperations": 105 },
+  "preconditions": [],
+  "steps": [
+    {
+      "kind": "repeat",
+      "id": "gather-until-full",
+      "until": { "condition": "inventory-full", "arguments": {} },
+      "maxIterations": 35,
+      "steps": [
+        {
+          "kind": "operation",
+          "id": "gather-nearby-resource",
+          "operation": "gather-loc",
+          "arguments": {
+            "name": { "parameter": "location-name" },
+            "match": { "parameter": "match" },
+            "option": { "parameter": "option" },
+            "item": { "parameter": "item" },
+            "skill": { "parameter": "skill" },
+            "timeoutMs": { "parameter": "timeout-ms" }
+          },
+          "maxAttempts": 3
+        }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,8 @@ export const SKILL_BUILDER_OPERATIONS: readonly SkillOperationName[] = [
 export interface SkillBuilderRequest {
     gap: Pick<CapabilityGap, 'gapId' | 'title' | 'description' | 'tags' | 'worldVersion' | 'skillSchemaVersion'>;
     allowedOperations: readonly SkillOperationName[];
-    existingSkills: readonly { id: string; version: string; name: string; description: string; tags: readonly string[] }[];
+    existingSkills: readonly { id: string; version: string; name: string; description: string;
+        tags: readonly string[]; parameters: SkillDefinition['parameters'] }[];
 }
 
 export interface SkillBuilderProviderResponse {
@@ -75,6 +76,13 @@ function assertStep(value: unknown, path: string, depth = 0): void {
         assertCondition(step.until, `${path}.until`);
         if (!Array.isArray(step.steps)) throw new Error(`${path}.steps must be an array`);
         step.steps.forEach((child, index) => assertStep(child, `${path}.steps[${index}]`, depth + 1));
+        return;
+    }
+    if (step.kind === 'call') {
+        exactKeys(step, ['kind', 'id', 'skill', 'arguments'], path);
+        const skill = record(step.skill, `${path}.skill`);
+        exactKeys(skill, ['id', 'version'], `${path}.skill`);
+        record(step.arguments, `${path}.arguments`);
         return;
     }
     throw new Error(`${path}.kind is unsupported`);

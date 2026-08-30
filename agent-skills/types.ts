@@ -98,7 +98,15 @@ export interface SkillRepeatStep {
     steps: SkillStep[];
 }
 
-export type SkillStep = SkillOperationStep | SkillRepeatStep;
+/** Calls one immutable skill version as a reusable declarative procedure. */
+export interface SkillCallStep {
+    kind: 'call';
+    id: string;
+    skill: SkillReference;
+    arguments: SkillArguments;
+}
+
+export type SkillStep = SkillOperationStep | SkillRepeatStep | SkillCallStep;
 
 export interface SkillDefinition {
     schemaVersion: typeof SKILL_SCHEMA_VERSION;
@@ -184,3 +192,6 @@ export interface SkillExecutionOptions {
     allowDraft?: boolean;
     onEvent?: (event: SkillEvent) => void;
 }
+
+/** Exact-version resolver used by composed skills. Visibility must be enforced by its caller. */
+export type SkillDefinitionResolver = (reference: SkillReference) => unknown | null;

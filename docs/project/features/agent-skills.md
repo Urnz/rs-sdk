@@ -31,7 +31,7 @@ Minden skillnek van:
 - `draft`, `verified` vagy `deprecated` állapota;
 - típusos bemeneti paraméterei;
 - végrehajtás előtt ellenőrzött preconditionjei;
-- kizárólag engedélyezett operation és repeat lépései;
+- kizárólag engedélyezett operation, repeat és egzakt verziójú skill-call lépései;
 - futásidő- és műveletszám-korlátja;
 - szerzője, létrehozási ideje és opcionális származási skillje;
 - `shared` vagy agenthez kötött `private` láthatósága;
@@ -62,6 +62,34 @@ Az `id@version` tartalma megváltoztathatatlan. A javított útvonal új verzió
 Új primitív csak adapterrel, validálással és teszttel kerülhet a listára. A meglévő
 magas szintű rs-sdk metódusokat használjuk; nem építjük újra a pathfindingot,
 bankolást vagy interakciós protokollt.
+
+## Paraméterezett kompozíció
+
+A `call` lépés egy másik skill pontos `id@version` kiadását hívja meg, és a szülő
+paramétereiből típusosan tölti ki annak bemeneteit. A hívott definíció ugyanabban
+a registryben marad, ezért önállóan verziózható, megosztható és auditálható.
+A futtató indulás előtt feloldja a teljes hívási gráfot, és művelet nélkül leáll,
+ha egy függőség hiányzik, nem látható, más verziót ad vissza, draft/deprecated,
+ciklust alkot vagy nyolcnál mélyebb láncot hoz létre.
+
+A gyökérskill idő- és műveleti kerete az egész kibontott futás közös korlátja;
+egy részfolyamat saját nagyobb limitje sem emelheti meg. Az események névterezett
+lépésazonosítót kapnak, például `bank/deposit-item`, így az auditból látszik, melyik
+híváson belül történt a művelet. A verifier a publikálás előtt csak exact-version,
+`verified` függőségeket fogad el, ciklust ellenőriz, majd a repeat- és retry-határokkal
+együtt a teljes gráf névleges műveleti felső korlátját számolja.
+
+Az első újrahasználható eljárások:
+
+- `procedure.gather-loc-until-full@1.0.0`;
+- `procedure.bank.deposit-item@1.0.0`.
+
+A `resource.gather-loc-to-bank@0.1.0` draft ezeket kombinálja. Az eszköz, a
+lelőhely koordinátái és neve, az interakció, a termelt item, a játékbeli skill és
+a célbank mind paraméter. Emiatt a réz, vas vagy későbbi erőforrás útvonalához nem
+kell automatikusan új programlogika; csak akkor indokolt külön skill/verzió, ha a
+folyamat szerkezete is eltér. Az új paraméterkombinációt a szokásos külön tesztbot
+és élő evidence életciklus igazolja.
 
 ## Agent által létrehozott skill életciklusa
 

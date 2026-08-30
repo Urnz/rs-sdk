@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "resource.gather-loc-to-bank",
+  "version": "0.1.0",
+  "name": "Gather a location resource and bank it",
+  "description": "General composition draft for a tool-based location resource route. Coordinates and resource semantics are parameters rather than separate ore-location-bank skill IDs.",
+  "status": "draft",
+  "tags": ["gathering", "banking", "composition", "route"],
+  "parameters": {
+    "tool": { "type": "string", "description": "Required inventory tool name.", "required": true },
+    "source-x": { "type": "number", "description": "Resource area X coordinate.", "required": true },
+    "source-z": { "type": "number", "description": "Resource area Z coordinate.", "required": true },
+    "location-name": { "type": "string", "description": "Resource location name.", "required": true },
+    "option": { "type": "string", "description": "Resource interaction option.", "required": true },
+    "item": { "type": "string", "description": "Produced inventory item.", "required": true },
+    "skill": { "type": "string", "description": "Relevant game skill.", "required": true },
+    "bank-x": { "type": "number", "description": "Destination bank X coordinate.", "required": true },
+    "bank-z": { "type": "number", "description": "Destination bank Z coordinate.", "required": true }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-08-30T12:00:00.000Z",
+    "derivedFrom": { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" },
+    "notes": "Composition example. Keep as draft until tested with exact parameters by the existing live verification lifecycle."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 600000, "maxOperations": 120 },
+  "preconditions": [
+    { "condition": "inventory-contains", "arguments": { "name": { "parameter": "tool" }, "match": "contains", "amount": 1 } }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-to-source",
+      "operation": "walk-to",
+      "arguments": { "x": { "parameter": "source-x" }, "z": { "parameter": "source-z" }, "tolerance": 5 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "call",
+      "id": "gather",
+      "skill": { "id": "procedure.gather-loc-until-full", "version": "1.0.0" },
+      "arguments": {
+        "location-name": { "parameter": "location-name" },
+        "option": { "parameter": "option" },
+        "item": { "parameter": "item" },
+        "skill": { "parameter": "skill" }
+      }
+    },
+    {
+      "kind": "call",
+      "id": "bank",
+      "skill": { "id": "procedure.bank.deposit-item", "version": "1.0.0" },
+      "arguments": {
+        "bank-x": { "parameter": "bank-x" },
+        "bank-z": { "parameter": "bank-z" },
+        "item": { "parameter": "item" }
+      }
+    }
+  ]
+}

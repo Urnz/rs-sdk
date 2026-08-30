@@ -67,7 +67,8 @@ const run = await runScript(async ({ bot, sdk }) => {
 
     let result: SkillRunResult;
     try {
-        result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk)).execute(registered.definition, {
+        result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk), reference =>
+            registry.get(reference, botName)?.definition ?? null).execute(registered.definition, {
             parameters,
             allowDraft,
             onEvent: event => {

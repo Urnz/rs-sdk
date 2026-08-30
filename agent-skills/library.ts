@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { AgentSkillBook } from './knowledge';
 import { SkillRegistry } from './registry';
 import type { FileSkillStore } from './store';
-import type { RegisteredSkill } from './types';
+import type { RegisteredSkill, SkillDefinition } from './types';
 import type { SkillRunResult } from './types';
 import { SKILL_VERIFIER_ID, verifyAndPromoteSkill, type SkillVerificationOptions, type SkillVerificationReport } from './verifier';
 import type { PolicySkillStore } from './policy-store.js';
@@ -54,7 +54,12 @@ export class SkillLibrary {
         evidence: SkillRunResult[],
         options: SkillVerificationOptions
     ): Promise<{ report: SkillVerificationReport; registered: RegisteredSkill | null; path: string | null }> {
-        const report = verifyAndPromoteSkill(input, evidence, options);
+        const definition = input as SkillDefinition;
+        const report = verifyAndPromoteSkill(input, evidence, {
+            ...options,
+            resolveDefinition: options.resolveDefinition ?? (reference =>
+                this.registry.get(reference, definition.provenance?.authorId)?.definition ?? null)
+        });
         if (!report.promoted) return { report, registered: null, path: null };
         const path = await this.store.save(report.promoted, {
             actorKind: 'system', actorId: report.verifierId

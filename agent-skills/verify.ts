@@ -35,6 +35,7 @@ const parameters = Object.fromEntries(args.filter(arg => arg.startsWith('--param
 
 const root = join(process.cwd(), '.local', 'agent-skills');
 const library = new SkillLibrary(new SkillRegistry(), new FileSkillStore(root));
+await library.loadReviewedCatalog(join(process.cwd(), 'agent-skills', 'catalog'));
 await library.loadAgentDrafts(agentId);
 const separator = requested.lastIndexOf('@');
 if (separator <= 0) throw new Error('Draft reference must use id@version');

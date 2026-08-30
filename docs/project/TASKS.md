@@ -348,7 +348,7 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       és többértelmű találat esetén biztonságos visszautasítással.
     - [x] A találatból explicit tanulási eseményt és LLM nélküli determinisztikus
       végrehajtási döntést készíteni.
-  - [ ] Az általánosítható skilleket paraméterezni és kisebb eljárásokból építeni,
+  - [x] Az általánosítható skilleket paraméterezni és kisebb eljárásokból építeni,
     hogy ne keletkezzen külön skill minden érc–lelőhely–bank kombinációra.
   - [ ] Business- és faction-agenteknek domain eszközöket, költségvetést, memóriát
     és döntési ritmust adni; játékbeli fizikai műveletet képviselő/player végezzen.

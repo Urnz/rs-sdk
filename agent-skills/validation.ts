@@ -5,6 +5,7 @@ import {
     type SkillDefinition,
     type SkillOperationName,
     type SkillParameterDefinition,
+    type SkillReference,
     type SkillStep,
     type SkillValue
 } from './types';
@@ -185,8 +186,28 @@ function validateStep(value: unknown, parameters: Record<string, SkillParameterD
         }
         return true;
     }
-    issues.push(`${path}.kind must be operation or repeat`);
+    if (value.kind === 'call') {
+        if (!isRecord(value.skill)) issues.push(`${path}.skill must be an exact skill reference`);
+        else {
+            if (Object.keys(value.skill).some(key => key !== 'id' && key !== 'version')) {
+                issues.push(`${path}.skill contains unsupported fields`);
+            }
+            if (typeof value.skill.id !== 'string' || !ID_PATTERN.test(value.skill.id)) {
+                issues.push(`${path}.skill.id must be a lowercase dotted or dashed identifier`);
+            }
+            if (typeof value.skill.version !== 'string' || !VERSION_PATTERN.test(value.skill.version)) {
+                issues.push(`${path}.skill.version must use MAJOR.MINOR.PATCH`);
+            }
+        }
+        validateArguments(value.arguments, parameters, `${path}.arguments`, issues);
+        return true;
+    }
+    issues.push(`${path}.kind must be operation, repeat or call`);
     return false;
+}
+
+export function skillReferenceKey(reference: SkillReference): string {
+    return `${reference.id}@${reference.version}`;
 }
 
 export function validateSkillDefinition(value: unknown): SkillDefinition {

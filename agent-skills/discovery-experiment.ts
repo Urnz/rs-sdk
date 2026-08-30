@@ -87,14 +87,15 @@ function assertInteger(value: number, name: string, minimum: number, maximum: nu
 function operationCount(steps: SkillStep[]): number {
     return steps.reduce((total, step) => total + (step.kind === 'operation'
         ? 1
-        : step.maxIterations * operationCount(step.steps)), 0);
+        : step.kind === 'repeat' ? step.maxIterations * operationCount(step.steps) : 0), 0);
 }
 
 function latestVerifiedShared(registry: SkillRegistry, requestedIds?: string[]): RegisteredSkill[] {
     const requested = requestedIds ? new Set(requestedIds) : null;
     const latest = new Map<string, RegisteredSkill>();
     for (const skill of registry.list({ status: 'verified' })) {
-        if (skill.definition.sharing.visibility !== 'shared' || (requested && !requested.has(skill.definition.id))) continue;
+        if (skill.definition.sharing.visibility !== 'shared' || skill.definition.tags.includes('procedure')
+            || (requested && !requested.has(skill.definition.id))) continue;
         if (!latest.has(skill.definition.id)) latest.set(skill.definition.id, skill);
     }
     if (requested) {
