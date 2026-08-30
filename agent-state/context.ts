@@ -12,7 +12,8 @@ export function buildCoreIdentity(snapshot: AgentSnapshot, maxCharacters = 1600)
     }
     const identity = snapshot.identity;
     const lines = [
-        `Identity: ${identity.displayName} (${identity.agentId}; player ${identity.playerUsername})`,
+        `Identity: ${identity.displayName} (${identity.agentId}${identity.playerUsername
+            ? `; player ${identity.playerUsername}` : '; no player avatar'})`,
         `Background: ${identity.background}`,
         `Traits: ${identity.personalityTraits.join(', ')}`
     ];

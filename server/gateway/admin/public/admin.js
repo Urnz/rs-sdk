@@ -401,14 +401,41 @@ function showSkillGrant() {
 
 function showAgentCreate() {
     const form = $('#agent-create-form'); form.reset();
-    const used = new Set(state.agents.map(agent => agent.identity.playerUsername));
+    const used = new Set(state.agents.map(agent => agent.identity.playerUsername).filter(Boolean));
     const choices = state.bots.filter(bot => !used.has(bot.username));
     form.elements.playerUsername.innerHTML = choices.map(bot => `<option value="${escapeHtml(bot.username)}">${escapeHtml(bot.displayName)} (${escapeHtml(bot.username)})</option>`).join('');
-    if (!choices.length) throw new Error('Nincs olyan bot, amelyhez még nem tartozik persistent agent.');
-    form.elements.agentId.value = choices[0].username;
-    form.elements.displayName.value = choices[0].displayName;
+    if (choices.length) {
+        form.elements.agentId.value = choices[0].username;
+        form.elements.displayName.value = choices[0].displayName;
+    } else {
+        form.elements.role.value = 'institution';
+    }
+    form.elements.decisionIntervalMs.value = 300000; form.elements.maxDecisionsPerDay.value = 96;
+    form.elements.dailyLlmBudgetMicros.value = 0; form.elements.dailyOperationalBudgetGp.value = 0;
     form.elements.reason.value = 'Persistent agent létrehozása';
+    updateAgentCreateRole();
     $('#agent-create-dialog').showModal();
+}
+
+function updateAgentCreateRole() {
+    const form = $('#agent-create-form'), role = form.elements.role.value, player = role === 'player';
+    $('[data-agent-create-player]').hidden = !player;
+    $('[data-agent-create-subject-kind]').hidden = player;
+    $('[data-agent-create-subject]').hidden = player;
+    form.elements.playerUsername.required = player;
+    form.elements.subjectId.required = !player;
+    const kinds = { institution: ['business', 'faction'], service: ['service'], 'world-director': ['world'] };
+    for (const option of form.elements.subjectKind.options) option.hidden = !(kinds[role] || []).includes(option.value);
+    if (!player) {
+        form.elements.subjectKind.value = kinds[role][0];
+        if (!form.elements.agentId.value || state.bots.some(bot => bot.username === form.elements.agentId.value)) {
+            form.elements.agentId.value = '';
+            form.elements.displayName.value = '';
+        }
+    } else {
+        const bot = state.bots.find(entry => entry.username === form.elements.playerUsername.value);
+        if (bot) { form.elements.agentId.value = bot.username; form.elements.displayName.value = bot.displayName; }
+    }
 }
 
 function showAgentControl(agentId) {
@@ -1499,9 +1526,15 @@ $('#agent-create-form').addEventListener('submit', async event => {
     const form = event.currentTarget, data = new FormData(form);
     try {
         await api('/api/admin/agents', { method: 'POST', mutation: true, body: JSON.stringify({
-            agentId: data.get('agentId'), playerUsername: data.get('playerUsername'),
+            agentId: data.get('agentId'), role: data.get('role'),
+            playerUsername: data.get('role') === 'player' ? data.get('playerUsername') : null,
+            subjectKind: data.get('subjectKind'), subjectId: data.get('subjectId'),
             displayName: data.get('displayName'), background: data.get('background'),
             personalityTraits: csvValues(data.get('personalityTraits')), values: csvValues(data.get('values')),
+            decisionIntervalMs: Number(data.get('decisionIntervalMs')),
+            maxDecisionsPerDay: Number(data.get('maxDecisionsPerDay')),
+            dailyLlmBudgetMicros: Number(data.get('dailyLlmBudgetMicros')),
+            dailyOperationalBudgetGp: Number(data.get('dailyOperationalBudgetGp')),
             reason: data.get('reason')
         }) });
         form.closest('dialog').close(); toast(`${data.get('displayName')} persistent agentként létrejött.`); await refreshAgents();
@@ -1769,6 +1802,7 @@ $('#agent-create-form').elements.playerUsername.addEventListener('change', event
     form.elements.agentId.value = bot.username;
     form.elements.displayName.value = bot.displayName;
 });
+$('#agent-create-form').elements.role.addEventListener('change', updateAgentCreateRole);
 $('#agent-goal-form').elements.horizon.addEventListener('change', updateAgentGoalParents);
 $('#agent-knowledge-form').elements.supersedesId.addEventListener('change', event => {
     if (!event.target.value) return;

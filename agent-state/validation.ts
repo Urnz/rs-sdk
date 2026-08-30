@@ -161,15 +161,33 @@ export function validateControlProfile(value: SetAgentControlProfile): SetAgentC
 export function validateCreateIdentity(value: CreateAgentIdentity): CreateAgentIdentity {
     const issues: string[] = [];
     const agentId = id(value.agentId, 'agentId', issues);
-    const playerUsername = text(value.playerUsername, 'playerUsername', issues, 12).toLowerCase();
+    const playerUsername = value.playerUsername === null || value.playerUsername === undefined
+        ? null : text(value.playerUsername, 'playerUsername', issues, 12).toLowerCase();
     if (playerUsername && !PLAYER_PATTERN.test(playerUsername)) issues.push('playerUsername contains unsupported characters');
+    let controlProfile: SetAgentControlProfile | undefined;
+    if (value.controlProfile) {
+        try { controlProfile = validateControlProfile(value.controlProfile); }
+        catch (error) {
+            if (error instanceof AgentStateValidationError) issues.push(...error.issues);
+            else throw error;
+        }
+        if (controlProfile?.role === 'player' && playerUsername !== controlProfile.avatarPlayerUsername) {
+            issues.push('playerUsername must match the player control profile avatar');
+        }
+        if (controlProfile?.role !== 'player' && playerUsername !== null) {
+            issues.push('non-player agents cannot have a playerUsername');
+        }
+    } else if (!playerUsername) {
+        issues.push('playerUsername is required when controlProfile is omitted');
+    }
     const result: CreateAgentIdentity = {
         agentId,
         playerUsername,
         displayName: text(value.displayName, 'displayName', issues, 100),
         background: text(value.background, 'background', issues, 4000),
         personalityTraits: stringList(value.personalityTraits, 'personalityTraits', issues, true),
-        values: stringList(value.values ?? [], 'values', issues, false)
+        values: stringList(value.values ?? [], 'values', issues, false),
+        ...(controlProfile ? { controlProfile } : {})
     };
     if (issues.length) throw new AgentStateValidationError(issues);
     return result;

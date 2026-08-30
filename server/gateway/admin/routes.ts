@@ -598,21 +598,39 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         if (req.method === 'POST' && url.pathname === '/api/admin/agents') {
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
-            const playerUsername = text(body, 'playerUsername', true).toLowerCase();
-            const knownBot = (await catalog()).some(bot => bot.username === playerUsername);
-            if (!knownBot) throw new Error('Agent csak a botkatalógusban létező játékoshoz hozható létre.');
+            const role = oneOf<AgentRole>(body.role ?? 'player',
+                ['player', 'institution', 'service', 'world-director'], 'role');
+            const playerUsername = role === 'player' ? text(body, 'playerUsername', true).toLowerCase() : null;
+            if (playerUsername && !(await catalog()).some(bot => bot.username === playerUsername)) {
+                throw new Error('Player agent csak a botkatalógusban létező játékoshoz hozható létre.');
+            }
+            const allowedSubjectKinds: Record<AgentRole, readonly AgentSubjectKind[]> = {
+                player: ['player'], institution: ['business', 'faction'], service: ['service'],
+                'world-director': ['world']
+            };
+            const subjectKind = role === 'player' ? 'player' : oneOf<AgentSubjectKind>(body.subjectKind,
+                allowedSubjectKinds[role], 'subjectKind');
+            const subjectId = role === 'player' ? playerUsername! : text(body, 'subjectId', true);
             try {
                 const identity = createAdminAgent({
                     agentId: text(body, 'agentId', true), playerUsername,
                     displayName: text(body, 'displayName', true), background: text(body, 'background', true),
                     personalityTraits: stringList(body.personalityTraits, 'personalityTraits'),
-                    values: body.values === undefined ? [] : stringList(body.values, 'values')
+                    values: body.values === undefined ? [] : stringList(body.values, 'values'),
+                    controlProfile: { role, subjectKind, subjectId,
+                        avatarPlayerUsername: playerUsername,
+                        decisionIntervalMs: Number(body.decisionIntervalMs ?? 300000),
+                        maxDecisionsPerDay: Number(body.maxDecisionsPerDay ?? 96),
+                        dailyLlmBudgetMicros: Number(body.dailyLlmBudgetMicros ?? 0),
+                        dailyOperationalBudgetGp: Number(body.dailyOperationalBudgetGp ?? 0) }
                 });
-                await appendAudit({ operator: 'local-admin', action: 'agent.identity.create', username: playerUsername,
+                await appendAudit({ operator: 'local-admin', action: 'agent.identity.create',
+                    username: playerUsername ?? identity.agentId,
                     reason, success: true, after: identity });
                 return json({ ok: true, identity }, 201);
             } catch (error) {
-                await appendAudit({ operator: 'local-admin', action: 'agent.identity.create', username: playerUsername,
+                await appendAudit({ operator: 'local-admin', action: 'agent.identity.create',
+                    username: playerUsername ?? text(body, 'agentId'),
                     reason, success: false, error: String(error) });
                 throw error;
             }
@@ -632,7 +650,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 ...(body.personalityTraits !== undefined ? { personalityTraits: stringList(body.personalityTraits, 'personalityTraits') } : {}),
                 ...(body.values !== undefined ? { values: stringList(body.values, 'values') } : {})
             });
-            await appendAudit({ operator: 'local-admin', action: 'agent.identity.update', username: identity.playerUsername,
+            await appendAudit({ operator: 'local-admin', action: 'agent.identity.update',
+                username: identity.playerUsername ?? identity.agentId,
                 reason, success: true, before, after: identity });
             return json({ ok: true, identity });
         }
@@ -899,8 +918,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const agents = await listAdminAgents();
             const agent = agents.agents.find(entry => entry.identity.agentId === agentId);
             if (!agent) throw new Error('Az agent nem található.');
+            const avatar = agent.controlProfile.avatarPlayerUsername;
+            if (!avatar) throw new Error('Ennek az agentnek nincs vezérelhető player avatarja.');
             const gatewayEntry = [...context.gatewayBots().entries()]
-                .find(([name]) => name.toLowerCase() === agent.identity.playerUsername)?.[1];
+                .find(([name]) => name.toLowerCase() === avatar)?.[1];
             if (!gatewayEntry?.state?.player || gatewayEntry.status !== 'active'
                 || Date.now() - gatewayEntry.lastStateReceivedAt > 5_000) throw new Error('A kapcsolt botnak friss online állapotban kell lennie.');
             const store = new AgentStateStore(agentStateDbPath);
@@ -920,12 +941,12 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     if (cycle.decision.kind !== 'execute-skill' || !cycle.decision.skill) {
                         throw new Error(`A planner nem adott végrehajtható döntést: ${cycle.decision.reason}`);
                     }
-                    const bot = (await catalog()).find(entry => entry.username === agent.identity.playerUsername);
+                    const bot = (await catalog()).find(entry => entry.username === avatar);
                     if (!bot?.hasCredentials || bot.currentSkill) throw new Error('A bot nem indíthat új skillt: nincs credential vagy már fut skill.');
                     const requested = `${cycle.decision.skill.id}@${cycle.decision.skill.version}`;
                     const candidate = await resolveAdminSkillForAgent(requested, agentId);
                     const parameters = validateAdminSkillParameters(candidate.definition, {});
-                    process = await context.supervisor.startSkill(agent.identity.playerUsername, requested, parameters);
+                    process = await context.supervisor.startSkill(avatar, requested, parameters);
                     try {
                         episode = store.createEpisode(agentId, {
                             episodeId: crypto.randomUUID(), kind: 'action', source: 'planner', trust: 'trusted',
@@ -940,12 +961,12 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     }
                 }
                 await appendAudit({ operator: 'local-admin', action: execute ? 'agent.plan.execute' : 'agent.plan.preview',
-                    username: agent.identity.playerUsername, reason, success: true,
+                    username: avatar, reason, success: true,
                     after: { decision: cycle.decision, process, episode, episodeError } });
                 return json({ ok: true, decision: cycle.decision, process, episode, episodeError }, execute ? 202 : 200);
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: execute ? 'agent.plan.execute' : 'agent.plan.preview',
-                    username: agent.identity.playerUsername, reason, success: false, error: String(error) });
+                    username: avatar, reason, success: false, error: String(error) });
                 throw error;
             } finally { store.close(); }
         }
@@ -958,8 +979,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const initial = await listAdminAgents();
             const agent = initial.agents.find(entry => entry.identity.agentId === agentId);
             if (!agent) throw new Error('Az agent nem található.');
+            const avatar = agent.controlProfile.avatarPlayerUsername;
+            if (!avatar) throw new Error('Az LLM player dry-runhoz az agentnek player avatárra van szüksége.');
             const gatewayEntry = [...context.gatewayBots().entries()]
-                .find(([name]) => name.toLowerCase() === agent.identity.playerUsername)?.[1];
+                .find(([name]) => name.toLowerCase() === avatar)?.[1];
             if (!gatewayEntry?.state?.player || gatewayEntry.status !== 'active'
                 || Date.now() - gatewayEntry.lastStateReceivedAt > 5_000) {
                 throw new Error('Az LLM dry-runhoz a kapcsolt botnak friss online állapotban kell lennie.');
@@ -977,12 +1000,12 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 const result = await runAdminLlmDryRun(current, current.catalogSkills, { now,
                     capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
                 await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: true,
-                    username: agent.identity.playerUsername, after: { runId: result.plan.runId,
+                    username: avatar, after: { runId: result.plan.runId,
                         status: result.plan.status, decision: result.plan.decision, usage: result.plan.usage } });
                 return json({ ok: true, ...result });
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: false,
-                    username: agent.identity.playerUsername, error: String(error) });
+                    username: avatar, error: String(error) });
                 throw error;
             }
         }

@@ -256,13 +256,27 @@
     <dialog id="agent-create-dialog">
         <form id="agent-create-form" method="dialog">
             <div class="dialog-heading"><div><p class="eyebrow">PERSISTENT IDENTITY</p><h2>Agent létrehozása</h2></div><button type="button" class="dialog-close">×</button></div>
-            <label>Kapcsolt bot<select name="playerUsername" required></select></label>
+            <label>Agent szerep<select name="role" required>
+                <option value="player">Player controller</option><option value="institution">Institution</option>
+                <option value="service">Service</option><option value="world-director">World Director</option>
+            </select></label>
+            <label data-agent-create-player>Kapcsolt bot<select name="playerUsername"></select></label>
+            <label data-agent-create-subject-kind hidden>Subject típusa<select name="subjectKind">
+                <option value="business">Business</option><option value="faction">Faction</option>
+                <option value="service">Service</option><option value="world">World</option>
+            </select></label>
+            <label data-agent-create-subject hidden>Subject stabil ID-je<input name="subjectId" maxlength="64" placeholder="pl. varrock-smithy"></label>
             <label>Stabil agent ID<input name="agentId" pattern="[a-z0-9]+([.-][a-z0-9]+)*" maxlength="64" placeholder="pl. ferrye14" required></label>
             <label>Megjelenített név<input name="displayName" maxlength="100" required></label>
             <label>Háttértörténet<textarea name="background" maxlength="4000" rows="4" required></textarea></label>
             <label>Személyiségjegyek <span class="muted">(vesszővel, 1–12)</span><input name="personalityTraits" placeholder="türelmes, kíváncsi, takarékos" required></label>
             <label>Értékek <span class="muted">(vesszővel, opcionális)</span><input name="values" placeholder="függetlenség, mesterségbeli tudás"></label>
+            <label>Döntési időköz (ms)<input name="decisionIntervalMs" type="number" min="1000" max="86400000" step="1000" value="300000" required></label>
+            <label>Maximum döntés naponta<input name="maxDecisionsPerDay" type="number" min="1" max="1000" value="96" required></label>
+            <label>Napi LLM-keret (micros)<input name="dailyLlmBudgetMicros" type="number" min="0" max="1000000000000" value="0" required></label>
+            <label>Napi operatív keret (gp)<input name="dailyOperationalBudgetGp" type="number" min="0" max="2147483647" value="0" required></label>
             <label>Indoklás<input name="reason" value="Persistent agent létrehozása" required></label>
+            <p class="dialog-note">A nem-player agent önálló intézményi identitás: nincs mögötte botfiók vagy vezérelhető avatar.</p>
             <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Létrehozás</button></div>
         </form>
     </dialog>

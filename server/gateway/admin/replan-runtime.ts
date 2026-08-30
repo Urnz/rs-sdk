@@ -49,8 +49,10 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             const initial = await listAdminAgents();
             const agent = initial.agents.find(entry => entry.identity.agentId === agentId);
             if (!agent) return { runId: event.eventId, status: 'skipped', reason: 'Agent state no longer exists.' };
+            const avatar = agent.controlProfile.avatarPlayerUsername;
+            if (!avatar) return { runId: event.eventId, status: 'skipped', reason: 'Agent has no player avatar.' };
             const gateway = [...gatewayBots().entries()]
-                .find(([name]) => name.toLowerCase() === agent.identity.playerUsername)?.[1];
+                .find(([name]) => name.toLowerCase() === avatar)?.[1];
             if (!gateway?.state?.player || gateway.status !== 'active'
                 || Date.now() - gateway.lastStateReceivedAt > 5_000) {
                 return { runId: event.eventId, status: 'skipped', reason: 'No fresh online world state is available.' };

@@ -21,6 +21,54 @@ afterEach(() => {
 });
 
 describe('agent role and subject control', () => {
+    test('creates and reloads botless institutional, service and world identities', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-agent-control-botless-'));
+        directories.push(directory);
+        const path = join(directory, 'agents.sqlite');
+        let store = new AgentStateStore(path);
+        const institution = store.createIdentity({ agentId: 'varrock-forge', playerUsername: null,
+            displayName: 'Varrock Forge', background: 'Autonomous workshop.', personalityTraits: ['prudent'],
+            controlProfile: { role: 'institution', subjectKind: 'business', subjectId: 'Varrock Forge',
+                decisionIntervalMs: 3_600_000, maxDecisionsPerDay: 12,
+                dailyLlmBudgetMicros: 250_000, dailyOperationalBudgetGp: 100_000 } });
+        store.createIdentity({ agentId: 'skill-builder', displayName: 'Skill Builder',
+            background: 'Shared capability service.', personalityTraits: ['methodical'],
+            controlProfile: { role: 'service', subjectKind: 'service', subjectId: 'Skill Builder',
+                decisionIntervalMs: 60_000, maxDecisionsPerDay: 96,
+                dailyLlmBudgetMicros: 500_000, dailyOperationalBudgetGp: 0 } });
+        store.createIdentity({ agentId: 'world-director', displayName: 'World Director',
+            background: 'Bounded simulation director.', personalityTraits: ['impartial'],
+            controlProfile: { role: 'world-director', subjectKind: 'world', subjectId: 'Gielinor',
+                decisionIntervalMs: 86_400_000, maxDecisionsPerDay: 1,
+                dailyLlmBudgetMicros: 100_000, dailyOperationalBudgetGp: 0 } });
+        expect(institution.playerUsername).toBeNull();
+        expect(store.listEconomicActorLinks('varrock-forge')).toEqual([expect.objectContaining({
+            actorKind: 'business', actorId: 'varrock_forge', role: 'self', source: 'identity'
+        })]);
+        expect(store.listEconomicActorLinks('skill-builder')).toEqual([]);
+        store.close();
+
+        store = new AgentStateStore(path);
+        expect(store.getIdentity('varrock-forge')?.playerUsername).toBeNull();
+        expect(store.getControlProfile('varrock-forge')).toMatchObject({ role: 'institution',
+            subjectKind: 'business', subjectId: 'varrock_forge', avatarPlayerUsername: null });
+        expect(store.getControlProfile('world-director')).toMatchObject({ role: 'world-director',
+            subjectKind: 'world', subjectId: 'gielinor', avatarPlayerUsername: null });
+        store.close();
+    });
+
+    test('rejects ambiguous player bindings during identity creation', () => {
+        const store = createStore();
+        expect(() => store.createIdentity({ agentId: 'missing-avatar', displayName: 'Missing',
+            background: 'Invalid player.', personalityTraits: ['careful'] })).toThrow('playerUsername is required');
+        expect(() => store.createIdentity({ agentId: 'fake-institution', playerUsername: 'Ferrye15',
+            displayName: 'Fake institution', background: 'Invalid binding.', personalityTraits: ['careful'],
+            controlProfile: { role: 'institution', subjectKind: 'business', subjectId: 'forge',
+                decisionIntervalMs: 60_000, maxDecisionsPerDay: 10,
+                dailyLlmBudgetMicros: 1, dailyOperationalBudgetGp: 1 } })).toThrow('cannot have a playerUsername');
+        store.close();
+    });
+
     test('migrates player identities and binds institutions without granting an avatar', () => {
         const store = createStore();
         const player = store.getControlProfile('forge-mind')!;

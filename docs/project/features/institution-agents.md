@@ -11,9 +11,10 @@ a fizikai player többé nem az implicit jogosultságforrás. A perzisztens
 - `service` → rendszer-szolgáltatás, avatár nélkül;
 - `world-director` → a világ seedelt eseményvezérlője, avatár nélkül.
 
-A jelenlegi adminos identity-létrehozás még egy botból indul. A profil utána már
-átköthető intézményre, de a valódi bot nélküli identity-létrehozás külön következő
-lépés; ezt a tasklista nyitva tartja.
+A nem-player identity közvetlenül létrehozható az adminpanelen botkatalógus-bejegyzés
+nélkül. Az identity `playerUsername` mezője ilyenkor `null`; a tényleges kötést a
+control profile szerep–subject párja adja. Player controller továbbra is csak egy
+létező bothoz, exact avatar-kötéssel hozható létre.
 
 ## Fizikai biztonsági határ
 

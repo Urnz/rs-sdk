@@ -20,7 +20,7 @@ import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCr
     validateControlProfile, validateEconomicActorLink, validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
-    agent_id: string; player_username: string; display_name: string; background: string;
+    agent_id: string; player_username: string | null; display_name: string; background: string;
     personality_traits: string; agent_values: string; created_at: string; updated_at: string; revision: number;
 }
 interface GoalRow {
@@ -176,22 +176,31 @@ export class AgentStateStore {
 
     createIdentity(input: CreateAgentIdentity, now = new Date().toISOString()): AgentIdentity {
         const value = validateCreateIdentity(input);
-        const playerActorId = normalizeEconomicActorId(value.playerUsername, 'playerUsername');
+        const profile = value.controlProfile ?? validateControlProfile({ role: 'player', subjectKind: 'player',
+            subjectId: value.playerUsername!, avatarPlayerUsername: value.playerUsername,
+            decisionIntervalMs: 300000, maxDecisionsPerDay: 96,
+            dailyLlmBudgetMicros: 0, dailyOperationalBudgetGp: 0 });
         const transaction = this.database.transaction(() => {
             this.database.run(`INSERT INTO agent_identity
                 (agent_id, player_username, display_name, background, personality_traits, agent_values, created_at, updated_at, revision)
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7, 1)`,
-            [value.agentId, value.playerUsername, value.displayName, value.background, JSON.stringify(value.personalityTraits),
+            [value.agentId, value.playerUsername ?? null, value.displayName, value.background, JSON.stringify(value.personalityTraits),
                 JSON.stringify(value.values ?? []), now]);
-            this.database.run(`INSERT INTO agent_economic_actor_link
-                (agent_id, actor_kind, actor_id, role, source, created_at, updated_at, revision)
-                VALUES (?1, 'player', ?2, 'self', 'identity', ?3, ?3, 1)`, [value.agentId, playerActorId, now]);
+            if (profile.subjectKind === 'player' || profile.subjectKind === 'business'
+                || profile.subjectKind === 'faction') {
+                this.database.run(`INSERT INTO agent_economic_actor_link
+                    (agent_id, actor_kind, actor_id, role, source, created_at, updated_at, revision)
+                    VALUES (?1, ?2, ?3, 'self', 'identity', ?4, ?4, 1)`,
+                [value.agentId, profile.subjectKind, profile.subjectId, now]);
+            }
             this.database.run(`INSERT INTO agent_control_profile
                 (agent_id, role, subject_kind, subject_id, avatar_player_username, decision_interval_ms,
                 max_decisions_per_day, daily_llm_budget_micros, daily_operational_budget_gp,
                 last_decision_at, next_decision_at, created_at, updated_at, revision)
-                VALUES (?1, 'player', 'player', ?2, ?3, 300000, 96, 0, 0, NULL, NULL, ?4, ?4, 1)`,
-            [value.agentId, playerActorId, value.playerUsername, now]);
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, ?10, ?10, 1)`,
+            [value.agentId, profile.role, profile.subjectKind, profile.subjectId,
+                profile.avatarPlayerUsername ?? null, profile.decisionIntervalMs, profile.maxDecisionsPerDay,
+                profile.dailyLlmBudgetMicros, profile.dailyOperationalBudgetGp, now]);
         });
         transaction.immediate();
         return this.requireIdentity(value.agentId);
@@ -209,6 +218,9 @@ export class AgentStateStore {
                 next.displayName, next.background, JSON.stringify(next.personalityTraits), JSON.stringify(next.values), now]);
             if (result.changes !== 1) throw new Error('Agent identity changed before update; refresh and try again');
             if (next.playerUsername !== current.playerUsername) {
+                if (!current.playerUsername || !next.playerUsername) {
+                    throw new Error('A non-player identity cannot be rebound through the identity editor');
+                }
                 this.database.run(`UPDATE agent_economic_actor_link SET actor_id = ?2, updated_at = ?3,
                     revision = revision + 1 WHERE agent_id = ?1 AND source = 'identity' AND actor_kind = 'player'`,
                 [current.agentId, normalizeEconomicActorId(next.playerUsername, 'playerUsername'), now]);
@@ -1205,6 +1217,29 @@ export class AgentStateStore {
                 this.database.run('PRAGMA user_version = 9');
             });
             transaction.immediate();
+        }
+        if (version < 10) {
+            this.database.run('PRAGMA foreign_keys = OFF');
+            try {
+                const transaction = this.database.transaction(() => {
+                    this.database.run(`CREATE TABLE agent_identity_v10 (
+                        agent_id TEXT PRIMARY KEY, player_username TEXT UNIQUE, display_name TEXT NOT NULL,
+                        background TEXT NOT NULL, personality_traits TEXT NOT NULL, agent_values TEXT NOT NULL,
+                        created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                        revision INTEGER NOT NULL CHECK (revision >= 1))`);
+                    this.database.run(`INSERT INTO agent_identity_v10 SELECT agent_id, player_username, display_name,
+                        background, personality_traits, agent_values, created_at, updated_at, revision
+                        FROM agent_identity`);
+                    this.database.run('DROP TABLE agent_identity');
+                    this.database.run('ALTER TABLE agent_identity_v10 RENAME TO agent_identity');
+                    this.database.run('PRAGMA user_version = 10');
+                });
+                transaction.immediate();
+            } finally {
+                this.database.run('PRAGMA foreign_keys = ON');
+            }
+            const violations = this.database.query('PRAGMA foreign_key_check').all();
+            if (violations.length) throw new Error('Agent state migration 10 introduced foreign-key violations');
         }
     }
 }

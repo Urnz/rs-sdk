@@ -297,14 +297,15 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
   közvetlen tetszőleges kódfuttatást.
   - [x] A `player`, `institution`, `service` és `world-director` agent-szerepeket
     elkülöníteni; ne minden önálló rendszer kapjon avatárt vagy szabad LLM-loopot.
-  - [ ] Az agent identitását általános subject bindinghoz kötni, amely player,
+  - [x] Az agent identitását általános subject bindinghoz kötni, amely player,
     business, faction vagy rendszer-szolgáltatás lehet; a player controller továbbra
     is kizárólag a hozzá rendelt avataron hajthasson végre műveletet.
     - [x] Perzisztens, optimista revíziós control profile player/business/faction/
-      service/world subjecttel, opcionális avatárkötéssel és v8→v9 migrációval.
+      service/world subjecttel, opcionális avatárkötéssel, v8→v9 control-profile és
+      v9→v10 nullable player-binding migrációval.
     - [x] A fizikai skillfuttatást fail-closed módon kizárólag exact player-avatar
       kötésnél engedni; institution/service/world-director csak megbízást kérhessen.
-    - [ ] Nem-player identitást közvetlenül, botkatalógus-bejegyzés nélkül is lehessen
+    - [x] Nem-player identitást közvetlenül, botkatalógus-bejegyzés nélkül is lehessen
       létrehozni az adminpanelen; a legacy `playerUsername` többé ne legyen előfeltétel.
   - [x] A player planner hiányzó képesség esetén ismételt modellhívás helyett
     strukturált, tartós és deduplikált `CapabilityGap` munkajegyet hozzon létre.

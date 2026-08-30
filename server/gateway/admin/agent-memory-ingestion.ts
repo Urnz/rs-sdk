@@ -225,7 +225,8 @@ export async function ingestAgentMemories(options: {
         existingRelationships: 0, skippedRuns: 0, errors: [],
         completedAt: options.now ?? new Date().toISOString() };
     try {
-        const agentByPlayer = new Map(store.listIdentities().map(identity => [identity.playerUsername, identity.agentId]));
+        const agentByPlayer = new Map(store.listIdentities().flatMap(identity => identity.playerUsername
+            ? [[identity.playerUsername, identity.agentId] as const] : []));
         const productionObservations: ProductionObservation[] = [];
         const socialObservations: SocialObservation[] = [];
         for (const run of [...runs].sort((left, right) => left.startedAt.localeCompare(right.startedAt))) {

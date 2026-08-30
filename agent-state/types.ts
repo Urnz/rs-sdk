@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 9 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 10 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -26,7 +26,7 @@ export interface AgentSkillReference {
 export interface AgentIdentity {
     schemaVersion: typeof AGENT_STATE_SCHEMA_VERSION;
     agentId: string;
-    playerUsername: string;
+    playerUsername: string | null;
     displayName: string;
     background: string;
     personalityTraits: string[];
@@ -38,11 +38,12 @@ export interface AgentIdentity {
 
 export interface CreateAgentIdentity {
     agentId: string;
-    playerUsername: string;
+    playerUsername?: string | null;
     displayName: string;
     background: string;
     personalityTraits: string[];
     values?: string[];
+    controlProfile?: SetAgentControlProfile;
 }
 
 export interface UpdateAgentIdentity {
