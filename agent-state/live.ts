@@ -3,6 +3,7 @@ import type { SkillRunResult } from '../agent-skills/types.js';
 import { planNextAction, type PlannerDecision } from './planner.js';
 import type { AgentSkillReference, SetAgentWorkingMemory } from './types.js';
 import { AgentStateStore } from './store.js';
+import { physicalExecutionAuthority } from './control.js';
 
 export type LiveWorldState = Pick<BotWorldState, 'inGame' | 'player' | 'inventory' | 'dialog' | 'bank'
     | 'shop' | 'trade' | 'modalOpen' | 'nearbyNpcs' | 'nearbyLocs' | 'gameMessages'>;
@@ -61,8 +62,11 @@ export function observeLiveState(state: LiveWorldState, observedAt = new Date().
 export async function runLivePlannerCycle(options: LivePlannerCycleOptions): Promise<LivePlannerCycleResult> {
     const identity = options.store.getIdentity(options.agentId);
     if (!identity) throw new Error(`Unknown agent: ${options.agentId}`);
-    if (!options.state.player || identity.playerUsername !== options.state.player.name.trim().toLowerCase()) {
-        throw new Error(`Agent ${identity.agentId} belongs to player ${identity.playerUsername}, not ${options.state.player?.name ?? 'offline'}`);
+    const profile = options.store.getControlProfile(options.agentId);
+    if (!profile) throw new Error(`Agent ${identity.agentId} has no control profile`);
+    const authority = physicalExecutionAuthority(profile, options.state.player?.name);
+    if (!options.state.player || !authority.allowed) {
+        throw new Error(authority.reason);
     }
     const previous = options.store.getWorkingMemory(identity.agentId);
     options.store.setWorkingMemory(identity.agentId, previous?.revision ?? null,

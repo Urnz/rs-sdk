@@ -285,6 +285,30 @@
         </form>
     </dialog>
 
+    <dialog id="agent-control-dialog">
+        <form id="agent-control-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">AGENT CONTROL PROFILE</p><h2>Szerep, subject és döntési keretek</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="agentId" type="hidden"><input name="expectedRevision" type="hidden">
+            <label>Agent szerep<select name="role" required>
+                <option value="player">Player controller</option><option value="institution">Institution</option>
+                <option value="service">Service</option><option value="world-director">World Director</option>
+            </select></label>
+            <label>Subject típusa<select name="subjectKind" required>
+                <option value="player">Player</option><option value="business">Business</option>
+                <option value="faction">Faction</option><option value="service">Service</option><option value="world">World</option>
+            </select></label>
+            <label>Subject stabil ID-je<input name="subjectId" maxlength="64" required></label>
+            <label>Vezérelhető player avatar <span class="muted">(csak player szerepnél)</span><input name="avatarPlayerUsername" maxlength="12"></label>
+            <label>Döntési időköz (ms)<input name="decisionIntervalMs" type="number" min="1000" max="86400000" step="1000" required></label>
+            <label>Maximum döntés naponta<input name="maxDecisionsPerDay" type="number" min="1" max="1000" step="1" required></label>
+            <label>Napi LLM-keret (micros)<input name="dailyLlmBudgetMicros" type="number" min="0" max="1000000000000" step="1" required></label>
+            <label>Napi operatív keret (gp)<input name="dailyOperationalBudgetGp" type="number" min="0" max="2147483647" step="1" required></label>
+            <label>Indoklás<input name="reason" value="Agent control profile frissítése" required></label>
+            <p class="dialog-note">Institution, service és World Director nem kaphat avatárt és nem futtathat közvetlen player skillt. Fizikai munkát később auditált player-megbízással kérhetnek.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Profil mentése</button></div>
+        </form>
+    </dialog>
+
     <dialog id="agent-goal-dialog">
         <form id="agent-goal-form" method="dialog">
             <div class="dialog-heading"><div><p class="eyebrow">CÉLHIERARCHIA</p><h2>Új cél</h2></div><button type="button" class="dialog-close">×</button></div>

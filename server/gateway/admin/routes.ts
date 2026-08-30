@@ -34,6 +34,7 @@ import {
     listAdminAgents,
     pruneAdminAgentEpisodes,
     updateAdminAgent,
+    updateAdminAgentControlProfile,
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
     updateAdminAgentRelationship,
@@ -42,7 +43,8 @@ import {
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { observeLiveState, runLivePlannerCycle } from '../../../agent-state/live.js';
 import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind, AgentEpisodeTrust,
-    AgentKnowledgeKind, AgentSkillKnowledgeStatus, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
+    AgentKnowledgeKind, AgentRole, AgentSkillKnowledgeStatus, AgentSubjectKind, GoalHorizon,
+    GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath, capabilityGapsPath } from './paths.js';
 import { runAdminLlmDryRun } from './llm-dry-run.js';
 import type { AgentReplanCoordinator } from './replan-coordinator.js';
@@ -633,6 +635,35 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             await appendAudit({ operator: 'local-admin', action: 'agent.identity.update', username: identity.playerUsername,
                 reason, success: true, before, after: identity });
             return json({ ok: true, identity });
+        }
+
+        const controlProfileMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/control-profile$/);
+        if (req.method === 'PUT' && controlProfileMatch?.[1]) {
+            const agentId = controlProfileMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen control profile revízió.');
+            }
+            const before = (await listAdminAgents()).agents
+                .find(agent => agent.identity.agentId === agentId)?.controlProfile;
+            const profile = updateAdminAgentControlProfile(agentId, expectedRevision, {
+                role: oneOf<AgentRole>(body.role,
+                    ['player', 'institution', 'service', 'world-director'], 'role'),
+                subjectKind: oneOf<AgentSubjectKind>(body.subjectKind,
+                    ['player', 'business', 'faction', 'service', 'world'], 'subjectKind'),
+                subjectId: text(body, 'subjectId', true),
+                avatarPlayerUsername: body.avatarPlayerUsername === null ? null
+                    : text(body, 'avatarPlayerUsername'),
+                decisionIntervalMs: Number(body.decisionIntervalMs),
+                maxDecisionsPerDay: Number(body.maxDecisionsPerDay),
+                dailyLlmBudgetMicros: Number(body.dailyLlmBudgetMicros),
+                dailyOperationalBudgetGp: Number(body.dailyOperationalBudgetGp)
+            });
+            await appendAudit({ operator: 'local-admin', action: 'agent.control-profile.update', reason,
+                success: true, username: agentId, before, after: profile });
+            return json({ ok: true, profile });
         }
 
         const agentGoalMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/goals$/);

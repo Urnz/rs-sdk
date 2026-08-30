@@ -248,6 +248,7 @@ function renderAgents() {
     $('#agent-count').textContent = `${state.agents.length} agent`;
     $('#agent-list').innerHTML = state.agents.length ? state.agents.map(agent => {
         const identity = agent.identity;
+        const control = agent.controlProfile;
         const memory = agent.workingMemory;
         const goals = agent.goals.map(goal => `<div class="agent-goal">
             <span><strong>${escapeHtml(goal.title)}</strong><small>${escapeHtml(goalHorizonLabels[goal.horizon])} · ${escapeHtml(goalStatusLabels[goal.status])} · prioritás ${goal.priority}</small>
@@ -325,6 +326,7 @@ function renderAgents() {
             <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
                 <div class="agent-card-actions">
                     <button class="button small ghost" data-action="agent-edit" data-agent-id="${escapeHtml(identity.agentId)}">Identitás szerkesztése</button>
+                    <button class="button small ghost" data-action="agent-control-edit" data-agent-id="${escapeHtml(identity.agentId)}">Vezérlés és keretek</button>
                     <button class="button small secondary" data-action="agent-goal-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Cél</button>
                     <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kézi skillállapot</button>
                     <button class="button small secondary" data-action="agent-episode-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Emlék</button>
@@ -334,7 +336,10 @@ function renderAgents() {
                     <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
                     <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
                 </div></div>
-            <div class="agent-meta"><span class="agent-chip">${escapeHtml(identity.agentId)}</span><span class="agent-chip">player: ${escapeHtml(identity.playerUsername)}</span>
+            <div class="agent-meta"><span class="agent-chip">${escapeHtml(identity.agentId)}</span><span class="agent-chip">${escapeHtml(control.role)}</span>
+                <span class="agent-chip">subject: ${escapeHtml(control.subjectKind)}:${escapeHtml(control.subjectId)}</span>
+                <span class="agent-chip">avatar: ${escapeHtml(control.avatarPlayerUsername || 'nincs')}</span>
+                <span class="agent-chip">${control.maxDecisionsPerDay} döntés/nap · ${control.dailyOperationalBudgetGp} gp</span>
                 ${identity.personalityTraits.map(trait => `<span class="agent-chip">${escapeHtml(trait)}</span>`).join('')}
                 <span class="agent-chip ${escapeHtml(agent.planner.kind)}">${escapeHtml(plannerLabels[agent.planner.kind] || agent.planner.kind)}</span></div>
             <div class="agent-grid"><section class="agent-section"><h4>Célhierarchia</h4><div class="agent-goals">${goals}</div></section>
@@ -404,6 +409,22 @@ function showAgentCreate() {
     form.elements.displayName.value = choices[0].displayName;
     form.elements.reason.value = 'Persistent agent létrehozása';
     $('#agent-create-dialog').showModal();
+}
+
+function showAgentControl(agentId) {
+    const agent = state.agents.find(entry => entry.identity.agentId === agentId);
+    if (!agent) throw new Error('Az agent már nem található.');
+    const profile = agent.controlProfile, form = $('#agent-control-form'); form.reset();
+    form.elements.agentId.value = agentId; form.elements.expectedRevision.value = profile.revision;
+    form.elements.role.value = profile.role; form.elements.subjectKind.value = profile.subjectKind;
+    form.elements.subjectId.value = profile.subjectId;
+    form.elements.avatarPlayerUsername.value = profile.avatarPlayerUsername || '';
+    form.elements.decisionIntervalMs.value = profile.decisionIntervalMs;
+    form.elements.maxDecisionsPerDay.value = profile.maxDecisionsPerDay;
+    form.elements.dailyLlmBudgetMicros.value = profile.dailyLlmBudgetMicros;
+    form.elements.dailyOperationalBudgetGp.value = profile.dailyOperationalBudgetGp;
+    form.elements.reason.value = 'Agent control profile frissítése';
+    $('#agent-control-dialog').showModal();
 }
 
 function showAgentGoal(agentId) {
@@ -1290,6 +1311,7 @@ document.addEventListener('click', async event => {
             });
             toast(`${identity.displayName} identitása frissült.`); await refreshAgents();
         }
+        if (button.dataset.action === 'agent-control-edit') showAgentControl(button.dataset.agentId);
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-learn') {
@@ -1483,6 +1505,25 @@ $('#agent-create-form').addEventListener('submit', async event => {
             reason: data.get('reason')
         }) });
         form.closest('dialog').close(); toast(`${data.get('displayName')} persistent agentként létrejött.`); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#agent-control-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    try {
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('agentId'))}/control-profile`, {
+            method: 'PUT', mutation: true, body: JSON.stringify({
+                expectedRevision: Number(data.get('expectedRevision')), role: data.get('role'),
+                subjectKind: data.get('subjectKind'), subjectId: data.get('subjectId'),
+                avatarPlayerUsername: data.get('avatarPlayerUsername') || null,
+                decisionIntervalMs: Number(data.get('decisionIntervalMs')),
+                maxDecisionsPerDay: Number(data.get('maxDecisionsPerDay')),
+                dailyLlmBudgetMicros: Number(data.get('dailyLlmBudgetMicros')),
+                dailyOperationalBudgetGp: Number(data.get('dailyOperationalBudgetGp')), reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('Az agent vezérlési profilja frissült.'); await refreshAgents();
     } catch (error) { toast(error.message, true); }
 });
 

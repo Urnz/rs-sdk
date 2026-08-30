@@ -95,6 +95,8 @@ describe('admin agent-state service', () => {
         });
         expect(result.agents).toHaveLength(1);
         expect(result.agents[0]?.identity.displayName).toBe('Ferrye, a bányász');
+        expect(result.agents[0]?.controlProfile).toMatchObject({ role: 'player', subjectKind: 'player',
+            subjectId: 'ferrye14', avatarPlayerUsername: 'ferrye14' });
         expect(result.agents[0]?.goals).toHaveLength(4);
         expect(result.agents[0]?.knownSkills[0]?.status).toBe('preferred');
         expect(result.agents[0]?.skillRelationships.find(entry => entry.reference.id === skill!.id)).toMatchObject({
@@ -113,6 +115,7 @@ describe('admin agent-state service', () => {
             kind: 'execute-skill', skill: { id: skill!.id, version: skill!.version }
         });
         expect(result.agents[0]?.decisionContext).toContain('Ferrye, a bányász');
+        expect(result.agents[0]?.decisionContext).toContain('Control role: player');
         expect(result.agents[0]?.decisionContext).toContain('A varrocki vasérc');
         expect(result.agents[0]?.decisionContext).toContain('legközelebbi ismert bank');
         expect(result.agents[0]?.decisionContext).toContain('Fizesse vissza a rune pickaxe');

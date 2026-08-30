@@ -1,8 +1,8 @@
 import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentSkillKnowledgeStatus,
     AgentCommitmentDirection, AgentEconomicActorKind, AgentEconomicActorRole, AgentKnowledgeKind,
-    AgentKnowledgeSource, AgentSkillReference,
+    AgentKnowledgeSource, AgentRole, AgentSkillReference, AgentSubjectKind,
     CreateAgentCommitment, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge,
-    GoalHorizon, SetAgentRelationship, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
+    GoalHorizon, SetAgentControlProfile, SetAgentRelationship, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLAYER_PATTERN = /^[a-z0-9 _-]+$/;
@@ -17,6 +17,8 @@ const COMMITMENT_DIRECTIONS = new Set<AgentCommitmentDirection>(['owed-by-agent'
 const ACTOR_PATTERN = /^[\p{L}\p{N} ._-]+$/u;
 const ECONOMIC_ACTOR_KINDS = new Set<AgentEconomicActorKind>(['player', 'business', 'faction']);
 const ECONOMIC_ACTOR_ROLES = new Set<AgentEconomicActorRole>(['self', 'owner', 'manager', 'member', 'beneficiary']);
+const AGENT_ROLES = new Set<AgentRole>(['player', 'institution', 'service', 'world-director']);
+const SUBJECT_KINDS = new Set<AgentSubjectKind>(['player', 'business', 'faction', 'service', 'world']);
 
 export class AgentStateValidationError extends Error {
     constructor(public readonly issues: string[]) {
@@ -107,6 +109,53 @@ export function validateEconomicActorLink(actorKind: unknown, actorId: unknown, 
     if (issues.length) throw new AgentStateValidationError(issues);
     return { actorKind: actorKind as AgentEconomicActorKind, actorId: normalizedActorId,
         role: role as AgentEconomicActorRole };
+}
+
+export function validateControlProfile(value: SetAgentControlProfile): SetAgentControlProfile {
+    const issues: string[] = [];
+    if (!AGENT_ROLES.has(value.role)) issues.push('role is unsupported');
+    if (!SUBJECT_KINDS.has(value.subjectKind)) issues.push('subjectKind is unsupported');
+    let subjectId = '';
+    try { subjectId = normalizeEconomicActorId(value.subjectId, 'subjectId'); }
+    catch (error) {
+        if (error instanceof AgentStateValidationError) issues.push(...error.issues);
+        else throw error;
+    }
+    const avatar = value.avatarPlayerUsername === null || value.avatarPlayerUsername === undefined
+        ? null : text(value.avatarPlayerUsername, 'avatarPlayerUsername', issues, 12).toLowerCase();
+    if (avatar && !PLAYER_PATTERN.test(avatar)) issues.push('avatarPlayerUsername contains unsupported characters');
+    const combinations: Record<AgentRole, AgentSubjectKind[]> = {
+        player: ['player'], institution: ['business', 'faction'], service: ['service'], 'world-director': ['world']
+    };
+    if (AGENT_ROLES.has(value.role) && SUBJECT_KINDS.has(value.subjectKind)
+        && !combinations[value.role].includes(value.subjectKind)) {
+        issues.push(`${value.role} agents cannot bind to ${value.subjectKind} subjects`);
+    }
+    if (value.role === 'player' && !avatar) issues.push('player agents require an avatarPlayerUsername');
+    if (value.role !== 'player' && avatar) issues.push('only player agents may have an avatarPlayerUsername');
+    if (value.role === 'player' && avatar) {
+        try {
+            if (normalizeEconomicActorId(avatar, 'avatarPlayerUsername') !== subjectId) {
+                issues.push('player subjectId must match avatarPlayerUsername');
+            }
+        } catch (error) {
+            if (error instanceof AgentStateValidationError) issues.push(...error.issues);
+            else throw error;
+        }
+    }
+    if (!Number.isInteger(value.decisionIntervalMs) || value.decisionIntervalMs < 1_000
+        || value.decisionIntervalMs > 86_400_000) issues.push('decisionIntervalMs must be 1000-86400000');
+    if (!Number.isInteger(value.maxDecisionsPerDay) || value.maxDecisionsPerDay < 1
+        || value.maxDecisionsPerDay > 1000) issues.push('maxDecisionsPerDay must be 1-1000');
+    if (!Number.isSafeInteger(value.dailyLlmBudgetMicros) || value.dailyLlmBudgetMicros < 0
+        || value.dailyLlmBudgetMicros > 1_000_000_000_000) issues.push('dailyLlmBudgetMicros is out of range');
+    if (!Number.isSafeInteger(value.dailyOperationalBudgetGp) || value.dailyOperationalBudgetGp < 0
+        || value.dailyOperationalBudgetGp > 2_147_483_647) issues.push('dailyOperationalBudgetGp is out of range');
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return { role: value.role, subjectKind: value.subjectKind, subjectId, avatarPlayerUsername: avatar,
+        decisionIntervalMs: value.decisionIntervalMs, maxDecisionsPerDay: value.maxDecisionsPerDay,
+        dailyLlmBudgetMicros: value.dailyLlmBudgetMicros,
+        dailyOperationalBudgetGp: value.dailyOperationalBudgetGp };
 }
 
 export function validateCreateIdentity(value: CreateAgentIdentity): CreateAgentIdentity {

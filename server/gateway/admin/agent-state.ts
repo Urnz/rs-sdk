@@ -6,7 +6,7 @@ import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemo
     retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
 import type { AgentCommitmentStatus, AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentCommitment,
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
-    SetAgentRelationship, UpdateAgentIdentity } from '../../../agent-state/types.js';
+    SetAgentControlProfile, SetAgentRelationship, UpdateAgentIdentity } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { BotCatalogEntry } from './types.js';
@@ -56,7 +56,9 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         const relevantRelationships = retrieveSocialMemory(relationships,
             { ...socialQueryFromSnapshot(snapshot), now: generatedAt });
         const actorLinks = store.listEconomicActorLinks(identity.agentId);
-        const bot = assetSources.bots?.find(entry => entry.username === identity.playerUsername);
+        const controlProfile = store.getControlProfile(identity.agentId)!;
+        const bot = controlProfile.avatarPlayerUsername
+            ? assetSources.bots?.find(entry => entry.username === controlProfile.avatarPlayerUsername) : undefined;
         const assets = resolveAgentAssets(actorLinks, relationships.map(entry => entry.relationship),
             relationships.flatMap(entry => entry.commitments), {
                 observedAt: assetSources.observedAt,
@@ -73,6 +75,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             });
         return {
             ...snapshot,
+            controlProfile,
             skillRelationships,
             episodeCount: store.countEpisodes(identity.agentId),
             recentEpisodes,
@@ -86,6 +89,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             relevantRelationships,
             assets,
             decisionContext: buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 4000,
+                controlProfile,
                 episodicMemories: relevantEpisodes.map(result => result.episode),
                 semanticMemories: relevantKnowledge.map(result => result.knowledge),
                 socialMemories: relevantRelationships, assets }),
@@ -121,6 +125,11 @@ export function createAdminAgent(input: CreateAgentIdentity, path = agentStateDb
 export function updateAdminAgent(agentId: string, expectedRevision: number, patch: UpdateAgentIdentity,
     path = agentStateDbPath) {
     return useStore(path, store => store.updateIdentity(agentId, expectedRevision, patch));
+}
+
+export function updateAdminAgentControlProfile(agentId: string, expectedRevision: number,
+    input: SetAgentControlProfile, path = agentStateDbPath) {
+    return useStore(path, store => store.setControlProfile(agentId, expectedRevision, input));
 }
 
 export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {

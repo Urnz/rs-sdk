@@ -1,5 +1,6 @@
-import type { AgentAssetPortfolio, AgentEpisode, AgentKnowledge, AgentSnapshot, GoalHorizon } from './types.js';
+import type { AgentAssetPortfolio, AgentControlProfile, AgentEpisode, AgentKnowledge, AgentSnapshot, GoalHorizon } from './types.js';
 import type { SocialMemoryEntry } from './retrieval.js';
+import { buildAgentControlContext } from './control.js';
 
 const LABELS: Record<GoalHorizon, string> = {
     life: 'Life goal', 'long-term': 'Long-term goals', current: 'Current goals', immediate: 'Immediate tasks'
@@ -34,6 +35,7 @@ export interface DecisionContextOptions {
     semanticMemories?: readonly AgentKnowledge[];
     socialMemories?: readonly SocialMemoryEntry[];
     assets?: AgentAssetPortfolio;
+    controlProfile?: AgentControlProfile;
 }
 
 export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionContextOptions = {}): string {
@@ -48,6 +50,7 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     const now = Date.parse(options.now ?? new Date().toISOString());
     if (Number.isNaN(now)) throw new Error('Decision context now must be an ISO timestamp');
     const parts = [buildCoreIdentity(snapshot, Math.min(maxCharacters, 8000))];
+    if (options.controlProfile) parts.push(buildAgentControlContext(options.controlProfile));
     const memory = snapshot.workingMemory;
     if (memory && now - Date.parse(memory.observedAt) >= 0 && now - Date.parse(memory.observedAt) <= maxAge) {
         const location = memory.location

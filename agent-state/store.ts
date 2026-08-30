@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
+    type AgentControlProfile, type AgentDecisionRecord, type AgentDecisionTrigger,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
     type AgentEpisodeProtectionReason, type AgentEpisodePruneResult, type AgentEpisodeRetentionPreview,
     type AgentConsolidationEvidence, type AgentEconomicActorLink, type AgentKnowledge,
@@ -10,12 +11,13 @@ import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type Ag
     type AgentSkillReference, type AgentWorkingMemory, type CreateAgentCommitment,
     type CreateAgentConsolidationEvidence, type CreateAgentEpisode,
     type CreateAgentGoal, type CreateAgentIdentity, type CreateAgentKnowledge, type GoalStatus,
+    type RecordAgentDecision, type SetAgentControlProfile,
     type SetAgentEconomicActorLink, type SetAgentRelationship, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
     normalizeActorKey, normalizeEconomicActorId, normalizeSkillReference, validateCreateCommitment, validateCreateEpisode,
     validateCreateKnowledge, validateIdentityPatch, validateRelationship, validateSkillKnowledgeStatus,
-    validateEconomicActorLink, validateWorkingMemory } from './validation.js';
+    validateControlProfile, validateEconomicActorLink, validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
     agent_id: string; player_username: string; display_name: string; background: string;
@@ -61,6 +63,17 @@ interface EconomicActorLinkRow {
     agent_id: string; actor_kind: AgentEconomicActorLink['actorKind']; actor_id: string;
     role: AgentEconomicActorLink['role']; source: AgentEconomicActorLink['source'];
     created_at: string; updated_at: string; revision: number;
+}
+interface ControlProfileRow {
+    agent_id: string; role: AgentControlProfile['role']; subject_kind: AgentControlProfile['subjectKind'];
+    subject_id: string; avatar_player_username: string | null; decision_interval_ms: number;
+    max_decisions_per_day: number; daily_llm_budget_micros: number; daily_operational_budget_gp: number;
+    last_decision_at: string | null; next_decision_at: string | null; created_at: string; updated_at: string;
+    revision: number;
+}
+interface DecisionRecordRow {
+    decision_id: string; agent_id: string; trigger: AgentDecisionTrigger; llm_cost_micros: number;
+    operational_budget_gp: number; occurred_at: string; profile_revision: number;
 }
 interface ConsolidationEvidenceRow {
     agent_id: string; rule_key: string; evidence_key: string; episode_id: string;
@@ -125,6 +138,19 @@ function economicActorLink(row: EconomicActorLinkRow): AgentEconomicActorLink {
     return { agentId: row.agent_id, actorKind: row.actor_kind, actorId: row.actor_id, role: row.role,
         source: row.source, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
 }
+function controlProfile(row: ControlProfileRow): AgentControlProfile {
+    return { agentId: row.agent_id, role: row.role, subjectKind: row.subject_kind, subjectId: row.subject_id,
+        avatarPlayerUsername: row.avatar_player_username, decisionIntervalMs: row.decision_interval_ms,
+        maxDecisionsPerDay: row.max_decisions_per_day, dailyLlmBudgetMicros: row.daily_llm_budget_micros,
+        dailyOperationalBudgetGp: row.daily_operational_budget_gp, lastDecisionAt: row.last_decision_at,
+        nextDecisionAt: row.next_decision_at, createdAt: row.created_at, updatedAt: row.updated_at,
+        revision: row.revision };
+}
+function decisionRecord(row: DecisionRecordRow): AgentDecisionRecord {
+    return { decisionId: row.decision_id, agentId: row.agent_id, trigger: row.trigger,
+        llmCostMicros: row.llm_cost_micros, operationalBudgetGp: row.operational_budget_gp,
+        occurredAt: row.occurred_at, profileRevision: row.profile_revision };
+}
 function consolidationEvidence(row: ConsolidationEvidenceRow): AgentConsolidationEvidence {
     return { agentId: row.agent_id, ruleKey: row.rule_key, evidenceKey: row.evidence_key,
         episodeId: row.episode_id, occurredAt: row.occurred_at, createdAt: row.created_at };
@@ -160,6 +186,12 @@ export class AgentStateStore {
             this.database.run(`INSERT INTO agent_economic_actor_link
                 (agent_id, actor_kind, actor_id, role, source, created_at, updated_at, revision)
                 VALUES (?1, 'player', ?2, 'self', 'identity', ?3, ?3, 1)`, [value.agentId, playerActorId, now]);
+            this.database.run(`INSERT INTO agent_control_profile
+                (agent_id, role, subject_kind, subject_id, avatar_player_username, decision_interval_ms,
+                max_decisions_per_day, daily_llm_budget_micros, daily_operational_budget_gp,
+                last_decision_at, next_decision_at, created_at, updated_at, revision)
+                VALUES (?1, 'player', 'player', ?2, ?3, 300000, 96, 0, 0, NULL, NULL, ?4, ?4, 1)`,
+            [value.agentId, playerActorId, value.playerUsername, now]);
         });
         transaction.immediate();
         return this.requireIdentity(value.agentId);
@@ -178,8 +210,13 @@ export class AgentStateStore {
             if (result.changes !== 1) throw new Error('Agent identity changed before update; refresh and try again');
             if (next.playerUsername !== current.playerUsername) {
                 this.database.run(`UPDATE agent_economic_actor_link SET actor_id = ?2, updated_at = ?3,
-                    revision = revision + 1 WHERE agent_id = ?1 AND source = 'identity'`,
+                    revision = revision + 1 WHERE agent_id = ?1 AND source = 'identity' AND actor_kind = 'player'`,
                 [current.agentId, normalizeEconomicActorId(next.playerUsername, 'playerUsername'), now]);
+                this.database.run(`UPDATE agent_control_profile SET subject_id = ?2, avatar_player_username = ?3,
+                    updated_at = ?4, revision = revision + 1
+                    WHERE agent_id = ?1 AND role = 'player' AND subject_kind = 'player'`,
+                [current.agentId, normalizeEconomicActorId(next.playerUsername, 'playerUsername'),
+                    next.playerUsername, now]);
             }
         });
         transaction.immediate();
@@ -194,6 +231,108 @@ export class AgentStateStore {
 
     listIdentities(): AgentIdentity[] {
         return (this.database.query('SELECT * FROM agent_identity ORDER BY agent_id').all() as IdentityRow[]).map(identity);
+    }
+
+    getControlProfile(agentId: string): AgentControlProfile | null {
+        const normalized = normalizeAgentId(agentId);
+        const row = this.database.query('SELECT * FROM agent_control_profile WHERE agent_id = ?1').get(normalized);
+        return row ? controlProfile(row as ControlProfileRow) : null;
+    }
+
+    setControlProfile(agentId: string, expectedRevision: number, input: SetAgentControlProfile,
+        now = new Date().toISOString()): AgentControlProfile {
+        const normalized = normalizeAgentId(agentId);
+        const value = validateControlProfile(input);
+        if (Number.isNaN(Date.parse(now))) throw new Error('Control profile time must be an ISO timestamp');
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalized);
+            const current = this.getControlProfile(normalized);
+            if (!current || current.revision !== expectedRevision) {
+                throw new Error('Agent control profile changed before update; refresh and try again');
+            }
+            const result = this.database.run(`UPDATE agent_control_profile SET role = ?3, subject_kind = ?4,
+                subject_id = ?5, avatar_player_username = ?6, decision_interval_ms = ?7,
+                max_decisions_per_day = ?8, daily_llm_budget_micros = ?9,
+                daily_operational_budget_gp = ?10, updated_at = ?11, revision = revision + 1
+                WHERE agent_id = ?1 AND revision = ?2`, [normalized, expectedRevision, value.role,
+                value.subjectKind, value.subjectId, value.avatarPlayerUsername ?? null, value.decisionIntervalMs,
+                value.maxDecisionsPerDay, value.dailyLlmBudgetMicros, value.dailyOperationalBudgetGp, now]);
+            if (result.changes !== 1) throw new Error('Agent control profile changed before update; refresh and try again');
+            this.database.run(`DELETE FROM agent_economic_actor_link WHERE agent_id = ?1 AND source = 'identity'`,
+                [normalized]);
+            if (value.subjectKind === 'player' || value.subjectKind === 'business' || value.subjectKind === 'faction') {
+                this.database.run(`INSERT INTO agent_economic_actor_link
+                    (agent_id, actor_kind, actor_id, role, source, created_at, updated_at, revision)
+                    VALUES (?1, ?2, ?3, 'self', 'identity', ?4, ?4, 1)
+                    ON CONFLICT(agent_id, actor_kind, actor_id) DO UPDATE SET
+                        role = 'self', source = 'identity', updated_at = excluded.updated_at,
+                        revision = agent_economic_actor_link.revision + 1`,
+                [normalized, value.subjectKind, value.subjectId, now]);
+            }
+        });
+        transaction.immediate();
+        return this.getControlProfile(normalized)!;
+    }
+
+    recordDecision(agentId: string, expectedProfileRevision: number, input: RecordAgentDecision,
+        now = new Date().toISOString()): { profile: AgentControlProfile; decision: AgentDecisionRecord } {
+        const normalized = normalizeAgentId(agentId);
+        const decisionId = normalizeAgentId(input.decisionId, 'decisionId');
+        if (!['scheduled', 'event', 'admin'].includes(input.trigger)) throw new Error('Decision trigger is invalid');
+        const llmCost = input.llmCostMicros ?? 0;
+        const operationalBudget = input.operationalBudgetGp ?? 0;
+        if (!Number.isSafeInteger(llmCost) || llmCost < 0) throw new Error('Decision LLM cost is invalid');
+        if (!Number.isSafeInteger(operationalBudget) || operationalBudget < 0) {
+            throw new Error('Decision operational budget is invalid');
+        }
+        const currentTime = Date.parse(now);
+        if (Number.isNaN(currentTime)) throw new Error('Decision time must be an ISO timestamp');
+        const day = now.slice(0, 10);
+        let record: AgentDecisionRecord | null = null;
+        const transaction = this.database.transaction(() => {
+            const profile = this.getControlProfile(normalized);
+            if (!profile || profile.revision !== expectedProfileRevision) {
+                throw new Error('Agent control profile changed before decision admission; refresh and try again');
+            }
+            if (input.trigger === 'scheduled' && profile.nextDecisionAt
+                && currentTime < Date.parse(profile.nextDecisionAt)) throw new Error('Scheduled decision is not due yet');
+            const totals = this.database.query(`SELECT COUNT(*) AS count,
+                COALESCE(SUM(llm_cost_micros), 0) AS llm_cost,
+                COALESCE(SUM(operational_budget_gp), 0) AS operational_budget
+                FROM agent_decision_ledger WHERE agent_id = ?1 AND substr(occurred_at, 1, 10) = ?2`)
+                .get(normalized, day) as { count: number; llm_cost: number; operational_budget: number };
+            if (totals.count >= profile.maxDecisionsPerDay) throw new Error('Agent daily decision limit reached');
+            if (totals.llm_cost + llmCost > profile.dailyLlmBudgetMicros) {
+                throw new Error('Agent daily LLM budget exceeded');
+            }
+            if (totals.operational_budget + operationalBudget > profile.dailyOperationalBudgetGp) {
+                throw new Error('Agent daily operational budget exceeded');
+            }
+            this.database.run(`INSERT INTO agent_decision_ledger
+                (decision_id, agent_id, trigger, llm_cost_micros, operational_budget_gp, occurred_at, profile_revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+            [decisionId, normalized, input.trigger, llmCost, operationalBudget, now, profile.revision]);
+            const next = new Date(currentTime + profile.decisionIntervalMs).toISOString();
+            const updated = this.database.run(`UPDATE agent_control_profile SET last_decision_at = ?3,
+                next_decision_at = ?4, updated_at = ?3, revision = revision + 1
+                WHERE agent_id = ?1 AND revision = ?2`, [normalized, profile.revision, now, next]);
+            if (updated.changes !== 1) throw new Error('Agent control profile changed during decision admission');
+            record = { decisionId, agentId: normalized, trigger: input.trigger, llmCostMicros: llmCost,
+                operationalBudgetGp: operationalBudget, occurredAt: now, profileRevision: profile.revision };
+        });
+        transaction.immediate();
+        return { profile: this.getControlProfile(normalized)!, decision: record! };
+    }
+
+    listDecisions(agentId: string, day?: string): AgentDecisionRecord[] {
+        const normalized = normalizeAgentId(agentId);
+        if (day !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error('Decision day is invalid');
+        const rows = day
+            ? this.database.query(`SELECT * FROM agent_decision_ledger WHERE agent_id = ?1
+                AND substr(occurred_at, 1, 10) = ?2 ORDER BY occurred_at, decision_id`).all(normalized, day)
+            : this.database.query(`SELECT * FROM agent_decision_ledger WHERE agent_id = ?1
+                ORDER BY occurred_at DESC, decision_id`).all(normalized);
+        return (rows as DecisionRecordRow[]).map(decisionRecord);
     }
 
     createGoal(agentId: string, input: CreateAgentGoal, now = new Date().toISOString()): AgentGoal {
@@ -1022,6 +1161,48 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_consolidation_evidence_rule
                     ON agent_consolidation_evidence(agent_id, rule_key, occurred_at)`);
                 this.database.run('PRAGMA user_version = 8');
+            });
+                transaction.immediate();
+        }
+        if (version < 9) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_control_profile (
+                    agent_id TEXT PRIMARY KEY REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    role TEXT NOT NULL CHECK (role IN ('player', 'institution', 'service', 'world-director')),
+                    subject_kind TEXT NOT NULL CHECK (subject_kind IN ('player', 'business', 'faction', 'service', 'world')),
+                    subject_id TEXT NOT NULL, avatar_player_username TEXT,
+                    decision_interval_ms INTEGER NOT NULL CHECK (decision_interval_ms BETWEEN 1000 AND 86400000),
+                    max_decisions_per_day INTEGER NOT NULL CHECK (max_decisions_per_day BETWEEN 1 AND 1000),
+                    daily_llm_budget_micros INTEGER NOT NULL CHECK (daily_llm_budget_micros >= 0),
+                    daily_operational_budget_gp INTEGER NOT NULL CHECK (daily_operational_budget_gp >= 0),
+                    last_decision_at TEXT, next_decision_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    CHECK ((role = 'player' AND subject_kind = 'player' AND avatar_player_username IS NOT NULL)
+                        OR (role = 'institution' AND subject_kind IN ('business', 'faction') AND avatar_player_username IS NULL)
+                        OR (role = 'service' AND subject_kind = 'service' AND avatar_player_username IS NULL)
+                        OR (role = 'world-director' AND subject_kind = 'world' AND avatar_player_username IS NULL)))`);
+                this.database.run(`CREATE TABLE agent_decision_ledger (
+                    decision_id TEXT PRIMARY KEY,
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE CASCADE,
+                    trigger TEXT NOT NULL CHECK (trigger IN ('scheduled', 'event', 'admin')),
+                    llm_cost_micros INTEGER NOT NULL CHECK (llm_cost_micros >= 0),
+                    operational_budget_gp INTEGER NOT NULL CHECK (operational_budget_gp >= 0),
+                    occurred_at TEXT NOT NULL, profile_revision INTEGER NOT NULL CHECK (profile_revision >= 1))`);
+                this.database.run(`CREATE INDEX agent_decision_agent_day
+                    ON agent_decision_ledger(agent_id, occurred_at)`);
+                const rows = this.database.query(`SELECT agent_id, player_username, created_at, updated_at
+                    FROM agent_identity`).all() as Array<{ agent_id: string; player_username: string;
+                        created_at: string; updated_at: string }>;
+                for (const row of rows) {
+                    this.database.run(`INSERT INTO agent_control_profile
+                        (agent_id, role, subject_kind, subject_id, avatar_player_username, decision_interval_ms,
+                        max_decisions_per_day, daily_llm_budget_micros, daily_operational_budget_gp,
+                        last_decision_at, next_decision_at, created_at, updated_at, revision)
+                        VALUES (?1, 'player', 'player', ?2, ?3, 300000, 96, 0, 0, NULL, NULL, ?4, ?5, 1)`,
+                    [row.agent_id, normalizeEconomicActorId(row.player_username, 'playerUsername'),
+                        row.player_username, row.created_at, row.updated_at]);
+                }
+                this.database.run('PRAGMA user_version = 9');
             });
             transaction.immediate();
         }

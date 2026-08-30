@@ -295,11 +295,17 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 - [ ] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
   jóváhagyandó skill-készítési folyamatot indítani; a futó agent ne kapjon
   közvetlen tetszőleges kódfuttatást.
-  - [ ] A `player`, `institution`, `service` és `world-director` agent-szerepeket
+  - [x] A `player`, `institution`, `service` és `world-director` agent-szerepeket
     elkülöníteni; ne minden önálló rendszer kapjon avatárt vagy szabad LLM-loopot.
   - [ ] Az agent identitását általános subject bindinghoz kötni, amely player,
     business, faction vagy rendszer-szolgáltatás lehet; a player controller továbbra
     is kizárólag a hozzá rendelt avataron hajthasson végre műveletet.
+    - [x] Perzisztens, optimista revíziós control profile player/business/faction/
+      service/world subjecttel, opcionális avatárkötéssel és v8→v9 migrációval.
+    - [x] A fizikai skillfuttatást fail-closed módon kizárólag exact player-avatar
+      kötésnél engedni; institution/service/world-director csak megbízást kérhessen.
+    - [ ] Nem-player identitást közvetlenül, botkatalógus-bejegyzés nélkül is lehessen
+      létrehozni az adminpanelen; a legacy `playerUsername` többé ne legyen előfeltétel.
   - [x] A player planner hiányzó képesség esetén ismételt modellhívás helyett
     strukturált, tartós és deduplikált `CapabilityGap` munkajegyet hozzon létre.
     - [x] Perzisztens szemantikus fingerprint, requester-lista, kérésszámláló,
@@ -352,6 +358,12 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
     hogy ne keletkezzen külön skill minden érc–lelőhely–bank kombinációra.
   - [ ] Business- és faction-agenteknek domain eszközöket, költségvetést, memóriát
     és döntési ritmust adni; játékbeli fizikai műveletet képviselő/player végezzen.
+    - [x] Szerep- és subjectfüggő domain-tool allowlist, korlátozott intézményi
+      context, adminból szerkeszthető napi LLM-/GP-keret és döntési időköz.
+    - [x] Atomi döntési admission ledger napi darabszám-, LLM-költség-, GP-keret-
+      és scheduled cadence ellenőrzéssel; event/admin trigger sem lépheti át a keretet.
+    - [ ] A Business és Governance mod read/write portjait tényleges domain toolokra
+      kötni, a `request-player-action` megbízást pedig player-agent queue-val végigvinni.
   - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
     az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
 

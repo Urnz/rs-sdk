@@ -9,6 +9,8 @@ Az LLM-től független, tartós agentállapot tervezett helye.
 - `assets`: pénz, tárgyak, ingatlanok, üzletrészek és követelések.
 - `skills`: ismert és használható magas szintű képességek.
 - `planner`: kezdetben determinisztikus, később opcionális LLM adapter.
+- `control profile`: player/institution/service/world-director szerep, subject,
+  avatárjogosultság, döntési ritmus és napi költségkeretek.
 
 Egy stratégiai döntéshez nem a teljes élettörténetet kell átadni. A runtime rövid
 core identity-t, aktuális helyzetet/célt és releváns emlékeket állít össze.

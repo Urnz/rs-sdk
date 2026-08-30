@@ -85,9 +85,8 @@ describe('live deterministic agent cycle', () => {
         const store = createStore();
         await expect(runLivePlannerCycle({ store, agentId: 'ferrye14', state: liveState('SomeoneElse'),
             availableSkills: [skill], now: '2026-08-29T12:00:00.000Z', executeSkill: async () => completedRun() }))
-            .rejects.toThrow('belongs to player ferrye14');
+            .rejects.toThrow('only its bound avatar ferrye14');
         expect(store.getWorkingMemory('ferrye14')).toBeNull();
         store.close();
     });
 });
-

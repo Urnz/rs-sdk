@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 8 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 9 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -14,6 +14,9 @@ export type AgentCommitmentStatus = 'open' | 'fulfilled' | 'broken' | 'cancelled
 export type AgentEconomicActorKind = 'player' | 'business' | 'faction';
 export type AgentEconomicActorRole = 'self' | 'owner' | 'manager' | 'member' | 'beneficiary';
 export type AgentEconomicActorLinkSource = 'identity' | 'admin' | 'system';
+export type AgentRole = 'player' | 'institution' | 'service' | 'world-director';
+export type AgentSubjectKind = 'player' | 'business' | 'faction' | 'service' | 'world';
+export type AgentDecisionTrigger = 'scheduled' | 'event' | 'admin';
 
 export interface AgentSkillReference {
     id: string;
@@ -298,6 +301,51 @@ export interface SetAgentEconomicActorLink {
     actorId: string;
     role: AgentEconomicActorRole;
     source?: Exclude<AgentEconomicActorLinkSource, 'identity'>;
+}
+
+export interface AgentControlProfile {
+    agentId: string;
+    role: AgentRole;
+    subjectKind: AgentSubjectKind;
+    subjectId: string;
+    avatarPlayerUsername: string | null;
+    decisionIntervalMs: number;
+    maxDecisionsPerDay: number;
+    dailyLlmBudgetMicros: number;
+    dailyOperationalBudgetGp: number;
+    lastDecisionAt: string | null;
+    nextDecisionAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
+export interface SetAgentControlProfile {
+    role: AgentRole;
+    subjectKind: AgentSubjectKind;
+    subjectId: string;
+    avatarPlayerUsername?: string | null;
+    decisionIntervalMs: number;
+    maxDecisionsPerDay: number;
+    dailyLlmBudgetMicros: number;
+    dailyOperationalBudgetGp: number;
+}
+
+export interface AgentDecisionRecord {
+    decisionId: string;
+    agentId: string;
+    trigger: AgentDecisionTrigger;
+    llmCostMicros: number;
+    operationalBudgetGp: number;
+    occurredAt: string;
+    profileRevision: number;
+}
+
+export interface RecordAgentDecision {
+    decisionId: string;
+    trigger: AgentDecisionTrigger;
+    llmCostMicros?: number;
+    operationalBudgetGp?: number;
 }
 
 export interface AgentMoneyAsset {

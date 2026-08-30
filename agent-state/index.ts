@@ -6,3 +6,4 @@ export * from './planner.js';
 export * from './live.js';
 export * from './retrieval.js';
 export * from './assets.js';
+export * from './control.js';
