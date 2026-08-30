@@ -365,6 +365,12 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       és scheduled cadence ellenőrzéssel; event/admin trigger sem lépheti át a keretet.
     - [ ] A Business és Governance mod read/write portjait tényleges domain toolokra
       kötni, a `request-player-action` megbízást pedig player-agent queue-val végigvinni.
+      - [x] v10→v11 migrációval tartós, optimista revíziós player-action queue:
+        exact assignee, ismert skillverzió, validált paraméterek, cél, díj és auditált
+        pending/accepted/resolved lifecycle az adminpanelen.
+      - [ ] Az elfogadott megbízást a player saját planneréhez és egyszer használható
+        végrehajtási approvaljához kötni, majd a skill-run eredményéből automatikusan
+        completed/failed állapotot és gazdasági elszámolást képezni.
   - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
     az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
 

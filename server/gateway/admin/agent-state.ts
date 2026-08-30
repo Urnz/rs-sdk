@@ -4,9 +4,11 @@ import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
 import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
     retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
-import type { AgentCommitmentStatus, AgentSkillKnowledgeStatus, AgentSkillReference, CreateAgentCommitment,
+import type { AgentCommitmentStatus, AgentPlayerActionStatus, AgentSkillKnowledgeStatus,
+    AgentSkillReference, CreateAgentCommitment,
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
-    SetAgentControlProfile, SetAgentRelationship, UpdateAgentIdentity } from '../../../agent-state/types.js';
+    CreateAgentPlayerActionRequest, SetAgentControlProfile, SetAgentRelationship,
+    UpdateAgentIdentity } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
 import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { BotCatalogEntry } from './types.js';
@@ -57,6 +59,11 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             { ...socialQueryFromSnapshot(snapshot), now: generatedAt });
         const actorLinks = store.listEconomicActorLinks(identity.agentId);
         const controlProfile = store.getControlProfile(identity.agentId)!;
+        const playerActionRequests = store.listPlayerActionRequests(identity.agentId);
+        const incomingPlayerActions = playerActionRequests
+            .filter(item => item.assigneeAgentId === identity.agentId);
+        const outgoingPlayerActions = playerActionRequests
+            .filter(item => item.requesterAgentId === identity.agentId);
         const bot = controlProfile.avatarPlayerUsername
             ? assetSources.bots?.find(entry => entry.username === controlProfile.avatarPlayerUsername) : undefined;
         const assets = resolveAgentAssets(actorLinks, relationships.map(entry => entry.relationship),
@@ -76,6 +83,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         return {
             ...snapshot,
             controlProfile,
+            incomingPlayerActions,
+            outgoingPlayerActions,
             skillRelationships,
             episodeCount: store.countEpisodes(identity.agentId),
             recentEpisodes,
@@ -90,6 +99,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             assets,
             decisionContext: buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 4000,
                 controlProfile,
+                playerActionRequests,
                 episodicMemories: relevantEpisodes.map(result => result.episode),
                 semanticMemories: relevantKnowledge.map(result => result.knowledge),
                 socialMemories: relevantRelationships, assets }),
@@ -130,6 +140,18 @@ export function updateAdminAgent(agentId: string, expectedRevision: number, patc
 export function updateAdminAgentControlProfile(agentId: string, expectedRevision: number,
     input: SetAgentControlProfile, path = agentStateDbPath) {
     return useStore(path, store => store.setControlProfile(agentId, expectedRevision, input));
+}
+
+export function createAdminPlayerActionRequest(requesterAgentId: string,
+    input: CreateAgentPlayerActionRequest, path = agentStateDbPath) {
+    return useStore(path, store => store.createPlayerActionRequest(requesterAgentId, input));
+}
+
+export function updateAdminPlayerActionRequest(requestId: string, actorAgentId: string,
+    expectedRevision: number, status: Exclude<AgentPlayerActionStatus, 'pending'>,
+    responseNote: string, path = agentStateDbPath) {
+    return useStore(path, store => store.setPlayerActionRequestStatus(requestId, actorAgentId,
+        expectedRevision, status, responseNote));
 }
 
 export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {

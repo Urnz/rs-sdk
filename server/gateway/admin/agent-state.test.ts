@@ -8,12 +8,14 @@ import {
     createAdminAgentEpisode,
     createAdminAgentGoal,
     createAdminAgentKnowledge,
+    createAdminPlayerActionRequest,
     listAdminAgents,
     pruneAdminAgentEpisodes,
     updateAdminAgent,
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
     updateAdminAgentRelationship,
+    updateAdminPlayerActionRequest,
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store';
@@ -32,6 +34,29 @@ afterEach(() => {
 });
 
 describe('admin agent-state service', () => {
+    test('exposes the institution work queue to both bounded agent views', async () => {
+        const path = databasePath();
+        createAdminAgent({ agentId: 'forge', displayName: 'Forge', background: 'Workshop.',
+            personalityTraits: ['prudent'], controlProfile: { role: 'institution', subjectKind: 'business',
+                subjectId: 'forge', decisionIntervalMs: 60_000, maxDecisionsPerDay: 24,
+                dailyLlmBudgetMicros: 100_000, dailyOperationalBudgetGp: 10_000 } }, path);
+        createAdminAgent({ agentId: 'worker', playerUsername: 'Worker', displayName: 'Worker',
+            background: 'Miner.', personalityTraits: ['reliable'] }, path);
+        updateAdminAgentSkill('worker', { id: 'varrock-east-mining', version: '1.0.0' }, 'known', null, path);
+        const request = createAdminPlayerActionRequest('forge', { requestId: 'forge.iron-job',
+            assigneeAgentId: 'worker', skill: { id: 'varrock-east-mining', version: '1.0.0' },
+            parameters: {}, objective: 'Bank one load of iron.', rewardGp: 500 }, path);
+        const initial = await listAdminAgents(path);
+        expect(initial.agents.find(agent => agent.identity.agentId === 'forge')?.outgoingPlayerActions)
+            .toEqual([expect.objectContaining({ requestId: request.requestId, status: 'pending' })]);
+        const worker = initial.agents.find(agent => agent.identity.agentId === 'worker')!;
+        expect(worker.incomingPlayerActions).toEqual([expect.objectContaining({ requesterAgentId: 'forge' })]);
+        expect(worker.decisionContext).toContain('Player action queue:');
+        expect(worker.decisionContext).toContain('forge.iron-job');
+        expect(updateAdminPlayerActionRequest(request.requestId, 'worker', request.revision,
+            'accepted', 'Accepted.', path).status).toBe('accepted');
+    });
+
     test('builds a complete editable snapshot and executable planner preview', async () => {
         const path = databasePath();
         const identity = createAdminAgent({

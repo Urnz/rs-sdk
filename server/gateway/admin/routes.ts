@@ -31,6 +31,7 @@ import {
     createAdminAgentEpisode,
     createAdminAgentGoal,
     createAdminAgentKnowledge,
+    createAdminPlayerActionRequest,
     listAdminAgents,
     pruneAdminAgentEpisodes,
     updateAdminAgent,
@@ -38,12 +39,14 @@ import {
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
     updateAdminAgentRelationship,
+    updateAdminPlayerActionRequest,
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { observeLiveState, runLivePlannerCycle } from '../../../agent-state/live.js';
 import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind, AgentEpisodeTrust,
-    AgentKnowledgeKind, AgentRole, AgentSkillKnowledgeStatus, AgentSubjectKind, GoalHorizon,
+    AgentKnowledgeKind, AgentPlayerActionStatus, AgentRole, AgentSkillKnowledgeStatus,
+    AgentSubjectKind, GoalHorizon,
     GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath, capabilityGapsPath } from './paths.js';
 import { runAdminLlmDryRun } from './llm-dry-run.js';
@@ -683,6 +686,60 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             await appendAudit({ operator: 'local-admin', action: 'agent.control-profile.update', reason,
                 success: true, username: agentId, before, after: profile });
             return json({ ok: true, profile });
+        }
+
+        const playerActionCreateMatch = url.pathname
+            .match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/player-actions$/);
+        if (req.method === 'POST' && playerActionCreateMatch?.[1]) {
+            const requesterAgentId = playerActionCreateMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const assigneeAgentId = text(body, 'assigneeAgentId', true).toLowerCase();
+            const requestedSkill = text(body, 'skill', true);
+            const candidate = await resolveAdminSkillForAgent(requestedSkill, assigneeAgentId);
+            const parameters = validateAdminSkillParameters(candidate.definition,
+                body.parameters && typeof body.parameters === 'object' && !Array.isArray(body.parameters)
+                    ? body.parameters as Record<string, unknown> : {});
+            try {
+                const request = createAdminPlayerActionRequest(requesterAgentId, {
+                    requestId: crypto.randomUUID(), assigneeAgentId,
+                    skill: { id: candidate.definition.id, version: candidate.definition.version },
+                    parameters, objective: text(body, 'objective', true), rewardGp: Number(body.rewardGp ?? 0)
+                });
+                await appendAudit({ operator: 'local-admin', action: 'agent.player-action.create', reason,
+                    username: requesterAgentId, success: true, after: request });
+                return json({ ok: true, request }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.player-action.create', reason,
+                    username: requesterAgentId, success: false, error: String(error),
+                    after: { assigneeAgentId, skill: requestedSkill } });
+                throw error;
+            }
+        }
+
+        const playerActionUpdateMatch = url.pathname.match(/^\/api\/admin\/player-actions\/([a-z0-9.-]+)$/);
+        if (req.method === 'PUT' && playerActionUpdateMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const actorAgentId = text(body, 'actorAgentId', true).toLowerCase();
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen player-action revízió.');
+            }
+            const status = oneOf<Exclude<AgentPlayerActionStatus, 'pending'>>(body.status,
+                ['accepted', 'rejected', 'cancelled', 'completed', 'failed'], 'status');
+            try {
+                const request = updateAdminPlayerActionRequest(playerActionUpdateMatch[1], actorAgentId,
+                    expectedRevision, status, text(body, 'responseNote'));
+                await appendAudit({ operator: 'local-admin', action: 'agent.player-action.status', reason,
+                    username: actorAgentId, success: true, after: request });
+                return json({ ok: true, request });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.player-action.status', reason,
+                    username: actorAgentId, success: false, error: String(error),
+                    after: { requestId: playerActionUpdateMatch[1], expectedRevision, status } });
+                throw error;
+            }
         }
 
         const agentGoalMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/goals$/);

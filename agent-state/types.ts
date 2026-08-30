@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 10 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 11 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -17,6 +17,8 @@ export type AgentEconomicActorLinkSource = 'identity' | 'admin' | 'system';
 export type AgentRole = 'player' | 'institution' | 'service' | 'world-director';
 export type AgentSubjectKind = 'player' | 'business' | 'faction' | 'service' | 'world';
 export type AgentDecisionTrigger = 'scheduled' | 'event' | 'admin';
+export type AgentPlayerActionStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed' | 'failed';
+export type AgentPlayerActionParameters = Record<string, string | number | boolean | null>;
 
 export interface AgentSkillReference {
     id: string;
@@ -347,6 +349,32 @@ export interface RecordAgentDecision {
     trigger: AgentDecisionTrigger;
     llmCostMicros?: number;
     operationalBudgetGp?: number;
+}
+
+export interface AgentPlayerActionRequest {
+    requestId: string;
+    requesterAgentId: string;
+    assigneeAgentId: string;
+    skill: AgentSkillReference;
+    parameters: AgentPlayerActionParameters;
+    objective: string;
+    rewardGp: number;
+    status: AgentPlayerActionStatus;
+    responseNote: string;
+    requestedAt: string;
+    updatedAt: string;
+    acceptedAt: string | null;
+    resolvedAt: string | null;
+    revision: number;
+}
+
+export interface CreateAgentPlayerActionRequest {
+    requestId: string;
+    assigneeAgentId: string;
+    skill: AgentSkillReference;
+    parameters?: AgentPlayerActionParameters;
+    objective: string;
+    rewardGp?: number;
 }
 
 export interface AgentMoneyAsset {

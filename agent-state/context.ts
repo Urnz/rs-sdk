@@ -1,4 +1,5 @@
-import type { AgentAssetPortfolio, AgentControlProfile, AgentEpisode, AgentKnowledge, AgentSnapshot, GoalHorizon } from './types.js';
+import type { AgentAssetPortfolio, AgentControlProfile, AgentEpisode, AgentKnowledge,
+    AgentPlayerActionRequest, AgentSnapshot, GoalHorizon } from './types.js';
 import type { SocialMemoryEntry } from './retrieval.js';
 import { buildAgentControlContext } from './control.js';
 
@@ -37,6 +38,7 @@ export interface DecisionContextOptions {
     socialMemories?: readonly SocialMemoryEntry[];
     assets?: AgentAssetPortfolio;
     controlProfile?: AgentControlProfile;
+    playerActionRequests?: readonly AgentPlayerActionRequest[];
 }
 
 export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionContextOptions = {}): string {
@@ -52,6 +54,12 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     if (Number.isNaN(now)) throw new Error('Decision context now must be an ISO timestamp');
     const parts = [buildCoreIdentity(snapshot, Math.min(maxCharacters, 8000))];
     if (options.controlProfile) parts.push(buildAgentControlContext(options.controlProfile));
+    const activeRequests = options.playerActionRequests?.filter(item => item.status === 'pending'
+        || item.status === 'accepted').slice(0, 12);
+    if (activeRequests?.length) parts.push(`Player action queue:\n- ${activeRequests.map(item =>
+        `${item.status} ${item.requestId}: ${item.requesterAgentId} requests ${item.assigneeAgentId} `
+        + `to run ${item.skill.id}@${item.skill.version} — ${item.objective} (reward ${item.rewardGp} gp)`)
+        .join('\n- ')}`);
     const memory = snapshot.workingMemory;
     if (memory && now - Date.parse(memory.observedAt) >= 0 && now - Date.parse(memory.observedAt) <= maxAge) {
         const location = memory.location

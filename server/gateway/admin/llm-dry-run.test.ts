@@ -69,6 +69,16 @@ test('admin UI exposes the LLM preview without an execution control', () => {
     expect(html).not.toContain('id="llm-dry-run-execute"');
 });
 
+test('admin UI exposes the separate institution to player action queue', () => {
+    const html = readFileSync(join(adminPublicDir, 'index.html'), 'utf8');
+    const script = readFileSync(join(adminPublicDir, 'admin.js'), 'utf8');
+    expect(html).toContain('id="player-action-dialog"');
+    expect(html).toContain('name="assigneeAgentId"');
+    expect(script).toContain('data-action="player-action-add"');
+    expect(script).toContain('/api/admin/player-actions/');
+    expect(html).toContain('A megbízás nem indítja el a botot');
+});
+
 test('admin UI exposes server LLM settings without an API-key readback field', () => {
     const html = readFileSync(join(adminPublicDir, 'index.html'), 'utf8');
     const script = readFileSync(join(adminPublicDir, 'admin.js'), 'utf8');

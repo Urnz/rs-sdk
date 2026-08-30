@@ -21,7 +21,26 @@ létező bothoz, exact avatar-kötéssel hozható létre.
 Az `execute-player-skill` csak player szerepnél, player subjectnél és az exact
 `avatarPlayerUsername` egyezésekor engedélyezett. Minden más szerep fail-closed
 választ kap. Az intézmény csak `request-player-action` típusú domain kérést tehet;
-ennek tartós player-megbízási queue-ja még következő szelet.
+ennek tartós player-megbízási queue-ja nem ad át közvetlen avatarvezérlést.
+
+## Player-megbízási queue
+
+Business- vagy faction-subjecthez kötött institution agent küldhet megbízást egy
+exact avatarhoz kötött player agentnek. A kérés csak akkor jön létre, ha a címzett
+már ismeri a kért exact skillverziót, a paramétereket a verified skill sémája
+elfogadja, és a díj nem nagyobb a megbízó napi operatív kereténél.
+
+Az állapotgép és a módosító fél is korlátozott:
+
+- `pending → accepted/rejected`: kizárólag a címzett player agent;
+- `pending → cancelled`: kizárólag a megbízó institution;
+- `accepted → completed/failed/cancelled`: kizárólag a címzett player agent;
+- lezárt rekord nem nyitható újra, és minden írás optimista revíziót használ.
+
+Az aktív megbízások bekerülnek mindkét agent korlátozott döntési contextjébe. Az
+adminpanelből létrehozhatók és végigvezethetők, de az elfogadás szándékosan még nem
+indít skillt: a következő szelet köti az elfogadott rekordot egyszer használható
+player-approvalhoz, a futási journalhoz és a gazdasági elszámoláshoz.
 
 A kezdeti domain allowlist:
 

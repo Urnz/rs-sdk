@@ -322,11 +322,24 @@ function renderAgents() {
             ? `<p class="muted">Nem elérhető források: ${escapeHtml(assets.unavailableSources.join(', '))}</p>` : '';
         const actorLinks = assets.actorLinks.map(link =>
             `<span class="agent-chip">${escapeHtml(link.role)}: ${escapeHtml(link.actorKind)}:${escapeHtml(link.actorId)}</span>`).join('');
+        const actionStatusLabels = { pending: 'függőben', accepted: 'elfogadva', rejected: 'elutasítva',
+            cancelled: 'törölve', completed: 'teljesítve', failed: 'sikertelen' };
+        const actionRow = (item, incoming) => {
+            let actions = '';
+            if (incoming && item.status === 'pending') actions = `<button class="button small primary" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="accepted">Elfogadás</button><button class="button small danger-outline" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="rejected">Elutasítás</button>`;
+            if (incoming && item.status === 'accepted') actions = `<button class="button small primary" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="completed">Teljesítve</button><button class="button small danger-outline" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="failed">Sikertelen</button>`;
+            if (!incoming && item.status === 'pending') actions = `<button class="button small ghost" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="cancelled">Visszavonás</button>`;
+            return `<div class="agent-player-action ${escapeHtml(item.status)}"><span><strong>${escapeHtml(item.objective)}</strong><small>${incoming ? `feladó: ${escapeHtml(item.requesterAgentId)}` : `címzett: ${escapeHtml(item.assigneeAgentId)}`} · ${escapeHtml(item.skill.id)}@${escapeHtml(item.skill.version)} · ${fmt.format(item.rewardGp)} gp</small><small>${escapeHtml(actionStatusLabels[item.status] || item.status)} · rev ${item.revision}${item.responseNote ? ` · ${escapeHtml(item.responseNote)}` : ''}</small></span><span class="agent-inline-actions">${actions}</span></div>`;
+        };
+        const playerActions = [...agent.incomingPlayerActions.map(item => actionRow(item, true)),
+            ...agent.outgoingPlayerActions.map(item => actionRow(item, false))].join('')
+            || '<p class="muted">Nincs bejövő vagy kimenő player-megbízás.</p>';
         return `<article class="agent-card" data-agent-id="${escapeHtml(identity.agentId)}">
             <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
                 <div class="agent-card-actions">
                     <button class="button small ghost" data-action="agent-edit" data-agent-id="${escapeHtml(identity.agentId)}">Identitás szerkesztése</button>
                     <button class="button small ghost" data-action="agent-control-edit" data-agent-id="${escapeHtml(identity.agentId)}">Vezérlés és keretek</button>
+                    ${control.role === 'institution' ? `<button class="button small primary" data-action="player-action-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Player-megbízás</button>` : ''}
                     <button class="button small secondary" data-action="agent-goal-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Cél</button>
                     <button class="button small skill-button" data-action="agent-skill-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kézi skillállapot</button>
                     <button class="button small secondary" data-action="agent-episode-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Emlék</button>
@@ -353,6 +366,7 @@ function renderAgents() {
                     <div class="agent-episodes">${episodes}</div></section>
                 <section class="agent-section"><h4>Semantic memória (${agent.knowledgeCount})</h4><div class="agent-knowledge-list">${knowledge}</div></section>
                 <section class="agent-section"><h4>Social memória (${agent.relationships.length})</h4><div class="agent-relationships">${relationships}</div></section>
+                <section class="agent-section"><h4>Player-megbízások</h4><div class="agent-player-actions">${playerActions}</div></section>
                 <section class="agent-section"><h4>Eszközök</h4>
                     <div class="agent-tags">${actorLinks}</div>
                     <p><strong>Pénz:</strong> ${escapeHtml(money)}</p>
@@ -452,6 +466,28 @@ function showAgentControl(agentId) {
     form.elements.dailyOperationalBudgetGp.value = profile.dailyOperationalBudgetGp;
     form.elements.reason.value = 'Agent control profile frissítése';
     $('#agent-control-dialog').showModal();
+}
+
+function updatePlayerActionSkills() {
+    const form = $('#player-action-form');
+    const assignee = state.agents.find(entry => entry.identity.agentId === form.elements.assigneeAgentId.value);
+    const executable = assignee?.skillRelationships.filter(item => item.executable) || [];
+    form.elements.skill.innerHTML = executable.map(item => `<option value="${escapeHtml(`${item.reference.id}@${item.reference.version}`)}">${escapeHtml(item.name)} · ${escapeHtml(item.reference.id)}@${escapeHtml(item.reference.version)}</option>`).join('');
+}
+
+function showPlayerAction(requesterAgentId) {
+    const requester = state.agents.find(entry => entry.identity.agentId === requesterAgentId);
+    if (!requester || requester.controlProfile.role !== 'institution') throw new Error('Csak institution agent küldhet player-megbízást.');
+    const players = state.agents.filter(entry => entry.controlProfile.role === 'player'
+        && entry.controlProfile.avatarPlayerUsername && entry.skillRelationships.some(skill => skill.executable));
+    if (!players.length) throw new Error('Nincs exact avatárhoz kötött, végrehajtható skillt ismerő player agent.');
+    const form = $('#player-action-form'); form.reset();
+    form.elements.requesterAgentId.value = requesterAgentId;
+    $('#player-action-requester').textContent = `${requester.identity.displayName} (${requester.controlProfile.subjectKind}:${requester.controlProfile.subjectId})`;
+    form.elements.assigneeAgentId.innerHTML = players.map(agent => `<option value="${escapeHtml(agent.identity.agentId)}">${escapeHtml(agent.identity.displayName)} · ${escapeHtml(agent.controlProfile.avatarPlayerUsername)}</option>`).join('');
+    form.elements.parameters.value = '{}'; form.elements.rewardGp.value = 0;
+    form.elements.reason.value = 'Intézményi player-megbízás létrehozása';
+    updatePlayerActionSkills(); $('#player-action-dialog').showModal();
 }
 
 function showAgentGoal(agentId) {
@@ -1339,6 +1375,21 @@ document.addEventListener('click', async event => {
             toast(`${identity.displayName} identitása frissült.`); await refreshAgents();
         }
         if (button.dataset.action === 'agent-control-edit') showAgentControl(button.dataset.agentId);
+        if (button.dataset.action === 'player-action-add') showPlayerAction(button.dataset.agentId);
+        if (button.dataset.action === 'player-action-status') {
+            const status = button.dataset.status;
+            const needsNote = status === 'rejected' || status === 'failed';
+            const note = prompt(needsNote ? 'Kötelező indoklás:' : 'Megjegyzés (opcionális):', '');
+            if (note === null || (needsNote && !note.trim())) return;
+            const reason = prompt('Az állapotváltás auditindoklása:', `Player-megbízás: ${status}`);
+            if (!reason?.trim()) return;
+            await api(`/api/admin/player-actions/${encodeURIComponent(button.dataset.requestId)}`, {
+                method: 'PUT', mutation: true, body: JSON.stringify({ actorAgentId: button.dataset.actorId,
+                    expectedRevision: Number(button.dataset.revision), status,
+                    responseNote: note.trim(), reason: reason.trim() })
+            });
+            toast('A player-megbízás állapota frissült.'); await refreshAgents();
+        }
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-learn') {
@@ -1557,6 +1608,25 @@ $('#agent-control-form').addEventListener('submit', async event => {
             })
         });
         form.closest('dialog').close(); toast('Az agent vezérlési profilja frissült.'); await refreshAgents();
+    } catch (error) { toast(error.message, true); }
+});
+
+$('#player-action-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    try {
+        const parameters = JSON.parse(data.get('parameters') || '{}');
+        if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) {
+            throw new Error('A paramétereknek JSON objektumnak kell lenniük.');
+        }
+        await api(`/api/admin/agents/${encodeURIComponent(data.get('requesterAgentId'))}/player-actions`, {
+            method: 'POST', mutation: true, body: JSON.stringify({
+                assigneeAgentId: data.get('assigneeAgentId'), skill: data.get('skill'),
+                objective: data.get('objective'), parameters, rewardGp: Number(data.get('rewardGp')),
+                reason: data.get('reason')
+            })
+        });
+        form.closest('dialog').close(); toast('A player-megbízás bekerült a queue-ba.'); await refreshAgents();
     } catch (error) { toast(error.message, true); }
 });
 
@@ -1803,6 +1873,7 @@ $('#agent-create-form').elements.playerUsername.addEventListener('change', event
     form.elements.displayName.value = bot.displayName;
 });
 $('#agent-create-form').elements.role.addEventListener('change', updateAgentCreateRole);
+$('#player-action-form').elements.assigneeAgentId.addEventListener('change', updatePlayerActionSkills);
 $('#agent-goal-form').elements.horizon.addEventListener('change', updateAgentGoalParents);
 $('#agent-knowledge-form').elements.supersedesId.addEventListener('change', event => {
     if (!event.target.value) return;

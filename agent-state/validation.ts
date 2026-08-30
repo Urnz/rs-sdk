@@ -1,7 +1,9 @@
-import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentSkillKnowledgeStatus,
+import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentPlayerActionParameters,
+    AgentSkillKnowledgeStatus,
     AgentCommitmentDirection, AgentEconomicActorKind, AgentEconomicActorRole, AgentKnowledgeKind,
     AgentKnowledgeSource, AgentRole, AgentSkillReference, AgentSubjectKind,
     CreateAgentCommitment, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge,
+    CreateAgentPlayerActionRequest,
     GoalHorizon, SetAgentControlProfile, SetAgentRelationship, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
@@ -243,6 +245,42 @@ export function normalizeSkillReference(value: AgentSkillReference): AgentSkillR
     const normalized = validateSkillReference(value, 'skill', issues);
     if (issues.length) throw new AgentStateValidationError(issues);
     return normalized;
+}
+
+export function validateCreatePlayerActionRequest(value: CreateAgentPlayerActionRequest) {
+    const issues: string[] = [];
+    const requestId = id(value.requestId, 'requestId', issues);
+    const assigneeAgentId = id(value.assigneeAgentId, 'assigneeAgentId', issues);
+    const skill = validateSkillReference(value.skill, 'skill', issues);
+    const objective = text(value.objective, 'objective', issues, 500);
+    const rewardGp = value.rewardGp ?? 0;
+    if (!Number.isSafeInteger(rewardGp) || rewardGp < 0 || rewardGp > 2_147_483_647) {
+        issues.push('rewardGp must be an integer from 0 to 2147483647');
+    }
+    const source = value.parameters ?? {};
+    const parameters: AgentPlayerActionParameters = {};
+    if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        issues.push('parameters must be an object');
+    } else {
+        const entries = Object.entries(source);
+        if (entries.length > 20) issues.push('parameters must contain at most 20 entries');
+        for (const [key, parameter] of entries) {
+            if (!/^[a-z][a-z0-9_-]{0,63}$/.test(key)) issues.push(`parameters.${key} has an invalid key`);
+            if (parameter !== null && typeof parameter !== 'string' && typeof parameter !== 'number'
+                && typeof parameter !== 'boolean') issues.push(`parameters.${key} must be a scalar JSON value`);
+            if (typeof parameter === 'string' && parameter.length > 500) {
+                issues.push(`parameters.${key} must be at most 500 characters`);
+            }
+            if (typeof parameter === 'number' && !Number.isFinite(parameter)) {
+                issues.push(`parameters.${key} must be finite`);
+            }
+            if (parameter === null || typeof parameter === 'string' || typeof parameter === 'number'
+                || typeof parameter === 'boolean') parameters[key] = parameter;
+        }
+        if (JSON.stringify(parameters).length > 4000) issues.push('parameters must serialize to at most 4000 characters');
+    }
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return { requestId, assigneeAgentId, skill, parameters, objective, rewardGp };
 }
 
 export function validateSkillKnowledgeStatus(value: unknown): AgentSkillKnowledgeStatus {

@@ -323,6 +323,22 @@
         </form>
     </dialog>
 
+    <dialog id="player-action-dialog">
+        <form id="player-action-form" method="dialog">
+            <div class="dialog-heading"><div><p class="eyebrow">AUDITÁLT MEGBÍZÁS</p><h2>Player-munka kérése</h2></div><button type="button" class="dialog-close">×</button></div>
+            <input name="requesterAgentId" type="hidden">
+            <label>Megbízó<strong id="player-action-requester" class="field-value">–</strong></label>
+            <label>Player agent<select name="assigneeAgentId" required></select></label>
+            <label>Ismert, végrehajtható skill<select name="skill" required></select></label>
+            <label>Cél és elfogadási feltétel<textarea name="objective" maxlength="500" rows="3" required></textarea></label>
+            <label>Paraméterek JSON objektumként<textarea name="parameters" maxlength="4000" rows="4">{}</textarea></label>
+            <label>Felajánlott díj (gp)<input name="rewardGp" type="number" min="0" max="2147483647" value="0" required></label>
+            <label>Indoklás<input name="reason" value="Intézményi player-megbízás létrehozása" required></label>
+            <p class="dialog-note">A megbízás nem indítja el a botot. A player agent külön elfogadja, majd a saját exact avatar-kötésén és skill-policyjén keresztül hajthatja végre.</p>
+            <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Megbízás küldése</button></div>
+        </form>
+    </dialog>
+
     <dialog id="agent-goal-dialog">
         <form id="agent-goal-form" method="dialog">
             <div class="dialog-heading"><div><p class="eyebrow">CÉLHIERARCHIA</p><h2>Új cél</h2></div><button type="button" class="dialog-close">×</button></div>

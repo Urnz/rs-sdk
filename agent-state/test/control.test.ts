@@ -144,3 +144,77 @@ describe('bounded decision rhythm and budgets', () => {
         store.close();
     });
 });
+
+describe('institution to player action queue', () => {
+    function createActionStore(): AgentStateStore {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-player-action-'));
+        directories.push(directory);
+        const store = new AgentStateStore(join(directory, 'agents.sqlite'));
+        store.createIdentity({ agentId: 'varrock-forge', displayName: 'Varrock Forge',
+            background: 'Workshop institution.', personalityTraits: ['prudent'],
+            controlProfile: { role: 'institution', subjectKind: 'business', subjectId: 'Varrock Forge',
+                decisionIntervalMs: 3_600_000, maxDecisionsPerDay: 12,
+                dailyLlmBudgetMicros: 100_000, dailyOperationalBudgetGp: 5_000 } });
+        store.createIdentity({ agentId: 'ferrye14', playerUsername: 'Ferrye14', displayName: 'Ferrye',
+            background: 'Player worker.', personalityTraits: ['reliable'] });
+        store.createIdentity({ agentId: 'outsider', playerUsername: 'Outsider', displayName: 'Outsider',
+            background: 'Unrelated player.', personalityTraits: ['curious'] });
+        store.setSkillKnowledge('ferrye14', { id: 'mine-and-bank', version: '1.0.0' }, 'known', null);
+        return store;
+    }
+
+    test('persists an exact bounded request through acceptance and completion', () => {
+        const store = createActionStore();
+        const request = store.createPlayerActionRequest('varrock-forge', {
+            requestId: 'work.iron-001', assigneeAgentId: 'ferrye14',
+            skill: { id: 'mine-and-bank', version: '1.0.0' },
+            parameters: { ore: 'iron', trips: 2 }, objective: 'Bank two loads of iron ore.', rewardGp: 1200
+        }, '2026-08-30T10:00:00.000Z');
+        expect(request).toMatchObject({ status: 'pending', requesterAgentId: 'varrock-forge',
+            assigneeAgentId: 'ferrye14', parameters: { ore: 'iron', trips: 2 }, revision: 1 });
+        expect(store.listPlayerActionRequests('ferrye14', 'incoming')).toHaveLength(1);
+        expect(store.listPlayerActionRequests('varrock-forge', 'outgoing')).toHaveLength(1);
+
+        const accepted = store.setPlayerActionRequestStatus(request.requestId, 'ferrye14', request.revision,
+            'accepted', 'I can do this.', '2026-08-30T10:01:00.000Z');
+        expect(accepted).toMatchObject({ status: 'accepted', acceptedAt: '2026-08-30T10:01:00.000Z', revision: 2 });
+        const completed = store.setPlayerActionRequestStatus(request.requestId, 'ferrye14', accepted.revision,
+            'completed', 'Ore is in the bank.', '2026-08-30T10:20:00.000Z');
+        expect(completed).toMatchObject({ status: 'completed', resolvedAt: '2026-08-30T10:20:00.000Z', revision: 3 });
+        expect(() => store.setPlayerActionRequestStatus(request.requestId, 'ferrye14', completed.revision,
+            'failed', 'Too late.')).toThrow('Invalid player action transition');
+        store.close();
+    });
+
+    test('fails closed for unknown skills, excess rewards and unauthorized transitions', () => {
+        const store = createActionStore();
+        expect(() => store.createPlayerActionRequest('varrock-forge', {
+            requestId: 'work.unknown', assigneeAgentId: 'outsider',
+            skill: { id: 'mine-and-bank', version: '1.0.0' }, objective: 'Mine ore.'
+        })).toThrow('already know');
+        expect(() => store.createPlayerActionRequest('varrock-forge', {
+            requestId: 'work.expensive', assigneeAgentId: 'ferrye14',
+            skill: { id: 'mine-and-bank', version: '1.0.0' }, objective: 'Mine ore.', rewardGp: 5001
+        })).toThrow('daily operational budget');
+        store.createPlayerActionRequest('varrock-forge', { requestId: 'work.reserved',
+            assigneeAgentId: 'ferrye14', skill: { id: 'mine-and-bank', version: '1.0.0' },
+            objective: 'Mine the first batch.', rewardGp: 4000 });
+        expect(() => store.createPlayerActionRequest('varrock-forge', {
+            requestId: 'work.over-aggregate', assigneeAgentId: 'ferrye14',
+            skill: { id: 'mine-and-bank', version: '1.0.0' }, objective: 'Mine another batch.', rewardGp: 1001
+        })).toThrow('daily operational budget');
+        const request = store.createPlayerActionRequest('varrock-forge', {
+            requestId: 'work.secure', assigneeAgentId: 'ferrye14',
+            skill: { id: 'mine-and-bank', version: '1.0.0' }, objective: 'Mine ore.'
+        });
+        expect(() => store.setPlayerActionRequestStatus(request.requestId, 'outsider', request.revision,
+            'accepted')).toThrow('not a party');
+        expect(() => store.setPlayerActionRequestStatus(request.requestId, 'varrock-forge', request.revision,
+            'accepted')).toThrow('Invalid player action transition');
+        expect(() => store.setPlayerActionRequestStatus(request.requestId, 'ferrye14', request.revision,
+            'rejected')).toThrow('require a response note');
+        expect(store.setPlayerActionRequestStatus(request.requestId, 'varrock-forge', request.revision,
+            'cancelled').status).toBe('cancelled');
+        store.close();
+    });
+});
