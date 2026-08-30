@@ -89,7 +89,8 @@ export class OpenAIResponsesProvider implements LlmProvider {
                     goalHierarchy: request.goalHierarchy, trustedContext: request.trustedContext,
                     untrustedText: request.untrustedText, allowedSkills: request.tools[0].allowedSkills }),
                 text: { format: { type: 'json_schema', name: 'agent_plan', strict: true, schema: PLAN_SCHEMA } },
-                max_output_tokens: 2_000
+                max_output_tokens: request.maxOutputTokens,
+                ...(request.reasoningEffort ? { reasoning: { effort: request.reasoningEffort } } : {})
             })
         });
         const rawText = await response.text();

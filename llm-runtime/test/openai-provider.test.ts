@@ -9,7 +9,7 @@ const request: LlmProviderRequest = {
         description: '', priority: 90 }], trustedContext: 'Trusted state', untrustedText: ['Player chat'],
     tools: [{ name: 'execute_skill', description: 'Execute one reviewed skill.', allowedSkills: [
         { id: 'mining', version: '1.0.0', name: 'Mining', description: 'Mine ore.' }
-    ] }], instruction: 'Return a bounded plan.'
+    ] }], instruction: 'Return a bounded plan.', maxOutputTokens: 1500, reasoningEffort: 'medium'
 };
 
 function provider(fetch: OpenAIFetch) {
@@ -32,6 +32,8 @@ describe('OpenAI Responses provider', () => {
         expect(sent?.headers).toEqual({ Authorization: 'Bearer test-secret', 'Content-Type': 'application/json' });
         expect(body.store).toBeFalse();
         expect(body.text.format).toMatchObject({ type: 'json_schema', strict: true });
+        expect(body.max_output_tokens).toBe(1500);
+        expect(body.reasoning).toEqual({ effort: 'medium' });
         expect(body.input).toContain('Trusted state');
         expect(result.output).toMatchObject({ decision: 'abstain', goalId: 'wealth' });
         expect(result.usage).toEqual({ inputTokens: 1000, outputTokens: 100, costMicros: 3200 });
@@ -50,8 +52,13 @@ describe('OpenAI Responses provider', () => {
     test('requires an environment key and explicit pricing', () => {
         expect(() => createOpenAIProvider({ schemaVersion: 1, enabled: true, automaticReplanning: false,
             provider: 'openai', model: 'test',
+            plannerPrompt: 'Plan for a RuneScape agent.',
             pricing: { inputMicrosPerMillionTokens: 1, outputMicrosPerMillionTokens: 1 },
-            limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1, maxCostMicros: 100 } }, {}))
+            skillBuilder: { enabled: false, prompt: 'Build bounded skills.', intervalMs: 60000,
+                cooldownMs: 3600000, maxAttemptsPerGap: 3, maxCostMicrosPerGap: 50000,
+                maxDailyCostMicros: 100000, maxDurationMs: 60000, maxOutputTokens: 6000 },
+            limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1,
+                maxCostMicros: 100, maxOutputTokens: 1000 } }, {}))
             .toThrow('OPENAI_API_KEY');
     });
 });

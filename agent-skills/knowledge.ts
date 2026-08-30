@@ -1,6 +1,50 @@
 import type { RegisteredSkill, SkillReference, SkillSharingMode } from './types';
 import type { SkillRegistry } from './registry';
 
+export type SkillAccessState = 'accessible' | 'denied';
+export type SkillKnowledgeState = 'unlearned' | 'known' | 'preferred' | 'blocked';
+
+export interface SkillRelationship {
+    reference: SkillReference;
+    exists: boolean;
+    access: { state: SkillAccessState; reason: string };
+    knowledge: SkillKnowledgeState;
+    executable: boolean;
+}
+
+export function inspectSkillRelationship(
+    registry: SkillRegistry,
+    agentId: string,
+    reference: SkillReference,
+    knowledge: Exclude<SkillKnowledgeState, 'unlearned'> | null = null,
+    sharingMode: SkillSharingMode = 'shared-library'
+): SkillRelationship {
+    const descriptor = registry.describe(reference);
+    const normalizedAgentId = agentId.toLocaleLowerCase('en-US');
+    let state: SkillAccessState = 'denied';
+    let reason = 'The exact skill version does not exist in the registry.';
+    if (descriptor) {
+        const own = descriptor.authorKind === 'agent'
+            && descriptor.authorId.toLocaleLowerCase('en-US') === normalizedAgentId;
+        if (descriptor.visibility === 'private' && descriptor.ownerAgentId?.toLocaleLowerCase('en-US') !== normalizedAgentId) {
+            reason = 'The skill is private to another agent.';
+        } else if (descriptor.status === 'draft' && !own) {
+            reason = 'Another agent draft is not accessible.';
+        } else if (sharingMode === 'isolated-discovery' && !own) {
+            reason = 'The simulation uses isolated discovery.';
+        } else {
+            state = 'accessible';
+            reason = own ? 'The skill belongs to this agent.' : 'The verified shared skill is accessible from the catalog.';
+        }
+    }
+    const knowledgeState = knowledge ?? 'unlearned';
+    return {
+        reference: { ...reference }, exists: descriptor !== null, access: { state, reason }, knowledge: knowledgeState,
+        executable: descriptor?.status === 'verified' && state === 'accessible'
+            && (knowledgeState === 'known' || knowledgeState === 'preferred')
+    };
+}
+
 export class AgentSkillBook {
     private readonly known = new Map<string, SkillReference>();
 
@@ -28,6 +72,11 @@ export class AgentSkillBook {
 
     knows(id: string): boolean {
         return this.known.has(id);
+    }
+
+    inspect(reference: SkillReference, registry: SkillRegistry): SkillRelationship {
+        return inspectSkillRelationship(registry, this.agentId, reference,
+            this.known.get(reference.id)?.version === reference.version ? 'known' : null, this.sharingMode);
     }
 
     listKnown(): SkillReference[] {

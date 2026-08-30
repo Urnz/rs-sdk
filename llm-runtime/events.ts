@@ -1,5 +1,5 @@
 export type LlmReplanEventType = 'manual-request' | 'skill-finished' | 'skill-failed' | 'goal-changed'
-    | 'unexpected-world-event' | 'offer-received' | 'significant-economic-change';
+    | 'unexpected-world-event' | 'offer-received' | 'significant-economic-change' | 'capability-ready';
 
 export interface LlmReplanEvent {
     eventId: string;
@@ -48,7 +48,8 @@ export class LlmReplanEventGate {
             return { accepted: false, reason: 'duplicate', nextAllowedAt: new Date(Math.max(current, nextAllowed)).toISOString() };
         }
         const urgent = event.type === 'manual-request' || event.type === 'unexpected-world-event'
-            || event.type === 'skill-finished' || event.type === 'skill-failed' || event.type === 'goal-changed';
+            || event.type === 'skill-finished' || event.type === 'skill-failed' || event.type === 'goal-changed'
+            || event.type === 'capability-ready';
         if (!urgent && current < nextAllowed) {
             return { accepted: false, reason: 'cooldown', nextAllowedAt: new Date(nextAllowed).toISOString() };
         }

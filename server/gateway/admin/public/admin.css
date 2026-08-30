@@ -183,6 +183,35 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 .llm-dialog p { margin: 0; }
 .llm-plan-text { white-space: pre-line; }
 .llm-preview { max-height: 260px; margin: 0; padding: 10px; overflow: auto; color: #cbd5c6; background: #0d100c; border-radius: 7px; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.45 ui-monospace, monospace; }
+.llm-settings-actions { display: flex; align-items: center; gap: 9px; }
+.llm-settings-form { display: grid; gap: 16px; padding: 0 20px 22px; }
+.llm-settings-intro { margin: 0; padding: 12px 14px; color: var(--muted); background: var(--panel-2); border-left: 3px solid var(--blue); border-radius: 8px; }
+.llm-status-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 10px; }
+.llm-status-grid article { padding: 12px 14px; background: #11150f; border: 1px solid var(--border); border-radius: 9px; }
+.llm-status-grid span { display: block; color: var(--muted); font-size: 11px; }
+.llm-status-grid strong { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+.llm-settings-form fieldset { min-width: 0; padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+.llm-settings-form legend { padding: 0 7px; color: var(--gold); font-weight: 800; }
+.llm-form-grid { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 12px; }
+.llm-form-grid .llm-toggle { align-self: end; min-height: 42px; padding: 9px 10px; background: var(--panel-2); border-radius: 7px; }
+.llm-form-grid .warning { color: #f0d49a; border: 1px solid #5e4c27; }
+.llm-secret-grid { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(220px, .6fr); gap: 14px; align-items: end; }
+.llm-secret-grid .danger-check { min-height: 42px; padding: 9px 10px; color: #ffc1bb; background: #2b1917; border-radius: 7px; }
+.llm-save-row { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.llm-save-row p { max-width: 680px; }
+.capability-gap-section { margin: 0 20px 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.capability-gap-section .panel-heading { padding: 0 0 8px; }
+.capability-gap-section h3 { margin: 0; }
+.capability-gap-list { display: grid; gap: 8px; max-height: 360px; padding-right: 4px; overflow: auto; }
+.capability-gap-card { display: grid; grid-template-columns: minmax(190px, .8fr) minmax(240px, 1.3fr) auto; gap: 12px; align-items: center; padding: 11px 12px; background: var(--panel-2); border-left: 3px solid var(--gold); border-radius: 8px; }
+.capability-gap-card.verified { border-left-color: var(--green); }.capability-gap-card.rejected { border-left-color: var(--red); opacity: .72; }
+.capability-gap-card > div:first-child { display: grid; min-width: 0; }.capability-gap-card small,.capability-gap-card p { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.capability-gap-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.capability-gap-meta span { padding: 4px 7px; background: #11150f; border-radius: 999px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.capability-gap-card .capability-gap-error { display: block; margin-top: 5px; color: var(--red); }
+.skill-trial-heading { margin-top: 20px; padding-top: 16px !important; border-top: 1px solid var(--border); }
+.skill-trial-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.skill-trial-checks { display: block; margin-top: 5px; color: var(--muted); }
 .world-admin-shell { padding: 22px; max-height: 90vh; overflow: auto; }
 .world-admin-heading-actions { display: flex; gap: 10px; align-items: center; }
 .world-mod-summary { margin: 15px 0 10px; padding: 11px 13px; color: var(--muted); background: var(--panel-2); border-radius: 9px; }
@@ -304,4 +333,7 @@ dialog form { display: grid; gap: 15px; padding: 22px; }
 @media (max-width: 620px) { .transaction-summary { grid-template-columns: 1fr 1fr; }.transaction-filters { grid-template-columns: 1fr; } }
 @media (max-width: 860px) { .agent-grid { grid-template-columns: 1fr; }.agent-card-heading { flex-direction: column; }.agent-card-actions { justify-content: flex-start; } }
 @media (max-width: 700px) { .llm-result-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .llm-form-grid { grid-template-columns: 1fr 1fr; }.llm-secret-grid { grid-template-columns: 1fr; } }
+@media (max-width: 850px) { .capability-gap-card { grid-template-columns: 1fr; }.capability-gap-meta { justify-content: flex-start; } }
+@media (max-width: 620px) { .llm-form-grid,.llm-status-grid { grid-template-columns: 1fr; }.llm-save-row { align-items: stretch; flex-direction: column; }.llm-settings-actions { align-items: flex-end; flex-direction: column; } }
 @media (max-width: 620px) { .world-mod-settings,.world-mod-actions { grid-template-columns: 1fr; } }

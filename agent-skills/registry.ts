@@ -35,6 +35,15 @@ export interface SkillListQuery {
     visibleToAgentId?: string;
 }
 
+export interface SkillRegistryDescriptor {
+    reference: SkillReference;
+    status: SkillStatus;
+    visibility: SkillDefinition['sharing']['visibility'];
+    ownerAgentId: string | null;
+    authorKind: SkillDefinition['provenance']['authorKind'];
+    authorId: string;
+}
+
 export class SkillRegistry {
     private readonly skills = new Map<string, RegisteredSkill>();
 
@@ -67,6 +76,16 @@ export class SkillRegistry {
         if (skill?.definition.sharing.visibility === 'private'
             && skill.definition.sharing.ownerAgentId !== visibleToAgentId) return null;
         return skill;
+    }
+
+    describe(reference: SkillReference): SkillRegistryDescriptor | null {
+        const definition = this.skills.get(this.key(reference))?.definition;
+        return definition ? {
+            reference: { id: definition.id, version: definition.version }, status: definition.status,
+            visibility: definition.sharing.visibility,
+            ownerAgentId: definition.sharing.ownerAgentId ?? null,
+            authorKind: definition.provenance.authorKind, authorId: definition.provenance.authorId
+        } : null;
     }
 
     getLatest(id: string, query: Omit<SkillListQuery, 'tags'> = {}): RegisteredSkill | null {

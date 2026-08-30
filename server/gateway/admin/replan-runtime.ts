@@ -5,7 +5,8 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import type { LlmReplanEvent } from '../../../llm-runtime/events.js';
 import { listAdminAgents } from './agent-state.js';
 import { runAdminLlmDryRun } from './llm-dry-run.js';
-import { agentStateDbPath, llmReplanLogPath } from './paths.js';
+import { agentStateDbPath, capabilityGapsPath, llmReplanLogPath } from './paths.js';
+import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
 import { AgentReplanCoordinator, type ReplanOutcome, type ReplanRecord } from './replan-coordinator.js';
 import type { GatewayBotSnapshot } from './types.js';
 
@@ -63,7 +64,8 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             if (!current) return { runId: event.eventId, status: 'skipped', reason: 'Agent state disappeared before planning.' };
             try {
                 const result = await runAdminLlmDryRun(current, refreshed.skills, { now, runId: event.eventId,
-                    untrustedText: event.type === 'offer-received' ? [event.summary] : [], automatic: true });
+                    untrustedText: event.type === 'offer-received' ? [event.summary] : [], automatic: true,
+                    capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
                 return { runId: result.plan.runId, status: result.plan.status,
                     decision: result.plan.decision, reason: result.plan.reason };
             } catch (error) {
@@ -73,4 +75,25 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
         },
         append
     });
+}
+
+export async function dispatchVerifiedCapabilityWakeups(coordinator: AgentReplanCoordinator,
+    store = new CapabilityGapStore(capabilityGapsPath), now = new Date().toISOString()): Promise<ReplanRecord[]> {
+    const wakeups = await store.claimVerifiedWakeups(100, now);
+    return Promise.all(wakeups.map(async wakeup => {
+        try {
+            const record = await coordinator.submit({ eventId: crypto.randomUUID(), agentId: wakeup.agentId,
+                type: 'capability-ready',
+                sourceKey: `capability:${wakeup.gapId}:${wakeup.agentId}:${wakeup.anchorGoalId}:attempt:${now}`,
+                occurredAt: now, summary: `Capability ${wakeup.gapId} is ready as ${wakeup.resolvedSkill.id}@${wakeup.resolvedSkill.version}.`
+            }, now);
+            if (!record.gate.accepted || !record.outcome || record.outcome.status === 'skipped' || record.error) {
+                await store.releaseWakeup(wakeup, now);
+            }
+            return record;
+        } catch (error) {
+            await store.releaseWakeup(wakeup, now);
+            throw error;
+        }
+    }));
 }

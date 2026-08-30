@@ -14,6 +14,9 @@ arbitrary file, network, shell, engine, or official-OSRS access.
 - `knowledge.ts` – per-agent `Skill[]` knowledge and sharing-mode switch.
 - `library.ts` – reviewed catalog, generated-draft orchestration, and verified promotion.
 - `verifier.ts` – deterministic policy checks, live-run evidence validation, and immutable reports.
+- `capability-gaps.ts` – persistent, deduplicated capability backlog and deterministic skill resolver.
+- `builder.ts` – bounded non-player worker boundary for declarative skill-draft proposals.
+- `openai-builder-provider.ts` – tool-free Responses API structured-output adapter.
 - `executor.ts` – limits, retries, cancellation, repeat conditions, and audit events.
 - `journal.ts` – immutable per-run JSON audit records.
 - `rs-sdk-runtime.ts` – adapter from approved operations to `BotActions`/`BotSDK`.
@@ -23,6 +26,36 @@ arbitrary file, network, shell, engine, or official-OSRS access.
 Runtime-generated documents belong under `.local/agent-skills/` and are ignored
 by Git. Shared skills are visible to every agent; private skills are only loaded
 for their owner. CLI runs are recorded under `.local/agent-skills/runs/<run-id>.json`.
+Unresolved planner needs are stored in `.local/agent-skills/capability-gaps.json`.
+Their semantic fingerprint deliberately excludes the requesting agent and goal,
+so multiple agents needing the same capability share one work item while retaining
+their individual requester history and request counts. Automatic planning pauses
+per agent and strategic anchor while the gap is active. Verification creates a
+durable, once-delivered wakeup; offline agents retain it for a later retry.
+
+The Skill Builder claims one open gap atomically and receives only gap metadata,
+reviewed skill summaries, and the declarative operation allowlist. Provider output
+cannot set provenance, status, sharing, code, shell, files, network access, or game
+control. The service stamps a shared agent draft, runs strict schema validation,
+persists per-gap attempts and cost, and applies a cooldown to retryable failures.
+Static acceptance creates a draft only. The admin AI tab can start an isolated
+trial for one explicitly selected online test bot. Trial records pin the exact
+draft version, parameters, target version, and accepted run IDs under
+`.local/agent-skills/trials.json`. Normal bot and planner routes cannot opt into
+draft execution.
+
+After at least two matching successful runs, the deterministic verifier writes an
+immutable report under `.local/agent-skills/verifications/`. A passing report still
+does not publish anything: the operator must review it and use the separate human
+approval action. Only that action writes the new verified version and resolves the
+capability gap. Failed reports remain visible and the same bounded trial may gather
+new independent evidence.
+
+The gateway scheduler is disabled by default and configured in the admin AI tab.
+When explicitly enabled it uses the server-local write-only OpenAI key, processes
+at most one eligible gap per interval, prevents overlapping runs, and records a
+separate JSONL cost ledger. Per-gap attempts/cost, cooldown, daily server cost,
+duration, and output-token limits all fail closed before another automatic call.
 
 ## Trust lifecycle
 
@@ -34,13 +67,29 @@ for their owner. CLI runs are recorded under `.local/agent-skills/runs/<run-id>.
 5. The deterministic verifier requires a shared agent draft, a newer target
    version, a bounded operation budget, resolved parameters, and at least two
    unique successful live runs recorded with those exact parameters.
-6. A passing report promotes a new immutable, system-authored `verified` version;
-   a failing report is retained but never publishes a skill.
+6. A passing report prepares a new immutable, system-authored `verified` version;
+   the admin workflow publishes it only after a separate human approval. A failing
+   report is retained but never publishes a skill.
 7. `shared-library` agents can discover verified shared skills. In an
    `isolated-discovery` simulation they only discover skills authored by themselves.
 
 Changing an existing `id@version` is rejected. Improvements must publish a new
 semantic version, so another agent can reproduce exactly what it learned.
+
+## Existence, access, and knowledge
+
+These are separate states. `SkillRegistry.describe()` can establish that an exact
+immutable version exists without exposing a private definition. The deterministic
+`inspectSkillRelationship()` policy then evaluates whether that agent may access
+the version under shared or isolated discovery. Finally, per-agent knowledge is
+`unlearned`, `known`, `preferred`, or `blocked`. A skill is executable only when it
+exists, is accessible, is verified, and that agent has explicitly learned it.
+
+Finding a matching verified shared skill therefore returns an accessible catalog
+discovery with `requiresLearning: true`; it does not add knowledge and is not sent
+to the LLM as an allowed tool. Blocked versions are excluded even when globally
+shared. The admin Agent view displays learned skills separately from accessible but
+unlearned catalog entries, and recording learning remains an explicit audited action.
 
 ## Minimal use
 

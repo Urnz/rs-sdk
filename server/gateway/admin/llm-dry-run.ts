@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { JsonlLlmAuditSink } from '../../../llm-runtime/audit.js';
 import { validateLlmRuntimeConfig } from '../../../llm-runtime/config.js';
 import { ScriptedMockProvider } from '../../../llm-runtime/mock-provider.js';
@@ -7,9 +8,11 @@ import { LlmOrchestrator } from '../../../llm-runtime/orchestrator.js';
 import { buildLlmPlanningInput } from '../../../llm-runtime/planning.js';
 import { InferenceQueue } from '../../../llm-runtime/queue.js';
 import type { LlmAuditSink, LlmProvider, LlmProviderRequest, LlmProviderResponse } from '../../../llm-runtime/types.js';
+import { CapabilityGapStore, resolveSkillForCapability, type SkillResolution } from '../../../agent-skills/capability-gaps.js';
 import type { listAdminAgents } from './agent-state.js';
 import type { AdminSkillSummary } from './skill-catalog.js';
-import { llmAuditLogPath, llmRuntimeConfigPath } from './paths.js';
+import { llmAuditLogPath } from './paths.js';
+import { loadLlmRuntimeConfig, resolveOpenAIApiKey } from './llm-settings.js';
 
 type AdminAgentView = Awaited<ReturnType<typeof listAdminAgents>>['agents'][number];
 const sharedAdminInferenceQueue = new InferenceQueue();
@@ -24,7 +27,30 @@ export interface AdminLlmDryRunOptions {
     provider?: LlmProvider;
     environment?: Record<string, string | undefined>;
     automatic?: boolean;
+    capabilityGapStore?: CapabilityGapStore;
 }
+
+export type AdminCapabilityOutcome = {
+    kind: 'skill-resolved';
+    resolution: SkillResolution;
+    gap: null;
+} | {
+    kind: 'skill-discovered';
+    resolution: SkillResolution;
+    gap: null;
+} | {
+    kind: 'gap-pending';
+    resolution: null;
+    gap: { gap: Awaited<ReturnType<CapabilityGapStore['findPending']>>; created: false; deduplicated: true };
+} | {
+    kind: 'gap-reported';
+    resolution: null;
+    gap: Awaited<ReturnType<CapabilityGapStore['report']>>;
+} | {
+    kind: 'not-applicable';
+    resolution: null;
+    gap: null;
+};
 
 function words(value: string): Set<string> {
     return new Set(value.toLocaleLowerCase('en-US').split(/[^\p{L}\p{N}]+/u)
@@ -85,8 +111,9 @@ function mockResponse(agent: AdminAgentView, request: LlmProviderRequest): LlmPr
 
 export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly AdminSkillSummary[],
     options: AdminLlmDryRunOptions = {}) {
-    const rawConfig = JSON.parse(await readFile(options.configPath ?? llmRuntimeConfigPath, 'utf8')) as unknown;
-    const configured = validateLlmRuntimeConfig(rawConfig);
+    const configured = options.configPath
+        ? validateLlmRuntimeConfig(JSON.parse(await readFile(options.configPath, 'utf8')) as unknown)
+        : (await loadLlmRuntimeConfig()).config;
     if (!['mock', 'openai'].includes(configured.provider)) {
         throw new Error(`Nem támogatott LLM provider: ${configured.provider}`);
     }
@@ -111,17 +138,52 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         untrustedText: options.untrustedText,
         runId: options.runId
     });
+    if (options.automatic && options.capabilityGapStore) {
+        const pending = await options.capabilityGapStore.findPending(input.agentId, input.goal.goalId);
+        if (pending) {
+            const reason = `Capability gap ${pending.gapId} is still ${pending.status}; automatic LLM planning is paused.`;
+            return {
+                simulation: true,
+                configuredEnabled: configured.enabled,
+                plan: { runId: options.runId ?? randomUUID(), agentId: input.agentId, status: 'stopped' as const,
+                    decision: null, approvalId: null, reason, usage: { costMicros: 0 }, durationMs: 0 },
+                capability: { kind: 'gap-pending' as const, resolution: null,
+                    gap: { gap: pending, created: false as const, deduplicated: true as const } },
+                request: null
+            };
+        }
+    }
+    const environment = { ...(options.environment ?? process.env) };
+    if (configured.provider === 'openai') {
+        environment.OPENAI_API_KEY = (await resolveOpenAIApiKey({}, environment)).value;
+    }
     const provider = options.provider ?? (configured.provider === 'mock'
         ? new ScriptedMockProvider([request => mockResponse(agent, request)])
-        : createOpenAIProvider(configured, options.environment));
+        : createOpenAIProvider(configured, environment));
     if (provider.id !== configured.provider) throw new Error('A beadott LLM provider nem egyezik a konfigurációval.');
     const orchestrator = new LlmOrchestrator(config, provider,
         options.audit ?? new JsonlLlmAuditSink(llmAuditLogPath), options.queue ?? sharedAdminInferenceQueue);
     const plan = await orchestrator.plan(input);
+    let capability: AdminCapabilityOutcome = { kind: 'not-applicable', resolution: null, gap: null };
+    const proposedImmediate = plan.decision?.kind === 'propose-goal-plan'
+        ? plan.decision.goals.find(goal => goal.horizon === 'immediate') ?? null : null;
+    const capabilityGoal = input.mode === 'execute-immediate-goal' ? input.goal : proposedImmediate;
+    if (capabilityGoal && !(plan.decision?.kind === 'propose-goal-plan' && plan.decision.skill)) {
+        const resolution = resolveSkillForCapability(capabilityGoal, skills.map(skill => ({ ...skill,
+            status: 'verified' as const, visibility: 'shared' as const })),
+        agent.knownSkills.map(item => ({ ...item.skill, status: item.status })));
+        if (resolution) capability = { kind: resolution.requiresLearning ? 'skill-discovered' : 'skill-resolved',
+            resolution, gap: null };
+        else if (options.capabilityGapStore) capability = { kind: 'gap-reported', resolution: null,
+            gap: await options.capabilityGapStore.report({ agentId: agent.identity.agentId,
+                goalId: capabilityGoal.goalId, anchorGoalId: input.goal.goalId,
+                title: capabilityGoal.title, description: capabilityGoal.description }) };
+    }
     return {
         simulation: true,
         configuredEnabled: configured.enabled,
         plan,
+        capability,
         request: provider instanceof ScriptedMockProvider || provider instanceof OpenAIResponsesProvider
             ? provider.requests[0] ?? null : null
     };

@@ -27,6 +27,7 @@
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="economy">Gazdaság</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="skills">Agent skillek</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="agents">Agentek</button>
+            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="llm">AI beállítások</button>
         </nav>
 
         <section class="summary-grid" aria-label="Gazdasági összesítés" data-admin-tab-panel="economy" hidden>
@@ -129,6 +130,90 @@
             <div id="agent-list" class="agent-list scrollable-list" role="region" aria-label="Persistent agentek" tabindex="0">
                 <p class="empty">Betöltés…</p>
             </div>
+        </section>
+
+        <section class="panel llm-settings-panel" data-admin-tab-panel="llm" hidden>
+            <div class="panel-heading table-heading">
+                <div><p class="eyebrow">SZERVERBEÁLLÍTÁSOK</p><h2>LLM stratégiai planner</h2></div>
+                <div class="llm-settings-actions"><span id="llm-config-source" class="count-pill">Betöltés…</span>
+                    <button id="reload-llm-settings" type="button" class="button ghost">Újratöltés</button></div>
+            </div>
+            <form id="llm-settings-form" class="llm-settings-form">
+                <p class="llm-settings-intro">Ezek a beállítások csak ehhez a játékszerverhez tartoznak. A biztonsági és strukturált-output szabályok nem írhatók felül; az alábbi szerepprompt azok után kerül a modellhez.</p>
+                <div class="llm-status-grid">
+                    <article><span>Konfiguráció</span><strong id="llm-config-status">Betöltés…</strong></article>
+                    <article><span>API-kulcs</span><strong id="llm-api-key-status">Betöltés…</strong></article>
+                </div>
+                <fieldset>
+                    <legend>Provider és modell</legend>
+                    <div class="llm-form-grid">
+                        <label>Provider<select name="provider" required><option value="mock">Mock (ingyenes teszt)</option><option value="openai">OpenAI Responses API</option></select></label>
+                        <label>Modell<input name="model" maxlength="120" required placeholder="pl. gpt-5.6-terra"></label>
+                        <label>Reasoning effort<select name="reasoningEffort"><option value="">Modell alapértéke</option><option value="minimal">Minimal</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="xhigh">XHigh</option></select></label>
+                        <label class="check llm-toggle"><input name="enabled" type="checkbox"> Valódi LLM-provider engedélyezése</label>
+                        <label class="check llm-toggle warning"><input name="automaticReplanning" type="checkbox"> Automatikus újratervezés jelentős eseményeknél</label>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>RuneScape agent szerepprompt</legend>
+                    <label><span class="muted">A változó identitás, célok, memóriák, világállapot és engedélyezett skillek automatikusan, strukturált kontextusként kerülnek mellé.</span>
+                        <textarea name="plannerPrompt" rows="8" maxlength="8000" required></textarea></label>
+                </fieldset>
+                <fieldset>
+                    <legend>Skill Builder szolgáltatás</legend>
+                    <label class="check llm-toggle warning"><input name="skillBuilderEnabled" type="checkbox"> Automatikus deklaratív skill-draft készítés nyitott gapekből</label>
+                    <label><span class="muted">A fix biztonsági prompt után kerül a modellhez. A modell nem kap toolt vagy játékvezérlést.</span>
+                        <textarea name="skillBuilderPrompt" rows="5" maxlength="8000" required></textarea></label>
+                    <div class="llm-form-grid limits">
+                        <label>Worker intervallum (ms)<input name="skillBuilderIntervalMs" type="number" min="10000" max="86400000" step="1000" required></label>
+                        <label>Gap cooldown (ms)<input name="skillBuilderCooldownMs" type="number" min="0" max="604800000" step="1000" required></label>
+                        <label>Max. próbálkozás / gap<input name="skillBuilderMaxAttempts" type="number" min="1" max="100" step="1" required></label>
+                        <label>Max. költség / gap<input name="skillBuilderMaxCost" type="number" min="0" max="100000000" step="1" required></label>
+                        <label>Napi összes költséglimit<input name="skillBuilderDailyCost" type="number" min="0" max="100000000" step="1" required></label>
+                        <label>Builder időlimit (ms)<input name="skillBuilderDurationMs" type="number" min="100" max="300000" step="100" required></label>
+                        <label>Builder max. output token<input name="skillBuilderOutputTokens" type="number" min="100" max="100000" step="100" required></label>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>Biztonsági és költséglimitek</legend>
+                    <div class="llm-form-grid limits">
+                        <label>Időlimit (ms)<input name="maxDurationMs" type="number" min="100" max="300000" step="100" required></label>
+                        <label>Max. modellhívás<input name="maxModelRequests" type="number" min="1" max="20" step="1" required></label>
+                        <label>Max. toolhívás<input name="maxToolCalls" type="number" min="0" max="20" step="1" required></label>
+                        <label>Max. output token<input name="maxOutputTokens" type="number" min="100" max="100000" step="100" required></label>
+                        <label>Max. költség / futás (mikro-USD)<input name="maxCostMicros" type="number" min="0" max="100000000" step="1" required></label>
+                        <label>Input ár / 1M token (mikro-USD)<input name="inputPrice" type="number" min="0" max="1000000000" step="1"></label>
+                        <label>Output ár / 1M token (mikro-USD)<input name="outputPrice" type="number" min="0" max="1000000000" step="1"></label>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend>OpenAI API-kulcs</legend>
+                    <div class="llm-secret-grid">
+                        <label>Új kulcs <span class="muted">(hagyd üresen, ha nem változtatod)</span><input name="apiKey" type="password" autocomplete="new-password" minlength="20" maxlength="512" placeholder="A meglévő kulcs soha nem olvasható vissza"></label>
+                        <label class="check danger-check"><input name="removeApiKey" type="checkbox"> Helyben mentett API-kulcs törlése</label>
+                    </div>
+                    <p class="dialog-note">A kulcs a gitből kizárt, szerverhez tartozó helyi titokfájlba kerül. Az admin API és a böngésző csak az állapotát látja, az értékét nem.</p>
+                </fieldset>
+                <label>Mentés indoklása<input name="reason" maxlength="240" value="LLM szerverbeállítások frissítése" required></label>
+                <div class="llm-save-row">
+                    <p class="dialog-note">A kézi dry-run a következő hívástól azonnal ezt a konfigurációt használja; engine-restart nem szükséges.</p>
+                    <button id="save-llm-settings" class="button primary" type="submit">AI beállítások mentése</button>
+                </div>
+            </form>
+            <section class="capability-gap-section">
+                <div class="panel-heading table-heading">
+                    <div><p class="eyebrow">SKILL BUILDER MUNKASOR</p><h3>Capability gapek</h3></div>
+                    <span id="capability-gap-count" class="count-pill">0 gap</span>
+                </div>
+                <p class="agent-intro">Azonos hiányra több agent feliratkozik; a gap csak egyszer kerül a későbbi Skill Builder munkasorába.</p>
+                <div id="capability-gap-list" class="capability-gap-list scroll-region" role="region" aria-label="Capability gap munkasor" tabindex="0"><p class="empty">Betöltés…</p></div>
+                <div class="panel-heading table-heading skill-trial-heading">
+                    <div><p class="eyebrow">ELKÜLÖNÍTETT TESZTBOT</p><h3>Draft próbák és publikálás</h3></div>
+                    <span id="skill-trial-count" class="count-pill">0 próba</span>
+                </div>
+                <p class="agent-intro">A draft kizárólag az itt kijelölt tesztboton indulhat. Két egyező sikeres futás után verifier-jelentés készül; a publikálás külön emberi jóváhagyás.</p>
+                <div id="skill-trial-list" class="capability-gap-list scroll-region" role="region" aria-label="Draft skill próbák" tabindex="0"><p class="empty">Betöltés…</p></div>
+            </section>
         </section>
 
         <section class="panel stock-panel" data-admin-tab-panel="economy" hidden>
@@ -499,6 +584,7 @@
                 <section><h3>Javasolt skill</h3><p id="llm-dry-run-skill"></p></section>
             </div>
             <section><h3>Modell indoklása</h3><p id="llm-dry-run-reason"></p></section>
+            <section><h3>Skill feloldás / capability gap</h3><p id="llm-dry-run-capability"></p></section>
             <section><h3>Trusted context</h3><pre id="llm-dry-run-context" class="llm-preview"></pre></section>
             <div class="llm-result-grid">
                 <section><h3>Nem megbízható szöveg</h3><pre id="llm-dry-run-untrusted" class="llm-preview"></pre></section>

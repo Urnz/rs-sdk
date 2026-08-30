@@ -97,6 +97,10 @@ describe('admin agent-state service', () => {
         expect(result.agents[0]?.identity.displayName).toBe('Ferrye, a bányász');
         expect(result.agents[0]?.goals).toHaveLength(4);
         expect(result.agents[0]?.knownSkills[0]?.status).toBe('preferred');
+        expect(result.agents[0]?.skillRelationships.find(entry => entry.reference.id === skill!.id)).toMatchObject({
+            exists: true, access: 'accessible', knowledge: 'preferred', executable: true
+        });
+        expect(result.agents[0]?.skillRelationships.some(entry => entry.knowledge === 'unlearned')).toBeTrue();
         expect(result.agents[0]?.episodeCount).toBe(1);
         expect(result.agents[0]?.relevantEpisodes[0]?.episode.episodeId).toBe('ferrye.iron-memory');
         expect(result.agents[0]?.knowledgeCount).toBe(1);

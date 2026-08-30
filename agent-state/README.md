@@ -25,6 +25,11 @@ and that exact skill version is known, not blocked and present in the caller's t
 replayable decision key derived from the input
 revisions. Missing state, goals or knowledge produce explicit non-execution decisions instead of guesses.
 
+The admin snapshot also exposes `skillRelationships`: catalog existence/access is
+reported separately from per-agent knowledge and final executability. An accessible
+shared catalog entry remains `unlearned` until a separate knowledge update records
+learning; it is never included in LLM tools merely because it exists globally.
+
 ## Live cycle
 
 Once an identity, goal hierarchy and known skill have been configured in the state database, a single live cycle can be

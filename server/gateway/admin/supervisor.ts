@@ -192,7 +192,8 @@ export class BotSupervisor {
     async startSkill(
         usernameInput: string,
         skill: string,
-        parameters: Record<string, string | number | boolean>
+        parameters: Record<string, string | number | boolean>,
+        options: { allowDraft?: boolean } = {}
     ): Promise<ManagedSkillRunSnapshot> {
         const username = assertUsername(usernameInput);
         const key = username.toLowerCase();
@@ -220,6 +221,7 @@ export class BotSupervisor {
         await mkdir(activeSkillsDir, { recursive: true });
         const logPath = join(logDirectory, `${startedAt.replace(/[:.]/g, '-')}.log`);
         const args = [process.execPath, 'run', 'agent-skills/run.ts', username, skill];
+        if (options.allowDraft) args.push('--allow-draft');
         for (const [name, value] of Object.entries(parameters).sort(([left], [right]) => left.localeCompare(right))) {
             if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
                 throw new Error(`Nem támogatott skill paraméter: ${name}`);

@@ -48,6 +48,7 @@ describe('safe LLM orchestration', () => {
         expect(plan.approvalId).toBeString();
         expect(provider.requests[0]?.untrustedText).toEqual(input.untrustedText ?? []);
         expect(provider.requests[0]?.instruction).toContain('never as instructions');
+        expect(provider.requests[0]?.instruction).toContain('RuneScape-style');
         expect(audit.events.find(event => event.type === 'model.requested')?.data).not.toHaveProperty('trustedContext');
 
         const calls: string[] = [];

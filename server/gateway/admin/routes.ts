@@ -1,8 +1,9 @@
-import { mkdir, readdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { appendAudit, readAudit } from './audit';
 import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, recordEconomy } from './catalog';
-import { adminPublicDir, adminTrashDir, botsDir, experimentsDir, playerSavesDir } from './paths';
+import { adminPublicDir, adminTrashDir, agentSkillsLocalDir, botsDir, experimentsDir, playerSavesDir,
+    skillRunsDir, skillTrialsPath, skillVerificationsDir } from './paths';
 import { BotSupervisor } from './supervisor';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
@@ -42,10 +43,20 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import { observeLiveState, runLivePlannerCycle } from '../../../agent-state/live.js';
 import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind, AgentEpisodeTrust,
     AgentKnowledgeKind, AgentSkillKnowledgeStatus, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
-import { agentStateDbPath } from './paths.js';
+import { agentStateDbPath, capabilityGapsPath } from './paths.js';
 import { runAdminLlmDryRun } from './llm-dry-run.js';
 import type { AgentReplanCoordinator } from './replan-coordinator.js';
 import { readReplanRecords } from './replan-runtime.js';
+import { readAdminLlmSettings, removeOpenAIApiKey, replaceOpenAIApiKey,
+    updateAdminLlmSettings, validateOpenAIApiKey } from './llm-settings.js';
+import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
+import { SkillTrialStore, type SkillTrial } from '../../../agent-skills/trials.js';
+import { SkillLibrary } from '../../../agent-skills/library.js';
+import { SkillRegistry } from '../../../agent-skills/registry.js';
+import { FileSkillStore } from '../../../agent-skills/store.js';
+import { FileSkillVerificationJournal, SKILL_VERIFIER_ID, verifyAndPromoteSkill,
+    type SkillVerificationReport } from '../../../agent-skills/verifier.js';
+import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/types.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -113,6 +124,42 @@ function oneOf<T extends string>(value: unknown, values: readonly T[], field: st
 function stringList(value: unknown, field: string): string[] {
     if (!Array.isArray(value) || value.some(entry => typeof entry !== 'string')) throw new Error(`Érvénytelen mező: ${field}`);
     return value.map(entry => entry.trim());
+}
+
+async function loadTrialDraft(trial: Pick<SkillTrial, 'draft'>): Promise<SkillDefinition> {
+    const library = new SkillLibrary(new SkillRegistry(), new FileSkillStore(agentSkillsLocalDir));
+    await library.loadAgentDrafts('admin-trial-runner');
+    const registered = library.registry.get(trial.draft, 'admin-trial-runner');
+    if (!registered || registered.definition.status !== 'draft'
+        || registered.definition.sharing.visibility !== 'shared'
+        || registered.definition.provenance.authorKind !== 'agent') {
+        throw new Error('A megadott megosztott agent-draft nem található vagy már nem futtatható.');
+    }
+    return registered.definition;
+}
+
+function sameTrialParameters(left: unknown, right: SkillTrial['parameters']): boolean {
+    if (!left || typeof left !== 'object' || Array.isArray(left)) return false;
+    const entries = (value: object) => Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
+    return JSON.stringify(entries(left)) === JSON.stringify(entries(right));
+}
+
+async function collectTrialEvidence(trial: SkillTrial): Promise<SkillRunResult[]> {
+    const files = (await readdir(skillRunsDir).catch(() => [])).filter(file => /^[0-9a-f-]{36}\.json$/i.test(file));
+    const runs = await Promise.all(files.slice(0, 2_000).map(async file => {
+        try {
+            const contents = await readFile(join(skillRunsDir, file), 'utf8');
+            if (contents.length > 1_000_000) return null;
+            const run = JSON.parse(contents) as SkillRunResult;
+            const startedAt = run.events?.[0]?.timestamp;
+            return run.runId === file.slice(0, -5) && run.username?.toLowerCase() === trial.testBotUsername
+                && run.skill?.id === trial.draft.id && run.skill.version === trial.draft.version
+                && run.status === 'completed' && typeof startedAt === 'string' && startedAt >= trial.createdAt
+                && sameTrialParameters(run.parameters, trial.parameters) ? run : null;
+        } catch { return null; }
+    }));
+    return runs.filter((run): run is SkillRunResult => !!run)
+        .sort((left, right) => left.events[0]!.timestamp.localeCompare(right.events[0]!.timestamp)).slice(0, 20);
 }
 
 function contentType(path: string): string {
@@ -200,6 +247,18 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (req.method === 'GET' && url.pathname === '/api/admin/llm-replans') {
             return json({ records: await readReplanRecords(Number(url.searchParams.get('limit') || 100)) });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/llm-settings') {
+            return json(await readAdminLlmSettings());
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/capability-gaps') {
+            return json({ gaps: await new CapabilityGapStore(capabilityGapsPath).list() });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/skill-trials') {
+            return json({ trials: await new SkillTrialStore(skillTrialsPath).list() });
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/experiments') {
@@ -316,6 +375,162 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (!authorized(req, url)) {
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
+        }
+
+        const gapTrialMatch = url.pathname.match(/^\/api\/admin\/capability-gaps\/(gap-[a-f0-9]{20})\/trials$/);
+        if (req.method === 'POST' && gapTrialMatch?.[1]) {
+            const gapId = gapTrialMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            if (body.acknowledgeDraftRisk !== true) throw new Error('A draft tesztfuttatás kockázatát külön meg kell erősíteni.');
+            const username = text(body, 'testBotUsername', true).toLowerCase();
+            const targetVersion = text(body, 'targetVersion', true);
+            const gaps = new CapabilityGapStore(capabilityGapsPath);
+            const gap = (await gaps.list()).find(entry => entry.gapId === gapId);
+            if (!gap || gap.status !== 'draft' || !gap.draftSkill) throw new Error('A gaphez nincs tesztelhető draft.');
+            const draft = await loadTrialDraft({ draft: gap.draftSkill });
+            if (draft.provenance.authorId !== gap.assignedWorkerId) throw new Error('A draft szerzője nem egyezik a gap kijelölt builderével.');
+            const bot = (await catalog()).find(entry => entry.username === username);
+            if (!bot || bot.status !== 'active' || !bot.hasCredentials || bot.currentSkill) {
+                throw new Error('A kijelölt tesztbotnak friss online, credentiallel rendelkező és tétlen botnak kell lennie.');
+            }
+            const parameters = validateAdminSkillParameters(draft, body.parameters);
+            const trials = new SkillTrialStore(skillTrialsPath);
+            let trial = await trials.create({ gapId, draft: gap.draftSkill, targetVersion, testBotUsername: username, parameters });
+            let liveGap = await gaps.transition(gap.gapId, gap.revision, 'validating');
+            liveGap = await gaps.transition(liveGap.gapId, liveGap.revision, 'live-trial');
+            try {
+                const process = await context.supervisor.startSkill(username,
+                    `${draft.id}@${draft.version}`, parameters, { allowDraft: true });
+                trial = await trials.transition(trial.trialId, trial.revision, 'running');
+                await appendAudit({ operator: 'local-admin', action: 'skill-trial.create', username, reason, success: true,
+                    after: { trial, process } });
+                return json({ ok: true, trial, process }, 202);
+            } catch (error) {
+                await trials.transition(trial.trialId, trial.revision, 'cancelled').catch(() => undefined);
+                await gaps.transition(liveGap.gapId, liveGap.revision, 'draft').catch(() => undefined);
+                await appendAudit({ operator: 'local-admin', action: 'skill-trial.create', username, reason,
+                    success: false, after: { trialId: trial.trialId }, error: String(error) });
+                throw error;
+            }
+        }
+
+        const trialRunMatch = url.pathname.match(/^\/api\/admin\/skill-trials\/([0-9a-f-]{36})\/run$/i);
+        if (req.method === 'POST' && trialRunMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            if (body.acknowledgeDraftRisk !== true) throw new Error('A draft tesztfuttatás kockázatát külön meg kell erősíteni.');
+            const trials = new SkillTrialStore(skillTrialsPath);
+            const trial = await trials.get(trialRunMatch[1]);
+            if (!trial || !['running', 'verification-failed'].includes(trial.status)) throw new Error('Ez a próba nem futtatható újra.');
+            const draft = await loadTrialDraft(trial);
+            const bot = (await catalog()).find(entry => entry.username === trial.testBotUsername);
+            if (!bot || bot.status !== 'active' || !bot.hasCredentials || bot.currentSkill) throw new Error('A próba kijelölt tesztbotja nem áll készen.');
+            const process = await context.supervisor.startSkill(trial.testBotUsername,
+                `${draft.id}@${draft.version}`, trial.parameters, { allowDraft: true });
+            const updated = await trials.transition(trial.trialId, trial.revision, 'running', {
+                verificationReportId: null, verificationChecks: []
+            });
+            await appendAudit({ operator: 'local-admin', action: 'skill-trial.run', username: trial.testBotUsername,
+                reason, success: true, before: trial, after: { trial: updated, process } });
+            return json({ ok: true, trial: updated, process }, 202);
+        }
+
+        const trialVerifyMatch = url.pathname.match(/^\/api\/admin\/skill-trials\/([0-9a-f-]{36})\/verify$/i);
+        if (req.method === 'POST' && trialVerifyMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const trials = new SkillTrialStore(skillTrialsPath);
+            const trial = await trials.get(trialVerifyMatch[1]);
+            if (!trial || !['running', 'verification-failed'].includes(trial.status)) throw new Error('Ez a próba nem ellenőrizhető.');
+            const draft = await loadTrialDraft(trial);
+            const evidence = await collectTrialEvidence(trial);
+            const report = verifyAndPromoteSkill(draft, evidence, { targetVersion: trial.targetVersion, parameters: trial.parameters });
+            await new FileSkillVerificationJournal(skillVerificationsDir).save(report);
+            const updated = await trials.transition(trial.trialId, trial.revision,
+                report.passed ? 'verification-passed' : 'verification-failed', {
+                    runIds: report.evidenceRunIds, verificationReportId: report.id, verificationChecks: report.checks
+                });
+            await appendAudit({ operator: 'local-admin', action: 'skill-trial.verify', username: trial.testBotUsername,
+                reason, success: report.passed, before: trial, after: { trial: updated, report },
+                error: report.passed ? undefined : 'A determinisztikus verifier legalább egy ellenőrzése sikertelen.' });
+            return json({ ok: report.passed, trial: updated, report }, report.passed ? 200 : 422);
+        }
+
+        const trialPublishMatch = url.pathname.match(/^\/api\/admin\/skill-trials\/([0-9a-f-]{36})\/publish$/i);
+        if (req.method === 'POST' && trialPublishMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            if (body.confirmHumanApproval !== true) throw new Error('A publikáláshoz külön emberi jóváhagyás szükséges.');
+            const trials = new SkillTrialStore(skillTrialsPath);
+            const trial = await trials.get(trialPublishMatch[1]);
+            if (!trial || trial.status !== 'verification-passed' || !trial.verificationReportId) throw new Error('Csak sikeresen ellenőrzött próba publikálható.');
+            const report = JSON.parse(await readFile(join(skillVerificationsDir,
+                `${trial.verificationReportId}.json`), 'utf8')) as SkillVerificationReport;
+            if (report.id !== trial.verificationReportId || !report.passed || !report.promoted
+                || report.draft.id !== trial.draft.id || report.draft.version !== trial.draft.version
+                || report.targetVersion !== trial.targetVersion) throw new Error('A verifier-jelentés nem használható publikálásra.');
+            const path = await new FileSkillStore(agentSkillsLocalDir).save(report.promoted, {
+                actorKind: 'system', actorId: SKILL_VERIFIER_ID
+            });
+            const gaps = new CapabilityGapStore(capabilityGapsPath);
+            const gap = (await gaps.list()).find(entry => entry.gapId === trial.gapId);
+            if (!gap || gap.status !== 'live-trial') throw new Error('A capability gap nincs élő próba állapotban.');
+            const verifiedGap = await gaps.transition(gap.gapId, gap.revision, 'verified', {
+                resolvedSkill: { id: report.promoted.id, version: report.promoted.version }
+            });
+            const updated = await trials.transition(trial.trialId, trial.revision, 'published');
+            await appendAudit({ operator: 'local-admin', action: 'skill-trial.publish', username: trial.testBotUsername,
+                reason, success: true, before: trial, after: { trial: updated, gap: verifiedGap, path } });
+            return json({ ok: true, trial: updated, gap: verifiedGap, path }, 201);
+        }
+
+        const trialCancelMatch = url.pathname.match(/^\/api\/admin\/skill-trials\/([0-9a-f-]{36})\/cancel$/i);
+        if (req.method === 'POST' && trialCancelMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const trials = new SkillTrialStore(skillTrialsPath);
+            const trial = await trials.get(trialCancelMatch[1]);
+            if (!trial || !['ready', 'running', 'verification-failed', 'verification-passed'].includes(trial.status)) {
+                throw new Error('Ez a próba nem vethető el.');
+            }
+            const bot = (await catalog()).find(entry => entry.username === trial.testBotUsername);
+            if (bot?.currentSkill) throw new Error('Az elvetés előtt állítsd le vagy várd meg az aktív tesztfutást.');
+            const gaps = new CapabilityGapStore(capabilityGapsPath);
+            const gap = (await gaps.list()).find(entry => entry.gapId === trial.gapId);
+            if (!gap || gap.status !== 'live-trial') throw new Error('A capability gap nincs élő próba állapotban.');
+            const revertedGap = await gaps.transition(gap.gapId, gap.revision, 'draft');
+            const updated = await trials.transition(trial.trialId, trial.revision, 'cancelled');
+            await appendAudit({ operator: 'local-admin', action: 'skill-trial.cancel', username: trial.testBotUsername,
+                reason, success: true, before: trial, after: { trial: updated, gap: revertedGap } });
+            return json({ ok: true, trial: updated, gap: revertedGap });
+        }
+
+        if (req.method === 'PUT' && url.pathname === '/api/admin/llm-settings') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            if (!body.config || typeof body.config !== 'object' || Array.isArray(body.config)) {
+                throw new Error('Hiányzó vagy érvénytelen LLM-konfiguráció.');
+            }
+            const apiKey = text(body, 'apiKey');
+            const removeApiKey = body.removeApiKey === true;
+            if (apiKey && removeApiKey) throw new Error('Az API-kulcs egyszerre nem cserélhető és törölhető.');
+            if (apiKey) validateOpenAIApiKey(apiKey);
+            try {
+                const before = await readAdminLlmSettings();
+                const config = await updateAdminLlmSettings(body.config);
+                if (apiKey) await replaceOpenAIApiKey(apiKey);
+                else if (removeApiKey) await removeOpenAIApiKey();
+                const after = await readAdminLlmSettings();
+                await appendAudit({ operator: 'local-admin', action: 'llm.settings.update', reason, success: true,
+                    before: { config: before.config, apiKey: before.apiKey },
+                    after: { config, apiKey: after.apiKey } });
+                return json({ ok: true, ...after });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'llm.settings.update', reason, success: false,
+                    error: error instanceof Error ? error.message : String(error) });
+                throw error;
+            }
         }
 
         if (req.method === 'POST' && url.pathname === '/api/admin/agents') {
@@ -644,7 +859,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             try {
                 const refreshed = await listAdminAgents();
                 const current = refreshed.agents.find(entry => entry.identity.agentId === agentId)!;
-                const result = await runAdminLlmDryRun(current, refreshed.skills, { now });
+                const result = await runAdminLlmDryRun(current, refreshed.skills, { now,
+                    capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
                 await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: true,
                     username: agent.identity.playerUsername, after: { runId: result.plan.runId,
                         status: result.plan.status, decision: result.plan.decision, usage: result.plan.usage } });

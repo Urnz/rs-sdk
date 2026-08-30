@@ -2,11 +2,31 @@ import type { AgentSkillReference, GoalHorizon } from '../agent-state/types.js';
 
 export const LLM_RUNTIME_SCHEMA_VERSION = 1 as const;
 
+export const DEFAULT_LLM_PLANNER_PROMPT = `You are the strategic planner for an autonomous player agent in a RuneScape-style economic simulation.
+Use the supplied identity, goals, memories, live world state, assets and reviewed agent skills to choose a safe, useful next step.
+Prefer reusing an existing reviewed skill. If no suitable skill exists, expose the capability gap instead of inventing one.
+Advance the agent's own goals and personality consistently while respecting the simulated world's rules.`;
+
+export type LlmReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh';
+
 export interface LlmRuntimeLimits {
     maxDurationMs: number;
     maxModelRequests: number;
     maxToolCalls: number;
     maxCostMicros: number;
+    maxOutputTokens: number;
+}
+
+export interface LlmSkillBuilderConfig {
+    enabled: boolean;
+    prompt: string;
+    intervalMs: number;
+    cooldownMs: number;
+    maxAttemptsPerGap: number;
+    maxCostMicrosPerGap: number;
+    maxDailyCostMicros: number;
+    maxDurationMs: number;
+    maxOutputTokens: number;
 }
 
 export interface LlmRuntimeConfig {
@@ -15,10 +35,13 @@ export interface LlmRuntimeConfig {
     automaticReplanning: boolean;
     provider: string;
     model: string;
+    plannerPrompt: string;
+    reasoningEffort?: LlmReasoningEffort;
     pricing?: {
         inputMicrosPerMillionTokens: number;
         outputMicrosPerMillionTokens: number;
     };
+    skillBuilder: LlmSkillBuilderConfig;
     limits: LlmRuntimeLimits;
 }
 
@@ -69,6 +92,8 @@ export interface LlmProviderRequest {
         allowedSkills: readonly AllowedAgentSkill[];
     }];
     instruction: string;
+    maxOutputTokens: number;
+    reasoningEffort?: LlmReasoningEffort;
 }
 
 export interface LlmUsage {

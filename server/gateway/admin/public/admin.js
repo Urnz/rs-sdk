@@ -13,6 +13,9 @@ const state = {
     agents: [],
     agentSkills: [],
     worldPlayers: [],
+    llmSettings: null,
+    capabilityGaps: [],
+    skillTrials: [],
     adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
     selected: null,
@@ -76,7 +79,7 @@ function toast(message, error = false) {
 }
 
 function selectAdminTab(tab) {
-    if (!['bots', 'economy', 'skills', 'agents'].includes(tab)) return;
+    if (!['bots', 'economy', 'skills', 'agents', 'llm'].includes(tab)) return;
     state.adminTab = tab;
     document.querySelectorAll('.admin-tab').forEach(button => {
         const selected = button.dataset.tab === tab;
@@ -86,6 +89,100 @@ function selectAdminTab(tab) {
     document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
         panel.hidden = panel.dataset.adminTabPanel !== tab;
     });
+}
+
+const llmConfigSourceLabels = { 'server-override': 'Szerver saját beállítása', 'project-default': 'Projekt alapbeállítása' };
+const llmSecretSourceLabels = { 'local-secret': 'Helyi szerverkulcs', environment: 'OPENAI_API_KEY környezeti változó', none: 'Nincs beállítva' };
+
+function renderLlmSettings(settings) {
+    state.llmSettings = settings;
+    const form = $('#llm-settings-form');
+    const config = settings.config;
+    form.elements.provider.value = config.provider;
+    form.elements.model.value = config.model;
+    form.elements.reasoningEffort.value = config.reasoningEffort || '';
+    form.elements.enabled.checked = config.enabled;
+    form.elements.automaticReplanning.checked = config.automaticReplanning;
+    form.elements.plannerPrompt.value = config.plannerPrompt;
+    form.elements.skillBuilderEnabled.checked = config.skillBuilder.enabled;
+    form.elements.skillBuilderPrompt.value = config.skillBuilder.prompt;
+    form.elements.skillBuilderIntervalMs.value = config.skillBuilder.intervalMs;
+    form.elements.skillBuilderCooldownMs.value = config.skillBuilder.cooldownMs;
+    form.elements.skillBuilderMaxAttempts.value = config.skillBuilder.maxAttemptsPerGap;
+    form.elements.skillBuilderMaxCost.value = config.skillBuilder.maxCostMicrosPerGap;
+    form.elements.skillBuilderDailyCost.value = config.skillBuilder.maxDailyCostMicros;
+    form.elements.skillBuilderDurationMs.value = config.skillBuilder.maxDurationMs;
+    form.elements.skillBuilderOutputTokens.value = config.skillBuilder.maxOutputTokens;
+    form.elements.maxDurationMs.value = config.limits.maxDurationMs;
+    form.elements.maxModelRequests.value = config.limits.maxModelRequests;
+    form.elements.maxToolCalls.value = config.limits.maxToolCalls;
+    form.elements.maxOutputTokens.value = config.limits.maxOutputTokens;
+    form.elements.maxCostMicros.value = config.limits.maxCostMicros;
+    form.elements.inputPrice.value = config.pricing?.inputMicrosPerMillionTokens ?? '';
+    form.elements.outputPrice.value = config.pricing?.outputMicrosPerMillionTokens ?? '';
+    form.elements.apiKey.value = '';
+    form.elements.removeApiKey.checked = false;
+    $('#llm-config-source').textContent = llmConfigSourceLabels[settings.source] || settings.source;
+    $('#llm-config-status').textContent = `${config.enabled ? 'Engedélyezve' : 'Kikapcsolva'} · ${config.provider} · ${config.model}`;
+    $('#llm-api-key-status').textContent = settings.apiKey.configured
+        ? `Beállítva · ${llmSecretSourceLabels[settings.apiKey.source] || settings.apiKey.source}`
+        : 'Nincs beállítva';
+    syncLlmProviderFields();
+}
+
+function syncLlmProviderFields() {
+    const form = $('#llm-settings-form');
+    const openai = form.elements.provider.value === 'openai';
+    for (const name of ['inputPrice', 'outputPrice']) {
+        form.elements[name].disabled = !openai;
+        form.elements[name].required = openai;
+    }
+    form.elements.skillBuilderEnabled.disabled = !openai;
+}
+
+async function refreshLlmSettings() {
+    renderLlmSettings(await api('/api/admin/llm-settings'));
+}
+
+const capabilityGapStatusLabels = { open: 'Nyitott', assigned: 'Kiosztva', draft: 'Draft készül',
+    validating: 'Validálás', 'live-trial': 'Élő próba', verified: 'Verified', rejected: 'Elutasítva' };
+
+function renderCapabilityGaps(gaps) {
+    state.capabilityGaps = gaps;
+    $('#capability-gap-count').textContent = `${gaps.length} gap`;
+    $('#capability-gap-list').innerHTML = gaps.length ? gaps.map(gap => {
+        const requests = gap.requesters.reduce((sum, requester) => sum + requester.requestCount, 0);
+        const agents = [...new Set(gap.requesters.map(requester => requester.agentId))];
+        return `<article class="capability-gap-card ${escapeHtml(gap.status)}">
+            <div><strong>${escapeHtml(gap.title)}</strong><small>${escapeHtml(gap.gapId)} · rev ${gap.revision}</small></div>
+            <div><p>${escapeHtml(gap.description || 'Nincs részletes leírás.')}</p>${gap.lastBuilderError ? `<small class="capability-gap-error">Utolsó buildhiba: ${escapeHtml(gap.lastBuilderError)}</small>` : ''}</div>
+            <div class="capability-gap-meta"><span>${escapeHtml(capabilityGapStatusLabels[gap.status] || gap.status)}</span><span>${agents.length} agent</span><span>${requests} kérés</span><span>${gap.builderAttempts || 0} build</span><span>${gap.builderCostMicros || 0} µköltség</span>${gap.assignedWorkerId ? `<span>worker: ${escapeHtml(gap.assignedWorkerId)}</span>` : ''}${gap.status === 'draft' && gap.draftSkill ? `<button class="button small" data-action="skill-trial-create" data-gap-id="${escapeHtml(gap.gapId)}">Tesztpróba indítása</button>` : ''}</div>
+        </article>`;
+    }).join('') : '<p class="empty">Még nincs nyilvántartott capability gap.</p>';
+}
+
+const skillTrialStatusLabels = { ready: 'Előkészítve', running: 'Próba folyamatban',
+    'verification-passed': 'Verifier: megfelelt', 'verification-failed': 'Verifier: nem felelt meg',
+    published: 'Publikálva', cancelled: 'Megszakítva' };
+
+function renderSkillTrials(trials) {
+    state.skillTrials = trials;
+    $('#skill-trial-count').textContent = `${trials.length} próba`;
+    $('#skill-trial-list').innerHTML = trials.length ? trials.map(trial => {
+        const failedChecks = trial.verificationChecks.filter(check => !check.passed);
+        const rerunnable = ['running', 'verification-failed'].includes(trial.status);
+        return `<article class="capability-gap-card ${trial.status === 'published' ? 'verified' : ''}">
+            <div><strong>${escapeHtml(trial.draft.id)}@${escapeHtml(trial.draft.version)}</strong><small>${escapeHtml(trial.testBotUsername)} · célverzió ${escapeHtml(trial.targetVersion)}</small></div>
+            <div><p>${escapeHtml(skillTrialStatusLabels[trial.status] || trial.status)} · ${trial.runIds.length} elfogadott élő futás</p>${failedChecks.length ? `<small class="skill-trial-checks">Sikertelen: ${failedChecks.map(check => escapeHtml(check.id)).join(', ')}</small>` : ''}</div>
+            <div class="skill-trial-actions">${rerunnable ? `<button class="button small" data-action="skill-trial-run" data-trial-id="${trial.trialId}">Új futás</button><button class="button small" data-action="skill-trial-verify" data-trial-id="${trial.trialId}">Bizonyíték ellenőrzése</button>` : ''}${trial.status === 'verification-passed' ? `<button class="button primary small" data-action="skill-trial-publish" data-trial-id="${trial.trialId}">Jóváhagyás és publikálás</button>` : ''}${!['published', 'cancelled'].includes(trial.status) ? `<button class="button ghost small" data-action="skill-trial-cancel" data-trial-id="${trial.trialId}">Próba elvetése</button>` : ''}</div>
+        </article>`;
+    }).join('') : '<p class="empty">Még nincs elkülönített draft próba.</p>';
+}
+
+async function refreshCapabilityGaps() {
+    const [gaps, trials] = await Promise.all([api('/api/admin/capability-gaps'), api('/api/admin/skill-trials')]);
+    renderCapabilityGaps(gaps.gaps);
+    renderSkillTrials(trials.trials);
 }
 
 const goalHorizonLabels = { life: 'Életcél', 'long-term': 'Hosszú távú', current: 'Aktuális', immediate: 'Azonnali' };
@@ -123,6 +220,15 @@ function showLlmDryRun(result) {
         ? `Stratégiai horgony: ${request.goal.title} (${request.goal.goalId})${proposedGoals}` : 'Nem készült modellkérés';
     $('#llm-dry-run-skill').textContent = skill;
     $('#llm-dry-run-reason').textContent = plan.reason;
+    $('#llm-dry-run-capability').textContent = result.capability?.kind === 'skill-resolved'
+        ? `Megtanult és hozzáférhető skill: ${result.capability.resolution.skill.id}@${result.capability.resolution.skill.version}`
+        : result.capability?.kind === 'skill-discovered'
+            ? `A katalógusban elérhető, de az agent még nem tanulta meg: ${result.capability.resolution.skill.id}@${result.capability.resolution.skill.version}`
+        : result.capability?.kind === 'gap-reported'
+            ? `${result.capability.gap.created ? 'Új' : 'Már létező'} gap: ${result.capability.gap.gap.gapId} · ${result.capability.gap.gap.status}`
+            : result.capability?.kind === 'gap-pending'
+                ? `Függő gap miatt nem történt új LLM-hívás: ${result.capability.gap.gap.gapId} · ${result.capability.gap.gap.status}`
+            : 'Ehhez a tervezéshez nem keletkezett skill-feloldás vagy gap.';
     $('#llm-dry-run-context').textContent = request?.trustedContext || 'Nincs átadott trusted context.';
     $('#llm-dry-run-untrusted').textContent = request?.untrustedText?.length
         ? request.untrustedText.map((entry, index) => `${index + 1}. ${entry}`).join('\n')
@@ -151,6 +257,9 @@ function renderAgents() {
             <button class="agent-chip ${escapeHtml(known.status)}" data-action="agent-skill-edit" data-agent-id="${escapeHtml(identity.agentId)}"
                 data-skill="${escapeHtml(`${known.skill.id}@${known.skill.version}`)}" data-skill-status="${escapeHtml(known.status)}" data-skill-revision="${known.revision}">${escapeHtml(known.status)}</button>
         </div>`).join('') || '<p class="muted">Nincs nyilvántartott skillismeret.</p>';
+        const accessibleSkills = agent.skillRelationships.filter(item => item.knowledge === 'unlearned')
+            .map(item => `<div class="agent-skill-row"><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.reference.id)}@${escapeHtml(item.reference.version)} · hozzáférhető, nincs megtanulva</small></span><button class="button small ghost" data-action="agent-skill-learn" data-agent-id="${escapeHtml(identity.agentId)}" data-skill="${escapeHtml(`${item.reference.id}@${item.reference.version}`)}">Tanulás rögzítése</button></div>`).join('')
+            || '<p class="muted">Nincs további hozzáférhető, ismeretlen skill.</p>';
         const relevant = new Map(agent.relevantEpisodes.map(result => [result.episode.episodeId, result]));
         const retention = agent.retention;
         const episodes = agent.recentEpisodes.map(episode => {
@@ -224,7 +333,7 @@ function renderAgents() {
                 ${identity.personalityTraits.map(trait => `<span class="agent-chip">${escapeHtml(trait)}</span>`).join('')}
                 <span class="agent-chip ${escapeHtml(agent.planner.kind)}">${escapeHtml(plannerLabels[agent.planner.kind] || agent.planner.kind)}</span></div>
             <div class="agent-grid"><section class="agent-section"><h4>Célhierarchia</h4><div class="agent-goals">${goals}</div></section>
-                <section class="agent-section"><h4>Ismert skillek</h4><div class="agent-skills">${skills}</div></section>
+                <section class="agent-section"><h4>Ismert skillek</h4><div class="agent-skills">${skills}</div><h4>Hozzáférhető katalógus</h4><div class="agent-skills">${accessibleSkills}</div></section>
                 <section class="agent-section"><h4>Working memory</h4>${memory
                     ? `<p>${escapeHtml(memory.summary)}</p><small class="muted">${escapeHtml(relativeTime(memory.observedAt))} · rev ${memory.revision}</small>`
                     : '<p class="muted">Még nincs élő megfigyelés.</p>'}</section>
@@ -1146,6 +1255,7 @@ document.addEventListener('click', async event => {
         }
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);
+        if (button.dataset.action === 'agent-skill-learn') showAgentSkill(button.dataset.agentId, button.dataset.skill);
         if (button.dataset.action === 'agent-episode-add') showAgentEpisode(button.dataset.agentId);
         if (button.dataset.action === 'agent-episodes-prune') {
             const agent = state.agents.find(entry => entry.identity.agentId === button.dataset.agentId);
@@ -1199,7 +1309,67 @@ document.addEventListener('click', async event => {
                 });
                 showLlmDryRun(response);
                 toast(`LLM dry-run: ${llmPlanLabels[response.plan.status] || response.plan.status}.`);
+                await refreshCapabilityGaps();
             } finally { button.disabled = false; }
+        }
+        if (button.dataset.action === 'skill-trial-create') {
+            const suggestedBot = state.bots.find(bot => bot.status === 'active' && bot.hasCredentials && !bot.currentSkill)?.username || '';
+            const testBotUsername = prompt('A külön tesztelésre kijelölt online bot neve:', suggestedBot);
+            if (!testBotUsername?.trim()) return;
+            const targetVersion = prompt('A sikeres ellenőrzés után publikálandó verzió:', '1.0.0');
+            if (!targetVersion?.trim()) return;
+            const rawParameters = prompt('Skill paraméterek JSON objektumként:', '{}');
+            if (rawParameters === null) return;
+            let parameters;
+            try { parameters = JSON.parse(rawParameters); }
+            catch { throw new Error('A paraméterek nem érvényes JSON-t alkotnak.'); }
+            if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) throw new Error('A paramétereknek JSON objektumnak kell lenniük.');
+            const reason = prompt('A draft próba indoklása:', 'Skill Builder draft elkülönített élő tesztje');
+            if (!reason?.trim()) return;
+            if (!confirm(`A NEM ELLENŐRZÖTT draft ténylegesen elindul a(z) ${testBotUsername.trim()} boton. Ezt a botot kifejezetten tesztbotnak jelölted ki?`)) return;
+            await api(`/api/admin/capability-gaps/${encodeURIComponent(button.dataset.gapId)}/trials`, {
+                method: 'POST', mutation: true, body: JSON.stringify({ testBotUsername: testBotUsername.trim(),
+                    targetVersion: targetVersion.trim(), parameters, reason: reason.trim(), acknowledgeDraftRisk: true })
+            });
+            toast('A draft első elkülönített tesztfutása elindult.');
+            await refreshCapabilityGaps(); await refresh();
+        }
+        if (button.dataset.action === 'skill-trial-run') {
+            const trial = state.skillTrials.find(entry => entry.trialId === button.dataset.trialId);
+            if (!trial) throw new Error('A próba már nem található.');
+            const reason = prompt('Az új tesztfutás indoklása:', 'Második független draft bizonyíték gyűjtése');
+            if (!reason?.trim()) return;
+            if (!confirm(`A draft újra elindul a(z) ${trial.testBotUsername} kijelölt tesztboton. Folytatod?`)) return;
+            await api(`/api/admin/skill-trials/${trial.trialId}/run`, { method: 'POST', mutation: true,
+                body: JSON.stringify({ reason: reason.trim(), acknowledgeDraftRisk: true }) });
+            toast('Az új draft tesztfutás elindult.'); await refreshCapabilityGaps(); await refresh();
+        }
+        if (button.dataset.action === 'skill-trial-verify') {
+            const reason = prompt('A bizonyíték ellenőrzésének indoklása:', 'Draft élő bizonyíték determinisztikus ellenőrzése');
+            if (!reason?.trim()) return;
+            try {
+                await api(`/api/admin/skill-trials/${button.dataset.trialId}/verify`, { method: 'POST', mutation: true,
+                    body: JSON.stringify({ reason: reason.trim() }) });
+                toast('A draft megfelelt a verifier minden ellenőrzésén.');
+            } finally { await refreshCapabilityGaps(); }
+        }
+        if (button.dataset.action === 'skill-trial-publish') {
+            const trial = state.skillTrials.find(entry => entry.trialId === button.dataset.trialId);
+            if (!trial) throw new Error('A próba már nem található.');
+            const reason = prompt('Az emberi publikálási jóváhagyás indoklása:', 'Verifier-jelentés kézi áttekintése és elfogadása');
+            if (!reason?.trim()) return;
+            if (!confirm(`${trial.draft.id}@${trial.draft.version} verified ${trial.targetVersion} verzióként bekerül a megosztott skillkönyvtárba. Ez külön emberi jóváhagyás. Publikálod?`)) return;
+            await api(`/api/admin/skill-trials/${trial.trialId}/publish`, { method: 'POST', mutation: true,
+                body: JSON.stringify({ reason: reason.trim(), confirmHumanApproval: true }) });
+            toast('A verified skill publikálva; a várakozó agentek újratervezhetnek.');
+            await refreshCapabilityGaps();
+        }
+        if (button.dataset.action === 'skill-trial-cancel') {
+            const reason = prompt('A draft próba elvetésének indoklása:', 'A draft további javítást igényel');
+            if (!reason?.trim() || !confirm('Elveted ezt a próbát és a gapet visszateszed draft állapotba?')) return;
+            await api(`/api/admin/skill-trials/${button.dataset.trialId}/cancel`, { method: 'POST', mutation: true,
+                body: JSON.stringify({ reason: reason.trim() }) });
+            toast('A próba elvetve; a gap ismét draft állapotban van.'); await refreshCapabilityGaps();
         }
         if (button.dataset.action === 'agent-plan' || button.dataset.action === 'agent-plan-execute') {
             const execute = button.dataset.action === 'agent-plan-execute';
@@ -1498,6 +1668,68 @@ $('#agent-knowledge-form').elements.supersedesId.addEventListener('change', even
     form.elements.tags.value = previous.tags.join(', ');
 });
 $('#world-admin-button').addEventListener('click', () => openWorldAdmin().catch(error => toast(error.message, true)));
+$('#reload-llm-settings').addEventListener('click', () => Promise.all([refreshLlmSettings(), refreshCapabilityGaps()])
+    .then(() => toast('Az LLM-beállítások újratöltve.')).catch(error => toast(error.message, true)));
+$('#llm-settings-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const apiKey = String(values.get('apiKey') || '').trim();
+    const removeApiKey = values.get('removeApiKey') === 'on';
+    if (apiKey && removeApiKey) return toast('A kulcs egyszerre nem cserélhető és törölhető.', true);
+    const automaticReplanning = values.get('automaticReplanning') === 'on';
+    if (automaticReplanning && !state.llmSettings?.config.automaticReplanning
+        && !confirm('Az automatikus újratervezés valódi API-hívásokat és költséget okozhat jelentős játékeseményeknél. Biztosan bekapcsolod?')) return;
+    const skillBuilderEnabled = values.get('skillBuilderEnabled') === 'on';
+    if (skillBuilderEnabled && !state.llmSettings?.config.skillBuilder.enabled
+        && !confirm('A Skill Builder nyitott capability gapekből automatikusan OpenAI-hívással draftokat készít, ami költséget okozhat. Biztosan bekapcsolod?')) return;
+    const provider = String(values.get('provider'));
+    const reasoningEffort = String(values.get('reasoningEffort') || '');
+    const config = {
+        schemaVersion: 1,
+        enabled: values.get('enabled') === 'on',
+        automaticReplanning,
+        provider,
+        model: String(values.get('model')),
+        plannerPrompt: String(values.get('plannerPrompt')),
+        skillBuilder: {
+            enabled: skillBuilderEnabled,
+            prompt: String(values.get('skillBuilderPrompt')),
+            intervalMs: Number(values.get('skillBuilderIntervalMs')),
+            cooldownMs: Number(values.get('skillBuilderCooldownMs')),
+            maxAttemptsPerGap: Number(values.get('skillBuilderMaxAttempts')),
+            maxCostMicrosPerGap: Number(values.get('skillBuilderMaxCost')),
+            maxDailyCostMicros: Number(values.get('skillBuilderDailyCost')),
+            maxDurationMs: Number(values.get('skillBuilderDurationMs')),
+            maxOutputTokens: Number(values.get('skillBuilderOutputTokens'))
+        },
+        ...(reasoningEffort ? { reasoningEffort } : {}),
+        ...(provider === 'openai' ? { pricing: {
+            inputMicrosPerMillionTokens: Number(values.get('inputPrice')),
+            outputMicrosPerMillionTokens: Number(values.get('outputPrice'))
+        } } : {}),
+        limits: {
+            maxDurationMs: Number(values.get('maxDurationMs')),
+            maxModelRequests: Number(values.get('maxModelRequests')),
+            maxToolCalls: Number(values.get('maxToolCalls')),
+            maxCostMicros: Number(values.get('maxCostMicros')),
+            maxOutputTokens: Number(values.get('maxOutputTokens'))
+        }
+    };
+    const button = $('#save-llm-settings');
+    button.disabled = true;
+    button.textContent = 'Mentés…';
+    try {
+        const response = await api('/api/admin/llm-settings', {
+            method: 'PUT', mutation: true,
+            body: JSON.stringify({ config, apiKey, removeApiKey, reason: values.get('reason') })
+        });
+        renderLlmSettings(response);
+        toast('Az LLM szerverbeállításai elmentve; a következő hívástól aktívak.');
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; button.textContent = 'AI beállítások mentése'; }
+});
+$('#llm-settings-form').elements.provider.addEventListener('change', syncLlmProviderFields);
 $('#create-world-mod-backup').addEventListener('click', () => {
     $('#world-mod-backup-form').reset();
     $('#world-mod-backup-dialog').showModal();
@@ -1601,9 +1833,13 @@ $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault
 document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-map):not(#close-world-admin)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
 const bootstrap = await Promise.all([
-    api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations')
+    api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
+    api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
+renderLlmSettings(bootstrap[3]);
+renderCapabilityGaps(bootstrap[4].gaps);
+renderSkillTrials(bootstrap[5].trials);
 selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

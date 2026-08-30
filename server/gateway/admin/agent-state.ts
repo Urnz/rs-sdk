@@ -31,6 +31,17 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
     const generatedAt = new Date().toISOString();
     const agents = useStore(path, store => store.listIdentities().map(identity => {
         const snapshot = store.getSnapshot(identity.agentId)!;
+        const knownByReference = new Map(snapshot.knownSkills.map(item =>
+            [`${item.skill.id}@${item.skill.version}`, item]));
+        const skillRelationships = skills.map(skill => {
+            const knowledge = knownByReference.get(`${skill.id}@${skill.version}`) ?? null;
+            return {
+                reference: { id: skill.id, version: skill.version }, name: skill.name,
+                exists: true as const, access: 'accessible' as const,
+                knowledge: knowledge?.status ?? 'unlearned' as const,
+                executable: knowledge?.status === 'known' || knowledge?.status === 'preferred'
+            };
+        });
         const recentEpisodes = store.listEpisodes(identity.agentId, { limit: 30 });
         const relevantEpisodes = retrieveEpisodicMemory(store.listEpisodes(identity.agentId, { limit: 500 }),
             { ...episodicQueryFromSnapshot(snapshot), now: generatedAt });
@@ -61,6 +72,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             });
         return {
             ...snapshot,
+            skillRelationships,
             episodeCount: store.countEpisodes(identity.agentId),
             recentEpisodes,
             relevantEpisodes,

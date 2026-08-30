@@ -12,6 +12,7 @@ import {
     SkillLibrary,
     SkillRegistry,
     SkillValidationError,
+    inspectSkillRelationship,
     verifyAndPromoteSkill,
     validateSkillDefinition,
     type SkillDefinition,
@@ -469,6 +470,30 @@ describe('automatic skill verification and promotion', () => {
     const temporaryRoots: string[] = [];
     afterEach(async () => {
         for (const root of temporaryRoots.splice(0)) await rm(root, { recursive: true, force: true });
+    });
+
+    test('separates registry existence, access, learned knowledge, and executability', () => {
+        const registry = new SkillRegistry();
+        const shared = registry.register(skill(), { trusted: true });
+        const privateDraft = skill({ id: 'resource.private-route', status: 'draft',
+            provenance: { authorKind: 'agent', authorId: 'agent-a', createdAt: '2026-08-19T00:00:00.000Z' },
+            sharing: { visibility: 'private', ownerAgentId: 'agent-a' } });
+        registry.register(privateDraft);
+
+        expect(inspectSkillRelationship(registry, 'agent-b', shared.definition)).toMatchObject({
+            exists: true, access: { state: 'accessible' }, knowledge: 'unlearned', executable: false
+        });
+        expect(inspectSkillRelationship(registry, 'agent-b', shared.definition, 'known')).toMatchObject({
+            knowledge: 'known', executable: true
+        });
+        expect(inspectSkillRelationship(registry, 'agent-b', shared.definition, 'blocked')).toMatchObject({
+            knowledge: 'blocked', executable: false
+        });
+        expect(inspectSkillRelationship(registry, 'agent-b', privateDraft)).toMatchObject({
+            exists: true, access: { state: 'denied' }, executable: false
+        });
+        expect(inspectSkillRelationship(registry, 'agent-b', { id: 'missing.skill', version: '1.0.0' }))
+            .toMatchObject({ exists: false, access: { state: 'denied' }, knowledge: 'unlearned' });
     });
 
     const agentDraft = () => skill({

@@ -9,3 +9,7 @@ export * from './executor';
 export * from './rs-sdk-runtime';
 export * from './verifier';
 export * from './discovery-experiment';
+export * from './capability-gaps';
+export * from './trials';
+export * from './builder';
+export * from './openai-builder-provider';

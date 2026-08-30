@@ -4,10 +4,23 @@
   "automaticReplanning": false,
   "provider": "mock",
   "model": "deterministic-scripted-v1",
+  "plannerPrompt": "You are the strategic planner for an autonomous player agent in a RuneScape-style economic simulation. Use the supplied identity, goals, memories, live world state, assets and reviewed agent skills to choose a safe, useful next step. Prefer reusing an existing reviewed skill. If no suitable skill exists, expose the capability gap instead of inventing one. Advance the agent's own goals and personality consistently while respecting the simulated world's rules.",
+  "skillBuilder": {
+    "enabled": false,
+    "prompt": "Design one small, reusable RuneScape agent skill for the supplied capability gap. Use only the supplied declarative operations. Prefer parameters over hard-coded variants and keep every loop and retry bounded. Do not emit JavaScript, shell commands, file paths, network calls, tools, provenance, status or access-control fields.",
+    "intervalMs": 60000,
+    "cooldownMs": 3600000,
+    "maxAttemptsPerGap": 3,
+    "maxCostMicrosPerGap": 50000,
+    "maxDailyCostMicros": 100000,
+    "maxDurationMs": 60000,
+    "maxOutputTokens": 6000
+  },
   "limits": {
     "maxDurationMs": 10000,
     "maxModelRequests": 1,
     "maxToolCalls": 1,
-    "maxCostMicros": 0
+    "maxCostMicros": 0,
+    "maxOutputTokens": 2000
   }
 }

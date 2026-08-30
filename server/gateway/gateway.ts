@@ -17,9 +17,10 @@ import { BotSupervisor } from './admin/supervisor';
 import { handleAdminRequest } from './admin/routes';
 import type { AdminItem, GatewayBotSnapshot } from './admin/types';
 import { AgentMemoryIngestionLoop } from './admin/agent-memory-ingestion';
-import { createGatewayAgentReplanCoordinator } from './admin/replan-runtime';
+import { createGatewayAgentReplanCoordinator, dispatchVerifiedCapabilityWakeups } from './admin/replan-runtime';
 import type { AgentReplanCoordinator } from './admin/replan-coordinator';
 import { buildBotCatalog, economySnapshot, recordEconomy } from './admin/catalog';
+import { GatewaySkillBuilderScheduler } from './admin/skill-builder-runtime';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
@@ -883,6 +884,22 @@ const memoryIngestionTimer = setInterval(() => {
 }, 30_000);
 memoryIngestionTimer.unref?.();
 void agentMemoryIngestion.sync().catch(error => console.error('[AgentMemory] Initial ingestion failed:', error));
+const capabilityWakeupTimer = setInterval(() => {
+    if (!agentReplanCoordinator) return;
+    void dispatchVerifiedCapabilityWakeups(agentReplanCoordinator)
+        .catch(error => console.error('[AgentReplan] Capability wakeup failed:', error));
+}, 30_000);
+capabilityWakeupTimer.unref?.();
+if (agentReplanCoordinator) void dispatchVerifiedCapabilityWakeups(agentReplanCoordinator)
+    .catch(error => console.error('[AgentReplan] Initial capability wakeup failed:', error));
+const skillBuilderScheduler = new GatewaySkillBuilderScheduler();
+const skillBuilderTimer = setInterval(() => {
+    void skillBuilderScheduler.tick().then(result => {
+        if (result.status === 'draft-created') console.log(`[SkillBuilder] ${result.reason}`);
+        if (result.status === 'failed' || result.status === 'daily-limit') console.error(`[SkillBuilder] ${result.reason}`);
+    }).catch(error => console.error('[SkillBuilder] Scheduler failed:', error));
+}, 10_000);
+skillBuilderTimer.unref?.();
 const economyObservationTimer = setInterval(() => {
     void buildBotCatalog(adminGatewayBots(), botSupervisor.list()).then(entries => {
         const snapshot = economySnapshot(entries);

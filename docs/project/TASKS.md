@@ -285,6 +285,9 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
   immediate célig vezető cél-láncot és opcionális ellenőrzött skillt javasolni.
 - [x] Valódi provider adaptert és biztonságos, környezeti változós API-kulcs
   konfigurációt készíteni kis jogosultságú lokális tesztkörnyezethez.
+- [x] A jelenlegi szerverhez tartozó adminpaneles LLM-beállításokat készíteni providerhez,
+  modellhez, szerepprompthoz, reasoninghez, költség- és futási limitekhez;
+  write-only helyi API-kulccsal és nem felülírható biztonsági prompt-réteggel.
 - [ ] Admin jóváhagyással atomikusan létrehozni a javasolt cél-láncot, majd
   egyszer használható approval azonosítóval elindítani a kiválasztott skillt.
 - [ ] Korlátozott autonóm agent-életciklust készíteni: eseményre újratervezés,
@@ -292,6 +295,53 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 - [ ] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
   jóváhagyandó skill-készítési folyamatot indítani; a futó agent ne kapjon
   közvetlen tetszőleges kódfuttatást.
+  - [ ] A `player`, `institution`, `service` és `world-director` agent-szerepeket
+    elkülöníteni; ne minden önálló rendszer kapjon avatárt vagy szabad LLM-loopot.
+  - [ ] Az agent identitását általános subject bindinghoz kötni, amely player,
+    business, faction vagy rendszer-szolgáltatás lehet; a player controller továbbra
+    is kizárólag a hozzá rendelt avataron hajthasson végre műveletet.
+  - [x] A player planner hiányzó képesség esetén ismételt modellhívás helyett
+    strukturált, tartós és deduplikált `CapabilityGap` munkajegyet hozzon létre.
+    - [x] Perzisztens szemantikus fingerprint, requester-lista, kérésszámláló,
+      lifecycle és konkurens írások mellett is atomi tárolás.
+    - [x] A feloldatlan kézi és automatikus LLM-tervezési eredmény bekötése a
+      registrybe, valamint megjelenítése az adminpanel AI-beállításainál.
+    - [x] Függő gap esetén az automatikus újratervezést már a modellhívás előtt
+      megállítani, majd verified skill létrejöttekor egyszer felébreszteni.
+  - [x] Külön, nem playerhez kötött Skill Builder workert készíteni, amely a gap
+    munkasorból, a meglévő skillekből és engedélyezett műveletekből deklaratív
+    draftot készít, de tetszőleges JavaScriptet, fájl- vagy shellműveletet nem futtat.
+    - [x] Providerfüggetlen worker-határ, atomikus gap-claim és kizárólag
+      allowlistelt deklaratív skill-törzs elfogadása.
+    - [x] A provenance, draft státusz és shared policy szolgáltatásoldali
+      rápecsételése; provider által küldött extra vagy jogosultsági mezők elutasítása.
+    - [x] OpenAI Skill Builder provider és felügyelt gateway scheduler bekötése.
+  - [x] A Skill Builder hívásait egyedi gapenként, költségkerettel és cooldownnal
+    korlátozni; ugyanarra a gapre több agent csak feliratkozzon, ne írja újra a skillt.
+    - [x] Per-gap tartós attempts, költség, utolsó hiba, cooldown és konkurens
+      workerek között kizárólagos attempt token.
+    - [x] Szerverenkénti összesített napi költségkeret és admin stop/resume policy.
+  - [x] A draftot elkülönített tesztboton, statikus validatorral és élő futási
+    bizonyítékkal ellenőrizni, majd csak verifier/human approval után publikálni.
+    - [x] Statikus schema- és biztonsági validálás után csak draftként menthető.
+    - [x] Tesztbot queue, egzakt draft/verzió/paraméter alapján gyűjtött élő evidence,
+      tartós verifier-jelentés és külön admin human approval bekötése.
+  - [x] A skill objektív létezését, az agent hozzáférését és az agent megtanult
+    tudását külön kezelni; a globális katalógus ne jelentsen automatikus ismeretet.
+  - [ ] A megosztási policy-t `public/common`, `organization`, `teachable/licensed`
+    és `private` szintekre bővíteni, determinisztikus tanulási eseményekkel.
+  - [ ] Shared/public verified skillhez determinisztikus resolverrel, LLM-hívás
+    nélkül lehessen megfelelő találatot és tanulási módot választani.
+    - [x] Determinisztikus resolver ismert-skill prioritással, megosztási módokkal
+      és többértelmű találat esetén biztonságos visszautasítással.
+    - [ ] A találatból explicit tanulási eseményt és LLM nélküli determinisztikus
+      végrehajtási döntést készíteni.
+  - [ ] Az általánosítható skilleket paraméterezni és kisebb eljárásokból építeni,
+    hogy ne keletkezzen külön skill minden érc–lelőhely–bank kombinációra.
+  - [ ] Business- és faction-agenteknek domain eszközöket, költségvetést, memóriát
+    és döntési ritmust adni; játékbeli fizikai műveletet képviselő/player végezzen.
+  - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
+    az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
 
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
 auditálható, és hibánál vagy limitnél biztonságosan leáll.
@@ -350,6 +400,29 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 Elfogadási feltétel: két egymásba ágyazott joghatóság szabályai determinisztikusan
 képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla terhelés nélkül.
+
+## 16. Fázis – több-szerveres admin vezérlőközpont
+
+- [ ] Az adminfelületet a játékszerver-folyamattól független control plane
+  szolgáltatásként futtatni, hogy leállított engine mellett is elérhető maradjon.
+- [ ] Bejelentkezést, felhasználói fiókot és tulajdonosi jogosultságokat készíteni.
+- [ ] Szerverregisztert és „Saját szervereim” kezdőoldalt létrehozni.
+- [ ] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,
+  újraindítás és archiválás felületről.
+- [ ] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,
+  botokat, modokat, LLM-konfigurációt, titkokat és auditnaplót biztosítani.
+- [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket
+  kötelező szerverkontextus alá helyezni.
+- [ ] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin
+  csak állapotot lásson, a kulcsok visszaolvasását ne engedje.
+- [ ] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,
+  migrációt, backupot és hibából visszaállást készíteni.
+- [ ] Későbbi távoli eléréshez TLS-t, CSRF-védelmet, rate limitet, session-kezelést
+  és szerepköralapú engedélyezést bevezetni.
+
+Elfogadási feltétel: egy bejelentkezett felhasználó két, egymástól teljesen
+elkülönített szervert létrehoz, külön beállít, elindít és leállít úgy, hogy az
+admin control plane mindkét engine leállítása közben is elérhető marad.
 
 ## Aktuális következő lépések
 
