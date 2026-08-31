@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { selectWorldEvent } from './world-director.js';
 import { GatewayWorldDirectorScheduler, WorldDirectorDispatcher, WorldDirectorStore,
-    validateWorldDirectorConfig, worldDirectorCycleKey, type TrustedWorldEventAdapter }
+    loadWorldDirectorConfig, updateWorldDirectorConfig, validateWorldDirectorConfig,
+    worldDirectorCycleKey, type TrustedWorldEventAdapter }
     from './world-director-runtime.js';
 
 const directories: string[] = [];
@@ -117,5 +118,15 @@ describe('World Director scheduler', () => {
             templates: [], storePath: databasePath() });
         expect(scheduler.tick('2026-08-31T10:00:00.000Z')).toEqual({
             status: 'disabled', reason: 'World Director is disabled.', cycle: null });
+    });
+
+    test('atomically persists a validated server configuration override', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-world-director-config-'));
+        directories.push(directory);
+        const path = join(directory, 'world-director.json');
+        const written = updateWorldDirectorConfig({ ...enabled, seed: 'server-specific', intervalMinutes: 120 }, path);
+        expect(loadWorldDirectorConfig(path)).toEqual(written);
+        expect(() => updateWorldDirectorConfig({ ...enabled, intervalMinutes: 1 }, path)).toThrow('5 to 10080');
+        expect(loadWorldDirectorConfig(path)).toEqual(written);
     });
 });

@@ -6,6 +6,7 @@ import World, {
     type AdminOfflineSaveResult,
     type AdminPlayerLogoutResult,
     type AdminPlayerRewardResult,
+    type AdminWorldDirectorEventResult,
     type AdminPropertyMaintenanceResult,
     type AdminPropertyPurchaseResult,
     type AdminTeleportResult
@@ -72,6 +73,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/offline-restore'
         || url.pathname === '/api/internal/admin/player-logout'
         || url.pathname === '/api/internal/admin/player-reward'
+        || url.pathname === '/api/internal/admin/world-director/event'
         || !!backupListMatch;
     if (!knownPath) return null;
     if (!authorized(req)) return json({ error: 'Unauthorized' }, 401);
@@ -124,6 +126,39 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     const commandId = typeof body.commandId === 'string' ? body.commandId.trim() : '';
     const validCommandId = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(commandId);
     if (!validCommandId) return json({ error: 'Invalid admin command identity' }, 400);
+
+    if (url.pathname === '/api/internal/admin/world-director/event') {
+        const allowedFields = new Set(['commandId', 'eventId', 'cycleKey', 'selectionDigest', 'kind',
+            'templateId', 'templateVersion', 'title', 'summary', 'regions', 'tags']);
+        if (Object.keys(body).some(key => !allowedFields.has(key))) {
+            return json({ error: 'World Director event request contains forbidden fields' }, 400);
+        }
+        const eventId = typeof body.eventId === 'string' ? body.eventId.trim() : '';
+        const cycleKey = typeof body.cycleKey === 'string' ? body.cycleKey.trim() : '';
+        const selectionDigest = typeof body.selectionDigest === 'string' ? body.selectionDigest.trim() : '';
+        const kind = body.kind;
+        const templateId = typeof body.templateId === 'string' ? body.templateId.trim() : '';
+        const templateVersion = typeof body.templateVersion === 'string' ? body.templateVersion.trim() : '';
+        const title = typeof body.title === 'string' ? body.title.trim() : '';
+        const summary = typeof body.summary === 'string' ? body.summary.trim() : '';
+        const validList = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 12
+            && value.every(entry => typeof entry === 'string' && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(entry));
+        if (!/^world-event-[a-f0-9]{24}$/.test(eventId)
+            || !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(cycleKey) || !/^[a-f0-9]{64}$/.test(selectionDigest)
+            || !['economic-signal', 'resource-signal', 'social-signal', 'world-flavor'].includes(String(kind))
+            || !/^[a-z0-9][a-z0-9.-]{2,63}$/.test(templateId)
+            || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(templateVersion)
+            || !title || title.length > 120 || !summary || summary.length > 1000
+            || !validList(body.regions) || !validList(body.tags)) {
+            return json({ error: 'Invalid World Director event request' }, 400);
+        }
+        const result: AdminWorldDirectorEventResult = await World.enqueueAdminWorldDirectorEvent({ commandId,
+            eventId, cycleKey, selectionDigest,
+            kind: kind as 'economic-signal' | 'resource-signal' | 'social-signal' | 'world-flavor',
+            templateId, templateVersion, title, summary, regions: body.regions, tags: body.tags,
+            expiresAt: Date.now() + 2_000 });
+        return json(result, result.ok ? 200 : 409);
+    }
 
     if (url.pathname === '/api/internal/admin/properties/reset') {
         const propertyId = typeof body.propertyId === 'string' ? body.propertyId.trim() : '';

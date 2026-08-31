@@ -211,8 +211,15 @@ function renderWorldDirector(templates, runtime = null) {
     $('#world-director-cycle-count').textContent = `${state.worldDirectorCycles.length} ciklus`;
     const config = state.worldDirectorConfig;
     $('#world-director-config-status').textContent = config
-        ? `Automatikus ütemezés: ${config.enabled ? 'bekapcsolva' : 'kikapcsolva'} · ${config.intervalMinutes} perc · epoch ${config.epoch} · seed ${config.seed}`
+        ? `Automatikus ütemezés: ${config.enabled ? 'bekapcsolva' : 'kikapcsolva'} · ${config.intervalMinutes} perc · epoch ${config.epoch} · seed ${config.seed} · ${runtime.source === 'server-override' ? 'szerver override' : 'projekt alapérték'}`
         : 'Nincs World Director konfiguráció.';
+    if (config) {
+        const form = $('#world-director-config-form');
+        form.elements.enabled.checked = config.enabled;
+        form.elements.seed.value = config.seed;
+        form.elements.epoch.value = config.epoch;
+        form.elements.intervalMinutes.value = config.intervalMinutes;
+    }
     const outboxByEvent = new Map(state.worldDirectorOutbox.map(entry => [entry.signal.eventId, entry]));
     $('#world-director-cycle-list').innerHTML = state.worldDirectorCycles.length
         ? state.worldDirectorCycles.map(cycle => {
@@ -1992,6 +1999,27 @@ $('#world-director-preview-form').addEventListener('submit', async event => {
             'Csak előnézet: nem történt változás a játékvilágban.'
         ].join('\n');
         toast('A determinisztikus esemény-előnézet elkészült.');
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
+});
+$('#world-director-config-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const enabled = values.get('enabled') === 'on';
+    if (enabled && !state.worldDirectorConfig?.enabled
+        && !confirm('Az automatikus World Director tartós ciklusokat hoz létre, és aktív engine mod esetén globális játéküzeneteket küld. Bekapcsolod?')) return;
+    const reason = prompt('A World Director konfiguráció auditindoklása:', 'World Director szerverbeállítások frissítése');
+    if (!reason?.trim()) return;
+    const button = $('#save-world-director-config');
+    button.disabled = true;
+    try {
+        await api('/api/admin/world-director/config', { method: 'PUT', mutation: true,
+            body: JSON.stringify({ config: { schemaVersion: 1, enabled,
+                seed: String(values.get('seed') || '').trim(), epoch: String(values.get('epoch') || '').trim(),
+                intervalMinutes: Number(values.get('intervalMinutes')) }, reason: reason.trim() }) });
+        await refreshWorldDirector();
+        toast('A World Director beállításai elmentve; legfeljebb 30 másodpercen belül érvényesülnek.');
     } catch (error) { toast(error.message, true); }
     finally { button.disabled = false; }
 });

@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { BUILTIN_WORLD_EVENT_TEMPLATES, selectWorldEvent, type WorldEventKind,
     type WorldEventSelection, type WorldEventTemplate } from './world-director.js';
-import { worldDirectorConfigPath, worldDirectorDbPath } from './paths.js';
+import { worldDirectorConfigPath, worldDirectorDbPath, worldDirectorOverridePath } from './paths.js';
 
 export interface WorldDirectorConfig {
     schemaVersion: 1;
@@ -105,8 +105,24 @@ export function validateWorldDirectorConfig(input: unknown): WorldDirectorConfig
     return { schemaVersion: 1, enabled: value.enabled, seed: value.seed.trim(), epoch, intervalMinutes };
 }
 
-export function loadWorldDirectorConfig(path = worldDirectorConfigPath): WorldDirectorConfig {
-    return validateWorldDirectorConfig(JSON.parse(readFileSync(path, 'utf8')) as unknown);
+export function loadWorldDirectorConfig(path?: string): WorldDirectorConfig {
+    const resolved = path ?? (existsSync(worldDirectorOverridePath) ? worldDirectorOverridePath : worldDirectorConfigPath);
+    return validateWorldDirectorConfig(JSON.parse(readFileSync(resolved, 'utf8')) as unknown);
+}
+
+export function readWorldDirectorConfig(): { config: WorldDirectorConfig; source: 'server-override' | 'project-default' } {
+    const source = existsSync(worldDirectorOverridePath) ? 'server-override' : 'project-default';
+    return { config: loadWorldDirectorConfig(source === 'server-override'
+        ? worldDirectorOverridePath : worldDirectorConfigPath), source };
+}
+
+export function updateWorldDirectorConfig(input: unknown, path = worldDirectorOverridePath): WorldDirectorConfig {
+    const config = validateWorldDirectorConfig(input);
+    mkdirSync(dirname(path), { recursive: true });
+    const temporary = `${path}.${randomUUID()}.tmp`;
+    writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+    renameSync(temporary, path);
+    return config;
 }
 
 export function worldDirectorCycleKey(config: WorldDirectorConfig, now: string): string | null {

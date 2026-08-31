@@ -110,8 +110,11 @@ import Koth from '#/engine/Koth.js';
 import { getPropertyRuntime, type PropertyView } from '#/mods/PropertyRuntime.js';
 import { formatPropertyRegisterLines } from '#/mods/PropertyRegister.js';
 import type { PropertyPendingResolution, PropertyPurchaseRecord } from '#/mods/PropertyStore.js';
-import { isWorldModEnabled, onWorldModPlayerLogin, recordWorldModDomainEvent } from '#/mods/WorldMods.js';
+import { formatWorldDirectorSignalMessage, isWorldModEnabled, onWorldModPlayerLogin,
+    recordWorldModDomainEvent } from '#/mods/WorldMods.js';
 import { getPlayerRewardStore, type PlayerRewardRecord } from '#/mods/PlayerRewardStore.js';
+import { getWorldDirectorEventStore, type EngineWorldDirectorEvent,
+    type EngineWorldDirectorEventRecord } from '#/mods/WorldDirectorEventStore.js';
 
 const priv = forge.pki.privateKeyFromPem(fs.readFileSync('data/config/private.pem', 'ascii'));
 
@@ -274,6 +277,22 @@ export interface AdminPlayerRewardResult {
     error?: string;
 }
 
+export interface AdminWorldDirectorEventCommand extends EngineWorldDirectorEvent {
+    commandId: string;
+    expiresAt: number;
+}
+
+export interface AdminWorldDirectorEventResult {
+    ok: boolean;
+    commandId: string;
+    eventId: string;
+    created?: boolean;
+    event?: EngineWorldDirectorEventRecord;
+    tick?: number;
+    code?: string;
+    error?: string;
+}
+
 type PendingAdminTeleport = AdminTeleportCommand & {
     resolve: (result: AdminTeleportResult) => void;
 };
@@ -292,6 +311,10 @@ type PendingAdminPropertyPurchase = AdminPropertyPurchaseCommand & {
 
 type PendingAdminPlayerReward = AdminPlayerRewardCommand & {
     resolve: (result: AdminPlayerRewardResult) => void;
+};
+
+type PendingAdminWorldDirectorEvent = AdminWorldDirectorEventCommand & {
+    resolve: (result: AdminWorldDirectorEventResult) => void;
 };
 
 class World {
@@ -359,6 +382,7 @@ class World {
     private readonly adminPlayerLogoutQueue: PendingAdminPlayerLogout[] = [];
     private readonly adminPropertyPurchaseQueue: PendingAdminPropertyPurchase[] = [];
     private readonly adminPlayerRewardQueue: PendingAdminPlayerReward[] = [];
+    private readonly adminWorldDirectorEventQueue: PendingAdminWorldDirectorEvent[] = [];
 
     // debug data
     readonly lastCycleStats: Uint16Array = new Uint16Array(12);
@@ -584,6 +608,7 @@ class World {
             this.processAdminTeleports();
             this.processAdminPropertyPurchases();
             this.processAdminPlayerRewards();
+            this.processAdminWorldDirectorEvents();
             this.processAdminPlayerLogouts();
             this.processAdminOfflineSaves();
 
@@ -1149,6 +1174,49 @@ class World {
                     amount: command.amount, reward, tick: this.currentTick });
             } catch (error) {
                 reject('reward-failed', error instanceof Error ? error.message : String(error));
+            }
+        }
+    }
+
+    enqueueAdminWorldDirectorEvent(command: AdminWorldDirectorEventCommand): Promise<AdminWorldDirectorEventResult> {
+        if (this.adminWorldDirectorEventQueue.length >= 50) {
+            return Promise.resolve({ ok: false, commandId: command.commandId, eventId: command.eventId,
+                code: 'queue-full', error: 'The engine World Director event queue is full.' });
+        }
+        return new Promise(resolve => this.adminWorldDirectorEventQueue.push({ ...command, resolve }));
+    }
+
+    private processAdminWorldDirectorEvents(): void {
+        const commands = this.adminWorldDirectorEventQueue.splice(0);
+        for (const command of commands) {
+            const reject = (code: string, error: string) => command.resolve({ ok: false,
+                commandId: command.commandId, eventId: command.eventId, tick: this.currentTick, code, error });
+            try {
+                if (Date.now() > command.expiresAt) {
+                    reject('expired', 'The World Director event expired before a world tick could execute it.');
+                    continue;
+                }
+                if (this.shutdown) {
+                    reject('world-shutdown', 'The world is shutting down.');
+                    continue;
+                }
+                if (!isWorldModEnabled('simulation.world-director-signals')) {
+                    reject('mod-disabled', 'The World Director signal mod is disabled.');
+                    continue;
+                }
+                const accepted = getWorldDirectorEventStore().accept(command);
+                if (accepted.created) {
+                    this.broadcastMes(formatWorldDirectorSignalMessage(command.title, command.summary));
+                    recordWorldModDomainEvent('simulation.world-director-signals', 'signalsBroadcast');
+                } else {
+                    recordWorldModDomainEvent('simulation.world-director-signals', 'signalsDeduplicated');
+                }
+                command.resolve({ ok: true, commandId: command.commandId, eventId: command.eventId,
+                    created: accepted.created, event: accepted.event, tick: this.currentTick });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                recordWorldModDomainEvent('simulation.world-director-signals', 'signalsRejected', true, message);
+                reject('event-rejected', message);
             }
         }
     }

@@ -61,7 +61,7 @@ import { readAdminLlmSettings, removeOpenAIApiKey, replaceOpenAIApiKey,
     updateAdminLlmSettings, validateOpenAIApiKey } from './llm-settings.js';
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
 import { BUILTIN_WORLD_EVENT_TEMPLATES, selectWorldEvent } from './world-director.js';
-import { loadWorldDirectorConfig, WorldDirectorStore } from './world-director-runtime.js';
+import { readWorldDirectorConfig, updateWorldDirectorConfig, WorldDirectorStore } from './world-director-runtime.js';
 import { SkillTrialStore, type SkillTrial } from '../../../agent-skills/trials.js';
 import { SkillLibrary } from '../../../agent-skills/library.js';
 import { SkillRegistry } from '../../../agent-skills/registry.js';
@@ -279,8 +279,24 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         if (req.method === 'GET' && url.pathname === '/api/admin/world-director/cycles') {
             const store = new WorldDirectorStore(worldDirectorDbPath);
             try {
-                return json({ config: loadWorldDirectorConfig(), cycles: store.listCycles(), outbox: store.listOutbox() });
+                return json({ ...readWorldDirectorConfig(), cycles: store.listCycles(), outbox: store.listOutbox() });
             } finally { store.close(); }
+        }
+
+        if (req.method === 'PUT' && url.pathname === '/api/admin/world-director/config') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const before = readWorldDirectorConfig();
+            try {
+                const config = updateWorldDirectorConfig(body.config);
+                await appendAudit({ operator: 'local-admin', action: 'world-director.config.update', reason,
+                    success: true, before, after: { config, source: 'server-override' } });
+                return json({ ok: true, config, source: 'server-override' });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'world-director.config.update', reason,
+                    success: false, before, error: String(error) });
+                throw error;
+            }
         }
 
         if (req.method === 'POST' && url.pathname === '/api/admin/world-director/preview') {

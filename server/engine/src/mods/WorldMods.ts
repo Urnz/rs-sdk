@@ -173,6 +173,26 @@ export function isWorldModEnabled(modId: string): boolean {
     return snapshot.mods[modId]?.enabled === true;
 }
 
+export function formatBoundedWorldDirectorSignal(prefix: string, title: string, summary: string): string {
+    const clean = (value: string) => value.replace(/\s+/g, ' ').trim();
+    const normalizedPrefix = clean(prefix), normalizedTitle = clean(title), normalizedSummary = clean(summary);
+    if (!normalizedPrefix || normalizedPrefix.length > 40 || !normalizedTitle || !normalizedSummary) {
+        throw new Error('World Director signal message is invalid');
+    }
+    const message = `${normalizedPrefix} ${normalizedTitle}: ${normalizedSummary}`;
+    return message.length <= 320 ? message : `${message.slice(0, 319).trimEnd()}…`;
+}
+
+export function formatWorldDirectorSignalMessage(title: string, summary: string): string {
+    const mod = snapshot.mods['simulation.world-director-signals'];
+    if (!mod?.enabled) throw new Error('World Director signal mod is disabled');
+    const prefix = mod.config.messagePrefix;
+    if (typeof prefix !== 'string' || !prefix.trim() || prefix.length > 40) {
+        throw new Error('World Director signal message prefix is invalid');
+    }
+    return formatBoundedWorldDirectorSignal(prefix, title, summary);
+}
+
 export function recordWorldModDomainEvent(modId: string, counter: string, failed = false, error?: string): void {
     const metric = snapshot.metrics[modId];
     if (!metric) return;

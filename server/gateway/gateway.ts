@@ -21,7 +21,9 @@ import { createGatewayAgentReplanCoordinator, dispatchVerifiedCapabilityWakeups 
 import type { AgentReplanCoordinator } from './admin/replan-coordinator';
 import { buildBotCatalog, economySnapshot, recordEconomy } from './admin/catalog';
 import { GatewaySkillBuilderScheduler } from './admin/skill-builder-runtime';
-import { GatewayWorldDirectorScheduler } from './admin/world-director-runtime';
+import { GatewayWorldDirectorScheduler, loadWorldDirectorConfig, WorldDirectorDispatcher,
+    WorldDirectorStore } from './admin/world-director-runtime';
+import { EngineWorldDirectorAdapter } from './admin/world-director-engine-adapter';
 import { reconcileAdminPlayerActionRun } from './admin/agent-state';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
@@ -915,6 +917,21 @@ const runWorldDirectorScheduler = () => {
 const worldDirectorTimer = setInterval(runWorldDirectorScheduler, 30_000);
 worldDirectorTimer.unref?.();
 runWorldDirectorScheduler();
+const worldDirectorDispatchStore = new WorldDirectorStore();
+const worldDirectorDispatcher = new WorldDirectorDispatcher(worldDirectorDispatchStore,
+    new EngineWorldDirectorAdapter());
+const runWorldDirectorDispatcher = () => {
+    try {
+        if (!loadWorldDirectorConfig().enabled) return;
+        void worldDirectorDispatcher.tick().then(result => {
+            if (result?.status === 'delivered') console.log(`[WorldDirector] Delivered ${result.signal.eventId}.`);
+            if (result?.status === 'failed') console.error(`[WorldDirector] Delivery failed: ${result.lastError}`);
+        }).catch(error => console.error('[WorldDirector] Dispatcher failed:', error));
+    } catch (error) { console.error('[WorldDirector] Dispatcher configuration failed:', error); }
+};
+const worldDirectorDispatchTimer = setInterval(runWorldDirectorDispatcher, 30_000);
+worldDirectorDispatchTimer.unref?.();
+runWorldDirectorDispatcher();
 const economyObservationTimer = setInterval(() => {
     void buildBotCatalog(adminGatewayBots(), botSupervisor.list()).then(entries => {
         const snapshot = economySnapshot(entries);

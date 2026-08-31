@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import {
+    formatBoundedWorldDirectorSignal,
     mergeHotReloadSnapshot,
     runWorldModPlayerLoginHooks,
     runWorldModXpAwardHook,
@@ -24,6 +25,14 @@ function snapshot(mods: Record<string, ActiveMod>, revision = 1): ActiveWorldMod
 }
 
 describe('world mod hot reload lifecycle', () => {
+    test('bounds and flattens trusted World Director broadcast messages', () => {
+        const message = formatBoundedWorldDirectorSignal('[World event]', '  Market\nchange  ', 'Demand\tshifted. '.repeat(80));
+        expect(message.startsWith('[World event] Market change: Demand shifted.')).toBeTrue();
+        expect(message).toHaveLength(320);
+        expect(message.endsWith('…')).toBeTrue();
+        expect(message).not.toContain('\n');
+    });
+
     test('applies hot mods while keeping restart-required mods on their active state', () => {
         const current = snapshot({ hot: mod('hot-reload', 'old'), restart: mod('restart-required', 'old') });
         const candidate = snapshot({ hot: mod('hot-reload', 'new'), restart: mod('restart-required', 'new') }, 2);

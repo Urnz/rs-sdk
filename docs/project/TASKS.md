@@ -377,7 +377,7 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       - [x] A napi operatív keretből finanszírozott kezdeti kifizetési portot közös,
         tartós business/faction treasury-walletre cserélni: reserve/commit/release,
         optimista admin-finanszírozás és külön döntési limit mellett.
-  - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
+  - [x] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
     az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
     - [x] Verziózott, allowlistelt és végrehajtható payload nélküli eseménysablon-
       szerződés; provider által küldött extra mezők fail-closed elutasítása.
@@ -387,8 +387,9 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       a játékvilág állapotát.
     - [x] Atomi SQLite ciklusnapló és outbox, fix epochból számolt gateway-ütemező,
       idempotens újrafuttatás, valamint lease-elt, retryzható trusted adapter port.
-    - [ ] Approved sablonokat konkrét, allowlistelt mod-esemény adapterekhez kötni;
-      az outbox addig inert és kézi/automatikus ciklus után is csak `pending` marad.
+    - [x] Első konkrét trusted adapter: minden allowlistelt sablonból idempotens,
+      legfeljebb 320 karakteres globális világjelzés; külön hot-reload mod és külön
+      World Director engedélyezés, tárgy-/pénz-/XP-/teleport-/tulajdonmódosítás nélkül.
 
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
 auditálható, és hibánál vagy limitnél biztonságosan leáll.

@@ -108,9 +108,9 @@ nélkül.
 Az AI beállítások World Director szekciójában a seedelt választás auditáltan
 előnézhető. Ez a végpont `simulation: true` eredményt ad, és sem engine-, sem
 modállapotot nem ír. A tartós ciklusnapló, fix epochos scheduler és lease-elt
-outbox már elkészült. Konkrét mod-adapter regisztrálásáig a jel `pending` marad:
-tartósan visszanézhető, de nem módosítja a játékvilágot. A következő réteg trusted,
-allowlistelt mod-esemény adapter lesz.
+outbox már elkészült. Az első trusted engine-adapter minden allowlistelt sablont
+legfeljebb 320 karakteres globális világjelzésként jelenít meg. Külön mod- és
+scheduler-kapcsoló védi; más engine- vagy gazdasági műveletet nem végezhet.
 
 ## Döntési ritmus és keretek
 

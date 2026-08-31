@@ -71,8 +71,30 @@ már sikerült, de a gateway a `delivered` visszaírása előtt áll le, ugyanaz
 új lease-szel ismét megérkezhet; az adapter ilyenkor nem hajthatja végre még egyszer
 a gazdasági vagy világműveletet.
 
-Konkrét mod-adapter még szándékosan nincs regisztrálva. Emiatt az automatikusan
-vagy kézzel sorba állított jel `pending` marad, és nem módosítja a játékvilágot.
-A következő rétegben minden approved sablont külön, típusos, allowlistelt
-mod-eseményhez kell kötni; az LLM közvetlen engine- vagy world-write jogot akkor
-sem kap.
+## Első engine-adapter: globális világjelzés
+
+Az első konkrét trusted adapter mind a négy allowlistelt eseménytípust egyetlen,
+veszélytelen engine-műveletre képezi: minden online játékos globális
+játéküzenetet kap. Az üzenet whitespace-normalizált és legfeljebb 320 karakter;
+az adapter nem adhat tárgyat, pénzt vagy XP-t, nem teleportálhat, és nem írhat
+tulajdon-, property- vagy más gazdasági állapotot.
+
+Az engine külön world-tick queue-n fogadja a jelet, majd saját SQLite naplójában
+az `eventId` alapján at-most-once módon elfogadja. Egzakt retry nem sugároz újra,
+eltérő tartalommal újrahasznált azonosító pedig fail-closed hibát ad. Ez a
+megjelenítési adapter a biztonságot választja: ha az engine az elfogadás után,
+de a broadcast előtt áll le, az üzenet elveszhet, viszont gazdasági hatás vagy
+duplikáció nem keletkezik.
+
+A kézbesítéshez két külön kapcsoló szükséges:
+
+1. A World Adminban aktív legyen a `World Director világjelzések`
+   (`simulation.world-director-signals`) hot-reload mod.
+2. Az AI beállítások World Director részében legyen bekapcsolva az automatikus
+   ciklus és engine-kézbesítés.
+
+A második kapcsoló seedje, UTC epochja és 5–10080 perces intervalluma az adminból
+szerverenként menthető. Az érték atomi, `.local/admin/world-director.json`
+override-ba kerül, és legfeljebb 30 másodpercen belül érvényesül. Az alapérték
+továbbra is kikapcsolt, így frissítés vagy újraindítás nem indít automatikusan
+világeseményeket.

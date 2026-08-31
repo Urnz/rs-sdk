@@ -232,6 +232,16 @@
                     <span id="world-event-template-count" class="count-pill">0 sablon</span>
                 </div>
                 <p class="llm-settings-intro">Az előnézet nem módosíthatja a játékvilágot. Azonos seed, cikluskulcs és jóváhagyott sablonkészlet mindig ugyanazt az egzakt eseményverziót választja.</p>
+                <form id="world-director-config-form" class="llm-settings-form">
+                    <div class="llm-form-grid">
+                        <label class="check llm-toggle"><input name="enabled" type="checkbox"> Automatikus ciklusok és engine-kézbesítés</label>
+                        <label>Szerver seed<input name="seed" maxlength="128" required></label>
+                        <label>UTC epoch<input name="epoch" maxlength="40" required></label>
+                        <label>Intervallum percben<input name="intervalMinutes" type="number" min="5" max="10080" step="1" required></label>
+                    </div>
+                    <p class="dialog-note">Az engine csak akkor jeleníti meg az eseményt, ha a World Adminban a „World Director világjelzések” mod is aktív. A módosítás a következő 30 másodperces gateway-ciklustól él.</p>
+                    <button id="save-world-director-config" class="button primary" type="submit">World Director beállítások mentése</button>
+                </form>
                 <form id="world-director-preview-form" class="llm-settings-form">
                     <div class="llm-form-grid">
                         <label>Kísérleti seed<input name="seed" maxlength="128" required value="osrs-economy-default"></label>

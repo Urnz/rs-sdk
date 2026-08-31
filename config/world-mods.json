@@ -73,6 +73,33 @@
       "settings": []
     },
     {
+      "id": "simulation.world-director-signals",
+      "name": "World Director világjelzések",
+      "version": "1.0.0",
+      "dataSchemaVersion": 1,
+      "category": "world",
+      "description": "Idempotens, allowlistelt World Director eseményeket jelenít meg veszélytelen globális játéküzenetként.",
+      "activation": "hot-reload",
+      "disablePolicy": {
+        "mode": "suspend",
+        "description": "Kikapcsolva új jelzés nem fogadható; az idempotencia-napló megmarad, de nem módosít játékállapotot."
+      },
+      "hooks": ["world-director.signal"],
+      "dependencies": [],
+      "conflicts": [],
+      "settings": [
+        {
+          "key": "messagePrefix",
+          "label": "Világesemény előtag",
+          "type": "string",
+          "default": "[World event]",
+          "minimum": 1,
+          "maximum": 40,
+          "description": "A minden online játékosnak megjelenő, szerveroldali eseményüzenet előtagja."
+        }
+      ]
+    },
+    {
       "id": "economy.diminishing-xp",
       "name": "Csökkenő XP-jutalmak",
       "version": "1.0.0",
