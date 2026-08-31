@@ -54,7 +54,7 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     if (Number.isNaN(now)) throw new Error('Decision context now must be an ISO timestamp');
     const parts = [buildCoreIdentity(snapshot, Math.min(maxCharacters, 8000))];
     if (options.controlProfile) parts.push(buildAgentControlContext(options.controlProfile));
-    const activeRequests = options.playerActionRequests?.filter(item => ['pending', 'accepted', 'approved', 'running']
+    const activeRequests = options.playerActionRequests?.filter(item => ['pending', 'accepted', 'approved', 'running', 'settling']
         .includes(item.status)).slice(0, 12);
     if (activeRequests?.length) parts.push(`Player action queue:\n- ${activeRequests.map(item =>
         `${item.status} ${item.requestId}: ${item.requesterAgentId} requests ${item.assigneeAgentId} `

@@ -5,6 +5,7 @@ import World, {
     type AdminOfflineSaveDraft,
     type AdminOfflineSaveResult,
     type AdminPlayerLogoutResult,
+    type AdminPlayerRewardResult,
     type AdminPropertyMaintenanceResult,
     type AdminPropertyPurchaseResult,
     type AdminTeleportResult
@@ -70,6 +71,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/offline-edit'
         || url.pathname === '/api/internal/admin/offline-restore'
         || url.pathname === '/api/internal/admin/player-logout'
+        || url.pathname === '/api/internal/admin/player-reward'
         || !!backupListMatch;
     if (!knownPath) return null;
     if (!authorized(req)) return json({ error: 'Unauthorized' }, 401);
@@ -154,6 +156,18 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     }
 
     if (!/^[a-zA-Z0-9]{1,12}$/.test(username)) return json({ error: 'Invalid admin command identity' }, 400);
+
+    if (url.pathname === '/api/internal/admin/player-reward') {
+        const settlementId = typeof body.settlementId === 'string' ? body.settlementId.trim() : '';
+        const amount = body.amount;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(settlementId)
+            || !Number.isSafeInteger(amount) || Number(amount) < 1 || Number(amount) > 2_147_483_647) {
+            return json({ error: 'Invalid player reward request' }, 400);
+        }
+        const result: AdminPlayerRewardResult = await World.enqueueAdminPlayerReward({ commandId,
+            settlementId, username, amount: Number(amount), expiresAt: Date.now() + 2_000 });
+        return json(result, result.ok ? 200 : 409);
+    }
 
     if (url.pathname === '/api/internal/admin/offline-edit') {
         const draft = body.draft;

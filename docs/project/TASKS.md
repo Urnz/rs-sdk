@@ -371,8 +371,11 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       - [x] v11→v12 migrációval az elfogadott megbízást rövid életű, egyszer
         használható approvalhoz, exact avatarhoz és exact skill-run ID-hoz kötni;
         a journal eredményéből automatikusan completed/failed állapotot képezni.
-      - [ ] A sikeres megbízás jutalmát tényleges gazdasági tranzakcióként, atomi és
-        idempotens elszámolással átvezetni; hiba vagy megszakítás ne mozgasson GP-t.
+      - [x] v12→v13 migrációval a sikeres megbízás díját tartós `settling`
+        állapoton és engine-tickes, idempotens settlement ID-n keresztül a player
+        valódi coin inventoryjába fizetni; hiba vagy megszakítás ne duplázzon GP-t.
+      - [ ] A napi operatív keretből finanszírozott kezdeti kifizetési portot a
+        Business/Governance mod tényleges treasury-walletjére cserélni.
   - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
     az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
 

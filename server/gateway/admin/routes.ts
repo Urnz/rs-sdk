@@ -43,6 +43,7 @@ import {
     updateAdminAgentRelationship,
     updateAdminPlayerActionRequest,
     startAdminPlayerActionRequest,
+    settleAdminPlayerActionReward,
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
@@ -798,6 +799,28 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({ operator: 'local-admin', action: 'agent.player-action.start', reason,
                     username: avatar, success: false, error: String(error), before: request,
                     after: { approvalId, runId } });
+                throw error;
+            }
+        }
+
+        const playerActionSettleMatch = url.pathname
+            .match(/^\/api\/admin\/player-actions\/([a-z0-9.-]+)\/settle$/);
+        if (req.method === 'POST' && playerActionSettleMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const request = (await listAdminAgents()).agents.flatMap(agent => agent.outgoingPlayerActions)
+                .find(item => item.requestId === playerActionSettleMatch[1]);
+            if (!request || request.status !== 'settling' || !request.settlementId) {
+                throw new Error('A megbízásnak nincs újrapróbálható elszámolása.');
+            }
+            try {
+                const settled = await settleAdminPlayerActionReward(request.settlementId);
+                await appendAudit({ operator: 'local-admin', action: 'agent.player-action.settle', reason,
+                    username: request.assigneeAgentId, success: true, before: request, after: settled });
+                return json({ ok: true, request: settled });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.player-action.settle', reason,
+                    username: request.assigneeAgentId, success: false, before: request, error: String(error) });
                 throw error;
             }
         }

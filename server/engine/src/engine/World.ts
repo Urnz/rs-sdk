@@ -111,6 +111,7 @@ import { getPropertyRuntime, type PropertyView } from '#/mods/PropertyRuntime.js
 import { formatPropertyRegisterLines } from '#/mods/PropertyRegister.js';
 import type { PropertyPendingResolution, PropertyPurchaseRecord } from '#/mods/PropertyStore.js';
 import { isWorldModEnabled, onWorldModPlayerLogin, recordWorldModDomainEvent } from '#/mods/WorldMods.js';
+import { getPlayerRewardStore, type PlayerRewardRecord } from '#/mods/PlayerRewardStore.js';
 
 const priv = forge.pki.privateKeyFromPem(fs.readFileSync('data/config/private.pem', 'ascii'));
 
@@ -253,6 +254,26 @@ export interface AdminPropertyMaintenanceResult {
     tick: number;
 }
 
+export interface AdminPlayerRewardCommand {
+    commandId: string;
+    settlementId: string;
+    username: string;
+    amount: number;
+    expiresAt: number;
+}
+
+export interface AdminPlayerRewardResult {
+    ok: boolean;
+    commandId: string;
+    settlementId: string;
+    username: string;
+    amount: number;
+    reward?: PlayerRewardRecord;
+    tick?: number;
+    code?: string;
+    error?: string;
+}
+
 type PendingAdminTeleport = AdminTeleportCommand & {
     resolve: (result: AdminTeleportResult) => void;
 };
@@ -267,6 +288,10 @@ type PendingAdminPlayerLogout = AdminPlayerLogoutCommand & {
 
 type PendingAdminPropertyPurchase = AdminPropertyPurchaseCommand & {
     resolve: (result: AdminPropertyPurchaseResult) => void;
+};
+
+type PendingAdminPlayerReward = AdminPlayerRewardCommand & {
+    resolve: (result: AdminPlayerRewardResult) => void;
 };
 
 class World {
@@ -333,6 +358,7 @@ class World {
     private readonly adminOfflineSaveQueue: PendingAdminOfflineSave[] = [];
     private readonly adminPlayerLogoutQueue: PendingAdminPlayerLogout[] = [];
     private readonly adminPropertyPurchaseQueue: PendingAdminPropertyPurchase[] = [];
+    private readonly adminPlayerRewardQueue: PendingAdminPlayerReward[] = [];
 
     // debug data
     readonly lastCycleStats: Uint16Array = new Uint16Array(12);
@@ -557,6 +583,7 @@ class World {
             // pending client packets are visible, but before entity processing/movement.
             this.processAdminTeleports();
             this.processAdminPropertyPurchases();
+            this.processAdminPlayerRewards();
             this.processAdminPlayerLogouts();
             this.processAdminOfflineSaves();
 
@@ -1075,6 +1102,53 @@ class World {
                     : message.includes('Insufficient') ? 'insufficient-funds'
                         : message.includes('not available') ? 'property-unavailable' : 'purchase-failed';
                 reject(code, message, observedCoins);
+            }
+        }
+    }
+
+    enqueueAdminPlayerReward(command: AdminPlayerRewardCommand): Promise<AdminPlayerRewardResult> {
+        if (this.adminPlayerRewardQueue.length >= 50) {
+            return Promise.resolve({ ok: false, commandId: command.commandId,
+                settlementId: command.settlementId, username: command.username, amount: command.amount,
+                code: 'queue-full', error: 'The engine player reward queue is full.' });
+        }
+        return new Promise(resolve => this.adminPlayerRewardQueue.push({ ...command, resolve }));
+    }
+
+    private processAdminPlayerRewards(): void {
+        const commands = this.adminPlayerRewardQueue.splice(0);
+        for (const command of commands) {
+            const reject = (code: string, error: string) => command.resolve({ ok: false,
+                commandId: command.commandId, settlementId: command.settlementId,
+                username: command.username, amount: command.amount, tick: this.currentTick, code, error });
+            try {
+                if (Date.now() > command.expiresAt) {
+                    reject('expired', 'The player reward expired before a world tick could execute it.');
+                    continue;
+                }
+                if (this.shutdown) {
+                    reject('world-shutdown', 'The world is shutting down.');
+                    continue;
+                }
+                const player = this.getPlayerByUsername(command.username);
+                if (!player || !isClientConnected(player)) {
+                    reject('player-offline', 'The rewarded player must be online.');
+                    continue;
+                }
+                const reward = getPlayerRewardStore().credit(command.settlementId, player.username, command.amount, {
+                    balance: () => player.invTotal(InvType.INV, 995),
+                    credit: amount => player.invAdd(InvType.INV, 995, amount),
+                    remove: amount => player.invDel(InvType.INV, 995, amount)
+                });
+                player.addSessionLog(LoggerEventType.MODERATOR,
+                    `Player action reward: ${command.amount} coins`, command.settlementId);
+                player.messageGame(`Megbízási díj: ${command.amount.toLocaleString('en-GB')} coins.`);
+                this.loginThread.postMessage({ type: 'player_autosave', username: player.username, save: player.save() });
+                command.resolve({ ok: true, commandId: command.commandId,
+                    settlementId: command.settlementId, username: player.displayName,
+                    amount: command.amount, reward, tick: this.currentTick });
+            } catch (error) {
+                reject('reward-failed', error instanceof Error ? error.message : String(error));
             }
         }
     }

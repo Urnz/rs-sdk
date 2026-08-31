@@ -189,9 +189,13 @@ describe('institution to player action queue', () => {
         expect(running).toMatchObject({ status: 'running', runId, revision: 4 });
         expect(() => store.startApprovedPlayerAction(request.requestId, 'ferrye14', running.revision,
             approvalId, '33333333-3333-4333-8333-333333333333')).toThrow('already used');
-        const completed = store.finishPlayerActionRun(runId, true, 'Ore is in the bank.',
-            '2026-08-30T10:20:00.000Z');
-        expect(completed).toMatchObject({ status: 'completed', resolvedAt: '2026-08-30T10:20:00.000Z', revision: 5 });
+        const settlementId = '44444444-4444-4444-8444-444444444444';
+        const settling = store.finishPlayerActionRun(runId, true, 'Ore is in the bank.',
+            '2026-08-30T10:20:00.000Z', settlementId);
+        expect(settling).toMatchObject({ status: 'settling', settlementId, resolvedAt: null, revision: 5 });
+        const completed = store.completePlayerActionSettlement(settlementId, '1200 gp paid.',
+            '2026-08-30T10:21:00.000Z');
+        expect(completed).toMatchObject({ status: 'completed', settledAt: '2026-08-30T10:21:00.000Z', revision: 6 });
         expect(store.finishPlayerActionRun(runId, false, 'Late duplicate.')).toEqual(completed);
         store.close();
     });

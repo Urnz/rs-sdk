@@ -51,10 +51,23 @@ indítás előtt a futáshoz köti a megbízást. Az approval az `approved → r
 átmenettel elfogy; lejárva vagy új run ID-val nem használható fel.
 
 A supervisor ugyanazt a run ID-t adja át a skill executorának és a journalnak. A
-futás végén a journal `completed` eredménye lezárja, minden más eredmény elrontja a
-megbízást; ha az executor a journal létrehozása előtt omlik össze, a folyamat
-kilépési állapota a biztonságos fallback. A `rewardGp` jelenleg költségkeret-foglalási
-és auditadat: a tényleges, atomi pénzátvezetés a következő külön gazdasági szelet.
+futás végén minden nem `completed` eredmény elrontja a megbízást; ha az executor a
+journal létrehozása előtt omlik össze, a folyamat kilépési állapota a biztonságos
+fallback. A sikeres, díj nélküli munka közvetlenül lezárul, a fizetett munka előbb
+`settling` állapotba kerül egy tartós settlement ID-val.
+
+A gateway ezen az ID-n kér engine-tickes kifizetést az exact avatar valódi coin
+inventoryjába. Az engine külön SQLite-journalban foglalja és véglegesíti a creditet,
+majd azonnali player autosave-ot kér. A már committed ID ismétlése ugyanazt a receiptet
+adja, nem újabb pénzt; részleges inventory-módosítást visszafordít és rejectedként
+naplóz. Offline player vagy átmeneti engine-hiba előtt nem történik coinmozgás, a
+megbízás `settling` marad, és az adminpanelen újrapróbálható. Egy összeomlás miatt
+`pending` engine-rekord szándékosan fail-closed, kézi egyeztetést igényel.
+
+A díj forrása ebben az első változatban a létrehozáskor ellenőrzött és naponta
+összesítve lefoglalt intézményi operatív keret. Ez már valódi player-coin kifizetés,
+de még nem Business- vagy Governance-treasury terhelés: azt a domain wallet-portok
+elkészültekor kell a settlement forrásoldalára kötni.
 
 A kezdeti domain allowlist:
 

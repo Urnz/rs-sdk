@@ -121,3 +121,8 @@ read-only current portfolio from external observations matched through those act
 the current bot-catalog balance and Property-mod ownership, marks unavailable sources instead of failing the complete
 agent view, and places the bounded result early in the decision context. Relationship debts and valued open
 commitments are summarized separately as receivables and liabilities; they are not silently netted or double-counted.
+
+Schema v13 extends institution-to-player work with a durable settlement boundary. A paid successful run moves to
+`settling` with a unique settlement id; only an idempotent engine receipt may mark it completed. The player coin
+balance remains engine-owned and is never copied into AgentState. Failed work creates no settlement, and transient
+payment failures preserve the payable request for retry.

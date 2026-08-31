@@ -14,6 +14,7 @@ import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOp
 import type { BotCatalogEntry } from './types.js';
 import type { AdminPropertyView } from './properties.js';
 import { readSkillRun } from './skill-history.js';
+import { requestEnginePlayerReward } from './player-rewards.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
@@ -168,18 +169,49 @@ export function startAdminPlayerActionRequest(requestId: string, actorAgentId: s
 }
 
 export function finishAdminPlayerActionRun(runId: string, completed: boolean, responseNote: string,
-    path = agentStateDbPath) {
-    return useStore(path, store => store.finishPlayerActionRun(runId, completed, responseNote));
+    path = agentStateDbPath, settlementId: string | null = null) {
+    return useStore(path, store => store.finishPlayerActionRun(runId, completed, responseNote,
+        new Date().toISOString(), settlementId));
 }
 
 export async function reconcileAdminPlayerActionRun(runId: string, fallbackCompleted: boolean,
-    fallbackNote: string, path = agentStateDbPath, runRoot?: string) {
+    fallbackNote: string, path = agentStateDbPath, runRoot?: string,
+    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward) {
     const run = await readSkillRun(runId, runRoot);
-    if (!run) return finishAdminPlayerActionRun(runId, fallbackCompleted, fallbackNote, path);
-    const completed = run.status === 'completed';
-    const detail = run.message || run.reason || `Skill run ${run.status}.`;
-    return finishAdminPlayerActionRun(runId, completed,
-        `${run.skill.id}@${run.skill.version}: ${run.status}. ${detail}`, path);
+    const completed = run ? run.status === 'completed' : fallbackCompleted;
+    const note = run
+        ? `${run.skill.id}@${run.skill.version}: ${run.status}. ${run.message || run.reason || `Skill run ${run.status}.`}`
+        : fallbackNote;
+    const request = finishAdminPlayerActionRun(runId, completed, note, path,
+        completed ? crypto.randomUUID() : null);
+    return request?.status === 'settling'
+        ? settleAdminPlayerActionReward(request.settlementId!, path, rewarder) : request;
+}
+
+export async function settleAdminPlayerActionReward(settlementId: string, path = agentStateDbPath,
+    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward) {
+    const state = useStore(path, store => {
+        const request = store.getPlayerActionRequestBySettlementId(settlementId);
+        if (!request || request.status !== 'settling') throw new Error('Nincs függőben lévő player-action elszámolás.');
+        const identity = store.getIdentity(request.assigneeAgentId);
+        const profile = store.getControlProfile(request.assigneeAgentId);
+        if (!identity || !profile || profile.role !== 'player' || !profile.avatarPlayerUsername
+            || identity.playerUsername !== profile.avatarPlayerUsername) {
+            throw new Error('A jutalom címzettjének exact player-avatar kötése megszűnt.');
+        }
+        return { request, username: profile.avatarPlayerUsername };
+    });
+    try {
+        const receipt = await rewarder(state.username, state.request.rewardGp, settlementId);
+        const balance = receipt.reward ? ` (${receipt.reward.coinsBefore} → ${receipt.reward.coinsAfter} gp)` : '';
+        return useStore(path, store => store.completePlayerActionSettlement(settlementId,
+            `Jutalom kifizetve: ${state.request.rewardGp} gp${balance}.`));
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        useStore(path, store => store.notePlayerActionSettlementFailure(settlementId,
+            `Jutalom függőben: ${message}`));
+        throw error;
+    }
 }
 
 export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {

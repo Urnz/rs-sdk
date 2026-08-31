@@ -14,6 +14,7 @@ import {
     listAdminAgents,
     pruneAdminAgentEpisodes,
     reconcileAdminPlayerActionRun,
+    settleAdminPlayerActionReward,
     startAdminPlayerActionRequest,
     updateAdminAgent,
     updateAdminAgentCommitmentStatus,
@@ -77,9 +78,19 @@ describe('admin agent-state service', () => {
                     skill: { id: 'varrock-east-mining', version: '1.0.0' } }
             ]
         }));
-        expect(await reconcileAdminPlayerActionRun(runId, false, 'Fallback failure.', path, dirname(path)))
+        const unavailableRewarder = async () => { throw new Error('Engine offline'); };
+        await expect(reconcileAdminPlayerActionRun(runId, false, 'Fallback failure.', path, dirname(path),
+            unavailableRewarder)).rejects.toThrow('Engine offline');
+        const pending = (await listAdminAgents(path)).agents.find(agent => agent.identity.agentId === 'worker')!
+            .incomingPlayerActions[0]!;
+        expect(pending).toMatchObject({ status: 'settling', settledAt: null,
+            responseNote: expect.stringContaining('Engine offline') });
+        const rewarder = async (username: string, amount: number, settlementId: string) => ({ ok: true,
+            commandId: '33333333-3333-4333-8333-333333333333', username, amount, settlementId,
+            reward: { status: 'committed' as const, coinsBefore: 100, coinsAfter: 600 } });
+        expect(await settleAdminPlayerActionReward(pending.settlementId!, path, rewarder))
             .toMatchObject({ status: 'completed', runId,
-                responseNote: expect.stringContaining('One load banked.') });
+                responseNote: expect.stringContaining('100 → 600') });
     });
 
     test('builds a complete editable snapshot and executable planner preview', async () => {

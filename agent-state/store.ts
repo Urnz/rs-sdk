@@ -84,6 +84,7 @@ interface PlayerActionRequestRow {
     status: AgentPlayerActionStatus; response_note: string; requested_at: string; updated_at: string;
     accepted_at: string | null; approval_id: string | null; approval_expires_at: string | null;
     approved_at: string | null; started_at: string | null; run_id: string | null;
+    settlement_id: string | null; settlement_started_at: string | null; settled_at: string | null;
     resolved_at: string | null; revision: number;
 }
 interface ConsolidationEvidenceRow {
@@ -170,6 +171,8 @@ function playerActionRequest(row: PlayerActionRequestRow): AgentPlayerActionRequ
         requestedAt: row.requested_at, updatedAt: row.updated_at, acceptedAt: row.accepted_at,
         approvalId: row.approval_id, approvalExpiresAt: row.approval_expires_at,
         approvedAt: row.approved_at, startedAt: row.started_at, runId: row.run_id,
+        settlementId: row.settlement_id, settlementStartedAt: row.settlement_started_at,
+        settledAt: row.settled_at,
         resolvedAt: row.resolved_at, revision: row.revision };
 }
 function consolidationEvidence(row: ConsolidationEvidenceRow): AgentConsolidationEvidence {
@@ -383,7 +386,7 @@ export class AgentStateStore {
             const committed = this.database.query(`SELECT COALESCE(SUM(reward_gp), 0) AS total
                 FROM agent_player_action_request WHERE requester_agent_id = ?1
                 AND substr(requested_at, 1, 10) = ?2
-                AND status IN ('pending', 'accepted', 'approved', 'running', 'completed')`)
+                AND status IN ('pending', 'accepted', 'approved', 'running', 'settling', 'completed')`)
                 .get(requesterId, now.slice(0, 10)) as { total: number };
             if (committed.total + value.rewardGp > requester.dailyOperationalBudgetGp) {
                 throw new Error('Player action rewards exceed the requester daily operational budget');
@@ -401,9 +404,10 @@ export class AgentStateStore {
                 (request_id, requester_agent_id, assignee_agent_id, skill_id, skill_version, parameters,
                 objective, reward_gp, status, response_note, requested_at, updated_at,
                 accepted_at, approval_id, approval_expires_at, approved_at, started_at, run_id,
+                settlement_id, settlement_started_at, settled_at,
                 resolved_at, revision)
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending', '', ?9, ?9,
-                    NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1)`,
+                    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1)`,
             [value.requestId, requesterId, value.assigneeAgentId, value.skill.id, value.skill.version,
                 JSON.stringify(value.parameters), value.objective, value.rewardGp, now]);
         });
@@ -415,6 +419,13 @@ export class AgentStateStore {
         const normalized = normalizeAgentId(requestId, 'requestId');
         const row = this.database.query('SELECT * FROM agent_player_action_request WHERE request_id = ?1')
             .get(normalized);
+        return row ? playerActionRequest(row as PlayerActionRequestRow) : null;
+    }
+
+    getPlayerActionRequestBySettlementId(settlementId: string): AgentPlayerActionRequest | null {
+        const normalized = normalizeAgentId(settlementId, 'settlementId');
+        const row = this.database.query(`SELECT * FROM agent_player_action_request
+            WHERE settlement_id = ?1`).get(normalized);
         return row ? playerActionRequest(row as PlayerActionRequestRow) : null;
     }
 
@@ -529,8 +540,9 @@ export class AgentStateStore {
     }
 
     finishPlayerActionRun(runId: string, completed: boolean, responseNote: string,
-        now = new Date().toISOString()): AgentPlayerActionRequest | null {
+        now = new Date().toISOString(), settlementId: string | null = null): AgentPlayerActionRequest | null {
         const normalizedRunId = normalizeAgentId(runId, 'runId');
+        const normalizedSettlementId = settlementId === null ? null : normalizeAgentId(settlementId, 'settlementId');
         const note = responseNote.trim().slice(0, 500);
         if (Number.isNaN(Date.parse(now))) throw new Error('Player action finish time must be an ISO timestamp');
         let result: AgentPlayerActionRequest | null = null;
@@ -540,16 +552,62 @@ export class AgentStateStore {
             if (!row) return;
             const current = playerActionRequest(row);
             if (current.status !== 'running') { result = current; return; }
-            const status = completed ? 'completed' : 'failed';
+            if (completed && current.rewardGp > 0 && !normalizedSettlementId) {
+                throw new Error('Completed paid player actions require a settlement id');
+            }
+            const status = completed && current.rewardGp > 0 ? 'settling' : completed ? 'completed' : 'failed';
             const updated = this.database.run(`UPDATE agent_player_action_request SET status = ?3,
-                response_note = ?4, updated_at = ?5, resolved_at = ?5, revision = revision + 1
+                response_note = ?4, updated_at = ?5,
+                settlement_id = ?6, settlement_started_at = CASE WHEN ?3 = 'settling' THEN ?5 ELSE NULL END,
+                resolved_at = CASE WHEN ?3 IN ('completed', 'failed') THEN ?5 ELSE NULL END,
+                revision = revision + 1
                 WHERE request_id = ?1 AND revision = ?2 AND status = 'running'`,
-            [current.requestId, current.revision, status, note, now]);
+            [current.requestId, current.revision, status, note, now, normalizedSettlementId]);
             if (updated.changes !== 1) throw new Error('Player action request changed during run reconciliation');
             result = this.getPlayerActionRequest(current.requestId);
         });
         transaction.immediate();
         return result;
+    }
+
+    completePlayerActionSettlement(settlementId: string, responseNote: string,
+        now = new Date().toISOString()): AgentPlayerActionRequest | null {
+        const normalizedSettlementId = normalizeAgentId(settlementId, 'settlementId');
+        const note = responseNote.trim().slice(0, 500);
+        if (Number.isNaN(Date.parse(now))) throw new Error('Player action settlement time must be an ISO timestamp');
+        let result: AgentPlayerActionRequest | null = null;
+        const transaction = this.database.transaction(() => {
+            const row = this.database.query(`SELECT * FROM agent_player_action_request
+                WHERE settlement_id = ?1`).get(normalizedSettlementId) as PlayerActionRequestRow | null;
+            if (!row) return;
+            const current = playerActionRequest(row);
+            if (current.status !== 'settling') { result = current; return; }
+            const updated = this.database.run(`UPDATE agent_player_action_request SET status = 'completed',
+                response_note = ?3, updated_at = ?4, settled_at = ?4, resolved_at = ?4,
+                revision = revision + 1 WHERE request_id = ?1 AND revision = ?2 AND status = 'settling'`,
+            [current.requestId, current.revision, note, now]);
+            if (updated.changes !== 1) throw new Error('Player action changed during settlement completion');
+            result = this.getPlayerActionRequest(current.requestId);
+        });
+        transaction.immediate();
+        return result;
+    }
+
+    notePlayerActionSettlementFailure(settlementId: string, responseNote: string,
+        now = new Date().toISOString()): AgentPlayerActionRequest | null {
+        const normalizedSettlementId = normalizeAgentId(settlementId, 'settlementId');
+        const note = responseNote.trim().slice(0, 500);
+        if (!note) throw new Error('Settlement failure requires a response note');
+        if (Number.isNaN(Date.parse(now))) throw new Error('Player action settlement time must be an ISO timestamp');
+        const row = this.database.query(`SELECT * FROM agent_player_action_request
+            WHERE settlement_id = ?1`).get(normalizedSettlementId) as PlayerActionRequestRow | null;
+        if (!row) return null;
+        const current = playerActionRequest(row);
+        if (current.status !== 'settling') return current;
+        this.database.run(`UPDATE agent_player_action_request SET response_note = ?3, updated_at = ?4,
+            revision = revision + 1 WHERE request_id = ?1 AND revision = ?2 AND status = 'settling'`,
+        [current.requestId, current.revision, note, now]);
+        return this.getPlayerActionRequest(current.requestId);
     }
 
     createGoal(agentId: string, input: CreateAgentGoal, now = new Date().toISOString()): AgentGoal {
@@ -1496,6 +1554,41 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_player_action_request_outgoing
                     ON agent_player_action_request(requester_agent_id, status, requested_at DESC)`);
                 this.database.run('PRAGMA user_version = 12');
+            });
+            transaction.immediate();
+        }
+        if (version < 13) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_player_action_request_v13 (
+                    request_id TEXT PRIMARY KEY,
+                    requester_agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    assignee_agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    skill_id TEXT NOT NULL, skill_version TEXT NOT NULL, parameters TEXT NOT NULL,
+                    objective TEXT NOT NULL, reward_gp INTEGER NOT NULL CHECK (reward_gp >= 0),
+                    status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'approved', 'running',
+                        'settling', 'rejected', 'cancelled', 'completed', 'failed')),
+                    response_note TEXT NOT NULL, requested_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    accepted_at TEXT, approval_id TEXT UNIQUE, approval_expires_at TEXT, approved_at TEXT,
+                    started_at TEXT, run_id TEXT UNIQUE, settlement_id TEXT UNIQUE,
+                    settlement_started_at TEXT, settled_at TEXT, resolved_at TEXT,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    CHECK (requester_agent_id != assignee_agent_id))`);
+                this.database.run(`INSERT INTO agent_player_action_request_v13
+                    (request_id, requester_agent_id, assignee_agent_id, skill_id, skill_version, parameters,
+                    objective, reward_gp, status, response_note, requested_at, updated_at, accepted_at,
+                    approval_id, approval_expires_at, approved_at, started_at, run_id,
+                    settlement_id, settlement_started_at, settled_at, resolved_at, revision)
+                    SELECT request_id, requester_agent_id, assignee_agent_id, skill_id, skill_version, parameters,
+                    objective, reward_gp, status, response_note, requested_at, updated_at, accepted_at,
+                    approval_id, approval_expires_at, approved_at, started_at, run_id,
+                    NULL, NULL, NULL, resolved_at, revision FROM agent_player_action_request`);
+                this.database.run('DROP TABLE agent_player_action_request');
+                this.database.run('ALTER TABLE agent_player_action_request_v13 RENAME TO agent_player_action_request');
+                this.database.run(`CREATE INDEX agent_player_action_request_incoming
+                    ON agent_player_action_request(assignee_agent_id, status, requested_at DESC)`);
+                this.database.run(`CREATE INDEX agent_player_action_request_outgoing
+                    ON agent_player_action_request(requester_agent_id, status, requested_at DESC)`);
+                this.database.run('PRAGMA user_version = 13');
             });
             transaction.immediate();
         }
