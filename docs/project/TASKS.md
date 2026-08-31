@@ -379,6 +379,14 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
         optimista admin-finanszírozás és külön döntési limit mellett.
   - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
     az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
+    - [x] Verziózott, allowlistelt és végrehajtható payload nélküli eseménysablon-
+      szerződés; provider által küldött extra mezők fail-closed elutasítása.
+    - [x] Seed + cikluskulcs + rendezett teljes sablonkészlet alapján súlyozott,
+      sorrendfüggetlen választás reprodukálhatósági digesttel.
+    - [x] Auditált admin-előnézet, amely megmutatja a kiválasztást, de nem írhatja
+      a játékvilág állapotát.
+    - [ ] Tartós ciklusnapló, ütemező és szűk esemény-kimeneti port készítése;
+      csak trusted adapter fordíthasson jóváhagyott sablont valódi mod-eseménnyé.
 
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
 auditálható, és hibánál vagy limitnél biztonságosan leáll.

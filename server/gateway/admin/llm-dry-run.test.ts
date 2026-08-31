@@ -101,6 +101,10 @@ test('admin UI exposes server LLM settings without an API-key readback field', (
     expect(script).toContain('gap.builderCostMicros');
     expect(script).toContain('gap.lastBuilderError');
     expect(script).toContain('config.skillBuilder');
+    expect(html).toContain('id="world-director-preview-form"');
+    expect(html).toContain('id="world-event-template-list"');
+    expect(script).toContain('/api/admin/world-director/templates');
+    expect(script).toContain('/api/admin/world-director/preview');
     expect(script).not.toContain('settings.apiKey.value');
 });
 

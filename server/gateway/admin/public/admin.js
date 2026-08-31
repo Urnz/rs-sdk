@@ -17,6 +17,7 @@ const state = {
     worldPlayers: [],
     llmSettings: null,
     capabilityGaps: [],
+    worldEventTemplates: [],
     skillTrials: [],
     adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
@@ -188,6 +189,23 @@ async function refreshCapabilityGaps() {
     const [gaps, trials] = await Promise.all([api('/api/admin/capability-gaps'), api('/api/admin/skill-trials')]);
     renderCapabilityGaps(gaps.gaps);
     renderSkillTrials(trials.trials);
+}
+
+function renderWorldDirectorTemplates(templates) {
+    state.worldEventTemplates = templates || [];
+    $('#world-event-template-count').textContent = `${state.worldEventTemplates.length} sablon`;
+    $('#world-event-template-list').innerHTML = state.worldEventTemplates.length
+        ? state.worldEventTemplates.map(template => `<article class="capability-gap-card verified">
+            <div class="agent-card-title"><strong>${escapeHtml(template.title)}</strong><span class="status-badge">${escapeHtml(template.kind)}</span></div>
+            <p>${escapeHtml(template.summary)}</p>
+            <div class="capability-gap-meta"><span>${escapeHtml(template.templateId)}@${escapeHtml(template.version)}</span><span>súly ${template.weight}</span><span>${escapeHtml(template.status)}</span></div>
+        </article>`).join('')
+        : '<p class="empty">Nincs jóváhagyott World Director sablon.</p>';
+}
+
+async function refreshWorldDirector() {
+    const response = await api('/api/admin/world-director/templates');
+    renderWorldDirectorTemplates(response.templates);
 }
 
 const goalHorizonLabels = { life: 'Életcél', 'long-term': 'Hosszú távú', current: 'Aktuális', immediate: 'Azonnali' };
@@ -1927,8 +1945,31 @@ $('#agent-knowledge-form').elements.supersedesId.addEventListener('change', even
     form.elements.tags.value = previous.tags.join(', ');
 });
 $('#world-admin-button').addEventListener('click', () => openWorldAdmin().catch(error => toast(error.message, true)));
-$('#reload-llm-settings').addEventListener('click', () => Promise.all([refreshLlmSettings(), refreshCapabilityGaps()])
+$('#reload-llm-settings').addEventListener('click', () => Promise.all([refreshLlmSettings(), refreshCapabilityGaps(), refreshWorldDirector()])
     .then(() => toast('Az LLM-beállítások újratöltve.')).catch(error => toast(error.message, true)));
+$('#world-director-preview-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const reason = prompt('Az esemény-előnézet auditindoklása:', 'Seedelt World Director választás ellenőrzése');
+    if (!reason?.trim()) return;
+    const button = $('#preview-world-event');
+    button.disabled = true;
+    try {
+        const response = await api('/api/admin/world-director/preview', { method: 'POST', mutation: true,
+            body: JSON.stringify({ seed: values.get('seed'), cycleKey: values.get('cycleKey'), reason: reason.trim() }) });
+        const selection = response.selection;
+        $('#world-director-preview-result').textContent = [
+            `${selection.template.title} (${selection.template.templateId}@${selection.template.version})`,
+            selection.template.summary,
+            `Típus: ${selection.template.kind} · ticket: ${selection.ticket}/${selection.totalWeight - 1}`,
+            `Digest: ${selection.digest}`,
+            'Csak előnézet: nem történt változás a játékvilágban.'
+        ].join('\n');
+        toast('A determinisztikus esemény-előnézet elkészült.');
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
+});
 $('#llm-settings-form').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -2093,12 +2134,14 @@ document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-m
 
 const bootstrap = await Promise.all([
     api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
-    api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials')
+    api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
+    api('/api/admin/world-director/templates')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
 renderLlmSettings(bootstrap[3]);
 renderCapabilityGaps(bootstrap[4].gaps);
 renderSkillTrials(bootstrap[5].trials);
+renderWorldDirectorTemplates(bootstrap[6].templates);
 selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

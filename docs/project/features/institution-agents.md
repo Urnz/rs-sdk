@@ -91,6 +91,26 @@ A kezdeti domain allowlist:
 
 Ezek típusos képességnevek, nem általános fájl-, shell-, hálózati vagy engine-eszközök.
 
+## World Director: determinisztikus eseményalap
+
+A kezdeti World Director kizárólag verziózott, jóváhagyott és inert sablonokból
+választ. A választási bemenet a kísérleti seed, a cikluskulcs és a rendezett teljes
+sablonkészlet tartalma. Az eredmény ezért fájlsorrendtől független, és SHA-256
+digesttel együtt naplózható vagy később visszajátszható.
+
+Az LLM-javaslat határa szándékosan szűk: azonosító, egzakt szemantikus verzió,
+allowlistelt eseménytípus, cím, összefoglaló, régiók, tagek és 1–100 közötti súly.
+Script, parancs, item-grant, teleport vagy tetszőleges payload nem része a sémának;
+az extra mező az egész javaslatot elutasítja. Az elfogadott LLM-kimenet is csak
+`draft`, tehát nem kerülhet az approved választási halmazba emberi/verifier lépés
+nélkül.
+
+Az AI beállítások World Director szekciójában a seedelt választás auditáltan
+előnézhető. Ez a végpont `simulation: true` eredményt ad, és sem engine-, sem
+modállapotot nem ír. A következő réteg külön tartós ciklusnapló és trusted,
+allowlistelt mod-esemény adapter lesz; addig a rendszer csak reprodukálható
+választási döntést állít elő.
+
 ## Döntési ritmus és keretek
 
 Minden profil deklarálja:

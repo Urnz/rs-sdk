@@ -226,6 +226,22 @@
                 <p class="agent-intro">A draft kizárólag az itt kijelölt tesztboton indulhat. Két egyező sikeres futás után verifier-jelentés készül; a publikálás külön emberi jóváhagyás.</p>
                 <div id="skill-trial-list" class="capability-gap-list scroll-region" role="region" aria-label="Draft skill próbák" tabindex="0"><p class="empty">Betöltés…</p></div>
             </section>
+            <section class="capability-gap-section">
+                <div class="panel-heading table-heading">
+                    <div><p class="eyebrow">WORLD DIRECTOR</p><h3>Determinisztikus esemény-előnézet</h3></div>
+                    <span id="world-event-template-count" class="count-pill">0 sablon</span>
+                </div>
+                <p class="llm-settings-intro">Az előnézet nem módosíthatja a játékvilágot. Azonos seed, cikluskulcs és jóváhagyott sablonkészlet mindig ugyanazt az egzakt eseményverziót választja.</p>
+                <form id="world-director-preview-form" class="llm-settings-form">
+                    <div class="llm-form-grid">
+                        <label>Kísérleti seed<input name="seed" maxlength="128" required value="osrs-economy-default"></label>
+                        <label>Cikluskulcs<input name="cycleKey" maxlength="128" required value="day:1"></label>
+                    </div>
+                    <button id="preview-world-event" class="button primary" type="submit">Esemény előnézete</button>
+                </form>
+                <pre id="world-director-preview-result" class="llm-preview">Még nem választottunk eseményt.</pre>
+                <div id="world-event-template-list" class="capability-gap-list scroll-region" role="region" aria-label="Jóváhagyott World Director sablonok" tabindex="0"><p class="empty">Betöltés…</p></div>
+            </section>
         </section>
 
         <section class="panel stock-panel" data-admin-tab-panel="economy" hidden>

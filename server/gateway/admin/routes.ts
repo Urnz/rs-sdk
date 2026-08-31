@@ -60,6 +60,7 @@ import { readReplanRecords } from './replan-runtime.js';
 import { readAdminLlmSettings, removeOpenAIApiKey, replaceOpenAIApiKey,
     updateAdminLlmSettings, validateOpenAIApiKey } from './llm-settings.js';
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
+import { BUILTIN_WORLD_EVENT_TEMPLATES, selectWorldEvent } from './world-director.js';
 import { SkillTrialStore, type SkillTrial } from '../../../agent-skills/trials.js';
 import { SkillLibrary } from '../../../agent-skills/library.js';
 import { SkillRegistry } from '../../../agent-skills/registry.js';
@@ -268,6 +269,25 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (req.method === 'GET' && url.pathname === '/api/admin/capability-gaps') {
             return json({ gaps: await new CapabilityGapStore(capabilityGapsPath).list() });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/world-director/templates') {
+            return json({ templates: BUILTIN_WORLD_EVENT_TEMPLATES });
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/world-director/preview') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const selection = selectWorldEvent(text(body, 'seed', true), text(body, 'cycleKey', true));
+                await appendAudit({ operator: 'local-admin', action: 'world-director.preview', reason,
+                    success: true, after: selection });
+                return json({ ok: true, simulation: true, selection });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'world-director.preview', reason,
+                    success: false, error: String(error) });
+                throw error;
+            }
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/skill-trials') {
