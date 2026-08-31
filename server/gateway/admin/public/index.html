@@ -237,10 +237,19 @@
                         <label>Kísérleti seed<input name="seed" maxlength="128" required value="osrs-economy-default"></label>
                         <label>Cikluskulcs<input name="cycleKey" maxlength="128" required value="day:1"></label>
                     </div>
-                    <button id="preview-world-event" class="button primary" type="submit">Esemény előnézete</button>
+                    <div class="dialog-actions">
+                        <button id="preview-world-event" class="button primary" type="submit">Esemény előnézete</button>
+                        <button id="queue-world-event" class="button ghost" type="button">Tartós ciklus sorba állítása</button>
+                    </div>
                 </form>
                 <pre id="world-director-preview-result" class="llm-preview">Még nem választottunk eseményt.</pre>
                 <div id="world-event-template-list" class="capability-gap-list scroll-region" role="region" aria-label="Jóváhagyott World Director sablonok" tabindex="0"><p class="empty">Betöltés…</p></div>
+                <div class="panel-heading table-heading skill-trial-heading">
+                    <div><p class="eyebrow">TARTÓS OUTBOX</p><h3>Ciklusok és kézbesítési állapot</h3></div>
+                    <span id="world-director-cycle-count" class="count-pill">0 ciklus</span>
+                </div>
+                <p id="world-director-config-status" class="agent-intro">Konfiguráció betöltése…</p>
+                <div id="world-director-cycle-list" class="capability-gap-list scroll-region" role="region" aria-label="World Director ciklusnapló" tabindex="0"><p class="empty">Betöltés…</p></div>
             </section>
         </section>
 

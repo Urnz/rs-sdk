@@ -385,8 +385,10 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       sorrendfüggetlen választás reprodukálhatósági digesttel.
     - [x] Auditált admin-előnézet, amely megmutatja a kiválasztást, de nem írhatja
       a játékvilág állapotát.
-    - [ ] Tartós ciklusnapló, ütemező és szűk esemény-kimeneti port készítése;
-      csak trusted adapter fordíthasson jóváhagyott sablont valódi mod-eseménnyé.
+    - [x] Atomi SQLite ciklusnapló és outbox, fix epochból számolt gateway-ütemező,
+      idempotens újrafuttatás, valamint lease-elt, retryzható trusted adapter port.
+    - [ ] Approved sablonokat konkrét, allowlistelt mod-esemény adapterekhez kötni;
+      az outbox addig inert és kézi/automatikus ciklus után is csak `pending` marad.
 
 Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
 auditálható, és hibánál vagy limitnél biztonságosan leáll.

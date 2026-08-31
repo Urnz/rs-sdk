@@ -34,3 +34,5 @@ export const skillVerificationsDir = join(repoRoot, '.local', 'agent-skills', 'v
 export const agentSkillsLocalDir = join(repoRoot, '.local', 'agent-skills');
 export const skillLearningPath = join(agentSkillsLocalDir, 'learning.json');
 export const policySkillsDir = join(agentSkillsLocalDir, 'policy-catalog');
+export const worldDirectorConfigPath = join(repoRoot, 'config', 'world-director.json');
+export const worldDirectorDbPath = join(adminLocalDir, 'world-director.sqlite');

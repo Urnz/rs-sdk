@@ -105,6 +105,9 @@ test('admin UI exposes server LLM settings without an API-key readback field', (
     expect(html).toContain('id="world-event-template-list"');
     expect(script).toContain('/api/admin/world-director/templates');
     expect(script).toContain('/api/admin/world-director/preview');
+    expect(html).toContain('id="queue-world-event"');
+    expect(html).toContain('id="world-director-cycle-list"');
+    expect(script).toContain('/api/admin/world-director/cycles');
     expect(script).not.toContain('settings.apiKey.value');
 });
 

@@ -53,7 +53,7 @@ import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind,
     AgentKnowledgeKind, AgentPlayerActionManualStatus, AgentRole, AgentSkillKnowledgeStatus,
     AgentSubjectKind, GoalHorizon,
     GoalStatus } from '../../../agent-state/types.js';
-import { agentStateDbPath, capabilityGapsPath } from './paths.js';
+import { agentStateDbPath, capabilityGapsPath, worldDirectorDbPath } from './paths.js';
 import { runAdminLlmDryRun } from './llm-dry-run.js';
 import type { AgentReplanCoordinator } from './replan-coordinator.js';
 import { readReplanRecords } from './replan-runtime.js';
@@ -61,6 +61,7 @@ import { readAdminLlmSettings, removeOpenAIApiKey, replaceOpenAIApiKey,
     updateAdminLlmSettings, validateOpenAIApiKey } from './llm-settings.js';
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
 import { BUILTIN_WORLD_EVENT_TEMPLATES, selectWorldEvent } from './world-director.js';
+import { loadWorldDirectorConfig, WorldDirectorStore } from './world-director-runtime.js';
 import { SkillTrialStore, type SkillTrial } from '../../../agent-skills/trials.js';
 import { SkillLibrary } from '../../../agent-skills/library.js';
 import { SkillRegistry } from '../../../agent-skills/registry.js';
@@ -275,6 +276,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ templates: BUILTIN_WORLD_EVENT_TEMPLATES });
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/world-director/cycles') {
+            const store = new WorldDirectorStore(worldDirectorDbPath);
+            try {
+                return json({ config: loadWorldDirectorConfig(), cycles: store.listCycles(), outbox: store.listOutbox() });
+            } finally { store.close(); }
+        }
+
         if (req.method === 'POST' && url.pathname === '/api/admin/world-director/preview') {
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
@@ -285,6 +293,25 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 return json({ ok: true, simulation: true, selection });
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'world-director.preview', reason,
+                    success: false, error: String(error) });
+                throw error;
+            }
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/world-director/cycles') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            try {
+                const selection = selectWorldEvent(text(body, 'seed', true), text(body, 'cycleKey', true));
+                const store = new WorldDirectorStore(worldDirectorDbPath);
+                try {
+                    const result = store.enqueue(selection);
+                    await appendAudit({ operator: 'local-admin', action: 'world-director.cycle.queue', reason,
+                        success: true, after: result });
+                    return json({ ok: true, simulation: false, ...result }, result.created ? 201 : 200);
+                } finally { store.close(); }
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'world-director.cycle.queue', reason,
                     success: false, error: String(error) });
                 throw error;
             }

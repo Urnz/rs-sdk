@@ -40,9 +40,39 @@ sablonokat. A seed és cikluskulcs megadásával auditált előnézet kérhető.
 eredmény sablonverziót, ticketet és digestet mutat, de `simulation: true`, ezért
 nem publikál eseményt az engine vagy a modok felé.
 
-## Következő integrációs réteg
+## Tartós ciklusnapló és outbox
 
-A valódi futtatáshoz még tartós ciklusnapló, ütemező, approval lifecycle és szűk
-event-output port kell. Csak trusted adapter fordíthat majd egy approved sablont
-konkrét, típusos mod-eseménnyé; az LLM közvetlen engine- vagy world-write jogot
-akkor sem kap.
+A gateway tartós SQLite ciklusnaplót és outboxot használ. Egy tranzakcióban kerül
+be a determinisztikus választás és a belőle képzett inert jel, ezért félbemaradt
+írás nem hagy magára árva ciklust vagy eseményt. A `cycleKey` egyedi: az egzakt
+ismétlés idempotens, eltérő seeddel vagy sablonhalmazzal történő újrahasználata
+fail-closed hibát ad.
+
+Az automatikus scheduler fix UTC epochból és egész perces intervallumból számolja
+a cikluskulcsot. Harminc másodpercenként ellenőriz, de ugyanazt az intervallumot
+csak egyszer állíthatja sorba. A [world-director.json](../../../config/world-director.json)
+alapból `enabled: false`, tehát telepítés vagy gateway-újraindítás önmagában nem
+kezd eseményeket termelni.
+
+Az admin AI lapján az előnézet mellett kézzel is sorba állítható az egzakt ciklus.
+Ez auditált és tartós művelet, de továbbra sem world-write: csak `pending` outbox
+jel keletkezik. A ciklus- és kézbesítési állapot ugyanott visszanézhető.
+
+## Trusted adapter port
+
+Az outboxot kizárólag névvel és allowlistelt eseménytípusokkal rendelkező adapter
+igényelheti. A claim rövid életű, egyszer használható lease-t ad; siker esetén a
+jel és a ciklus együtt `delivered`, hiba esetén a jel auditálható `failed` állapotba
+kerül és új lease-szel retryzható. Lejárt `delivering` lease összeomlás után
+visszavehető, ezért nem ragad bent örökre.
+
+Az adapternek az `eventId` alapján idempotensnek kell lennie. Ha a külső művelet
+már sikerült, de a gateway a `delivered` visszaírása előtt áll le, ugyanaz a jel
+új lease-szel ismét megérkezhet; az adapter ilyenkor nem hajthatja végre még egyszer
+a gazdasági vagy világműveletet.
+
+Konkrét mod-adapter még szándékosan nincs regisztrálva. Emiatt az automatikusan
+vagy kézzel sorba állított jel `pending` marad, és nem módosítja a játékvilágot.
+A következő rétegben minden approved sablont külön, típusos, allowlistelt
+mod-eseményhez kell kötni; az LLM közvetlen engine- vagy world-write jogot akkor
+sem kap.

@@ -18,6 +18,9 @@ const state = {
     llmSettings: null,
     capabilityGaps: [],
     worldEventTemplates: [],
+    worldDirectorCycles: [],
+    worldDirectorOutbox: [],
+    worldDirectorConfig: null,
     skillTrials: [],
     adminTab: 'bots',
     sort: { key: 'status', direction: 1 },
@@ -191,7 +194,7 @@ async function refreshCapabilityGaps() {
     renderSkillTrials(trials.trials);
 }
 
-function renderWorldDirectorTemplates(templates) {
+function renderWorldDirector(templates, runtime = null) {
     state.worldEventTemplates = templates || [];
     $('#world-event-template-count').textContent = `${state.worldEventTemplates.length} sablon`;
     $('#world-event-template-list').innerHTML = state.worldEventTemplates.length
@@ -201,11 +204,32 @@ function renderWorldDirectorTemplates(templates) {
             <div class="capability-gap-meta"><span>${escapeHtml(template.templateId)}@${escapeHtml(template.version)}</span><span>súly ${template.weight}</span><span>${escapeHtml(template.status)}</span></div>
         </article>`).join('')
         : '<p class="empty">Nincs jóváhagyott World Director sablon.</p>';
+    if (!runtime) return;
+    state.worldDirectorCycles = runtime.cycles || [];
+    state.worldDirectorOutbox = runtime.outbox || [];
+    state.worldDirectorConfig = runtime.config || null;
+    $('#world-director-cycle-count').textContent = `${state.worldDirectorCycles.length} ciklus`;
+    const config = state.worldDirectorConfig;
+    $('#world-director-config-status').textContent = config
+        ? `Automatikus ütemezés: ${config.enabled ? 'bekapcsolva' : 'kikapcsolva'} · ${config.intervalMinutes} perc · epoch ${config.epoch} · seed ${config.seed}`
+        : 'Nincs World Director konfiguráció.';
+    const outboxByEvent = new Map(state.worldDirectorOutbox.map(entry => [entry.signal.eventId, entry]));
+    $('#world-director-cycle-list').innerHTML = state.worldDirectorCycles.length
+        ? state.worldDirectorCycles.map(cycle => {
+            const entry = outboxByEvent.get(cycle.eventId);
+            return `<article class="capability-gap-card ${cycle.status === 'delivered' ? 'verified' : ''}">
+                <div class="agent-card-title"><strong>${escapeHtml(cycle.templateId)}@${escapeHtml(cycle.templateVersion)}</strong><span class="status-badge">${escapeHtml(cycle.status)}</span></div>
+                <p>${escapeHtml(cycle.cycleKey)} · ${escapeHtml(cycle.eventId)}</p>
+                <div class="capability-gap-meta"><span>outbox: ${escapeHtml(entry?.status || 'hiányzik')}</span><span>${entry?.attempts || 0} próbálkozás</span><span>${escapeHtml(cycle.queuedAt)}</span>${entry?.lastError ? `<span class="capability-gap-error">${escapeHtml(entry.lastError)}</span>` : ''}</div>
+            </article>`;
+        }).join('') : '<p class="empty">Még nincs tartós World Director ciklus.</p>';
 }
 
 async function refreshWorldDirector() {
-    const response = await api('/api/admin/world-director/templates');
-    renderWorldDirectorTemplates(response.templates);
+    const [templates, runtime] = await Promise.all([
+        api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles')
+    ]);
+    renderWorldDirector(templates.templates, runtime);
 }
 
 const goalHorizonLabels = { life: 'Életcél', 'long-term': 'Hosszú távú', current: 'Aktuális', immediate: 'Azonnali' };
@@ -1122,6 +1146,7 @@ async function refresh() {
         state.skillGrants = skillLearning.grants; state.skillLearningEvents = skillLearning.events;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
         renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents(); renderAgents(); renderSkillLearning();
+        if (state.adminTab === 'llm') await refreshWorldDirector();
         if ($('#world-map-dialog').open) renderWorldMapBots();
         drawChart(history.snapshots);
         if (state.selected && $('#profile-drawer').classList.contains('open')) openProfile(state.selected);
@@ -1970,6 +1995,26 @@ $('#world-director-preview-form').addEventListener('submit', async event => {
     } catch (error) { toast(error.message, true); }
     finally { button.disabled = false; }
 });
+$('#queue-world-event').addEventListener('click', async () => {
+    const form = $('#world-director-preview-form');
+    const values = new FormData(form);
+    const seed = String(values.get('seed') || '').trim();
+    const cycleKey = String(values.get('cycleKey') || '').trim();
+    if (!seed || !cycleKey) return toast('A seed és a cikluskulcs kötelező.', true);
+    if (!confirm(`A(z) ${cycleKey} ciklus inert eseményét tartósan az outboxba helyezzük. Ez még nem módosítja a játékvilágot. Folytatod?`)) return;
+    const reason = prompt('A tartós ciklus auditindoklása:', 'World Director ciklus kézi sorba állítása');
+    if (!reason?.trim()) return;
+    const button = $('#queue-world-event');
+    button.disabled = true;
+    try {
+        const response = await api('/api/admin/world-director/cycles', { method: 'POST', mutation: true,
+            body: JSON.stringify({ seed, cycleKey, reason: reason.trim() }) });
+        await refreshWorldDirector();
+        toast(response.created ? 'A World Director ciklus és az inert jel tartósan sorba állt.'
+            : 'Ez az egzakt ciklus már korábban sorba állt; nem készült másolat.');
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
+});
 $('#llm-settings-form').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -2135,13 +2180,13 @@ document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-m
 const bootstrap = await Promise.all([
     api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
     api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
-    api('/api/admin/world-director/templates')
+    api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
 renderLlmSettings(bootstrap[3]);
 renderCapabilityGaps(bootstrap[4].gaps);
 renderSkillTrials(bootstrap[5].trials);
-renderWorldDirectorTemplates(bootstrap[6].templates);
+renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
 selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

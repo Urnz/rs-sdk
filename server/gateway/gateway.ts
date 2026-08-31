@@ -21,6 +21,7 @@ import { createGatewayAgentReplanCoordinator, dispatchVerifiedCapabilityWakeups 
 import type { AgentReplanCoordinator } from './admin/replan-coordinator';
 import { buildBotCatalog, economySnapshot, recordEconomy } from './admin/catalog';
 import { GatewaySkillBuilderScheduler } from './admin/skill-builder-runtime';
+import { GatewayWorldDirectorScheduler } from './admin/world-director-runtime';
 import { reconcileAdminPlayerActionRun } from './admin/agent-state';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
@@ -904,6 +905,16 @@ const skillBuilderTimer = setInterval(() => {
     }).catch(error => console.error('[SkillBuilder] Scheduler failed:', error));
 }, 10_000);
 skillBuilderTimer.unref?.();
+const worldDirectorScheduler = new GatewayWorldDirectorScheduler();
+const runWorldDirectorScheduler = () => {
+    try {
+        const result = worldDirectorScheduler.tick();
+        if (result.status === 'queued') console.log(`[WorldDirector] ${result.reason}`);
+    } catch (error) { console.error('[WorldDirector] Scheduler failed:', error); }
+};
+const worldDirectorTimer = setInterval(runWorldDirectorScheduler, 30_000);
+worldDirectorTimer.unref?.();
+runWorldDirectorScheduler();
 const economyObservationTimer = setInterval(() => {
     void buildBotCatalog(adminGatewayBots(), botSupervisor.list()).then(entries => {
         const snapshot = economySnapshot(entries);
