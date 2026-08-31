@@ -44,9 +44,12 @@ describe('admin LLM settings', () => {
     test('persists a validated per-server override', async () => {
         const paths = await fixture();
         await updateAdminLlmSettings({
-            schemaVersion: 1, enabled: true, automaticReplanning: false, provider: 'openai', model: 'gpt-test',
+            schemaVersion: 1, enabled: true, automaticReplanning: true, provider: 'openai', model: 'gpt-test',
             reasoningEffort: 'medium', plannerPrompt: 'Plan actions for this RuneScape agent.',
             pricing: { inputMicrosPerMillionTokens: 10, outputMicrosPerMillionTokens: 20 },
+            autonomousExecution: { enabled: true,
+                allowedSkills: [{ id: 'mining.safe', version: '1.0.0' }],
+                maxOperations: 50, maxTimeoutMs: 120000 },
             skillBuilder: { enabled: true, prompt: 'Build reusable RuneScape skills.', intervalMs: 60000,
                 cooldownMs: 3600000, maxAttemptsPerGap: 3, maxCostMicrosPerGap: 5000,
                 maxDailyCostMicros: 10000, maxDurationMs: 30000, maxOutputTokens: 4000 },
@@ -57,7 +60,9 @@ describe('admin LLM settings', () => {
         const settings = await readAdminLlmSettings(paths, {});
         expect(settings.source).toBe('server-override');
         expect(settings.config).toMatchObject({ provider: 'openai', model: 'gpt-test', reasoningEffort: 'medium',
-            skillBuilder: { enabled: true, maxDailyCostMicros: 10000 } });
+            skillBuilder: { enabled: true, maxDailyCostMicros: 10000 },
+            autonomousExecution: { enabled: true,
+                allowedSkills: [{ id: 'mining.safe', version: '1.0.0' }] } });
         expect(JSON.parse(await readFile(paths.overrideConfigPath, 'utf8')).plannerPrompt)
             .toBe('Plan actions for this RuneScape agent.');
     });

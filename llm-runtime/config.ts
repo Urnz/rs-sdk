@@ -13,6 +13,24 @@ function integer(value: unknown, name: string, minimum: number, maximum: number)
     return value as number;
 }
 
+function autonomousSkills(value: unknown): Array<{ id: string; version: string }> {
+    if (value === undefined) return [];
+    if (!Array.isArray(value) || value.length > 100) throw new Error('autonomousExecution.allowedSkills must be an array of at most 100 skills');
+    const seen = new Set<string>();
+    return value.map((entry, index) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`Invalid autonomous skill at index ${index}`);
+        const item = entry as Record<string, unknown>;
+        if (typeof item.id !== 'string' || !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(item.id)
+            || typeof item.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(item.version)) {
+            throw new Error(`Invalid autonomous skill at index ${index}`);
+        }
+        const key = `${item.id}@${item.version}`;
+        if (seen.has(key)) throw new Error(`Duplicate autonomous skill: ${key}`);
+        seen.add(key);
+        return { id: item.id, version: item.version };
+    });
+}
+
 export function validateLlmRuntimeConfig(input: unknown): LlmRuntimeConfig {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('LLM runtime config must be an object');
     const value = input as Record<string, unknown>;
@@ -57,6 +75,23 @@ export function validateLlmRuntimeConfig(input: unknown): LlmRuntimeConfig {
     if (value.skillBuilder !== undefined && (!value.skillBuilder || typeof value.skillBuilder !== 'object'
         || Array.isArray(value.skillBuilder))) throw new Error('LLM skillBuilder must be an object');
     const rawBuilder = (value.skillBuilder ?? {}) as Record<string, unknown>;
+    if (value.autonomousExecution !== undefined && (!value.autonomousExecution
+        || typeof value.autonomousExecution !== 'object' || Array.isArray(value.autonomousExecution))) {
+        throw new Error('LLM autonomousExecution must be an object');
+    }
+    const rawAutonomy = (value.autonomousExecution ?? {}) as Record<string, unknown>;
+    const autonomyEnabled = rawAutonomy.enabled ?? false;
+    if (typeof autonomyEnabled !== 'boolean') throw new Error('autonomousExecution.enabled must be boolean');
+    const autonomy = {
+        enabled: autonomyEnabled,
+        allowedSkills: autonomousSkills(rawAutonomy.allowedSkills),
+        maxOperations: integer(rawAutonomy.maxOperations ?? 100, 'autonomousExecution.maxOperations', 1, 1000),
+        maxTimeoutMs: integer(rawAutonomy.maxTimeoutMs ?? 900_000,
+            'autonomousExecution.maxTimeoutMs', 1_000, 3_600_000)
+    };
+    if (autonomy.enabled && !value.automaticReplanning) {
+        throw new Error('Autonomous execution requires automaticReplanning');
+    }
     const builderEnabled = rawBuilder.enabled === undefined ? false : rawBuilder.enabled;
     if (typeof builderEnabled !== 'boolean') throw new Error('LLM skillBuilder.enabled must be boolean');
     const builderPrompt = rawBuilder.prompt === undefined ? DEFAULT_SKILL_BUILDER_PROMPT : rawBuilder.prompt;
@@ -87,6 +122,7 @@ export function validateLlmRuntimeConfig(input: unknown): LlmRuntimeConfig {
         provider: value.provider,
         model: value.model.trim(),
         plannerPrompt: plannerPrompt.trim(),
+        autonomousExecution: autonomy,
         ...(reasoningEffort ? { reasoningEffort } : {}),
         ...(pricing ? { pricing } : {}),
         skillBuilder: builder,

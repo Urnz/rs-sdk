@@ -290,7 +290,7 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
   write-only helyi API-kulccsal és nem felülírható biztonsági prompt-réteggel.
 - [x] Admin jóváhagyással atomikusan létrehozni a javasolt cél-láncot, majd
   egyszer használható approval azonosítóval elindítani a kiválasztott skillt.
-- [ ] Korlátozott autonóm agent-életciklust készíteni: eseményre újratervezés,
+- [x] Korlátozott autonóm agent-életciklust készíteni: eseményre újratervezés,
   veszélytelen ellenőrzött skillek policy szerinti futtatása és skill-gap jelzés.
 - [ ] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
   jóváhagyandó skill-készítési folyamatot indítani; a futó agent ne kapjon

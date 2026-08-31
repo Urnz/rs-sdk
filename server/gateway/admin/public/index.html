@@ -167,6 +167,17 @@
                     </div>
                 </fieldset>
                 <fieldset>
+                    <legend>Korlátozott autonóm végrehajtás</legend>
+                    <label class="check llm-toggle danger-check"><input name="autonomousExecutionEnabled" type="checkbox"> Allowlistelt verified skillek automatikus indítása eseményvezérelt tervezés után</label>
+                    <label>Engedélyezett egzakt skillek <span class="muted">(soronként egy `skill.id@1.0.0`)</span>
+                        <textarea name="autonomousAllowedSkills" rows="4" maxlength="8000" placeholder="mining.varrock-east.copper-to-bank@1.0.0"></textarea></label>
+                    <div class="llm-form-grid limits">
+                        <label>Max. művelet / skill<input name="autonomousMaxOperations" type="number" min="1" max="1000" step="1" required></label>
+                        <label>Max. skill-időlimit (ms)<input name="autonomousMaxTimeoutMs" type="number" min="1000" max="3600000" step="1000" required></label>
+                    </div>
+                    <p class="dialog-note">Vásárlást, eladást vagy playernek adott tárgyat tartalmazó skill automatikusan tiltott. Célhierarchia-javaslat továbbra is admin-jóváhagyásra vár.</p>
+                </fieldset>
+                <fieldset>
                     <legend>RuneScape agent szerepprompt</legend>
                     <label><span class="muted">A változó identitás, célok, memóriák, világállapot és engedélyezett skillek automatikusan, strukturált kontextusként kerülnek mellé.</span>
                         <textarea name="plannerPrompt" rows="8" maxlength="8000" required></textarea></label>

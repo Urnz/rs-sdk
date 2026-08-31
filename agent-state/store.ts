@@ -764,15 +764,15 @@ export class AgentStateStore {
         return this.getGoalProposal(proposal.proposalId)!;
     }
 
-    failGoalProposalRun(skillRunId: string, responseNote: string,
+    finishGoalProposalRun(skillRunId: string, completed: boolean, responseNote: string,
         now = new Date().toISOString()): AgentGoalProposal | null {
         const normalizedRunId = normalizeAgentId(skillRunId, 'skillRunId');
         const current = this.database.query('SELECT * FROM agent_goal_proposal WHERE skill_run_id = ?1')
             .get(normalizedRunId) as GoalProposalRow | null;
         if (!current || current.status !== 'running') return current ? goalProposal(current) : null;
-        this.database.run(`UPDATE agent_goal_proposal SET status = 'failed', response_note = ?2,
-            updated_at = ?3, resolved_at = ?3, revision = revision + 1 WHERE skill_run_id = ?1 AND status = 'running'`,
-        [normalizedRunId, responseNote.trim().slice(0, 500), now]);
+        this.database.run(`UPDATE agent_goal_proposal SET status = ?2, response_note = ?3,
+            updated_at = ?4, resolved_at = ?4, revision = revision + 1 WHERE skill_run_id = ?1 AND status = 'running'`,
+        [normalizedRunId, completed ? 'completed' : 'failed', responseNote.trim().slice(0, 500), now]);
         return this.getGoalProposal(current.proposal_id);
     }
 

@@ -94,6 +94,8 @@ test('admin UI exposes server LLM settings without an API-key readback field', (
     expect(html).toContain('id="llm-settings-form"');
     expect(html).toContain('name="plannerPrompt"');
     expect(html).toContain('name="skillBuilderEnabled"');
+    expect(html).toContain('name="autonomousExecutionEnabled"');
+    expect(html).toContain('name="autonomousAllowedSkills"');
     expect(html).toContain('name="skillBuilderPrompt"');
     expect(html).toContain('name="apiKey" type="password"');
     expect(script).toContain('/api/admin/llm-settings');

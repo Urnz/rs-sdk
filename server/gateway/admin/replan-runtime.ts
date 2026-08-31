@@ -10,6 +10,13 @@ import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
 import { AgentReplanCoordinator, type ReplanOutcome, type ReplanRecord } from './replan-coordinator.js';
 import type { GatewayBotSnapshot } from './types.js';
 import { resolveLearnAndPlan } from './deterministic-learning.js';
+import { resolveSkillForCapability } from '../../../agent-skills/capability-gaps.js';
+import { createAdminGoalProposal } from './agent-state.js';
+import { loadLlmRuntimeConfig } from './llm-settings.js';
+import { resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill-catalog.js';
+import type { LlmAutonomousExecutionConfig } from '../../../llm-runtime/types.js';
+import type { SkillDefinition, SkillStep } from '../../../agent-skills/types.js';
+import type { BotSupervisor } from './supervisor.js';
 
 let appendTail: Promise<void> = Promise.resolve();
 
@@ -39,7 +46,35 @@ function useStore<T>(callback: (store: AgentStateStore) => T): T {
     finally { store.close(); }
 }
 
+const FORBIDDEN_AUTONOMOUS_OPERATIONS = new Set(['buy-from-shop', 'sell-to-shop', 'trade-give-item']);
+
+export function evaluateAutonomousSkillPolicy(config: LlmAutonomousExecutionConfig,
+    definition: SkillDefinition): { allowed: boolean; reason: string } {
+    const reference = `${definition.id}@${definition.version}`;
+    if (!config.enabled) return { allowed: false, reason: 'Autonomous execution is disabled.' };
+    if (!config.allowedSkills.some(skill => skill.id === definition.id && skill.version === definition.version)) {
+        return { allowed: false, reason: `${reference} is not on the exact autonomous allowlist.` };
+    }
+    if (definition.status !== 'verified') return { allowed: false, reason: `${reference} is not verified.` };
+    if (definition.limits.maxOperations > config.maxOperations || definition.limits.timeoutMs > config.maxTimeoutMs) {
+        return { allowed: false, reason: `${reference} exceeds the autonomous operation or time limit.` };
+    }
+    const inspect = (steps: SkillStep[]): string | null => {
+        for (const step of steps) {
+            if (step.kind === 'call') return 'Composed skill calls are not allowed in the initial autonomous policy.';
+            if (step.kind === 'repeat') { const nested = inspect(step.steps); if (nested) return nested; continue; }
+            if (FORBIDDEN_AUTONOMOUS_OPERATIONS.has(step.operation)) {
+                return `Operation ${step.operation} is forbidden for autonomous execution.`;
+            }
+        }
+        return null;
+    };
+    const unsafe = inspect(definition.steps);
+    return unsafe ? { allowed: false, reason: unsafe } : { allowed: true, reason: `${reference} passed autonomous policy.` };
+}
+
 export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<string, GatewayBotSnapshot>,
+    supervisor: BotSupervisor,
     append: (record: ReplanRecord) => Promise<void> = appendReplanRecord): AgentReplanCoordinator {
     return new AgentReplanCoordinator({
         resolveAgentId: async playerUsername => useStore(store => store.listIdentities()
@@ -51,6 +86,9 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             if (!agent) return { runId: event.eventId, status: 'skipped', reason: 'Agent state no longer exists.' };
             const avatar = agent.controlProfile.avatarPlayerUsername;
             if (!avatar) return { runId: event.eventId, status: 'skipped', reason: 'Agent has no player avatar.' };
+            if (agent.controlProfile.role !== 'player' || agent.identity.playerUsername !== avatar) {
+                return { runId: event.eventId, status: 'skipped', reason: 'Agent has no exact player-avatar binding.' };
+            }
             const gateway = [...gatewayBots().entries()]
                 .find(([name]) => name.toLowerCase() === avatar)?.[1];
             if (!gateway?.state?.player || gateway.status !== 'active'
@@ -68,17 +106,59 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             try {
                 const immediate = current.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
                     .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
+                const config = (await loadLlmRuntimeConfig()).config;
+                if (!config.automaticReplanning) return { runId: event.eventId, status: 'skipped',
+                    reason: 'Automatic replanning is disabled.' };
+                const deterministicResolution = immediate ? resolveSkillForCapability(immediate,
+                    current.catalogSkills.map(skill => ({ ...skill, status: 'verified' as const,
+                        visibility: 'shared' as const })), current.knownSkills.map(item => ({
+                        ...item.skill, status: item.status }))) : null;
+                const expectedCost = deterministicResolution ? 0 : config.limits.maxCostMicros;
+                useStore(store => store.recordDecision(agentId, current.controlProfile.revision, {
+                    decisionId: event.eventId, trigger: 'event', llmCostMicros: expectedCost,
+                    operationalBudgetGp: 0
+                }, now));
                 if (immediate) {
                     const deterministic = await resolveLearnAndPlan(agentId, immediate, current.catalogSkills,
                         current.knownSkills, { now });
                     if (deterministic?.decision.kind === 'execute-skill') {
-                        return { runId: event.eventId, status: 'deterministic', decision: deterministic.decision,
-                            reason: `Resolved without an LLM call; learned=${deterministic.learned}, assigned=${deterministic.assigned}.` };
+                        const requested = `${deterministic.resolution.skill.id}@${deterministic.resolution.skill.version}`;
+                        const candidate = await resolveAdminSkillForAgent(requested, agentId);
+                        const policy = evaluateAutonomousSkillPolicy(config.autonomousExecution, candidate.definition);
+                        if (!policy.allowed) return { runId: event.eventId, status: 'approval-required',
+                            decision: deterministic.decision, reason: policy.reason };
+                        const parameters = validateAdminSkillParameters(candidate.definition, {});
+                        const process = await supervisor.startSkill(avatar, requested, parameters, { runId: crypto.randomUUID() });
+                        return { runId: process.runId, status: 'executing',
+                            decision: deterministic.decision, reason: policy.reason };
                     }
                 }
                 const result = await runAdminLlmDryRun(current, current.catalogSkills, { now, runId: event.eventId,
                     untrustedText: event.type === 'offer-received' ? [event.summary] : [], automatic: true,
                     capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
+                if (result.plan.status === 'proposed' && result.plan.decision?.kind === 'propose-goal-plan') {
+                    const anchor = current.goals.find(goal => goal.goalId === result.plan.decision!.goalId);
+                    if (anchor) {
+                        const proposal = createAdminGoalProposal(agentId, { proposalId: crypto.randomUUID(),
+                            runId: result.plan.runId, anchorGoalId: anchor.goalId,
+                            anchorGoalRevision: anchor.revision, goals: result.plan.decision.goals,
+                            skill: result.plan.decision.skill, reason: result.plan.decision.reason });
+                        return { runId: result.plan.runId, status: 'approval-required',
+                            decision: { ...result.plan.decision, proposalId: proposal.proposalId },
+                            reason: 'A validated strategic goal proposal is waiting for admin approval.' };
+                    }
+                }
+                if (result.plan.status === 'proposed' && result.plan.decision?.kind === 'execute-skill') {
+                    const requested = `${result.plan.decision.skill.id}@${result.plan.decision.skill.version}`;
+                    const candidate = await resolveAdminSkillForAgent(requested, agentId);
+                    const policy = evaluateAutonomousSkillPolicy(config.autonomousExecution, candidate.definition);
+                    if (!policy.allowed) return { runId: result.plan.runId, status: 'approval-required',
+                        decision: result.plan.decision, reason: policy.reason };
+                    const parameters = validateAdminSkillParameters(candidate.definition, {});
+                    const process = await supervisor.startSkill(avatar, requested, parameters, { runId: crypto.randomUUID() });
+                    return { runId: process.runId, status: 'executing', decision: result.plan.decision,
+                        reason: policy.reason };
+                }
                 return { runId: result.plan.runId, status: result.plan.status,
                     decision: result.plan.decision, reason: result.plan.reason };
             } catch (error) {

@@ -24,7 +24,7 @@ import { GatewaySkillBuilderScheduler } from './admin/skill-builder-runtime';
 import { GatewayWorldDirectorScheduler, loadWorldDirectorConfig, WorldDirectorDispatcher,
     WorldDirectorStore } from './admin/world-director-runtime';
 import { EngineWorldDirectorAdapter } from './admin/world-director-engine-adapter';
-import { reconcileAdminPlayerActionRun } from './admin/agent-state';
+import { reconcileAdminGoalProposalRun, reconcileAdminPlayerActionRun } from './admin/agent-state';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
@@ -865,13 +865,17 @@ const botSupervisor = new BotSupervisor((username, reason) => {
     SyncModule.sendToBot(session, { type: 'save_and_disconnect', reason });
     return true;
 });
-agentReplanCoordinator = createGatewayAgentReplanCoordinator(adminGatewayBots);
+agentReplanCoordinator = createGatewayAgentReplanCoordinator(adminGatewayBots, botSupervisor);
 botSupervisor.onSkillExit(event => {
     const occurredAt = new Date().toISOString();
     const failed = event.snapshot.exitCode !== 0;
     void reconcileAdminPlayerActionRun(event.snapshot.runId, !failed,
         `${event.snapshot.skill} ${failed ? 'failed' : 'completed'} with exit code ${event.snapshot.exitCode}.`)
         .catch(error => console.error('[PlayerAction] Skill run reconciliation failed:', error));
+    try {
+        reconcileAdminGoalProposalRun(event.snapshot.runId, !failed,
+            `${event.snapshot.skill} ${failed ? 'failed' : 'completed'} with exit code ${event.snapshot.exitCode}.`);
+    } catch (error) { console.error('[AgentGoalProposal] Skill run reconciliation failed:', error); }
     void agentReplanCoordinator?.submitForPlayer(event.username, { eventId: crypto.randomUUID(),
         type: failed ? 'skill-failed' : 'skill-finished',
         sourceKey: `skill:${event.snapshot.startedAt}:${event.snapshot.skill}`,

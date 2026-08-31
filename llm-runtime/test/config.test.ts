@@ -23,4 +23,21 @@ describe('LLM runtime config', () => {
             limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1, maxCostMicros: 0 } })
             .automaticReplanning).toBeFalse();
     });
+
+    test('keeps autonomous execution separate, exact and fail-closed', () => {
+        expect(() => validateLlmRuntimeConfig({ schemaVersion: 1, enabled: false,
+            automaticReplanning: false, provider: 'mock', model: 'test', autonomousExecution: {
+                enabled: true, allowedSkills: [{ id: 'mining.safe', version: '1.0.0' }],
+                maxOperations: 50, maxTimeoutMs: 60_000 }, limits: {
+                maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1, maxCostMicros: 0 } }))
+            .toThrow('requires automaticReplanning');
+        const config = validateLlmRuntimeConfig({ schemaVersion: 1, enabled: false,
+            automaticReplanning: true, provider: 'mock', model: 'test', autonomousExecution: {
+                enabled: true, allowedSkills: [{ id: 'mining.safe', version: '1.0.0' }],
+                maxOperations: 50, maxTimeoutMs: 60_000 }, limits: {
+                maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1, maxCostMicros: 0 } });
+        expect(config.autonomousExecution).toEqual({ enabled: true,
+            allowedSkills: [{ id: 'mining.safe', version: '1.0.0' }],
+            maxOperations: 50, maxTimeoutMs: 60_000 });
+    });
 });

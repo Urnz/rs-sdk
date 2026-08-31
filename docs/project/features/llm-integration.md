@@ -76,6 +76,26 @@ jóváhagyás után kerülnek végrehajtási állapotba.
 - Ha nincs alkalmas skill, a jóváhagyás csak a célokat hozza létre. A későbbi
   capability-gap és Skill Builder folyamat ettől elkülönítve marad.
 
+## Elkészült 11D korlátozott autonóm életciklus
+
+- A skill-, cél-, halál-, trade-, gazdasági és capability-ready események a
+  meglévő deduplikált event gate-en keresztül indítanak újratervezést; változatlan
+  tick önmagában továbbra sem okoz modellhívást.
+- Minden elfogadott esemény előbb bekerül az AgentState döntési ledgerébe. A
+  control profile napi döntés- és LLM-költségkerete, valamint optimista revíziója
+  fail-closed módon sorosítja a versengő döntéseket.
+- Az automatikus újratervezés és az automatikus végrehajtás két külön kapcsoló.
+  Az utóbbi csak egzakt `skill@verzió` allowlist, verified állapot, agent-szintű
+  hozzáférés és ismeret, friss exact player-avatar kötés, valamint külön művelet-
+  és időlimit mellett indíthat skillt.
+- Vásárlás, eladás és playernek adott tárgy automatikusan tiltott; az első policy
+  composed skillt sem indít, mert annak teljes függőségi gráfját külön kell majd
+  biztonsági osztályozással ellátni.
+- A stratégiai célterv automatikus eseménynél is tartós proposal lesz és adminra
+  vár. A hiányzó képesség deduplikált capability gap; verified feloldás után az
+  agent egyszer ébred fel. A skill befejezése vagy hibája új eseménnyel folytatja
+  a ciklust.
+
 ## OpenAI provider helyi beállítása
 
 Az OpenAI adapter a Responses API-t használja `store: false` és szigorú JSON

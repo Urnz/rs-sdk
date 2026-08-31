@@ -29,6 +29,13 @@ export interface LlmSkillBuilderConfig {
     maxOutputTokens: number;
 }
 
+export interface LlmAutonomousExecutionConfig {
+    enabled: boolean;
+    allowedSkills: AgentSkillReference[];
+    maxOperations: number;
+    maxTimeoutMs: number;
+}
+
 export interface LlmRuntimeConfig {
     schemaVersion: typeof LLM_RUNTIME_SCHEMA_VERSION;
     enabled: boolean;
@@ -36,6 +43,7 @@ export interface LlmRuntimeConfig {
     provider: string;
     model: string;
     plannerPrompt: string;
+    autonomousExecution: LlmAutonomousExecutionConfig;
     reasoningEffort?: LlmReasoningEffort;
     pricing?: {
         inputMicrosPerMillionTokens: number;

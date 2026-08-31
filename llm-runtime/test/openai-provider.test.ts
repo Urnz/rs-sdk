@@ -57,6 +57,7 @@ describe('OpenAI Responses provider', () => {
             skillBuilder: { enabled: false, prompt: 'Build bounded skills.', intervalMs: 60000,
                 cooldownMs: 3600000, maxAttemptsPerGap: 3, maxCostMicrosPerGap: 50000,
                 maxDailyCostMicros: 100000, maxDurationMs: 60000, maxOutputTokens: 6000 },
+            autonomousExecution: { enabled: false, allowedSkills: [], maxOperations: 100, maxTimeoutMs: 900000 },
             limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1,
                 maxCostMicros: 100, maxOutputTokens: 1000 } }, {}))
             .toThrow('OPENAI_API_KEY');

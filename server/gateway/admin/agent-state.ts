@@ -304,7 +304,12 @@ export function startAdminGoalProposal(proposalId: string, expectedRevision: num
 }
 
 export function failAdminGoalProposalRun(skillRunId: string, responseNote: string, path = agentStateDbPath) {
-    return useStore(path, store => store.failGoalProposalRun(skillRunId, responseNote));
+    return useStore(path, store => store.finishGoalProposalRun(skillRunId, false, responseNote));
+}
+
+export function reconcileAdminGoalProposalRun(skillRunId: string, completed: boolean,
+    responseNote: string, path = agentStateDbPath) {
+    return useStore(path, store => store.finishGoalProposalRun(skillRunId, completed, responseNote));
 }
 
 export function updateAdminAgentGoalStatus(agentId: string, goalId: string, expectedRevision: number,

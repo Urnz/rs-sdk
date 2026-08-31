@@ -106,6 +106,8 @@ describe('persistent agent identity and goals', () => {
         expect(running).toMatchObject({ status: 'running', skillRunId: 'skill-run.one' });
         expect(() => store.startApprovedGoalProposal(proposal.proposalId, approved.revision,
             'approval.one', 'skill-run.two', '2026-08-31T10:02:01.000Z')).toThrow('already consumed');
+        expect(store.finishGoalProposalRun('skill-run.one', true, 'Skill completed.',
+            '2026-08-31T10:03:00.000Z')).toMatchObject({ status: 'completed', responseNote: 'Skill completed.' });
         store.close();
     });
 

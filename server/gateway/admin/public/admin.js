@@ -112,6 +112,11 @@ function renderLlmSettings(settings) {
     form.elements.reasoningEffort.value = config.reasoningEffort || '';
     form.elements.enabled.checked = config.enabled;
     form.elements.automaticReplanning.checked = config.automaticReplanning;
+    form.elements.autonomousExecutionEnabled.checked = config.autonomousExecution.enabled;
+    form.elements.autonomousAllowedSkills.value = config.autonomousExecution.allowedSkills
+        .map(skill => `${skill.id}@${skill.version}`).join('\n');
+    form.elements.autonomousMaxOperations.value = config.autonomousExecution.maxOperations;
+    form.elements.autonomousMaxTimeoutMs.value = config.autonomousExecution.maxTimeoutMs;
     form.elements.plannerPrompt.value = config.plannerPrompt;
     form.elements.skillBuilderEnabled.checked = config.skillBuilder.enabled;
     form.elements.skillBuilderPrompt.value = config.skillBuilder.prompt;
@@ -2094,6 +2099,15 @@ $('#llm-settings-form').addEventListener('submit', async event => {
     if (skillBuilderEnabled && !state.llmSettings?.config.skillBuilder.enabled
         && !confirm('A Skill Builder nyitott capability gapekből automatikusan OpenAI-hívással draftokat készít, ami költséget okozhat. Biztosan bekapcsolod?')) return;
     const provider = String(values.get('provider'));
+    const autonomousExecutionEnabled = values.get('autonomousExecutionEnabled') === 'on';
+    if (autonomousExecutionEnabled && !state.llmSettings?.config.autonomousExecution.enabled
+        && !confirm('Az allowlistelt skillek jelentős események után admin kattintás nélkül ténylegesen elindulhatnak. Biztosan bekapcsolod?')) return;
+    const autonomousAllowedSkills = String(values.get('autonomousAllowedSkills') || '')
+        .split(/[\s,]+/).map(value => value.trim()).filter(Boolean).map(reference => {
+            const separator = reference.lastIndexOf('@');
+            if (separator < 1) throw new Error(`Érvénytelen autonóm skillhivatkozás: ${reference}`);
+            return { id: reference.slice(0, separator), version: reference.slice(separator + 1) };
+        });
     const reasoningEffort = String(values.get('reasoningEffort') || '');
     const config = {
         schemaVersion: 1,
@@ -2102,6 +2116,12 @@ $('#llm-settings-form').addEventListener('submit', async event => {
         provider,
         model: String(values.get('model')),
         plannerPrompt: String(values.get('plannerPrompt')),
+        autonomousExecution: {
+            enabled: autonomousExecutionEnabled,
+            allowedSkills: autonomousAllowedSkills,
+            maxOperations: Number(values.get('autonomousMaxOperations')),
+            maxTimeoutMs: Number(values.get('autonomousMaxTimeoutMs'))
+        },
         skillBuilder: {
             enabled: skillBuilderEnabled,
             prompt: String(values.get('skillBuilderPrompt')),
