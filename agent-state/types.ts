@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 13 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 14 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -21,6 +21,7 @@ export type AgentPlayerActionStatus = 'pending' | 'accepted' | 'approved' | 'run
     | 'rejected' | 'cancelled' | 'completed' | 'failed';
 export type AgentPlayerActionManualStatus = 'accepted' | 'rejected' | 'cancelled';
 export type AgentPlayerActionParameters = Record<string, string | number | boolean | null>;
+export type AgentGoalProposalStatus = 'pending' | 'approved' | 'running' | 'completed' | 'failed';
 
 export interface AgentSkillReference {
     id: string;
@@ -82,6 +83,38 @@ export interface CreateAgentGoal {
     description?: string;
     priority?: number;
     skill?: AgentSkillReference | null;
+}
+
+export interface AgentGoalProposal {
+    proposalId: string;
+    runId: string;
+    agentId: string;
+    anchorGoalId: string;
+    anchorGoalRevision: number;
+    goals: CreateAgentGoal[];
+    skill: AgentSkillReference | null;
+    reason: string;
+    status: AgentGoalProposalStatus;
+    approvalId: string | null;
+    approvalExpiresAt: string | null;
+    skillRunId: string | null;
+    responseNote: string;
+    createdAt: string;
+    updatedAt: string;
+    approvedAt: string | null;
+    startedAt: string | null;
+    resolvedAt: string | null;
+    revision: number;
+}
+
+export interface CreateAgentGoalProposal {
+    proposalId: string;
+    runId: string;
+    anchorGoalId: string;
+    anchorGoalRevision: number;
+    goals: CreateAgentGoal[];
+    skill?: AgentSkillReference | null;
+    reason: string;
 }
 
 export interface AgentLocation {

@@ -83,6 +83,52 @@ describe('persistent agent identity and goals', () => {
         expect(store.setGoalStatus(life.goalId, life.revision, 'completed').status).toBe('completed');
         store.close();
     });
+
+    test('persists an immutable LLM proposal and atomically consumes its one-use skill approval', () => {
+        const store = new AgentStateStore(databasePath());
+        addIdentity(store);
+        store.createGoal('ferrye14', { goalId: 'life', horizon: 'life', title: 'Prosper' });
+        const anchor = store.createGoal('ferrye14', { goalId: 'workshop', parentGoalId: 'life',
+            horizon: 'long-term', title: 'Own a workshop' });
+        store.setSkillKnowledge('ferrye14', { id: 'mining', version: '1.0.0' }, 'known', null);
+        const proposal = store.createGoalProposal('ferrye14', { proposalId: 'proposal.one', runId: 'run.one',
+            anchorGoalId: anchor.goalId, anchorGoalRevision: anchor.revision, reason: 'Build capital safely.',
+            goals: [
+                { goalId: 'capital', parentGoalId: 'workshop', horizon: 'current', title: 'Build capital' },
+                { goalId: 'mine', parentGoalId: 'capital', horizon: 'immediate', title: 'Mine ore' }
+            ], skill: { id: 'mining', version: '1.0.0' } }, '2026-08-31T10:00:00.000Z');
+        expect(store.listGoalProposals('ferrye14')).toEqual([proposal]);
+        const approved = store.approveGoalProposal(proposal.proposalId, proposal.revision, 'approval.one',
+            '2026-08-31T10:05:00.000Z', '2026-08-31T10:01:00.000Z');
+        expect(store.getGoal('mine')?.skill).toEqual({ id: 'mining', version: '1.0.0' });
+        const running = store.startApprovedGoalProposal(proposal.proposalId, approved.revision,
+            'approval.one', 'skill-run.one', '2026-08-31T10:02:00.000Z');
+        expect(running).toMatchObject({ status: 'running', skillRunId: 'skill-run.one' });
+        expect(() => store.startApprovedGoalProposal(proposal.proposalId, approved.revision,
+            'approval.one', 'skill-run.two', '2026-08-31T10:02:01.000Z')).toThrow('already consumed');
+        store.close();
+    });
+
+    test('rolls back the complete proposed hierarchy if one goal collides', () => {
+        const store = new AgentStateStore(databasePath());
+        addIdentity(store);
+        store.createGoal('ferrye14', { goalId: 'life', horizon: 'life', title: 'Prosper' });
+        const anchor = store.createGoal('ferrye14', { goalId: 'workshop', parentGoalId: 'life',
+            horizon: 'long-term', title: 'Own a workshop' });
+        const proposal = store.createGoalProposal('ferrye14', { proposalId: 'proposal.collision',
+            runId: 'run.collision', anchorGoalId: anchor.goalId, anchorGoalRevision: anchor.revision,
+            reason: 'Test atomicity.', goals: [
+                { goalId: 'capital', parentGoalId: 'workshop', horizon: 'current', title: 'Build capital' },
+                { goalId: 'mine', parentGoalId: 'capital', horizon: 'immediate', title: 'Mine ore' }
+            ] }, '2026-08-31T10:00:00.000Z');
+        store.createGoal('ferrye14', { goalId: 'capital', parentGoalId: 'workshop',
+            horizon: 'current', title: 'A concurrent goal' });
+        expect(() => store.approveGoalProposal(proposal.proposalId, proposal.revision, 'approval.collision',
+            '2026-08-31T10:05:00.000Z', '2026-08-31T10:01:00.000Z')).toThrow();
+        expect(store.getGoal('mine')).toBeNull();
+        expect(store.getGoalProposal(proposal.proposalId)?.status).toBe('pending');
+        store.close();
+    });
 });
 
 describe('core identity context', () => {

@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
-import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
+import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalProposal, type AgentIdentity, type AgentSnapshot,
     type AgentControlProfile, type AgentDecisionRecord, type AgentDecisionTrigger,
     type AgentPlayerActionManualStatus, type AgentPlayerActionRequest, type AgentPlayerActionStatus,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
@@ -11,7 +11,7 @@ import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type Ag
     type AgentSkillKnowledge, type AgentSkillKnowledgeStatus,
     type AgentSkillReference, type AgentWorkingMemory, type CreateAgentCommitment,
     type CreateAgentConsolidationEvidence, type CreateAgentEpisode,
-    type CreateAgentGoal, type CreateAgentIdentity, type CreateAgentKnowledge,
+    type CreateAgentGoal, type CreateAgentGoalProposal, type CreateAgentIdentity, type CreateAgentKnowledge,
     type CreateAgentPlayerActionRequest, type GoalStatus,
     type RecordAgentDecision, type SetAgentControlProfile,
     type SetAgentEconomicActorLink, type SetAgentRelationship, type SetAgentWorkingMemory,
@@ -30,6 +30,13 @@ interface GoalRow {
     goal_id: string; agent_id: string; parent_goal_id: string | null; horizon: AgentGoal['horizon'];
     title: string; description: string; status: GoalStatus; priority: number; created_at: string;
     skill_id: string | null; skill_version: string | null; updated_at: string; completed_at: string | null; revision: number;
+}
+interface GoalProposalRow {
+    proposal_id: string; run_id: string; agent_id: string; anchor_goal_id: string; anchor_goal_revision: number;
+    goals: string; skill_id: string | null; skill_version: string | null; reason: string;
+    status: AgentGoalProposal['status']; approval_id: string | null; approval_expires_at: string | null;
+    skill_run_id: string | null; response_note: string; created_at: string; updated_at: string;
+    approved_at: string | null; started_at: string | null; resolved_at: string | null; revision: number;
 }
 interface WorkingMemoryRow {
     agent_id: string; summary: string; current_activity: string | null; location: string | null;
@@ -106,6 +113,17 @@ function goal(row: GoalRow): AgentGoal {
         title: row.title, description: row.description, status: row.status, priority: row.priority,
         skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
         createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at, revision: row.revision };
+}
+function goalProposal(row: GoalProposalRow): AgentGoalProposal {
+    return { proposalId: row.proposal_id, runId: row.run_id, agentId: row.agent_id,
+        anchorGoalId: row.anchor_goal_id, anchorGoalRevision: row.anchor_goal_revision,
+        goals: JSON.parse(row.goals) as AgentGoalProposal['goals'],
+        skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
+        reason: row.reason, status: row.status, approvalId: row.approval_id,
+        approvalExpiresAt: row.approval_expires_at, skillRunId: row.skill_run_id,
+        responseNote: row.response_note, createdAt: row.created_at, updatedAt: row.updated_at,
+        approvedAt: row.approved_at, startedAt: row.started_at, resolvedAt: row.resolved_at,
+        revision: row.revision };
 }
 function skillKnowledge(row: SkillKnowledgeRow): AgentSkillKnowledge {
     return { agentId: row.agent_id, skill: { id: row.skill_id, version: row.skill_version }, status: row.status,
@@ -632,6 +650,130 @@ export class AgentStateStore {
         });
         transaction.immediate();
         return this.requireGoal(value.goalId);
+    }
+
+    createGoalProposal(agentId: string, input: CreateAgentGoalProposal,
+        now = new Date().toISOString()): AgentGoalProposal {
+        const normalizedAgentId = normalizeAgentId(agentId);
+        const proposalId = normalizeAgentId(input.proposalId, 'proposalId');
+        const runId = normalizeAgentId(input.runId, 'runId');
+        const anchorGoalId = normalizeAgentId(input.anchorGoalId, 'anchorGoalId');
+        const goals = input.goals.map(validateCreateGoal);
+        const skill = input.skill ? normalizeSkillReference(input.skill) : null;
+        const reason = input.reason.trim().slice(0, 2000);
+        if (!goals.length) throw new Error('Goal proposal must contain at least one goal');
+        if (!reason) throw new Error('Goal proposal reason is required');
+        if (!Number.isInteger(input.anchorGoalRevision) || input.anchorGoalRevision < 1) {
+            throw new Error('Goal proposal anchor revision is invalid');
+        }
+        let parentId = anchorGoalId;
+        const anchor = this.getGoal(anchorGoalId);
+        if (!anchor || anchor.agentId !== normalizedAgentId || anchor.status !== 'active'
+            || anchor.revision !== input.anchorGoalRevision) throw new Error('Goal proposal anchor is stale or invalid');
+        for (const proposed of goals) {
+            if (proposed.parentGoalId !== parentId) throw new Error('Goal proposal must form one contiguous hierarchy');
+            const parentHorizon = parentId === anchorGoalId ? anchor.horizon
+                : goals.find(goal => goal.goalId === parentId)?.horizon;
+            if (parentHorizon !== expectedParentHorizon(proposed.horizon)) {
+                throw new Error(`Invalid ${proposed.horizon} goal parent in proposal`);
+            }
+            parentId = proposed.goalId;
+        }
+        if (skill && goals.at(-1)?.horizon !== 'immediate') {
+            throw new Error('A proposed skill requires a final immediate goal');
+        }
+        this.database.run(`INSERT INTO agent_goal_proposal
+            (proposal_id, run_id, agent_id, anchor_goal_id, anchor_goal_revision, goals, skill_id, skill_version,
+            reason, status, approval_id, approval_expires_at, skill_run_id, response_note, created_at, updated_at,
+            approved_at, started_at, resolved_at, revision)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'pending', NULL, NULL, NULL, '', ?10, ?10,
+            NULL, NULL, NULL, 1)`, [proposalId, runId, normalizedAgentId, anchorGoalId, input.anchorGoalRevision,
+            JSON.stringify(goals), skill?.id ?? null, skill?.version ?? null, reason, now]);
+        return this.getGoalProposal(proposalId)!;
+    }
+
+    getGoalProposal(proposalId: string): AgentGoalProposal | null {
+        const normalized = normalizeAgentId(proposalId, 'proposalId');
+        const row = this.database.query('SELECT * FROM agent_goal_proposal WHERE proposal_id = ?1').get(normalized);
+        return row ? goalProposal(row as GoalProposalRow) : null;
+    }
+
+    listGoalProposals(agentId: string): AgentGoalProposal[] {
+        const rows = this.database.query(`SELECT * FROM agent_goal_proposal WHERE agent_id = ?1
+            ORDER BY created_at DESC, proposal_id`).all(normalizeAgentId(agentId));
+        return (rows as GoalProposalRow[]).map(goalProposal);
+    }
+
+    approveGoalProposal(proposalId: string, expectedRevision: number, approvalId: string, expiresAt: string,
+        now = new Date().toISOString()): AgentGoalProposal {
+        const normalizedProposalId = normalizeAgentId(proposalId, 'proposalId');
+        const normalizedApprovalId = normalizeAgentId(approvalId, 'approvalId');
+        if (Number.isNaN(Date.parse(expiresAt)) || expiresAt <= now) throw new Error('Goal proposal approval expiry is invalid');
+        const transaction = this.database.transaction(() => {
+            const proposal = this.getGoalProposal(normalizedProposalId);
+            if (!proposal || proposal.status !== 'pending' || proposal.revision !== expectedRevision) {
+                throw new Error('Goal proposal is no longer pending or changed before approval');
+            }
+            const anchor = this.getGoal(proposal.anchorGoalId);
+            if (!anchor || anchor.agentId !== proposal.agentId || anchor.status !== 'active'
+                || anchor.revision !== proposal.anchorGoalRevision) throw new Error('Goal proposal anchor changed before approval');
+            if (proposal.skill) {
+                const knowledge = this.listSkillKnowledge(proposal.agentId).find(item =>
+                    item.skill.id === proposal.skill!.id && item.skill.version === proposal.skill!.version);
+                if (!knowledge || !['known', 'preferred'].includes(knowledge.status)) {
+                    throw new Error('Proposed skill is no longer learned and executable');
+                }
+            }
+            for (const input of proposal.goals) {
+                const value = validateCreateGoal(input);
+                this.database.run(`INSERT INTO agent_goal
+                    (goal_id, agent_id, parent_goal_id, horizon, title, description, status, priority,
+                    skill_id, skill_version, created_at, updated_at, completed_at, revision)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'active', ?7, ?8, ?9, ?10, ?10, NULL, 1)`,
+                [value.goalId, proposal.agentId, value.parentGoalId, value.horizon, value.title, value.description,
+                    value.priority, value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill?.id ?? null : null,
+                    value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill?.version ?? null : null, now]);
+            }
+            const status = proposal.skill ? 'approved' : 'completed';
+            const result = this.database.run(`UPDATE agent_goal_proposal SET status = ?3, approval_id = ?4,
+                approval_expires_at = ?5, approved_at = ?6, updated_at = ?6,
+                resolved_at = CASE WHEN ?3 = 'completed' THEN ?6 ELSE NULL END, revision = revision + 1
+                WHERE proposal_id = ?1 AND revision = ?2 AND status = 'pending'`,
+            [proposal.proposalId, proposal.revision, status, normalizedApprovalId, expiresAt, now]);
+            if (result.changes !== 1) throw new Error('Goal proposal changed during approval');
+        });
+        transaction.immediate();
+        return this.getGoalProposal(normalizedProposalId)!;
+    }
+
+    startApprovedGoalProposal(proposalId: string, expectedRevision: number, approvalId: string, skillRunId: string,
+        now = new Date().toISOString()): AgentGoalProposal {
+        const proposal = this.getGoalProposal(proposalId);
+        if (!proposal || proposal.status !== 'approved' || proposal.revision !== expectedRevision
+            || proposal.approvalId !== normalizeAgentId(approvalId, 'approvalId')) {
+            throw new Error('Goal proposal approval is invalid, changed, or already consumed');
+        }
+        if (!proposal.skill || !proposal.approvalExpiresAt || proposal.approvalExpiresAt <= now) {
+            throw new Error('Goal proposal approval expired or has no executable skill');
+        }
+        const result = this.database.run(`UPDATE agent_goal_proposal SET status = 'running', skill_run_id = ?4,
+            started_at = ?5, updated_at = ?5, revision = revision + 1
+            WHERE proposal_id = ?1 AND revision = ?2 AND status = 'approved' AND approval_id = ?3`,
+        [proposal.proposalId, proposal.revision, proposal.approvalId, normalizeAgentId(skillRunId, 'skillRunId'), now]);
+        if (result.changes !== 1) throw new Error('Goal proposal approval was consumed concurrently');
+        return this.getGoalProposal(proposal.proposalId)!;
+    }
+
+    failGoalProposalRun(skillRunId: string, responseNote: string,
+        now = new Date().toISOString()): AgentGoalProposal | null {
+        const normalizedRunId = normalizeAgentId(skillRunId, 'skillRunId');
+        const current = this.database.query('SELECT * FROM agent_goal_proposal WHERE skill_run_id = ?1')
+            .get(normalizedRunId) as GoalProposalRow | null;
+        if (!current || current.status !== 'running') return current ? goalProposal(current) : null;
+        this.database.run(`UPDATE agent_goal_proposal SET status = 'failed', response_note = ?2,
+            updated_at = ?3, resolved_at = ?3, revision = revision + 1 WHERE skill_run_id = ?1 AND status = 'running'`,
+        [normalizedRunId, responseNote.trim().slice(0, 500), now]);
+        return this.getGoalProposal(current.proposal_id);
     }
 
     setGoalStatus(goalId: string, expectedRevision: number, status: GoalStatus,
@@ -1589,6 +1731,25 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_player_action_request_outgoing
                     ON agent_player_action_request(requester_agent_id, status, requested_at DESC)`);
                 this.database.run('PRAGMA user_version = 13');
+            });
+            transaction.immediate();
+        }
+        if (version < 14) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_goal_proposal (
+                    proposal_id TEXT PRIMARY KEY, run_id TEXT NOT NULL UNIQUE,
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    anchor_goal_id TEXT NOT NULL REFERENCES agent_goal(goal_id) ON DELETE RESTRICT,
+                    anchor_goal_revision INTEGER NOT NULL CHECK (anchor_goal_revision >= 1), goals TEXT NOT NULL,
+                    skill_id TEXT, skill_version TEXT, reason TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'running', 'completed', 'failed')),
+                    approval_id TEXT UNIQUE, approval_expires_at TEXT, skill_run_id TEXT UNIQUE,
+                    response_note TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    approved_at TEXT, started_at TEXT, resolved_at TEXT,
+                    revision INTEGER NOT NULL CHECK (revision >= 1))`);
+                this.database.run(`CREATE INDEX agent_goal_proposal_agent_status
+                    ON agent_goal_proposal(agent_id, status, created_at DESC)`);
+                this.database.run('PRAGMA user_version = 14');
             });
             transaction.immediate();
         }

@@ -59,7 +59,7 @@ test('admin LLM dry-run shows the bounded request and never executes the propose
     expect(audit.events.at(-1)?.type).toBe('decision.proposed');
 });
 
-test('admin UI exposes the LLM preview without an execution control', () => {
+test('admin UI exposes persisted proposal approval separately from the LLM preview', () => {
     const html = readFileSync(join(adminPublicDir, 'index.html'), 'utf8');
     const script = readFileSync(join(adminPublicDir, 'admin.js'), 'utf8');
     expect(html).toContain('id="llm-dry-run-dialog"');
@@ -67,6 +67,8 @@ test('admin UI exposes the LLM preview without an execution control', () => {
     expect(script).toContain('data-action="agent-llm-dry-run"');
     expect(script).toContain('/llm-dry-run`');
     expect(html).not.toContain('id="llm-dry-run-execute"');
+    expect(html).toContain('id="llm-dry-run-approve"');
+    expect(script).toContain('/api/admin/goal-proposals/');
 });
 
 test('admin UI exposes the separate institution to player action queue', () => {

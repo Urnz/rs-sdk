@@ -288,7 +288,7 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
 - [x] A jelenlegi szerverhez tartozó adminpaneles LLM-beállításokat készíteni providerhez,
   modellhez, szerepprompthoz, reasoninghez, költség- és futási limitekhez;
   write-only helyi API-kulccsal és nem felülírható biztonsági prompt-réteggel.
-- [ ] Admin jóváhagyással atomikusan létrehozni a javasolt cél-láncot, majd
+- [x] Admin jóváhagyással atomikusan létrehozni a javasolt cél-láncot, majd
   egyszer használható approval azonosítóval elindítani a kiválasztott skillt.
 - [ ] Korlátozott autonóm agent-életciklust készíteni: eseményre újratervezés,
   veszélytelen ellenőrzött skillek policy szerinti futtatása és skill-gap jelzés.

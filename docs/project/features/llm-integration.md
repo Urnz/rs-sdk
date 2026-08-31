@@ -10,9 +10,10 @@ katalógusban elérhető magas szintű agent skillek közül választhat. A dön
 először csak javaslat; a determinisztikus végrehajtó kizárólag egyszer használható
 approval azonosítóval indíthatja el.
 
-Az első változat csak javasol célokat: nem menti őket, nem hoz létre skillt,
-nem ír memóriát és nem kap
-alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
+A dry-run a validált céljavaslatot módosíthatatlan snapshotként menti, de nem
+hoz létre skillt, nem ír memóriát és nem kap alacsony szintű engine-, fájl-
+vagy kódfuttatási eszközt. A célok és az opcionális skill csak külön admin
+jóváhagyás után kerülnek végrehajtási állapotba.
 
 ## Rétegek
 
@@ -41,8 +42,8 @@ alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
   másodperces online botállapotot.
 - A felület külön mutatja a célt, a trusted contextet, a nem megbízható adatot,
   a szűrt skilllistát, a mock modell döntését és annak futásazonosítóját.
-- A dry-run mindig szimuláció: approval azonosítót ugyan a teljes pipeline állít
-  elő, de az admin végpont nem kínál hozzá végrehajtási műveletet.
+- A dry-run önmagában szimuláció, de a validált `propose-goal-plan` eredményt
+  az AgentState v14 adatbázis tartós, revíziózott proposal rekordként megőrzi.
 - Az orchestration audit külön `.local/admin/llm-audit.jsonl` naplóba kerül; a
   szokásos admin audit csak a futásazonosítót, státuszt, döntést és usage adatot
   tartja meg.
@@ -58,8 +59,22 @@ alacsony szintű engine-, fájl- vagy kódfuttatási eszközt.
 - Immediate cél hiányában a planner a legmélyebb aktív stratégiai célt választja
   horgonynak. A mock előnézet egyetlen kérésben pontosan a hiányzó horizontokat
   (`long-term`, `current`, `immediate`) javasolja, és az utolsó célhoz legfeljebb
-  egy, már ismert és ellenőrzött skillt rendel. A javaslat nem módosítja az
-  agentadatbázist.
+  egy, már ismert és ellenőrzött skillt rendel.
+
+## Elkészült 11C célterv-jóváhagyás
+
+- A böngésző nem küldi vissza a modell céljait vagy skilljét: csak a szerveren
+  tárolt proposal azonosítóját és várt revízióját. Így a jóváhagyott tartalom
+  pontosan a korábban validált snapshot.
+- A teljes hiányzó célhierarchia egyetlen SQLite-tranzakcióban jön létre. Ütköző
+  célazonosító, megváltozott stratégiai horgony vagy elveszett skillismeret
+  esetén sem marad félkész lánc.
+- A kiválasztott egzakt skillverzió csak exact player-avatar kötésen, online,
+  credentiallel rendelkező és szabad boton indulhat. A rövid életű approval
+  egyszer használható; a futásazonosító még a supervisor hívása előtt tartósan
+  elfogyasztja.
+- Ha nincs alkalmas skill, a jóváhagyás csak a célokat hozza létre. A későbbi
+  capability-gap és Skill Builder folyamat ettől elkülönítve marad.
 
 ## OpenAI provider helyi beállítása
 

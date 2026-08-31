@@ -709,8 +709,11 @@
                 <section><h3>Nem megbízható szöveg</h3><pre id="llm-dry-run-untrusted" class="llm-preview"></pre></section>
                 <section><h3>Engedélyezett skilllista</h3><pre id="llm-dry-run-tools" class="llm-preview"></pre></section>
             </div>
-            <p class="dialog-note">Ez a mock dry-run nem indít skillt és nem változtatja meg az agent állapotát.</p>
-            <div class="dialog-actions"><button class="button primary" value="close">Bezárás</button></div>
+            <p id="llm-dry-run-safety" class="dialog-note">A dry-run önmagában nem változtatja meg az agent céljait.</p>
+            <div class="dialog-actions">
+                <button type="button" class="button ghost dialog-close">Bezárás</button>
+                <button type="button" id="llm-dry-run-approve" data-action="goal-proposal-approve" class="button primary" hidden>Célterv jóváhagyása</button>
+            </div>
         </form>
     </dialog>
 

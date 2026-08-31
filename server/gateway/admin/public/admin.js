@@ -290,6 +290,15 @@ function showLlmDryRun(result) {
     $('#llm-dry-run-tools').textContent = request?.tools?.[0]?.allowedSkills?.length
         ? request.tools[0].allowedSkills.map(item => `${item.id}@${item.version} — ${item.name}\n${item.description}`).join('\n\n')
         : 'Nem volt engedélyezett skill.';
+    const approve = $('#llm-dry-run-approve');
+    approve.hidden = !result.proposal || result.proposal.status !== 'pending';
+    approve.dataset.proposalId = result.proposal?.proposalId || '';
+    approve.dataset.proposalRevision = String(result.proposal?.revision || '');
+    approve.dataset.hasSkill = String(Boolean(result.proposal?.skill));
+    approve.textContent = result.proposal?.skill ? 'Célterv jóváhagyása és skill indítása' : 'Célterv jóváhagyása';
+    $('#llm-dry-run-safety').textContent = result.proposal
+        ? 'A validált javaslat tartósan el lett mentve. A jóváhagyás atomikusan létrehozza a teljes célhierarchiát; a skillengedély egyszer használható és öt percig érvényes.'
+        : 'A dry-run önmagában nem változtatja meg az agent céljait.';
     $('#llm-dry-run-dialog').showModal();
 }
 
@@ -386,6 +395,13 @@ function renderAgents() {
         const playerActions = [...agent.incomingPlayerActions.map(item => actionRow(item, true)),
             ...agent.outgoingPlayerActions.map(item => actionRow(item, false))].join('')
             || '<p class="muted">Nincs bejövő vagy kimenő player-megbízás.</p>';
+        const goalProposals = agent.goalProposals.filter(item => item.status === 'pending').map(item =>
+            `<div class="agent-player-action pending"><span><strong>${escapeHtml(item.goals.at(-1)?.title || item.reason)}</strong>
+                <small>${item.goals.map(goal => escapeHtml(goalHorizonLabels[goal.horizon])).join(' → ')}${item.skill ? ` · ${escapeHtml(item.skill.id)}@${escapeHtml(item.skill.version)}` : ' · nincs kiválasztott skill'}</small>
+                <small>${escapeHtml(item.reason)} · rev ${item.revision}</small></span>
+                <button class="button small primary" data-action="goal-proposal-approve" data-proposal-id="${escapeHtml(item.proposalId)}"
+                    data-proposal-revision="${item.revision}" data-has-skill="${Boolean(item.skill)}">Jóváhagyás${item.skill ? ' és indítás' : ''}</button></div>`).join('')
+            || '<p class="muted">Nincs függő LLM-céljavaslat.</p>';
         return `<article class="agent-card" data-agent-id="${escapeHtml(identity.agentId)}">
             <div class="agent-card-heading"><div><h3>${escapeHtml(identity.displayName)}</h3><p>${escapeHtml(identity.background)}</p></div>
                 <div class="agent-card-actions">
@@ -410,6 +426,7 @@ function renderAgents() {
                 ${identity.personalityTraits.map(trait => `<span class="agent-chip">${escapeHtml(trait)}</span>`).join('')}
                 <span class="agent-chip ${escapeHtml(agent.planner.kind)}">${escapeHtml(plannerLabels[agent.planner.kind] || agent.planner.kind)}</span></div>
             <div class="agent-grid"><section class="agent-section"><h4>Célhierarchia</h4><div class="agent-goals">${goals}</div></section>
+                <section class="agent-section"><h4>Függő LLM-céljavaslatok</h4><div class="agent-player-actions">${goalProposals}</div></section>
                 <section class="agent-section"><h4>Ismert skillek</h4><div class="agent-skills">${skills}</div><h4>Hozzáférhető katalógus</h4><div class="agent-skills">${accessibleSkills}</div></section>
                 <section class="agent-section"><h4>Working memory</h4>${memory
                     ? `<p>${escapeHtml(memory.summary)}</p><small class="muted">${escapeHtml(relativeTime(memory.observedAt))} · rev ${memory.revision}</small>`
@@ -1557,6 +1574,26 @@ document.addEventListener('click', async event => {
                 showLlmDryRun(response);
                 toast(`LLM dry-run: ${llmPlanLabels[response.plan.status] || response.plan.status}.`);
                 await refreshCapabilityGaps();
+            } finally { button.disabled = false; }
+        }
+        if (button.dataset.action === 'goal-proposal-approve') {
+            const hasSkill = button.dataset.hasSkill === 'true';
+            const message = hasSkill
+                ? 'A teljes célhierarchia létrejön, és az egzakt skillverzió azonnal elindul a kapcsolt playeren. Folytatod?'
+                : 'A teljes célhierarchia egyetlen tranzakcióban létrejön. Folytatod?';
+            if (!confirm(message)) return;
+            const reason = prompt('A céljavaslat jóváhagyásának indoklása:', 'LLM célhierarchia admin jóváhagyása');
+            if (!reason?.trim()) return;
+            button.disabled = true;
+            try {
+                const response = await api(`/api/admin/goal-proposals/${encodeURIComponent(button.dataset.proposalId)}/approve-and-start`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({
+                        expectedRevision: Number(button.dataset.proposalRevision), reason: reason.trim()
+                    })
+                });
+                if ($('#llm-dry-run-dialog').open) $('#llm-dry-run-dialog').close();
+                toast(response.process ? 'A célhierarchia létrejött és a skill elindult.' : 'A célhierarchia létrejött.');
+                await refreshAgents(); await refresh();
             } finally { button.disabled = false; }
         }
         if (button.dataset.action === 'skill-trial-create') {

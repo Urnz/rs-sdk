@@ -78,6 +78,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         const treasury = controlProfile.role === 'institution'
             ? treasuries.get(`${controlProfile.subjectKind}:${controlProfile.subjectId}`) ?? null : null;
         const playerActionRequests = store.listPlayerActionRequests(identity.agentId);
+        const goalProposals = store.listGoalProposals(identity.agentId);
         const incomingPlayerActions = playerActionRequests
             .filter(item => item.assigneeAgentId === identity.agentId);
         const outgoingPlayerActions = playerActionRequests
@@ -105,6 +106,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             controlProfile,
             incomingPlayerActions,
             outgoingPlayerActions,
+            goalProposals,
             skillRelationships,
             episodeCount: store.countEpisodes(identity.agentId),
             recentEpisodes,
@@ -284,6 +286,25 @@ export function updateAdminInstitutionTreasury(agentId: string, expectedRevision
 
 export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {
     return useStore(path, store => store.createGoal(agentId, input));
+}
+
+export function createAdminGoalProposal(agentId: string,
+    input: Parameters<AgentStateStore['createGoalProposal']>[1], path = agentStateDbPath) {
+    return useStore(path, store => store.createGoalProposal(agentId, input));
+}
+
+export function approveAdminGoalProposal(proposalId: string, expectedRevision: number,
+    approvalId: string, expiresAt: string, path = agentStateDbPath) {
+    return useStore(path, store => store.approveGoalProposal(proposalId, expectedRevision, approvalId, expiresAt));
+}
+
+export function startAdminGoalProposal(proposalId: string, expectedRevision: number,
+    approvalId: string, skillRunId: string, path = agentStateDbPath) {
+    return useStore(path, store => store.startApprovedGoalProposal(proposalId, expectedRevision, approvalId, skillRunId));
+}
+
+export function failAdminGoalProposalRun(skillRunId: string, responseNote: string, path = agentStateDbPath) {
+    return useStore(path, store => store.failGoalProposalRun(skillRunId, responseNote));
 }
 
 export function updateAdminAgentGoalStatus(agentId: string, goalId: string, expectedRevision: number,

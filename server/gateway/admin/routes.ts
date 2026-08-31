@@ -30,6 +30,7 @@ import {
     createAdminAgentCommitment,
     createAdminAgentEpisode,
     createAdminAgentGoal,
+    createAdminGoalProposal,
     createAdminAgentKnowledge,
     createAdminPlayerActionRequest,
     approveAdminPlayerActionRequest,
@@ -44,6 +45,9 @@ import {
     updateAdminInstitutionTreasury,
     updateAdminPlayerActionRequest,
     startAdminPlayerActionRequest,
+    approveAdminGoalProposal,
+    startAdminGoalProposal,
+    failAdminGoalProposalRun,
     settleAdminPlayerActionReward,
     updateAdminAgentSkill
 } from './agent-state';
@@ -1226,13 +1230,82 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 const current = refreshed.agents.find(entry => entry.identity.agentId === agentId)!;
                 const result = await runAdminLlmDryRun(current, current.catalogSkills, { now,
                     capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
+                const decision = result.plan.decision;
+                const anchor = decision ? current.goals.find(goal => goal.goalId === decision.goalId) : null;
+                const proposal = result.plan.status === 'proposed' && decision?.kind === 'propose-goal-plan' && anchor
+                    ? createAdminGoalProposal(agentId, { proposalId: crypto.randomUUID(), runId: result.plan.runId,
+                        anchorGoalId: anchor.goalId, anchorGoalRevision: anchor.revision,
+                        goals: decision.goals, skill: decision.skill, reason: decision.reason }) : null;
                 await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: true,
                     username: avatar, after: { runId: result.plan.runId,
-                        status: result.plan.status, decision: result.plan.decision, usage: result.plan.usage } });
-                return json({ ok: true, ...result });
+                        status: result.plan.status, decision: result.plan.decision, usage: result.plan.usage,
+                        proposalId: proposal?.proposalId ?? null } });
+                return json({ ok: true, ...result, proposal });
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'agent.llm.dry-run', reason, success: false,
                     username: avatar, error: String(error) });
+                throw error;
+            }
+        }
+
+        const goalProposalStartMatch = url.pathname
+            .match(/^\/api\/admin\/goal-proposals\/([a-z0-9.-]+)\/approve-and-start$/);
+        if (req.method === 'POST' && goalProposalStartMatch?.[1]) {
+            const proposalId = goalProposalStartMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen céljavaslat-revízió.');
+            }
+            const agents = await listAdminAgents();
+            const owner = agents.agents.find(agent => agent.goalProposals
+                .some(proposal => proposal.proposalId === proposalId));
+            const proposal = owner?.goalProposals.find(item => item.proposalId === proposalId);
+            if (!owner || !proposal || proposal.status !== 'pending' || proposal.revision !== expectedRevision) {
+                throw new Error('A céljavaslat már nem függőben van vagy közben megváltozott.');
+            }
+            const avatar = owner.controlProfile.avatarPlayerUsername;
+            if (!avatar || owner.controlProfile.role !== 'player' || owner.identity.playerUsername !== avatar) {
+                throw new Error('A javaslat agentjének nincs exact player-avatar kötése.');
+            }
+            let requested: string | null = null;
+            let parameters: Record<string, string | number | boolean> = {};
+            if (proposal.skill) {
+                requested = `${proposal.skill.id}@${proposal.skill.version}`;
+                const relationship = owner.skillRelationships.find(item => item.reference.id === proposal.skill!.id
+                    && item.reference.version === proposal.skill!.version);
+                if (!relationship?.executable) throw new Error(`A javasolt skill már nem futtatható: ${requested}`);
+                const bot = (await catalog()).find(entry => entry.username === avatar);
+                if (!bot || bot.status !== 'active' || !bot.hasCredentials || bot.currentSkill) {
+                    throw new Error('A kapcsolt botnak online, credentiallel rendelkező és szabad állapotban kell lennie.');
+                }
+                const candidate = await resolveAdminSkillForAgent(requested, owner.identity.agentId);
+                parameters = validateAdminSkillParameters(candidate.definition, {});
+            }
+            const approvalId = crypto.randomUUID(), skillRunId = crypto.randomUUID();
+            const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+            try {
+                const approved = approveAdminGoalProposal(proposalId, expectedRevision, approvalId, expiresAt);
+                if (!requested) {
+                    await appendAudit({ operator: 'local-admin', action: 'agent.goal-proposal.approve', reason,
+                        username: avatar, success: true, before: proposal, after: approved });
+                    return json({ ok: true, proposal: approved });
+                }
+                const running = startAdminGoalProposal(proposalId, approved.revision, approvalId, skillRunId);
+                try {
+                    const process = await context.supervisor.startSkill(avatar, requested, parameters, { runId: skillRunId });
+                    await appendAudit({ operator: 'local-admin', action: 'agent.goal-proposal.approve-and-start', reason,
+                        username: avatar, success: true, before: proposal, after: { proposal: running, process } });
+                    return json({ ok: true, proposal: running, process }, 202);
+                } catch (error) {
+                    failAdminGoalProposalRun(skillRunId, `Skill start failed: ${String(error)}`);
+                    throw error;
+                }
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.goal-proposal.approve-and-start', reason,
+                    username: avatar, success: false, before: proposal, error: String(error),
+                    after: { approvalId, skillRunId } });
                 throw error;
             }
         }
