@@ -151,6 +151,7 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .agent-player-action > span:first-child { display: grid; min-width: 0; }
 .agent-player-action small { color: var(--muted); overflow-wrap: anywhere; }
 .agent-player-action.completed { border-left-color: var(--green); }.agent-player-action.rejected,.agent-player-action.failed { border-left-color: var(--red); opacity: .7; }
+.agent-player-action.approved,.agent-player-action.running { border-left-color: var(--blue); }
 .agent-player-action.cancelled { border-left-color: var(--muted); opacity: .58; }
 .agent-assets { display: grid; gap: 6px; margin-top: 8px; max-height: 220px; overflow: auto; }
 .agent-asset { padding: 7px 8px; background: #141a13; border-left: 3px solid var(--gold); border-radius: 6px; }

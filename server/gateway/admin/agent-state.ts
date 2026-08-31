@@ -4,7 +4,7 @@ import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
 import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
     retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
-import type { AgentCommitmentStatus, AgentPlayerActionStatus, AgentSkillKnowledgeStatus,
+import type { AgentCommitmentStatus, AgentPlayerActionManualStatus, AgentSkillKnowledgeStatus,
     AgentSkillReference, CreateAgentCommitment,
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
     CreateAgentPlayerActionRequest, SetAgentControlProfile, SetAgentRelationship,
@@ -13,6 +13,7 @@ import { agentStateDbPath } from './paths.js';
 import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { BotCatalogEntry } from './types.js';
 import type { AdminPropertyView } from './properties.js';
+import { readSkillRun } from './skill-history.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
@@ -148,10 +149,37 @@ export function createAdminPlayerActionRequest(requesterAgentId: string,
 }
 
 export function updateAdminPlayerActionRequest(requestId: string, actorAgentId: string,
-    expectedRevision: number, status: Exclude<AgentPlayerActionStatus, 'pending'>,
+    expectedRevision: number, status: AgentPlayerActionManualStatus,
     responseNote: string, path = agentStateDbPath) {
     return useStore(path, store => store.setPlayerActionRequestStatus(requestId, actorAgentId,
         expectedRevision, status, responseNote));
+}
+
+export function approveAdminPlayerActionRequest(requestId: string, actorAgentId: string,
+    expectedRevision: number, approvalId: string, expiresAt: string, path = agentStateDbPath) {
+    return useStore(path, store => store.approvePlayerActionRequest(requestId, actorAgentId,
+        expectedRevision, approvalId, expiresAt));
+}
+
+export function startAdminPlayerActionRequest(requestId: string, actorAgentId: string,
+    expectedRevision: number, approvalId: string, runId: string, path = agentStateDbPath) {
+    return useStore(path, store => store.startApprovedPlayerAction(requestId, actorAgentId,
+        expectedRevision, approvalId, runId));
+}
+
+export function finishAdminPlayerActionRun(runId: string, completed: boolean, responseNote: string,
+    path = agentStateDbPath) {
+    return useStore(path, store => store.finishPlayerActionRun(runId, completed, responseNote));
+}
+
+export async function reconcileAdminPlayerActionRun(runId: string, fallbackCompleted: boolean,
+    fallbackNote: string, path = agentStateDbPath, runRoot?: string) {
+    const run = await readSkillRun(runId, runRoot);
+    if (!run) return finishAdminPlayerActionRun(runId, fallbackCompleted, fallbackNote, path);
+    const completed = run.status === 'completed';
+    const detail = run.message || run.reason || `Skill run ${run.status}.`;
+    return finishAdminPlayerActionRun(runId, completed,
+        `${run.skill.id}@${run.skill.version}: ${run.status}. ${detail}`, path);
 }
 
 export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {

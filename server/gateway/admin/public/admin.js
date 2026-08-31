@@ -322,14 +322,15 @@ function renderAgents() {
             ? `<p class="muted">Nem elérhető források: ${escapeHtml(assets.unavailableSources.join(', '))}</p>` : '';
         const actorLinks = assets.actorLinks.map(link =>
             `<span class="agent-chip">${escapeHtml(link.role)}: ${escapeHtml(link.actorKind)}:${escapeHtml(link.actorId)}</span>`).join('');
-        const actionStatusLabels = { pending: 'függőben', accepted: 'elfogadva', rejected: 'elutasítva',
+        const actionStatusLabels = { pending: 'függőben', accepted: 'elfogadva', approved: 'engedélyezve',
+            running: 'fut', rejected: 'elutasítva',
             cancelled: 'törölve', completed: 'teljesítve', failed: 'sikertelen' };
         const actionRow = (item, incoming) => {
             let actions = '';
             if (incoming && item.status === 'pending') actions = `<button class="button small primary" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="accepted">Elfogadás</button><button class="button small danger-outline" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="rejected">Elutasítás</button>`;
-            if (incoming && item.status === 'accepted') actions = `<button class="button small primary" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="completed">Teljesítve</button><button class="button small danger-outline" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="failed">Sikertelen</button>`;
+            if (incoming && item.status === 'accepted') actions = `<button class="button small primary" data-action="player-action-start" data-request-id="${escapeHtml(item.requestId)}" data-revision="${item.revision}">Engedélyezés és indítás</button>`;
             if (!incoming && item.status === 'pending') actions = `<button class="button small ghost" data-action="player-action-status" data-request-id="${escapeHtml(item.requestId)}" data-actor-id="${escapeHtml(identity.agentId)}" data-revision="${item.revision}" data-status="cancelled">Visszavonás</button>`;
-            return `<div class="agent-player-action ${escapeHtml(item.status)}"><span><strong>${escapeHtml(item.objective)}</strong><small>${incoming ? `feladó: ${escapeHtml(item.requesterAgentId)}` : `címzett: ${escapeHtml(item.assigneeAgentId)}`} · ${escapeHtml(item.skill.id)}@${escapeHtml(item.skill.version)} · ${fmt.format(item.rewardGp)} gp</small><small>${escapeHtml(actionStatusLabels[item.status] || item.status)} · rev ${item.revision}${item.responseNote ? ` · ${escapeHtml(item.responseNote)}` : ''}</small></span><span class="agent-inline-actions">${actions}</span></div>`;
+            return `<div class="agent-player-action ${escapeHtml(item.status)}"><span><strong>${escapeHtml(item.objective)}</strong><small>${incoming ? `feladó: ${escapeHtml(item.requesterAgentId)}` : `címzett: ${escapeHtml(item.assigneeAgentId)}`} · ${escapeHtml(item.skill.id)}@${escapeHtml(item.skill.version)} · ${fmt.format(item.rewardGp)} gp</small><small>${escapeHtml(actionStatusLabels[item.status] || item.status)} · rev ${item.revision}${item.runId ? ` · run ${escapeHtml(item.runId.slice(0, 8))}` : ''}${item.responseNote ? ` · ${escapeHtml(item.responseNote)}` : ''}</small></span><span class="agent-inline-actions">${actions}</span></div>`;
         };
         const playerActions = [...agent.incomingPlayerActions.map(item => actionRow(item, true)),
             ...agent.outgoingPlayerActions.map(item => actionRow(item, false))].join('')
@@ -1389,6 +1390,16 @@ document.addEventListener('click', async event => {
                     responseNote: note.trim(), reason: reason.trim() })
             });
             toast('A player-megbízás állapota frissült.'); await refreshAgents();
+        }
+        if (button.dataset.action === 'player-action-start') {
+            if (!confirm('Egyszer használható approval létrehozása és a skill azonnali indítása?')) return;
+            const reason = prompt('Az indítás auditindoklása:', 'Elfogadott player-megbízás végrehajtása');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/player-actions/${encodeURIComponent(button.dataset.requestId)}/approve-and-start`, {
+                method: 'POST', mutation: true,
+                body: JSON.stringify({ expectedRevision: Number(button.dataset.revision), reason: reason.trim() })
+            });
+            toast('A player-megbízás skillje elindult.'); await refreshAgents();
         }
         if (button.dataset.action === 'agent-goal-add') showAgentGoal(button.dataset.agentId);
         if (button.dataset.action === 'agent-skill-add') showAgentSkill(button.dataset.agentId);

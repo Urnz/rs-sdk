@@ -21,6 +21,7 @@ import { createGatewayAgentReplanCoordinator, dispatchVerifiedCapabilityWakeups 
 import type { AgentReplanCoordinator } from './admin/replan-coordinator';
 import { buildBotCatalog, economySnapshot, recordEconomy } from './admin/catalog';
 import { GatewaySkillBuilderScheduler } from './admin/skill-builder-runtime';
+import { reconcileAdminPlayerActionRun } from './admin/agent-state';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
@@ -864,7 +865,10 @@ const botSupervisor = new BotSupervisor((username, reason) => {
 agentReplanCoordinator = createGatewayAgentReplanCoordinator(adminGatewayBots);
 botSupervisor.onSkillExit(event => {
     const occurredAt = new Date().toISOString();
-    const failed = event.snapshot.status === 'error';
+    const failed = event.snapshot.exitCode !== 0;
+    void reconcileAdminPlayerActionRun(event.snapshot.runId, !failed,
+        `${event.snapshot.skill} ${failed ? 'failed' : 'completed'} with exit code ${event.snapshot.exitCode}.`)
+        .catch(error => console.error('[PlayerAction] Skill run reconciliation failed:', error));
     void agentReplanCoordinator?.submitForPlayer(event.username, { eventId: crypto.randomUUID(),
         type: failed ? 'skill-failed' : 'skill-finished',
         sourceKey: `skill:${event.snapshot.startedAt}:${event.snapshot.skill}`,

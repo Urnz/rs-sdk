@@ -368,9 +368,11 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       - [x] v10→v11 migrációval tartós, optimista revíziós player-action queue:
         exact assignee, ismert skillverzió, validált paraméterek, cél, díj és auditált
         pending/accepted/resolved lifecycle az adminpanelen.
-      - [ ] Az elfogadott megbízást a player saját planneréhez és egyszer használható
-        végrehajtási approvaljához kötni, majd a skill-run eredményéből automatikusan
-        completed/failed állapotot és gazdasági elszámolást képezni.
+      - [x] v11→v12 migrációval az elfogadott megbízást rövid életű, egyszer
+        használható approvalhoz, exact avatarhoz és exact skill-run ID-hoz kötni;
+        a journal eredményéből automatikusan completed/failed állapotot képezni.
+      - [ ] A sikeres megbízás jutalmát tényleges gazdasági tranzakcióként, atomi és
+        idempotens elszámolással átvezetni; hiba vagy megszakítás ne mozgasson GP-t.
   - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
     az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
 

@@ -76,6 +76,8 @@ test('admin UI exposes the separate institution to player action queue', () => {
     expect(html).toContain('name="assigneeAgentId"');
     expect(script).toContain('data-action="player-action-add"');
     expect(script).toContain('/api/admin/player-actions/');
+    expect(script).toContain('/approve-and-start`');
+    expect(script).toContain('data-action="player-action-start"');
     expect(html).toContain('A megbízás nem indítja el a botot');
 });
 

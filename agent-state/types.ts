@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 11 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 12 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -17,7 +17,9 @@ export type AgentEconomicActorLinkSource = 'identity' | 'admin' | 'system';
 export type AgentRole = 'player' | 'institution' | 'service' | 'world-director';
 export type AgentSubjectKind = 'player' | 'business' | 'faction' | 'service' | 'world';
 export type AgentDecisionTrigger = 'scheduled' | 'event' | 'admin';
-export type AgentPlayerActionStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed' | 'failed';
+export type AgentPlayerActionStatus = 'pending' | 'accepted' | 'approved' | 'running'
+    | 'rejected' | 'cancelled' | 'completed' | 'failed';
+export type AgentPlayerActionManualStatus = 'accepted' | 'rejected' | 'cancelled';
 export type AgentPlayerActionParameters = Record<string, string | number | boolean | null>;
 
 export interface AgentSkillReference {
@@ -364,6 +366,11 @@ export interface AgentPlayerActionRequest {
     requestedAt: string;
     updatedAt: string;
     acceptedAt: string | null;
+    approvalId: string | null;
+    approvalExpiresAt: string | null;
+    approvedAt: string | null;
+    startedAt: string | null;
+    runId: string | null;
     resolvedAt: string | null;
     revision: number;
 }

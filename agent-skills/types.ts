@@ -187,6 +187,7 @@ export interface SkillRunResult {
 }
 
 export interface SkillExecutionOptions {
+    runId?: string;
     parameters?: Record<string, unknown>;
     signal?: AbortSignal;
     allowDraft?: boolean;

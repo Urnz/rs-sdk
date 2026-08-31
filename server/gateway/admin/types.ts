@@ -40,6 +40,7 @@ export interface ManagedProcessSnapshot {
 }
 
 export interface ManagedSkillRunSnapshot {
+    runId: string;
     status: 'starting' | 'running' | 'stopping' | 'exited' | 'error';
     pid: number | null;
     skill: string;

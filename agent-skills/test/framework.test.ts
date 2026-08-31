@@ -145,7 +145,11 @@ describe('skill execution', () => {
             }
             return { success: true, message: 'ok', data: { inventoryDelta: [{ id: 436, name: 'Copper ore', delta: 1 }] } };
         };
-        const result = await new SkillExecutor(runtime).execute(skill(), { parameters: { 'bank-x': 3253 } });
+        const runId = '11111111-1111-4111-8111-111111111111';
+        const result = await new SkillExecutor(runtime).execute(skill(), {
+            runId, parameters: { 'bank-x': 3253 }
+        });
+        expect(result.runId).toBe(runId);
         expect(result.status).toBe('completed');
         expect(result.operations).toBe(3);
         expect(runtime.operations.at(-1)).toEqual({ operation: 'walk-to', args: { x: 3253, z: 3420 } });

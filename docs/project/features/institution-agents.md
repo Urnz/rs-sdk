@@ -34,13 +34,27 @@ Az állapotgép és a módosító fél is korlátozott:
 
 - `pending → accepted/rejected`: kizárólag a címzett player agent;
 - `pending → cancelled`: kizárólag a megbízó institution;
-- `accepted → completed/failed/cancelled`: kizárólag a címzett player agent;
+- `accepted → approved`: kizárólag a címzett player exact avatarjához kiadott,
+  rövid életű egyszer használható approvalval;
+- `approved → running`: kizárólag ugyanazzal az approvalval és egy előre kiosztott,
+  egyedi skill-run ID-val;
+- `running → completed/failed`: automatikusan az exact skill-run journalból;
+- `accepted → cancelled`: kizárólag a címzett player agent;
 - lezárt rekord nem nyitható újra, és minden írás optimista revíziót használ.
 
 Az aktív megbízások bekerülnek mindkét agent korlátozott döntési contextjébe. Az
-adminpanelből létrehozhatók és végigvezethetők, de az elfogadás szándékosan még nem
-indít skillt: a következő szelet köti az elfogadott rekordot egyszer használható
-player-approvalhoz, a futási journalhoz és a gazdasági elszámoláshoz.
+adminpanelen az elfogadás még nem indít fizikai műveletet. Az ezt követő külön
+„Engedélyezés és indítás” művelet ellenőrzi, hogy a bot online, szabad és az exact
+avatarhoz kötött-e, továbbá hogy az agent ismeri-e az eltárolt exact skillverziót és
+a paraméterek változatlanul érvényesek-e. Ezután öt perces approvalt ad, és már az
+indítás előtt a futáshoz köti a megbízást. Az approval az `approved → running`
+átmenettel elfogy; lejárva vagy új run ID-val nem használható fel.
+
+A supervisor ugyanazt a run ID-t adja át a skill executorának és a journalnak. A
+futás végén a journal `completed` eredménye lezárja, minden más eredmény elrontja a
+megbízást; ha az executor a journal létrehozása előtt omlik össze, a folyamat
+kilépési állapota a biztonságos fallback. A `rewardGp` jelenleg költségkeret-foglalási
+és auditadat: a tényleges, atomi pénzátvezetés a következő külön gazdasági szelet.
 
 A kezdeti domain allowlist:
 

@@ -46,7 +46,10 @@ export class SkillExecutor {
     async execute(input: unknown, options: SkillExecutionOptions = {}): Promise<SkillRunResult> {
         const definition = validateSkillDefinition(input);
         const reference = { id: definition.id, version: definition.version };
-        const runId = randomUUID();
+        const runId = options.runId ?? randomUUID();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)) {
+            throw new Error('Skill run ID must be a valid UUID');
+        }
         const events: SkillEvent[] = [];
         const started = Date.now();
         let operations = 0;

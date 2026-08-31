@@ -1,16 +1,20 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
+    approveAdminPlayerActionRequest,
     createAdminAgent,
     createAdminAgentCommitment,
     createAdminAgentEpisode,
     createAdminAgentGoal,
     createAdminAgentKnowledge,
     createAdminPlayerActionRequest,
+    finishAdminPlayerActionRun,
     listAdminAgents,
     pruneAdminAgentEpisodes,
+    reconcileAdminPlayerActionRun,
+    startAdminPlayerActionRequest,
     updateAdminAgent,
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
@@ -53,8 +57,29 @@ describe('admin agent-state service', () => {
         expect(worker.incomingPlayerActions).toEqual([expect.objectContaining({ requesterAgentId: 'forge' })]);
         expect(worker.decisionContext).toContain('Player action queue:');
         expect(worker.decisionContext).toContain('forge.iron-job');
-        expect(updateAdminPlayerActionRequest(request.requestId, 'worker', request.revision,
-            'accepted', 'Accepted.', path).status).toBe('accepted');
+        const accepted = updateAdminPlayerActionRequest(request.requestId, 'worker', request.revision,
+            'accepted', 'Accepted.', path);
+        const approvalId = '11111111-1111-4111-8111-111111111111';
+        const runId = '22222222-2222-4222-8222-222222222222';
+        const approved = approveAdminPlayerActionRequest(request.requestId, 'worker', accepted.revision,
+            approvalId, new Date(Date.now() + 60_000).toISOString(), path);
+        const running = startAdminPlayerActionRequest(request.requestId, 'worker', approved.revision,
+            approvalId, runId, path);
+        expect(running).toMatchObject({ status: 'running', runId });
+        const timestamp = new Date().toISOString();
+        writeFileSync(join(dirname(path), `${runId}.json`), JSON.stringify({
+            runId, username: 'worker', skill: { id: 'varrock-east-mining', version: '1.0.0' },
+            status: 'completed', reason: 'completed', message: 'One load banked.', operations: 4,
+            durationMs: 2_000, events: [
+                { runId, type: 'skill.started', timestamp,
+                    skill: { id: 'varrock-east-mining', version: '1.0.0' } },
+                { runId, type: 'skill.completed', timestamp,
+                    skill: { id: 'varrock-east-mining', version: '1.0.0' } }
+            ]
+        }));
+        expect(await reconcileAdminPlayerActionRun(runId, false, 'Fallback failure.', path, dirname(path)))
+            .toMatchObject({ status: 'completed', runId,
+                responseNote: expect.stringContaining('One load banked.') });
     });
 
     test('builds a complete editable snapshot and executable planner preview', async () => {

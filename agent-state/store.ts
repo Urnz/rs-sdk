@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentIdentity, type AgentSnapshot,
     type AgentControlProfile, type AgentDecisionRecord, type AgentDecisionTrigger,
-    type AgentPlayerActionRequest, type AgentPlayerActionStatus,
+    type AgentPlayerActionManualStatus, type AgentPlayerActionRequest, type AgentPlayerActionStatus,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
     type AgentEpisodeProtectionReason, type AgentEpisodePruneResult, type AgentEpisodeRetentionPreview,
     type AgentConsolidationEvidence, type AgentEconomicActorLink, type AgentKnowledge,
@@ -82,7 +82,9 @@ interface PlayerActionRequestRow {
     request_id: string; requester_agent_id: string; assignee_agent_id: string;
     skill_id: string; skill_version: string; parameters: string; objective: string; reward_gp: number;
     status: AgentPlayerActionStatus; response_note: string; requested_at: string; updated_at: string;
-    accepted_at: string | null; resolved_at: string | null; revision: number;
+    accepted_at: string | null; approval_id: string | null; approval_expires_at: string | null;
+    approved_at: string | null; started_at: string | null; run_id: string | null;
+    resolved_at: string | null; revision: number;
 }
 interface ConsolidationEvidenceRow {
     agent_id: string; rule_key: string; evidence_key: string; episode_id: string;
@@ -166,6 +168,8 @@ function playerActionRequest(row: PlayerActionRequestRow): AgentPlayerActionRequ
         parameters: JSON.parse(row.parameters) as AgentPlayerActionRequest['parameters'], objective: row.objective,
         rewardGp: row.reward_gp, status: row.status, responseNote: row.response_note,
         requestedAt: row.requested_at, updatedAt: row.updated_at, acceptedAt: row.accepted_at,
+        approvalId: row.approval_id, approvalExpiresAt: row.approval_expires_at,
+        approvedAt: row.approved_at, startedAt: row.started_at, runId: row.run_id,
         resolvedAt: row.resolved_at, revision: row.revision };
 }
 function consolidationEvidence(row: ConsolidationEvidenceRow): AgentConsolidationEvidence {
@@ -378,7 +382,8 @@ export class AgentStateStore {
             }
             const committed = this.database.query(`SELECT COALESCE(SUM(reward_gp), 0) AS total
                 FROM agent_player_action_request WHERE requester_agent_id = ?1
-                AND substr(requested_at, 1, 10) = ?2 AND status IN ('pending', 'accepted', 'completed')`)
+                AND substr(requested_at, 1, 10) = ?2
+                AND status IN ('pending', 'accepted', 'approved', 'running', 'completed')`)
                 .get(requesterId, now.slice(0, 10)) as { total: number };
             if (committed.total + value.rewardGp > requester.dailyOperationalBudgetGp) {
                 throw new Error('Player action rewards exceed the requester daily operational budget');
@@ -395,8 +400,10 @@ export class AgentStateStore {
             this.database.run(`INSERT INTO agent_player_action_request
                 (request_id, requester_agent_id, assignee_agent_id, skill_id, skill_version, parameters,
                 objective, reward_gp, status, response_note, requested_at, updated_at,
-                accepted_at, resolved_at, revision)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending', '', ?9, ?9, NULL, NULL, 1)`,
+                accepted_at, approval_id, approval_expires_at, approved_at, started_at, run_id,
+                resolved_at, revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending', '', ?9, ?9,
+                    NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1)`,
             [value.requestId, requesterId, value.assigneeAgentId, value.skill.id, value.skill.version,
                 JSON.stringify(value.parameters), value.objective, value.rewardGp, now]);
         });
@@ -424,17 +431,17 @@ export class AgentStateStore {
     }
 
     setPlayerActionRequestStatus(requestId: string, actorAgentId: string, expectedRevision: number,
-        status: Exclude<AgentPlayerActionStatus, 'pending'>, responseNote = '',
+        status: AgentPlayerActionManualStatus, responseNote = '',
         now = new Date().toISOString()): AgentPlayerActionRequest {
         const normalizedRequestId = normalizeAgentId(requestId, 'requestId');
         const actorId = normalizeAgentId(actorAgentId, 'actorAgentId');
         const note = responseNote.trim();
         if (!Number.isInteger(expectedRevision) || expectedRevision < 1) throw new Error('Player action revision is invalid');
-        if (!['accepted', 'rejected', 'cancelled', 'completed', 'failed'].includes(status)) {
+        if (!['accepted', 'rejected', 'cancelled'].includes(status)) {
             throw new Error('Player action status is invalid');
         }
         if (note.length > 500) throw new Error('Player action response note must be at most 500 characters');
-        if ((status === 'rejected' || status === 'failed') && !note) {
+        if (status === 'rejected' && !note) {
             throw new Error(`${status} player actions require a response note`);
         }
         if (Number.isNaN(Date.parse(now))) throw new Error('Player action status time must be an ISO timestamp');
@@ -449,9 +456,7 @@ export class AgentStateStore {
             const allowed = current.status === 'pending'
                 ? (assigneeAction && (status === 'accepted' || status === 'rejected'))
                     || (requesterAction && status === 'cancelled')
-                : current.status === 'accepted'
-                    ? (assigneeAction && (status === 'completed' || status === 'failed' || status === 'cancelled'))
-                    : false;
+                : current.status === 'accepted' && assigneeAction && status === 'cancelled';
             if (!allowed) throw new Error(`Invalid player action transition: ${current.status} -> ${status}`);
             const result = this.database.run(`UPDATE agent_player_action_request SET status = ?3,
                 response_note = ?4, updated_at = ?5,
@@ -465,6 +470,86 @@ export class AgentStateStore {
         });
         transaction.immediate();
         return this.getPlayerActionRequest(normalizedRequestId)!;
+    }
+
+    approvePlayerActionRequest(requestId: string, actorAgentId: string, expectedRevision: number,
+        approvalId: string, expiresAt: string, now = new Date().toISOString()): AgentPlayerActionRequest {
+        const normalizedRequestId = normalizeAgentId(requestId, 'requestId');
+        const actorId = normalizeAgentId(actorAgentId, 'actorAgentId');
+        const normalizedApprovalId = normalizeAgentId(approvalId, 'approvalId');
+        const nowMs = Date.parse(now), expiresMs = Date.parse(expiresAt);
+        if (!Number.isInteger(expectedRevision) || expectedRevision < 1) throw new Error('Player action revision is invalid');
+        if (Number.isNaN(nowMs) || Number.isNaN(expiresMs) || expiresMs <= nowMs || expiresMs - nowMs > 3_600_000) {
+            throw new Error('Player action approval must expire within one hour');
+        }
+        const transaction = this.database.transaction(() => {
+            const current = this.getPlayerActionRequest(normalizedRequestId);
+            if (!current || current.revision !== expectedRevision) {
+                throw new Error('Player action request changed before approval; refresh and try again');
+            }
+            if (current.status !== 'accepted' || current.assigneeAgentId !== actorId) {
+                throw new Error('Only the assigned player may approve an accepted player action');
+            }
+            const result = this.database.run(`UPDATE agent_player_action_request SET status = 'approved',
+                approval_id = ?3, approval_expires_at = ?4, approved_at = ?5, updated_at = ?5,
+                revision = revision + 1 WHERE request_id = ?1 AND revision = ?2`,
+            [normalizedRequestId, expectedRevision, normalizedApprovalId, expiresAt, now]);
+            if (result.changes !== 1) throw new Error('Player action request changed during approval');
+        });
+        transaction.immediate();
+        return this.getPlayerActionRequest(normalizedRequestId)!;
+    }
+
+    startApprovedPlayerAction(requestId: string, actorAgentId: string, expectedRevision: number,
+        approvalId: string, runId: string, now = new Date().toISOString()): AgentPlayerActionRequest {
+        const normalizedRequestId = normalizeAgentId(requestId, 'requestId');
+        const actorId = normalizeAgentId(actorAgentId, 'actorAgentId');
+        const normalizedApprovalId = normalizeAgentId(approvalId, 'approvalId');
+        const normalizedRunId = normalizeAgentId(runId, 'runId');
+        const nowMs = Date.parse(now);
+        if (Number.isNaN(nowMs)) throw new Error('Player action start time must be an ISO timestamp');
+        const transaction = this.database.transaction(() => {
+            const current = this.getPlayerActionRequest(normalizedRequestId);
+            if (!current || current.revision !== expectedRevision) {
+                throw new Error('Player action request changed before start; refresh and try again');
+            }
+            if (current.status !== 'approved' || current.assigneeAgentId !== actorId
+                || current.approvalId !== normalizedApprovalId) throw new Error('Player action approval is invalid or already used');
+            if (!current.approvalExpiresAt || nowMs >= Date.parse(current.approvalExpiresAt)) {
+                throw new Error('Player action approval has expired');
+            }
+            const result = this.database.run(`UPDATE agent_player_action_request SET status = 'running',
+                started_at = ?3, run_id = ?4, updated_at = ?3, revision = revision + 1
+                WHERE request_id = ?1 AND revision = ?2`,
+            [normalizedRequestId, expectedRevision, now, normalizedRunId]);
+            if (result.changes !== 1) throw new Error('Player action request changed during start');
+        });
+        transaction.immediate();
+        return this.getPlayerActionRequest(normalizedRequestId)!;
+    }
+
+    finishPlayerActionRun(runId: string, completed: boolean, responseNote: string,
+        now = new Date().toISOString()): AgentPlayerActionRequest | null {
+        const normalizedRunId = normalizeAgentId(runId, 'runId');
+        const note = responseNote.trim().slice(0, 500);
+        if (Number.isNaN(Date.parse(now))) throw new Error('Player action finish time must be an ISO timestamp');
+        let result: AgentPlayerActionRequest | null = null;
+        const transaction = this.database.transaction(() => {
+            const row = this.database.query(`SELECT * FROM agent_player_action_request
+                WHERE run_id = ?1`).get(normalizedRunId) as PlayerActionRequestRow | null;
+            if (!row) return;
+            const current = playerActionRequest(row);
+            if (current.status !== 'running') { result = current; return; }
+            const status = completed ? 'completed' : 'failed';
+            const updated = this.database.run(`UPDATE agent_player_action_request SET status = ?3,
+                response_note = ?4, updated_at = ?5, resolved_at = ?5, revision = revision + 1
+                WHERE request_id = ?1 AND revision = ?2 AND status = 'running'`,
+            [current.requestId, current.revision, status, note, now]);
+            if (updated.changes !== 1) throw new Error('Player action request changed during run reconciliation');
+            result = this.getPlayerActionRequest(current.requestId);
+        });
+        transaction.immediate();
+        return result;
     }
 
     createGoal(agentId: string, input: CreateAgentGoal, now = new Date().toISOString()): AgentGoal {
@@ -1379,6 +1464,38 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_player_action_request_outgoing
                     ON agent_player_action_request(requester_agent_id, status, requested_at DESC)`);
                 this.database.run('PRAGMA user_version = 11');
+            });
+            transaction.immediate();
+        }
+        if (version < 12) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_player_action_request_v12 (
+                    request_id TEXT PRIMARY KEY,
+                    requester_agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    assignee_agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    skill_id TEXT NOT NULL, skill_version TEXT NOT NULL, parameters TEXT NOT NULL,
+                    objective TEXT NOT NULL, reward_gp INTEGER NOT NULL CHECK (reward_gp >= 0),
+                    status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'approved', 'running',
+                        'rejected', 'cancelled', 'completed', 'failed')),
+                    response_note TEXT NOT NULL, requested_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    accepted_at TEXT, approval_id TEXT UNIQUE, approval_expires_at TEXT, approved_at TEXT,
+                    started_at TEXT, run_id TEXT UNIQUE, resolved_at TEXT,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    CHECK (requester_agent_id != assignee_agent_id))`);
+                this.database.run(`INSERT INTO agent_player_action_request_v12
+                    (request_id, requester_agent_id, assignee_agent_id, skill_id, skill_version, parameters,
+                    objective, reward_gp, status, response_note, requested_at, updated_at, accepted_at,
+                    approval_id, approval_expires_at, approved_at, started_at, run_id, resolved_at, revision)
+                    SELECT request_id, requester_agent_id, assignee_agent_id, skill_id, skill_version, parameters,
+                    objective, reward_gp, status, response_note, requested_at, updated_at, accepted_at,
+                    NULL, NULL, NULL, NULL, NULL, resolved_at, revision FROM agent_player_action_request`);
+                this.database.run('DROP TABLE agent_player_action_request');
+                this.database.run('ALTER TABLE agent_player_action_request_v12 RENAME TO agent_player_action_request');
+                this.database.run(`CREATE INDEX agent_player_action_request_incoming
+                    ON agent_player_action_request(assignee_agent_id, status, requested_at DESC)`);
+                this.database.run(`CREATE INDEX agent_player_action_request_outgoing
+                    ON agent_player_action_request(requester_agent_id, status, requested_at DESC)`);
+                this.database.run('PRAGMA user_version = 12');
             });
             transaction.immediate();
         }

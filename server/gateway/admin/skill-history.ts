@@ -66,3 +66,17 @@ export async function readSkillRunHistory(limit = 30, root = skillRunsDir, event
         .sort((left, right) => right.startedAt.localeCompare(left.startedAt))
         .slice(0, boundedLimit);
 }
+
+export async function readSkillRun(runId: string, root = skillRunsDir,
+    eventLimit = 40): Promise<AdminSkillRun | null> {
+    if (!/^[0-9a-f-]{36}$/i.test(runId)) return null;
+    const boundedEventLimit = Math.max(1, Math.min(10_000, Math.trunc(eventLimit) || 40));
+    try {
+        const contents = await readFile(join(root, `${runId}.json`), 'utf8');
+        if (contents.length > 1_000_000) return null;
+        const run = parseRun(JSON.parse(contents), boundedEventLimit);
+        return run?.runId.toLowerCase() === runId.toLowerCase() ? run : null;
+    } catch {
+        return null;
+    }
+}

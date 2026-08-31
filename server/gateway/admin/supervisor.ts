@@ -193,7 +193,7 @@ export class BotSupervisor {
         usernameInput: string,
         skill: string,
         parameters: Record<string, string | number | boolean>,
-        options: { allowDraft?: boolean } = {}
+        options: { allowDraft?: boolean; runId?: string } = {}
     ): Promise<ManagedSkillRunSnapshot> {
         const username = assertUsername(usernameInput);
         const key = username.toLowerCase();
@@ -222,6 +222,11 @@ export class BotSupervisor {
         const logPath = join(logDirectory, `${startedAt.replace(/[:.]/g, '-')}.log`);
         const args = [process.execPath, 'run', 'agent-skills/run.ts', username, skill];
         if (options.allowDraft) args.push('--allow-draft');
+        const runId = options.runId ?? crypto.randomUUID();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)) {
+            throw new Error('Érvénytelen skill run ID.');
+        }
+        args.push(`--run-id=${runId}`);
         for (const [name, value] of Object.entries(parameters).sort(([left], [right]) => left.localeCompare(right))) {
             if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
                 throw new Error(`Nem támogatott skill paraméter: ${name}`);
@@ -241,7 +246,7 @@ export class BotSupervisor {
             stderr: logFile
         });
         const snapshot: ManagedSkillRunSnapshot = {
-            status: 'starting', pid: child.pid, skill, startedAt, exitCode: null, logPath
+            runId, status: 'starting', pid: child.pid, skill, startedAt, exitCode: null, logPath
         };
         this.skillProcesses.set(key, { process: child, snapshot });
         const separator = skill.lastIndexOf('@');
@@ -249,7 +254,7 @@ export class BotSupervisor {
             username,
             skillId: skill.slice(0, separator),
             version: skill.slice(separator + 1),
-            runId: `pending-${crypto.randomUUID()}`,
+            runId,
             startedAt,
             pid: child.pid
         }, null, 2), 'utf8');

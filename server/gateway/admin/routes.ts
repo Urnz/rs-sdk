@@ -32,6 +32,8 @@ import {
     createAdminAgentGoal,
     createAdminAgentKnowledge,
     createAdminPlayerActionRequest,
+    approveAdminPlayerActionRequest,
+    finishAdminPlayerActionRun,
     listAdminAgents,
     pruneAdminAgentEpisodes,
     updateAdminAgent,
@@ -40,12 +42,13 @@ import {
     updateAdminAgentGoalStatus,
     updateAdminAgentRelationship,
     updateAdminPlayerActionRequest,
+    startAdminPlayerActionRequest,
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { observeLiveState, runLivePlannerCycle } from '../../../agent-state/live.js';
 import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind, AgentEpisodeTrust,
-    AgentKnowledgeKind, AgentPlayerActionStatus, AgentRole, AgentSkillKnowledgeStatus,
+    AgentKnowledgeKind, AgentPlayerActionManualStatus, AgentRole, AgentSkillKnowledgeStatus,
     AgentSubjectKind, GoalHorizon,
     GoalStatus } from '../../../agent-state/types.js';
 import { agentStateDbPath, capabilityGapsPath } from './paths.js';
@@ -726,8 +729,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
                 throw new Error('Érvénytelen player-action revízió.');
             }
-            const status = oneOf<Exclude<AgentPlayerActionStatus, 'pending'>>(body.status,
-                ['accepted', 'rejected', 'cancelled', 'completed', 'failed'], 'status');
+            const status = oneOf<AgentPlayerActionManualStatus>(body.status,
+                ['accepted', 'rejected', 'cancelled'], 'status');
             try {
                 const request = updateAdminPlayerActionRequest(playerActionUpdateMatch[1], actorAgentId,
                     expectedRevision, status, text(body, 'responseNote'));
@@ -738,6 +741,63 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({ operator: 'local-admin', action: 'agent.player-action.status', reason,
                     username: actorAgentId, success: false, error: String(error),
                     after: { requestId: playerActionUpdateMatch[1], expectedRevision, status } });
+                throw error;
+            }
+        }
+
+        const playerActionStartMatch = url.pathname
+            .match(/^\/api\/admin\/player-actions\/([a-z0-9.-]+)\/approve-and-start$/);
+        if (req.method === 'POST' && playerActionStartMatch?.[1]) {
+            const requestId = playerActionStartMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen player-action revízió.');
+            }
+            const agents = await listAdminAgents();
+            const request = agents.agents.flatMap(agent => agent.outgoingPlayerActions)
+                .find(item => item.requestId === requestId);
+            if (!request || request.status !== 'accepted' || request.revision !== expectedRevision) {
+                throw new Error('A megbízás már nem elfogadott vagy közben megváltozott.');
+            }
+            const assignee = agents.agents.find(agent => agent.identity.agentId === request.assigneeAgentId);
+            const avatar = assignee?.controlProfile.avatarPlayerUsername;
+            if (!assignee || !avatar || assignee.controlProfile.role !== 'player') {
+                throw new Error('A címzettnek nincs exact player-avatar kötése.');
+            }
+            const requested = `${request.skill.id}@${request.skill.version}`;
+            const learned = assignee.skillRelationships.find(skill => skill.reference.id === request.skill.id
+                && skill.reference.version === request.skill.version);
+            if (!learned?.executable) {
+                throw new Error(`A címzett már nem ismeri vagy nem futtathatja ezt a skillt: ${requested}`);
+            }
+            const bot = (await catalog()).find(entry => entry.username === avatar);
+            if (!bot || bot.status !== 'active' || !bot.hasCredentials || bot.currentSkill) {
+                throw new Error('A címzett botnak online, credentiallel rendelkező és szabad állapotban kell lennie.');
+            }
+            const candidate = await resolveAdminSkillForAgent(requested, assignee.identity.agentId);
+            const parameters = validateAdminSkillParameters(candidate.definition, request.parameters);
+            const approvalId = crypto.randomUUID(), runId = crypto.randomUUID();
+            const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+            try {
+                const approved = approveAdminPlayerActionRequest(requestId, request.assigneeAgentId,
+                    expectedRevision, approvalId, expiresAt);
+                const running = startAdminPlayerActionRequest(requestId, request.assigneeAgentId,
+                    approved.revision, approvalId, runId);
+                try {
+                    const process = await context.supervisor.startSkill(avatar, requested, parameters, { runId });
+                    await appendAudit({ operator: 'local-admin', action: 'agent.player-action.start', reason,
+                        username: avatar, success: true, before: request, after: { request: running, process } });
+                    return json({ ok: true, request: running, process }, 202);
+                } catch (error) {
+                    finishAdminPlayerActionRun(runId, false, `Skill start failed: ${String(error)}`);
+                    throw error;
+                }
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.player-action.start', reason,
+                    username: avatar, success: false, error: String(error), before: request,
+                    after: { approvalId, runId } });
                 throw error;
             }
         }

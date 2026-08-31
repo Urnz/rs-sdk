@@ -16,6 +16,11 @@ const positional = args.filter(arg => !arg.startsWith('--'));
 const botName = positional[0];
 const requested = positional[1];
 const allowDraft = args.includes('--allow-draft');
+const runId = args.find(arg => arg.startsWith('--run-id='))?.slice('--run-id='.length);
+
+if (runId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)) {
+    throw new Error('Invalid run ID');
+}
 
 if (!botName || !requested) {
     console.error('Usage: bun agent-skills/run.ts <bot-name> <skill-id[@version]> [--allow-draft] [--param=name=value]');
@@ -58,7 +63,7 @@ const run = await runScript(async ({ bot, sdk }) => {
         username: botName,
         skillId: registered.definition.id,
         version: registered.definition.version,
-        runId: `pending-${crypto.randomUUID()}`,
+        runId: runId ?? `pending-${crypto.randomUUID()}`,
         startedAt: new Date().toISOString(),
         pid: process.pid
     };
@@ -69,6 +74,7 @@ const run = await runScript(async ({ bot, sdk }) => {
     try {
         result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk), reference =>
             registry.get(reference, botName)?.definition ?? null).execute(registered.definition, {
+            runId,
             parameters,
             allowDraft,
             onEvent: event => {

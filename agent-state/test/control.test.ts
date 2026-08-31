@@ -178,11 +178,21 @@ describe('institution to player action queue', () => {
         const accepted = store.setPlayerActionRequestStatus(request.requestId, 'ferrye14', request.revision,
             'accepted', 'I can do this.', '2026-08-30T10:01:00.000Z');
         expect(accepted).toMatchObject({ status: 'accepted', acceptedAt: '2026-08-30T10:01:00.000Z', revision: 2 });
-        const completed = store.setPlayerActionRequestStatus(request.requestId, 'ferrye14', accepted.revision,
-            'completed', 'Ore is in the bank.', '2026-08-30T10:20:00.000Z');
-        expect(completed).toMatchObject({ status: 'completed', resolvedAt: '2026-08-30T10:20:00.000Z', revision: 3 });
-        expect(() => store.setPlayerActionRequestStatus(request.requestId, 'ferrye14', completed.revision,
-            'failed', 'Too late.')).toThrow('Invalid player action transition');
+        const approvalId = '11111111-1111-4111-8111-111111111111';
+        const runId = '22222222-2222-4222-8222-222222222222';
+        const approved = store.approvePlayerActionRequest(request.requestId, 'ferrye14', accepted.revision,
+            approvalId, '2026-08-30T10:06:00.000Z', '2026-08-30T10:02:00.000Z');
+        expect(approved).toMatchObject({ status: 'approved', approvalId,
+            approvalExpiresAt: '2026-08-30T10:06:00.000Z', revision: 3 });
+        const running = store.startApprovedPlayerAction(request.requestId, 'ferrye14', approved.revision,
+            approvalId, runId, '2026-08-30T10:03:00.000Z');
+        expect(running).toMatchObject({ status: 'running', runId, revision: 4 });
+        expect(() => store.startApprovedPlayerAction(request.requestId, 'ferrye14', running.revision,
+            approvalId, '33333333-3333-4333-8333-333333333333')).toThrow('already used');
+        const completed = store.finishPlayerActionRun(runId, true, 'Ore is in the bank.',
+            '2026-08-30T10:20:00.000Z');
+        expect(completed).toMatchObject({ status: 'completed', resolvedAt: '2026-08-30T10:20:00.000Z', revision: 5 });
+        expect(store.finishPlayerActionRun(runId, false, 'Late duplicate.')).toEqual(completed);
         store.close();
     });
 
@@ -215,6 +225,18 @@ describe('institution to player action queue', () => {
             'rejected')).toThrow('require a response note');
         expect(store.setPlayerActionRequestStatus(request.requestId, 'varrock-forge', request.revision,
             'cancelled').status).toBe('cancelled');
+
+        const expiring = store.createPlayerActionRequest('varrock-forge', { requestId: 'work.expiring',
+            assigneeAgentId: 'ferrye14', skill: { id: 'mine-and-bank', version: '1.0.0' },
+            objective: 'Time-sensitive work.' }, '2026-08-31T10:00:00.000Z');
+        const accepted = store.setPlayerActionRequestStatus(expiring.requestId, 'ferrye14', expiring.revision,
+            'accepted', '', '2026-08-31T10:01:00.000Z');
+        const approved = store.approvePlayerActionRequest(expiring.requestId, 'ferrye14', accepted.revision,
+            '44444444-4444-4444-8444-444444444444', '2026-08-31T10:02:00.000Z',
+            '2026-08-31T10:01:30.000Z');
+        expect(() => store.startApprovedPlayerAction(expiring.requestId, 'ferrye14', approved.revision,
+            approved.approvalId!, '55555555-5555-4555-8555-555555555555',
+            '2026-08-31T10:02:01.000Z')).toThrow('expired');
         store.close();
     });
 });

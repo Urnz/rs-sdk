@@ -8,7 +8,7 @@ import { readPlayerSave } from './save-reader';
 import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, resolveAdminTeleportDestination } from './teleport';
 import { validateOfflineSaveDraft } from './offline-editor';
-import { readSkillRunHistory } from './skill-history';
+import { readSkillRun, readSkillRunHistory } from './skill-history';
 import type { BotCatalogEntry } from './types';
 
 const temporaryDirectories: string[] = [];
@@ -218,5 +218,7 @@ describe('admin skill run history', () => {
 
         expect(runs).toHaveLength(1);
         expect(runs[0]).toMatchObject({ runId: newerId, username: 'miner2', operations: 2, durationMs: 1500 });
+        expect(await readSkillRun(olderId, directory)).toMatchObject({ runId: olderId, username: 'miner1' });
+        expect(await readSkillRun('not-a-run-id', directory)).toBeNull();
     });
 });
