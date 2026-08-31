@@ -390,7 +390,7 @@ export interface CreateAgentPlayerActionRequest {
 export interface AgentMoneyAsset {
     balanceGp: number;
     observedAt: string;
-    source: 'live' | 'save';
+    source: 'live' | 'save' | 'treasury';
     freshness: 'fresh' | 'stale';
 }
 

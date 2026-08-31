@@ -3,7 +3,7 @@ import type { AgentAssetPortfolio, AgentCommitment, AgentEconomicActorKind, Agen
 import { normalizeEconomicActorId } from './validation.js';
 
 export interface AgentMoneyObservation extends AgentMoneyAsset {
-    actor: { kind: 'player'; id: string };
+    actor: { kind: AgentEconomicActorKind; id: string };
 }
 
 export interface AgentPropertyObservation {

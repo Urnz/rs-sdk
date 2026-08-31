@@ -80,6 +80,8 @@ test('admin UI exposes the separate institution to player action queue', () => {
     expect(script).toContain('data-action="player-action-start"');
     expect(script).toContain('/settle`');
     expect(script).toContain('data-action="player-action-settle"');
+    expect(script).toContain('data-action="agent-treasury-edit"');
+    expect(script).toContain('/treasury`');
     expect(html).toContain('A megbízás nem indítja el a botot');
 });
 

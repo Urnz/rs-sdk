@@ -36,6 +36,11 @@ adókulcsokat vagy állami kincstárt.
 
 ## Business manager mod
 
+A business és faction közös treasury-portja már tartós `balance/reserved/available`
+egyenleget, valamint idempotens `reserve/commit/release` megbízási tranzakciót ad.
+Ez nem olvasztja össze a két domaint: a Business és a Governance később a saját
+bevételi és kiadási szabályaival hívja ugyanazt a szűk wallet-határt.
+
 Tulajdonolja:
 
 - a vállalkozás identitását, tagságát, alkalmazottait és szerepköreit;

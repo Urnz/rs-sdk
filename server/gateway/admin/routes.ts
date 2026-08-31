@@ -41,6 +41,7 @@ import {
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
     updateAdminAgentRelationship,
+    updateAdminInstitutionTreasury,
     updateAdminPlayerActionRequest,
     startAdminPlayerActionRequest,
     settleAdminPlayerActionReward,
@@ -690,6 +691,29 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             await appendAudit({ operator: 'local-admin', action: 'agent.control-profile.update', reason,
                 success: true, username: agentId, before, after: profile });
             return json({ ok: true, profile });
+        }
+
+        const treasuryMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/treasury$/);
+        if (req.method === 'PUT' && treasuryMatch?.[1]) {
+            const agentId = treasuryMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            const balanceGp = Number(body.balanceGp);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen treasury revízió.');
+            }
+            const before = (await listAdminAgents()).agents.find(agent => agent.identity.agentId === agentId)?.treasury;
+            try {
+                const treasury = updateAdminInstitutionTreasury(agentId, expectedRevision, balanceGp);
+                await appendAudit({ operator: 'local-admin', action: 'agent.treasury.update', reason,
+                    username: agentId, success: true, before, after: treasury });
+                return json({ ok: true, treasury });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.treasury.update', reason,
+                    username: agentId, success: false, before, error: String(error) });
+                throw error;
+            }
         }
 
         const playerActionCreateMatch = url.pathname

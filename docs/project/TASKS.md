@@ -374,8 +374,9 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       - [x] v12→v13 migrációval a sikeres megbízás díját tartós `settling`
         állapoton és engine-tickes, idempotens settlement ID-n keresztül a player
         valódi coin inventoryjába fizetni; hiba vagy megszakítás ne duplázzon GP-t.
-      - [ ] A napi operatív keretből finanszírozott kezdeti kifizetési portot a
-        Business/Governance mod tényleges treasury-walletjére cserélni.
+      - [x] A napi operatív keretből finanszírozott kezdeti kifizetési portot közös,
+        tartós business/faction treasury-walletre cserélni: reserve/commit/release,
+        optimista admin-finanszírozás és külön döntési limit mellett.
   - [ ] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
     az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
 

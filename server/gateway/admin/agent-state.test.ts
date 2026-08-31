@@ -20,6 +20,7 @@ import {
     updateAdminAgentCommitmentStatus,
     updateAdminAgentGoalStatus,
     updateAdminAgentRelationship,
+    updateAdminInstitutionTreasury,
     updateAdminPlayerActionRequest,
     updateAdminAgentSkill
 } from './agent-state';
@@ -45,15 +46,22 @@ describe('admin agent-state service', () => {
             personalityTraits: ['prudent'], controlProfile: { role: 'institution', subjectKind: 'business',
                 subjectId: 'forge', decisionIntervalMs: 60_000, maxDecisionsPerDay: 24,
                 dailyLlmBudgetMicros: 100_000, dailyOperationalBudgetGp: 10_000 } }, path);
+        expect(updateAdminInstitutionTreasury('forge', 1, 10_000, path))
+            .toMatchObject({ balanceGp: 10_000, availableGp: 10_000, revision: 2 });
         createAdminAgent({ agentId: 'worker', playerUsername: 'Worker', displayName: 'Worker',
             background: 'Miner.', personalityTraits: ['reliable'] }, path);
         updateAdminAgentSkill('worker', { id: 'varrock-east-mining', version: '1.0.0' }, 'known', null, path);
         const request = createAdminPlayerActionRequest('forge', { requestId: 'forge.iron-job',
             assigneeAgentId: 'worker', skill: { id: 'varrock-east-mining', version: '1.0.0' },
             parameters: {}, objective: 'Bank one load of iron.', rewardGp: 500 }, path);
+        expect((await listAdminAgents(path)).agents.find(agent => agent.identity.agentId === 'forge')?.treasury)
+            .toMatchObject({ balanceGp: 10_000, reservedGp: 500, availableGp: 9_500 });
         const initial = await listAdminAgents(path);
-        expect(initial.agents.find(agent => agent.identity.agentId === 'forge')?.outgoingPlayerActions)
+        const forge = initial.agents.find(agent => agent.identity.agentId === 'forge')!;
+        expect(forge.outgoingPlayerActions)
             .toEqual([expect.objectContaining({ requestId: request.requestId, status: 'pending' })]);
+        expect(forge.assets.money).toMatchObject({ balanceGp: 10_000, source: 'treasury' });
+        expect(forge.decisionContext).toContain('500 gp reserved; 9500 gp available');
         const worker = initial.agents.find(agent => agent.identity.agentId === 'worker')!;
         expect(worker.incomingPlayerActions).toEqual([expect.objectContaining({ requesterAgentId: 'forge' })]);
         expect(worker.decisionContext).toContain('Player action queue:');
@@ -91,6 +99,15 @@ describe('admin agent-state service', () => {
         expect(await settleAdminPlayerActionReward(pending.settlementId!, path, rewarder))
             .toMatchObject({ status: 'completed', runId,
                 responseNote: expect.stringContaining('100 → 600') });
+        expect((await listAdminAgents(path)).agents.find(agent => agent.identity.agentId === 'forge')?.treasury)
+            .toMatchObject({ balanceGp: 9_500, reservedGp: 0, availableGp: 9_500 });
+        const declined = createAdminPlayerActionRequest('forge', { requestId: 'forge.declined-job',
+            assigneeAgentId: 'worker', skill: { id: 'varrock-east-mining', version: '1.0.0' },
+            parameters: {}, objective: 'Declined work.', rewardGp: 250 }, path);
+        updateAdminPlayerActionRequest(declined.requestId, 'worker', declined.revision,
+            'rejected', 'Not today.', path);
+        expect((await listAdminAgents(path)).agents.find(agent => agent.identity.agentId === 'forge')?.treasury)
+            .toMatchObject({ balanceGp: 9_500, reservedGp: 0, availableGp: 9_500 });
     });
 
     test('builds a complete editable snapshot and executable planner preview', async () => {

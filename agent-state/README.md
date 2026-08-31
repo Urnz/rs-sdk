@@ -118,7 +118,7 @@ revisions, providing the integration point for future Business and Governance do
 
 Money and property ownership are deliberately not copied into the agent database. `resolveAgentAssets` builds a
 read-only current portfolio from external observations matched through those actor links. The admin gateway supplies
-the current bot-catalog balance and Property-mod ownership, marks unavailable sources instead of failing the complete
+the current bot-catalog or institution-treasury balance and Property-mod ownership, marks unavailable sources instead of failing the complete
 agent view, and places the bounded result early in the decision context. Relationship debts and valued open
 commitments are summarized separately as receivables and liabilities; they are not silently netted or double-counted.
 

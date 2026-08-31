@@ -64,10 +64,21 @@ naplóz. Offline player vagy átmeneti engine-hiba előtt nem történik coinmoz
 megbízás `settling` marad, és az adminpanelen újrapróbálható. Egy összeomlás miatt
 `pending` engine-rekord szándékosan fail-closed, kézi egyeztetést igényel.
 
-A díj forrása ebben az első változatban a létrehozáskor ellenőrzött és naponta
-összesítve lefoglalt intézményi operatív keret. Ez már valódi player-coin kifizetés,
-de még nem Business- vagy Governance-treasury terhelés: azt a domain wallet-portok
-elkészültekor kell a settlement forrásoldalára kötni.
+A díj forrása egy AgentState-től elkülönített, közös business/faction treasury.
+Megbízás létrehozásakor az összeg atomi `reserved` foglalás lesz, ezért ugyanazt a
+fedezetet nem lehet két munkára elkölteni. Elutasított, visszavont vagy sikertelen
+munka idempotensen felszabadítja; engine által igazolt player-kifizetés után a
+settlement ID-hoz kötve `committed`, és csak ekkor csökken a treasury egyenlege.
+Átmeneti kifizetési hiba megtartja a foglalást. A korábbról létező, még nem
+treasury-fedezett megbízás a fizetés előtt próbál fedezetet foglalni, és fedezet
+nélkül biztonságosan `settling` marad.
+
+A treasury az admin agentkártyáján látható és optimista revízióval finanszírozható;
+az egyenleg nem csökkenthető a már lefoglalt összeg alá. A napi operatív keret ettől
+független döntési biztonsági plafon marad: egy kérésnek mind a napi limitbe bele kell
+férnie, mind szabad treasury-fedezettel kell rendelkeznie. A későbbi Business és
+Governance modul ugyanezt a portot saját bevételi, adó- és kiadási szabályai mögül
+használhatja, az AgentState-be történő pénzmásolás nélkül.
 
 A kezdeti domain allowlist:
 

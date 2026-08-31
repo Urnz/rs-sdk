@@ -1,3 +1,4 @@
+import { dirname, join } from 'node:path';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
 import { resolveAgentAssets } from '../../../agent-state/assets.js';
@@ -9,15 +10,26 @@ import type { AgentCommitmentStatus, AgentPlayerActionManualStatus, AgentSkillKn
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
     CreateAgentPlayerActionRequest, SetAgentControlProfile, SetAgentRelationship,
     UpdateAgentIdentity } from '../../../agent-state/types.js';
-import { agentStateDbPath } from './paths.js';
+import { agentStateDbPath, institutionTreasuryDbPath } from './paths.js';
 import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { BotCatalogEntry } from './types.js';
 import type { AdminPropertyView } from './properties.js';
 import { readSkillRun } from './skill-history.js';
 import { requestEnginePlayerReward } from './player-rewards.js';
+import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
+    try { return callback(store); }
+    finally { store.close(); }
+}
+
+export function institutionTreasuryPathFor(path = agentStateDbPath): string {
+    return path === agentStateDbPath ? institutionTreasuryDbPath : join(dirname(path), 'institution-treasury.sqlite');
+}
+
+function useTreasury<T>(path: string, callback: (store: InstitutionTreasuryStore) => T): T {
+    const store = new InstitutionTreasuryStore(institutionTreasuryPathFor(path));
     try { return callback(store); }
     finally { store.close(); }
 }
@@ -34,6 +46,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
     const skills = await listAdminSkills();
     const availableSkills = skills.map(skill => ({ id: skill.id, version: skill.version }));
     const generatedAt = new Date().toISOString();
+    const treasuries = new Map(useTreasury(path, store => store.list())
+        .map(item => [`${item.kind}:${item.id}`, item]));
     const agents = useStore(path, store => store.listIdentities().map(identity => {
         const snapshot = store.getSnapshot(identity.agentId)!;
         const knownByReference = new Map(snapshot.knownSkills.map(item =>
@@ -61,6 +75,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             { ...socialQueryFromSnapshot(snapshot), now: generatedAt });
         const actorLinks = store.listEconomicActorLinks(identity.agentId);
         const controlProfile = store.getControlProfile(identity.agentId)!;
+        const treasury = controlProfile.role === 'institution'
+            ? treasuries.get(`${controlProfile.subjectKind}:${controlProfile.subjectId}`) ?? null : null;
         const playerActionRequests = store.listPlayerActionRequests(identity.agentId);
         const incomingPlayerActions = playerActionRequests
             .filter(item => item.assigneeAgentId === identity.agentId);
@@ -71,16 +87,18 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         const assets = resolveAgentAssets(actorLinks, relationships.map(entry => entry.relationship),
             relationships.flatMap(entry => entry.commitments), {
                 observedAt: assetSources.observedAt,
-                money: bot ? [{ actor: { kind: 'player', id: bot.username }, balanceGp: bot.coins,
+                money: bot ? [{ actor: { kind: 'player' as const, id: bot.username }, balanceGp: bot.coins,
                     observedAt: bot.lastActivityAt ?? bot.saveSavedAt ?? assetSources.observedAt ?? new Date().toISOString(),
                     source: bot.status === 'active' || bot.status === 'stale' ? 'live' : 'save',
-                    freshness: bot.status === 'active' ? 'fresh' : 'stale' }] : [],
+                    freshness: bot.status === 'active' ? 'fresh' : 'stale' }]
+                    : treasury ? [{ actor: { kind: treasury.kind, id: treasury.id }, balanceGp: treasury.balanceGp,
+                        observedAt: treasury.updatedAt, source: 'treasury' as const, freshness: 'fresh' as const }] : [],
                 properties: (assetSources.properties ?? []).filter(property => property.state.owner).map(property => ({
                     propertyId: property.propertyId, displayName: property.displayName, type: property.type,
                     region: property.location.region, acquiredAt: property.state.acquiredAt,
                     stateVersion: property.state.version, owner: property.state.owner!
                 })),
-                unavailableSources: [...(assetSources.unavailableSources ?? []), ...(bot ? [] : ['money'])]
+                unavailableSources: [...(assetSources.unavailableSources ?? []), ...(bot || treasury ? [] : ['money'])]
             });
         return {
             ...snapshot,
@@ -99,12 +117,13 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             relationships,
             relevantRelationships,
             assets,
-            decisionContext: buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 4000,
+            decisionContext: `${buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 3800,
                 controlProfile,
                 playerActionRequests,
                 episodicMemories: relevantEpisodes.map(result => result.episode),
                 semanticMemories: relevantKnowledge.map(result => result.knowledge),
-                socialMemories: relevantRelationships, assets }),
+                socialMemories: relevantRelationships, assets })}${treasury
+                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}`,
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
@@ -122,7 +141,9 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
                 executable: knowledge?.status === 'known' || knowledge?.status === 'preferred'
             };
         });
-        return { ...agent, catalogSkills, skillRelationships,
+        const treasury = agent.controlProfile.role === 'institution'
+            ? treasuries.get(`${agent.controlProfile.subjectKind}:${agent.controlProfile.subjectId}`) ?? null : null;
+        return { ...agent, catalogSkills, skillRelationships, treasury,
             planner: planNextAction(agent, { availableSkills: catalogSkills.map(skill => ({
                 id: skill.id, version: skill.version
             })) }) };
@@ -131,7 +152,12 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
 }
 
 export function createAdminAgent(input: CreateAgentIdentity, path = agentStateDbPath) {
-    return useStore(path, store => store.createIdentity(input));
+    const identity = useStore(path, store => store.createIdentity(input));
+    const profile = useStore(path, store => store.getControlProfile(identity.agentId));
+    if (profile?.role === 'institution') {
+        useTreasury(path, store => store.ensure(profile.subjectKind as InstitutionKind, profile.subjectId));
+    }
+    return identity;
 }
 
 export function updateAdminAgent(agentId: string, expectedRevision: number, patch: UpdateAgentIdentity,
@@ -141,19 +167,37 @@ export function updateAdminAgent(agentId: string, expectedRevision: number, patc
 
 export function updateAdminAgentControlProfile(agentId: string, expectedRevision: number,
     input: SetAgentControlProfile, path = agentStateDbPath) {
-    return useStore(path, store => store.setControlProfile(agentId, expectedRevision, input));
+    const profile = useStore(path, store => store.setControlProfile(agentId, expectedRevision, input));
+    if (profile.role === 'institution') {
+        useTreasury(path, store => store.ensure(profile.subjectKind as InstitutionKind, profile.subjectId));
+    }
+    return profile;
 }
 
 export function createAdminPlayerActionRequest(requesterAgentId: string,
     input: CreateAgentPlayerActionRequest, path = agentStateDbPath) {
-    return useStore(path, store => store.createPlayerActionRequest(requesterAgentId, input));
+    const profile = useStore(path, store => store.getControlProfile(requesterAgentId));
+    if (!profile || profile.role !== 'institution') throw new Error('A megbízónak institution agentnek kell lennie.');
+    const held = input.rewardGp
+        ? useTreasury(path, store => store.reserve(profile.subjectKind as InstitutionKind,
+            profile.subjectId, input.requestId, input.rewardGp!)) : null;
+    try {
+        return useStore(path, store => store.createPlayerActionRequest(requesterAgentId, input));
+    } catch (error) {
+        if (held?.created) useTreasury(path, store => store.release(input.requestId));
+        throw error;
+    }
 }
 
 export function updateAdminPlayerActionRequest(requestId: string, actorAgentId: string,
     expectedRevision: number, status: AgentPlayerActionManualStatus,
     responseNote: string, path = agentStateDbPath) {
-    return useStore(path, store => store.setPlayerActionRequestStatus(requestId, actorAgentId,
+    const request = useStore(path, store => store.setPlayerActionRequestStatus(requestId, actorAgentId,
         expectedRevision, status, responseNote));
+    if (request.rewardGp > 0 && (status === 'rejected' || status === 'cancelled')) {
+        useTreasury(path, store => store.release(request.requestId));
+    }
+    return request;
 }
 
 export function approveAdminPlayerActionRequest(requestId: string, actorAgentId: string,
@@ -170,8 +214,12 @@ export function startAdminPlayerActionRequest(requestId: string, actorAgentId: s
 
 export function finishAdminPlayerActionRun(runId: string, completed: boolean, responseNote: string,
     path = agentStateDbPath, settlementId: string | null = null) {
-    return useStore(path, store => store.finishPlayerActionRun(runId, completed, responseNote,
+    const request = useStore(path, store => store.finishPlayerActionRun(runId, completed, responseNote,
         new Date().toISOString(), settlementId));
+    if (request?.status === 'failed' && request.rewardGp > 0) {
+        useTreasury(path, store => store.release(request.requestId));
+    }
+    return request;
 }
 
 export async function reconcileAdminPlayerActionRun(runId: string, fallbackCompleted: boolean,
@@ -195,14 +243,26 @@ export async function settleAdminPlayerActionReward(settlementId: string, path =
         if (!request || request.status !== 'settling') throw new Error('Nincs függőben lévő player-action elszámolás.');
         const identity = store.getIdentity(request.assigneeAgentId);
         const profile = store.getControlProfile(request.assigneeAgentId);
+        const requester = store.getControlProfile(request.requesterAgentId);
         if (!identity || !profile || profile.role !== 'player' || !profile.avatarPlayerUsername
             || identity.playerUsername !== profile.avatarPlayerUsername) {
             throw new Error('A jutalom címzettjének exact player-avatar kötése megszűnt.');
         }
-        return { request, username: profile.avatarPlayerUsername };
+        if (!requester || requester.role !== 'institution') {
+            throw new Error('A jutalom forrásintézménye megszűnt.');
+        }
+        return { request, username: profile.avatarPlayerUsername, requester };
     });
     try {
+        useTreasury(path, store => {
+            if (!store.getReservation(state.request.requestId)) {
+                store.reserve(state.requester.subjectKind as InstitutionKind, state.requester.subjectId,
+                    state.request.requestId, state.request.rewardGp);
+            }
+            store.bindSettlement(state.request.requestId, settlementId);
+        });
         const receipt = await rewarder(state.username, state.request.rewardGp, settlementId);
+        useTreasury(path, store => store.commit(state.request.requestId, settlementId));
         const balance = receipt.reward ? ` (${receipt.reward.coinsBefore} → ${receipt.reward.coinsAfter} gp)` : '';
         return useStore(path, store => store.completePlayerActionSettlement(settlementId,
             `Jutalom kifizetve: ${state.request.rewardGp} gp${balance}.`));
@@ -212,6 +272,14 @@ export async function settleAdminPlayerActionReward(settlementId: string, path =
             `Jutalom függőben: ${message}`));
         throw error;
     }
+}
+
+export function updateAdminInstitutionTreasury(agentId: string, expectedRevision: number,
+    balanceGp: number, path = agentStateDbPath) {
+    const profile = useStore(path, store => store.getControlProfile(agentId));
+    if (!profile || profile.role !== 'institution') throw new Error('Csak institution agentnek lehet treasury-je.');
+    return useTreasury(path, store => store.setBalance(profile.subjectKind as InstitutionKind,
+        profile.subjectId, expectedRevision, balanceGp));
 }
 
 export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {
