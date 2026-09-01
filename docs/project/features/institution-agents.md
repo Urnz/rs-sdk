@@ -90,6 +90,11 @@ A kezdeti domain allowlist:
 - World Director: budget és validálandó eseménysablon javaslata.
 
 Ezek típusos képességnevek, nem általános fájl-, shell-, hálózati vagy engine-eszközök.
+A `request-player-action` már teljes tartós adapterrel rendelkezik. A
+`propose-business-policy` és `propose-faction-policy` egyelőre csak jogosultsági
+határ: tényleges read/write adaptert akkor kapnak, amikor a 12. fázis Business
+manager, illetve a 15. fázis Governance domainmodellje létrejön. Így a 11. fázis
+nem hoz létre ideiglenes, később migrálandó párhuzamos üzleti vagy állami állapotot.
 
 ## World Director: determinisztikus eseményalap
 

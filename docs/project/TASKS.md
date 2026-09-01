@@ -363,14 +363,15 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
       végrehajtási döntést készíteni.
   - [x] Az általánosítható skilleket paraméterezni és kisebb eljárásokból építeni,
     hogy ne keletkezzen külön skill minden érc–lelőhely–bank kombinációra.
-  - [ ] Business- és faction-agenteknek domain eszközöket, költségvetést, memóriát
+  - [x] Business- és faction-agenteknek domain eszközöket, költségvetést, memóriát
     és döntési ritmust adni; játékbeli fizikai műveletet képviselő/player végezzen.
     - [x] Szerep- és subjectfüggő domain-tool allowlist, korlátozott intézményi
       context, adminból szerkeszthető napi LLM-/GP-keret és döntési időköz.
     - [x] Atomi döntési admission ledger napi darabszám-, LLM-költség-, GP-keret-
       és scheduled cadence ellenőrzéssel; event/admin trigger sem lépheti át a keretet.
-    - [ ] A Business és Governance mod read/write portjait tényleges domain toolokra
-      kötni, a `request-player-action` megbízást pedig player-agent queue-val végigvinni.
+    - [x] A `request-player-action` domain tool megbízását tartós player-agent
+      queue-val, exact avatár- és skillkötéssel végigvinni. A még nem létező
+      Business és Governance mod adapterei a saját későbbi fázisukba kerülnek.
       - [x] v10→v11 migrációval tartós, optimista revíziós player-action queue:
         exact assignee, ismert skillverzió, validált paraméterek, cél, díj és auditált
         pending/accepted/resolved lifecycle az adminpanelen.
@@ -405,6 +406,8 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] Több agent párhuzamos futása elkülönített állapottal és közös világban.
 - [ ] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
 - [ ] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
+- [ ] A Business manager read/write portját az institution-agent allowlistelt
+  domain tooljaihoz kötni, közvetlen player- vagy AgentState-pénzmásolás nélkül.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
 - [ ] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
   egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
@@ -446,6 +449,8 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] Kincstárat és költségvetést a közös gazdasági főkönyvhöz kapcsolni.
 - [ ] Adó-, vám-, illeték- és támogatási szabályokat verziózott policyként kezelni.
 - [ ] Property- és Business-eseményekből idempotens kötelezettségeket képezni.
+- [ ] A Governance read/write portját a faction-agent allowlistelt domain
+  tooljaihoz kötni, minden fizikai játékbeli műveletet player-megbízásként hagyva.
 - [ ] Adóbeszedést, mentességet, hátralékot és auditálható adminbeavatkozást készíteni.
 - [ ] Az uradalmat joghatósági egységként kezelni, amely több ingatlant birtokolhat,
   és opcionálisan egy várat vagy más Propertyt használhat székhelyként.
