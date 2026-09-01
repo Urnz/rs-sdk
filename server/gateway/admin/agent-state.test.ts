@@ -26,6 +26,8 @@ import {
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store';
 import type { BotCatalogEntry } from './types';
+import { BusinessManagerStore } from './business-manager';
+import { businessManagerPathFor } from './business-agent-port';
 
 const directories: string[] = [];
 
@@ -51,6 +53,24 @@ describe('admin agent-state service', () => {
         createAdminAgent({ agentId: 'worker', playerUsername: 'Worker', displayName: 'Worker',
             background: 'Miner.', personalityTraits: ['reliable'] }, path);
         updateAdminAgentSkill('worker', { id: 'varrock-east-mining', version: '1.0.0' }, 'known', null, path);
+        const businesses = new BusinessManagerStore(businessManagerPathFor(path));
+        businesses.create({ businessId: 'forge', name: 'Forge', summary: 'Workshop.',
+            ownerAgentId: 'owner' });
+        businesses.hire('forge', { workerAgentId: 'worker', role: 'worker', title: 'Miner', wageGp: 500,
+            requiredSkill: { id: 'varrock-east-mining', version: '1.0.0' } }, undefined,
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+        const policy = businesses.proposePolicy('forge', {
+            proposalId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', proposerAgentId: 'forge',
+            objective: 'Mine ore.', mode: 'balanced', maxRewardGp: 500,
+            preferredSkills: [{ id: 'varrock-east-mining', version: '1.0.0' }]
+        });
+        businesses.resolvePolicy('forge', policy.proposalId, policy.revision, 'approve', 'Approved.');
+        businesses.close();
+        expect(() => createAdminPlayerActionRequest('forge', { requestId: 'forge.underpaid-job',
+            assigneeAgentId: 'worker', skill: { id: 'varrock-east-mining', version: '1.0.0' },
+            parameters: {}, objective: 'Underpaid work.', rewardGp: 499 }, path)).toThrow('employment wage');
+        expect((await listAdminAgents(path)).agents.find(agent => agent.identity.agentId === 'forge')?.treasury)
+            .toMatchObject({ balanceGp: 10_000, reservedGp: 0, availableGp: 10_000 });
         const request = createAdminPlayerActionRequest('forge', { requestId: 'forge.iron-job',
             assigneeAgentId: 'worker', skill: { id: 'varrock-east-mining', version: '1.0.0' },
             parameters: {}, objective: 'Bank one load of iron.', rewardGp: 500 }, path);
@@ -103,7 +123,7 @@ describe('admin agent-state service', () => {
             .toMatchObject({ balanceGp: 9_500, reservedGp: 0, availableGp: 9_500 });
         const declined = createAdminPlayerActionRequest('forge', { requestId: 'forge.declined-job',
             assigneeAgentId: 'worker', skill: { id: 'varrock-east-mining', version: '1.0.0' },
-            parameters: {}, objective: 'Declined work.', rewardGp: 250 }, path);
+            parameters: {}, objective: 'Declined work.', rewardGp: 500 }, path);
         updateAdminPlayerActionRequest(declined.requestId, 'worker', declined.revision,
             'rejected', 'Not today.', path);
         expect((await listAdminAgents(path)).agents.find(agent => agent.identity.agentId === 'forge')?.treasury)

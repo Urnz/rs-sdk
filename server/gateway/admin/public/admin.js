@@ -739,16 +739,45 @@ function showAgentControl(agentId) {
 
 function updatePlayerActionSkills() {
     const form = $('#player-action-form');
+    const requester = state.agents.find(entry => entry.identity.agentId === form.elements.requesterAgentId.value);
     const assignee = state.agents.find(entry => entry.identity.agentId === form.elements.assigneeAgentId.value);
-    const executable = assignee?.skillRelationships.filter(item => item.executable) || [];
+    let executable = assignee?.skillRelationships.filter(item => item.executable) || [];
+    if (requester?.controlProfile.subjectKind === 'business') {
+        const employment = requester.business?.employments.find(item => item.status === 'active'
+            && item.workerAgentId === assignee?.identity.agentId);
+        if (employment?.requiredSkill) executable = executable.filter(item => item.reference.id === employment.requiredSkill.id
+            && item.reference.version === employment.requiredSkill.version);
+        const preferred = requester.business?.activePolicy?.preferredSkills || [];
+        if (preferred.length) executable = executable.filter(item => preferred.some(skill =>
+            item.reference.id === skill.id && item.reference.version === skill.version));
+        form.elements.rewardGp.value = employment?.wageGp ?? 0;
+        form.elements.rewardGp.readOnly = true;
+    } else {
+        form.elements.rewardGp.readOnly = false;
+    }
     form.elements.skill.innerHTML = executable.map(item => `<option value="${escapeHtml(`${item.reference.id}@${item.reference.version}`)}">${escapeHtml(item.name)} · ${escapeHtml(item.reference.id)}@${escapeHtml(item.reference.version)}</option>`).join('');
 }
 
 function showPlayerAction(requesterAgentId) {
     const requester = state.agents.find(entry => entry.identity.agentId === requesterAgentId);
     if (!requester || requester.controlProfile.role !== 'institution') throw new Error('Csak institution agent küldhet player-megbízást.');
-    const players = state.agents.filter(entry => entry.controlProfile.role === 'player'
+    let players = state.agents.filter(entry => entry.controlProfile.role === 'player'
         && entry.controlProfile.avatarPlayerUsername && entry.skillRelationships.some(skill => skill.executable));
+    if (requester.controlProfile.subjectKind === 'business') {
+        if (requester.business?.status !== 'active') throw new Error('Csak aktív vállalkozás küldhet player-megbízást.');
+        if (!requester.business.activePolicy) throw new Error('A vállalkozásnak nincs jóváhagyott aktív működési policyje.');
+        players = players.filter(entry => {
+            const employment = requester.business.employments.find(item => item.status === 'active'
+                && item.workerAgentId === entry.identity.agentId);
+            if (!employment || employment.wageGp > requester.business.activePolicy.maxRewardGp) return false;
+            return entry.skillRelationships.some(item => item.executable
+                && (!employment.requiredSkill || (item.reference.id === employment.requiredSkill.id
+                    && item.reference.version === employment.requiredSkill.version))
+                && (!requester.business.activePolicy.preferredSkills.length
+                    || requester.business.activePolicy.preferredSkills.some(skill => item.reference.id === skill.id
+                        && item.reference.version === skill.version)));
+        });
+    }
     if (!players.length) throw new Error('Nincs exact avatárhoz kötött, végrehajtható skillt ismerő player agent.');
     const form = $('#player-action-form'); form.reset();
     form.elements.requesterAgentId.value = requesterAgentId;

@@ -436,6 +436,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     javaslatíráshoz kötni; idegen subjectet és player agentet fail-closed tiltani.
   - [x] A policyt csak auditált admin-döntéssel aktiválni vagy elutasítani, új
     jóváhagyáskor a korábbi aktív policyt atomikusan superseded állapotba tenni.
+  - [x] Az aktív Business policyt és foglalkoztatást a player-megbízási queue elé
+    kötni: exact aktív dolgozó, munkaköri skill, rögzített bér és policyplafon;
+    csak ezután történhessen idempotens treasury reserve/commit/release.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
   - [x] A kísérlet definíció-digestjét, seedjét, determinisztikus résztvevősorrendjét,
     közös baseline/dispatch gazdasági snapshotját és teljes döntési rekordjait menteni.

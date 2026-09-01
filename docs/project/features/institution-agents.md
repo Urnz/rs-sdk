@@ -30,6 +30,13 @@ exact avatarhoz kötött player agentnek. A kérés csak akkor jön létre, ha a
 már ismeri a kért exact skillverziót, a paramétereket a verified skill sémája
 elfogadja, és a díj nem nagyobb a megbízó napi operatív kereténél.
 
+Business subjectnél ezen felül a saját exact Businessnek aktívnak kell lennie és
+jóváhagyott aktív policyvel kell rendelkeznie. A címzett csak aktív alkalmazott
+lehet, a díj pontosan a munkaviszonyban rögzített `wageGp`, az exact skill pedig
+meg kell feleljen a munkaköri követelménynek és a policy allowlistjének. Mindez a
+treasury reserve előtt fail-closed fut. A faction útvonal változatlan marad addig,
+amíg a Governance domain saját policy-adaptere elkészül.
+
 Az állapotgép és a módosító fél is korlátozott:
 
 - `pending → accepted/rejected`: kizárólag a címzett player agent;

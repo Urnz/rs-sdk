@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { BusinessManagerStore } from './business-manager.js';
-import { inspectBusinessForAgent, proposeBusinessPolicyForAgent } from './business-agent-port.js';
+import { inspectBusinessForAgent, proposeBusinessPolicyForAgent,
+    validateBusinessPlayerActionForAgent } from './business-agent-port.js';
 import { listAdminAgents } from './agent-state.js';
 
 const directories: string[] = [];
@@ -90,5 +91,46 @@ describe('business institution agent port', () => {
         expect(institution?.decisionContext).toContain('Business: varrock_forge; active');
         expect(institution?.decisionContext).toContain('policy growth/1500 gp');
         expect(agents.agents.find(item => item.identity.agentId === 'outsider')?.business).toBeNull();
+    });
+
+    test('allows only policy-compliant work for an active exact employee', () => {
+        const paths = fixture();
+        const businesses = new BusinessManagerStore(paths.businessPath);
+        businesses.hire('varrock_forge', { workerAgentId: 'outsider', role: 'worker',
+            title: 'Copper miner', wageGp: 1_000,
+            requiredSkill: { id: 'mining.varrock.copper', version: '1.0.0' } },
+        '2026-09-01T17:00:00.000Z', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+        expect(() => validateBusinessPlayerActionForAgent('forge-mind', {
+            assigneeAgentId: 'outsider', skill: { id: 'mining.varrock.copper', version: '1.0.0' },
+            rewardGp: 1_000
+        }, paths.agentPath, paths.businessPath)).toThrow('approved active policy');
+        const proposal = businesses.proposePolicy('varrock_forge', {
+            proposalId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', proposerAgentId: 'forge-mind',
+            objective: 'Employ verified copper miners.', mode: 'balanced', maxRewardGp: 1_200,
+            preferredSkills: [{ id: 'mining.varrock.copper', version: '1.0.0' }]
+        }, '2026-09-01T17:01:00.000Z');
+        businesses.resolvePolicy('varrock_forge', proposal.proposalId, proposal.revision,
+            'approve', 'Approved.', '2026-09-01T17:02:00.000Z');
+        businesses.close();
+
+        expect(validateBusinessPlayerActionForAgent('forge-mind', { assigneeAgentId: ' OUTSIDER ',
+            skill: { id: 'MINING.VARROCK.COPPER', version: '1.0.0' }, rewardGp: 1_000
+        }, paths.agentPath, paths.businessPath)).toMatchObject({
+            business: { businessId: 'varrock_forge' },
+            employment: { workerAgentId: 'outsider', wageGp: 1_000 },
+            policy: { status: 'approved', maxRewardGp: 1_200 }
+        });
+        expect(() => validateBusinessPlayerActionForAgent('forge-mind', {
+            assigneeAgentId: 'outsider', skill: { id: 'mining.varrock.copper', version: '1.0.0' },
+            rewardGp: 999
+        }, paths.agentPath, paths.businessPath)).toThrow('employment wage');
+        expect(() => validateBusinessPlayerActionForAgent('forge-mind', {
+            assigneeAgentId: 'outsider', skill: { id: 'fishing.karamja.lobster', version: '1.0.0' },
+            rewardGp: 1_000
+        }, paths.agentPath, paths.businessPath)).toThrow('employment role');
+        expect(() => validateBusinessPlayerActionForAgent('forge-mind', {
+            assigneeAgentId: 'missing-worker',
+            skill: { id: 'mining.varrock.copper', version: '1.0.0' }, rewardGp: 1_000
+        }, paths.agentPath, paths.businessPath)).toThrow('active employee');
     });
 });

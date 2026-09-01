@@ -31,20 +31,34 @@ minden aktív jogviszonyt ugyanabban a lifecycle-műveletben lezár. A lezárt
 vállalkozás nem nyitható újra és nem vehet fel új dolgozót; az adatok read-only
 történeti állapotként megmaradnak.
 
+## Policyvezérelt player-munka és kifizetés
+
+A jóváhagyott aktív policy és a foglalkoztatás már a meglévő player-megbízási
+queue biztonsági kapuja. A Business institution agent csak akkor küldhet munkát,
+ha:
+
+- a pontos Business subject aktív és van jóváhagyott aktív policyje;
+- a címzett exact agentnek aktív foglalkoztatása van ennél a Businessnél;
+- a díj pontosan a foglalkoztatás `wageGp` értéke, és nem lépi át a policy plafonját;
+- a skill megfelel az opcionális munkaköri exact skillnek és a policy nem üres
+  `preferredSkills` listájának.
+
+Az ellenőrzés a treasury-foglalás előtt történik, ezért hibás megbízás pénzt sem
+foglalhat. A helyes megbízás a már meglévő reserve/commit/release útvonalat használja:
+a player külön elfogadja, exact skill-runt hajt végre, és csak az engine által
+igazolt siker után kapja meg a lefoglalt díjat idempotens settlementtel.
+
 ## Ami még szándékosan nincs automatizálva
 
-A `wageGp` jelenleg szerződéses szándék, nem kifizetés. A modell:
+A modell:
 
-- nem von le pénzt treasuryből és nem ad pénzt playernek;
 - nem indít automatikusan agent skillt;
 - nem tekinti a skill ismeretét vagy futását teljesített munkának;
 - nem ad Property-belépési jogot;
 - nem számol termelést, készletet, árat, profitot vagy adót.
 
-Ezekhez a következő szeletekben a player-megbízási queue, a treasury
-reserve/commit/release határa és a hiteles skill-run események kapcsolódnak. Így
-ugyanaz a díj nem fizethető ki kétszer, és az adminfelület sem válik közvetlen
-pénz- vagy item-grant csatornává.
+Az automatikus műszakbeosztás és feladatgenerálás későbbi scheduler-réteg lesz;
+nem kerül közvetlen pénz-, item- vagy playervezérlés a Business domainbe.
 
 ## Institution agent port és policy
 
@@ -72,3 +86,5 @@ függő javaslat elutasítva, a történet pedig read-only módon megmarad.
 A Kísérletek fülön létrehozható és listázható vállalkozás, módosítható az
 állapota, felvehető exact agent és lezárható a jogviszonya. Minden írás admin
 hitelesítést és indoklást kér, majd sikerrel vagy hibával bekerül az auditnaplóba.
+A player-megbízási ablak Business agentnél csak a policynek megfelelő aktív
+alkalmazottakat és skilleket kínálja fel, a munkadíjat pedig a jogviszonyból tölti.

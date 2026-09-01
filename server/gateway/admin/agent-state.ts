@@ -18,7 +18,7 @@ import { readSkillRun } from './skill-history.js';
 import { requestEnginePlayerReward } from './player-rewards.js';
 import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
 import { BusinessManagerStore } from './business-manager.js';
-import { businessManagerPathFor } from './business-agent-port.js';
+import { businessManagerPathFor, validateBusinessPlayerActionForAgent } from './business-agent-port.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
@@ -195,6 +195,9 @@ export function createAdminPlayerActionRequest(requesterAgentId: string,
     input: CreateAgentPlayerActionRequest, path = agentStateDbPath) {
     const profile = useStore(path, store => store.getControlProfile(requesterAgentId));
     if (!profile || profile.role !== 'institution') throw new Error('A megbízónak institution agentnek kell lennie.');
+    if (profile.subjectKind === 'business') {
+        validateBusinessPlayerActionForAgent(requesterAgentId, input, path);
+    }
     const held = input.rewardGp
         ? useTreasury(path, store => store.reserve(profile.subjectKind as InstitutionKind,
             profile.subjectId, input.requestId, input.rewardGp!)) : null;
