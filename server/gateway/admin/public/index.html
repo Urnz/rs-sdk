@@ -193,11 +193,13 @@
                             <label>GP<input name="creatorGp" type="number" min="0" max="2147483647" value="1000" required></label>
                             <label>Tárgyak<textarea name="creatorItems" rows="3" placeholder="436,100,Copper ore"></textarea></label>
                             <label>Szolgáltatás<input name="creatorService" maxlength="240"></label>
+                            <label>Szolgáltatást bizonyító skill<input name="creatorSkill" maxlength="160" placeholder="skill.id@1.0.0"></label>
                         </fieldset>
                         <fieldset><legend>Címzett adja</legend>
                             <label>GP<input name="counterpartyGp" type="number" min="0" max="2147483647" value="0" required></label>
                             <label>Tárgyak<textarea name="counterpartyItems" rows="3" placeholder="436,100,Copper ore"></textarea></label>
-                            <label>Szolgáltatás<input name="counterpartyService" maxlength="240" value="A megállapodás szerinti munka elvégzése."></label>
+                            <label>Szolgáltatás<input name="counterpartyService" maxlength="240"></label>
+                            <label>Szolgáltatást bizonyító skill<input name="counterpartySkill" maxlength="160" placeholder="mining.varrock.copper@1.0.0"></label>
                         </fieldset>
                     </div>
                     <label>Admin audit indoklás<input name="reason" maxlength="240" value="Phase 12 gazdasági ajánlat létrehozása" required></label>

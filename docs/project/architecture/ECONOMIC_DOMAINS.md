@@ -89,9 +89,16 @@ Az ajánlat vagy szerződés önmagában:
 - csak koordinációs és audit határ a későbbi hiteles skill-run, gazdasági esemény
   és idempotens settlement számára.
 
-Ezért egy elfogadott szerződés jelenleg `active` marad. A következő szelet feladata
-a két fél teljesítését hiteles forrásból egyeztetni, majd a közös gazdasági
-főkönyvön keresztül lezárni.
+Az elfogadott szerződés addig `active`, amíg mindkét fél saját exact-avataros,
+elfogadás utáni completed runjai nem igazolják minden vállalását. A GP és tárgy
+csak exact-counterparty player-trade eseményből, a szolgáltatás csak előre
+rögzített exact skillverzióból bizonyítható. Egyik fél naplója sem teljesíti a
+másik fél szolgáltatását, és egy run nem használható másik szerződéshez.
+
+A `fulfilled` itt megfigyelt játékbeli teljesítést jelent, nem új settlementet.
+A következő gazdasági főkönyvi szelet feladata az lesz, hogy a szerződésből előre
+induló teljesítéshez fedezetet foglaljon, majd a tényleges játékművelet alapján
+idempotensen commitoljon vagy release-eljen.
 
 Tervezett függési irány:
 

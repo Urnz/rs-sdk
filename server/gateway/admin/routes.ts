@@ -7,7 +7,7 @@ import { adminPublicDir, adminTrashDir, agentSkillsLocalDir, botsDir, experiment
 import { BotSupervisor } from './supervisor';
 import { listAdminSkills, resolveAdminSkill, resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
-import { readSkillRunHistory } from './skill-history';
+import { readSkillRun, readSkillRunHistory } from './skill-history';
 import { readEconomyEvents, type EconomyEventKind } from './transaction-telemetry';
 import {
     listEngineOfflineBackups,
@@ -532,6 +532,34 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({ operator: 'local-admin', action: `economic-offer.${action}`, reason,
                     username: actorAgentId, success: false, error: String(error),
                     after: { offerId: economicOfferMatch[1], expectedRevision } });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const economicContractEvidenceMatch = url.pathname
+            .match(/^\/api\/admin\/economic-contracts\/([0-9a-f-]{36})\/evidence$/i);
+        if (req.method === 'POST' && economicContractEvidenceMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const actorAgentId = text(body, 'actorAgentId', true).toLowerCase();
+            const runId = text(body, 'runId', true).toLowerCase();
+            const store = new EconomicContractStore(economicContractsDbPath);
+            try {
+                const before = store.getContract(economicContractEvidenceMatch[1]);
+                const run = await readSkillRun(runId, undefined, 10_000);
+                if (!run) throw new Error('A megadott hiteles skill-run napló nem található.');
+                const agents = await listAdminAgents();
+                const avatars = new Map(agents.agents.map(agent => [agent.identity.agentId,
+                    agent.controlProfile.avatarPlayerUsername]));
+                const contract = store.recordRunEvidence(economicContractEvidenceMatch[1], actorAgentId,
+                    run, avatars);
+                await appendAudit({ operator: 'local-admin', action: 'economic-contract.evidence.record',
+                    reason, username: actorAgentId, success: true, before, after: contract });
+                return json({ ok: true, contract });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'economic-contract.evidence.record',
+                    reason, username: actorAgentId, success: false, error: String(error),
+                    after: { contractId: economicContractEvidenceMatch[1], runId } });
                 throw error;
             } finally { store.close(); }
         }

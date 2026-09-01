@@ -413,8 +413,14 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     és elfogadáskor változatlan feltételekkel képzett egyszerű szerződést tartósítani.
   - [x] A feltételeket GP-, tárgy- és szolgáltatás-kötelezettségekre bontani,
     digesttel védeni, optimista revízióval és exact fél-jogosultsággal módosítani.
-  - [ ] A szerződés teljesítését hiteles skill-run és gazdasági esemény alapján
-    igazolni, majd a tényleges játékbeli átadást és elszámolást idempotensen lezárni.
+  - [x] Mindkét fél teljesítését külön, exact avatarhoz kötött, elfogadás utáni
+    completed skill-runnal igazolni; a GP-/tárgyátadást exact counterparty
+    player-trade eseményből, a szolgáltatást exact skillverzióból összesíteni.
+  - [x] Egy run globális újrafelhasználását és a megváltozott journal replayét
+    tiltani, a pontos replayt idempotensen kezelni, majd csak mindkét fél összes
+    kötelezettségének igazolása után `fulfilled` állapotot képezni.
+  - [ ] A szerződésből induló tényleges játékbeli átadást és treasury/player
+    elszámolást előre foglalt fedezettel, idempotensen végrehajtani.
 - [ ] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
 - [ ] A Business manager read/write portját az institution-agent allowlistelt
   domain tooljaihoz kötni, közvetlen player- vagy AgentState-pénzmásolás nélkül.

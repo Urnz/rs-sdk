@@ -586,7 +586,7 @@ function economicObligationText(value) {
     const parts = [];
     if (value.gp) parts.push(`${fmt.format(value.gp)} gp`);
     if (value.items?.length) parts.push(value.items.map(item => `${fmt.format(item.count)}× ${item.name} (#${item.id})`).join(', '));
-    if (value.service) parts.push(value.service);
+    if (value.service) parts.push(`${value.service}${value.skill ? ` [${value.skill.id}@${value.skill.version}]` : ' [legacy: nincs bizonyító skill]'}`);
     return parts.join(' · ');
 }
 
@@ -605,10 +605,18 @@ function renderEconomicContracts(offers, contracts) {
             <small>Lejárat: ${new Date(item.expiresAt).toLocaleString('hu-HU')} · digest: ${escapeHtml(item.termsDigest)}</small>
             ${item.responseNote ? `<p>${escapeHtml(item.responseNote)}</p>` : ''}${actions}</article>`;
     }).join('') : '<p class="empty">Még nincs gazdasági ajánlat.</p>';
-    $('#economic-contract-list').innerHTML = contracts.length ? `<div class="panel-heading table-heading skill-trial-heading"><div><h3>Aktív, még nem elszámolt szerződések</h3></div></div>${contracts.map(item =>
-        `<article class="capability-gap-card active"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(economicOfferKindLabels[item.kind] || item.kind)} · ${new Date(item.acceptedAt).toLocaleString('hu-HU')}</small></div>
+    $('#economic-contract-list').innerHTML = contracts.length ? `<div class="panel-heading table-heading skill-trial-heading"><div><h3>Szerződések és hiteles teljesítési bizonyítékok</h3></div></div>${contracts.map(item => {
+        const records = item.evidence || [];
+        const evidence = records.length ? `<details><summary>Bizonyítékok (${records.length})</summary><ul>${records.map(record =>
+            `<li>${record.party.toUpperCase()} fél · ${escapeHtml(record.actorAgentId)} · run ${escapeHtml(record.runId)} · ${fmt.format(record.matchedGp)} gp · ${record.matchedItems.map(product => `${fmt.format(product.count)}× ${escapeHtml(product.name)}`).join(', ') || 'nincs tárgy'} · ${record.matchedService ? 'skill igazolva' : 'nincs skilligazolás'}</li>`).join('')}</ul></details>` : '';
+        const actions = item.status === 'active' ? `<div class="agent-heading-actions">
+            ${item.partyASatisfied ? '' : `<button class="button small primary" data-action="economic-contract-evidence" data-contract-id="${escapeHtml(item.contractId)}" data-actor-id="${escapeHtml(item.partyAAgentId)}">A fél bizonyítéka</button>`}
+            ${item.partyBSatisfied ? '' : `<button class="button small primary" data-action="economic-contract-evidence" data-contract-id="${escapeHtml(item.contractId)}" data-actor-id="${escapeHtml(item.partyBAgentId)}">B fél bizonyítéka</button>`}</div>` : '';
+        return `<article class="capability-gap-card ${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(economicOfferKindLabels[item.kind] || item.kind)} · ${item.status === 'fulfilled' ? 'Teljesítve' : 'Aktív'} · ${new Date(item.acceptedAt).toLocaleString('hu-HU')}</small></div>
         <p>${escapeHtml(item.summary)}</p><div class="capability-gap-meta"><span>${escapeHtml(item.partyAAgentId)}: ${escapeHtml(economicObligationText(item.partyAProvides))}</span><span>${escapeHtml(item.partyBAgentId)}: ${escapeHtml(economicObligationText(item.partyBProvides))}</span></div>
-        <small>Aktív kötelezettség, automatikus teljesítésigazolás nélkül · digest: ${escapeHtml(item.termsDigest)}</small></article>`).join('')}`
+        <div class="capability-gap-meta"><span>A fél: ${item.partyASatisfied ? 'igazolt' : 'függő'}</span><span>B fél: ${item.partyBSatisfied ? 'igazolt' : 'függő'}</span>${item.fulfilledAt ? `<span>lezárva: ${new Date(item.fulfilledAt).toLocaleString('hu-HU')}</span>` : ''}</div>
+        <small>Csak exact-avatar, post-acceptance completed run fogadható el · digest: ${escapeHtml(item.termsDigest)}</small>${evidence}${actions}</article>`;
+    }).join('')}`
         : '<p class="empty">Még nincs elfogadott szerződés.</p>';
 }
 
@@ -1607,6 +1615,17 @@ document.addEventListener('click', async event => {
             });
             toast(`Az ajánlat művelete sikeres: ${labels[action] || action}.`); await refreshEconomicContracts();
         }
+        if (button.dataset.action === 'economic-contract-evidence') {
+            const runId = prompt(`${button.dataset.actorId} saját, befejezett skill-run azonosítója:`);
+            if (!runId?.trim()) return;
+            const reason = prompt('Admin audit indoklás:', 'Szerződéses teljesítés hiteles skill-runnal történő igazolása');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/economic-contracts/${encodeURIComponent(button.dataset.contractId)}/evidence`, {
+                method: 'POST', mutation: true, body: JSON.stringify({ actorAgentId: button.dataset.actorId,
+                    runId: runId.trim(), reason: reason.trim() })
+            });
+            toast('A hiteles run bizonyítéka rögzítve.'); await refreshEconomicContracts();
+        }
         if (button.dataset.action === 'player-action-status') {
             const status = button.dataset.status;
             const needsNote = status === 'rejected' || status === 'failed';
@@ -2236,9 +2255,17 @@ $('#economic-offer-form').addEventListener('submit', async event => {
     }
     const button = form.querySelector('button[type="submit"]'); button.disabled = true;
     try {
+        const skillReference = value => {
+            const reference = String(value || '').trim();
+            if (!reference) return null;
+            const separator = reference.lastIndexOf('@');
+            if (separator < 1) throw new Error('A bizonyító skill formátuma: skill.id@1.0.0');
+            return { id: reference.slice(0, separator), version: reference.slice(separator + 1) };
+        };
         const obligation = prefix => ({ gp: Number(data.get(`${prefix}Gp`)),
             items: parseEconomicItems(data.get(`${prefix}Items`)),
-            service: data.get(`${prefix}Service`)?.toString().trim() || null });
+            service: data.get(`${prefix}Service`)?.toString().trim() || null,
+            skill: skillReference(data.get(`${prefix}Skill`)) });
         const response = await api('/api/admin/economic-offers', { method: 'POST', mutation: true,
             body: JSON.stringify({ creatorAgentId: data.get('creatorAgentId'),
                 counterpartyAgentId: data.get('counterpartyAgentId'), kind: data.get('kind'),

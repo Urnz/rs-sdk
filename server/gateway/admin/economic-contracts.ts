@@ -3,12 +3,33 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { economicContractsDbPath } from './paths.js';
+import type { AdminSkillRun } from './skill-history.js';
+import { extractEconomyEvents } from './transaction-telemetry.js';
 
 export type EconomicOfferKind = 'trade' | 'work' | 'service';
 export type EconomicOfferStatus = 'open' | 'accepted' | 'declined' | 'withdrawn' | 'expired';
 
 export interface EconomicItemTerm { id: number; name: string; count: number }
-export interface EconomicObligation { gp: number; items: EconomicItemTerm[]; service: string | null }
+export interface EconomicObligation {
+    gp: number;
+    items: EconomicItemTerm[];
+    service: string | null;
+    skill?: { id: string; version: string } | null;
+}
+
+export interface EconomicContractEvidence {
+    evidenceId: string;
+    contractId: string;
+    party: 'a' | 'b';
+    actorAgentId: string;
+    runId: string;
+    journalDigest: string;
+    matchedGp: number;
+    matchedItems: EconomicItemTerm[];
+    matchedService: boolean;
+    economyEventIds: string[];
+    recordedAt: string;
+}
 
 export interface CreateEconomicOffer {
     creatorAgentId: string;
@@ -43,8 +64,12 @@ export interface EconomicContract {
     partyAProvides: EconomicObligation;
     partyBProvides: EconomicObligation;
     termsDigest: string;
-    status: 'active';
+    status: 'active' | 'fulfilled';
+    partyASatisfied: boolean;
+    partyBSatisfied: boolean;
+    evidence: EconomicContractEvidence[];
     acceptedAt: string;
+    fulfilledAt: string | null;
     revision: number;
 }
 
@@ -59,6 +84,13 @@ interface ContractRow {
     contract_id: string; source_offer_id: string; kind: EconomicOfferKind; party_a_agent_id: string;
     party_b_agent_id: string; title: string; summary: string; party_a_provides_json: string;
     party_b_provides_json: string; terms_digest: string; status: 'active'; accepted_at: string; revision: number;
+    fulfilled_at: string | null;
+}
+
+interface EvidenceRow {
+    evidence_id: string; contract_id: string; party: 'a' | 'b'; actor_agent_id: string; run_id: string;
+    journal_digest: string; matched_gp: number; matched_items_json: string; matched_service: number;
+    economy_event_ids_json: string; recorded_at: string;
 }
 
 function agentId(value: string, field: string): string {
@@ -95,8 +127,18 @@ function obligation(value: EconomicObligation, field: string): EconomicObligatio
     }).sort((left, right) => left.id - right.id);
     const service = value.service === null || value.service === undefined || value.service.trim() === ''
         ? null : boundedText(value.service, `${field}.service`, 240);
+    const skill = value.skill === null || value.skill === undefined ? null : {
+        id: boundedText(value.skill.id, `${field}.skill.id`, 120),
+        version: boundedText(value.skill.version, `${field}.skill.version`, 32)
+    };
+    if (skill && (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(skill.id)
+        || !/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(skill.version))) {
+        throw new Error(`${field}.skill is invalid`);
+    }
+    if (service && !skill) throw new Error(`${field}.service requires an exact evidence skill`);
+    if (!service && skill) throw new Error(`${field}.skill requires a service obligation`);
     if (value.gp === 0 && items.length === 0 && !service) throw new Error(`${field} must contain an obligation`);
-    return { gp: value.gp, items, service };
+    return { gp: value.gp, items, service, skill };
 }
 
 function offer(row: OfferRow): EconomicOffer {
@@ -109,13 +151,36 @@ function offer(row: OfferRow): EconomicOffer {
         createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
-function contract(row: ContractRow): EconomicContract {
+function evidence(row: EvidenceRow): EconomicContractEvidence {
+    return { evidenceId: row.evidence_id, contractId: row.contract_id, party: row.party,
+        actorAgentId: row.actor_agent_id, runId: row.run_id, journalDigest: row.journal_digest,
+        matchedGp: row.matched_gp, matchedItems: JSON.parse(row.matched_items_json) as EconomicItemTerm[],
+        matchedService: row.matched_service === 1,
+        economyEventIds: JSON.parse(row.economy_event_ids_json) as string[], recordedAt: row.recorded_at };
+}
+
+function obligationSatisfied(required: EconomicObligation, records: EconomicContractEvidence[]): boolean {
+    const gp = records.reduce((total, item) => total + item.matchedGp, 0);
+    const items = new Map<number, number>();
+    for (const record of records) for (const item of record.matchedItems) {
+        items.set(item.id, (items.get(item.id) ?? 0) + item.count);
+    }
+    return gp >= required.gp
+        && required.items.every(item => (items.get(item.id) ?? 0) >= item.count)
+        && (!required.service || records.some(item => item.matchedService));
+}
+
+function contract(row: ContractRow, records: EconomicContractEvidence[]): EconomicContract {
+    const partyAProvides = JSON.parse(row.party_a_provides_json) as EconomicObligation;
+    const partyBProvides = JSON.parse(row.party_b_provides_json) as EconomicObligation;
     return { contractId: row.contract_id, sourceOfferId: row.source_offer_id, kind: row.kind,
         partyAAgentId: row.party_a_agent_id, partyBAgentId: row.party_b_agent_id,
         title: row.title, summary: row.summary,
-        partyAProvides: JSON.parse(row.party_a_provides_json) as EconomicObligation,
-        partyBProvides: JSON.parse(row.party_b_provides_json) as EconomicObligation,
-        termsDigest: row.terms_digest, status: row.status, acceptedAt: row.accepted_at, revision: row.revision };
+        partyAProvides, partyBProvides, termsDigest: row.terms_digest,
+        status: row.fulfilled_at ? 'fulfilled' : 'active',
+        partyASatisfied: obligationSatisfied(partyAProvides, records.filter(item => item.party === 'a')),
+        partyBSatisfied: obligationSatisfied(partyBProvides, records.filter(item => item.party === 'b')),
+        evidence: records, acceptedAt: row.accepted_at, fulfilledAt: row.fulfilled_at, revision: row.revision };
 }
 
 export function validateEconomicOffer(input: CreateEconomicOffer, now = new Date().toISOString()): CreateEconomicOffer & { termsDigest: string } {
@@ -160,6 +225,19 @@ export class EconomicContractStore {
             party_a_provides_json TEXT NOT NULL, party_b_provides_json TEXT NOT NULL, terms_digest TEXT NOT NULL,
             status TEXT NOT NULL CHECK (status = 'active'), accepted_at TEXT NOT NULL,
             revision INTEGER NOT NULL CHECK (revision >= 1))`);
+        this.addColumn('economic_contract', 'fulfilled_at', 'TEXT');
+        this.database.run(`CREATE TABLE IF NOT EXISTS economic_contract_evidence (
+            evidence_id TEXT PRIMARY KEY, contract_id TEXT NOT NULL REFERENCES economic_contract(contract_id),
+            party TEXT NOT NULL CHECK (party IN ('a', 'b')), actor_agent_id TEXT NOT NULL,
+            run_id TEXT NOT NULL UNIQUE, journal_digest TEXT NOT NULL, matched_gp INTEGER NOT NULL CHECK (matched_gp >= 0),
+            matched_items_json TEXT NOT NULL, matched_service INTEGER NOT NULL CHECK (matched_service IN (0, 1)),
+            economy_event_ids_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
+            UNIQUE (contract_id, party, journal_digest))`);
+    }
+
+    private addColumn(table: string, column: string, declaration: string): void {
+        const columns = this.database.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+        if (!columns.some(entry => entry.name === column)) this.database.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
     }
 
     close(): void { this.database.close(true); }
@@ -185,7 +263,19 @@ export class EconomicContractStore {
     listContracts(limit = 100): EconomicContract[] {
         if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error('Contract list limit is invalid');
         return (this.database.query(`SELECT * FROM economic_contract ORDER BY accepted_at DESC, contract_id DESC LIMIT ?1`)
-            .all(limit) as ContractRow[]).map(contract);
+            .all(limit) as ContractRow[]).map(row => this.contract(row));
+    }
+
+    getContract(contractId: string): EconomicContract | null {
+        const row = this.database.query('SELECT * FROM economic_contract WHERE contract_id = ?1')
+            .get(contractId) as ContractRow | null;
+        return row ? this.contract(row) : null;
+    }
+
+    private contract(row: ContractRow): EconomicContract {
+        const records = (this.database.query(`SELECT * FROM economic_contract_evidence
+            WHERE contract_id = ?1 ORDER BY recorded_at, evidence_id`).all(row.contract_id) as EvidenceRow[]).map(evidence);
+        return contract(row, records);
     }
 
     create(input: CreateEconomicOffer, now = new Date().toISOString(), offerId = randomUUID()): EconomicOffer {
@@ -243,6 +333,10 @@ export class EconomicContractStore {
             }
             if (current.status === 'accepted' && current.contractId) return;
             if (current.status !== 'open') throw new Error(`Offer is no longer open: ${current.status}`);
+            if ((current.creatorProvides.service && !current.creatorProvides.skill)
+                || (current.counterpartyProvides.service && !current.counterpartyProvides.skill)) {
+                throw new Error('Legacy service offer has no exact evidence skill; replace the offer before acceptance');
+            }
             const updated = this.database.run(`UPDATE economic_offer SET status = 'accepted', contract_id = ?4,
                 response_note = 'Accepted by named counterparty.', revision = revision + 1, updated_at = ?5
                 WHERE offer_id = ?1 AND counterparty_agent_id = ?2 AND revision = ?3 AND status = 'open'`,
@@ -258,8 +352,74 @@ export class EconomicContractStore {
         });
         transaction.immediate();
         const accepted = this.getOffer(offerId)!;
-        const formed = this.database.query('SELECT * FROM economic_contract WHERE contract_id = ?1')
-            .get(accepted.contractId!) as ContractRow;
-        return { offer: accepted, contract: contract(formed) };
+        return { offer: accepted, contract: this.getContract(accepted.contractId!)! };
+    }
+
+    recordRunEvidence(contractId: string, actorAgentIdInput: string, run: AdminSkillRun,
+        avatarByAgentId: ReadonlyMap<string, string | null>, now = new Date().toISOString()): EconomicContract {
+        const actorAgentId = agentId(actorAgentIdInput, 'actorAgentId');
+        const current = this.getContract(contractId);
+        if (!current) throw new Error('Economic contract does not exist');
+        const party = current.partyAAgentId === actorAgentId ? 'a'
+            : current.partyBAgentId === actorAgentId ? 'b' : null;
+        if (!party) throw new Error('Only a contract party may submit run evidence');
+        const actorAvatar = avatarByAgentId.get(actorAgentId)?.trim().toLowerCase() ?? null;
+        const counterpartyAgentId = party === 'a' ? current.partyBAgentId : current.partyAAgentId;
+        const counterpartyAvatar = avatarByAgentId.get(counterpartyAgentId)?.trim().toLowerCase() ?? null;
+        if (!actorAvatar || run.username !== actorAvatar) throw new Error('Skill run does not belong to the exact party avatar');
+        const startedAt = Date.parse(run.startedAt);
+        if (run.status !== 'completed' || !Number.isFinite(startedAt)
+            || startedAt < Date.parse(current.acceptedAt)) {
+            throw new Error('Only a completed post-acceptance skill run may prove performance');
+        }
+        const journalDigest = createHash('sha256').update(JSON.stringify(run)).digest('hex');
+        const existing = this.database.query(`SELECT * FROM economic_contract_evidence
+            WHERE run_id = ?1`).get(run.runId) as EvidenceRow | null;
+        if (existing) {
+            if (existing.contract_id !== contractId || existing.actor_agent_id !== actorAgentId
+                || existing.journal_digest !== journalDigest) {
+                throw new Error('Skill run evidence is already claimed or its journal changed');
+            }
+            return current;
+        }
+        if (current.status !== 'active') throw new Error('Economic contract is already fulfilled');
+        const required = party === 'a' ? current.partyAProvides : current.partyBProvides;
+        const trades = extractEconomyEvents({ runId: run.runId, username: run.username,
+            skillId: run.skill.id, events: run.events }).filter(item => !item.partial && item.kind === 'player-trade'
+                && !!counterpartyAvatar && item.counterparty?.trim().toLowerCase() === counterpartyAvatar);
+        const matchedGp = trades.reduce((total, item) => total + Math.max(0, -item.coinsDelta), 0);
+        const itemTotals = new Map<number, EconomicItemTerm>();
+        for (const event of trades) for (const item of event.itemsOut) {
+            if (item.id === null) continue;
+            const previous = itemTotals.get(item.id);
+            itemTotals.set(item.id, { id: item.id, name: item.name,
+                count: (previous?.count ?? 0) + item.quantity });
+        }
+        const matchedItems = [...itemTotals.values()].sort((left, right) => left.id - right.id);
+        const matchedService = Boolean(required.service && required.skill
+            && required.skill.id === run.skill.id && required.skill.version === run.skill.version);
+        const relevant = matchedService || (required.gp > 0 && matchedGp > 0)
+            || required.items.some(item => (itemTotals.get(item.id)?.count ?? 0) > 0);
+        if (!relevant) throw new Error('Skill run contains no evidence relevant to this party obligation');
+        const recordedAt = isoTimestamp(now, 'now');
+        const transaction = this.database.transaction(() => {
+            this.database.run(`INSERT INTO economic_contract_evidence (evidence_id, contract_id, party,
+                actor_agent_id, run_id, journal_digest, matched_gp, matched_items_json, matched_service,
+                economy_event_ids_json, recorded_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`,
+            [randomUUID(), contractId, party, actorAgentId, run.runId, journalDigest, matchedGp,
+                JSON.stringify(matchedItems), matchedService ? 1 : 0,
+                JSON.stringify(trades.map(item => item.id)), recordedAt]);
+            const updated = this.getContract(contractId)!;
+            if (updated.partyASatisfied && updated.partyBSatisfied) {
+                this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2,
+                    revision = revision + 1 WHERE contract_id = ?1 AND fulfilled_at IS NULL`,
+                [contractId, recordedAt]);
+            } else {
+                this.database.run(`UPDATE economic_contract SET revision = revision + 1
+                    WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [contractId]);
+            }
+        });
+        transaction.immediate();
+        return this.getContract(contractId)!;
     }
 }

@@ -10,9 +10,10 @@ tartósít. A támogatott kezdeti típusok:
 - `service`: nem feltétlenül tárgytermeléssel járó szolgáltatás.
 
 Mindkét fél kötelezettsége külön tartalmazhat GP-t, legfeljebb húsz egyedi
-item ID-t mennyiséggel és egy rövid szolgáltatásleírást. Mindkét oldalon legalább
-egy kötelezettség kötelező, ezért az MVP nem hoz létre üres vagy egyoldalú
-„szerződést”.
+item ID-t mennyiséggel és egy rövid szolgáltatásleírást. A szolgáltatás mellett
+kötelező a bizonyító skill pontos `id@version` hivatkozása. Mindkét oldalon
+legalább egy kötelezettség kötelező, ezért az MVP nem hoz létre üres vagy
+egyoldalú „szerződést”.
 
 ## Életciklus és integritás
 
@@ -36,7 +37,28 @@ lezárt ajánlatokat, valamint az aktív szerződéseket. A gazdasági lista olv
 admin-hitelesítést igényel. Minden létrehozás és státuszváltás bekerül az admin
 auditnaplóba.
 
-Az `active` ebben a szeletben csak azt jelenti, hogy a felek elfogadták a
-feltételeket. Nem történt automatikus pénz- vagy tárgymozgás, és a rendszer még
-nem állít teljesítést. Ehhez a következő körben hiteles skill-run/gazdasági
-esemény-egyeztetés és idempotens settlement szükséges.
+## Hiteles teljesítési bizonyíték
+
+Egy fél csak a saját persistent agentjéhez exact módon kötött avatár completed
+skill-runját adhatja bizonyítékként. A runnak a szerződés elfogadása után kell
+kezdődnie. A rendszer nem fogad el kézi teljesítési pipát, hibás/partial eseményt,
+idegen avatárt vagy másik szerződéshez már felhasznált run ID-t.
+
+Az illesztés szabályai:
+
+- a vállalt GP csak az exact másik avatárral lezárt player-trade negatív
+  coin-deltájából számít;
+- a vállalt tárgy csak ugyanennek a trade-nek az igazolt kimenő tételeiből számít;
+- a szolgáltatás csak a feltételben rögzített exact skillverzió completed runjával
+  igazolható;
+- több saját run részleges mennyisége összeadható, de ugyanaz a run globálisan
+  csak egy szerződéshez használható;
+- egy fél naplója nem igazolja automatikusan a másik fél teljesítését.
+
+Csak akkor lesz a szerződés `fulfilled`, amikor mindkét fél összes GP-, tárgy- és
+szolgáltatásvállalása külön bizonyított. A journal digest és az eventazonosítók
+megmaradnak, a pontos replay idempotens, a megváltozott journal elutasított.
+
+A `fulfilled` továbbra sem indít új pénz- vagy tárgymozgást: azt bizonyítja, hogy
+a játékbeli runokban a vállalt mozgások már megtörténtek. A szerződésből előre
+indított, fedezetfoglalásos settlement külön következő fejlesztés.
