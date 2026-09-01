@@ -3,7 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { SkillEvent, SkillOperationName } from '../../../agent-skills/types';
-import { extractEconomyEvents, readEconomyEvents, summarizeEconomyEvents } from './transaction-telemetry';
+import { EconomyEventStore, extractEconomyEvents, readEconomyEvents,
+    summarizeEconomyEvents } from './transaction-telemetry';
 
 const runId = '12345678-1234-4234-8234-123456789abc';
 
@@ -83,5 +84,35 @@ describe('transaction telemetry', () => {
         expect(result.events).toHaveLength(1);
         expect(result.events[0]?.kind).toBe('shop-buy');
         expect(result.summary.shopTransactions).toBe(1);
+        expect(result.ingestion).toEqual({ createdRuns: 1, replayedRuns: 0, rejectedRuns: 0 });
+        const replay = await readEconomyEvents({ root, username: 'ferrye14', kind: 'shop-buy' });
+        expect(replay.events).toEqual(result.events);
+        expect(replay.ingestion).toEqual({ createdRuns: 0, replayedRuns: 1, rejectedRuns: 0 });
+        await writeFile(join(root, `${runId}.json`), JSON.stringify({
+            runId, username: 'Ferrye14', skill: { id: run.skillId, version: '1.0.0' },
+            events: run.events.slice(0, 1)
+        }));
+        const rejected = await readEconomyEvents({ root, username: 'ferrye14', kind: 'shop-buy' });
+        expect(rejected.events).toEqual(result.events);
+        expect(rejected.ingestion).toEqual({ createdRuns: 0, replayedRuns: 0, rejectedRuns: 1 });
+    });
+
+    test('persists replayable events and rejects a changed run id without rewriting history', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'economy-ledger-'));
+        temporaryRoots.push(root);
+        const path = join(root, 'events.sqlite');
+        const ledger = new EconomyEventStore(path);
+        expect(ledger.ingest(run, '2026-08-27T10:01:00.000Z')).toEqual({ created: true, eventCount: 5 });
+        expect(ledger.ingest(run, '2026-08-27T10:02:00.000Z')).toEqual({ created: false, eventCount: 5 });
+        expect(ledger.replay(runId)).toEqual({ events: extractEconomyEvents(run),
+            summary: summarizeEconomyEvents(extractEconomyEvents(run)) });
+        expect(() => ledger.ingest({ ...run, events: run.events.slice(0, 1) }))
+            .toThrow('changed after ingestion');
+        expect(ledger.query({ username: 'FERRYE14' }).events).toHaveLength(5);
+        ledger.close();
+
+        const reopened = new EconomyEventStore(path);
+        expect(reopened.replay(runId).events).toEqual(extractEconomyEvents(run));
+        reopened.close();
     });
 });

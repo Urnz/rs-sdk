@@ -22,6 +22,7 @@ export const worldModStatePath = join(adminLocalDir, 'world-mod-state.json');
 export const worldModBackupsDir = join(adminLocalDir, 'world-mod-backups');
 export const agentStateDbPath = join(repoRoot, '.local', 'agent-state', 'agents.sqlite');
 export const institutionTreasuryDbPath = join(repoRoot, '.local', 'economy', 'institution-treasury.sqlite');
+export const economyEventsDbPath = join(repoRoot, '.local', 'economy', 'events.sqlite');
 export const llmRuntimeConfigPath = join(repoRoot, 'config', 'llm-runtime.json');
 export const llmRuntimeOverridePath = join(adminLocalDir, 'llm-runtime.json');
 export const llmApiKeyPath = join(adminLocalDir, 'secrets', 'openai-api-key.txt');

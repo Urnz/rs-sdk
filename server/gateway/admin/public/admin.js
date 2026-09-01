@@ -7,6 +7,7 @@ const state = {
     skillRuns: [],
     economyEvents: [],
     economyEventSummary: null,
+    economyEventIngestion: null,
     worldMods: null,
     worldModBackups: [],
     properties: null,
@@ -566,12 +567,19 @@ function renderMultiAgentExperiments(experiments) {
         const itemDeltas = metrics?.itemStockDelta?.length
             ? `<details><summary>Készletváltozások (${metrics.itemStockDelta.length})</summary><ul>${metrics.itemStockDelta.map(item =>
                 `<li>${escapeHtml(item.name)} (#${item.id}): ${signed(item.count)}</li>`).join('')}</ul></details>` : '';
+        const activityMetrics = metrics?.economicEventSummary
+            ? `<div class="capability-gap-meta"><span>${fmt.format(metrics.economicEvents)} gazdasági esemény</span><span>termelés: ${fmt.format(metrics.economicEventSummary.producedItems)}</span><span>felhasználás: ${fmt.format(metrics.economicEventSummary.consumedItems)}</span><span>shop: ${fmt.format(metrics.economicEventSummary.shopTransactions)}</span><span>trade: ${fmt.format(metrics.economicEventSummary.playerTrades)}</span><span>${fmt.format(metrics.uniqueSkills)} skill · koncentráció ${metrics.skillConcentration.toLocaleString('hu-HU')}</span></div>` : '';
+        const skillRuns = metrics?.skillRuns?.length
+            ? `<details><summary>Skillmegoszlás (${metrics.uniqueSkills})</summary><ul>${metrics.skillRuns.map(item =>
+                `<li>${escapeHtml(item.skillId)}: ${fmt.format(item.runs)} run</li>`).join('')}</ul></details>` : '';
         return `<article class="capability-gap-card ${escapeHtml(run.status)}">
             <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(statusLabel)}</small></div>
             <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · digest: ${escapeHtml(run.definitionDigest)}</small></div>
             <div class="capability-gap-meta"><span>${run.participants.length} agent</span><span>baseline: ${fmt.format(baseline.totalCoins)} gp / ${baseline.online} online</span>${dispatch ? `<span>dispatch után: ${fmt.format(dispatch.totalCoins)} gp / ${dispatch.online} online</span>` : '<span>dispatch folyamatban</span>'}</div>
             ${final && metrics ? `<div class="capability-gap-meta"><span>végeredmény: ${fmt.format(final.totalCoins)} gp</span><span>pénz: ${signed(metrics.totalCoinsDelta)} gp</span><span>XP: ${signed(metrics.totalXpDelta)}</span><span>${metrics.completedParticipants}/${run.participants.length} sikeres</span><span>${fmt.format(metrics.durationMs)} ms</span></div>` : ''}
+            ${activityMetrics}
             <details><summary>Agentenkénti eredmények</summary><ol class="experiment-participants">${participants}</ol></details>
+            ${skillRuns}
             ${itemDeltas}
             ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
         </article>`;
@@ -1027,7 +1035,8 @@ function renderEconomyEvents() {
     $('#event-coins').textContent = `${summary.netCoins > 0 ? '+' : ''}${fmt.format(summary.netCoins)} gp`;
     $('#event-coins').classList.toggle('positive', summary.netCoins > 0);
     $('#event-coins').classList.toggle('negative', summary.netCoins < 0);
-    $('#economy-event-count').textContent = `${events.length} / ${state.economyEvents.length} esemény`;
+    const rejected = state.economyEventIngestion?.rejectedRuns || 0;
+    $('#economy-event-count').textContent = `${events.length} / ${state.economyEvents.length} esemény${rejected ? ` · ${rejected} megváltozott journal elutasítva` : ''}`;
     $('#economy-event-rows').innerHTML = events.length ? events.map(event => `<tr>
         <td title="${escapeHtml(event.timestamp)}">${relativeTime(event.timestamp)}</td>
         <td>${escapeHtml(event.username || 'Korábbi futás')}</td>
@@ -1392,6 +1401,7 @@ async function refresh() {
         state.skillRuns = skillHistory.runs;
         state.economyEvents = economyEvents.events;
         state.economyEventSummary = economyEvents.summary;
+        state.economyEventIngestion = economyEvents.ingestion;
         state.worldPlayers = worldPlayers.players;
         state.agents = agents.agents; state.agentSkills = agents.skills;
         state.skillGrants = skillLearning.grants; state.skillLearningEvents = skillLearning.events;

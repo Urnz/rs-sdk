@@ -27,10 +27,14 @@ function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandi
 }
 
 function skillRun(runId: string, username: string, status: AdminSkillRun['status'] = 'completed'): AdminSkillRun {
-    return { runId, username, skill: { id: 'test.mine-copper', version: '1.0.0' }, status,
+    const skillId = username === 'agent-a' ? 'test.mine-copper' : 'test.fish-lobster';
+    return { runId, username, skill: { id: skillId, version: '1.0.0' }, status,
         reason: status === 'completed' ? 'Cycle completed.' : 'Cycle failed.', message: '', operations: 4,
         durationMs: 1_000, startedAt: '2026-09-01T10:00:01.000Z', finishedAt: '2026-09-01T10:00:02.000Z',
-        events: [] };
+        events: [{ runId, type: 'step.succeeded', timestamp: '2026-09-01T10:00:01.500Z',
+            skill: { id: skillId, version: '1.0.0' }, stepId: 'gather', operation: 'gather-loc',
+            data: { inventoryDelta: [{ id: username === 'agent-a' ? 436 : 377,
+                name: username === 'agent-a' ? 'Copper ore' : 'Raw lobster', count: 1, delta: 1 }] } }] };
 }
 
 describe('seeded multi-agent experiment definition', () => {
@@ -56,6 +60,8 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(html).toContain('id="multi-agent-experiment-list"');
     expect(script).toContain('/api/admin/multi-agent-experiments');
     expect(script).toContain('input[name="experimentAgentId"]:checked');
+    expect(script).toContain('metrics.economicEventSummary.producedItems');
+    expect(script).toContain('metrics.skillConcentration');
 });
 
 describe('persistent multi-agent experiment runner', () => {
@@ -112,7 +118,10 @@ describe('persistent multi-agent experiment runner', () => {
         expect(completed?.status).toBe('completed');
         expect(completed?.finalEconomy?.totalCoins).toBe(120);
         expect(completed?.metrics).toMatchObject({ totalCoinsDelta: 20, totalXpDelta: 0,
-            completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 3_000 });
+            completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 3_000,
+            economicEvents: 2, economicEventSummary: { producedItems: 2 },
+            uniqueSkills: 2, skillConcentration: 0.5,
+            skillRuns: [{ skillId: 'test.fish-lobster', runs: 1 }, { skillId: 'test.mine-copper', runs: 1 }] });
         expect(completed?.participants.every(item => item.status === 'completed' && item.skillRun)).toBeTrue();
         const replay = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
             skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Duplicate process event.', dependencies,

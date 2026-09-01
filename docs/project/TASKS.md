@@ -439,18 +439,27 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] Az aktív Business policyt és foglalkoztatást a player-megbízási queue elé
     kötni: exact aktív dolgozó, munkaköri skill, rögzített bér és policyplafon;
     csak ezután történhessen idempotens treasury reserve/commit/release.
-- [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
+- [x] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
   - [x] A kísérlet definíció-digestjét, seedjét, determinisztikus résztvevősorrendjét,
     közös baseline/dispatch gazdasági snapshotját és teljes döntési rekordjait menteni.
   - [x] A dispatch után a résztvevőket `runId` alapján a hiteles skill-napló lezárásáig
     követni, majd közös végső snapshotot, pénz-/XP-/online-/készletdeltát és
     agentenkénti sikerességet tartósítani; ismételt exit eseménynél idempotensen.
+  - [x] A strukturált skill-run gazdasági eseményeit digestelt, változtathatatlan
+    SQLite ledgerbe ingestálni; exact replay ne duplikáljon, módosított run ID
+    fail-closed legyen, és az eredeti eseménysorrend visszajátszható maradjon.
+  - [x] A kísérlet hiteles runjaiból termelés-, felhasználás-, shop-, trade-,
+    skilldiverzitás- és Herfindahl-koncentráció metrikát tartósítani és megjeleníteni.
 - [ ] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
   egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
 - [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
   kikapcsolt és bekapcsolt állapotát összehasonlítva.
 - [ ] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
   termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
+  - [x] Exact skill-runokból skilldiverzitást, koncentrációt, termelést,
+    felhasználást, shop- és player-trade aktivitást mérni.
+  - [ ] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
+    jövedelmet és agentenkénti célhaladást mérni.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti
   konfigurációként kezelni; előbb kézi/kereséses, később automatizált vagy
   tanulásalapú optimalizálással vizsgálni, egyetlen univerzális optimum ígérete nélkül.

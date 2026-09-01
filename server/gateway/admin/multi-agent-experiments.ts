@@ -6,6 +6,8 @@ import type { EconomySnapshot } from './types.js';
 import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
+import { extractEconomyEvents, summarizeEconomyEvents,
+    type EconomyEventSummary } from './transaction-telemetry.js';
 
 export type MultiAgentExperimentStatus = 'running' | 'completed' | 'completed-with-errors' | 'failed';
 
@@ -47,6 +49,11 @@ export interface MultiAgentExperimentMetrics {
     completedParticipants: number;
     unsuccessfulParticipants: number;
     itemStockDelta: Array<{ id: number; name: string; count: number }>;
+    economicEvents: number;
+    economicEventSummary: EconomyEventSummary;
+    uniqueSkills: number;
+    skillConcentration: number;
+    skillRuns: Array<{ skillId: string; runs: number }>;
 }
 
 export interface MultiAgentExperimentRun {
@@ -147,6 +154,19 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         .sort((left, right) => Math.abs(right.count) - Math.abs(left.count) || left.id - right.id)
         .slice(0, 100);
     const completedParticipants = run.participants.filter(item => item.status === 'completed').length;
+    const skillCounts = new Map<string, number>();
+    const economicEvents = run.participants.flatMap(item => {
+        const skillRun = item.skillRun;
+        if (!skillRun) return [];
+        skillCounts.set(skillRun.skill.id, (skillCounts.get(skillRun.skill.id) ?? 0) + 1);
+        return extractEconomyEvents({ runId: skillRun.runId, username: skillRun.username,
+            skillId: skillRun.skill.id, events: skillRun.events });
+    });
+    const skillRuns = [...skillCounts].map(([skillId, runs]) => ({ skillId, runs }))
+        .sort((left, right) => right.runs - left.runs || left.skillId.localeCompare(right.skillId));
+    const totalSkillRuns = skillRuns.reduce((total, item) => total + item.runs, 0);
+    const skillConcentration = totalSkillRuns === 0 ? 0 : Number(skillRuns.reduce((total, item) =>
+        total + (item.runs / totalSkillRuns) ** 2, 0).toFixed(6));
     return { durationMs: Math.max(0, Date.parse(finishedAt) - Date.parse(run.startedAt)),
         totalCoinsDelta: finalEconomy.totalCoins - run.baselineEconomy.totalCoins,
         totalXpDelta: finalEconomy.totalXp - run.baselineEconomy.totalXp,
@@ -154,7 +174,9 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         onlineDelta: finalEconomy.online - run.baselineEconomy.online,
         completedParticipants,
         unsuccessfulParticipants: run.participants.length - completedParticipants,
-        itemStockDelta };
+        itemStockDelta, economicEvents: economicEvents.length,
+        economicEventSummary: summarizeEconomyEvents(economicEvents),
+        uniqueSkills: skillRuns.length, skillConcentration, skillRuns };
 }
 
 export class MultiAgentExperimentStore {

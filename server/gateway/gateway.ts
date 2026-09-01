@@ -26,8 +26,9 @@ import { GatewayWorldDirectorScheduler, loadWorldDirectorConfig, WorldDirectorDi
 import { EngineWorldDirectorAdapter } from './admin/world-director-engine-adapter';
 import { reconcileAdminGoalProposalRun, reconcileAdminPlayerActionRun } from './admin/agent-state';
 import { MultiAgentExperimentStore, reconcileMultiAgentExperimentSkillRun } from './admin/multi-agent-experiments';
-import { multiAgentExperimentsDbPath } from './admin/paths';
+import { economyEventsDbPath, multiAgentExperimentsDbPath } from './admin/paths';
 import { readSkillRun } from './admin/skill-history';
+import { EconomyEventStore } from './admin/transaction-telemetry';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
@@ -883,6 +884,15 @@ botSupervisor.onSkillExit(event => {
         const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
         try {
             const skillRun = await readSkillRun(event.snapshot.runId);
+            if (skillRun) {
+                const economyEvents = new EconomyEventStore(economyEventsDbPath);
+                try {
+                    economyEvents.ingest({ runId: skillRun.runId, username: skillRun.username,
+                        skillId: skillRun.skill.id, events: skillRun.events }, occurredAt);
+                } catch (error) {
+                    console.error('[EconomyEventLedger] Skill run ingestion failed:', error);
+                } finally { economyEvents.close(); }
+            }
             const experiment = await reconcileMultiAgentExperimentSkillRun(event.snapshot.runId, skillRun, !failed,
                 `${event.snapshot.skill} ${failed ? 'failed' : 'exited successfully'} with exit code ${event.snapshot.exitCode}.`, {
                     store,

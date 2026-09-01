@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { Database } from 'bun:sqlite';
 import type { SkillEvent, SkillOperationName } from '../../../agent-skills/types';
-import { skillRunsDir } from './paths';
+import { economyEventsDbPath, skillRunsDir } from './paths';
 
 export type EconomyEventKind = 'production' | 'consumption' | 'shop-buy' | 'shop-sell' | 'player-trade' | 'bank-transfer';
 
@@ -40,11 +43,27 @@ interface InventoryDelta {
     delta: number;
 }
 
-interface JournalRun {
+export interface EconomyJournalRun {
     runId: string;
     username: string | null;
     skillId: string;
     events: SkillEvent[];
+}
+
+interface EconomyEventRow {
+    event_id: string;
+    timestamp: string;
+    run_id: string;
+    username: string | null;
+    skill_id: string;
+    step_id: string | null;
+    kind: EconomyEventKind;
+    items_in_json: string;
+    items_out_json: string;
+    coins_delta: number;
+    counterparty: string | null;
+    partial: number;
+    sequence: number;
 }
 
 const economicOperations = new Set<SkillOperationName>([
@@ -86,7 +105,7 @@ function changedItems(deltas: InventoryDelta[], sign: 1 | -1): EconomyEventItem[
 }
 
 function eventFor(
-    run: JournalRun,
+    run: EconomyJournalRun,
     event: SkillEvent,
     ordinal: number,
     kind: EconomyEventKind,
@@ -112,7 +131,7 @@ function eventFor(
     };
 }
 
-export function extractEconomyEvents(run: JournalRun): EconomyEvent[] {
+export function extractEconomyEvents(run: EconomyJournalRun): EconomyEvent[] {
     const result: EconomyEvent[] = [];
     run.events.forEach((event, ordinal) => {
         if ((event.type !== 'step.succeeded' && event.type !== 'step.failed')
@@ -161,7 +180,7 @@ export function extractEconomyEvents(run: JournalRun): EconomyEvent[] {
     return result;
 }
 
-function parseRun(value: unknown): JournalRun | null {
+export function parseEconomyJournalRun(value: unknown): EconomyJournalRun | null {
     if (!value || typeof value !== 'object') return null;
     const raw = value as Record<string, unknown>;
     const skill = raw.skill as Record<string, unknown> | undefined;
@@ -171,6 +190,106 @@ function parseRun(value: unknown): JournalRun | null {
         ? raw.username.toLowerCase() : null;
     const events = raw.events.filter(event => !!event && typeof event === 'object') as SkillEvent[];
     return { runId: raw.runId, username, skillId: skill.id, events };
+}
+
+function eventFromRow(row: EconomyEventRow): EconomyEvent {
+    return { id: row.event_id, timestamp: row.timestamp, runId: row.run_id,
+        username: row.username, skillId: row.skill_id, stepId: row.step_id, kind: row.kind,
+        itemsIn: JSON.parse(row.items_in_json) as EconomyEventItem[],
+        itemsOut: JSON.parse(row.items_out_json) as EconomyEventItem[], coinsDelta: row.coins_delta,
+        counterparty: row.counterparty, partial: row.partial === 1 };
+}
+
+function digestRun(run: EconomyJournalRun): string {
+    return createHash('sha256').update(JSON.stringify({ schemaVersion: 1, ...run })).digest('hex');
+}
+
+export class EconomyEventStore {
+    private readonly database: Database;
+
+    constructor(path = economyEventsDbPath) {
+        mkdirSync(dirname(path), { recursive: true });
+        this.database = new Database(path, { create: true, strict: true });
+        this.database.run('PRAGMA foreign_keys = ON');
+        this.database.run(`CREATE TABLE IF NOT EXISTS economy_run_ingestion (
+            run_id TEXT PRIMARY KEY, digest TEXT NOT NULL, username TEXT, skill_id TEXT NOT NULL,
+            event_count INTEGER NOT NULL CHECK (event_count >= 0), ingested_at TEXT NOT NULL)`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS economy_event (
+            event_id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES economy_run_ingestion(run_id),
+            timestamp TEXT NOT NULL, username TEXT, skill_id TEXT NOT NULL, step_id TEXT,
+            kind TEXT NOT NULL CHECK (kind IN ('production', 'consumption', 'shop-buy', 'shop-sell',
+                'player-trade', 'bank-transfer')), items_in_json TEXT NOT NULL, items_out_json TEXT NOT NULL,
+            coins_delta INTEGER NOT NULL, counterparty TEXT, partial INTEGER NOT NULL CHECK (partial IN (0, 1)),
+            sequence INTEGER NOT NULL)`);
+        const columns = this.database.query('PRAGMA table_info(economy_event)').all() as Array<{ name: string }>;
+        if (!columns.some(column => column.name === 'sequence')) {
+            this.database.run('ALTER TABLE economy_event ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0');
+        }
+        this.database.run('CREATE INDEX IF NOT EXISTS economy_event_time ON economy_event(timestamp DESC, event_id)');
+        this.database.run('CREATE INDEX IF NOT EXISTS economy_event_actor ON economy_event(username, timestamp DESC)');
+        this.database.run('CREATE INDEX IF NOT EXISTS economy_event_kind ON economy_event(kind, timestamp DESC)');
+    }
+
+    close(): void { this.database.close(true); }
+
+    ingest(run: EconomyJournalRun, now = new Date().toISOString()): { created: boolean; eventCount: number } {
+        const normalized = parseEconomyJournalRun({ runId: run.runId, username: run.username,
+            skill: { id: run.skillId }, events: run.events });
+        if (!normalized) throw new Error('Economy journal run is invalid');
+        if (Number.isNaN(Date.parse(now))) throw new Error('Economy ingestion timestamp is invalid');
+        const digest = digestRun(normalized);
+        const existing = this.database.query('SELECT digest, event_count FROM economy_run_ingestion WHERE run_id = ?1')
+            .get(normalized.runId) as { digest: string; event_count: number } | null;
+        if (existing) {
+            if (existing.digest !== digest) throw new Error('Economy journal run changed after ingestion');
+            return { created: false, eventCount: existing.event_count };
+        }
+        const events = extractEconomyEvents(normalized);
+        const transaction = this.database.transaction(() => {
+            this.database.run(`INSERT INTO economy_run_ingestion
+                (run_id, digest, username, skill_id, event_count, ingested_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6)`, [normalized.runId, digest, normalized.username,
+                normalized.skillId, events.length, new Date(now).toISOString()]);
+            events.forEach((event, sequence) => this.database.run(`INSERT INTO economy_event
+                (event_id, run_id, timestamp, username, skill_id, step_id, kind, items_in_json,
+                    items_out_json, coins_delta, counterparty, partial, sequence)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`, [event.id,
+                event.runId, event.timestamp, event.username, event.skillId, event.stepId, event.kind,
+                JSON.stringify(event.itemsIn), JSON.stringify(event.itemsOut), event.coinsDelta,
+                event.counterparty, event.partial ? 1 : 0, sequence]));
+        });
+        try {
+            transaction.immediate();
+        } catch (error) {
+            const raced = this.database.query(`SELECT digest, event_count FROM economy_run_ingestion
+                WHERE run_id = ?1`).get(normalized.runId) as { digest: string; event_count: number } | null;
+            if (raced?.digest === digest) return { created: false, eventCount: raced.event_count };
+            if (raced) throw new Error('Economy journal run changed after ingestion');
+            throw error;
+        }
+        return { created: true, eventCount: events.length };
+    }
+
+    query(options: { limit?: number; username?: string; kind?: EconomyEventKind } = {}):
+        { events: EconomyEvent[]; summary: EconomyEventSummary } {
+        const limit = Math.max(1, Math.min(500, Math.trunc(options.limit ?? 100) || 100));
+        const username = options.username?.trim().toLowerCase() || null;
+        const kind = options.kind ?? null;
+        const rows = this.database.query(`SELECT * FROM economy_event
+            WHERE (?1 IS NULL OR username = ?1) AND (?2 IS NULL OR kind = ?2)
+            ORDER BY timestamp DESC, sequence, event_id LIMIT 50000`).all(username, kind) as EconomyEventRow[];
+        const events = rows.map(eventFromRow);
+        return { events: events.slice(0, limit), summary: summarizeEconomyEvents(events) };
+    }
+
+    replay(runId: string): { events: EconomyEvent[]; summary: EconomyEventSummary } {
+        if (!/^[0-9a-f-]{36}$/i.test(runId)) throw new Error('Economy replay run id is invalid');
+        const events = (this.database.query(`SELECT * FROM economy_event WHERE run_id = ?1
+            ORDER BY sequence, event_id`).all(runId) as EconomyEventRow[]).map(eventFromRow);
+        const known = this.database.query('SELECT 1 FROM economy_run_ingestion WHERE run_id = ?1').get(runId);
+        if (!known) throw new Error('Economy journal run was not ingested');
+        return { events, summary: summarizeEconomyEvents(events) };
+    }
 }
 
 export function summarizeEconomyEvents(events: EconomyEvent[]): EconomyEventSummary {
@@ -189,9 +308,11 @@ export async function readEconomyEvents(options: {
     username?: string;
     kind?: EconomyEventKind;
     root?: string;
-} = {}): Promise<{ events: EconomyEvent[]; summary: EconomyEventSummary }> {
+    ledgerPath?: string;
+} = {}): Promise<{ events: EconomyEvent[]; summary: EconomyEventSummary;
+    ingestion: { createdRuns: number; replayedRuns: number; rejectedRuns: number } }> {
     const root = options.root ?? skillRunsDir;
-    const limit = Math.max(1, Math.min(500, Math.trunc(options.limit ?? 100) || 100));
+    const ledgerPath = options.ledgerPath ?? (options.root ? join(root, 'economy-events.sqlite') : economyEventsDbPath);
     const files = (await readdir(root).catch(() => []))
         .filter(file => /^[0-9a-f-]{36}\.json$/i.test(file))
         .slice(0, 2_000);
@@ -199,15 +320,21 @@ export async function readEconomyEvents(options: {
         try {
             const contents = await readFile(join(root, file), 'utf8');
             if (contents.length > 1_000_000) return null;
-            return parseRun(JSON.parse(contents));
+            return parseEconomyJournalRun(JSON.parse(contents));
         } catch {
             return null;
         }
     }));
-    const matching = runs.filter((run): run is JournalRun => !!run)
-        .flatMap(extractEconomyEvents)
-        .filter(event => !options.username || event.username === options.username.toLowerCase())
-        .filter(event => !options.kind || event.kind === options.kind)
-        .sort((left, right) => right.timestamp.localeCompare(left.timestamp));
-    return { events: matching.slice(0, limit), summary: summarizeEconomyEvents(matching) };
+    const ledger = new EconomyEventStore(ledgerPath);
+    let createdRuns = 0, replayedRuns = 0, rejectedRuns = 0;
+    try {
+        for (const run of runs) {
+            if (!run) continue;
+            try {
+                const result = ledger.ingest(run);
+                result.created ? createdRuns++ : replayedRuns++;
+            } catch { rejectedRuns++; }
+        }
+        return { ...ledger.query(options), ingestion: { createdRuns, replayedRuns, rejectedRuns } };
+    } finally { ledger.close(); }
 }
