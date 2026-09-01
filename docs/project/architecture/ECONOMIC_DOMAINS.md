@@ -73,6 +73,26 @@ ingatlan marad, amelynek belépési és használati szabályait a Property mod k
 - A modok közötti szerződés csak verziózott azonosítókat és eseményeket tartalmazhat.
 - Egy modul kikapcsolása nem törölhet másik modul által hivatkozott domainadatot.
 
+## Közös ajánlat- és szerződésledger
+
+A Phase 12 első szerződéses rétege egyik fenti domain belső állapotát sem
+tulajdonolja. Két persistent agent között `trade`, `work` vagy `service` ajánlatot
+rögzít, mindkét fél GP-, tárgy- és szolgáltatás-kötelezettségével. A név szerinti
+címzett elfogadásakor az ajánlat pontos, SHA-256 digesttel azonosított feltételei
+egy változatlan aktív szerződésbe kerülnek.
+
+Az ajánlat vagy szerződés önmagában:
+
+- nem teremt, nem foglal és nem mozgat pénzt vagy tárgyat;
+- nem módosít treasury-, player-save-, Property- vagy AgentState-egyenleget;
+- nem tekinthető teljesítési bizonyítéknak;
+- csak koordinációs és audit határ a későbbi hiteles skill-run, gazdasági esemény
+  és idempotens settlement számára.
+
+Ezért egy elfogadott szerződés jelenleg `active` marad. A következő szelet feladata
+a két fél teljesítését hiteles forrásból egyeztetni, majd a közös gazdasági
+főkönyvön keresztül lezárni.
+
 Tervezett függési irány:
 
 ```text

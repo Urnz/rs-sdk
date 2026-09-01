@@ -18,6 +18,8 @@ const state = {
     llmSettings: null,
     llmReplans: [],
     multiAgentExperiments: [],
+    economicOffers: [],
+    economicContracts: [],
     capabilityGaps: [],
     worldEventTemplates: [],
     worldDirectorCycles: [],
@@ -100,7 +102,8 @@ function selectAdminTab(tab) {
     document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
         panel.hidden = panel.dataset.adminTabPanel !== tab;
     });
-    if (tab === 'experiments') void refreshMultiAgentExperiments().catch(error => toast(error.message, true));
+    if (tab === 'experiments') void Promise.all([refreshMultiAgentExperiments(), refreshEconomicContracts()])
+        .catch(error => toast(error.message, true));
 }
 
 const llmConfigSourceLabels = { 'server-override': 'Szerver saját beállítása', 'project-default': 'Projekt alapbeállítása' };
@@ -504,7 +507,7 @@ async function refreshAgents() {
     state.agents = data.agents;
     state.agentSkills = data.skills;
     state.skillGrants = learning.grants; state.skillLearningEvents = learning.events;
-    renderAgents(); renderSkillLearning(); renderMultiAgentCandidates();
+    renderAgents(); renderSkillLearning(); renderMultiAgentCandidates(); renderEconomicOfferAgentOptions();
 }
 
 const experimentStatusLabels = { running: 'Dispatch folyamatban', completed: 'Kísérlet kész',
@@ -527,6 +530,18 @@ function renderMultiAgentCandidates() {
         <input type="checkbox" name="experimentAgentId" value="${escapeHtml(candidate.agentId)}"
             ${selected.has(candidate.agentId) ? 'checked' : ''} ${candidate.online ? '' : 'disabled'}>
     </label>`).join('') : '<p class="empty">Még nincs kiválasztható player-agent.</p>';
+}
+
+function renderEconomicOfferAgentOptions() {
+    const form = $('#economic-offer-form');
+    if (!form) return;
+    const previousCreator = form.elements.creatorAgentId.value;
+    const previousCounterparty = form.elements.counterpartyAgentId.value;
+    const options = state.agents.map(agent => `<option value="${escapeHtml(agent.identity.agentId)}">${escapeHtml(agent.identity.displayName)} (${escapeHtml(agent.identity.agentId)})</option>`).join('');
+    form.elements.creatorAgentId.innerHTML = options;
+    form.elements.counterpartyAgentId.innerHTML = options;
+    if (state.agents.some(agent => agent.identity.agentId === previousCreator)) form.elements.creatorAgentId.value = previousCreator;
+    if (state.agents.some(agent => agent.identity.agentId === previousCounterparty)) form.elements.counterpartyAgentId.value = previousCounterparty;
 }
 
 function renderMultiAgentExperiments(experiments) {
@@ -561,6 +576,45 @@ function renderMultiAgentExperiments(experiments) {
 
 async function refreshMultiAgentExperiments() {
     renderMultiAgentExperiments((await api('/api/admin/multi-agent-experiments?limit=50')).experiments);
+}
+
+const economicOfferStatusLabels = { open: 'Nyitott', accepted: 'Elfogadva', declined: 'Elutasítva',
+    withdrawn: 'Visszavonva', expired: 'Lejárt' };
+const economicOfferKindLabels = { trade: 'Kereskedelem', work: 'Munka', service: 'Szolgáltatás' };
+
+function economicObligationText(value) {
+    const parts = [];
+    if (value.gp) parts.push(`${fmt.format(value.gp)} gp`);
+    if (value.items?.length) parts.push(value.items.map(item => `${fmt.format(item.count)}× ${item.name} (#${item.id})`).join(', '));
+    if (value.service) parts.push(value.service);
+    return parts.join(' · ');
+}
+
+function renderEconomicContracts(offers, contracts) {
+    state.economicOffers = offers; state.economicContracts = contracts;
+    $('#economic-contract-count').textContent = `${contracts.length} szerződés`;
+    $('#economic-offer-list').innerHTML = offers.length ? offers.map(item => {
+        const actions = item.status === 'open' ? `<div class="agent-heading-actions">
+            <button class="button small primary" data-action="economic-offer-update" data-offer-action="accept" data-offer-id="${escapeHtml(item.offerId)}" data-actor-id="${escapeHtml(item.counterpartyAgentId)}" data-revision="${item.revision}">Elfogadás</button>
+            <button class="button small ghost" data-action="economic-offer-update" data-offer-action="decline" data-offer-id="${escapeHtml(item.offerId)}" data-actor-id="${escapeHtml(item.counterpartyAgentId)}" data-revision="${item.revision}">Elutasítás</button>
+            <button class="button small danger" data-action="economic-offer-update" data-offer-action="withdraw" data-offer-id="${escapeHtml(item.offerId)}" data-actor-id="${escapeHtml(item.creatorAgentId)}" data-revision="${item.revision}">Visszavonás</button></div>` : '';
+        return `<article class="capability-gap-card ${escapeHtml(item.status)}">
+            <div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(economicOfferKindLabels[item.kind] || item.kind)} · ${escapeHtml(economicOfferStatusLabels[item.status] || item.status)} · rev ${item.revision}</small></div>
+            <p>${escapeHtml(item.summary)}</p>
+            <div class="capability-gap-meta"><span>${escapeHtml(item.creatorAgentId)} adja: ${escapeHtml(economicObligationText(item.creatorProvides))}</span><span>${escapeHtml(item.counterpartyAgentId)} adja: ${escapeHtml(economicObligationText(item.counterpartyProvides))}</span></div>
+            <small>Lejárat: ${new Date(item.expiresAt).toLocaleString('hu-HU')} · digest: ${escapeHtml(item.termsDigest)}</small>
+            ${item.responseNote ? `<p>${escapeHtml(item.responseNote)}</p>` : ''}${actions}</article>`;
+    }).join('') : '<p class="empty">Még nincs gazdasági ajánlat.</p>';
+    $('#economic-contract-list').innerHTML = contracts.length ? `<div class="panel-heading table-heading skill-trial-heading"><div><h3>Aktív, még nem elszámolt szerződések</h3></div></div>${contracts.map(item =>
+        `<article class="capability-gap-card active"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(economicOfferKindLabels[item.kind] || item.kind)} · ${new Date(item.acceptedAt).toLocaleString('hu-HU')}</small></div>
+        <p>${escapeHtml(item.summary)}</p><div class="capability-gap-meta"><span>${escapeHtml(item.partyAAgentId)}: ${escapeHtml(economicObligationText(item.partyAProvides))}</span><span>${escapeHtml(item.partyBAgentId)}: ${escapeHtml(economicObligationText(item.partyBProvides))}</span></div>
+        <small>Aktív kötelezettség, automatikus teljesítésigazolás nélkül · digest: ${escapeHtml(item.termsDigest)}</small></article>`).join('')}`
+        : '<p class="empty">Még nincs elfogadott szerződés.</p>';
+}
+
+async function refreshEconomicContracts() {
+    const result = await api('/api/admin/economic-contracts?limit=100', { mutation: true });
+    renderEconomicContracts(result.offers, result.contracts);
 }
 
 function showSkillGrant() {
@@ -1538,6 +1592,21 @@ document.addEventListener('click', async event => {
         }
         if (button.dataset.action === 'agent-control-edit') showAgentControl(button.dataset.agentId);
         if (button.dataset.action === 'player-action-add') showPlayerAction(button.dataset.agentId);
+        if (button.dataset.action === 'economic-offer-update') {
+            const action = button.dataset.offerAction;
+            const labels = { accept: 'elfogadás', decline: 'elutasítás', withdraw: 'visszavonás' };
+            if (action === 'accept' && !confirm('Az elfogadás változatlan feltételekkel aktív szerződést hoz létre. Folytatod?')) return;
+            const note = action === 'accept' ? 'Az ajánlat elfogadva.'
+                : prompt('Megjegyzés:', action === 'decline' ? 'Az ajánlat elutasítva.' : 'Az ajánlat visszavonva.');
+            if (note === null) return;
+            const reason = prompt('Admin audit indoklás:', `Gazdasági ajánlat ${labels[action] || action}`);
+            if (!reason?.trim()) return;
+            await api(`/api/admin/economic-offers/${encodeURIComponent(button.dataset.offerId)}`, {
+                method: 'PUT', mutation: true, body: JSON.stringify({ action, actorAgentId: button.dataset.actorId,
+                    expectedRevision: Number(button.dataset.revision), note: note.trim(), reason: reason.trim() })
+            });
+            toast(`Az ajánlat művelete sikeres: ${labels[action] || action}.`); await refreshEconomicContracts();
+        }
         if (button.dataset.action === 'player-action-status') {
             const status = button.dataset.status;
             const needsNote = status === 'rejected' || status === 'failed';
@@ -2143,6 +2212,42 @@ $('#multi-agent-experiment-form').addEventListener('submit', async event => {
         toast(`A kísérlet elindult: ${response.experiment.experimentId}.`);
         await refreshMultiAgentExperiments();
     } finally { button.disabled = false; }
+});
+$('#reload-economic-contracts').addEventListener('click', () => refreshEconomicContracts()
+    .then(() => toast('A gazdasági ajánlatok és szerződések frissítve.')).catch(error => toast(error.message, true)));
+$('#economic-offer-form').elements.expiresAt.value = dateTimeLocalValue(new Date(Date.now() + 7 * 24 * 60 * 60_000));
+
+function parseEconomicItems(value) {
+    return String(value || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean).map((line, index) => {
+        const parts = line.split(',').map(part => part.trim());
+        const id = Number(parts.shift()), count = Number(parts.shift()), name = parts.join(',').trim();
+        if (!Number.isSafeInteger(id) || !Number.isSafeInteger(count) || !name) {
+            throw new Error(`Érvénytelen tárgysor (${index + 1}. sor). Formátum: itemId,darabszám,név`);
+        }
+        return { id, count, name };
+    });
+}
+
+$('#economic-offer-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget, data = new FormData(form);
+    if (data.get('creatorAgentId') === data.get('counterpartyAgentId')) {
+        toast('Az ajánlattevő és a címzett nem lehet ugyanaz az agent.', true); return;
+    }
+    const button = form.querySelector('button[type="submit"]'); button.disabled = true;
+    try {
+        const obligation = prefix => ({ gp: Number(data.get(`${prefix}Gp`)),
+            items: parseEconomicItems(data.get(`${prefix}Items`)),
+            service: data.get(`${prefix}Service`)?.toString().trim() || null });
+        const response = await api('/api/admin/economic-offers', { method: 'POST', mutation: true,
+            body: JSON.stringify({ creatorAgentId: data.get('creatorAgentId'),
+                counterpartyAgentId: data.get('counterpartyAgentId'), kind: data.get('kind'),
+                title: data.get('title'), summary: data.get('summary'), creatorProvides: obligation('creator'),
+                counterpartyProvides: obligation('counterparty'),
+                expiresAt: new Date(data.get('expiresAt')).toISOString(), reason: data.get('reason') }) });
+        toast(`Az ajánlat létrejött: ${response.offer.offerId}.`); await refreshEconomicContracts();
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
 });
 $('#world-director-preview-form').addEventListener('submit', async event => {
     event.preventDefault();

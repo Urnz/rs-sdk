@@ -60,6 +60,13 @@ describe('admin authorization boundary', () => {
 
         expect(response?.status).toBe(401);
     });
+
+    test('protects economic offers and contracts even on read requests', async () => {
+        const context = { gatewayBots: () => new Map(), supervisor: {} as BotSupervisor };
+        const request = new Request('http://localhost:7780/api/admin/economic-contracts');
+        const response = await handleAdminRequest(request, new URL(request.url), context);
+        expect(response?.status).toBe(401);
+    });
 });
 
 describe('online and offline state collision', () => {

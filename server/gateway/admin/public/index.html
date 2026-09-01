@@ -171,6 +171,42 @@
                 <div><p class="eyebrow">TARTÓS FUTÁSNAPLÓ</p><h3>Kohorszok és agentenkénti eredmények</h3></div>
             </div>
             <div id="multi-agent-experiment-list" class="capability-gap-list scroll-region" role="region" aria-label="Multi-agent kísérletek" tabindex="0"><p class="empty">Betöltés…</p></div>
+            <div class="panel-heading table-heading skill-trial-heading">
+                <div><p class="eyebrow">AJÁNLATOK ÉS SZERZŐDÉSEK</p><h3>Kétoldalú gazdasági megállapodások</h3></div>
+                <div class="agent-heading-actions"><span id="economic-contract-count" class="count-pill">0 szerződés</span>
+                    <button id="reload-economic-contracts" class="button ghost" type="button">Frissítés</button></div>
+            </div>
+            <p class="agent-intro">Ez az első szerződéses ledger: tartósan rögzíti, hogy két agent mit ígért egymásnak. Az elfogadás még nem mozgat pénzt vagy tárgyat, és nem állítja, hogy a teljesítés megtörtént.</p>
+            <details class="agent-section" open>
+                <summary>Új ajánlat</summary>
+                <form id="economic-offer-form" class="llm-settings-form">
+                    <div class="llm-form-grid">
+                        <label>Ajánlattevő<select name="creatorAgentId" required></select></label>
+                        <label>Címzett<select name="counterpartyAgentId" required></select></label>
+                        <label>Típus<select name="kind" required><option value="work">Munka</option><option value="trade">Kereskedelem</option><option value="service">Szolgáltatás</option></select></label>
+                        <label>Lejárat<input name="expiresAt" type="datetime-local" required></label>
+                    </div>
+                    <label>Cím<input name="title" maxlength="120" value="Gazdasági ajánlat" required></label>
+                    <label>Leírás<textarea name="summary" maxlength="320" rows="2" required>A felek az alábbi kötelezettségeket vállalják.</textarea></label>
+                    <div class="llm-form-grid">
+                        <fieldset><legend>Ajánlattevő adja</legend>
+                            <label>GP<input name="creatorGp" type="number" min="0" max="2147483647" value="1000" required></label>
+                            <label>Tárgyak<textarea name="creatorItems" rows="3" placeholder="436,100,Copper ore"></textarea></label>
+                            <label>Szolgáltatás<input name="creatorService" maxlength="240"></label>
+                        </fieldset>
+                        <fieldset><legend>Címzett adja</legend>
+                            <label>GP<input name="counterpartyGp" type="number" min="0" max="2147483647" value="0" required></label>
+                            <label>Tárgyak<textarea name="counterpartyItems" rows="3" placeholder="436,100,Copper ore"></textarea></label>
+                            <label>Szolgáltatás<input name="counterpartyService" maxlength="240" value="A megállapodás szerinti munka elvégzése."></label>
+                        </fieldset>
+                    </div>
+                    <label>Admin audit indoklás<input name="reason" maxlength="240" value="Phase 12 gazdasági ajánlat létrehozása" required></label>
+                    <div class="llm-save-row"><p class="dialog-note">Tárgyanként egy sor: <code>itemId,darabszám,név</code>.</p>
+                        <button class="button primary" type="submit">Ajánlat létrehozása</button></div>
+                </form>
+            </details>
+            <div id="economic-offer-list" class="capability-gap-list scroll-region" role="region" aria-label="Gazdasági ajánlatok" tabindex="0"><p class="empty">Betöltés…</p></div>
+            <div id="economic-contract-list" class="capability-gap-list scroll-region" role="region" aria-label="Aktív szerződések" tabindex="0"><p class="empty">Betöltés…</p></div>
         </section>
 
         <section class="panel llm-settings-panel" data-admin-tab-panel="llm" hidden>

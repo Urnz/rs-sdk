@@ -78,6 +78,8 @@ import type { SkillGrantKind } from '../../../agent-skills/learning.js';
 import { resolveLearnAndPlan } from './deterministic-learning.js';
 import { MultiAgentExperimentStore, startMultiAgentExperiment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
+import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
+import { economicContractsDbPath } from './paths.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -468,6 +470,70 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (!authorized(req, url)) {
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/economic-contracts') {
+            const store = new EconomicContractStore(economicContractsDbPath);
+            try {
+                const limit = Number(url.searchParams.get('limit') || 100);
+                return json({ offers: store.listOffers(limit), contracts: store.listContracts(limit) });
+            } finally { store.close(); }
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/economic-offers') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const creatorAgentId = text(body, 'creatorAgentId', true).toLowerCase();
+            const counterpartyAgentId = text(body, 'counterpartyAgentId', true).toLowerCase();
+            const knownAgents = new Set((await listAdminAgents()).agents.map(agent => agent.identity.agentId));
+            if (!knownAgents.has(creatorAgentId) || !knownAgents.has(counterpartyAgentId)) {
+                throw new Error('Az ajánlat mindkét résztvevőjének létező persistent agentnek kell lennie.');
+            }
+            const store = new EconomicContractStore(economicContractsDbPath);
+            try {
+                const offer = store.create({ creatorAgentId, counterpartyAgentId,
+                    kind: oneOf<EconomicOfferKind>(body.kind, ['trade', 'work', 'service'], 'kind'),
+                    title: text(body, 'title', true), summary: text(body, 'summary', true),
+                    creatorProvides: body.creatorProvides as EconomicObligation,
+                    counterpartyProvides: body.counterpartyProvides as EconomicObligation,
+                    expiresAt: text(body, 'expiresAt', true) });
+                await appendAudit({ operator: 'local-admin', action: 'economic-offer.create', reason,
+                    username: creatorAgentId, success: true, after: offer });
+                return json({ ok: true, offer }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'economic-offer.create', reason,
+                    username: creatorAgentId, success: false, error: String(error),
+                    after: { counterpartyAgentId } });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const economicOfferMatch = url.pathname.match(/^\/api\/admin\/economic-offers\/([0-9a-f-]{36})$/i);
+        if (req.method === 'PUT' && economicOfferMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const actorAgentId = text(body, 'actorAgentId', true).toLowerCase();
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) throw new Error('Érvénytelen ajánlatrevízió.');
+            const action = oneOf(body.action, ['accept', 'decline', 'withdraw'] as const, 'action');
+            const note = text(body, 'note') || (action === 'accept' ? 'Az ajánlat elfogadva.' : 'Admin státuszváltás.');
+            const store = new EconomicContractStore(economicContractsDbPath);
+            try {
+                const before = store.getOffer(economicOfferMatch[1]);
+                const result = action === 'accept'
+                    ? store.accept(economicOfferMatch[1], actorAgentId, expectedRevision)
+                    : { offer: action === 'decline'
+                        ? store.decline(economicOfferMatch[1], actorAgentId, expectedRevision, note)
+                        : store.withdraw(economicOfferMatch[1], actorAgentId, expectedRevision, note), contract: null };
+                await appendAudit({ operator: 'local-admin', action: `economic-offer.${action}`, reason,
+                    username: actorAgentId, success: true, before, after: result });
+                return json({ ok: true, ...result });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: `economic-offer.${action}`, reason,
+                    username: actorAgentId, success: false, error: String(error),
+                    after: { offerId: economicOfferMatch[1], expectedRevision } });
+                throw error;
+            } finally { store.close(); }
         }
 
         const gapTrialMatch = url.pathname.match(/^\/api\/admin\/capability-gaps\/(gap-[a-f0-9]{20})\/trials$/);

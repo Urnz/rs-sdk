@@ -409,6 +409,12 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] A teljes kohorsz preflightját írás előtt elvégezni, majd az agentciklusokat
     párhuzamosan indítani és agentenként külön event/run eredményt tartósítani.
 - [ ] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
+  - [x] Két exact persistent agent közötti, lejáró trade/work/service ajánlatokat
+    és elfogadáskor változatlan feltételekkel képzett egyszerű szerződést tartósítani.
+  - [x] A feltételeket GP-, tárgy- és szolgáltatás-kötelezettségekre bontani,
+    digesttel védeni, optimista revízióval és exact fél-jogosultsággal módosítani.
+  - [ ] A szerződés teljesítését hiteles skill-run és gazdasági esemény alapján
+    igazolni, majd a tényleges játékbeli átadást és elszámolást idempotensen lezárni.
 - [ ] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
 - [ ] A Business manager read/write portját az institution-agent allowlistelt
   domain tooljaihoz kötni, közvetlen player- vagy AgentState-pénzmásolás nélkül.
