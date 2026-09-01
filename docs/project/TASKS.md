@@ -421,7 +421,13 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     kötelezettségének igazolása után `fulfilled` állapotot képezni.
   - [ ] A szerződésből induló tényleges játékbeli átadást és treasury/player
     elszámolást előre foglalt fedezettel, idempotensen végrehajtani.
-- [ ] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
+- [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
+  - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,
+    optimista revíziót és vissza nem nyitható lezárt lifecycle-t tartósítani.
+  - [x] Exact persistent agenthez kötött manager/worker jogviszonyt, opcionális
+    exact skillkövetelményt és még nem automatikusan fizetett munkadíjat kezelni.
+  - [x] Auditált admin API-t és felületet adni létrehozáshoz, szüneteltetéshez,
+    lezáráshoz, felvételhez és a foglalkoztatás megszüntetéséhez.
 - [ ] A Business manager read/write portját az institution-agent allowlistelt
   domain tooljaihoz kötni, közvetlen player- vagy AgentState-pénzmásolás nélkül.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.

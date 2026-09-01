@@ -20,6 +20,7 @@ const state = {
     multiAgentExperiments: [],
     economicOffers: [],
     economicContracts: [],
+    businesses: [],
     capabilityGaps: [],
     worldEventTemplates: [],
     worldDirectorCycles: [],
@@ -102,7 +103,9 @@ function selectAdminTab(tab) {
     document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
         panel.hidden = panel.dataset.adminTabPanel !== tab;
     });
-    if (tab === 'experiments') void Promise.all([refreshMultiAgentExperiments(), refreshEconomicContracts()])
+    if (tab === 'experiments') void Promise.all([
+        refreshMultiAgentExperiments(), refreshEconomicContracts(), refreshBusinesses()
+    ])
         .catch(error => toast(error.message, true));
 }
 
@@ -508,6 +511,7 @@ async function refreshAgents() {
     state.agentSkills = data.skills;
     state.skillGrants = learning.grants; state.skillLearningEvents = learning.events;
     renderAgents(); renderSkillLearning(); renderMultiAgentCandidates(); renderEconomicOfferAgentOptions();
+    renderBusinessAgentOptions();
 }
 
 const experimentStatusLabels = { running: 'Dispatch folyamatban', completed: 'Kísérlet kész',
@@ -623,6 +627,39 @@ function renderEconomicContracts(offers, contracts) {
 async function refreshEconomicContracts() {
     const result = await api('/api/admin/economic-contracts?limit=100', { mutation: true });
     renderEconomicContracts(result.offers, result.contracts);
+}
+
+const businessStatusLabels = { active: 'Aktív', dormant: 'Szünetel', closed: 'Lezárt' };
+const employmentRoleLabels = { manager: 'Vezető', worker: 'Dolgozó' };
+
+function renderBusinessAgentOptions() {
+    const form = $('#business-form');
+    if (!form) return;
+    const selected = form.elements.ownerAgentId.value;
+    form.elements.ownerAgentId.innerHTML = state.agents.map(agent =>
+        `<option value="${escapeHtml(agent.identity.agentId)}">${escapeHtml(agent.identity.displayName)} (${escapeHtml(agent.identity.agentId)})</option>`).join('');
+    if (state.agents.some(agent => agent.identity.agentId === selected)) form.elements.ownerAgentId.value = selected;
+}
+
+function renderBusinesses(businesses) {
+    state.businesses = businesses;
+    $('#business-count').textContent = `${businesses.length} vállalkozás`;
+    $('#business-list').innerHTML = businesses.length ? businesses.map(item => {
+        const activeEmployments = item.employments.filter(job => job.status === 'active');
+        const employments = item.employments.length ? `<details><summary>Foglalkoztatás (${activeEmployments.length} aktív / ${item.employments.length})</summary><ul>${item.employments.map(job =>
+            `<li><strong>${escapeHtml(job.workerAgentId)}</strong> · ${escapeHtml(employmentRoleLabels[job.role] || job.role)} · ${escapeHtml(job.title)} · ${fmt.format(job.wageGp)} gp${job.requiredSkill ? ` · ${escapeHtml(job.requiredSkill.id)}@${escapeHtml(job.requiredSkill.version)}` : ''} · ${job.status === 'active' ? 'aktív' : 'lezárt'}${job.status === 'active' ? ` <button class="button small danger-outline" data-action="business-employment-end" data-business-id="${escapeHtml(item.businessId)}" data-employment-id="${escapeHtml(job.employmentId)}" data-revision="${job.revision}">Lezárás</button>` : ''}</li>`).join('')}</ul></details>` : '<p class="empty">Még nincs alkalmazott.</p>';
+        const actions = item.status === 'active' ? `<div class="agent-heading-actions">
+            <button class="button small primary" data-action="business-hire" data-business-id="${escapeHtml(item.businessId)}">+ Alkalmazott</button>
+            <button class="button small ghost" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="dormant" data-revision="${item.revision}">Szüneteltetés</button>
+            <button class="button small danger-outline" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="closed" data-revision="${item.revision}">Lezárás</button></div>`
+            : item.status === 'dormant' ? `<div class="agent-heading-actions"><button class="button small primary" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="active" data-revision="${item.revision}">Újraaktiválás</button><button class="button small danger-outline" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="closed" data-revision="${item.revision}">Lezárás</button></div>` : '';
+        return `<article class="capability-gap-card ${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.businessId)} · ${escapeHtml(businessStatusLabels[item.status] || item.status)} · rev ${item.revision}</small></div>
+            <p>${escapeHtml(item.summary)}</p><div class="capability-gap-meta"><span>tulajdonos: ${escapeHtml(item.ownerAgentId)}</span><span>ingatlan: ${escapeHtml(item.propertyId || 'nincs')}</span><span>${activeEmployments.length} aktív dolgozó</span></div>${employments}${actions}</article>`;
+    }).join('') : '<p class="empty">Még nincs vállalkozás.</p>';
+}
+
+async function refreshBusinesses() {
+    renderBusinesses((await api('/api/admin/businesses?limit=100', { mutation: true })).businesses);
 }
 
 function showSkillGrant() {
@@ -1626,6 +1663,52 @@ document.addEventListener('click', async event => {
             });
             toast('A hiteles run bizonyítéka rögzítve.'); await refreshEconomicContracts();
         }
+        if (button.dataset.action === 'business-status') {
+            const business = state.businesses.find(item => item.businessId === button.dataset.businessId);
+            if (!business) throw new Error('A vállalkozás nem található; frissítsd a listát.');
+            const status = button.dataset.status;
+            const reason = prompt('Admin audit indoklás:', status === 'closed'
+                ? 'Vállalkozás végleges lezárása' : 'Vállalkozás állapotának módosítása');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/businesses/${encodeURIComponent(business.businessId)}`, {
+                method: 'PUT', mutation: true, body: JSON.stringify({ expectedRevision: Number(button.dataset.revision),
+                    name: business.name, summary: business.summary, propertyId: business.propertyId,
+                    status, reason: reason.trim() })
+            });
+            toast('A vállalkozás állapota frissült.'); await refreshBusinesses();
+        }
+        if (button.dataset.action === 'business-hire') {
+            const workerAgentId = prompt('A dolgozó persistent agent ID-ja:');
+            if (!workerAgentId?.trim()) return;
+            const role = prompt('Szerepkör: manager vagy worker', 'worker');
+            if (!role?.trim()) return;
+            const title = prompt('Munkakör megnevezése:', 'Dolgozó');
+            if (!title?.trim()) return;
+            const wageGp = Number(prompt('Díj egy igazolt munka után (gp):', '0'));
+            const skillText = prompt('Elvárt exact skill (opcionális, skill.id@1.0.0):', '')?.trim() || '';
+            let requiredSkill = null;
+            if (skillText) {
+                const separator = skillText.lastIndexOf('@');
+                if (separator < 1) throw new Error('Az exact skill formátuma: skill.id@1.0.0');
+                requiredSkill = { id: skillText.slice(0, separator), version: skillText.slice(separator + 1) };
+            }
+            const reason = prompt('Admin audit indoklás:', 'Dolgozó felvétele a vállalkozáshoz');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/businesses/${encodeURIComponent(button.dataset.businessId)}/employments`, {
+                method: 'POST', mutation: true, body: JSON.stringify({ workerAgentId: workerAgentId.trim(),
+                    role: role.trim(), title: title.trim(), wageGp, requiredSkill, reason: reason.trim() })
+            });
+            toast('Az alkalmazotti jogviszony létrejött.'); await refreshBusinesses();
+        }
+        if (button.dataset.action === 'business-employment-end') {
+            const reason = prompt('Admin audit indoklás:', 'Alkalmazotti jogviszony lezárása');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/businesses/${encodeURIComponent(button.dataset.businessId)}/employments/${encodeURIComponent(button.dataset.employmentId)}`, {
+                method: 'PUT', mutation: true,
+                body: JSON.stringify({ expectedRevision: Number(button.dataset.revision), reason: reason.trim() })
+            });
+            toast('Az alkalmazotti jogviszony lezárult.'); await refreshBusinesses();
+        }
         if (button.dataset.action === 'player-action-status') {
             const status = button.dataset.status;
             const needsNote = status === 'rejected' || status === 'failed';
@@ -2234,6 +2317,8 @@ $('#multi-agent-experiment-form').addEventListener('submit', async event => {
 });
 $('#reload-economic-contracts').addEventListener('click', () => refreshEconomicContracts()
     .then(() => toast('A gazdasági ajánlatok és szerződések frissítve.')).catch(error => toast(error.message, true)));
+$('#reload-businesses').addEventListener('click', () => refreshBusinesses()
+    .then(() => toast('A vállalkozások frissítve.')).catch(error => toast(error.message, true)));
 $('#economic-offer-form').elements.expiresAt.value = dateTimeLocalValue(new Date(Date.now() + 7 * 24 * 60 * 60_000));
 
 function parseEconomicItems(value) {
@@ -2273,6 +2358,22 @@ $('#economic-offer-form').addEventListener('submit', async event => {
                 counterpartyProvides: obligation('counterparty'),
                 expiresAt: new Date(data.get('expiresAt')).toISOString(), reason: data.get('reason') }) });
         toast(`Az ajánlat létrejött: ${response.offer.offerId}.`); await refreshEconomicContracts();
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
+});
+$('#business-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+        const response = await api('/api/admin/businesses', { method: 'POST', mutation: true,
+            body: JSON.stringify({ businessId: data.get('businessId'), ownerAgentId: data.get('ownerAgentId'),
+                name: data.get('name'), propertyId: data.get('propertyId'), summary: data.get('summary'),
+                reason: data.get('reason') }) });
+        toast(`A vállalkozás létrejött: ${response.business.businessId}.`);
+        form.reset(); renderBusinessAgentOptions(); await refreshBusinesses();
     } catch (error) { toast(error.message, true); }
     finally { button.disabled = false; }
 });

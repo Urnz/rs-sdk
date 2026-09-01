@@ -47,6 +47,13 @@ Tulajdonolja:
 - a termelést, készletet, árképzést, megrendeléseket és üzleti célokat;
 - a működési eredményt, béreket és vállalati szerződéseket.
 
+A Phase 12 kezdeti modellje már tartós Business-identitást, külön owner agentet,
+`active → dormant → active/closed` lifecycle-t és manager/worker jogviszonyokat
+ad. A `closed` végleges, a hozzá tartozó aktív foglalkoztatások lezárulnak, de a
+történeti rekordok megmaradnak. Egy aktív jogviszony opcionálisan exact
+skillverziót és egy igazolt munka után járó GP-díjat deklarál. Ez még nem payroll:
+nem foglal fedezetet, nem indít skillt és nem ír player- vagy treasury-egyenleget.
+
 Egy vállalkozás `propertyId` alapján birtokolhat vagy bérelhet műhelyt, boltot,
 farmot, bányát, fogadót vagy raktárt. Az ingatlan típusa lehetőséget jelez, de
 önmagában nem hoz létre vállalkozást.

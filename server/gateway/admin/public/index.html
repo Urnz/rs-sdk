@@ -209,6 +209,28 @@
             </details>
             <div id="economic-offer-list" class="capability-gap-list scroll-region" role="region" aria-label="Gazdasági ajánlatok" tabindex="0"><p class="empty">Betöltés…</p></div>
             <div id="economic-contract-list" class="capability-gap-list scroll-region" role="region" aria-label="Aktív szerződések" tabindex="0"><p class="empty">Betöltés…</p></div>
+            <div class="panel-heading table-heading skill-trial-heading">
+                <div><p class="eyebrow">BUSINESS MANAGER</p><h3>Vállalkozások és foglalkoztatás</h3></div>
+                <div class="agent-heading-actions"><span id="business-count" class="count-pill">0 vállalkozás</span>
+                    <button id="reload-businesses" class="button ghost" type="button">Frissítés</button></div>
+            </div>
+            <p class="agent-intro">A vállalkozás külön gazdasági szereplő. Hivatkozhat ingatlanra és exact persistent agenteket foglalkoztathat, de a munkabér még nem indít automatikus kifizetést.</p>
+            <details class="agent-section" open>
+                <summary>Új vállalkozás</summary>
+                <form id="business-form" class="llm-settings-form">
+                    <div class="llm-form-grid">
+                        <label>Stabil azonosító<input name="businessId" maxlength="64" placeholder="varrock-forge" required></label>
+                        <label>Tulajdonos agent<select name="ownerAgentId" required></select></label>
+                        <label>Név<input name="name" maxlength="120" placeholder="Varrock Forge" required></label>
+                        <label>Ingatlan ID <span class="muted">(opcionális)</span><input name="propertyId" maxlength="64" placeholder="varrock-east-workshop"></label>
+                    </div>
+                    <label>Leírás<textarea name="summary" maxlength="320" rows="2" required></textarea></label>
+                    <label>Admin audit indoklás<input name="reason" maxlength="240" value="Phase 12 vállalkozás létrehozása" required></label>
+                    <div class="llm-save-row"><p class="dialog-note">A tulajdonos nem alkalmazottként, hanem külön tulajdonosi szerepben szerepel.</p>
+                        <button class="button primary" type="submit">Vállalkozás létrehozása</button></div>
+                </form>
+            </details>
+            <div id="business-list" class="capability-gap-list scroll-region" role="region" aria-label="Vállalkozások" tabindex="0"><p class="empty">Betöltés…</p></div>
         </section>
 
         <section class="panel llm-settings-panel" data-admin-tab-panel="llm" hidden>

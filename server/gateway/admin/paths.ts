@@ -39,3 +39,4 @@ export const worldDirectorOverridePath = join(adminLocalDir, 'world-director.jso
 export const worldDirectorDbPath = join(adminLocalDir, 'world-director.sqlite');
 export const multiAgentExperimentsDbPath = join(adminLocalDir, 'multi-agent-experiments.sqlite');
 export const economicContractsDbPath = join(repoRoot, '.local', 'economy', 'contracts.sqlite');
+export const businessManagerDbPath = join(repoRoot, '.local', 'economy', 'businesses.sqlite');

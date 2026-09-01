@@ -1,0 +1,300 @@
+import { randomUUID } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { Database } from 'bun:sqlite';
+
+export type BusinessStatus = 'active' | 'dormant' | 'closed';
+export type EmploymentRole = 'manager' | 'worker';
+export type EmploymentStatus = 'active' | 'ended';
+
+export interface BusinessEmployment {
+    employmentId: string;
+    businessId: string;
+    workerAgentId: string;
+    role: EmploymentRole;
+    title: string;
+    wageGp: number;
+    requiredSkill: { id: string; version: string } | null;
+    status: EmploymentStatus;
+    revision: number;
+    startedAt: string;
+    endedAt: string | null;
+    updatedAt: string;
+}
+
+export interface Business {
+    businessId: string;
+    name: string;
+    summary: string;
+    ownerAgentId: string;
+    propertyId: string | null;
+    status: BusinessStatus;
+    revision: number;
+    employments: BusinessEmployment[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateBusiness {
+    businessId: string;
+    name: string;
+    summary: string;
+    ownerAgentId: string;
+    propertyId?: string | null;
+}
+
+export interface UpdateBusiness {
+    name: string;
+    summary: string;
+    propertyId?: string | null;
+    status: BusinessStatus;
+}
+
+export interface CreateEmployment {
+    workerAgentId: string;
+    role: EmploymentRole;
+    title: string;
+    wageGp: number;
+    requiredSkill?: { id: string; version: string } | null;
+}
+
+interface BusinessRow {
+    business_id: string;
+    name: string;
+    summary: string;
+    owner_agent_id: string;
+    property_id: string | null;
+    status: BusinessStatus;
+    revision: number;
+    created_at: string;
+    updated_at: string;
+}
+
+interface EmploymentRow {
+    employment_id: string;
+    business_id: string;
+    worker_agent_id: string;
+    role: EmploymentRole;
+    title: string;
+    wage_gp: number;
+    required_skill_id: string | null;
+    required_skill_version: string | null;
+    status: EmploymentStatus;
+    revision: number;
+    started_at: string;
+    ended_at: string | null;
+    updated_at: string;
+}
+
+function stableId(value: string, field: string): string {
+    const normalized = value.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9._-]{1,63}$/.test(normalized)) throw new Error(`${field} is invalid`);
+    return normalized;
+}
+
+function boundedText(value: string, field: string, maximum: number): string {
+    const normalized = value.trim().replace(/\s+/g, ' ');
+    if (!normalized || normalized.length > maximum) throw new Error(`${field} is invalid`);
+    return normalized;
+}
+
+function timestamp(value: string, field: string): string {
+    if (!Number.isFinite(Date.parse(value))) throw new Error(`${field} is invalid`);
+    return value;
+}
+
+function exactSkillId(value: string): string {
+    const normalized = boundedText(value, 'requiredSkill.id', 120);
+    if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(normalized)) throw new Error('requiredSkill.id is invalid');
+    return normalized;
+}
+
+function skillReference(value: CreateEmployment['requiredSkill']): { id: string; version: string } | null {
+    if (!value) return null;
+    const id = exactSkillId(value.id);
+    const version = boundedText(value.version, 'requiredSkill.version', 32);
+    if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(version)) {
+        throw new Error('requiredSkill.version is invalid');
+    }
+    return { id, version };
+}
+
+function employment(row: EmploymentRow): BusinessEmployment {
+    return {
+        employmentId: row.employment_id,
+        businessId: row.business_id,
+        workerAgentId: row.worker_agent_id,
+        role: row.role,
+        title: row.title,
+        wageGp: row.wage_gp,
+        requiredSkill: row.required_skill_id && row.required_skill_version
+            ? { id: row.required_skill_id, version: row.required_skill_version }
+            : null,
+        status: row.status,
+        revision: row.revision,
+        startedAt: row.started_at,
+        endedAt: row.ended_at,
+        updatedAt: row.updated_at
+    };
+}
+
+export class BusinessManagerStore {
+    private readonly database: Database;
+
+    constructor(path: string) {
+        mkdirSync(dirname(path), { recursive: true });
+        this.database = new Database(path, { create: true, strict: true });
+        this.database.run('PRAGMA foreign_keys = ON');
+        this.database.run(`CREATE TABLE IF NOT EXISTS business (
+            business_id TEXT PRIMARY KEY, name TEXT NOT NULL, summary TEXT NOT NULL,
+            owner_agent_id TEXT NOT NULL, property_id TEXT, status TEXT NOT NULL
+            CHECK (status IN ('active', 'dormant', 'closed')), revision INTEGER NOT NULL CHECK (revision >= 1),
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS business_employment (
+            employment_id TEXT PRIMARY KEY, business_id TEXT NOT NULL REFERENCES business(business_id),
+            worker_agent_id TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('manager', 'worker')),
+            title TEXT NOT NULL, wage_gp INTEGER NOT NULL CHECK (wage_gp >= 0),
+            required_skill_id TEXT, required_skill_version TEXT,
+            status TEXT NOT NULL CHECK (status IN ('active', 'ended')),
+            revision INTEGER NOT NULL CHECK (revision >= 1), started_at TEXT NOT NULL,
+            ended_at TEXT, updated_at TEXT NOT NULL,
+            CHECK ((required_skill_id IS NULL) = (required_skill_version IS NULL)))`);
+        this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS business_active_worker
+            ON business_employment(business_id, worker_agent_id) WHERE status = 'active'`);
+    }
+
+    close(): void { this.database.close(true); }
+
+    list(limit = 100): Business[] {
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error('Business list limit is invalid');
+        return (this.database.query(`SELECT * FROM business ORDER BY created_at DESC, business_id LIMIT ?1`)
+            .all(limit) as BusinessRow[]).map(row => this.toBusiness(row));
+    }
+
+    get(businessIdInput: string): Business | null {
+        const businessId = stableId(businessIdInput, 'businessId');
+        const row = this.database.query('SELECT * FROM business WHERE business_id = ?1')
+            .get(businessId) as BusinessRow | null;
+        return row ? this.toBusiness(row) : null;
+    }
+
+    create(input: CreateBusiness, now = new Date().toISOString()): Business {
+        const businessId = stableId(input.businessId, 'businessId');
+        const name = boundedText(input.name, 'name', 120);
+        const summary = boundedText(input.summary, 'summary', 320);
+        const ownerAgentId = stableId(input.ownerAgentId, 'ownerAgentId');
+        const propertyId = input.propertyId ? stableId(input.propertyId, 'propertyId') : null;
+        const createdAt = timestamp(now, 'now');
+        try {
+            this.database.run(`INSERT INTO business (business_id, name, summary, owner_agent_id,
+                property_id, status, revision, created_at, updated_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, 'active', 1, ?6, ?6)`,
+            [businessId, name, summary, ownerAgentId, propertyId, createdAt]);
+        } catch (error) {
+            if (String(error).includes('UNIQUE constraint failed')) throw new Error('Business id already exists');
+            throw error;
+        }
+        return this.get(businessId)!;
+    }
+
+    update(businessIdInput: string, expectedRevision: number, input: UpdateBusiness,
+        now = new Date().toISOString()): Business {
+        const businessId = stableId(businessIdInput, 'businessId');
+        const current = this.get(businessId);
+        if (!current) throw new Error('Business does not exist');
+        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+            throw new Error('Business revision is invalid');
+        }
+        const name = boundedText(input.name, 'name', 120);
+        const summary = boundedText(input.summary, 'summary', 320);
+        const propertyId = input.propertyId ? stableId(input.propertyId, 'propertyId') : null;
+        if (!['active', 'dormant', 'closed'].includes(input.status)) throw new Error('Business status is invalid');
+        if (current.status === 'closed') throw new Error('Closed business is read-only');
+        const updatedAt = timestamp(now, 'now');
+        const transaction = this.database.transaction(() => {
+            const result = this.database.run(`UPDATE business SET name = ?3, summary = ?4, property_id = ?5,
+                status = ?6, revision = revision + 1, updated_at = ?7
+                WHERE business_id = ?1 AND revision = ?2`,
+            [businessId, expectedRevision, name, summary, propertyId, input.status, updatedAt]);
+            if (result.changes !== 1) throw new Error('Business changed before update; refresh and try again');
+            if (input.status === 'closed') this.endAllEmployments(businessId, updatedAt);
+        });
+        transaction.immediate();
+        return this.get(businessId)!;
+    }
+
+    hire(businessIdInput: string, input: CreateEmployment, now = new Date().toISOString(),
+        employmentId = randomUUID()): BusinessEmployment {
+        const businessId = stableId(businessIdInput, 'businessId');
+        const current = this.get(businessId);
+        if (!current || current.status !== 'active') throw new Error('Only an active business may hire');
+        const workerAgentId = stableId(input.workerAgentId, 'workerAgentId');
+        if (workerAgentId === current.ownerAgentId) throw new Error('Owner is not represented as an employment');
+        if (!['manager', 'worker'].includes(input.role)) throw new Error('Employment role is invalid');
+        const title = boundedText(input.title, 'title', 120);
+        if (!Number.isSafeInteger(input.wageGp) || input.wageGp < 0 || input.wageGp > 2_147_483_647) {
+            throw new Error('Employment wage is invalid');
+        }
+        const requiredSkill = skillReference(input.requiredSkill);
+        const startedAt = timestamp(now, 'now');
+        try {
+            this.database.run(`INSERT INTO business_employment (employment_id, business_id, worker_agent_id,
+                role, title, wage_gp, required_skill_id, required_skill_version, status, revision,
+                started_at, ended_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
+                'active', 1, ?9, NULL, ?9)`, [employmentId, businessId, workerAgentId, input.role,
+                title, input.wageGp, requiredSkill?.id ?? null, requiredSkill?.version ?? null, startedAt]);
+        } catch (error) {
+            if (String(error).includes('UNIQUE constraint failed')) {
+                throw new Error('Agent already has an active employment at this business');
+            }
+            throw error;
+        }
+        return this.getEmployment(employmentId)!;
+    }
+
+    endEmployment(businessIdInput: string, employmentId: string, expectedRevision: number,
+        now = new Date().toISOString()): BusinessEmployment {
+        const businessId = stableId(businessIdInput, 'businessId');
+        const current = this.getEmployment(employmentId);
+        if (!current || current.businessId !== businessId) throw new Error('Employment does not exist');
+        if (current.status === 'ended') return current;
+        const endedAt = timestamp(now, 'now');
+        const result = this.database.run(`UPDATE business_employment SET status = 'ended', ended_at = ?4,
+            revision = revision + 1, updated_at = ?4
+            WHERE employment_id = ?1 AND business_id = ?2 AND revision = ?3 AND status = 'active'`,
+        [employmentId, businessId, expectedRevision, endedAt]);
+        if (result.changes !== 1) throw new Error('Employment changed before update; refresh and try again');
+        return this.getEmployment(employmentId)!;
+    }
+
+    private getEmployment(employmentId: string): BusinessEmployment | null {
+        if (!/^[0-9a-f-]{36}$/i.test(employmentId)) throw new Error('Employment id is invalid');
+        const row = this.database.query('SELECT * FROM business_employment WHERE employment_id = ?1')
+            .get(employmentId) as EmploymentRow | null;
+        return row ? employment(row) : null;
+    }
+
+    private endAllEmployments(businessId: string, now: string): void {
+        this.database.run(`UPDATE business_employment SET status = 'ended', ended_at = ?2,
+            revision = revision + 1, updated_at = ?2 WHERE business_id = ?1 AND status = 'active'`,
+        [businessId, now]);
+    }
+
+    private toBusiness(row: BusinessRow): Business {
+        const employments = (this.database.query(`SELECT * FROM business_employment
+            WHERE business_id = ?1 ORDER BY status, started_at, employment_id`)
+            .all(row.business_id) as EmploymentRow[]).map(employment);
+        return {
+            businessId: row.business_id,
+            name: row.name,
+            summary: row.summary,
+            ownerAgentId: row.owner_agent_id,
+            propertyId: row.property_id,
+            status: row.status,
+            revision: row.revision,
+            employments,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+        };
+    }
+}

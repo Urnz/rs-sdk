@@ -61,11 +61,13 @@ describe('admin authorization boundary', () => {
         expect(response?.status).toBe(401);
     });
 
-    test('protects economic offers and contracts even on read requests', async () => {
+    test('protects economic and business domain data even on read requests', async () => {
         const context = { gatewayBots: () => new Map(), supervisor: {} as BotSupervisor };
-        const request = new Request('http://localhost:7780/api/admin/economic-contracts');
-        const response = await handleAdminRequest(request, new URL(request.url), context);
-        expect(response?.status).toBe(401);
+        for (const path of ['/api/admin/economic-contracts', '/api/admin/businesses']) {
+            const request = new Request(`http://localhost:7780${path}`);
+            const response = await handleAdminRequest(request, new URL(request.url), context);
+            expect(response?.status).toBe(401);
+        }
     });
 });
 

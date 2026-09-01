@@ -79,7 +79,8 @@ import { resolveLearnAndPlan } from './deterministic-learning.js';
 import { MultiAgentExperimentStore, startMultiAgentExperiment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
-import { economicContractsDbPath } from './paths.js';
+import { BusinessManagerStore, type BusinessStatus, type EmploymentRole } from './business-manager.js';
+import { businessManagerDbPath, economicContractsDbPath } from './paths.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -470,6 +471,102 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (!authorized(req, url)) {
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/businesses') {
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                return json({ businesses: store.list(Number(url.searchParams.get('limit') || 100)) });
+            } finally { store.close(); }
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/businesses') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const ownerAgentId = text(body, 'ownerAgentId', true).toLowerCase();
+            const knownAgents = new Set((await listAdminAgents()).agents.map(agent => agent.identity.agentId));
+            if (!knownAgents.has(ownerAgentId)) throw new Error('A tulajdonosnak létező persistent agentnek kell lennie.');
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                const business = store.create({ businessId: text(body, 'businessId', true),
+                    name: text(body, 'name', true), summary: text(body, 'summary', true), ownerAgentId,
+                    propertyId: text(body, 'propertyId') || null });
+                await appendAudit({ operator: 'local-admin', action: 'business.create', reason,
+                    username: ownerAgentId, success: true, after: business });
+                return json({ ok: true, business }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'business.create', reason,
+                    username: ownerAgentId, success: false, error: String(error) });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const businessMatch = url.pathname.match(/^\/api\/admin\/businesses\/([a-z0-9][a-z0-9._-]{1,63})$/);
+        if (req.method === 'PUT' && businessMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                const before = store.get(businessMatch[1]);
+                const business = store.update(businessMatch[1], expectedRevision, {
+                    name: text(body, 'name', true), summary: text(body, 'summary', true),
+                    propertyId: text(body, 'propertyId') || null,
+                    status: oneOf<BusinessStatus>(body.status, ['active', 'dormant', 'closed'], 'status')
+                });
+                await appendAudit({ operator: 'local-admin', action: 'business.update', reason,
+                    username: business.ownerAgentId, success: true, before, after: business });
+                return json({ ok: true, business });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'business.update', reason,
+                    success: false, error: String(error), after: { businessId: businessMatch[1] } });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const businessEmploymentMatch = url.pathname
+            .match(/^\/api\/admin\/businesses\/([a-z0-9][a-z0-9._-]{1,63})\/employments$/);
+        if (req.method === 'POST' && businessEmploymentMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const workerAgentId = text(body, 'workerAgentId', true).toLowerCase();
+            const knownAgents = new Set((await listAdminAgents()).agents.map(agent => agent.identity.agentId));
+            if (!knownAgents.has(workerAgentId)) throw new Error('A dolgozónak létező persistent agentnek kell lennie.');
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                const employment = store.hire(businessEmploymentMatch[1], { workerAgentId,
+                    role: oneOf<EmploymentRole>(body.role, ['manager', 'worker'], 'role'),
+                    title: text(body, 'title', true), wageGp: Number(body.wageGp),
+                    requiredSkill: body.requiredSkill as { id: string; version: string } | null });
+                await appendAudit({ operator: 'local-admin', action: 'business.employment.create', reason,
+                    username: workerAgentId, success: true, after: employment });
+                return json({ ok: true, employment }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'business.employment.create', reason,
+                    username: workerAgentId, success: false, error: String(error),
+                    after: { businessId: businessEmploymentMatch[1] } });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const employmentMatch = url.pathname.match(
+            /^\/api\/admin\/businesses\/([a-z0-9][a-z0-9._-]{1,63})\/employments\/([0-9a-f-]{36})$/i);
+        if (req.method === 'PUT' && employmentMatch?.[1] && employmentMatch[2]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                const employment = store.endEmployment(employmentMatch[1], employmentMatch[2],
+                    Number(body.expectedRevision));
+                await appendAudit({ operator: 'local-admin', action: 'business.employment.end', reason,
+                    username: employment.workerAgentId, success: true, after: employment });
+                return json({ ok: true, employment });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'business.employment.end', reason,
+                    success: false, error: String(error), after: { businessId: employmentMatch[1],
+                        employmentId: employmentMatch[2] } });
+                throw error;
+            } finally { store.close(); }
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/economic-contracts') {
