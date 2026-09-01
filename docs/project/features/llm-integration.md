@@ -111,21 +111,26 @@ jóváhagyás után kerülnek végrehajtási állapotba.
   kézi próbák után is frissül.
 - A felület legfeljebb a legutóbbi 100 rekordot tölti be; a tartós teljes audit
   továbbra is a `.local/admin/llm-replans.jsonl` fájlban marad.
+- Az izolált elfogadási teszt valódi AgentState SQLite-adatbázissal, éles
+  katalógusskillel és mockolt processzhatárral ellenőrzi a teljes utat. Ugyanabban
+  a tesztben egy szigorúbb műveleti limit már a supervisor előtt leállítja a
+  következő ciklust, miközben mindkét döntés és auditrekord tartós marad.
 
 ## OpenAI provider helyi beállítása
 
 Az OpenAI adapter a Responses API-t használja `store: false` és szigorú JSON
-sémás kimenettel. A kulcs kizárólag az `OPENAI_API_KEY` környezeti változóból
-olvasható; JSON-ba, adatbázisba és auditnaplóba nem kerül. Az adapter a HTTP
-hibákat a válasz és a kulcs visszaidézése nélkül jelenti.
+sémás kimenettel. A kulcs az adminpanelen write-only helyi secretként állítható
+be; ennek hiányában az `OPENAI_API_KEY` környezeti változó a fallback. A kulcs
+nem kerül a konfigurációs JSON-ba, adatbázisba, API-válaszba vagy auditnaplóba.
+Az adapter a HTTP hibákat a válasz és a kulcs visszaidézése nélkül jelenti.
 
-1. A `config/llm-runtime.openai.example.json` tartalmát másold a
-   `config/llm-runtime.json` fájlba. A példa `gpt-5.6-terra` modellt, egyetlen
-   modellkérést és 0,05 USD futásonkénti utólagos költséghatárt használ.
-2. Ugyanabban a PowerShell ablakban, amelyből a gateway indul, állítsd be:
-   `$env:OPENAI_API_KEY = "sk-..."`.
-3. Indítsd újra a gatewayt. Az admin `LLM dry-run` valódi modellhívást végez,
-   de továbbra sem ment célt és nem indít skillt.
+1. Az adminpanel AI fülén válaszd az OpenAI providert, a modellt és a limiteket,
+   majd add meg az API-kulcsot a jelszómezőben. A szerver a kulcs értékét később
+   nem küldi vissza a böngészőnek.
+2. Alternatívaként ugyanabban a PowerShell ablakban, amelyből a gateway indul,
+   állítsd be: `$env:OPENAI_API_KEY = "sk-..."`.
+3. Az admin `LLM dry-run` valódi modellhívást végez, de továbbra sem indít skillt;
+   a célterv mentése és az autonóm végrehajtás külön policy alatt marad.
 
 A mintában az `automaticReplanning` értéke `false`: így csak a kézzel indított
 dry-run kerül pénzbe. Az eseményvezérelt automatikus modellhívások csak ennek a

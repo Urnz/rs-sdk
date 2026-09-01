@@ -17,6 +17,7 @@ import { resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill
 import type { LlmAutonomousExecutionConfig } from '../../../llm-runtime/types.js';
 import type { SkillDefinition, SkillStep } from '../../../agent-skills/types.js';
 import type { BotSupervisor } from './supervisor.js';
+import type { AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 
 let appendTail: Promise<void> = Promise.resolve();
 
@@ -40,10 +41,17 @@ export async function readReplanRecords(limit = 100, path = llmReplanLogPath): P
     } catch { return []; }
 }
 
-function useStore<T>(callback: (store: AgentStateStore) => T): T {
-    const store = new AgentStateStore(agentStateDbPath);
+function useStore<T>(callback: (store: AgentStateStore) => T, path = agentStateDbPath): T {
+    const store = new AgentStateStore(path);
     try { return callback(store); }
     finally { store.close(); }
+}
+
+export interface GatewayAgentReplanOptions {
+    agentPath?: string;
+    capabilityGapPath?: string;
+    llmConfigPath?: string;
+    skillCatalog?: AdminAgentSkillCatalogOptions;
 }
 
 const FORBIDDEN_AUTONOMOUS_OPERATIONS = new Set(['buy-from-shop', 'sell-to-shop', 'trade-give-item']);
@@ -75,13 +83,17 @@ export function evaluateAutonomousSkillPolicy(config: LlmAutonomousExecutionConf
 
 export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<string, GatewayBotSnapshot>,
     supervisor: BotSupervisor,
-    append: (record: ReplanRecord) => Promise<void> = appendReplanRecord): AgentReplanCoordinator {
+    append: (record: ReplanRecord) => Promise<void> = appendReplanRecord,
+    options: GatewayAgentReplanOptions = {}): AgentReplanCoordinator {
+    const agentPath = options.agentPath ?? agentStateDbPath;
+    const gapPath = options.capabilityGapPath ?? capabilityGapsPath;
+    const listAgents = () => listAdminAgents(agentPath, { skillCatalog: options.skillCatalog });
     return new AgentReplanCoordinator({
         resolveAgentId: async playerUsername => useStore(store => store.listIdentities()
-            .find(identity => identity.playerUsername === playerUsername.toLowerCase())?.agentId ?? null),
-        listAgentIds: async () => useStore(store => store.listIdentities().map(identity => identity.agentId)),
+            .find(identity => identity.playerUsername === playerUsername.toLowerCase())?.agentId ?? null, agentPath),
+        listAgentIds: async () => useStore(store => store.listIdentities().map(identity => identity.agentId), agentPath),
         plan: async (agentId: string, event: LlmReplanEvent): Promise<ReplanOutcome> => {
-            const initial = await listAdminAgents();
+            const initial = await listAgents();
             const agent = initial.agents.find(entry => entry.identity.agentId === agentId);
             if (!agent) return { runId: event.eventId, status: 'skipped', reason: 'Agent state no longer exists.' };
             const avatar = agent.controlProfile.avatarPlayerUsername;
@@ -99,14 +111,17 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             useStore(store => {
                 const previous = store.getWorkingMemory(agentId);
                 store.setWorkingMemory(agentId, previous?.revision ?? null, observeLiveState(gateway.state!, now), now);
-            });
-            const refreshed = await listAdminAgents();
+            }, agentPath);
+            const refreshed = await listAgents();
             const current = refreshed.agents.find(entry => entry.identity.agentId === agentId);
             if (!current) return { runId: event.eventId, status: 'skipped', reason: 'Agent state disappeared before planning.' };
             try {
                 const immediate = current.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
                     .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
-                const config = (await loadLlmRuntimeConfig()).config;
+                const config = (await loadLlmRuntimeConfig(options.llmConfigPath ? {
+                    defaultConfigPath: options.llmConfigPath,
+                    overrideConfigPath: `${options.llmConfigPath}.override`
+                } : {})).config;
                 if (!config.automaticReplanning) return { runId: event.eventId, status: 'skipped',
                     reason: 'Automatic replanning is disabled.' };
                 const deterministicResolution = immediate ? resolveSkillForCapability(immediate,
@@ -117,13 +132,13 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 useStore(store => store.recordDecision(agentId, current.controlProfile.revision, {
                     decisionId: event.eventId, trigger: 'event', llmCostMicros: expectedCost,
                     operationalBudgetGp: 0
-                }, now));
+                }, now), agentPath);
                 if (immediate) {
                     const deterministic = await resolveLearnAndPlan(agentId, immediate, current.catalogSkills,
-                        current.knownSkills, { now });
+                        current.knownSkills, { now, agentPath, catalog: options.skillCatalog });
                     if (deterministic?.decision.kind === 'execute-skill') {
                         const requested = `${deterministic.resolution.skill.id}@${deterministic.resolution.skill.version}`;
-                        const candidate = await resolveAdminSkillForAgent(requested, agentId);
+                        const candidate = await resolveAdminSkillForAgent(requested, agentId, options.skillCatalog);
                         const policy = evaluateAutonomousSkillPolicy(config.autonomousExecution, candidate.definition);
                         if (!policy.allowed) return { runId: event.eventId, status: 'approval-required',
                             decision: deterministic.decision, reason: policy.reason };
@@ -135,14 +150,15 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 }
                 const result = await runAdminLlmDryRun(current, current.catalogSkills, { now, runId: event.eventId,
                     untrustedText: event.type === 'offer-received' ? [event.summary] : [], automatic: true,
-                    capabilityGapStore: new CapabilityGapStore(capabilityGapsPath) });
+                    configPath: options.llmConfigPath,
+                    capabilityGapStore: new CapabilityGapStore(gapPath) });
                 if (result.plan.status === 'proposed' && result.plan.decision?.kind === 'propose-goal-plan') {
                     const anchor = current.goals.find(goal => goal.goalId === result.plan.decision!.goalId);
                     if (anchor) {
                         const proposal = createAdminGoalProposal(agentId, { proposalId: crypto.randomUUID(),
                             runId: result.plan.runId, anchorGoalId: anchor.goalId,
                             anchorGoalRevision: anchor.revision, goals: result.plan.decision.goals,
-                            skill: result.plan.decision.skill, reason: result.plan.decision.reason });
+                            skill: result.plan.decision.skill, reason: result.plan.decision.reason }, agentPath);
                         return { runId: result.plan.runId, status: 'approval-required',
                             decision: { ...result.plan.decision, proposalId: proposal.proposalId },
                             reason: 'A validated strategic goal proposal is waiting for admin approval.' };
@@ -150,7 +166,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 }
                 if (result.plan.status === 'proposed' && result.plan.decision?.kind === 'execute-skill') {
                     const requested = `${result.plan.decision.skill.id}@${result.plan.decision.skill.version}`;
-                    const candidate = await resolveAdminSkillForAgent(requested, agentId);
+                    const candidate = await resolveAdminSkillForAgent(requested, agentId, options.skillCatalog);
                     const policy = evaluateAutonomousSkillPolicy(config.autonomousExecution, candidate.definition);
                     if (!policy.allowed) return { runId: result.plan.runId, status: 'approval-required',
                         decision: result.plan.decision, reason: policy.reason };

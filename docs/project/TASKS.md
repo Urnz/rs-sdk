@@ -296,7 +296,9 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
     ledgeren és végrehajtási policy-n áthaladó teljes cikluspróbát adni.
   - [x] Az autonóm ciklus eredményét, indokát, validált döntését és skill-run
     azonosítóját görgethető adminnaplóban megjeleníteni, a hibákkal együtt.
-- [ ] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
+  - [x] Izolált end-to-end tesztben bizonyítani az esemény admissiont, az egzakt
+    allowlistelt skill egyszeri indítását, a tartós auditot és a limit előtti leállást.
+- [x] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
   jóváhagyandó skill-készítési folyamatot indítani; a futó agent ne kapjon
   közvetlen tetszőleges kódfuttatást.
   - [x] A `player`, `institution`, `service` és `world-director` agent-szerepeket
