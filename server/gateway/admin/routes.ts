@@ -1241,9 +1241,9 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     success: true, after: { experimentId: started.run.experimentId,
                         definitionDigest: started.run.definitionDigest, agentIds } }).catch(() => undefined);
                 void started.completion.then(completed => appendAudit({ operator: 'system',
-                    action: 'multi-agent-experiment.complete', reason: 'A háttérben futó dispatch lezárult.',
-                    success: completed.status === 'completed', after: completed }))
-                    .catch(error => appendAudit({ operator: 'system', action: 'multi-agent-experiment.complete',
+                    action: 'multi-agent-experiment.dispatched', reason: 'A háttérben futó dispatch lezárult; a futó skillek eredményeire várunk.',
+                    success: completed.status !== 'failed', after: completed }))
+                    .catch(error => appendAudit({ operator: 'system', action: 'multi-agent-experiment.dispatched',
                         reason: 'A háttérben futó dispatch hibával zárult.', success: false, error: String(error),
                         after: { experimentId: started.run.experimentId } }))
                     .finally(() => store.close());

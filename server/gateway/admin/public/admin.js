@@ -507,7 +507,7 @@ async function refreshAgents() {
     renderAgents(); renderSkillLearning(); renderMultiAgentCandidates();
 }
 
-const experimentStatusLabels = { running: 'Dispatch folyamatban', completed: 'Dispatch kész',
+const experimentStatusLabels = { running: 'Dispatch folyamatban', completed: 'Kísérlet kész',
     'completed-with-errors': 'Részleges hibával kész', failed: 'Futtatóhiba' };
 
 function renderMultiAgentCandidates() {
@@ -535,14 +535,25 @@ function renderMultiAgentExperiments(experiments) {
     $('#multi-agent-experiment-list').innerHTML = experiments.length ? experiments.map(run => {
         const baseline = run.baselineEconomy;
         const dispatch = run.dispatchEconomy;
+        const final = run.finalEconomy;
+        const metrics = run.metrics;
+        const statusLabel = run.status === 'running' && dispatch ? 'Skillfutások folyamatban'
+            : experimentStatusLabels[run.status] || run.status;
+        const signed = value => `${value > 0 ? '+' : ''}${fmt.format(value)}`;
         const participants = run.participants.map(item => `<li><strong>${escapeHtml(item.agentId)}</strong>
             <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}</span>
-            <small>${escapeHtml(item.reason || 'Függőben')}</small></li>`).join('');
+            <small>${escapeHtml(item.reason || 'Függőben')}${item.skillRun
+        ? ` · ${fmt.format(item.skillRun.operations)} művelet / ${fmt.format(item.skillRun.durationMs)} ms` : ''}</small></li>`).join('');
+        const itemDeltas = metrics?.itemStockDelta?.length
+            ? `<details><summary>Készletváltozások (${metrics.itemStockDelta.length})</summary><ul>${metrics.itemStockDelta.map(item =>
+                `<li>${escapeHtml(item.name)} (#${item.id}): ${signed(item.count)}</li>`).join('')}</ul></details>` : '';
         return `<article class="capability-gap-card ${escapeHtml(run.status)}">
-            <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(experimentStatusLabels[run.status] || run.status)}</small></div>
+            <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(statusLabel)}</small></div>
             <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · digest: ${escapeHtml(run.definitionDigest)}</small></div>
             <div class="capability-gap-meta"><span>${run.participants.length} agent</span><span>baseline: ${fmt.format(baseline.totalCoins)} gp / ${baseline.online} online</span>${dispatch ? `<span>dispatch után: ${fmt.format(dispatch.totalCoins)} gp / ${dispatch.online} online</span>` : '<span>dispatch folyamatban</span>'}</div>
+            ${final && metrics ? `<div class="capability-gap-meta"><span>végeredmény: ${fmt.format(final.totalCoins)} gp</span><span>pénz: ${signed(metrics.totalCoinsDelta)} gp</span><span>XP: ${signed(metrics.totalXpDelta)}</span><span>${metrics.completedParticipants}/${run.participants.length} sikeres</span><span>${fmt.format(metrics.durationMs)} ms</span></div>` : ''}
             <details><summary>Agentenkénti eredmények</summary><ol class="experiment-participants">${participants}</ol></details>
+            ${itemDeltas}
             ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
         </article>`;
     }).join('') : '<p class="empty">Még nincs multi-agent kísérlet.</p>';

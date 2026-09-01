@@ -4,9 +4,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AgentReplanCoordinator } from './replan-coordinator.js';
 import { MultiAgentExperimentStore, multiAgentExperimentDefinition,
-    startMultiAgentExperiment, type MultiAgentExperimentCandidate } from './multi-agent-experiments.js';
+    reconcileMultiAgentExperimentSkillRun, startMultiAgentExperiment,
+    type MultiAgentExperimentCandidate } from './multi-agent-experiments.js';
 import type { EconomySnapshot } from './types.js';
 import { adminPublicDir } from './paths.js';
+import type { AdminSkillRun } from './skill-history.js';
 
 const directories: string[] = [];
 
@@ -22,6 +24,13 @@ function economy(timestamp: string, coins: number): EconomySnapshot {
 function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandidate {
     return { agentId, role: 'player', subjectKind: 'player', identityPlayerUsername: avatar,
         avatarPlayerUsername: avatar, onlineFresh: true };
+}
+
+function skillRun(runId: string, username: string, status: AdminSkillRun['status'] = 'completed'): AdminSkillRun {
+    return { runId, username, skill: { id: 'test.mine-copper', version: '1.0.0' }, status,
+        reason: status === 'completed' ? 'Cycle completed.' : 'Cycle failed.', message: '', operations: 4,
+        durationMs: 1_000, startedAt: '2026-09-01T10:00:01.000Z', finishedAt: '2026-09-01T10:00:02.000Z',
+        events: [] };
 }
 
 describe('seeded multi-agent experiment definition', () => {
@@ -56,6 +65,8 @@ describe('persistent multi-agent experiment runner', () => {
         const store = new MultiAgentExperimentStore(join(root, 'experiments.sqlite'));
         let active = 0;
         let maximumActive = 0;
+        const runIds = new Map([['agent-a', '11111111-1111-4111-8111-111111111111'],
+            ['agent-b', '22222222-2222-4222-8222-222222222222']]);
         const coordinator = new AgentReplanCoordinator({
             resolveAgentId: async () => null,
             listAgentIds: async () => [],
@@ -64,7 +75,7 @@ describe('persistent multi-agent experiment runner', () => {
                 maximumActive = Math.max(maximumActive, active);
                 await Bun.sleep(15);
                 active--;
-                return { runId: `skill-${agentId}`, status: 'executing',
+                return { runId: runIds.get(agentId)!, status: 'executing',
                     decision: { kind: 'execute-skill', agentId }, reason: `Accepted ${event.sourceKey}` };
             },
             append: () => undefined
@@ -79,18 +90,64 @@ describe('persistent multi-agent experiment runner', () => {
 
         expect(started.run.status).toBe('running');
         expect(started.run.participants.every(item => item.status === 'pending')).toBeTrue();
-        const completed = await started.completion;
+        const dispatched = await started.completion;
         expect(maximumActive).toBe(2);
-        expect(completed.status).toBe('completed');
-        expect(completed.baselineEconomy.totalCoins).toBe(100);
-        expect(completed.dispatchEconomy?.totalCoins).toBe(110);
-        expect(completed.participants.map(item => item.agentId).sort()).toEqual(['agent-a', 'agent-b']);
-        expect(completed.participants.every(item => item.status === 'executing' && item.record?.gate.accepted)).toBeTrue();
+        expect(dispatched.status).toBe('running');
+        expect(dispatched.baselineEconomy.totalCoins).toBe(100);
+        expect(dispatched.dispatchEconomy?.totalCoins).toBe(110);
+        expect(dispatched.finalEconomy).toBeNull();
+        expect(dispatched.participants.map(item => item.agentId).sort()).toEqual(['agent-a', 'agent-b']);
+        expect(dispatched.participants.every(item => item.status === 'executing' && item.record?.gate.accepted)).toBeTrue();
+
+        const dependencies = { store,
+            economySnapshot: async () => economy(`2026-09-01T10:00:0${snapshotCalls}.000Z`, 100 + snapshotCalls++ * 10) };
+        const first = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-a')!,
+            skillRun(runIds.get('agent-a')!, 'agent-a'), true, 'Process completed.', dependencies,
+            '2026-09-01T10:00:02.000Z');
+        expect(first?.status).toBe('running');
+        expect(snapshotCalls).toBe(2);
+        const completed = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
+            skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Process completed.', dependencies,
+            '2026-09-01T10:00:03.000Z');
+        expect(completed?.status).toBe('completed');
+        expect(completed?.finalEconomy?.totalCoins).toBe(120);
+        expect(completed?.metrics).toMatchObject({ totalCoinsDelta: 20, totalXpDelta: 0,
+            completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 3_000 });
+        expect(completed?.participants.every(item => item.status === 'completed' && item.skillRun)).toBeTrue();
+        const replay = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
+            skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Duplicate process event.', dependencies,
+            '2026-09-01T10:00:04.000Z');
+        expect(replay).toEqual(completed);
+        expect(snapshotCalls).toBe(3);
         store.close();
 
         const reopened = new MultiAgentExperimentStore(join(root, 'experiments.sqlite'));
-        expect(reopened.get(completed.experimentId)).toEqual(completed);
+        expect(reopened.get(completed!.experimentId)).toEqual(completed);
         reopened.close();
+    });
+
+    test('fails closed when a successful process has no valid skill journal', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'rs-multi-agent-no-journal-'));
+        directories.push(root);
+        const store = new MultiAgentExperimentStore(join(root, 'experiments.sqlite'));
+        const runIds = ['33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'];
+        let index = 0;
+        const coordinator = new AgentReplanCoordinator({ resolveAgentId: async () => null,
+            listAgentIds: async () => [], plan: async () => ({ runId: runIds[index++]!, status: 'executing', reason: 'Started.' }),
+            append: () => undefined });
+        const dependencies = { coordinator, store,
+            listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
+            economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 100) };
+        const started = await startMultiAgentExperiment({ label: 'Journal check', seed: 'seed',
+            summary: 'Require authoritative journals.', agentIds: ['agent-a', 'agent-b'] }, dependencies);
+        const dispatched = await started.completion;
+        for (const id of runIds) await reconcileMultiAgentExperimentSkillRun(id, null, true,
+            'Process exited with code 0 but journal is absent.', dependencies);
+        const completed = store.get(dispatched.experimentId)!;
+        expect(completed.status).toBe('completed-with-errors');
+        expect(completed.metrics?.unsuccessfulParticipants).toBe(2);
+        expect(completed.participants.every(item => item.status === 'failed' && item.skillRun === null)).toBeTrue();
+        store.close();
     });
 
     test('fails preflight before persistence for shared avatars, offline agents, or institutions', async () => {

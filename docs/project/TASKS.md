@@ -415,6 +415,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
   - [x] A kísérlet definíció-digestjét, seedjét, determinisztikus résztvevősorrendjét,
     közös baseline/dispatch gazdasági snapshotját és teljes döntési rekordjait menteni.
+  - [x] A dispatch után a résztvevőket `runId` alapján a hiteles skill-napló lezárásáig
+    követni, majd közös végső snapshotot, pénz-/XP-/online-/készletdeltát és
+    agentenkénti sikerességet tartósítani; ismételt exit eseménynél idempotensen.
 - [ ] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
   egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
 - [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod

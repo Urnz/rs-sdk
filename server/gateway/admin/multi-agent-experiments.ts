@@ -5,6 +5,7 @@ import { Database } from 'bun:sqlite';
 import type { EconomySnapshot } from './types.js';
 import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
+import type { AdminSkillRun } from './skill-history.js';
 
 export type MultiAgentExperimentStatus = 'running' | 'completed' | 'completed-with-errors' | 'failed';
 
@@ -33,7 +34,19 @@ export interface MultiAgentExperimentParticipant {
     runId: string | null;
     reason: string | null;
     record: ReplanRecord | null;
+    skillRun: AdminSkillRun | null;
     updatedAt: string;
+}
+
+export interface MultiAgentExperimentMetrics {
+    durationMs: number;
+    totalCoinsDelta: number;
+    totalXpDelta: number;
+    sessionXpDelta: number;
+    onlineDelta: number;
+    completedParticipants: number;
+    unsuccessfulParticipants: number;
+    itemStockDelta: Array<{ id: number; name: string; count: number }>;
 }
 
 export interface MultiAgentExperimentRun {
@@ -45,8 +58,11 @@ export interface MultiAgentExperimentRun {
     status: MultiAgentExperimentStatus;
     baselineEconomy: EconomySnapshot;
     dispatchEconomy: EconomySnapshot | null;
+    finalEconomy: EconomySnapshot | null;
+    metrics: MultiAgentExperimentMetrics | null;
     participants: MultiAgentExperimentParticipant[];
     startedAt: string;
+    dispatchedAt: string | null;
     finishedAt: string | null;
     error: string | null;
     revision: number;
@@ -55,13 +71,14 @@ export interface MultiAgentExperimentRun {
 interface ExperimentRow {
     experiment_id: string; definition_digest: string; label: string; seed: string; summary: string;
     status: MultiAgentExperimentStatus; baseline_economy_json: string; dispatch_economy_json: string | null;
-    started_at: string; finished_at: string | null; error: string | null; revision: number;
+    final_economy_json: string | null; metrics_json: string | null;
+    started_at: string; dispatched_at: string | null; finished_at: string | null; error: string | null; revision: number;
 }
 
 interface ParticipantRow {
     experiment_id: string; agent_id: string; avatar_player_username: string; ordinal: number;
     event_id: string; status: string; run_id: string | null; reason: string | null;
-    record_json: string | null; updated_at: string;
+    record_json: string | null; skill_run_json: string | null; updated_at: string;
 }
 
 function boundedText(value: string, field: string, maximum: number): string {
@@ -114,7 +131,30 @@ function participant(row: ParticipantRow): MultiAgentExperimentParticipant {
     return { agentId: row.agent_id, avatarPlayerUsername: row.avatar_player_username,
         ordinal: row.ordinal, eventId: row.event_id, status: row.status, runId: row.run_id,
         reason: row.reason, record: row.record_json ? JSON.parse(row.record_json) as ReplanRecord : null,
+        skillRun: row.skill_run_json ? JSON.parse(row.skill_run_json) as AdminSkillRun : null,
         updatedAt: row.updated_at };
+}
+
+function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnapshot,
+    finishedAt: string): MultiAgentExperimentMetrics {
+    const baselineItems = new Map(run.baselineEconomy.itemStock.map(item => [item.id, item]));
+    const finalItems = new Map(finalEconomy.itemStock.map(item => [item.id, item]));
+    const ids = new Set([...baselineItems.keys(), ...finalItems.keys()]);
+    const itemStockDelta = [...ids].map(id => ({ id,
+        name: finalItems.get(id)?.name ?? baselineItems.get(id)?.name ?? `Item ${id}`,
+        count: (finalItems.get(id)?.count ?? 0) - (baselineItems.get(id)?.count ?? 0) }))
+        .filter(item => item.count !== 0)
+        .sort((left, right) => Math.abs(right.count) - Math.abs(left.count) || left.id - right.id)
+        .slice(0, 100);
+    const completedParticipants = run.participants.filter(item => item.status === 'completed').length;
+    return { durationMs: Math.max(0, Date.parse(finishedAt) - Date.parse(run.startedAt)),
+        totalCoinsDelta: finalEconomy.totalCoins - run.baselineEconomy.totalCoins,
+        totalXpDelta: finalEconomy.totalXp - run.baselineEconomy.totalXp,
+        sessionXpDelta: finalEconomy.sessionXpGained - run.baselineEconomy.sessionXpGained,
+        onlineDelta: finalEconomy.online - run.baselineEconomy.online,
+        completedParticipants,
+        unsuccessfulParticipants: run.participants.length - completedParticipants,
+        itemStockDelta };
 }
 
 export class MultiAgentExperimentStore {
@@ -137,6 +177,15 @@ export class MultiAgentExperimentStore {
             event_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL, run_id TEXT, reason TEXT,
             record_json TEXT, updated_at TEXT NOT NULL,
             PRIMARY KEY (experiment_id, agent_id), UNIQUE (experiment_id, ordinal))`);
+        this.addColumn('multi_agent_experiment', 'final_economy_json', 'TEXT');
+        this.addColumn('multi_agent_experiment', 'metrics_json', 'TEXT');
+        this.addColumn('multi_agent_experiment', 'dispatched_at', 'TEXT');
+        this.addColumn('multi_agent_experiment_participant', 'skill_run_json', 'TEXT');
+    }
+
+    private addColumn(table: string, column: string, declaration: string): void {
+        const columns = this.database.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+        if (!columns.some(entry => entry.name === column)) this.database.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
     }
 
     close(): void { this.database.close(true); }
@@ -151,7 +200,9 @@ export class MultiAgentExperimentStore {
             label: row.label, seed: row.seed, summary: row.summary, status: row.status,
             baselineEconomy: JSON.parse(row.baseline_economy_json) as EconomySnapshot,
             dispatchEconomy: row.dispatch_economy_json ? JSON.parse(row.dispatch_economy_json) as EconomySnapshot : null,
-            participants, startedAt: row.started_at, finishedAt: row.finished_at,
+            finalEconomy: row.final_economy_json ? JSON.parse(row.final_economy_json) as EconomySnapshot : null,
+            metrics: row.metrics_json ? JSON.parse(row.metrics_json) as MultiAgentExperimentMetrics : null,
+            participants, startedAt: row.started_at, dispatchedAt: row.dispatched_at, finishedAt: row.finished_at,
             error: row.error, revision: row.revision };
     }
 
@@ -190,12 +241,19 @@ export class MultiAgentExperimentStore {
     recordParticipant(experimentId: string, agent: string, record: ReplanRecord,
         now = new Date().toISOString()): MultiAgentExperimentParticipant {
         const updatedAt = timestamp(now);
-        const status = record.error ? 'failed' : record.outcome?.status ?? `gate:${record.gate.reason}`;
+        const runId = record.outcome?.runId ?? null;
+        if (runId && this.database.query(`SELECT 1 FROM multi_agent_experiment_participant
+            WHERE run_id = ?1 LIMIT 1`).get(runId)) throw new Error('Skill run is already assigned to an experiment participant');
+        const invalidExecution = record.outcome?.status === 'executing' && !runId;
+        const status = record.error || invalidExecution
+            ? 'failed' : record.outcome?.status ?? `gate:${record.gate.reason}`;
+        const reason = invalidExecution ? 'Executing outcome has no skill run id.'
+            : record.error ?? record.outcome?.reason ?? record.gate.reason;
         const result = this.database.run(`UPDATE multi_agent_experiment_participant
             SET status = ?3, run_id = ?4, reason = ?5, record_json = ?6, updated_at = ?7
             WHERE experiment_id = ?1 AND agent_id = ?2 AND status = 'pending'`,
-        [experimentId, agentId(agent), status, record.outcome?.runId ?? null,
-            record.error ?? record.outcome?.reason ?? record.gate.reason, JSON.stringify(record), updatedAt]);
+        [experimentId, agentId(agent), status, runId,
+            reason, JSON.stringify(record), updatedAt]);
         if (result.changes !== 1) throw new Error('Experiment participant is missing or already resolved');
         return participant(this.database.query(`SELECT * FROM multi_agent_experiment_participant
             WHERE experiment_id = ?1 AND agent_id = ?2`).get(experimentId, agentId(agent)) as ParticipantRow);
@@ -214,17 +272,65 @@ export class MultiAgentExperimentStore {
             WHERE experiment_id = ?1 AND agent_id = ?2`).get(experimentId, agentId(agent)) as ParticipantRow);
     }
 
-    finish(experimentId: string, dispatch: EconomySnapshot, now = new Date().toISOString()): MultiAgentExperimentRun {
-        const finishedAt = timestamp(now);
+    markDispatched(experimentId: string, dispatch: EconomySnapshot,
+        now = new Date().toISOString()): MultiAgentExperimentRun {
+        const dispatchedAt = timestamp(now);
         const current = this.get(experimentId);
         if (!current || current.status !== 'running') throw new Error('Experiment is missing or no longer running');
-        const errors = current.participants.filter(item => item.status === 'failed').length;
-        const pending = current.participants.filter(item => item.status === 'pending').length;
-        if (pending) throw new Error('Experiment cannot finish with pending participants');
-        const status: MultiAgentExperimentStatus = errors ? 'completed-with-errors' : 'completed';
-        this.database.run(`UPDATE multi_agent_experiment SET status = ?2, dispatch_economy_json = ?3,
-            finished_at = ?4, revision = revision + 1 WHERE experiment_id = ?1 AND status = 'running'`,
-        [experimentId, status, JSON.stringify(dispatch), finishedAt]);
+        if (current.participants.some(item => item.status === 'pending')) {
+            throw new Error('Experiment dispatch cannot finish with pending participants');
+        }
+        this.database.run(`UPDATE multi_agent_experiment SET dispatch_economy_json = ?2,
+            dispatched_at = ?3, revision = revision + 1 WHERE experiment_id = ?1 AND status = 'running'`,
+        [experimentId, JSON.stringify(dispatch), dispatchedAt]);
+        return this.get(experimentId)!;
+    }
+
+    recordSkillRun(runId: string, skillRun: AdminSkillRun | null, processSucceeded: boolean,
+        fallbackReason: string, now = new Date().toISOString()): MultiAgentExperimentRun | null {
+        const currentRows = this.database.query(`SELECT experiment_id FROM multi_agent_experiment_participant
+            WHERE run_id = ?1 AND status = 'executing'`).all(runId) as Array<{ experiment_id: string }>;
+        if (currentRows.length > 1) throw new Error('Skill run is ambiguously assigned to experiment participants');
+        const currentRow = currentRows[0] ?? null;
+        if (!currentRow) {
+            const existing = this.database.query(`SELECT experiment_id FROM multi_agent_experiment_participant
+                WHERE run_id = ?1`).get(runId) as { experiment_id: string } | null;
+            return existing ? this.get(existing.experiment_id) : null;
+        }
+        const updatedAt = timestamp(now);
+        const status = processSucceeded && skillRun ? skillRun.status : 'failed';
+        const reason = processSucceeded && skillRun
+            ? skillRun.reason || skillRun.message || fallbackReason
+            : fallbackReason;
+        this.database.run(`UPDATE multi_agent_experiment_participant SET status = ?2, reason = ?3,
+            skill_run_json = ?4, updated_at = ?5 WHERE run_id = ?1 AND status = 'executing'
+                AND experiment_id = ?6`,
+        [runId, status, boundedText(reason || 'Skill process exited without a valid journal.', 'Skill result reason', 1000),
+            skillRun ? JSON.stringify(skillRun) : null, updatedAt, currentRow.experiment_id]);
+        return this.get(currentRow.experiment_id);
+    }
+
+    isReadyToFinalize(experimentId: string): boolean {
+        const run = this.get(experimentId);
+        return Boolean(run && run.status === 'running' && run.dispatchEconomy
+            && run.participants.every(item => item.status !== 'pending' && item.status !== 'executing'));
+    }
+
+    finish(experimentId: string, finalEconomy: EconomySnapshot, now = new Date().toISOString()): MultiAgentExperimentRun {
+        const finishedAt = timestamp(now);
+        const current = this.get(experimentId);
+        if (!current) throw new Error('Experiment is missing');
+        if (current.status !== 'running') return current;
+        if (!current.dispatchEconomy || current.participants.some(item => item.status === 'pending' || item.status === 'executing')) {
+            throw new Error('Experiment cannot finish before every dispatched skill run resolves');
+        }
+        const metrics = economyMetrics(current, finalEconomy, finishedAt);
+        const status: MultiAgentExperimentStatus = metrics.unsuccessfulParticipants
+            ? 'completed-with-errors' : 'completed';
+        this.database.run(`UPDATE multi_agent_experiment SET status = ?2, final_economy_json = ?3,
+            metrics_json = ?4, finished_at = ?5, revision = revision + 1
+            WHERE experiment_id = ?1 AND status = 'running'`,
+        [experimentId, status, JSON.stringify(finalEconomy), JSON.stringify(metrics), finishedAt]);
         return this.get(experimentId)!;
     }
 
@@ -289,10 +395,22 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
                         error instanceof Error ? error.message : String(error));
                 }
             }));
-            return dependencies.store.finish(run.experimentId, await dependencies.economySnapshot());
+            const dispatched = dependencies.store.markDispatched(run.experimentId, await dependencies.economySnapshot());
+            return dependencies.store.isReadyToFinalize(run.experimentId)
+                ? dependencies.store.finish(run.experimentId, await dependencies.economySnapshot())
+                : dispatched;
         } catch (error) {
             return dependencies.store.fail(run.experimentId, error instanceof Error ? error.message : String(error));
         }
     })();
     return { run, completion };
+}
+
+export async function reconcileMultiAgentExperimentSkillRun(runId: string, skillRun: AdminSkillRun | null,
+    processSucceeded: boolean, fallbackReason: string,
+    dependencies: Pick<MultiAgentExperimentDependencies, 'store' | 'economySnapshot'>,
+    now = new Date().toISOString()): Promise<MultiAgentExperimentRun | null> {
+    const run = dependencies.store.recordSkillRun(runId, skillRun, processSucceeded, fallbackReason, now);
+    if (!run || !dependencies.store.isReadyToFinalize(run.experimentId)) return run;
+    return dependencies.store.finish(run.experimentId, await dependencies.economySnapshot(), now);
 }

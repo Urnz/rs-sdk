@@ -35,8 +35,16 @@ A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 - az indítás előtti közös gazdasági baseline-t;
 - a dispatch lezárása utáni közös pillanatképet;
 - agentenként az event gate teljes rekordját, planner státuszt, indokot és
-  esetleges skill-run azonosítót.
+  esetleges skill-run azonosítót;
+- a `runId`-hoz tartozó hiteles, terminális skill-naplót;
+- minden résztvevő lezárása után a közös végső gazdasági pillanatképet és az abból
+  számolt pénz-, XP-, session-XP-, online- és legfeljebb száz készletdeltát.
 
-A második snapshot csak a dispatch állapotát mutatja, nem állítja, hogy a hosszabb
-skillfutások gazdasági hatása már lezárult. A futások végéhez kötött eredménymérés,
-kontrollcsoportos replay és hosszabb idősoros metrika a 12. fázis következő része.
+A második snapshot továbbra is külön dispatch-állapot: a kísérlet addig `running`,
+amíg minden `executing` résztvevőhöz meg nem érkezik a skill-exit és a hiteles
+napló. Sikeres process-exit napló nélkül fail-closed hibának számít. Az ismételt
+exit esemény nem írja felül a terminális rekordot és nem készít új snapshotot.
+
+Ez a szelet már a teljes kohorsz tényleges futási ablakát méri. A kontrollcsoportos
+replay, az ár-/kereskedelmi események és a hosszabb idősoros metrikák továbbra is a
+12. fázis következő részei.

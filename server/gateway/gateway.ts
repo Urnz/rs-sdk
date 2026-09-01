@@ -25,6 +25,9 @@ import { GatewayWorldDirectorScheduler, loadWorldDirectorConfig, WorldDirectorDi
     WorldDirectorStore } from './admin/world-director-runtime';
 import { EngineWorldDirectorAdapter } from './admin/world-director-engine-adapter';
 import { reconcileAdminGoalProposalRun, reconcileAdminPlayerActionRun } from './admin/agent-state';
+import { MultiAgentExperimentStore, reconcileMultiAgentExperimentSkillRun } from './admin/multi-agent-experiments';
+import { multiAgentExperimentsDbPath } from './admin/paths';
+import { readSkillRun } from './admin/skill-history';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
@@ -876,6 +879,18 @@ botSupervisor.onSkillExit(event => {
         reconcileAdminGoalProposalRun(event.snapshot.runId, !failed,
             `${event.snapshot.skill} ${failed ? 'failed' : 'completed'} with exit code ${event.snapshot.exitCode}.`);
     } catch (error) { console.error('[AgentGoalProposal] Skill run reconciliation failed:', error); }
+    void (async () => {
+        const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
+        try {
+            const skillRun = await readSkillRun(event.snapshot.runId);
+            const experiment = await reconcileMultiAgentExperimentSkillRun(event.snapshot.runId, skillRun, !failed,
+                `${event.snapshot.skill} ${failed ? 'failed' : 'exited successfully'} with exit code ${event.snapshot.exitCode}.`, {
+                    store,
+                    economySnapshot: async () => economySnapshot(await buildBotCatalog(adminGatewayBots(), botSupervisor.list()))
+                }, occurredAt);
+            if (experiment?.finishedAt) console.log(`[MultiAgentExperiment] ${experiment.experimentId} finished as ${experiment.status}.`);
+        } finally { store.close(); }
+    })().catch(error => console.error('[MultiAgentExperiment] Skill run reconciliation failed:', error));
     void agentReplanCoordinator?.submitForPlayer(event.username, { eventId: crypto.randomUUID(),
         type: failed ? 'skill-failed' : 'skill-finished',
         sourceKey: `skill:${event.snapshot.startedAt}:${event.snapshot.skill}`,
