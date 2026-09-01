@@ -37,3 +37,4 @@ export const policySkillsDir = join(agentSkillsLocalDir, 'policy-catalog');
 export const worldDirectorConfigPath = join(repoRoot, 'config', 'world-director.json');
 export const worldDirectorOverridePath = join(adminLocalDir, 'world-director.json');
 export const worldDirectorDbPath = join(adminLocalDir, 'world-director.sqlite');
+export const multiAgentExperimentsDbPath = join(adminLocalDir, 'multi-agent-experiments.sqlite');

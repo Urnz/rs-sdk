@@ -403,12 +403,18 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## 12. Fázis – multi-agent gazdaság
 
-- [ ] Több agent párhuzamos futása elkülönített állapottal és közös világban.
+- [x] Több agent párhuzamos futása elkülönített állapottal és közös világban.
+  - [x] Seedelt kohorsz-dispatchert és külön admin „Kísérletek” fület készíteni,
+    amely csak egyedi exact avatarhoz kötött, friss online player-agenteket enged.
+  - [x] A teljes kohorsz preflightját írás előtt elvégezni, majd az agentciklusokat
+    párhuzamosan indítani és agentenként külön event/run eredményt tartósítani.
 - [ ] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
 - [ ] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
 - [ ] A Business manager read/write portját az institution-agent allowlistelt
   domain tooljaihoz kötni, közvetlen player- vagy AgentState-pénzmásolás nélkül.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
+  - [x] A kísérlet definíció-digestjét, seedjét, determinisztikus résztvevősorrendjét,
+    közös baseline/dispatch gazdasági snapshotját és teljes döntési rekordjait menteni.
 - [ ] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
   egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
 - [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod

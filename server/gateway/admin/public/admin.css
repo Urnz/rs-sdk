@@ -107,6 +107,10 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .skill-grant-row.inactive { opacity: .65; border-left-color: var(--muted); }
 .skill-grant-row > span { display: grid; min-width: 0; }
 .skill-grant-row small { color: var(--muted); overflow-wrap: anywhere; }
+.skill-grant-row input[type='checkbox'] { width: auto; flex: none; }
+.experiment-participants { display: grid; gap: 7px; margin: 10px 0 0; padding-left: 22px; }
+.experiment-participants li { padding: 8px 10px; background: #11150f; border-radius: 7px; }
+.experiment-participants li span,.experiment-participants li small { display: block; color: var(--muted); overflow-wrap: anywhere; }
 .skill-learning-history { margin-top: 12px; color: var(--muted); }
 .skill-learning-history summary { cursor: pointer; }
 .agent-list { display: grid; gap: 12px; max-height: 68vh; padding: 0 20px 22px; overflow: auto; }

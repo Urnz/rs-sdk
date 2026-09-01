@@ -17,6 +17,7 @@ const state = {
     worldPlayers: [],
     llmSettings: null,
     llmReplans: [],
+    multiAgentExperiments: [],
     capabilityGaps: [],
     worldEventTemplates: [],
     worldDirectorCycles: [],
@@ -89,7 +90,7 @@ function toast(message, error = false) {
 }
 
 function selectAdminTab(tab) {
-    if (!['bots', 'economy', 'skills', 'agents', 'llm'].includes(tab)) return;
+    if (!['bots', 'economy', 'skills', 'agents', 'experiments', 'llm'].includes(tab)) return;
     state.adminTab = tab;
     document.querySelectorAll('.admin-tab').forEach(button => {
         const selected = button.dataset.tab === tab;
@@ -99,6 +100,7 @@ function selectAdminTab(tab) {
     document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
         panel.hidden = panel.dataset.adminTabPanel !== tab;
     });
+    if (tab === 'experiments') void refreshMultiAgentExperiments().catch(error => toast(error.message, true));
 }
 
 const llmConfigSourceLabels = { 'server-override': 'Szerver saját beállítása', 'project-default': 'Projekt alapbeállítása' };
@@ -502,7 +504,52 @@ async function refreshAgents() {
     state.agents = data.agents;
     state.agentSkills = data.skills;
     state.skillGrants = learning.grants; state.skillLearningEvents = learning.events;
-    renderAgents(); renderSkillLearning();
+    renderAgents(); renderSkillLearning(); renderMultiAgentCandidates();
+}
+
+const experimentStatusLabels = { running: 'Dispatch folyamatban', completed: 'Dispatch kész',
+    'completed-with-errors': 'Részleges hibával kész', failed: 'Futtatóhiba' };
+
+function renderMultiAgentCandidates() {
+    const container = $('#multi-agent-candidate-list');
+    if (!container) return;
+    const selected = new Set([...container.querySelectorAll('input:checked')].map(input => input.value));
+    const candidates = state.agents.filter(agent => agent.controlProfile.role === 'player').map(agent => {
+        const identity = agent.identity;
+        const control = agent.controlProfile;
+        const bot = state.bots.find(entry => entry.username === control.avatarPlayerUsername);
+        const exact = Boolean(control.avatarPlayerUsername && identity.playerUsername === control.avatarPlayerUsername);
+        const online = exact && bot?.status === 'active';
+        return { agentId: identity.agentId, avatar: control.avatarPlayerUsername, online };
+    });
+    container.innerHTML = candidates.length ? candidates.map(candidate => `<label class="skill-grant-row">
+        <span><strong>${escapeHtml(candidate.agentId)}</strong><small>avatar: ${escapeHtml(candidate.avatar || 'nincs')} · ${candidate.online ? 'online' : 'nem választható'}</small></span>
+        <input type="checkbox" name="experimentAgentId" value="${escapeHtml(candidate.agentId)}"
+            ${selected.has(candidate.agentId) ? 'checked' : ''} ${candidate.online ? '' : 'disabled'}>
+    </label>`).join('') : '<p class="empty">Még nincs kiválasztható player-agent.</p>';
+}
+
+function renderMultiAgentExperiments(experiments) {
+    state.multiAgentExperiments = experiments;
+    $('#multi-agent-experiment-count').textContent = `${experiments.length} futás`;
+    $('#multi-agent-experiment-list').innerHTML = experiments.length ? experiments.map(run => {
+        const baseline = run.baselineEconomy;
+        const dispatch = run.dispatchEconomy;
+        const participants = run.participants.map(item => `<li><strong>${escapeHtml(item.agentId)}</strong>
+            <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}</span>
+            <small>${escapeHtml(item.reason || 'Függőben')}</small></li>`).join('');
+        return `<article class="capability-gap-card ${escapeHtml(run.status)}">
+            <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(experimentStatusLabels[run.status] || run.status)}</small></div>
+            <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · digest: ${escapeHtml(run.definitionDigest)}</small></div>
+            <div class="capability-gap-meta"><span>${run.participants.length} agent</span><span>baseline: ${fmt.format(baseline.totalCoins)} gp / ${baseline.online} online</span>${dispatch ? `<span>dispatch után: ${fmt.format(dispatch.totalCoins)} gp / ${dispatch.online} online</span>` : '<span>dispatch folyamatban</span>'}</div>
+            <details><summary>Agentenkénti eredmények</summary><ol class="experiment-participants">${participants}</ol></details>
+            ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
+        </article>`;
+    }).join('') : '<p class="empty">Még nincs multi-agent kísérlet.</p>';
+}
+
+async function refreshMultiAgentExperiments() {
+    renderMultiAgentExperiments((await api('/api/admin/multi-agent-experiments?limit=50')).experiments);
 }
 
 function showSkillGrant() {
@@ -1200,7 +1247,9 @@ async function refresh() {
         state.skillGrants = skillLearning.grants; state.skillLearningEvents = skillLearning.events;
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
         renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents(); renderAgents(); renderSkillLearning();
+        renderMultiAgentCandidates();
         if (state.adminTab === 'llm') await refreshWorldDirector();
+        if (state.adminTab === 'experiments') await refreshMultiAgentExperiments();
         if ($('#world-map-dialog').open) renderWorldMapBots();
         drawChart(history.snapshots);
         if (state.selected && $('#profile-drawer').classList.contains('open')) openProfile(state.selected);
@@ -2065,6 +2114,25 @@ $('#reload-llm-settings').addEventListener('click', () => Promise.all([refreshLl
     .then(() => toast('Az LLM-beállítások újratöltve.')).catch(error => toast(error.message, true)));
 $('#reload-llm-replans').addEventListener('click', () => refreshLlmReplans()
     .then(() => toast('Az autonóm döntési napló frissítve.')).catch(error => toast(error.message, true)));
+$('#reload-multi-agent-experiments').addEventListener('click', () => refreshMultiAgentExperiments()
+    .then(() => toast('A multi-agent futásnapló frissítve.')).catch(error => toast(error.message, true)));
+$('#multi-agent-experiment-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const agentIds = [...form.querySelectorAll('input[name="experimentAgentId"]:checked')]
+        .map(input => input.value);
+    if (agentIds.length < 2) { toast('Legalább két online player-agentet válassz.', true); return; }
+    if (!confirm(`${agentIds.length} agent párhuzamos autonóm ciklusa indulhat el valódi skillekkel. Folytatod?`)) return;
+    const button = $('#start-multi-agent-experiment');
+    button.disabled = true;
+    try {
+        const response = await api('/api/admin/multi-agent-experiments', { method: 'POST', mutation: true,
+            body: JSON.stringify({ label: form.elements.label.value, seed: form.elements.seed.value,
+                summary: form.elements.summary.value, reason: form.elements.reason.value, agentIds }) });
+        toast(`A kísérlet elindult: ${response.experiment.experimentId}.`);
+        await refreshMultiAgentExperiments();
+    } finally { button.disabled = false; }
+});
 $('#world-director-preview-form').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -2310,7 +2378,7 @@ const bootstrap = await Promise.all([
     api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
     api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
     api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles'),
-    api('/api/admin/llm-replans?limit=100')
+    api('/api/admin/llm-replans?limit=100'), api('/api/admin/multi-agent-experiments?limit=50')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
 renderLlmSettings(bootstrap[3]);
@@ -2318,6 +2386,7 @@ renderCapabilityGaps(bootstrap[4].gaps);
 renderSkillTrials(bootstrap[5].trials);
 renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
 renderLlmReplans(bootstrap[8].records);
+renderMultiAgentExperiments(bootstrap[9].experiments);
 selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

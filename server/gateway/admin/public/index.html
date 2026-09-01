@@ -27,6 +27,7 @@
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="economy">Gazdaság</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="skills">Agent skillek</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="agents">Agentek</button>
+            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="experiments">Kísérletek</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="llm">AI beállítások</button>
         </nav>
 
@@ -142,6 +143,34 @@
             <div id="agent-list" class="agent-list scrollable-list" role="region" aria-label="Persistent agentek" tabindex="0">
                 <p class="empty">Betöltés…</p>
             </div>
+        </section>
+
+        <section class="panel agent-panel" data-admin-tab-panel="experiments" hidden>
+            <div class="panel-heading table-heading">
+                <div><p class="eyebrow">12. FÁZIS · MULTI-AGENT GAZDASÁG</p><h2>Seedelt közös-világ kísérletek</h2></div>
+                <div class="agent-heading-actions"><span id="multi-agent-experiment-count" class="count-pill">0 futás</span>
+                    <button id="reload-multi-agent-experiments" class="button ghost" type="button">Frissítés</button></div>
+            </div>
+            <p class="agent-intro">Egy futás legalább két, külön exact avatarhoz kötött online player-agent autonóm ciklusát indítja párhuzamosan. A seed, a résztvevősorrend, a döntések és az indítás előtti/utáni közös gazdasági pillanatkép tartósan megmarad.</p>
+            <form id="multi-agent-experiment-form" class="llm-settings-form">
+                <div class="llm-form-grid">
+                    <label>Kísérlet neve<input name="label" maxlength="120" value="Első multi-agent kohorsz" required></label>
+                    <label>Determinisztikus seed<input name="seed" maxlength="128" value="osrs-economy-phase12-001" required></label>
+                </div>
+                <label>Dispatch célja<textarea name="summary" maxlength="320" rows="3" required>Indíts egyetlen biztonságos, célvezérelt autonóm munkaciklust minden kiválasztott agentnél.</textarea></label>
+                <fieldset>
+                    <legend>Résztvevő online player-agentek</legend>
+                    <p class="dialog-note">Legalább kettő szükséges. Közös avatar, offline állapot vagy nem-player szerep esetén a teljes preflight írás nélkül leáll.</p>
+                    <div id="multi-agent-candidate-list" class="skill-grant-list scroll-region" role="group" aria-label="Kísérleti résztvevők"><p class="empty">Agentek betöltése…</p></div>
+                </fieldset>
+                <label>Indoklás az admin audithoz<input name="reason" maxlength="240" value="Phase 12 seedelt multi-agent kísérlet" required></label>
+                <div class="llm-save-row"><p class="dialog-note">Az aktuális autonóm policy valódi allowlistelt skilleket indíthat a résztvevő botokon.</p>
+                    <button id="start-multi-agent-experiment" class="button primary" type="submit">Kísérlet indítása</button></div>
+            </form>
+            <div class="panel-heading table-heading skill-trial-heading">
+                <div><p class="eyebrow">TARTÓS FUTÁSNAPLÓ</p><h3>Kohorszok és agentenkénti eredmények</h3></div>
+            </div>
+            <div id="multi-agent-experiment-list" class="capability-gap-list scroll-region" role="region" aria-label="Multi-agent kísérletek" tabindex="0"><p class="empty">Betöltés…</p></div>
         </section>
 
         <section class="panel llm-settings-panel" data-admin-tab-panel="llm" hidden>

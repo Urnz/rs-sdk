@@ -76,6 +76,8 @@ import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/type
 import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
 import type { SkillGrantKind } from '../../../agent-skills/learning.js';
 import { resolveLearnAndPlan } from './deterministic-learning.js';
+import { MultiAgentExperimentStore, startMultiAgentExperiment } from './multi-agent-experiments.js';
+import { multiAgentExperimentsDbPath } from './paths.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -266,6 +268,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (req.method === 'GET' && url.pathname === '/api/admin/llm-replans') {
             return json({ records: await readReplanRecords(Number(url.searchParams.get('limit') || 100)) });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/multi-agent-experiments') {
+            const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
+            try {
+                return json({ experiments: store.list(Number(url.searchParams.get('limit') || 50)) });
+            } finally { store.close(); }
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/llm-settings') {
@@ -1203,6 +1212,49 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         }
 
         const agentLlmDryRunMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/llm-dry-run$/);
+        if (req.method === 'POST' && url.pathname === '/api/admin/multi-agent-experiments') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const agentIds = Array.isArray(body.agentIds) ? body.agentIds.map(value => String(value)) : [];
+            if (!context.replanCoordinator) throw new Error('Az autonóm újratervező nem érhető el.');
+            const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
+            try {
+                const initial = await listAdminAgents();
+                const gateways = context.gatewayBots();
+                const started = await startMultiAgentExperiment({ label: text(body, 'label', true),
+                    seed: text(body, 'seed', true), summary: text(body, 'summary', true), agentIds }, {
+                    store, coordinator: context.replanCoordinator,
+                    listCandidates: async () => initial.agents.map(agent => {
+                        const avatar = agent.controlProfile.avatarPlayerUsername;
+                        const gateway = avatar ? [...gateways.entries()]
+                            .find(([username]) => username.toLowerCase() === avatar)?.[1] : null;
+                        return { agentId: agent.identity.agentId, role: agent.controlProfile.role,
+                            subjectKind: agent.controlProfile.subjectKind,
+                            identityPlayerUsername: agent.identity.playerUsername,
+                            avatarPlayerUsername: avatar,
+                            onlineFresh: Boolean(gateway?.state?.player && gateway.status === 'active'
+                                && Date.now() - gateway.lastStateReceivedAt <= 5_000) };
+                    }),
+                    economySnapshot: async () => economySnapshot(await catalog())
+                });
+                await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.start', reason,
+                    success: true, after: { experimentId: started.run.experimentId,
+                        definitionDigest: started.run.definitionDigest, agentIds } }).catch(() => undefined);
+                void started.completion.then(completed => appendAudit({ operator: 'system',
+                    action: 'multi-agent-experiment.complete', reason: 'A háttérben futó dispatch lezárult.',
+                    success: completed.status === 'completed', after: completed }))
+                    .catch(error => appendAudit({ operator: 'system', action: 'multi-agent-experiment.complete',
+                        reason: 'A háttérben futó dispatch hibával zárult.', success: false, error: String(error),
+                        after: { experimentId: started.run.experimentId } }))
+                    .finally(() => store.close());
+                return json({ ok: true, experiment: started.run }, 202);
+            } catch (error) {
+                store.close();
+                await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.start', reason,
+                    success: false, error: String(error), after: { agentIds } });
+                throw error;
+            }
+        }
         const agentAutonomousCycleMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/autonomous-cycle$/);
         if (req.method === 'POST' && agentAutonomousCycleMatch?.[1]) {
             const agentId = agentAutonomousCycleMatch[1];
