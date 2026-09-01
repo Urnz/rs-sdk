@@ -54,6 +54,14 @@ történeti rekordok megmaradnak. Egy aktív jogviszony opcionálisan exact
 skillverziót és egy igazolt munka után járó GP-díjat deklarál. Ez még nem payroll:
 nem foglal fedezetet, nem indít skillt és nem ír player- vagy treasury-egyenleget.
 
+A business-subjecthez exact módon kötött institution agent a saját Business
+vetületét az `inspect-assets` olvasási porton kapja meg. A
+`propose-business-policy` írási port csak bounded, inert javaslatot tartósít:
+üzemmódot, célt, megbízásonkénti GP-plafont és preferált exact skilleket. A plafon
+nem lehet magasabb az agent napi operatív kereténél. A javaslat admin-jóváhagyásig
+nem aktív; a jóváhagyás atomikusan superseded állapotba teszi a régi policyt, de
+továbbra sem mozgat pénzt vagy játékost.
+
 Egy vállalkozás `propertyId` alapján birtokolhat vagy bérelhet műhelyt, boltot,
 farmot, bányát, fogadót vagy raktárt. Az ingatlan típusa lehetőséget jelez, de
 önmagában nem hoz létre vállalkozást.

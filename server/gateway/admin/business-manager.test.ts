@@ -25,6 +25,8 @@ describe('business manager domain', () => {
         expect(script).toContain("api('/api/admin/businesses'");
         expect(script).toContain("data-action=\"business-hire\"");
         expect(script).toContain("data-action=\"business-employment-end\"");
+        expect(script).toContain("data-action=\"business-policy-propose\"");
+        expect(script).toContain("data-action=\"business-policy-resolve\"");
     });
 
     test('persists a business, property reference and exact agent employments', () => {
@@ -117,6 +119,55 @@ describe('business manager domain', () => {
         expect(() => businesses.hire('falador-shop', { workerAgentId: 'clerk-agent', role: 'worker',
             title: 'Clerk', wageGp: 100, requiredSkill: { id: 'shop.clerk', version: 'latest' } }))
             .toThrow('requiredSkill.version');
+        businesses.close();
+    });
+
+    test('keeps policy proposals inert until approval and supersedes the active policy atomically', () => {
+        const businesses = store();
+        businesses.create({ businessId: 'varrock-forge', name: 'Varrock Forge',
+            summary: 'Copper processing.', ownerAgentId: 'merchant-ada' });
+        const first = businesses.proposePolicy('varrock-forge', {
+            proposalId: '44444444-4444-4444-8444-444444444444',
+            proposerAgentId: 'forge-mind', objective: 'Build a reliable copper reserve.',
+            mode: 'balanced', maxRewardGp: 2_000,
+            preferredSkills: [{ id: 'mining.varrock.copper', version: '1.0.0' }]
+        }, '2026-09-01T13:00:00.000Z');
+        expect(first).toMatchObject({ status: 'pending', revision: 1 });
+        expect(businesses.get('varrock-forge')?.activePolicy).toBeNull();
+        const approved = businesses.resolvePolicy('varrock-forge', first.proposalId, first.revision,
+            'approve', 'Safe initial policy.', '2026-09-01T13:05:00.000Z');
+        expect(approved).toMatchObject({ status: 'approved', revision: 2 });
+        expect(businesses.resolvePolicy('varrock-forge', first.proposalId, first.revision,
+            'approve', 'Safe initial policy.')).toEqual(approved);
+
+        const second = businesses.proposePolicy('varrock-forge', {
+            proposalId: '55555555-5555-4555-8555-555555555555',
+            proposerAgentId: 'forge-mind', objective: 'Expand profitable ore production.',
+            mode: 'profit', maxRewardGp: 3_000
+        }, '2026-09-01T14:00:00.000Z');
+        businesses.resolvePolicy('varrock-forge', second.proposalId, second.revision,
+            'approve', 'Replace the initial policy.', '2026-09-01T14:05:00.000Z');
+        const business = businesses.get('varrock-forge')!;
+        expect(business.activePolicy).toMatchObject({ proposalId: second.proposalId, status: 'approved' });
+        expect(business.policyProposals.find(item => item.proposalId === first.proposalId))
+            .toMatchObject({ status: 'superseded', revision: 3 });
+        businesses.close();
+    });
+
+    test('makes proposal ids idempotent and resolves pending policies when a business closes', () => {
+        const businesses = store();
+        const business = businesses.create({ businessId: 'falador-courier', name: 'Falador Courier',
+            summary: 'Local delivery.', ownerAgentId: 'courier-owner' });
+        const input = { proposalId: '66666666-6666-4666-8666-666666666666',
+            proposerAgentId: 'courier-mind', objective: 'Prefer safe deliveries.',
+            mode: 'survival' as const, maxRewardGp: 500 };
+        const proposal = businesses.proposePolicy(business.businessId, input);
+        expect(businesses.proposePolicy(business.businessId, input)).toEqual(proposal);
+        expect(() => businesses.proposePolicy(business.businessId, { ...input,
+            objective: 'Changed content.' })).toThrow('reused with different content');
+        const closed = businesses.update(business.businessId, business.revision, { name: business.name,
+            summary: business.summary, status: 'closed' });
+        expect(closed.policyProposals[0]).toMatchObject({ status: 'rejected', revision: 2 });
         businesses.close();
     });
 });

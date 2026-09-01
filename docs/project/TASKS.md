@@ -428,8 +428,14 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     exact skillkövetelményt és még nem automatikusan fizetett munkadíjat kezelni.
   - [x] Auditált admin API-t és felületet adni létrehozáshoz, szüneteltetéshez,
     lezáráshoz, felvételhez és a foglalkoztatás megszüntetéséhez.
-- [ ] A Business manager read/write portját az institution-agent allowlistelt
+- [x] A Business manager read/write portját az institution-agent allowlistelt
   domain tooljaihoz kötni, közvetlen player- vagy AgentState-pénzmásolás nélkül.
+  - [x] Az exact business subject állapotát és aktív policyjét a hozzá kötött
+    institution agent olvasási vetületébe és döntési contextjébe tenni.
+  - [x] A `propose-business-policy` toolt idempotens, keretkorlátozott, inert
+    javaslatíráshoz kötni; idegen subjectet és player agentet fail-closed tiltani.
+  - [x] A policyt csak auditált admin-döntéssel aktiválni vagy elutasítani, új
+    jóváhagyáskor a korábbi aktív policyt atomikusan superseded állapotba tenni.
 - [ ] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
   - [x] A kísérlet definíció-digestjét, seedjét, determinisztikus résztvevősorrendjét,
     közös baseline/dispatch gazdasági snapshotját és teljes döntési rekordjait menteni.

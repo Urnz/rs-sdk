@@ -17,6 +17,8 @@ import type { AdminPropertyView } from './properties.js';
 import { readSkillRun } from './skill-history.js';
 import { requestEnginePlayerReward } from './player-rewards.js';
 import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
+import { BusinessManagerStore } from './business-manager.js';
+import { businessManagerPathFor } from './business-agent-port.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
@@ -30,6 +32,12 @@ export function institutionTreasuryPathFor(path = agentStateDbPath): string {
 
 function useTreasury<T>(path: string, callback: (store: InstitutionTreasuryStore) => T): T {
     const store = new InstitutionTreasuryStore(institutionTreasuryPathFor(path));
+    try { return callback(store); }
+    finally { store.close(); }
+}
+
+function useBusiness<T>(path: string, callback: (store: BusinessManagerStore) => T): T {
+    const store = new BusinessManagerStore(businessManagerPathFor(path));
     try { return callback(store); }
     finally { store.close(); }
 }
@@ -48,6 +56,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
     const generatedAt = new Date().toISOString();
     const treasuries = new Map(useTreasury(path, store => store.list())
         .map(item => [`${item.kind}:${item.id}`, item]));
+    const businesses = new Map(useBusiness(path, store => store.list(500))
+        .map(item => [item.businessId, item]));
     const agents = useStore(path, store => store.listIdentities().map(identity => {
         const snapshot = store.getSnapshot(identity.agentId)!;
         const knownByReference = new Map(snapshot.knownSkills.map(item =>
@@ -77,6 +87,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         const controlProfile = store.getControlProfile(identity.agentId)!;
         const treasury = controlProfile.role === 'institution'
             ? treasuries.get(`${controlProfile.subjectKind}:${controlProfile.subjectId}`) ?? null : null;
+        const business = controlProfile.role === 'institution' && controlProfile.subjectKind === 'business'
+            ? businesses.get(controlProfile.subjectId) ?? null : null;
         const playerActionRequests = store.listPlayerActionRequests(identity.agentId);
         const goalProposals = store.listGoalProposals(identity.agentId);
         const incomingPlayerActions = playerActionRequests
@@ -125,7 +137,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
                 episodicMemories: relevantEpisodes.map(result => result.episode),
                 semanticMemories: relevantKnowledge.map(result => result.knowledge),
                 socialMemories: relevantRelationships, assets })}${treasury
-                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}`,
+                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}${business
+                ? `\nBusiness: ${business.businessId}; ${business.status}; owner ${business.ownerAgentId}; property ${business.propertyId ?? 'none'}; ${business.employments.filter(item => item.status === 'active').length} active workers; policy ${business.activePolicy ? `${business.activePolicy.mode}/${business.activePolicy.maxRewardGp} gp` : 'none'}.` : ''}`,
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
@@ -145,7 +158,9 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         });
         const treasury = agent.controlProfile.role === 'institution'
             ? treasuries.get(`${agent.controlProfile.subjectKind}:${agent.controlProfile.subjectId}`) ?? null : null;
-        return { ...agent, catalogSkills, skillRelationships, treasury,
+        const business = agent.controlProfile.role === 'institution' && agent.controlProfile.subjectKind === 'business'
+            ? businesses.get(agent.controlProfile.subjectId) ?? null : null;
+        return { ...agent, catalogSkills, skillRelationships, treasury, business,
             planner: planNextAction(agent, { availableSkills: catalogSkills.map(skill => ({
                 id: skill.id, version: skill.version
             })) }) };

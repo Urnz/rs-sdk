@@ -631,6 +631,8 @@ async function refreshEconomicContracts() {
 
 const businessStatusLabels = { active: 'Aktív', dormant: 'Szünetel', closed: 'Lezárt' };
 const employmentRoleLabels = { manager: 'Vezető', worker: 'Dolgozó' };
+const businessPolicyModeLabels = { balanced: 'Kiegyensúlyozott', growth: 'Növekedés',
+    profit: 'Profit', survival: 'Túlélés' };
 
 function renderBusinessAgentOptions() {
     const form = $('#business-form');
@@ -648,13 +650,22 @@ function renderBusinesses(businesses) {
         const activeEmployments = item.employments.filter(job => job.status === 'active');
         const employments = item.employments.length ? `<details><summary>Foglalkoztatás (${activeEmployments.length} aktív / ${item.employments.length})</summary><ul>${item.employments.map(job =>
             `<li><strong>${escapeHtml(job.workerAgentId)}</strong> · ${escapeHtml(employmentRoleLabels[job.role] || job.role)} · ${escapeHtml(job.title)} · ${fmt.format(job.wageGp)} gp${job.requiredSkill ? ` · ${escapeHtml(job.requiredSkill.id)}@${escapeHtml(job.requiredSkill.version)}` : ''} · ${job.status === 'active' ? 'aktív' : 'lezárt'}${job.status === 'active' ? ` <button class="button small danger-outline" data-action="business-employment-end" data-business-id="${escapeHtml(item.businessId)}" data-employment-id="${escapeHtml(job.employmentId)}" data-revision="${job.revision}">Lezárás</button>` : ''}</li>`).join('')}</ul></details>` : '<p class="empty">Még nincs alkalmazott.</p>';
+        const activePolicy = item.activePolicy
+            ? `<p><strong>Aktív policy:</strong> ${escapeHtml(businessPolicyModeLabels[item.activePolicy.mode] || item.activePolicy.mode)} · max. ${fmt.format(item.activePolicy.maxRewardGp)} gp / megbízás · ${escapeHtml(item.activePolicy.objective)}</p>`
+            : '<p class="empty">Nincs jóváhagyott üzleti policy.</p>';
+        const policies = item.policyProposals.length ? `<details><summary>Policy-javaslatok (${item.policyProposals.length})</summary><ul>${item.policyProposals.map(policy => {
+            const skills = policy.preferredSkills.map(skill => `${escapeHtml(skill.id)}@${escapeHtml(skill.version)}`).join(', ');
+            const decisions = policy.status === 'pending' ? ` <button class="button small primary" data-action="business-policy-resolve" data-decision="approve" data-business-id="${escapeHtml(item.businessId)}" data-proposal-id="${escapeHtml(policy.proposalId)}" data-revision="${policy.revision}">Jóváhagyás</button> <button class="button small danger-outline" data-action="business-policy-resolve" data-decision="reject" data-business-id="${escapeHtml(item.businessId)}" data-proposal-id="${escapeHtml(policy.proposalId)}" data-revision="${policy.revision}">Elutasítás</button>` : '';
+            return `<li><strong>${escapeHtml(policy.proposerAgentId)}</strong> · ${escapeHtml(businessPolicyModeLabels[policy.mode] || policy.mode)} · ${fmt.format(policy.maxRewardGp)} gp · ${escapeHtml(policy.status)}<br>${escapeHtml(policy.objective)}${skills ? `<br><small>${skills}</small>` : ''}${policy.responseNote ? `<br><small>${escapeHtml(policy.responseNote)}</small>` : ''}${decisions}</li>`;
+        }).join('')}</ul></details>` : '<p class="empty">Még nincs policy-javaslat.</p>';
         const actions = item.status === 'active' ? `<div class="agent-heading-actions">
             <button class="button small primary" data-action="business-hire" data-business-id="${escapeHtml(item.businessId)}">+ Alkalmazott</button>
+            <button class="button small secondary" data-action="business-policy-propose" data-business-id="${escapeHtml(item.businessId)}">Agent policy-javaslat</button>
             <button class="button small ghost" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="dormant" data-revision="${item.revision}">Szüneteltetés</button>
             <button class="button small danger-outline" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="closed" data-revision="${item.revision}">Lezárás</button></div>`
             : item.status === 'dormant' ? `<div class="agent-heading-actions"><button class="button small primary" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="active" data-revision="${item.revision}">Újraaktiválás</button><button class="button small danger-outline" data-action="business-status" data-business-id="${escapeHtml(item.businessId)}" data-status="closed" data-revision="${item.revision}">Lezárás</button></div>` : '';
         return `<article class="capability-gap-card ${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.businessId)} · ${escapeHtml(businessStatusLabels[item.status] || item.status)} · rev ${item.revision}</small></div>
-            <p>${escapeHtml(item.summary)}</p><div class="capability-gap-meta"><span>tulajdonos: ${escapeHtml(item.ownerAgentId)}</span><span>ingatlan: ${escapeHtml(item.propertyId || 'nincs')}</span><span>${activeEmployments.length} aktív dolgozó</span></div>${employments}${actions}</article>`;
+            <p>${escapeHtml(item.summary)}</p><div class="capability-gap-meta"><span>tulajdonos: ${escapeHtml(item.ownerAgentId)}</span><span>ingatlan: ${escapeHtml(item.propertyId || 'nincs')}</span><span>${activeEmployments.length} aktív dolgozó</span></div>${activePolicy}${policies}${employments}${actions}</article>`;
     }).join('') : '<p class="empty">Még nincs vállalkozás.</p>';
 }
 
@@ -1699,6 +1710,44 @@ document.addEventListener('click', async event => {
                     role: role.trim(), title: title.trim(), wageGp, requiredSkill, reason: reason.trim() })
             });
             toast('Az alkalmazotti jogviszony létrejött.'); await refreshBusinesses();
+        }
+        if (button.dataset.action === 'business-policy-propose') {
+            const agent = state.agents.find(item => item.controlProfile.role === 'institution'
+                && item.controlProfile.subjectKind === 'business'
+                && item.controlProfile.subjectId === button.dataset.businessId);
+            if (!agent) throw new Error('Ehhez a vállalkozáshoz még nincs exact subjecttel kötött institution agent.');
+            const objective = prompt('Az üzleti policy célja:', 'Stabil, bizonyítható és nyereséges munkamegbízások');
+            if (!objective?.trim()) return;
+            const mode = prompt('Mód: balanced, growth, profit vagy survival', 'balanced');
+            if (!mode?.trim()) return;
+            const maxRewardGp = Number(prompt(`Maximális díj megbízásonként (legfeljebb ${agent.controlProfile.dailyOperationalBudgetGp} gp):`, '0'));
+            const skillsText = prompt('Preferált exact skillek, vesszővel elválasztva (opcionális):', '')?.trim() || '';
+            const preferredSkills = skillsText ? skillsText.split(',').map(value => {
+                const reference = value.trim(), separator = reference.lastIndexOf('@');
+                if (separator < 1) throw new Error('Az exact skill formátuma: skill.id@1.0.0');
+                return { id: reference.slice(0, separator), version: reference.slice(separator + 1) };
+            }) : [];
+            const reason = prompt('Admin audit indoklás:', 'Institution agent üzleti policy-javaslatának rögzítése');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/agents/${encodeURIComponent(agent.identity.agentId)}/business-policy-proposals`, {
+                method: 'POST', mutation: true, body: JSON.stringify({ objective: objective.trim(),
+                    mode: mode.trim(), maxRewardGp, preferredSkills, reason: reason.trim() })
+            });
+            toast('Az agent policy-javaslata függő állapotban rögzítve.'); await refreshBusinesses();
+        }
+        if (button.dataset.action === 'business-policy-resolve') {
+            const decision = button.dataset.decision;
+            const responseNote = prompt(decision === 'approve' ? 'Jóváhagyási megjegyzés:' : 'Elutasítás indoka:',
+                decision === 'approve' ? 'A policy biztonságos keretek között aktiválható.' : 'A policy módosításra szorul.');
+            if (!responseNote?.trim()) return;
+            const reason = prompt('Admin audit indoklás:', `Business policy ${decision}`);
+            if (!reason?.trim()) return;
+            await api(`/api/admin/businesses/${encodeURIComponent(button.dataset.businessId)}/policies/${encodeURIComponent(button.dataset.proposalId)}`, {
+                method: 'PUT', mutation: true, body: JSON.stringify({ expectedRevision: Number(button.dataset.revision),
+                    decision, responseNote: responseNote.trim(), reason: reason.trim() })
+            });
+            toast(decision === 'approve' ? 'Az üzleti policy aktív.' : 'A policy-javaslat elutasítva.');
+            await Promise.all([refreshBusinesses(), refreshAgents()]);
         }
         if (button.dataset.action === 'business-employment-end') {
             const reason = prompt('Admin audit indoklás:', 'Alkalmazotti jogviszony lezárása');

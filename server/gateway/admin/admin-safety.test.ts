@@ -69,6 +69,15 @@ describe('admin authorization boundary', () => {
             expect(response?.status).toBe(401);
         }
     });
+
+    test('rejects business agent policy writes before parsing or touching domain state', async () => {
+        const context = { gatewayBots: () => new Map(), supervisor: {} as BotSupervisor };
+        const request = new Request('http://localhost:7780/api/admin/agents/forge-mind/business-policy-proposals', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        const response = await handleAdminRequest(request, new URL(request.url), context);
+        expect(response?.status).toBe(401);
+    });
 });
 
 describe('online and offline state collision', () => {

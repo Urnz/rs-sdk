@@ -79,7 +79,9 @@ import { resolveLearnAndPlan } from './deterministic-learning.js';
 import { MultiAgentExperimentStore, startMultiAgentExperiment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
-import { BusinessManagerStore, type BusinessStatus, type EmploymentRole } from './business-manager.js';
+import { BusinessManagerStore, type BusinessPolicyMode, type BusinessStatus,
+    type EmploymentRole } from './business-manager.js';
+import { proposeBusinessPolicyForAgent } from './business-agent-port.js';
 import { businessManagerDbPath, economicContractsDbPath } from './paths.js';
 
 export interface AdminRouteContext {
@@ -545,6 +547,53 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({ operator: 'local-admin', action: 'business.employment.create', reason,
                     username: workerAgentId, success: false, error: String(error),
                     after: { businessId: businessEmploymentMatch[1] } });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const businessPolicyAgentMatch = url.pathname
+            .match(/^\/api\/admin\/agents\/([a-z0-9][a-z0-9._-]{1,63})\/business-policy-proposals$/);
+        if (req.method === 'POST' && businessPolicyAgentMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const agentId = businessPolicyAgentMatch[1];
+            try {
+                const proposal = proposeBusinessPolicyForAgent(agentId, {
+                    proposalId: text(body, 'proposalId') || crypto.randomUUID(),
+                    objective: text(body, 'objective', true),
+                    mode: oneOf<BusinessPolicyMode>(body.mode,
+                        ['balanced', 'growth', 'profit', 'survival'], 'mode'),
+                    maxRewardGp: Number(body.maxRewardGp),
+                    preferredSkills: body.preferredSkills === undefined ? []
+                        : body.preferredSkills as Array<{ id: string; version: string }>
+                });
+                await appendAudit({ operator: 'local-admin', action: 'business.policy.propose', reason,
+                    username: agentId, success: true, after: proposal });
+                return json({ ok: true, proposal }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'business.policy.propose', reason,
+                    username: agentId, success: false, error: String(error) });
+                throw error;
+            }
+        }
+
+        const businessPolicyMatch = url.pathname.match(
+            /^\/api\/admin\/businesses\/([a-z0-9][a-z0-9._-]{1,63})\/policies\/([0-9a-f-]{36})$/i);
+        if (req.method === 'PUT' && businessPolicyMatch?.[1] && businessPolicyMatch[2]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const decision = oneOf(body.decision, ['approve', 'reject'] as const, 'decision');
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                const proposal = store.resolvePolicy(businessPolicyMatch[1], businessPolicyMatch[2],
+                    Number(body.expectedRevision), decision, text(body, 'responseNote', true));
+                await appendAudit({ operator: 'local-admin', action: `business.policy.${decision}`, reason,
+                    username: proposal.proposerAgentId, success: true, after: proposal });
+                return json({ ok: true, proposal });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: `business.policy.${decision}`, reason,
+                    success: false, error: String(error), after: { businessId: businessPolicyMatch[1],
+                        proposalId: businessPolicyMatch[2] } });
                 throw error;
             } finally { store.close(); }
         }

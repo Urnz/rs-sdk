@@ -6,6 +6,24 @@ import { Database } from 'bun:sqlite';
 export type BusinessStatus = 'active' | 'dormant' | 'closed';
 export type EmploymentRole = 'manager' | 'worker';
 export type EmploymentStatus = 'active' | 'ended';
+export type BusinessPolicyMode = 'balanced' | 'growth' | 'profit' | 'survival';
+export type BusinessPolicyStatus = 'pending' | 'approved' | 'rejected' | 'superseded';
+
+export interface BusinessPolicyProposal {
+    proposalId: string;
+    businessId: string;
+    proposerAgentId: string;
+    objective: string;
+    mode: BusinessPolicyMode;
+    maxRewardGp: number;
+    preferredSkills: Array<{ id: string; version: string }>;
+    status: BusinessPolicyStatus;
+    responseNote: string;
+    revision: number;
+    createdAt: string;
+    resolvedAt: string | null;
+    updatedAt: string;
+}
 
 export interface BusinessEmployment {
     employmentId: string;
@@ -31,6 +49,8 @@ export interface Business {
     status: BusinessStatus;
     revision: number;
     employments: BusinessEmployment[];
+    activePolicy: BusinessPolicyProposal | null;
+    policyProposals: BusinessPolicyProposal[];
     createdAt: string;
     updatedAt: string;
 }
@@ -58,6 +78,15 @@ export interface CreateEmployment {
     requiredSkill?: { id: string; version: string } | null;
 }
 
+export interface CreateBusinessPolicyProposal {
+    proposalId: string;
+    proposerAgentId: string;
+    objective: string;
+    mode: BusinessPolicyMode;
+    maxRewardGp: number;
+    preferredSkills?: Array<{ id: string; version: string }>;
+}
+
 interface BusinessRow {
     business_id: string;
     name: string;
@@ -83,6 +112,22 @@ interface EmploymentRow {
     revision: number;
     started_at: string;
     ended_at: string | null;
+    updated_at: string;
+}
+
+interface PolicyRow {
+    proposal_id: string;
+    business_id: string;
+    proposer_agent_id: string;
+    objective: string;
+    mode: BusinessPolicyMode;
+    max_reward_gp: number;
+    preferred_skills_json: string;
+    status: BusinessPolicyStatus;
+    response_note: string;
+    revision: number;
+    created_at: string;
+    resolved_at: string | null;
     updated_at: string;
 }
 
@@ -138,6 +183,24 @@ function employment(row: EmploymentRow): BusinessEmployment {
     };
 }
 
+function policy(row: PolicyRow): BusinessPolicyProposal {
+    return {
+        proposalId: row.proposal_id,
+        businessId: row.business_id,
+        proposerAgentId: row.proposer_agent_id,
+        objective: row.objective,
+        mode: row.mode,
+        maxRewardGp: row.max_reward_gp,
+        preferredSkills: JSON.parse(row.preferred_skills_json) as Array<{ id: string; version: string }>,
+        status: row.status,
+        responseNote: row.response_note,
+        revision: row.revision,
+        createdAt: row.created_at,
+        resolvedAt: row.resolved_at,
+        updatedAt: row.updated_at
+    };
+}
+
 export class BusinessManagerStore {
     private readonly database: Database;
 
@@ -161,6 +224,16 @@ export class BusinessManagerStore {
             CHECK ((required_skill_id IS NULL) = (required_skill_version IS NULL)))`);
         this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS business_active_worker
             ON business_employment(business_id, worker_agent_id) WHERE status = 'active'`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS business_policy_proposal (
+            proposal_id TEXT PRIMARY KEY, business_id TEXT NOT NULL REFERENCES business(business_id),
+            proposer_agent_id TEXT NOT NULL, objective TEXT NOT NULL,
+            mode TEXT NOT NULL CHECK (mode IN ('balanced', 'growth', 'profit', 'survival')),
+            max_reward_gp INTEGER NOT NULL CHECK (max_reward_gp >= 0), preferred_skills_json TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'superseded')),
+            response_note TEXT NOT NULL, revision INTEGER NOT NULL CHECK (revision >= 1),
+            created_at TEXT NOT NULL, resolved_at TEXT, updated_at TEXT NOT NULL)`);
+        this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS business_active_policy
+            ON business_policy_proposal(business_id) WHERE status = 'approved'`);
     }
 
     close(): void { this.database.close(true); }
@@ -217,7 +290,10 @@ export class BusinessManagerStore {
                 WHERE business_id = ?1 AND revision = ?2`,
             [businessId, expectedRevision, name, summary, propertyId, input.status, updatedAt]);
             if (result.changes !== 1) throw new Error('Business changed before update; refresh and try again');
-            if (input.status === 'closed') this.endAllEmployments(businessId, updatedAt);
+            if (input.status === 'closed') {
+                this.endAllEmployments(businessId, updatedAt);
+                this.closePolicies(businessId, updatedAt);
+            }
         });
         transaction.immediate();
         return this.get(businessId)!;
@@ -267,6 +343,80 @@ export class BusinessManagerStore {
         return this.getEmployment(employmentId)!;
     }
 
+    proposePolicy(businessIdInput: string, input: CreateBusinessPolicyProposal,
+        now = new Date().toISOString()): BusinessPolicyProposal {
+        const businessId = stableId(businessIdInput, 'businessId');
+        const business = this.get(businessId);
+        if (!business) throw new Error('Business does not exist');
+        if (!/^[0-9a-f-]{36}$/i.test(input.proposalId)) throw new Error('Policy proposal id is invalid');
+        const proposerAgentId = stableId(input.proposerAgentId, 'proposerAgentId');
+        const objective = boundedText(input.objective, 'objective', 320);
+        if (!['balanced', 'growth', 'profit', 'survival'].includes(input.mode)) {
+            throw new Error('Business policy mode is invalid');
+        }
+        if (!Number.isSafeInteger(input.maxRewardGp) || input.maxRewardGp < 0
+            || input.maxRewardGp > 2_147_483_647) throw new Error('Business policy reward limit is invalid');
+        const preferredSkills = [...new Map((input.preferredSkills ?? []).map(item => {
+            const skill = skillReference(item);
+            if (!skill) throw new Error('Business policy skill is invalid');
+            return [`${skill.id}@${skill.version}`, skill] as const;
+        })).values()];
+        if (preferredSkills.length > 20) throw new Error('Business policy has too many preferred skills');
+        const createdAt = timestamp(now, 'now');
+        const isExactReplay = (candidate: BusinessPolicyProposal) => candidate.businessId === businessId
+            && candidate.proposerAgentId === proposerAgentId && candidate.objective === objective
+            && candidate.mode === input.mode && candidate.maxRewardGp === input.maxRewardGp
+            && JSON.stringify(candidate.preferredSkills) === JSON.stringify(preferredSkills);
+        const existing = this.getPolicyProposal(input.proposalId);
+        if (existing) {
+            if (!isExactReplay(existing)) throw new Error('Policy proposal id was reused with different content');
+            return existing;
+        }
+        if (business.status !== 'active') throw new Error('Only an active business accepts policy proposals');
+        try {
+            this.database.run(`INSERT INTO business_policy_proposal (proposal_id, business_id,
+                proposer_agent_id, objective, mode, max_reward_gp, preferred_skills_json, status,
+                response_note, revision, created_at, resolved_at, updated_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'pending', '', 1, ?8, NULL, ?8)`,
+            [input.proposalId, businessId, proposerAgentId, objective, input.mode, input.maxRewardGp,
+                JSON.stringify(preferredSkills), createdAt]);
+        } catch (error) {
+            const raced = this.getPolicyProposal(input.proposalId);
+            if (raced && isExactReplay(raced)) return raced;
+            if (raced) throw new Error('Policy proposal id was reused with different content');
+            throw error;
+        }
+        return this.getPolicyProposal(input.proposalId)!;
+    }
+
+    resolvePolicy(businessIdInput: string, proposalId: string, expectedRevision: number,
+        decision: 'approve' | 'reject', responseNote: string,
+        now = new Date().toISOString()): BusinessPolicyProposal {
+        const businessId = stableId(businessIdInput, 'businessId');
+        const current = this.getPolicyProposal(proposalId);
+        if (!current || current.businessId !== businessId) throw new Error('Business policy proposal does not exist');
+        const note = boundedText(responseNote, 'responseNote', 240);
+        const status: BusinessPolicyStatus = decision === 'approve' ? 'approved' : 'rejected';
+        if (current.status === status && current.responseNote === note) return current;
+        if (current.status !== 'pending') throw new Error('Business policy proposal is already resolved');
+        const resolvedAt = timestamp(now, 'now');
+        const transaction = this.database.transaction(() => {
+            if (status === 'approved') {
+                this.database.run(`UPDATE business_policy_proposal SET status = 'superseded',
+                    response_note = 'Superseded by a newer approved policy.', revision = revision + 1,
+                    resolved_at = ?2, updated_at = ?2 WHERE business_id = ?1 AND status = 'approved'`,
+                [businessId, resolvedAt]);
+            }
+            const result = this.database.run(`UPDATE business_policy_proposal SET status = ?4,
+                response_note = ?5, revision = revision + 1, resolved_at = ?6, updated_at = ?6
+                WHERE proposal_id = ?1 AND business_id = ?2 AND revision = ?3 AND status = 'pending'`,
+            [proposalId, businessId, expectedRevision, status, note, resolvedAt]);
+            if (result.changes !== 1) throw new Error('Business policy changed before resolution; refresh and try again');
+        });
+        transaction.immediate();
+        return this.getPolicyProposal(proposalId)!;
+    }
+
     private getEmployment(employmentId: string): BusinessEmployment | null {
         if (!/^[0-9a-f-]{36}$/i.test(employmentId)) throw new Error('Employment id is invalid');
         const row = this.database.query('SELECT * FROM business_employment WHERE employment_id = ?1')
@@ -280,10 +430,27 @@ export class BusinessManagerStore {
         [businessId, now]);
     }
 
+    private closePolicies(businessId: string, now: string): void {
+        this.database.run(`UPDATE business_policy_proposal SET status = 'rejected',
+            response_note = 'Business closed before approval.', revision = revision + 1,
+            resolved_at = ?2, updated_at = ?2 WHERE business_id = ?1 AND status = 'pending'`,
+        [businessId, now]);
+    }
+
+    private getPolicyProposal(proposalId: string): BusinessPolicyProposal | null {
+        if (!/^[0-9a-f-]{36}$/i.test(proposalId)) throw new Error('Policy proposal id is invalid');
+        const row = this.database.query('SELECT * FROM business_policy_proposal WHERE proposal_id = ?1')
+            .get(proposalId) as PolicyRow | null;
+        return row ? policy(row) : null;
+    }
+
     private toBusiness(row: BusinessRow): Business {
         const employments = (this.database.query(`SELECT * FROM business_employment
             WHERE business_id = ?1 ORDER BY status, started_at, employment_id`)
             .all(row.business_id) as EmploymentRow[]).map(employment);
+        const policyProposals = (this.database.query(`SELECT * FROM business_policy_proposal
+            WHERE business_id = ?1 ORDER BY created_at DESC, proposal_id DESC`)
+            .all(row.business_id) as PolicyRow[]).map(policy);
         return {
             businessId: row.business_id,
             name: row.name,
@@ -293,6 +460,8 @@ export class BusinessManagerStore {
             status: row.status,
             revision: row.revision,
             employments,
+            activePolicy: policyProposals.find(item => item.status === 'approved') ?? null,
+            policyProposals,
             createdAt: row.created_at,
             updatedAt: row.updated_at
         };

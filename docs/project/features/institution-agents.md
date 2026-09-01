@@ -91,10 +91,12 @@ A kezdeti domain allowlist:
 
 Ezek típusos képességnevek, nem általános fájl-, shell-, hálózati vagy engine-eszközök.
 A `request-player-action` már teljes tartós adapterrel rendelkezik. A
-`propose-business-policy` és `propose-faction-policy` egyelőre csak jogosultsági
-határ: tényleges read/write adaptert akkor kapnak, amikor a 12. fázis Business
-manager, illetve a 15. fázis Governance domainmodellje létrejön. Így a 11. fázis
-nem hoz létre ideiglenes, később migrálandó párhuzamos üzleti vagy állami állapotot.
+`propose-business-policy` a Phase 12 Business manager szűk adapterére mutat: csak
+az exact business-subjectet képviselő institution agent írhat bounded, inert
+policy-javaslatot, amely admin-jóváhagyásig nem aktív, nem mozgat pénzt és nem
+vezérel playert. A `propose-faction-policy` továbbra is csak jogosultsági határ;
+tényleges adaptert a 15. fázis Governance domainmodellje kap. Így nem keletkezik
+ideiglenes párhuzamos üzleti vagy állami állapot.
 
 ## World Director: determinisztikus eseményalap
 

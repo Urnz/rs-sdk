@@ -41,10 +41,31 @@ A `wageGp` jelenleg szerződéses szándék, nem kifizetés. A modell:
 - nem ad Property-belépési jogot;
 - nem számol termelést, készletet, árat, profitot vagy adót.
 
-Ezekhez a következő szeletekben a Business manager allowlistelt read/write portja,
-a player-megbízási queue, a treasury reserve/commit/release határa és a hiteles
-skill-run események kapcsolódnak. Így ugyanaz a díj nem fizethető ki kétszer, és
-az adminfelület sem válik közvetlen pénz- vagy item-grant csatornává.
+Ezekhez a következő szeletekben a player-megbízási queue, a treasury
+reserve/commit/release határa és a hiteles skill-run események kapcsolódnak. Így
+ugyanaz a díj nem fizethető ki kétszer, és az adminfelület sem válik közvetlen
+pénz- vagy item-grant csatornává.
+
+## Institution agent port és policy
+
+A business institution agent csak akkor kap Business hozzáférést, ha a control
+profile `subjectKind=business` és `subjectId` értéke pontosan egy létező Business
+ID. A player-, service-, faction- és idegen business-agent fail-closed választ kap.
+
+Az `inspect-assets` port a saját vállalkozás állapotát, foglalkoztatásait, aktív
+policyjét és történeti policy-javaslatait adja vissza. A tömör Business-vetület az
+agent megbízható döntési contextjébe is bekerül.
+
+A `propose-business-policy` port legfeljebb húsz exact skillhivatkozást, egy
+bounded célt, `balanced/growth/profit/survival` módot és megbízásonkénti GP-plafont
+fogad. A plafon nem haladhatja meg az institution agent napi operatív keretét.
+A stabil proposal ID pontos replaye idempotens, eltérő tartalmú újrafelhasználása
+tiltott.
+
+A javaslat kezdetben `pending`, ezért önmagában nem változtatja meg a működést.
+Auditált admin-döntéssel lehet `approved` vagy `rejected`; új jóváhagyáskor a
+korábbi aktív policy atomikusan `superseded`. Vállalkozás lezárásakor minden
+függő javaslat elutasítva, a történet pedig read-only módon megmarad.
 
 ## Adminfelület és audit
 
