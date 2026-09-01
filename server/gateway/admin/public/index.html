@@ -225,6 +225,15 @@
             </form>
             <section class="capability-gap-section">
                 <div class="panel-heading table-heading">
+                    <div><p class="eyebrow">AUTONÓM ÉLETCIKLUS</p><h3>Események és döntési eredmények</h3></div>
+                    <div class="llm-settings-actions"><span id="llm-replan-count" class="count-pill">0 esemény</span>
+                        <button id="reload-llm-replans" type="button" class="button ghost">Napló frissítése</button></div>
+                </div>
+                <p class="agent-intro">A lista az event gate döntését, a planner eredményét és az automatikus skillindítás futásazonosítóját mutatja. A teljes bejegyzés tartós JSONL auditban marad.</p>
+                <div id="llm-replan-list" class="capability-gap-list scroll-region" role="region" aria-label="Autonóm újratervezési események" tabindex="0"><p class="empty">Betöltés…</p></div>
+            </section>
+            <section class="capability-gap-section">
+                <div class="panel-heading table-heading">
                     <div><p class="eyebrow">SKILL BUILDER MUNKASOR</p><h3>Capability gapek</h3></div>
                     <span id="capability-gap-count" class="count-pill">0 gap</span>
                 </div>

@@ -96,6 +96,22 @@ jóváhagyás után kerülnek végrehajtási állapotba.
   agent egyszer ébred fel. A skill befejezése vagy hibája új eseménnyel folytatja
   a ciklust.
 
+## Elkészült 11E operátori próba és megfigyelhetőség
+
+- Az Agentek fülön minden player-agent külön `Autonóm ciklus indítása` gombot
+  kapott. Ez ugyanazt a tartós event gate-et, döntési admission ledgert,
+  plannert és végrehajtási policy-t használja, mint a játékvilág eseményei;
+  nem kerülőút és nem ad közvetlen skillindítási jogosultságot.
+- A gomb előre figyelmeztet, hogy engedélyezett policy esetén valódi skill is
+  elindulhat. Az automatikus újratervezés kikapcsolása, cooldown, költségkeret,
+  hiányzó cél vagy tiltott skill továbbra is biztonságos leállást eredményez.
+- Az AI-beállítások fül görgethető autonóm életciklus-naplója megmutatja az
+  eseményt, event-gate eredményt, státuszt, indokot, validált döntést és az
+  esetleges skill-run azonosítóját. A sikertelen vagy limit miatt elutasított
+  kézi próbák után is frissül.
+- A felület legfeljebb a legutóbbi 100 rekordot tölti be; a tartós teljes audit
+  továbbra is a `.local/admin/llm-replans.jsonl` fájlban marad.
+
 ## OpenAI provider helyi beállítása
 
 Az OpenAI adapter a Responses API-t használja `store: false` és szigorú JSON

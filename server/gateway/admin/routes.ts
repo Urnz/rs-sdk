@@ -1203,6 +1203,28 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         }
 
         const agentLlmDryRunMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/llm-dry-run$/);
+        const agentAutonomousCycleMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/autonomous-cycle$/);
+        if (req.method === 'POST' && agentAutonomousCycleMatch?.[1]) {
+            const agentId = agentAutonomousCycleMatch[1];
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            if (!context.replanCoordinator) throw new Error('Az autonóm újratervező nem érhető el.');
+            const now = new Date().toISOString();
+            const eventId = crypto.randomUUID();
+            try {
+                const record = await context.replanCoordinator.submit({ eventId, agentId,
+                    type: 'manual-request', sourceKey: `admin:${eventId}`, occurredAt: now,
+                    summary: `Trusted admin requested an autonomous cycle: ${reason}` }, now);
+                const success = Boolean(record.gate.accepted && record.outcome && !record.error);
+                await appendAudit({ operator: 'local-admin', action: 'agent.autonomous-cycle', reason,
+                    username: agentId, success, after: record, error: record.error ?? undefined });
+                return json({ ok: success, record }, success ? 202 : 409);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'agent.autonomous-cycle', reason,
+                    username: agentId, success: false, error: String(error), after: { eventId } });
+                throw error;
+            }
+        }
         if (req.method === 'POST' && agentLlmDryRunMatch?.[1]) {
             const agentId = agentLlmDryRunMatch[1];
             const body = await requestBody(req);

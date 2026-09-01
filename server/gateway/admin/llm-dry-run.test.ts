@@ -96,6 +96,11 @@ test('admin UI exposes server LLM settings without an API-key readback field', (
     expect(html).toContain('name="skillBuilderEnabled"');
     expect(html).toContain('name="autonomousExecutionEnabled"');
     expect(html).toContain('name="autonomousAllowedSkills"');
+    expect(html).toContain('id="llm-replan-list"');
+    expect(html).toContain('id="reload-llm-replans"');
+    expect(script).toContain('data-action="agent-autonomous-cycle"');
+    expect(script).toContain('/autonomous-cycle`');
+    expect(script).toContain('/api/admin/llm-replans?limit=100');
     expect(html).toContain('name="skillBuilderPrompt"');
     expect(html).toContain('name="apiKey" type="password"');
     expect(script).toContain('/api/admin/llm-settings');

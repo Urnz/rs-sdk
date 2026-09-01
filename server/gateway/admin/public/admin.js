@@ -16,6 +16,7 @@ const state = {
     skillLearningEvents: [],
     worldPlayers: [],
     llmSettings: null,
+    llmReplans: [],
     capabilityGaps: [],
     worldEventTemplates: [],
     worldDirectorCycles: [],
@@ -156,6 +157,29 @@ function syncLlmProviderFields() {
 
 async function refreshLlmSettings() {
     renderLlmSettings(await api('/api/admin/llm-settings'));
+}
+
+const replanStatusLabels = { executing: 'Skill fut', 'approval-required': 'Jóváhagyás kell', skipped: 'Kihagyva',
+    deterministic: 'Determinisztikus döntés', proposed: 'LLM-javaslat', abstained: 'Tartózkodott',
+    rejected: 'Elutasítva', failed: 'Hiba', 'limit-reached': 'Limit', stopped: 'Leállítva' };
+
+function renderLlmReplans(records) {
+    state.llmReplans = records;
+    $('#llm-replan-count').textContent = `${records.length} esemény`;
+    $('#llm-replan-list').innerHTML = records.length ? records.map(record => {
+        const outcome = record.outcome;
+        const status = record.error ? 'failed' : outcome?.status || record.gate.reason;
+        return `<article class="capability-gap-card ${escapeHtml(status)}">
+            <div><strong>${escapeHtml(record.event.type)}</strong><small>${new Date(record.timestamp).toLocaleString('hu-HU')} · ${escapeHtml(record.event.agentId)}</small></div>
+            <div><p>${escapeHtml(record.event.summary)}</p><small>${escapeHtml(outcome?.reason || record.error || `Event gate: ${record.gate.reason}`)}</small></div>
+            <div class="capability-gap-meta"><span>${escapeHtml(replanStatusLabels[status] || status)}</span><span>gate: ${escapeHtml(record.gate.reason)}</span>${outcome?.runId ? `<span>run: ${escapeHtml(outcome.runId)}</span>` : ''}</div>
+            ${outcome?.decision ? `<details><summary>Validált döntés</summary><pre>${escapeHtml(JSON.stringify(outcome.decision, null, 2))}</pre></details>` : ''}
+        </article>`;
+    }).join('') : '<p class="empty">Még nincs autonóm újratervezési esemény.</p>';
+}
+
+async function refreshLlmReplans() {
+    renderLlmReplans((await api('/api/admin/llm-replans?limit=100')).records);
 }
 
 const capabilityGapStatusLabels = { open: 'Nyitott', assigned: 'Kiosztva', draft: 'Draft készül',
@@ -420,6 +444,7 @@ function renderAgents() {
                     <button class="button small skill-button" data-action="agent-knowledge-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Tudás</button>
                     <button class="button small secondary" data-action="agent-relationship-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kapcsolat</button>
                     <button class="button small skill-button" data-action="agent-llm-dry-run" data-agent-id="${escapeHtml(identity.agentId)}">LLM dry-run</button>
+                    ${control.role === 'player' ? `<button class="button small primary" data-action="agent-autonomous-cycle" data-agent-id="${escapeHtml(identity.agentId)}">Autonóm ciklus indítása</button>` : ''}
                     <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
                     <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
                 </div></div>
@@ -1581,6 +1606,23 @@ document.addEventListener('click', async event => {
                 await refreshCapabilityGaps();
             } finally { button.disabled = false; }
         }
+        if (button.dataset.action === 'agent-autonomous-cycle') {
+            const reason = prompt('Az autonóm ciklus indoklása:', 'Korlátozott autonóm agent-ciklus kézi tesztje');
+            if (!reason?.trim()) return;
+            if (!confirm('Ez a kérés az aktuális AI-policy alapján valódi allowlistelt skillt is elindíthat. Folytatod?')) return;
+            button.disabled = true;
+            try {
+                const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/autonomous-cycle`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
+                });
+                toast(`Autonóm ciklus: ${replanStatusLabels[response.record.outcome?.status]
+                    || response.record.outcome?.status || response.record.gate.reason}.`);
+                await refreshAgents(); await refresh();
+            } finally {
+                await refreshLlmReplans().catch(() => undefined);
+                button.disabled = false;
+            }
+        }
         if (button.dataset.action === 'goal-proposal-approve') {
             const hasSkill = button.dataset.hasSkill === 'true';
             const message = hasSkill
@@ -2019,8 +2061,10 @@ $('#agent-knowledge-form').elements.supersedesId.addEventListener('change', even
     form.elements.tags.value = previous.tags.join(', ');
 });
 $('#world-admin-button').addEventListener('click', () => openWorldAdmin().catch(error => toast(error.message, true)));
-$('#reload-llm-settings').addEventListener('click', () => Promise.all([refreshLlmSettings(), refreshCapabilityGaps(), refreshWorldDirector()])
+$('#reload-llm-settings').addEventListener('click', () => Promise.all([refreshLlmSettings(), refreshLlmReplans(), refreshCapabilityGaps(), refreshWorldDirector()])
     .then(() => toast('Az LLM-beállítások újratöltve.')).catch(error => toast(error.message, true)));
+$('#reload-llm-replans').addEventListener('click', () => refreshLlmReplans()
+    .then(() => toast('Az autonóm döntési napló frissítve.')).catch(error => toast(error.message, true)));
 $('#world-director-preview-form').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -2265,13 +2309,15 @@ document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-m
 const bootstrap = await Promise.all([
     api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
     api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
-    api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles')
+    api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles'),
+    api('/api/admin/llm-replans?limit=100')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
 renderLlmSettings(bootstrap[3]);
 renderCapabilityGaps(bootstrap[4].gaps);
 renderSkillTrials(bootstrap[5].trials);
 renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
+renderLlmReplans(bootstrap[8].records);
 selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

@@ -292,6 +292,10 @@ fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context
   egyszer használható approval azonosítóval elindítani a kiválasztott skillt.
 - [x] Korlátozott autonóm agent-életciklust készíteni: eseményre újratervezés,
   veszélytelen ellenőrzött skillek policy szerinti futtatása és skill-gap jelzés.
+  - [x] Player-agentenként kézzel indítható, de ugyanazon event gate-en, döntési
+    ledgeren és végrehajtási policy-n áthaladó teljes cikluspróbát adni.
+  - [x] Az autonóm ciklus eredményét, indokát, validált döntését és skill-run
+    azonosítóját görgethető adminnaplóban megjeleníteni, a hibákkal együtt.
 - [ ] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
   jóváhagyandó skill-készítési folyamatot indítani; a futó agent ne kapjon
   közvetlen tetszőleges kódfuttatást.
