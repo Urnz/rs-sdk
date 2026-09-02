@@ -11,11 +11,17 @@ Közvetlen publikus vagy böngészőből hívható adminfelület nincs hozzá. A
 csak a közös `ENGINE_ADMIN_TOKEN` birtokában küldhet hold/release/commit parancsot
 a belső engine-végpontra, az inventory-módosítás pedig a world tickben fut le.
 
-Ez a szelet még nincs az ajánlat elfogadásához és a szerződés hiteles
-teljesítéséhez bekötve. A szerződések ezért továbbra sem foglalják automatikusan
-a player által vállalt vagyont. A következő orchestrátornak kell a foglalást az
-elfogadáshoz, az exact payee commitot az igazolt teljesítéshez, a release-t pedig
-a szabályosan meghiúsult szerződéshez kapcsolnia.
+A gazdasági szerződés orchestrátora a player→player GP- és item-vállalást már
+elfogadáskor automatikusan holdolja. A szerződés külön, tartós player-escrow
+főkönyve rögzíti az exact agent- és avatarpárost, az eszközöket, a stabil escrow
+ID-t, az állapotot és az utolsó hibát. A commit csak akkor indul, amikor a másik
+fél kötelezettsége hiteles skill-runnal igazolt vagy szintén előre fedezett.
+
+Ha az elfogadott szerződés létrehozása nem erősíthető meg, az orchestrátor release-t
+kér minden már megkísérelt holdra. Sikertelen engine-commit után `settling` marad,
+és ugyanazzal az escrow ID-val újrapróbálható. A még hiányzó cancellation/default
+lifecycle feladata lesz a már aktív, de szabályosan meghiúsult szerződések nyitott
+escrowinak és treasury-foglalásainak release-e.
 
 ## Normalizált eszközök
 
@@ -67,3 +73,15 @@ indítanak inventory-mozgást.
 
 A tároló korlátozott listázást ad, hogy a későbbi adminfelület a félbemaradt és
 egyeztetendő rekordokat fel tudja tárni.
+
+## Szerződéses elszámolás
+
+A szerződés saját SQLite főkönyve `funded → settling → committed` állapotban
+követi a player escrow engine-oldali állapotának koordinációját. A szerződés fél
+általi GP- vagy tárgyteljesítése csak `committed` után számít teljesítettnek; az
+escrowzott eszközökre beadott külön trade-run nem okozhat dupla teljesítést.
+
+Kétoldalú player-cserénél a két `funded` escrow egymás fedezetének számít, ezért
+nincs holtpont. A szerződés viszont csak mindkét exact payee-jóváírás után vált
+`fulfilled` állapotúvá. Az admin szerződéskártya külön listázza az escrowkat és
+egy közös teljesítés/újrapróbálás műveletet ad a még nyitott elszámolásokhoz.

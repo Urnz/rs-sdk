@@ -59,6 +59,7 @@ test('admin UI exposes authenticated economic offer creation and lifecycle actio
     expect(script).toContain('data-action="economic-offer-update"');
     expect(script).toContain('data-action="economic-contract-evidence"');
     expect(script).toContain('data-action="economic-contract-settle"');
+    expect(script).toContain('Játékos-escrowk');
     expect(script).toContain('/settle`');
     expect(script).toContain("api('/api/admin/economic-offers'");
     const transformed = new Bun.Transpiler({ loader: 'js', target: 'browser' }).transformSync(script);

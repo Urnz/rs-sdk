@@ -623,15 +623,18 @@ function renderEconomicContracts(offers, contracts) {
             `<li>${record.party.toUpperCase()} fél · ${escapeHtml(record.actorAgentId)} · run ${escapeHtml(record.runId)} · ${fmt.format(record.matchedGp)} gp · ${record.matchedItems.map(product => `${fmt.format(product.count)}× ${escapeHtml(product.name)}`).join(', ') || 'nincs tárgy'} · ${record.matchedService ? 'skill igazolva' : 'nincs skilligazolás'}</li>`).join('')}</ul></details>` : '';
         const settlements = item.settlements?.length ? `<details><summary>Előre fedezett kifizetések (${item.settlements.length})</summary><ul>${item.settlements.map(payment =>
             `<li>${payment.party.toUpperCase()} fél · ${escapeHtml(payment.payerKind)}:${escapeHtml(payment.payerActorId)} → ${escapeHtml(payment.payeeUsername)} · ${fmt.format(payment.amountGp)} gp · ${escapeHtml(payment.status)}${payment.error ? ` · ${escapeHtml(payment.error)}` : ''}</li>`).join('')}</ul></details>` : '';
-        const failedSettlement = item.settlements?.some(payment => payment.status === 'settling' && payment.error);
+        const playerEscrows = item.playerEscrows?.length ? `<details><summary>Játékos-escrowk (${item.playerEscrows.length})</summary><ul>${item.playerEscrows.map(held =>
+            `<li>${held.party.toUpperCase()} fél · ${escapeHtml(held.payerUsername)} → ${escapeHtml(held.payeeUsername)} · ${fmt.format(held.assets.gp)} gp · ${held.assets.items.map(product => `${fmt.format(product.count)}× #${product.id}`).join(', ') || 'nincs tárgy'} · ${escapeHtml(held.status)}${held.error ? ` · ${escapeHtml(held.error)}` : ''}</li>`).join('')}</ul></details>` : '';
+        const pendingSettlement = item.settlements?.some(payment => payment.status !== 'committed')
+            || item.playerEscrows?.some(held => held.status !== 'committed');
         const actions = item.status === 'active' ? `<div class="agent-heading-actions">
             ${item.partyASatisfied ? '' : `<button class="button small primary" data-action="economic-contract-evidence" data-contract-id="${escapeHtml(item.contractId)}" data-actor-id="${escapeHtml(item.partyAAgentId)}">A fél bizonyítéka</button>`}
             ${item.partyBSatisfied ? '' : `<button class="button small primary" data-action="economic-contract-evidence" data-contract-id="${escapeHtml(item.contractId)}" data-actor-id="${escapeHtml(item.partyBAgentId)}">B fél bizonyítéka</button>`}
-            ${failedSettlement ? `<button class="button small secondary" data-action="economic-contract-settle" data-contract-id="${escapeHtml(item.contractId)}">Kifizetés újrapróbálása</button>` : ''}</div>` : '';
+            ${pendingSettlement ? `<button class="button small secondary" data-action="economic-contract-settle" data-contract-id="${escapeHtml(item.contractId)}">Fedezet teljesítése / újrapróbálása</button>` : ''}</div>` : '';
         return `<article class="capability-gap-card ${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(economicOfferKindLabels[item.kind] || item.kind)} · ${item.status === 'fulfilled' ? 'Teljesítve' : 'Aktív'} · ${new Date(item.acceptedAt).toLocaleString('hu-HU')}</small></div>
         <p>${escapeHtml(item.summary)}</p><div class="capability-gap-meta"><span>${escapeHtml(item.partyAAgentId)}: ${escapeHtml(economicObligationText(item.partyAProvides))}</span><span>${escapeHtml(item.partyBAgentId)}: ${escapeHtml(economicObligationText(item.partyBProvides))}</span></div>
         <div class="capability-gap-meta"><span>A fél: ${item.partyASatisfied ? 'igazolt' : 'függő'}</span><span>B fél: ${item.partyBSatisfied ? 'igazolt' : 'függő'}</span>${item.fulfilledAt ? `<span>lezárva: ${new Date(item.fulfilledAt).toLocaleString('hu-HU')}</span>` : ''}</div>
-        <small>Csak exact-avatar, post-acceptance completed run fogadható el · digest: ${escapeHtml(item.termsDigest)}</small>${evidence}${settlements}${actions}</article>`;
+        <small>Csak exact-avatar, post-acceptance completed run fogadható el · digest: ${escapeHtml(item.termsDigest)}</small>${evidence}${settlements}${playerEscrows}${actions}</article>`;
     }).join('')}`
         : '<p class="empty">Még nincs elfogadott szerződés.</p>';
 }

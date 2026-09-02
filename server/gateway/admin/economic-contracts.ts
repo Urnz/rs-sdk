@@ -55,6 +55,25 @@ export interface EconomicContractSettlement {
 export type CreateEconomicContractSettlement = Omit<EconomicContractSettlement,
     'contractId' | 'status' | 'error' | 'createdAt' | 'updatedAt' | 'committedAt'>;
 
+export interface EconomicContractPlayerEscrow {
+    escrowId: string;
+    contractId: string;
+    party: 'a' | 'b';
+    payerAgentId: string;
+    payerUsername: string;
+    payeeAgentId: string;
+    payeeUsername: string;
+    assets: { gp: number; items: Array<{ id: number; count: number }> };
+    status: EconomicContractSettlementStatus;
+    error: string;
+    createdAt: string;
+    updatedAt: string;
+    committedAt: string | null;
+}
+
+export type CreateEconomicContractPlayerEscrow = Omit<EconomicContractPlayerEscrow,
+    'contractId' | 'status' | 'error' | 'createdAt' | 'updatedAt' | 'committedAt'>;
+
 export interface CreateEconomicOffer {
     creatorAgentId: string;
     counterpartyAgentId: string;
@@ -93,6 +112,7 @@ export interface EconomicContract {
     partyBSatisfied: boolean;
     evidence: EconomicContractEvidence[];
     settlements: EconomicContractSettlement[];
+    playerEscrows: EconomicContractPlayerEscrow[];
     acceptedAt: string;
     fulfilledAt: string | null;
     revision: number;
@@ -122,6 +142,13 @@ interface SettlementRow {
     settlement_id: string; contract_id: string; party: 'a' | 'b'; payer_agent_id: string;
     payer_kind: InstitutionKind; payer_actor_id: string; payee_agent_id: string;
     payee_username: string; amount_gp: number; reservation_id: string;
+    status: EconomicContractSettlementStatus; error: string; created_at: string;
+    updated_at: string; committed_at: string | null;
+}
+
+interface PlayerEscrowRow {
+    escrow_id: string; contract_id: string; party: 'a' | 'b'; payer_agent_id: string;
+    payer_username: string; payee_agent_id: string; payee_username: string; assets_json: string;
     status: EconomicContractSettlementStatus; error: string; created_at: string;
     updated_at: string; committed_at: string | null;
 }
@@ -200,10 +227,22 @@ function settlement(row: SettlementRow): EconomicContractSettlement {
         createdAt: row.created_at, updatedAt: row.updated_at, committedAt: row.committed_at };
 }
 
-function obligationSatisfied(required: EconomicObligation, records: EconomicContractEvidence[], automatedGp = 0): boolean {
-    const gp = automatedGp + records.reduce((total, item) => total + item.matchedGp, 0);
+function playerEscrow(row: PlayerEscrowRow): EconomicContractPlayerEscrow {
+    return { escrowId: row.escrow_id, contractId: row.contract_id, party: row.party,
+        payerAgentId: row.payer_agent_id, payerUsername: row.payer_username,
+        payeeAgentId: row.payee_agent_id, payeeUsername: row.payee_username,
+        assets: JSON.parse(row.assets_json) as EconomicContractPlayerEscrow['assets'],
+        status: row.status, error: row.error, createdAt: row.created_at,
+        updatedAt: row.updated_at, committedAt: row.committed_at };
+}
+
+function obligationSatisfied(required: EconomicObligation, records: EconomicContractEvidence[],
+    automatedGp = 0, automatedItems: Array<{ id: number; count: number }> = [],
+    ignoreAssetEvidence = false): boolean {
+    const gp = automatedGp + (ignoreAssetEvidence ? 0 : records.reduce((total, item) => total + item.matchedGp, 0));
     const items = new Map<number, number>();
-    for (const record of records) for (const item of record.matchedItems) {
+    for (const item of automatedItems) items.set(item.id, (items.get(item.id) ?? 0) + item.count);
+    for (const record of ignoreAssetEvidence ? [] : records) for (const item of record.matchedItems) {
         items.set(item.id, (items.get(item.id) ?? 0) + item.count);
     }
     return gp >= required.gp
@@ -211,7 +250,8 @@ function obligationSatisfied(required: EconomicObligation, records: EconomicCont
         && (!required.service || records.some(item => item.matchedService));
 }
 
-function contract(row: ContractRow, records: EconomicContractEvidence[], settlements: EconomicContractSettlement[]): EconomicContract {
+function contract(row: ContractRow, records: EconomicContractEvidence[], settlements: EconomicContractSettlement[],
+    playerEscrows: EconomicContractPlayerEscrow[]): EconomicContract {
     const partyAProvides = JSON.parse(row.party_a_provides_json) as EconomicObligation;
     const partyBProvides = JSON.parse(row.party_b_provides_json) as EconomicObligation;
     return { contractId: row.contract_id, sourceOfferId: row.source_offer_id, kind: row.kind,
@@ -221,12 +261,31 @@ function contract(row: ContractRow, records: EconomicContractEvidence[], settlem
         status: row.fulfilled_at ? 'fulfilled' : 'active',
         partyASatisfied: obligationSatisfied(partyAProvides, records.filter(item => item.party === 'a'),
             settlements.filter(item => item.party === 'a' && item.status === 'committed')
-                .reduce((total, item) => total + item.amountGp, 0)),
+                .reduce((total, item) => total + item.amountGp, 0)
+                + playerEscrows.filter(item => item.party === 'a' && item.status === 'committed')
+                    .reduce((total, item) => total + item.assets.gp, 0),
+            playerEscrows.filter(item => item.party === 'a' && item.status === 'committed')
+                .flatMap(item => item.assets.items), playerEscrows.some(item => item.party === 'a')),
         partyBSatisfied: obligationSatisfied(partyBProvides, records.filter(item => item.party === 'b'),
             settlements.filter(item => item.party === 'b' && item.status === 'committed')
-                .reduce((total, item) => total + item.amountGp, 0)),
-        evidence: records, settlements, acceptedAt: row.accepted_at,
+                .reduce((total, item) => total + item.amountGp, 0)
+                + playerEscrows.filter(item => item.party === 'b' && item.status === 'committed')
+                    .reduce((total, item) => total + item.assets.gp, 0),
+            playerEscrows.filter(item => item.party === 'b' && item.status === 'committed')
+                .flatMap(item => item.assets.items), playerEscrows.some(item => item.party === 'b')),
+        evidence: records, settlements, playerEscrows, acceptedAt: row.accepted_at,
         fulfilledAt: row.fulfilled_at, revision: row.revision };
+}
+
+function partySecured(current: EconomicContract, party: 'a' | 'b'): boolean {
+    const required = party === 'a' ? current.partyAProvides : current.partyBProvides;
+    const records = current.evidence.filter(item => item.party === party);
+    const settlements = current.settlements.filter(item => item.party === party);
+    const escrows = current.playerEscrows.filter(item => item.party === party);
+    return obligationSatisfied(required, records,
+        settlements.reduce((total, item) => total + item.amountGp, 0)
+            + escrows.reduce((total, item) => total + item.assets.gp, 0),
+        escrows.flatMap(item => item.assets.items), escrows.length > 0);
 }
 
 export function validateEconomicOffer(input: CreateEconomicOffer, now = new Date().toISOString()): CreateEconomicOffer & { termsDigest: string } {
@@ -287,6 +346,14 @@ export class EconomicContractStore {
             reservation_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL CHECK (status IN ('funded', 'settling', 'committed')),
             error TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, committed_at TEXT,
             UNIQUE (contract_id, party))`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS economic_contract_player_escrow (
+            escrow_id TEXT PRIMARY KEY, contract_id TEXT NOT NULL REFERENCES economic_contract(contract_id),
+            party TEXT NOT NULL CHECK (party IN ('a', 'b')), payer_agent_id TEXT NOT NULL,
+            payer_username TEXT NOT NULL, payee_agent_id TEXT NOT NULL, payee_username TEXT NOT NULL,
+            assets_json TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('funded', 'settling', 'committed')),
+            error TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, committed_at TEXT,
+            UNIQUE (contract_id, party))`);
     }
 
     private addColumn(table: string, column: string, declaration: string): void {
@@ -331,7 +398,9 @@ export class EconomicContractStore {
             WHERE contract_id = ?1 ORDER BY recorded_at, evidence_id`).all(row.contract_id) as EvidenceRow[]).map(evidence);
         const settlements = (this.database.query(`SELECT * FROM economic_contract_settlement
             WHERE contract_id = ?1 ORDER BY party`).all(row.contract_id) as SettlementRow[]).map(settlement);
-        return contract(row, records, settlements);
+        const playerEscrows = (this.database.query(`SELECT * FROM economic_contract_player_escrow
+            WHERE contract_id = ?1 ORDER BY party`).all(row.contract_id) as PlayerEscrowRow[]).map(playerEscrow);
+        return contract(row, records, settlements, playerEscrows);
     }
 
     create(input: CreateEconomicOffer, now = new Date().toISOString(), offerId = randomUUID()): EconomicOffer {
@@ -380,7 +449,8 @@ export class EconomicContractStore {
 
     accept(offerId: string, actorAgentId: string, expectedRevision: number,
         now = new Date().toISOString(), contractId: string = randomUUID(),
-        settlements: CreateEconomicContractSettlement[] = []): { offer: EconomicOffer; contract: EconomicContract } {
+        settlements: CreateEconomicContractSettlement[] = [],
+        playerEscrows: CreateEconomicContractPlayerEscrow[] = []): { offer: EconomicOffer; contract: EconomicContract } {
         const acceptedAt = isoTimestamp(now, 'now');
         this.expire(acceptedAt);
         const transaction = this.database.transaction(() => {
@@ -429,6 +499,30 @@ export class EconomicContractStore {
                     payment.payerActorId, payment.payeeAgentId, payment.payeeUsername.toLowerCase(),
                     payment.amountGp, payment.reservationId, acceptedAt]);
             }
+            for (const held of playerEscrows) {
+                if (parties.has(held.party)) throw new Error('Contract funding party is duplicated');
+                parties.add(held.party);
+                const payerAgentId = held.party === 'a' ? current.creatorAgentId : current.counterpartyAgentId;
+                const payeeAgentId = held.party === 'a' ? current.counterpartyAgentId : current.creatorAgentId;
+                const required = held.party === 'a' ? current.creatorProvides : current.counterpartyProvides;
+                const expectedAssets = { gp: required.gp,
+                    items: required.items.map(item => ({ id: item.id, count: item.count })) };
+                if (held.payerAgentId !== payerAgentId || held.payeeAgentId !== payeeAgentId
+                    || JSON.stringify(held.assets) !== JSON.stringify(expectedAssets)
+                    || (held.assets.gp === 0 && held.assets.items.length === 0)
+                    || !/^[0-9a-f-]{36}$/i.test(held.escrowId)
+                    || !/^[a-z0-9]{1,12}$/.test(held.payerUsername)
+                    || !/^[a-z0-9]{1,12}$/.test(held.payeeUsername)) {
+                    throw new Error('Contract player escrow does not match the immutable offer terms');
+                }
+                this.database.run(`INSERT INTO economic_contract_player_escrow
+                    (escrow_id, contract_id, party, payer_agent_id, payer_username,
+                        payee_agent_id, payee_username, assets_json, status, error,
+                        created_at, updated_at, committed_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'funded', '', ?9, ?9, NULL)`,
+                [held.escrowId, contractId, held.party, held.payerAgentId, held.payerUsername,
+                    held.payeeAgentId, held.payeeUsername, JSON.stringify(held.assets), acceptedAt]);
+            }
         });
         transaction.immediate();
         const accepted = this.getOffer(offerId)!;
@@ -445,7 +539,7 @@ export class EconomicContractStore {
         const current = this.getContract(contractId);
         if (!current || current.status !== 'active') return [];
         return current.settlements.filter(item => item.status !== 'committed'
-            && (item.party === 'a' ? current.partyBSatisfied : current.partyASatisfied));
+            && partySecured(current, item.party === 'a' ? 'b' : 'a'));
     }
 
     startSettlement(settlementId: string, now = new Date().toISOString()): EconomicContractSettlement {
@@ -478,6 +572,62 @@ export class EconomicContractStore {
                 error = '', committed_at = ?2, updated_at = ?2
                 WHERE settlement_id = ?1 AND status IN ('funded', 'settling')`, [settlementId, committedAt]);
             if (updated.changes !== 1) throw new Error('Contract settlement changed before commit');
+            const contractAfterPayment = this.getContract(current.contractId)!;
+            this.database.run(`UPDATE economic_contract SET revision = revision + 1
+                WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId]);
+            if (contractAfterPayment.partyASatisfied && contractAfterPayment.partyBSatisfied) {
+                this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2
+                    WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId, committedAt]);
+            }
+        });
+        transaction.immediate();
+        return this.getContract(current.contractId)!;
+    }
+
+    getPlayerEscrow(escrowId: string): EconomicContractPlayerEscrow | null {
+        const row = this.database.query(`SELECT * FROM economic_contract_player_escrow
+            WHERE escrow_id = ?1`).get(escrowId) as PlayerEscrowRow | null;
+        return row ? playerEscrow(row) : null;
+    }
+
+    listReadyPlayerEscrows(contractId: string): EconomicContractPlayerEscrow[] {
+        const current = this.getContract(contractId);
+        if (!current || current.status !== 'active') return [];
+        return current.playerEscrows.filter(item => item.status !== 'committed'
+            && partySecured(current, item.party === 'a' ? 'b' : 'a'));
+    }
+
+    startPlayerEscrowSettlement(escrowId: string,
+        now = new Date().toISOString()): EconomicContractPlayerEscrow {
+        const current = this.getPlayerEscrow(escrowId);
+        if (!current) throw new Error('Economic contract player escrow does not exist');
+        if (current.status === 'committed' || current.status === 'settling') return current;
+        this.database.run(`UPDATE economic_contract_player_escrow SET status = 'settling', error = '',
+            updated_at = ?2 WHERE escrow_id = ?1 AND status = 'funded'`,
+        [escrowId, isoTimestamp(now, 'now')]);
+        return this.getPlayerEscrow(escrowId)!;
+    }
+
+    notePlayerEscrowFailure(escrowId: string, message: string,
+        now = new Date().toISOString()): EconomicContractPlayerEscrow {
+        const current = this.getPlayerEscrow(escrowId);
+        if (!current || current.status === 'committed') throw new Error('Contract player escrow is not pending');
+        this.database.run(`UPDATE economic_contract_player_escrow SET status = 'settling', error = ?2,
+            updated_at = ?3 WHERE escrow_id = ?1 AND status != 'committed'`,
+        [escrowId, boundedText(message, 'escrowError', 500), isoTimestamp(now, 'now')]);
+        return this.getPlayerEscrow(escrowId)!;
+    }
+
+    commitPlayerEscrow(escrowId: string, now = new Date().toISOString()): EconomicContract {
+        const committedAt = isoTimestamp(now, 'now');
+        const current = this.getPlayerEscrow(escrowId);
+        if (!current) throw new Error('Economic contract player escrow does not exist');
+        if (current.status === 'committed') return this.getContract(current.contractId)!;
+        const transaction = this.database.transaction(() => {
+            const updated = this.database.run(`UPDATE economic_contract_player_escrow SET status = 'committed',
+                error = '', committed_at = ?2, updated_at = ?2
+                WHERE escrow_id = ?1 AND status IN ('funded', 'settling')`, [escrowId, committedAt]);
+            if (updated.changes !== 1) throw new Error('Contract player escrow changed before commit');
             const contractAfterPayment = this.getContract(current.contractId)!;
             this.database.run(`UPDATE economic_contract SET revision = revision + 1
                 WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId]);
@@ -533,8 +683,9 @@ export class EconomicContractStore {
         const matchedItems = [...itemTotals.values()].sort((left, right) => left.id - right.id);
         const matchedService = Boolean(required.service && required.skill
             && required.skill.id === run.skill.id && required.skill.version === run.skill.version);
-        const relevant = matchedService || (required.gp > 0 && matchedGp > 0)
-            || required.items.some(item => (itemTotals.get(item.id)?.count ?? 0) > 0);
+        const assetsEscrowed = current.playerEscrows.some(item => item.party === party);
+        const relevant = matchedService || (!assetsEscrowed && ((required.gp > 0 && matchedGp > 0)
+            || required.items.some(item => (itemTotals.get(item.id)?.count ?? 0) > 0)));
         if (!relevant) throw new Error('Skill run contains no evidence relevant to this party obligation');
         const recordedAt = isoTimestamp(now, 'now');
         const transaction = this.database.transaction(() => {

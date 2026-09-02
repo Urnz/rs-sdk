@@ -107,21 +107,26 @@ Az ajánlat vagy szerződés önmagában:
 - csak koordinációs és audit határ a későbbi hiteles skill-run, gazdasági esemény
   és idempotens settlement számára.
 
-Az elfogadott szerződés addig `active`, amíg mindkét fél saját exact-avataros,
-elfogadás utáni completed runjai nem igazolják minden vállalását. A GP és tárgy
-csak exact-counterparty player-trade eseményből, a szolgáltatás csak előre
-rögzített exact skillverzióból bizonyítható. Egyik fél naplója sem teljesíti a
-másik fél szolgáltatását, és egy run nem használható másik szerződéshez.
+Az elfogadott szerződés addig `active`, amíg mindkét fél minden vállalása nem
+teljesült. Escrow nélküli GP és tárgy csak exact-counterparty player-trade
+eseményből, a szolgáltatás csak előre rögzített exact skillverzióból bizonyítható.
+Az elfogadáskor escrowzott player-eszközöknél a trade-evidence nem számítható be
+újra: kizárólag az exact payee részére véglegesített escrow-commit teljesít. Egyik
+fél naplója sem teljesíti a másik fél szolgáltatását, és egy run nem használható
+másik szerződéshez.
 
 Institution→player GP esetén az elfogadáskor foglalt treasury-fedezetet a másik fél
 hiteles teljesítése után az idempotens engine reward settlement fizeti ki. A
-player-oldali GP és tárgy továbbra is kizárólag exact-counterparty trade runnal
-igazolható. Az engine-oldali inventory escrow már tud tartós hold/release műveletet
-és egy exact payee részére idempotens commitot. A gateway kizárólag a tokennel
-védett belső engine-végponton, world-tickben kérheti ezeket a valódi inventory-
-műveleteket. Az ajánlatelfogadási és teljesítési lifecycle azonban még nincs ehhez
-az adapterhez kötve, ezért a szerződésrendszer egyelőre nem foglal automatikusan
-player-vagyont.
+player→player GP és tárgy esetén az orchestrátor elfogadáskor stabil ID-val
+engine-oldali inventory escrowt foglal. A gateway kizárólag a tokennel védett
+belső engine-végponton, world-tickben kérheti a valódi hold/release/commit
+műveleteket. A másik fél igazolt szolgáltatása vagy saját előre foglalt fedezete
+után az exact payee commit idempotensen újrapróbálható; a contract főkönyv csak a
+visszaellenőrzött engine receipt után jelöli teljesítettnek.
+
+Az aktív szerződés cancellation/default állapota még nincs modellezve. Ennek
+bevezetéséig az elfogadás meghiúsulásakor történik automatikus release, de egy már
+aktív szerződés nyitott fedezetének későbbi feloldása nem kérhető.
 
 A közös treasury már biztosít külön institution→institution főkönyvi primitívet.
 Ez egy stabil settlement ID alatt, egyetlen SQLite tranzakcióban commitolja a payer

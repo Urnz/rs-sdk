@@ -435,8 +435,11 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
         kompenzálni, bizonytalan állapotot pedig `reconcile` státusszal lezárni.
       - [x] Az exact payee részére történő idempotens escrow-commitot, kompenzációt
         és a tokennel védett gateway → engine world-tick adaptert elkészíteni.
-      - [ ] A hold/release/commit műveleteket az ajánlatelfogadási és hiteles
-        teljesítési lifecycle-hoz kötni.
+      - [x] A player→player GP- és item-vállalást elfogadáskor stabil escrow ID-val
+        holdolni, majd csak a másik fél fedezett vagy hitelesen igazolt teljesítése
+        után exact payee-nek commitolni; acceptance-hibánál release-t kérni.
+      - [ ] Szerződéses cancellation/default lifecycle-t és szabályait létrehozni,
+        majd a még nem commitolt player-escrowt és treasury-foglalást release-elni.
 - [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
   - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,
     optimista revíziót és vissza nem nyitható lezárt lifecycle-t tartósítani.

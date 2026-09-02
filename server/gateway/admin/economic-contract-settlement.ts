@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { EconomicContractStore, type CreateEconomicContractSettlement,
-    type EconomicContract, type EconomicObligation } from './economic-contracts.js';
+    type CreateEconomicContractPlayerEscrow, type EconomicContract, type EconomicObligation } from './economic-contracts.js';
 import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
+import { requestEnginePlayerEscrow, type EnginePlayerEscrowResult } from './player-escrow.js';
 import { requestEnginePlayerReward, type EnginePlayerRewardResult } from './player-rewards.js';
 import { agentStateDbPath, economicContractsDbPath, institutionTreasuryDbPath } from './paths.js';
 
@@ -13,6 +14,7 @@ export interface EconomicContractSettlementOptions {
     treasuryPath?: string;
     now?: string;
     rewarder?: typeof requestEnginePlayerReward;
+    escrower?: typeof requestEnginePlayerEscrow;
 }
 
 export interface EconomicContractEvidenceOutcome {
@@ -58,12 +60,39 @@ function settlementForParty(party: 'a' | 'b', offerId: string,
         settlementId: stableUuid(`economic-contract-settlement:${contractId}:${party}`) };
 }
 
+function playerEscrowForParty(party: 'a' | 'b', offerId: string,
+    payerAgentId: string, payeeAgentId: string, obligation: EconomicObligation,
+    agents: AgentStateStore): CreateEconomicContractPlayerEscrow | null {
+    if (obligation.gp === 0 && obligation.items.length === 0) return null;
+    const payer = agents.getControlProfile(payerAgentId);
+    const payee = agents.getControlProfile(payeeAgentId);
+    if (!payer || !payee) throw new Error('Player escrow requires two persistent agent profiles');
+    if (payer.role !== 'player' || payer.subjectKind !== 'player' || !payer.avatarPlayerUsername) {
+        if (payer.role === 'institution') return null;
+        throw new Error('Only an avatar-bound player or funded institution may provide contract assets');
+    }
+    if (payee.role !== 'player' || payee.subjectKind !== 'player' || !payee.avatarPlayerUsername) {
+        throw new Error('Player inventory assets may be escrowed only to an exact avatar-bound player agent');
+    }
+    const payerUsername = payer.avatarPlayerUsername.trim().toLowerCase();
+    const payeeUsername = payee.avatarPlayerUsername.trim().toLowerCase();
+    if (!/^[a-z0-9]{1,12}$/.test(payerUsername) || !/^[a-z0-9]{1,12}$/.test(payeeUsername)
+        || payerUsername === payeeUsername) {
+        throw new Error('Contract player escrow requires two different valid player avatars');
+    }
+    const contractId = stableUuid(`economic-contract:${offerId}`);
+    return { party, payerAgentId, payerUsername, payeeAgentId, payeeUsername,
+        assets: { gp: obligation.gp, items: obligation.items.map(item => ({ id: item.id, count: item.count })) },
+        escrowId: stableUuid(`economic-contract-player-escrow:${contractId}:${party}`) };
+}
+
 export async function acceptFundedEconomicOffer(offerId: string, actorAgentId: string,
     expectedRevision: number, options: EconomicContractSettlementOptions = {}) {
     const contracts = new EconomicContractStore(options.contractsPath ?? economicContractsDbPath);
     const agents = new AgentStateStore(options.agentPath ?? agentStateDbPath);
     const treasury = new InstitutionTreasuryStore(options.treasuryPath ?? institutionTreasuryDbPath);
     const newlyReserved: string[] = [];
+    const attemptedPlayerEscrows: CreateEconomicContractPlayerEscrow[] = [];
     try {
         const offer = contracts.getOffer(offerId);
         if (!offer) throw new Error('Economic offer does not exist');
@@ -83,21 +112,60 @@ export async function acceptFundedEconomicOffer(offerId: string, actorAgentId: s
             settlementForParty('b', offer.offerId, offer.counterpartyAgentId, offer.creatorAgentId,
                 offer.counterpartyProvides, agents)
         ].filter((item): item is CreateEconomicContractSettlement => item !== null);
+        const playerEscrows = [
+            playerEscrowForParty('a', offer.offerId, offer.creatorAgentId, offer.counterpartyAgentId,
+                offer.creatorProvides, agents),
+            playerEscrowForParty('b', offer.offerId, offer.counterpartyAgentId, offer.creatorAgentId,
+                offer.counterpartyProvides, agents)
+        ].filter((item): item is CreateEconomicContractPlayerEscrow => item !== null);
         for (const payment of settlements) {
             const held = treasury.reserve(payment.payerKind, payment.payerActorId,
                 payment.reservationId, payment.amountGp, options.now);
             if (held.created) newlyReserved.push(payment.reservationId);
             treasury.bindSettlement(payment.reservationId, payment.settlementId, options.now);
         }
+        for (const held of playerEscrows) {
+            attemptedPlayerEscrows.push(held);
+            const receipt = await (options.escrower ?? requestEnginePlayerEscrow)({
+                escrowId: held.escrowId, operation: 'hold', username: held.payerUsername, assets: held.assets
+            });
+            validatePlayerEscrowReceipt(receipt, held, 'hold');
+        }
         return contracts.accept(offerId, actorAgentId, expectedRevision, options.now,
-            stableUuid(`economic-contract:${offer.offerId}`), settlements);
+            stableUuid(`economic-contract:${offer.offerId}`), settlements, playerEscrows);
     } catch (error) {
         for (const reservationId of newlyReserved) treasury.release(reservationId, options.now);
+        const rollbackErrors: string[] = [];
+        for (const held of attemptedPlayerEscrows) {
+            try {
+                const receipt = await (options.escrower ?? requestEnginePlayerEscrow)({
+                    escrowId: held.escrowId, operation: 'release', username: held.payerUsername
+                });
+                validatePlayerEscrowReceipt(receipt, held, 'release');
+            } catch (rollbackError) {
+                rollbackErrors.push(rollbackError instanceof Error ? rollbackError.message : String(rollbackError));
+            }
+        }
+        if (rollbackErrors.length > 0) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`${message}; player escrow rollback requires reconciliation: ${rollbackErrors.join('; ')}`);
+        }
         throw error;
     } finally {
         treasury.close();
         agents.close();
         contracts.close();
+    }
+}
+
+function validatePlayerEscrowReceipt(receipt: EnginePlayerEscrowResult,
+    held: CreateEconomicContractPlayerEscrow, operation: 'hold' | 'release' | 'commit'): void {
+    const expectedStatus = operation === 'hold' ? 'held' : operation === 'release' ? 'released' : 'committed';
+    if (!receipt.ok || receipt.escrowId !== held.escrowId || receipt.operation !== operation
+        || receipt.username.trim().toLowerCase() !== held.payerUsername
+        || (operation === 'commit' && receipt.payeeUsername?.trim().toLowerCase() !== held.payeeUsername)
+        || receipt.escrow?.status !== expectedStatus) {
+        throw new Error('Engine returned a mismatched player escrow receipt');
     }
 }
 
@@ -127,6 +195,21 @@ export async function settleReadyEconomicContract(contractId: string,
                 current = contracts.commitSettlement(payment.settlementId, options.now);
             } catch (error) {
                 contracts.noteSettlementFailure(payment.settlementId,
+                    error instanceof Error ? error.message : String(error), options.now);
+                throw error;
+            }
+        }
+        for (const pending of contracts.listReadyPlayerEscrows(contractId)) {
+            const held = contracts.startPlayerEscrowSettlement(pending.escrowId, options.now);
+            try {
+                const receipt = await (options.escrower ?? requestEnginePlayerEscrow)({
+                    escrowId: held.escrowId, operation: 'commit', username: held.payerUsername,
+                    payeeUsername: held.payeeUsername
+                });
+                validatePlayerEscrowReceipt(receipt, held, 'commit');
+                current = contracts.commitPlayerEscrow(held.escrowId, options.now);
+            } catch (error) {
+                contracts.notePlayerEscrowFailure(held.escrowId,
                     error instanceof Error ? error.message : String(error), options.now);
                 throw error;
             }
