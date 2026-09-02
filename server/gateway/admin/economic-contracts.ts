@@ -5,6 +5,7 @@ import { Database } from 'bun:sqlite';
 import { economicContractsDbPath } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { extractEconomyEvents } from './transaction-telemetry.js';
+import type { InstitutionKind } from './institution-treasury.js';
 
 export type EconomicOfferKind = 'trade' | 'work' | 'service';
 export type EconomicOfferStatus = 'open' | 'accepted' | 'declined' | 'withdrawn' | 'expired';
@@ -30,6 +31,29 @@ export interface EconomicContractEvidence {
     economyEventIds: string[];
     recordedAt: string;
 }
+
+export type EconomicContractSettlementStatus = 'funded' | 'settling' | 'committed';
+
+export interface EconomicContractSettlement {
+    settlementId: string;
+    contractId: string;
+    party: 'a' | 'b';
+    payerAgentId: string;
+    payerKind: InstitutionKind;
+    payerActorId: string;
+    payeeAgentId: string;
+    payeeUsername: string;
+    amountGp: number;
+    reservationId: string;
+    status: EconomicContractSettlementStatus;
+    error: string;
+    createdAt: string;
+    updatedAt: string;
+    committedAt: string | null;
+}
+
+export type CreateEconomicContractSettlement = Omit<EconomicContractSettlement,
+    'contractId' | 'status' | 'error' | 'createdAt' | 'updatedAt' | 'committedAt'>;
 
 export interface CreateEconomicOffer {
     creatorAgentId: string;
@@ -68,6 +92,7 @@ export interface EconomicContract {
     partyASatisfied: boolean;
     partyBSatisfied: boolean;
     evidence: EconomicContractEvidence[];
+    settlements: EconomicContractSettlement[];
     acceptedAt: string;
     fulfilledAt: string | null;
     revision: number;
@@ -91,6 +116,14 @@ interface EvidenceRow {
     evidence_id: string; contract_id: string; party: 'a' | 'b'; actor_agent_id: string; run_id: string;
     journal_digest: string; matched_gp: number; matched_items_json: string; matched_service: number;
     economy_event_ids_json: string; recorded_at: string;
+}
+
+interface SettlementRow {
+    settlement_id: string; contract_id: string; party: 'a' | 'b'; payer_agent_id: string;
+    payer_kind: InstitutionKind; payer_actor_id: string; payee_agent_id: string;
+    payee_username: string; amount_gp: number; reservation_id: string;
+    status: EconomicContractSettlementStatus; error: string; created_at: string;
+    updated_at: string; committed_at: string | null;
 }
 
 function agentId(value: string, field: string): string {
@@ -159,8 +192,16 @@ function evidence(row: EvidenceRow): EconomicContractEvidence {
         economyEventIds: JSON.parse(row.economy_event_ids_json) as string[], recordedAt: row.recorded_at };
 }
 
-function obligationSatisfied(required: EconomicObligation, records: EconomicContractEvidence[]): boolean {
-    const gp = records.reduce((total, item) => total + item.matchedGp, 0);
+function settlement(row: SettlementRow): EconomicContractSettlement {
+    return { settlementId: row.settlement_id, contractId: row.contract_id, party: row.party,
+        payerAgentId: row.payer_agent_id, payerKind: row.payer_kind, payerActorId: row.payer_actor_id,
+        payeeAgentId: row.payee_agent_id, payeeUsername: row.payee_username, amountGp: row.amount_gp,
+        reservationId: row.reservation_id, status: row.status, error: row.error,
+        createdAt: row.created_at, updatedAt: row.updated_at, committedAt: row.committed_at };
+}
+
+function obligationSatisfied(required: EconomicObligation, records: EconomicContractEvidence[], automatedGp = 0): boolean {
+    const gp = automatedGp + records.reduce((total, item) => total + item.matchedGp, 0);
     const items = new Map<number, number>();
     for (const record of records) for (const item of record.matchedItems) {
         items.set(item.id, (items.get(item.id) ?? 0) + item.count);
@@ -170,7 +211,7 @@ function obligationSatisfied(required: EconomicObligation, records: EconomicCont
         && (!required.service || records.some(item => item.matchedService));
 }
 
-function contract(row: ContractRow, records: EconomicContractEvidence[]): EconomicContract {
+function contract(row: ContractRow, records: EconomicContractEvidence[], settlements: EconomicContractSettlement[]): EconomicContract {
     const partyAProvides = JSON.parse(row.party_a_provides_json) as EconomicObligation;
     const partyBProvides = JSON.parse(row.party_b_provides_json) as EconomicObligation;
     return { contractId: row.contract_id, sourceOfferId: row.source_offer_id, kind: row.kind,
@@ -178,9 +219,14 @@ function contract(row: ContractRow, records: EconomicContractEvidence[]): Econom
         title: row.title, summary: row.summary,
         partyAProvides, partyBProvides, termsDigest: row.terms_digest,
         status: row.fulfilled_at ? 'fulfilled' : 'active',
-        partyASatisfied: obligationSatisfied(partyAProvides, records.filter(item => item.party === 'a')),
-        partyBSatisfied: obligationSatisfied(partyBProvides, records.filter(item => item.party === 'b')),
-        evidence: records, acceptedAt: row.accepted_at, fulfilledAt: row.fulfilled_at, revision: row.revision };
+        partyASatisfied: obligationSatisfied(partyAProvides, records.filter(item => item.party === 'a'),
+            settlements.filter(item => item.party === 'a' && item.status === 'committed')
+                .reduce((total, item) => total + item.amountGp, 0)),
+        partyBSatisfied: obligationSatisfied(partyBProvides, records.filter(item => item.party === 'b'),
+            settlements.filter(item => item.party === 'b' && item.status === 'committed')
+                .reduce((total, item) => total + item.amountGp, 0)),
+        evidence: records, settlements, acceptedAt: row.accepted_at,
+        fulfilledAt: row.fulfilled_at, revision: row.revision };
 }
 
 export function validateEconomicOffer(input: CreateEconomicOffer, now = new Date().toISOString()): CreateEconomicOffer & { termsDigest: string } {
@@ -233,6 +279,14 @@ export class EconomicContractStore {
             matched_items_json TEXT NOT NULL, matched_service INTEGER NOT NULL CHECK (matched_service IN (0, 1)),
             economy_event_ids_json TEXT NOT NULL, recorded_at TEXT NOT NULL,
             UNIQUE (contract_id, party, journal_digest))`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS economic_contract_settlement (
+            settlement_id TEXT PRIMARY KEY, contract_id TEXT NOT NULL REFERENCES economic_contract(contract_id),
+            party TEXT NOT NULL CHECK (party IN ('a', 'b')), payer_agent_id TEXT NOT NULL,
+            payer_kind TEXT NOT NULL CHECK (payer_kind IN ('business', 'faction')), payer_actor_id TEXT NOT NULL,
+            payee_agent_id TEXT NOT NULL, payee_username TEXT NOT NULL, amount_gp INTEGER NOT NULL CHECK (amount_gp > 0),
+            reservation_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL CHECK (status IN ('funded', 'settling', 'committed')),
+            error TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, committed_at TEXT,
+            UNIQUE (contract_id, party))`);
     }
 
     private addColumn(table: string, column: string, declaration: string): void {
@@ -275,7 +329,9 @@ export class EconomicContractStore {
     private contract(row: ContractRow): EconomicContract {
         const records = (this.database.query(`SELECT * FROM economic_contract_evidence
             WHERE contract_id = ?1 ORDER BY recorded_at, evidence_id`).all(row.contract_id) as EvidenceRow[]).map(evidence);
-        return contract(row, records);
+        const settlements = (this.database.query(`SELECT * FROM economic_contract_settlement
+            WHERE contract_id = ?1 ORDER BY party`).all(row.contract_id) as SettlementRow[]).map(settlement);
+        return contract(row, records, settlements);
     }
 
     create(input: CreateEconomicOffer, now = new Date().toISOString(), offerId = randomUUID()): EconomicOffer {
@@ -323,7 +379,8 @@ export class EconomicContractStore {
     }
 
     accept(offerId: string, actorAgentId: string, expectedRevision: number,
-        now = new Date().toISOString(), contractId = randomUUID()): { offer: EconomicOffer; contract: EconomicContract } {
+        now = new Date().toISOString(), contractId: string = randomUUID(),
+        settlements: CreateEconomicContractSettlement[] = []): { offer: EconomicOffer; contract: EconomicContract } {
         const acceptedAt = isoTimestamp(now, 'now');
         this.expire(acceptedAt);
         const transaction = this.database.transaction(() => {
@@ -349,10 +406,88 @@ export class EconomicContractStore {
             [contractId, offerId, current.kind, current.creatorAgentId, current.counterpartyAgentId,
                 current.title, current.summary, JSON.stringify(current.creatorProvides),
                 JSON.stringify(current.counterpartyProvides), current.termsDigest, acceptedAt]);
+            const parties = new Set<'a' | 'b'>();
+            for (const payment of settlements) {
+                if (parties.has(payment.party)) throw new Error('Contract settlement party is duplicated');
+                parties.add(payment.party);
+                const payerAgentId = payment.party === 'a' ? current.creatorAgentId : current.counterpartyAgentId;
+                const payeeAgentId = payment.party === 'a' ? current.counterpartyAgentId : current.creatorAgentId;
+                const required = payment.party === 'a' ? current.creatorProvides : current.counterpartyProvides;
+                if (payment.payerAgentId !== payerAgentId || payment.payeeAgentId !== payeeAgentId
+                    || payment.amountGp !== required.gp || required.gp <= 0
+                    || !['business', 'faction'].includes(payment.payerKind)
+                    || !/^[0-9a-f-]{36}$/i.test(payment.settlementId)
+                    || !/^[a-z0-9][a-z0-9._-]{2,95}$/.test(payment.reservationId)) {
+                    throw new Error('Contract settlement does not match the immutable offer terms');
+                }
+                this.database.run(`INSERT INTO economic_contract_settlement
+                    (settlement_id, contract_id, party, payer_agent_id, payer_kind, payer_actor_id,
+                        payee_agent_id, payee_username, amount_gp, reservation_id, status, error,
+                        created_at, updated_at, committed_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'funded', '', ?11, ?11, NULL)`,
+                [payment.settlementId, contractId, payment.party, payment.payerAgentId, payment.payerKind,
+                    payment.payerActorId, payment.payeeAgentId, payment.payeeUsername.toLowerCase(),
+                    payment.amountGp, payment.reservationId, acceptedAt]);
+            }
         });
         transaction.immediate();
         const accepted = this.getOffer(offerId)!;
         return { offer: accepted, contract: this.getContract(accepted.contractId!)! };
+    }
+
+    getSettlement(settlementId: string): EconomicContractSettlement | null {
+        const row = this.database.query(`SELECT * FROM economic_contract_settlement
+            WHERE settlement_id = ?1`).get(settlementId) as SettlementRow | null;
+        return row ? settlement(row) : null;
+    }
+
+    listReadySettlements(contractId: string): EconomicContractSettlement[] {
+        const current = this.getContract(contractId);
+        if (!current || current.status !== 'active') return [];
+        return current.settlements.filter(item => item.status !== 'committed'
+            && (item.party === 'a' ? current.partyBSatisfied : current.partyASatisfied));
+    }
+
+    startSettlement(settlementId: string, now = new Date().toISOString()): EconomicContractSettlement {
+        const current = this.getSettlement(settlementId);
+        if (!current) throw new Error('Economic contract settlement does not exist');
+        if (current.status === 'committed' || current.status === 'settling') return current;
+        this.database.run(`UPDATE economic_contract_settlement SET status = 'settling', error = '',
+            updated_at = ?2 WHERE settlement_id = ?1 AND status = 'funded'`,
+        [settlementId, isoTimestamp(now, 'now')]);
+        return this.getSettlement(settlementId)!;
+    }
+
+    noteSettlementFailure(settlementId: string, message: string,
+        now = new Date().toISOString()): EconomicContractSettlement {
+        const current = this.getSettlement(settlementId);
+        if (!current || current.status === 'committed') throw new Error('Contract settlement is not pending');
+        this.database.run(`UPDATE economic_contract_settlement SET status = 'settling', error = ?2,
+            updated_at = ?3 WHERE settlement_id = ?1 AND status != 'committed'`,
+        [settlementId, boundedText(message, 'settlementError', 500), isoTimestamp(now, 'now')]);
+        return this.getSettlement(settlementId)!;
+    }
+
+    commitSettlement(settlementId: string, now = new Date().toISOString()): EconomicContract {
+        const committedAt = isoTimestamp(now, 'now');
+        const current = this.getSettlement(settlementId);
+        if (!current) throw new Error('Economic contract settlement does not exist');
+        if (current.status === 'committed') return this.getContract(current.contractId)!;
+        const transaction = this.database.transaction(() => {
+            const updated = this.database.run(`UPDATE economic_contract_settlement SET status = 'committed',
+                error = '', committed_at = ?2, updated_at = ?2
+                WHERE settlement_id = ?1 AND status IN ('funded', 'settling')`, [settlementId, committedAt]);
+            if (updated.changes !== 1) throw new Error('Contract settlement changed before commit');
+            const contractAfterPayment = this.getContract(current.contractId)!;
+            this.database.run(`UPDATE economic_contract SET revision = revision + 1
+                WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId]);
+            if (contractAfterPayment.partyASatisfied && contractAfterPayment.partyBSatisfied) {
+                this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2
+                    WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId, committedAt]);
+            }
+        });
+        transaction.immediate();
+        return this.getContract(current.contractId)!;
     }
 
     recordRunEvidence(contractId: string, actorAgentIdInput: string, run: AdminSkillRun,

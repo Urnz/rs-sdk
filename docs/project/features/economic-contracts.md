@@ -21,7 +21,7 @@ Az ajánlat `open`, majd `accepted`, `declined`, `withdrawn` vagy automatikusan
 `expired` lehet. Csak a pontos címzett fogadhatja vagy utasíthatja el, és csak az
 ajánlattevő vonhatja vissza. Minden módosítás optimista revíziót kér.
 
-Elfogadás egyetlen SQLite tranzakcióban:
+Az alap szerződés elfogadása egyetlen SQLite tranzakcióban:
 
 1. ellenőrzi a címzettet, revíziót, nyitott állapotot és lejáratot;
 2. lezárja az ajánlatot;
@@ -30,12 +30,27 @@ Elfogadás egyetlen SQLite tranzakcióban:
 A normalizált feltételek digestje az ajánlatban és a szerződésben azonos. Az
 ismételt pontos elfogadás idempotensen ugyanazt a szerződést adja vissza.
 
+Ha valamelyik fél avatar nélküli `business` vagy `faction` institution agent és
+GP-t ígér egy exact avatarhoz kötött player agentnek, az elfogadási szolgáltatás
+már az aktív szerződés létrehozása előtt lefoglalja a teljes összeget az
+institution treasuryben. A contract-, reservation- és settlement-ID az ajánlatból
+determinisztikusan származik, ezért egy folyamatmegszakítás utáni retry nem képez
+új foglalást. Fedezet nélkül a szerződés nem jön létre.
+
+Avatar nélküli institution itemet vagy fizikai szolgáltatást nem vállalhat ezen az
+útvonalon. Institution→institution kifizetés és player inventory-escrow sincs még;
+ezek nem kerülhetik meg a későbbi főkönyvi és engine-oldali foglalási modellt.
+
 ## Adminfelület és biztonság
 
 Az adminpanel `Kísérletek` füle új ajánlatot tud létrehozni, listázza a lejárt és
 lezárt ajánlatokat, valamint az aktív szerződéseket. A gazdasági lista olvasása is
 admin-hitelesítést igényel. Minden létrehozás és státuszváltás bekerül az admin
 auditnaplóba.
+
+Az aktív szerződés megmutatja az előre fedezett kifizetéseket, azok payer/payee
+kötését, összegét és `funded/settling/committed` állapotát. Átmeneti engine-hiba
+után ugyanitt külön auditált újrapróbálás érhető el.
 
 ## Hiteles teljesítési bizonyíték
 
@@ -59,6 +74,10 @@ Csak akkor lesz a szerződés `fulfilled`, amikor mindkét fél összes GP-, tá
 szolgáltatásvállalása külön bizonyított. A journal digest és az eventazonosítók
 megmaradnak, a pontos replay idempotens, a megváltozott journal elutasított.
 
-A `fulfilled` továbbra sem indít új pénz- vagy tárgymozgást: azt bizonyítja, hogy
-a játékbeli runokban a vállalt mozgások már megtörténtek. A szerződésből előre
-indított, fedezetfoglalásos settlement külön következő fejlesztés.
+Player által vállalt GP és tárgy esetén a `fulfilled` továbbra is a tényleges,
+exact-counterparty player-trade run bizonyítékából következik. Előre fedezett
+institution→player GP esetén viszont a másik fél összes vállalt teljesítése után a
+gateway ugyanazt az engine-tickes, idempotens reward csatornát használja, mint a
+player-megbízások. Sikeres engine receipt után commitolja a treasury-foglalást és
+csak ezután jelöli a settlementet teljesítettnek. Hiba esetén a pénz foglalva és a
+szerződés aktív marad; retry ugyanazzal a settlement ID-val nem fizethet kétszer.

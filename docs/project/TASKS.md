@@ -421,6 +421,11 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     kötelezettségének igazolása után `fulfilled` állapotot képezni.
   - [ ] A szerződésből induló tényleges játékbeli átadást és treasury/player
     elszámolást előre foglalt fedezettel, idempotensen végrehajtani.
+    - [x] Institution→player GP-vállalást elfogadáskor exact treasuryben lefoglalni,
+      a másik fél bizonyított teljesítése után engine-ticken, stabil settlement ID-val
+      kifizetni, majd commitolni; hiba esetén auditáltan újrapróbálható maradjon.
+    - [ ] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt, valamint
+      institution→institution főkönyvi átvezetést készíteni.
 - [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
   - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,
     optimista revíziót és vissza nem nyitható lezárt lifecycle-t tartósítani.

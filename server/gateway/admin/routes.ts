@@ -79,6 +79,8 @@ import { resolveLearnAndPlan } from './deterministic-learning.js';
 import { MultiAgentExperimentStore, startMultiAgentExperiment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
+import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
+    settleReadyEconomicContract } from './economic-contract-settlement.js';
 import { BusinessManagerStore, type BusinessPolicyMode, type BusinessStatus,
     type EmploymentRole } from './business-manager.js';
 import { proposeBusinessPolicyForAgent } from './business-agent-port.js';
@@ -667,7 +669,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             try {
                 const before = store.getOffer(economicOfferMatch[1]);
                 const result = action === 'accept'
-                    ? store.accept(economicOfferMatch[1], actorAgentId, expectedRevision)
+                    ? await acceptFundedEconomicOffer(economicOfferMatch[1], actorAgentId, expectedRevision)
                     : { offer: action === 'decline'
                         ? store.decline(economicOfferMatch[1], actorAgentId, expectedRevision, note)
                         : store.withdraw(economicOfferMatch[1], actorAgentId, expectedRevision, note), contract: null };
@@ -697,15 +699,35 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 const agents = await listAdminAgents();
                 const avatars = new Map(agents.agents.map(agent => [agent.identity.agentId,
                     agent.controlProfile.avatarPlayerUsername]));
-                const contract = store.recordRunEvidence(economicContractEvidenceMatch[1], actorAgentId,
-                    run, avatars);
+                const outcome = await recordAndSettleEconomicContractEvidence(
+                    economicContractEvidenceMatch[1], actorAgentId, run, avatars);
                 await appendAudit({ operator: 'local-admin', action: 'economic-contract.evidence.record',
-                    reason, username: actorAgentId, success: true, before, after: contract });
-                return json({ ok: true, contract });
+                    reason, username: actorAgentId, success: true, before, after: outcome });
+                return json({ ok: true, ...outcome }, outcome.settlementError ? 202 : 200);
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'economic-contract.evidence.record',
                     reason, username: actorAgentId, success: false, error: String(error),
                     after: { contractId: economicContractEvidenceMatch[1], runId } });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const economicContractSettlementMatch = url.pathname
+            .match(/^\/api\/admin\/economic-contracts\/([0-9a-f-]{36})\/settle$/i);
+        if (req.method === 'POST' && economicContractSettlementMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const store = new EconomicContractStore(economicContractsDbPath);
+            try {
+                const before = store.getContract(economicContractSettlementMatch[1]);
+                const contract = await settleReadyEconomicContract(economicContractSettlementMatch[1]);
+                await appendAudit({ operator: 'local-admin', action: 'economic-contract.settlement.retry',
+                    reason, success: true, before, after: contract });
+                return json({ ok: true, contract });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'economic-contract.settlement.retry',
+                    reason, success: false, error: String(error),
+                    after: { contractId: economicContractSettlementMatch[1] } });
                 throw error;
             } finally { store.close(); }
         }
