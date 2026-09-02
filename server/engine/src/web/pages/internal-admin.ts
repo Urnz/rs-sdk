@@ -5,6 +5,7 @@ import World, {
     type AdminOfflineSaveDraft,
     type AdminOfflineSaveResult,
     type AdminPlayerLogoutResult,
+    type AdminPlayerEscrowResult,
     type AdminPlayerRewardResult,
     type AdminWorldDirectorEventResult,
     type AdminPropertyMaintenanceResult,
@@ -72,6 +73,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/offline-edit'
         || url.pathname === '/api/internal/admin/offline-restore'
         || url.pathname === '/api/internal/admin/player-logout'
+        || url.pathname === '/api/internal/admin/player-escrow'
         || url.pathname === '/api/internal/admin/player-reward'
         || url.pathname === '/api/internal/admin/world-director/event'
         || !!backupListMatch;
@@ -191,6 +193,42 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     }
 
     if (!/^[a-zA-Z0-9]{1,12}$/.test(username)) return json({ error: 'Invalid admin command identity' }, 400);
+
+    if (url.pathname === '/api/internal/admin/player-escrow') {
+        const allowedFields = new Set(['commandId', 'escrowId', 'operation', 'username', 'payeeUsername', 'assets']);
+        if (Object.keys(body).some(key => !allowedFields.has(key))) {
+            return json({ error: 'Player escrow request contains forbidden fields' }, 400);
+        }
+        const escrowId = typeof body.escrowId === 'string' ? body.escrowId.trim() : '';
+        const operation = body.operation;
+        const payeeUsername = typeof body.payeeUsername === 'string' ? body.payeeUsername.trim() : undefined;
+        const assets = body.assets;
+        const itemList = assets && typeof assets === 'object' && !Array.isArray(assets)
+            ? (assets as Record<string, unknown>).items : null;
+        const gp = assets && typeof assets === 'object' && !Array.isArray(assets)
+            ? (assets as Record<string, unknown>).gp : null;
+        const validAssets = assets !== null && typeof assets === 'object' && !Array.isArray(assets)
+            && Object.keys(assets).every(key => key === 'gp' || key === 'items')
+            && Number.isSafeInteger(gp) && Number(gp) >= 0 && Number(gp) <= 2_147_483_647
+            && Array.isArray(itemList) && itemList.length <= 28
+            && itemList.every(item => item !== null && typeof item === 'object' && !Array.isArray(item)
+                && Object.keys(item).every(key => key === 'id' || key === 'count')
+                && Number.isSafeInteger((item as Record<string, unknown>).id)
+                && Number.isSafeInteger((item as Record<string, unknown>).count));
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(escrowId)
+            || !['hold', 'release', 'commit'].includes(String(operation))
+            || (operation === 'hold' ? !validAssets || payeeUsername !== undefined
+                : assets !== undefined || (operation === 'commit'
+                    ? !payeeUsername || !/^[a-zA-Z0-9]{1,12}$/.test(payeeUsername)
+                    : payeeUsername !== undefined))) {
+            return json({ error: 'Invalid player escrow request' }, 400);
+        }
+        const result: AdminPlayerEscrowResult = await World.enqueueAdminPlayerEscrow({ commandId,
+            escrowId, operation: operation as 'hold' | 'release' | 'commit', username,
+            payeeUsername, assets: operation === 'hold' ? assets as { gp: number; items: Array<{ id: number; count: number }> } : undefined,
+            expiresAt: Date.now() + 2_000 });
+        return json(result, result.ok ? 200 : 409);
+    }
 
     if (url.pathname === '/api/internal/admin/player-reward') {
         const settlementId = typeof body.settlementId === 'string' ? body.settlementId.trim() : '';

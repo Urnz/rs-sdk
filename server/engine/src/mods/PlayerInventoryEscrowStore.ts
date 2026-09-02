@@ -12,7 +12,8 @@ export interface PlayerEscrowAssets {
     items: PlayerEscrowItem[];
 }
 
-export type PlayerEscrowStatus = 'pending' | 'held' | 'releasing' | 'released' | 'rejected' | 'reconcile';
+type StoredPlayerEscrowStatus = 'pending' | 'held' | 'releasing' | 'released' | 'rejected' | 'reconcile';
+export type PlayerEscrowStatus = StoredPlayerEscrowStatus | 'settling' | 'committed';
 
 export interface PlayerInventoryEscrowRecord {
     escrowId: string;
@@ -20,6 +21,9 @@ export interface PlayerInventoryEscrowRecord {
     assets: PlayerEscrowAssets;
     status: PlayerEscrowStatus;
     balancesBefore: PlayerEscrowItem[];
+    payeeUsername: string | null;
+    payeeBalancesBefore: PlayerEscrowItem[];
+    committedAt: string | null;
     createdAt: string;
     updatedAt: string;
     error: string | null;
@@ -32,8 +36,10 @@ export interface PlayerInventoryEscrowWallet {
 }
 
 interface EscrowRow {
-    escrow_id: string; username: string; assets_json: string; status: PlayerEscrowStatus;
-    balances_before_json: string; created_at: string; updated_at: string; error: string | null;
+    escrow_id: string; username: string; assets_json: string; status: StoredPlayerEscrowStatus;
+    balances_before_json: string; payee_username: string | null; payee_balances_before_json: string | null;
+    commit_started_at: string | null; committed_at: string | null;
+    created_at: string; updated_at: string; error: string | null;
 }
 
 const MAX_STACK = 2_147_483_647;
@@ -64,8 +70,13 @@ function holdings(assets: PlayerEscrowAssets): PlayerEscrowItem[] {
 
 function escrow(row: EscrowRow): PlayerInventoryEscrowRecord {
     return { escrowId: row.escrow_id, username: row.username,
-        assets: JSON.parse(row.assets_json) as PlayerEscrowAssets, status: row.status,
+        assets: JSON.parse(row.assets_json) as PlayerEscrowAssets,
+        status: row.committed_at ? 'committed' : row.commit_started_at ? 'settling' : row.status,
         balancesBefore: JSON.parse(row.balances_before_json) as PlayerEscrowItem[],
+        payeeUsername: row.payee_username,
+        payeeBalancesBefore: row.payee_balances_before_json
+            ? JSON.parse(row.payee_balances_before_json) as PlayerEscrowItem[] : [],
+        committedAt: row.committed_at,
         createdAt: row.created_at, updatedAt: row.updated_at, error: row.error };
 }
 
@@ -96,7 +107,20 @@ export class PlayerInventoryEscrowStore {
         this.database.run(`CREATE TABLE IF NOT EXISTS player_inventory_escrow (
             escrow_id TEXT PRIMARY KEY, username TEXT NOT NULL, assets_json TEXT NOT NULL,
             status TEXT NOT NULL CHECK (status IN ('pending', 'held', 'releasing', 'released', 'rejected', 'reconcile')),
-            balances_before_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, error TEXT)`);
+            balances_before_json TEXT NOT NULL, payee_username TEXT, payee_balances_before_json TEXT,
+            commit_started_at TEXT, committed_at TEXT,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL, error TEXT)`);
+        this.addColumn('player_inventory_escrow', 'payee_username', 'TEXT');
+        this.addColumn('player_inventory_escrow', 'payee_balances_before_json', 'TEXT');
+        this.addColumn('player_inventory_escrow', 'commit_started_at', 'TEXT');
+        this.addColumn('player_inventory_escrow', 'committed_at', 'TEXT');
+    }
+
+    private addColumn(table: string, column: string, declaration: string): void {
+        const columns = this.database.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+        if (!columns.some(entry => entry.name === column)) {
+            this.database.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
+        }
     }
 
     close(): void { this.database.clearQueryCache(); this.database.close(true); }
@@ -125,7 +149,8 @@ export class PlayerInventoryEscrowStore {
             if (existing.username !== username || JSON.stringify(existing.assets) !== assetsJson) {
                 throw new Error('Player escrow id was reused for different assets');
             }
-            if (existing.status === 'held' || existing.status === 'released' || existing.status === 'rejected') return existing;
+            if (existing.status === 'held' || existing.status === 'released'
+                || existing.status === 'rejected' || existing.status === 'committed') return existing;
             throw new Error('Player escrow has an incomplete mutation; manual reconciliation is required');
         }
         const requested = holdings(assets);
@@ -198,4 +223,66 @@ export class PlayerInventoryEscrowStore {
         }
         return this.get(escrowId)!;
     }
+
+    commit(escrowIdInput: string, payerUsernameInput: string, payeeUsernameInput: string,
+        payeeWallet: PlayerInventoryEscrowWallet,
+        now = new Date().toISOString()): PlayerInventoryEscrowRecord {
+        const escrowId = exactUuid(escrowIdInput), payerUsername = exactUsername(payerUsernameInput);
+        const payeeUsername = exactUsername(payeeUsernameInput), timestamp = isoTimestamp(now);
+        if (payerUsername === payeeUsername) throw new Error('Player escrow payer and payee must be different');
+        const current = this.get(escrowId);
+        if (!current || current.username !== payerUsername) throw new Error('Player escrow does not belong to this payer');
+        if (current.payeeUsername && current.payeeUsername !== payeeUsername) {
+            throw new Error('Player escrow is bound to another payee');
+        }
+        if (current.status === 'committed') return current;
+        if (current.status === 'settling' || current.status === 'reconcile') {
+            throw new Error('Player escrow settlement requires manual reconciliation');
+        }
+        if (current.status !== 'held') throw new Error('Only held player escrow can be committed');
+        const requested = holdings(current.assets);
+        const balancesBefore = requested.map(item => ({ id: item.id, count: payeeWallet.count(item.id) }));
+        if (balancesBefore.some((balance, index) => !Number.isSafeInteger(balance.count)
+            || balance.count < 0 || balance.count > MAX_STACK - requested[index]!.count)) {
+            throw new Error('Player escrow would overflow or cannot observe the payee inventory');
+        }
+        const started = this.database.run(`UPDATE player_inventory_escrow SET payee_username = ?2,
+            payee_balances_before_json = ?3, commit_started_at = ?4, error = NULL, updated_at = ?4
+            WHERE escrow_id = ?1 AND status = 'held' AND commit_started_at IS NULL AND committed_at IS NULL`,
+        [escrowId, payeeUsername, JSON.stringify(balancesBefore), timestamp]);
+        if (started.changes !== 1) throw new Error('Player escrow changed before settlement');
+        const added: PlayerEscrowItem[] = [];
+        try {
+            for (let index = 0; index < requested.length; index++) {
+                const item = requested[index]!, before = balancesBefore[index]!.count;
+                payeeWallet.add(item.id, item.count);
+                const actual = payeeWallet.count(item.id) - before;
+                if (actual > 0) added.push({ id: item.id, count: actual });
+                if (actual !== item.count) throw new Error(`Player escrow settlement was incomplete for item ${item.id}`);
+            }
+            const committed = this.database.run(`UPDATE player_inventory_escrow SET committed_at = ?2, updated_at = ?2
+                WHERE escrow_id = ?1 AND commit_started_at IS NOT NULL AND committed_at IS NULL`,
+            [escrowId, timestamp]);
+            if (committed.changes !== 1) throw new Error('Player escrow changed during settlement');
+        } catch (error) {
+            for (const item of [...added].reverse()) payeeWallet.remove(item.id, item.count);
+            const reconciled = balancesBefore.every(balance => payeeWallet.count(balance.id) === balance.count);
+            const message = error instanceof Error ? error.message : String(error);
+            this.database.run(`UPDATE player_inventory_escrow SET status = CASE WHEN ?2 THEN 'held' ELSE 'reconcile' END,
+                payee_username = CASE WHEN ?2 THEN NULL ELSE payee_username END,
+                payee_balances_before_json = CASE WHEN ?2 THEN NULL ELSE payee_balances_before_json END,
+                commit_started_at = CASE WHEN ?2 THEN NULL ELSE commit_started_at END,
+                error = ?3, updated_at = ?4 WHERE escrow_id = ?1 AND committed_at IS NULL`,
+            [escrowId, reconciled ? 1 : 0, message.slice(0, 500), timestamp]);
+            throw error;
+        }
+        return this.get(escrowId)!;
+    }
+}
+
+let defaultStore: PlayerInventoryEscrowStore | null = null;
+
+export function getPlayerInventoryEscrowStore(): PlayerInventoryEscrowStore {
+    if (!defaultStore) defaultStore = new PlayerInventoryEscrowStore('data/mods/player-inventory-escrow.sqlite');
+    return defaultStore;
 }

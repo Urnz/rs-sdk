@@ -433,8 +433,10 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       - [x] GP-t és legfeljebb 28 normalizált itemtípust előellenőrző, tartós,
         idempotens hold/release tárolót készíteni; részleges inventory-műveletet
         kompenzálni, bizonytalan állapotot pedig `reconcile` státusszal lezárni.
-      - [ ] Az exact payee részére történő escrow-commitot és engine-tick adaptert
-        elkészíteni, majd az ajánlatelfogadási és teljesítési lifecycle-hoz kötni.
+      - [x] Az exact payee részére történő idempotens escrow-commitot, kompenzációt
+        és a tokennel védett gateway → engine world-tick adaptert elkészíteni.
+      - [ ] A hold/release/commit műveleteket az ajánlatelfogadási és hiteles
+        teljesítési lifecycle-hoz kötni.
 - [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
   - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,
     optimista revíziót és vissza nem nyitható lezárt lifecycle-t tartósítani.

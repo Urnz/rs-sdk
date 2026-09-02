@@ -113,6 +113,8 @@ import type { PropertyPendingResolution, PropertyPurchaseRecord } from '#/mods/P
 import { formatWorldDirectorSignalMessage, isWorldModEnabled, onWorldModPlayerLogin,
     recordWorldModDomainEvent } from '#/mods/WorldMods.js';
 import { getPlayerRewardStore, type PlayerRewardRecord } from '#/mods/PlayerRewardStore.js';
+import { getPlayerInventoryEscrowStore, type PlayerEscrowAssets,
+    type PlayerInventoryEscrowRecord } from '#/mods/PlayerInventoryEscrowStore.js';
 import { getWorldDirectorEventStore, type EngineWorldDirectorEvent,
     type EngineWorldDirectorEventRecord } from '#/mods/WorldDirectorEventStore.js';
 
@@ -277,6 +279,29 @@ export interface AdminPlayerRewardResult {
     error?: string;
 }
 
+export interface AdminPlayerEscrowCommand {
+    commandId: string;
+    escrowId: string;
+    operation: 'hold' | 'release' | 'commit';
+    username: string;
+    payeeUsername?: string;
+    assets?: PlayerEscrowAssets;
+    expiresAt: number;
+}
+
+export interface AdminPlayerEscrowResult {
+    ok: boolean;
+    commandId: string;
+    escrowId: string;
+    operation: 'hold' | 'release' | 'commit';
+    username: string;
+    payeeUsername?: string;
+    escrow?: PlayerInventoryEscrowRecord;
+    tick?: number;
+    code?: string;
+    error?: string;
+}
+
 export interface AdminWorldDirectorEventCommand extends EngineWorldDirectorEvent {
     commandId: string;
     expiresAt: number;
@@ -311,6 +336,10 @@ type PendingAdminPropertyPurchase = AdminPropertyPurchaseCommand & {
 
 type PendingAdminPlayerReward = AdminPlayerRewardCommand & {
     resolve: (result: AdminPlayerRewardResult) => void;
+};
+
+type PendingAdminPlayerEscrow = AdminPlayerEscrowCommand & {
+    resolve: (result: AdminPlayerEscrowResult) => void;
 };
 
 type PendingAdminWorldDirectorEvent = AdminWorldDirectorEventCommand & {
@@ -382,6 +411,7 @@ class World {
     private readonly adminPlayerLogoutQueue: PendingAdminPlayerLogout[] = [];
     private readonly adminPropertyPurchaseQueue: PendingAdminPropertyPurchase[] = [];
     private readonly adminPlayerRewardQueue: PendingAdminPlayerReward[] = [];
+    private readonly adminPlayerEscrowQueue: PendingAdminPlayerEscrow[] = [];
     private readonly adminWorldDirectorEventQueue: PendingAdminWorldDirectorEvent[] = [];
 
     // debug data
@@ -608,6 +638,7 @@ class World {
             this.processAdminTeleports();
             this.processAdminPropertyPurchases();
             this.processAdminPlayerRewards();
+            this.processAdminPlayerEscrows();
             this.processAdminWorldDirectorEvents();
             this.processAdminPlayerLogouts();
             this.processAdminOfflineSaves();
@@ -1174,6 +1205,73 @@ class World {
                     amount: command.amount, reward, tick: this.currentTick });
             } catch (error) {
                 reject('reward-failed', error instanceof Error ? error.message : String(error));
+            }
+        }
+    }
+
+    enqueueAdminPlayerEscrow(command: AdminPlayerEscrowCommand): Promise<AdminPlayerEscrowResult> {
+        if (this.adminPlayerEscrowQueue.length >= 50) {
+            return Promise.resolve({ ok: false, commandId: command.commandId, escrowId: command.escrowId,
+                operation: command.operation, username: command.username, payeeUsername: command.payeeUsername,
+                code: 'queue-full', error: 'The engine player escrow queue is full.' });
+        }
+        return new Promise(resolve => this.adminPlayerEscrowQueue.push({ ...command, resolve }));
+    }
+
+    private processAdminPlayerEscrows(): void {
+        const commands = this.adminPlayerEscrowQueue.splice(0);
+        for (const command of commands) {
+            const reject = (code: string, error: string) => command.resolve({ ok: false,
+                commandId: command.commandId, escrowId: command.escrowId, operation: command.operation,
+                username: command.username, payeeUsername: command.payeeUsername,
+                tick: this.currentTick, code, error });
+            try {
+                if (Date.now() > command.expiresAt) {
+                    reject('expired', 'The player escrow command expired before a world tick could execute it.');
+                    continue;
+                }
+                if (this.shutdown) {
+                    reject('world-shutdown', 'The world is shutting down.');
+                    continue;
+                }
+                if (command.operation === 'hold' && !command.assets) {
+                    reject('invalid-command', 'Player escrow hold assets are missing.');
+                    continue;
+                }
+                if (command.operation === 'commit' && !command.payeeUsername) {
+                    reject('invalid-command', 'Player escrow payee is missing.');
+                    continue;
+                }
+                const targetUsername = command.operation === 'commit' ? command.payeeUsername : command.username;
+                const player = targetUsername ? this.getPlayerByUsername(targetUsername) : null;
+                if (!player || !isClientConnected(player)) {
+                    reject('player-offline', `The ${command.operation === 'commit' ? 'payee' : 'payer'} must be online.`);
+                    continue;
+                }
+                const wallet = {
+                    count: (itemId: number) => player.invTotal(InvType.INV, itemId),
+                    remove: (itemId: number, count: number) => player.invDel(InvType.INV, itemId, count),
+                    add: (itemId: number, count: number) => player.invAdd(InvType.INV, itemId, count)
+                };
+                const store = getPlayerInventoryEscrowStore();
+                const escrow = command.operation === 'hold'
+                    ? store.hold(command.escrowId, command.username, command.assets!, wallet)
+                    : command.operation === 'release'
+                        ? store.release(command.escrowId, command.username, wallet)
+                        : store.commit(command.escrowId, command.username, command.payeeUsername!, wallet);
+                player.addSessionLog(LoggerEventType.MODERATOR,
+                    `Player inventory escrow ${command.operation}: ${command.escrowId}`, command.commandId);
+                player.messageGame(command.operation === 'hold' ? 'A szerződéses fedezet escrowba került.'
+                    : command.operation === 'release' ? 'Az escrowban foglalt eszközök visszakerültek.'
+                        : 'A szerződéses escrow kifizetése megérkezett.');
+                this.loginThread.postMessage({ type: 'player_autosave', username: player.username, save: player.save() });
+                command.resolve({ ok: true, commandId: command.commandId, escrowId: command.escrowId,
+                    operation: command.operation, username: command.username,
+                    payeeUsername: command.payeeUsername, escrow, tick: this.currentTick });
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                reject(message.includes('reconciliation') ? 'reconciliation-required'
+                    : message.includes('Insufficient') ? 'insufficient-assets' : 'escrow-failed', message);
             }
         }
     }

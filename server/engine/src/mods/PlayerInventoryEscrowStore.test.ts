@@ -6,9 +6,7 @@ import { PlayerInventoryEscrowStore, type PlayerInventoryEscrowWallet } from './
 
 const directories: string[] = [];
 
-function fixture(entries: Record<number, number>) {
-    const directory = mkdtempSync(join(tmpdir(), 'rs-player-escrow-'));
-    directories.push(directory);
+function memoryWallet(entries: Record<number, number>) {
     const inventory = new Map(Object.entries(entries).map(([id, count]) => [Number(id), count]));
     const wallet: PlayerInventoryEscrowWallet = {
         count: id => inventory.get(id) ?? 0,
@@ -16,6 +14,13 @@ function fixture(entries: Record<number, number>) {
             inventory.set(id, (inventory.get(id) ?? 0) - actual); return actual; },
         add: (id, count) => { inventory.set(id, (inventory.get(id) ?? 0) + count); return count; }
     };
+    return { wallet, inventory };
+}
+
+function fixture(entries: Record<number, number>) {
+    const directory = mkdtempSync(join(tmpdir(), 'rs-player-escrow-'));
+    directories.push(directory);
+    const { wallet, inventory } = memoryWallet(entries);
     const path = join(directory, 'escrow.sqlite');
     return { store: new PlayerInventoryEscrowStore(path), path, wallet, inventory };
 }
@@ -93,6 +98,43 @@ describe('player inventory escrow', () => {
         expect({ coins: inventory.get(995), copper: inventory.get(436) }).toEqual({ coins: 300, copper: 3 });
         expect(() => store.hold(id, 'worker', { gp: 200, items: [{ id: 436, count: 3 }] }, wallet))
             .toThrow('manual reconciliation');
+        store.close();
+    });
+
+    test('commits held assets to one exact payee once and survives reopening', () => {
+        const { store, path, wallet: payer } = fixture({ 995: 1_000, 436: 10 });
+        const { wallet: payee, inventory: payeeInventory } = memoryWallet({ 995: 50, 436: 1 });
+        const id = '66666666-6666-4666-8666-666666666666';
+        store.hold(id, 'payer', { gp: 400, items: [{ id: 436, count: 5 }] }, payer);
+        const committed = store.commit(id, 'payer', 'payee', payee);
+        expect(committed).toMatchObject({ status: 'committed', payeeUsername: 'payee',
+            committedAt: expect.any(String) });
+        expect({ coins: payeeInventory.get(995), copper: payeeInventory.get(436) })
+            .toEqual({ coins: 450, copper: 6 });
+        expect(store.commit(id, 'payer', 'payee', payee)).toEqual(committed);
+        expect(() => store.commit(id, 'payer', 'other', payee)).toThrow('another payee');
+        expect(() => store.release(id, 'payer', payer)).toThrow('Only held');
+        store.close();
+        const reopened = new PlayerInventoryEscrowStore(path);
+        expect(reopened.get(id)).toEqual(committed);
+        reopened.close();
+    });
+
+    test('compensates a partial payee credit and keeps the held settlement retryable', () => {
+        const { store, wallet: payer } = fixture({ 995: 1_000, 436: 10 });
+        const { wallet: payee, inventory: payeeInventory } = memoryWallet({ 995: 50, 436: 1 });
+        const id = '77777777-7777-4777-8777-777777777777';
+        store.hold(id, 'payer', { gp: 400, items: [{ id: 436, count: 5 }] }, payer);
+        const originalAdd = payee.add;
+        payee.add = (itemId, count) => originalAdd(itemId, itemId === 436 ? count - 1 : count);
+        expect(() => store.commit(id, 'payer', 'payee', payee)).toThrow('incomplete');
+        expect(store.get(id)).toMatchObject({ status: 'held', payeeUsername: null });
+        expect({ coins: payeeInventory.get(995), copper: payeeInventory.get(436) })
+            .toEqual({ coins: 50, copper: 1 });
+        payee.add = originalAdd;
+        expect(store.commit(id, 'payer', 'payee', payee)).toMatchObject({ status: 'committed' });
+        expect({ coins: payeeInventory.get(995), copper: payeeInventory.get(436) })
+            .toEqual({ coins: 450, copper: 6 });
         store.close();
     });
 });

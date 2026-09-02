@@ -116,9 +116,12 @@ másik fél szolgáltatását, és egy run nem használható másik szerződésh
 Institution→player GP esetén az elfogadáskor foglalt treasury-fedezetet a másik fél
 hiteles teljesítése után az idempotens engine reward settlement fizeti ki. A
 player-oldali GP és tárgy továbbra is kizárólag exact-counterparty trade runnal
-igazolható. Az engine-oldali inventory escrow hold/release tárolója már elkészült,
-de az ajánlatelfogadási adapter és az exact payee részére történő commit még nincs
-bekötve, ezért a szerződésrendszer egyelőre nem foglal automatikusan player-vagyont.
+igazolható. Az engine-oldali inventory escrow már tud tartós hold/release műveletet
+és egy exact payee részére idempotens commitot. A gateway kizárólag a tokennel
+védett belső engine-végponton, world-tickben kérheti ezeket a valódi inventory-
+műveleteket. Az ajánlatelfogadási és teljesítési lifecycle azonban még nincs ehhez
+az adapterhez kötve, ezért a szerződésrendszer egyelőre nem foglal automatikusan
+player-vagyont.
 
 A közös treasury már biztosít külön institution→institution főkönyvi primitívet.
 Ez egy stabil settlement ID alatt, egyetlen SQLite tranzakcióban commitolja a payer
