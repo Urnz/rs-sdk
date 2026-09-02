@@ -430,6 +430,11 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [ ] Az institution-főkönyvi primitívet csak hiteles szerződéses, adó- vagy
       banki teljesítési esemény után meghívható settlement-orchestrátorhoz kötni.
     - [ ] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt készíteni.
+      - [x] GP-t és legfeljebb 28 normalizált itemtípust előellenőrző, tartós,
+        idempotens hold/release tárolót készíteni; részleges inventory-műveletet
+        kompenzálni, bizonytalan állapotot pedig `reconcile` státusszal lezárni.
+      - [ ] Az exact payee részére történő escrow-commitot és engine-tick adaptert
+        elkészíteni, majd az ajánlatelfogadási és teljesítési lifecycle-hoz kötni.
 - [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
   - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,
     optimista revíziót és vissza nem nyitható lezárt lifecycle-t tartósítani.
