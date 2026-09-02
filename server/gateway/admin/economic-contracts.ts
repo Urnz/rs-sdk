@@ -43,7 +43,9 @@ export interface EconomicContractSettlement {
     payerKind: InstitutionKind;
     payerActorId: string;
     payeeAgentId: string;
-    payeeUsername: string;
+    payeeUsername: string | null;
+    payeeKind: InstitutionKind | null;
+    payeeActorId: string | null;
     amountGp: number;
     reservationId: string;
     status: EconomicContractSettlementStatus;
@@ -148,7 +150,8 @@ interface EvidenceRow {
 interface SettlementRow {
     settlement_id: string; contract_id: string; party: 'a' | 'b'; payer_agent_id: string;
     payer_kind: InstitutionKind; payer_actor_id: string; payee_agent_id: string;
-    payee_username: string; amount_gp: number; reservation_id: string;
+    payee_username: string; payee_kind: InstitutionKind | null; payee_actor_id: string | null;
+    amount_gp: number; reservation_id: string;
     status: StoredEconomicContractSettlementStatus; error: string; created_at: string;
     updated_at: string; committed_at: string | null; released_at: string | null;
 }
@@ -229,7 +232,8 @@ function evidence(row: EvidenceRow): EconomicContractEvidence {
 function settlement(row: SettlementRow): EconomicContractSettlement {
     return { settlementId: row.settlement_id, contractId: row.contract_id, party: row.party,
         payerAgentId: row.payer_agent_id, payerKind: row.payer_kind, payerActorId: row.payer_actor_id,
-        payeeAgentId: row.payee_agent_id, payeeUsername: row.payee_username, amountGp: row.amount_gp,
+        payeeAgentId: row.payee_agent_id, payeeUsername: row.payee_username || null,
+        payeeKind: row.payee_kind, payeeActorId: row.payee_actor_id, amountGp: row.amount_gp,
         reservationId: row.reservation_id, status: row.released_at ? 'released' : row.status, error: row.error,
         createdAt: row.created_at, updatedAt: row.updated_at,
         committedAt: row.committed_at, releasedAt: row.released_at };
@@ -373,6 +377,8 @@ export class EconomicContractStore {
             error TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, committed_at TEXT,
             UNIQUE (contract_id, party))`);
         this.addColumn('economic_contract_settlement', 'released_at', 'TEXT');
+        this.addColumn('economic_contract_settlement', 'payee_kind', 'TEXT');
+        this.addColumn('economic_contract_settlement', 'payee_actor_id', 'TEXT');
         this.addColumn('economic_contract_player_escrow', 'released_at', 'TEXT');
     }
 
@@ -506,18 +512,23 @@ export class EconomicContractStore {
                 if (payment.payerAgentId !== payerAgentId || payment.payeeAgentId !== payeeAgentId
                     || payment.amountGp !== required.gp || required.gp <= 0
                     || !['business', 'faction'].includes(payment.payerKind)
+                    || ((payment.payeeUsername === null) === (payment.payeeKind === null))
+                    || ((payment.payeeKind === null) !== (payment.payeeActorId === null))
+                    || (payment.payeeUsername !== null && !/^[a-z0-9]{1,12}$/.test(payment.payeeUsername))
+                    || (payment.payeeKind !== null && !['business', 'faction'].includes(payment.payeeKind))
+                    || (payment.payeeActorId !== null && !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(payment.payeeActorId))
                     || !/^[0-9a-f-]{36}$/i.test(payment.settlementId)
                     || !/^[a-z0-9][a-z0-9._-]{2,95}$/.test(payment.reservationId)) {
                     throw new Error('Contract settlement does not match the immutable offer terms');
                 }
                 this.database.run(`INSERT INTO economic_contract_settlement
                     (settlement_id, contract_id, party, payer_agent_id, payer_kind, payer_actor_id,
-                        payee_agent_id, payee_username, amount_gp, reservation_id, status, error,
-                        created_at, updated_at, committed_at)
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'funded', '', ?11, ?11, NULL)`,
+                        payee_agent_id, payee_username, payee_kind, payee_actor_id, amount_gp,
+                        reservation_id, status, error, created_at, updated_at, committed_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, 'funded', '', ?13, ?13, NULL)`,
                 [payment.settlementId, contractId, payment.party, payment.payerAgentId, payment.payerKind,
-                    payment.payerActorId, payment.payeeAgentId, payment.payeeUsername.toLowerCase(),
-                    payment.amountGp, payment.reservationId, acceptedAt]);
+                    payment.payerActorId, payment.payeeAgentId, payment.payeeUsername?.toLowerCase() ?? '',
+                    payment.payeeKind, payment.payeeActorId, payment.amountGp, payment.reservationId, acceptedAt]);
             }
             for (const held of playerEscrows) {
                 if (parties.has(held.party)) throw new Error('Contract funding party is duplicated');

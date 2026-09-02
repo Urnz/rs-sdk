@@ -24,6 +24,10 @@ function fixture(balanceGp = 10_000) {
         personalityTraits: ['prudent'], controlProfile: { role: 'institution', subjectKind: 'business',
             subjectId: 'varrock-forge', decisionIntervalMs: 60_000, maxDecisionsPerDay: 20,
             dailyLlmBudgetMicros: 100_000, dailyOperationalBudgetGp: 10_000 } });
+    agents.createIdentity({ agentId: 'guild-mind', displayName: 'Guild Mind', background: 'Mining guild manager.',
+        personalityTraits: ['careful'], controlProfile: { role: 'institution', subjectKind: 'business',
+            subjectId: 'mining-guild', decisionIntervalMs: 60_000, maxDecisionsPerDay: 20,
+            dailyLlmBudgetMicros: 100_000, dailyOperationalBudgetGp: 10_000 } });
     agents.createIdentity({ agentId: 'ferrye14', playerUsername: 'Ferrye14', displayName: 'Ferrye14',
         background: 'Miner.', personalityTraits: ['reliable'] });
     agents.createIdentity({ agentId: 'worker2', playerUsername: 'Worker2', displayName: 'Worker2',
@@ -32,6 +36,8 @@ function fixture(balanceGp = 10_000) {
     const treasury = new InstitutionTreasuryStore(options.treasuryPath);
     treasury.ensure('business', 'varrock-forge', options.now);
     treasury.setBalance('business', 'varrock-forge', 1, balanceGp, options.now);
+    treasury.ensure('business', 'mining-guild', options.now);
+    treasury.setBalance('business', 'mining-guild', 1, 5_000, options.now);
     treasury.close();
     return options;
 }
@@ -151,6 +157,55 @@ describe('funded economic contract settlement', () => {
         expect(completed.status).toBe('fulfilled');
         expect(attemptedIds).toHaveLength(2);
         expect(new Set(attemptedIds).size).toBe(1);
+    });
+
+    test('atomically transfers bilateral institution funding only through the secured contract gate', async () => {
+        const options = fixture();
+        const contracts = new EconomicContractStore(options.contractsPath);
+        const created = contracts.create(offer({ counterpartyAgentId: 'guild-mind', kind: 'trade',
+            title: 'Institution liquidity exchange', summary: 'Exchange two exact treasury obligations.',
+            creatorProvides: { gp: 2_000, items: [], service: null },
+            counterpartyProvides: { gp: 500, items: [], service: null } }), options.now);
+        contracts.close();
+        const accepted = await acceptFundedEconomicOffer(created.offerId, 'guild-mind', created.revision, options);
+        expect(accepted.contract).toMatchObject({ status: 'active', partyASatisfied: false,
+            partyBSatisfied: false, settlements: [
+                expect.objectContaining({ party: 'a', payerActorId: 'varrock-forge',
+                    payeeKind: 'business', payeeActorId: 'mining-guild', payeeUsername: null,
+                    amountGp: 2_000, status: 'funded' }),
+                expect.objectContaining({ party: 'b', payerActorId: 'mining-guild',
+                    payeeKind: 'business', payeeActorId: 'varrock-forge', payeeUsername: null,
+                    amountGp: 500, status: 'funded' })
+            ] });
+        const before = new InstitutionTreasuryStore(options.treasuryPath);
+        expect(before.get('business', 'varrock-forge')).toMatchObject({ balanceGp: 10_000, reservedGp: 2_000 });
+        expect(before.get('business', 'mining-guild')).toMatchObject({ balanceGp: 5_000, reservedGp: 500 });
+        expect(before.listTransfers()).toEqual([]);
+        before.close();
+
+        let playerRewardCalls = 0;
+        const settled = await settleReadyEconomicContract(accepted.contract.contractId, { ...options,
+            now: '2026-09-02T10:01:00.000Z', rewarder: async () => {
+                playerRewardCalls++;
+                throw new Error('Institution transfer must not use the player reward channel');
+            } });
+        expect(settled).toMatchObject({ status: 'fulfilled', partyASatisfied: true, partyBSatisfied: true,
+            settlements: [expect.objectContaining({ status: 'committed' }),
+                expect.objectContaining({ status: 'committed' })] });
+        expect(playerRewardCalls).toBe(0);
+        const treasury = new InstitutionTreasuryStore(options.treasuryPath);
+        expect(treasury.get('business', 'varrock-forge')).toMatchObject({ balanceGp: 8_500, reservedGp: 0 });
+        expect(treasury.get('business', 'mining-guild')).toMatchObject({ balanceGp: 6_500, reservedGp: 0 });
+        expect(treasury.listTransfers()).toHaveLength(2);
+        treasury.close();
+
+        expect(await settleReadyEconomicContract(accepted.contract.contractId,
+            { ...options, now: '2026-09-02T10:02:00.000Z' })).toEqual(settled);
+        const replayed = new InstitutionTreasuryStore(options.treasuryPath);
+        expect(replayed.get('business', 'varrock-forge')?.balanceGp).toBe(8_500);
+        expect(replayed.get('business', 'mining-guild')?.balanceGp).toBe(6_500);
+        expect(replayed.listTransfers()).toHaveLength(2);
+        replayed.close();
     });
 
     test('fails acceptance before contract creation when institution funding is unavailable or physical', async () => {

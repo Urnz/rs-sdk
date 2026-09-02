@@ -132,17 +132,21 @@ majd idempotensen release-eli a még nyitott treasury- és player-fedezetet. A
 bizonytalan `settling` rekord feloldása fail-closed tiltott, amíg az eredeti
 műveletet nem próbálták újra vagy nem egyeztették.
 
-A közös treasury már biztosít külön institution→institution főkönyvi primitívet.
-Ez egy stabil settlement ID alatt, egyetlen SQLite tranzakcióban commitolja a payer
+A közös treasury külön institution→institution főkönyvi primitívet biztosít.
+Ezt a szerződéses settlement-orchestrátor kizárólag az ellenoldal hiteles
+teljesítési bizonyítéka vagy előre lefoglalt fedezete után hívja meg. Egy stabil
+settlement ID alatt, egyetlen SQLite tranzakcióban commitolja a payer
 korábbi foglalását, csökkenti a payer egyenlegét, növeli az exact payee egyenlegét,
 és változtathatatlan transfer-rekordot ír. A pontos retry nem mozgat újabb pénzt;
 eltérő payer, payee, összeg vagy reservation ugyanazzal az ID-val fail-closed.
 Önutalás és a maximális egyenleg túlcsordítása tiltott.
 
-Ez a primitív szándékosan még nem hívható meg pusztán egy ajánlat elfogadásából.
-A szerződéses, adó- vagy banki orchestrátornak előbb hiteles domain-eseménnyel kell
-igazolnia a teljesítési feltételt; így a treasury API nem kerüli meg a szerződés
-teljesítési kapuját.
+Az ajánlat elfogadása csak az institution treasury pontos fedezetét foglalja. A
+tényleges átvezetés az aktív szerződés teljesítési kapuján halad át; a settlement
+`settling` állapota és a treasury változtathatatlan transfer-rekordja együtt teszi
+biztonságosan újrapróbálhatóvá a contract-ledger commit előtti megszakítást. Az adó-
+és banki orchestrátorok később ugyanezt a szűk primitívet saját hiteles
+domain-eseményük után használhatják.
 
 Tervezett függési irány:
 

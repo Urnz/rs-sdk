@@ -427,8 +427,10 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] Institution→institution átvezetéshez exact payer/payee treasuryket,
       előzetes foglalást és stabil settlement ID-t használó atomi, idempotens
       debit+credit főkönyvi primitívet készíteni, túlcsordulás és önutalás nélkül.
-    - [ ] Az institution-főkönyvi primitívet csak hiteles szerződéses, adó- vagy
-      banki teljesítési esemény után meghívható settlement-orchestrátorhoz kötni.
+    - [x] Az institution-főkönyvi primitívet hiteles szerződéses teljesítés után
+      meghívható settlement-orchestrátorhoz kötni.
+    - [ ] Az institution-főkönyvi primitívet a későbbi adó- és banki domainekben is
+      kizárólag hiteles teljesítési esemény után meghívható orchestrátorhoz kötni.
     - [x] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt készíteni.
       - [x] GP-t és legfeljebb 28 normalizált itemtípust előellenőrző, tartós,
         idempotens hold/release tárolót készíteni; részleges inventory-műveletet

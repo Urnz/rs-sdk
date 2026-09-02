@@ -31,14 +31,15 @@ A normalizált feltételek digestje az ajánlatban és a szerződésben azonos. 
 ismételt pontos elfogadás idempotensen ugyanazt a szerződést adja vissza.
 
 Ha valamelyik fél avatar nélküli `business` vagy `faction` institution agent és
-GP-t ígér egy exact avatarhoz kötött player agentnek, az elfogadási szolgáltatás
-már az aktív szerződés létrehozása előtt lefoglalja a teljes összeget az
-institution treasuryben. A contract-, reservation- és settlement-ID az ajánlatból
-determinisztikusan származik, ezért egy folyamatmegszakítás utáni retry nem képez
-új foglalást. Fedezet nélkül a szerződés nem jön létre.
+GP-t ígér egy exact avatarhoz kötött player agentnek vagy egy másik institutionnek,
+az elfogadási szolgáltatás már az aktív szerződés létrehozása előtt lefoglalja a
+teljes összeget az institution treasuryben. A contract-, reservation- és
+settlement-ID az ajánlatból determinisztikusan származik, ezért egy
+folyamatmegszakítás utáni retry nem képez új foglalást. Fedezet nélkül a szerződés
+nem jön létre.
 
 Avatar nélküli institution itemet vagy fizikai szolgáltatást nem vállalhat ezen az
-útvonalon. Institution→institution kifizetés még nincs az orchestrátorhoz kötve.
+útvonalon.
 
 Player→player GP- vagy itemvállalásnál az elfogadás előtt a teljes eszközlista
 engine-oldali inventory escrowba kerül. A stabil escrow ID a szerződésből és a
@@ -112,3 +113,11 @@ idempotens reward csatornát használja, mint a player-megbízások. Sikeres eng
 receipt után commitolja a treasury-foglalást és csak ezután jelöli a settlementet
 teljesítettnek. Hiba esetén a fedezet foglalva marad; retry ugyanazzal a stabil
 settlement- vagy escrow ID-val nem fizethet kétszer.
+
+Institution→institution GP esetén mindkét kötelezett exact business/faction
+treasuryje már elfogadáskor fedezetet foglal. Az orchestrátor csak akkor hívja az
+atomi treasury-átvezetést, ha az ellenoldal kötelezettsége hiteles evidence-szel
+teljesült vagy maga is előre fedezett. A címzettet a szerződésben tárolt institution
+kind + actor ID azonosítja; a player reward csatorna ezen az útvonalon nem hívható.
+A változtathatatlan treasury transfer receipt ellenőrzése után kerül committed
+állapotba a contract settlement, ezért az egzakt retry nem kettőzi meg az összeget.

@@ -3,7 +3,8 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { EconomicContractStore, type CreateEconomicContractSettlement,
     type CreateEconomicContractPlayerEscrow, type EconomicContract, type EconomicObligation } from './economic-contracts.js';
-import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
+import { InstitutionTreasuryStore, type InstitutionKind,
+    type InstitutionTreasuryTransfer } from './institution-treasury.js';
 import { requestEnginePlayerEscrow, type EnginePlayerEscrowResult } from './player-escrow.js';
 import { requestEnginePlayerReward, type EnginePlayerRewardResult } from './player-rewards.js';
 import { agentStateDbPath, economicContractsDbPath, institutionTreasuryDbPath } from './paths.js';
@@ -45,17 +46,30 @@ function settlementForParty(party: 'a' | 'b', offerId: string,
         throw new Error('An avatarless institution may provide only treasury GP in an executable contract');
     }
     if (obligation.gp === 0) return null;
-    if ((payer.subjectKind !== 'business' && payer.subjectKind !== 'faction')
-        || payee.role !== 'player' || payee.subjectKind !== 'player' || !payee.avatarPlayerUsername) {
-        throw new Error('Institution treasury GP may be settled only to an exact avatar-bound player agent');
+    if (payer.subjectKind !== 'business' && payer.subjectKind !== 'faction') {
+        throw new Error('Institution settlement payer has no supported treasury');
     }
-    const payeeUsername = payee.avatarPlayerUsername.trim().toLowerCase();
-    if (!/^[a-z0-9]{1,12}$/.test(payeeUsername)) {
-        throw new Error('Contract settlement player avatar is not payable by the engine reward channel');
+    let payeeUsername: string | null = null;
+    let payeeKind: InstitutionKind | null = null;
+    let payeeActorId: string | null = null;
+    if (payee.role === 'player' && payee.subjectKind === 'player' && payee.avatarPlayerUsername) {
+        payeeUsername = payee.avatarPlayerUsername.trim().toLowerCase();
+        if (!/^[a-z0-9]{1,12}$/.test(payeeUsername)) {
+            throw new Error('Contract settlement player avatar is not payable by the engine reward channel');
+        }
+    } else if (payee.role === 'institution'
+        && (payee.subjectKind === 'business' || payee.subjectKind === 'faction')) {
+        payeeKind = payee.subjectKind;
+        payeeActorId = payee.subjectId;
+        if (payer.subjectKind === payeeKind && payer.subjectId === payeeActorId) {
+            throw new Error('Institution settlement payer and payee treasury must be different');
+        }
+    } else {
+        throw new Error('Institution treasury GP requires an exact player or institution payee');
     }
     const contractId = stableUuid(`economic-contract:${offerId}`);
     return { party, payerAgentId, payerKind: payer.subjectKind as InstitutionKind,
-        payerActorId: payer.subjectId, payeeAgentId, payeeUsername,
+        payerActorId: payer.subjectId, payeeAgentId, payeeUsername, payeeKind, payeeActorId,
         amountGp: obligation.gp, reservationId: `contract.${contractId}.${party}`,
         settlementId: stableUuid(`economic-contract-settlement:${contractId}:${party}`) };
 }
@@ -170,10 +184,20 @@ function validatePlayerEscrowReceipt(receipt: EnginePlayerEscrowResult,
 }
 
 function validateReceipt(receipt: EnginePlayerRewardResult, payment: CreateEconomicContractSettlement): void {
-    if (!receipt.ok || receipt.settlementId !== payment.settlementId
+    if (!payment.payeeUsername || !receipt.ok || receipt.settlementId !== payment.settlementId
         || receipt.username.trim().toLowerCase() !== payment.payeeUsername.trim().toLowerCase()
         || receipt.amount !== payment.amountGp) {
         throw new Error('Engine returned a mismatched contract settlement receipt');
+    }
+}
+
+function validateTreasuryTransfer(receipt: InstitutionTreasuryTransfer,
+    payment: CreateEconomicContractSettlement): void {
+    if (!payment.payeeKind || !payment.payeeActorId || receipt.settlementId !== payment.settlementId
+        || receipt.reservationId !== payment.reservationId || receipt.payerKind !== payment.payerKind
+        || receipt.payerActorId !== payment.payerActorId || receipt.payeeKind !== payment.payeeKind
+        || receipt.payeeActorId !== payment.payeeActorId || receipt.amountGp !== payment.amountGp) {
+        throw new Error('Treasury returned a mismatched contract transfer receipt');
     }
 }
 
@@ -188,10 +212,17 @@ export async function settleReadyEconomicContract(contractId: string,
             const payment = contracts.startSettlement(pending.settlementId, options.now);
             try {
                 treasury.bindSettlement(payment.reservationId, payment.settlementId, options.now);
-                const receipt = await (options.rewarder ?? requestEnginePlayerReward)(payment.payeeUsername,
-                    payment.amountGp, payment.settlementId);
-                validateReceipt(receipt, payment);
-                treasury.commit(payment.reservationId, payment.settlementId, options.now);
+                if (payment.payeeKind && payment.payeeActorId) {
+                    const receipt = treasury.transferReserved(payment.reservationId, payment.settlementId,
+                        payment.payeeKind, payment.payeeActorId, options.now);
+                    validateTreasuryTransfer(receipt, payment);
+                } else {
+                    if (!payment.payeeUsername) throw new Error('Contract settlement has no exact payee');
+                    const receipt = await (options.rewarder ?? requestEnginePlayerReward)(payment.payeeUsername,
+                        payment.amountGp, payment.settlementId);
+                    validateReceipt(receipt, payment);
+                    treasury.commit(payment.reservationId, payment.settlementId, options.now);
+                }
                 current = contracts.commitSettlement(payment.settlementId, options.now);
             } catch (error) {
                 contracts.noteSettlementFailure(payment.settlementId,
