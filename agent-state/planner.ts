@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { AgentGoal, AgentSkillKnowledge, AgentSkillReference, AgentSnapshot } from './types.js';
 
 export type PlannerDecisionKind = 'execute-skill' | 'refresh-state' | 'no-immediate-goal' | 'skill-unavailable';
@@ -15,6 +16,23 @@ export interface PlannerOptions {
     now?: string;
     workingMemoryMaxAgeMs?: number;
     availableSkills?: readonly AgentSkillReference[];
+    selectionSeed?: string;
+}
+
+export function selectImmediateGoal(snapshot: AgentSnapshot, selectionSeed?: string): AgentGoal | null {
+    if (selectionSeed !== undefined && (typeof selectionSeed !== 'string'
+        || !selectionSeed.trim() || selectionSeed.length > 128)) {
+        throw new Error('Planner selection seed must contain 1-128 characters');
+    }
+    const immediate = snapshot.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
+        .sort((a, b) => b.priority - a.priority || a.goalId.localeCompare(b.goalId));
+    const highest = immediate[0]?.priority;
+    if (highest === undefined || !selectionSeed) return immediate[0] ?? null;
+    return immediate.filter(goal => goal.priority === highest).sort((left, right) => {
+        const leftHash = createHash('sha256').update(`${selectionSeed}\0${left.goalId}`).digest('hex');
+        const rightHash = createHash('sha256').update(`${selectionSeed}\0${right.goalId}`).digest('hex');
+        return leftHash.localeCompare(rightHash) || left.goalId.localeCompare(right.goalId);
+    })[0] ?? null;
 }
 
 function key(snapshot: AgentSnapshot, kind: PlannerDecisionKind, goal: AgentGoal | null,
@@ -31,9 +49,7 @@ export function planNextAction(snapshot: AgentSnapshot, options: PlannerOptions 
     if (!Number.isInteger(maxAge) || maxAge < 0 || maxAge > 24 * 60 * 60_000) {
         throw new Error('Planner working memory maximum age must be between 0 and 24 hours');
     }
-    const immediate = snapshot.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
-        .sort((a, b) => b.priority - a.priority || a.goalId.localeCompare(b.goalId));
-    const selected = immediate[0] ?? null;
+    const selected = selectImmediateGoal(snapshot, options.selectionSeed);
     if (!selected) {
         return { kind: 'no-immediate-goal', agentId: snapshot.identity.agentId, goalId: null, skill: null,
             reason: 'The agent has no active immediate goal.', decisionKey: key(snapshot, 'no-immediate-goal', null, null) };
@@ -64,6 +80,6 @@ export function planNextAction(snapshot: AgentSnapshot, options: PlannerOptions 
             decisionKey: key(snapshot, 'skill-unavailable', selected, knowledge) };
     }
     return { kind: 'execute-skill', agentId: snapshot.identity.agentId, goalId: selected.goalId,
-        skill: selected.skill, reason: `Execute the highest-priority immediate goal using ${selected.skill.id}@${selected.skill.version}.`,
+        skill: selected.skill, reason: `${options.selectionSeed ? 'Execute the seeded highest-priority immediate alternative' : 'Execute the highest-priority immediate goal'} using ${selected.skill.id}@${selected.skill.version}.`,
         decisionKey: key(snapshot, 'execute-skill', selected, knowledge) };
 }

@@ -29,6 +29,15 @@ SHA-256 digestje. A dispatch sorrend a `seed + agentId` hashből származik, ez�
 beviteli lista sorrendje nem változtatja meg. Minden indítás új kísérletazonosítót
 kap, de azonos definícióhoz azonos digest és résztvevősorrend tartozik.
 
+A seed nemcsak a dispatch sorrendet rögzíti. Ha egy agentnek ugyanazon aktuális
+cél alatt több azonos prioritású aktív immediate célja van, ezek helyettesíthető
+alternatíváknak számítanak. A kísérleti event explicit, auditálható
+`selectionSeed` mezőként viszi tovább a futás seedjét, és a planner a
+`SHA-256(seed + goalId)` rendezéssel választ. Azonos snapshot és seed ugyanazt a
+célt/skillel adja, eltérő seedek viszont determinisztikusan szétoszthatják a
+kohorszt az alternatívák között. Magasabb prioritású cél továbbra is mindig nyer;
+seed nélküli normál működésben megmarad a stabil goal-ID sorrend.
+
 A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 
 - a definíciót, seedet, digestet és státuszt;

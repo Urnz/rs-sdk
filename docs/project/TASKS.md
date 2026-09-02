@@ -473,6 +473,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     skilldiverzitás- és Herfindahl-koncentráció metrikát tartósítani és megjeleníteni.
 - [ ] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
   egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
+  - [x] Azonos prioritású immediate célokat alternatívaként kezelni, és a
+    kísérleti seedet az eventtől a determinisztikus skillfeloldásig végigvezetve
+    reprodukálhatóan, de több seed között szétosztva választani közülük.
 - [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
   kikapcsolt és bekapcsolt állapotát összehasonlítva.
   - [x] Minden futáshoz az engine tényleges aktív world-mod állapotát exact,

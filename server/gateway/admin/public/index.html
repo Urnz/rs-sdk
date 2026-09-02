@@ -507,6 +507,7 @@
             <label>Leírás<textarea name="description" maxlength="2000" rows="3"></textarea></label>
             <label>Prioritás (0–100)<input name="priority" type="number" min="0" max="100" step="1" value="50" required></label>
             <label>Végrehajtó verified skill<select name="skill"><option value="">Nincs közvetlen skill</option></select></label>
+            <p class="dialog-note">Azonos szülőhöz tartozó, azonos prioritású azonnali célok alternatívák. Normál működésben stabil ID-sorrend, seedelt kísérletben a mentett seed választ közülük reprodukálhatóan.</p>
             <label>Indoklás<input name="reason" value="Agent cél hozzáadása" required></label>
             <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Cél mentése</button></div>
         </form>

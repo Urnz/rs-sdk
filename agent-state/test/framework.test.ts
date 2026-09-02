@@ -304,6 +304,24 @@ describe('known skills and deterministic planner', () => {
         store.close();
     });
 
+    test('uses a bounded seed to spread equal-priority immediate alternatives reproducibly', () => {
+        const store = plannedStore();
+        const fishingSkill = { id: 'fishing.karamja.lobster-to-draynor-bank', version: '1.0.0' };
+        store.createGoal('ferrye14', { goalId: 'now.fish', parentGoalId: 'current.capital',
+            horizon: 'immediate', title: 'Fish lobsters', priority: 80, skill: fishingSkill });
+        store.setSkillKnowledge('ferrye14', miningSkill, 'known', null);
+        store.setSkillKnowledge('ferrye14', fishingSkill, 'known', null);
+        const snapshot = store.getSnapshot('ferrye14')!;
+        const base = { now: '2026-08-29T12:01:00.000Z', availableSkills: [miningSkill, fishingSkill] };
+        const first = planNextAction(snapshot, { ...base, selectionSeed: 'economy-run-17' });
+        expect(planNextAction(snapshot, { ...base, selectionSeed: 'economy-run-17' })).toEqual(first);
+        const selected = new Set(Array.from({ length: 40 }, (_, index) =>
+            planNextAction(snapshot, { ...base, selectionSeed: `economy-run-${index}` }).goalId));
+        expect(selected).toEqual(new Set(['now.mine', 'now.fish']));
+        expect(() => planNextAction(snapshot, { ...base, selectionSeed: '' })).toThrow('selection seed');
+        store.close();
+    });
+
     test('fails closed for stale observations and unknown or blocked skills', () => {
         const store = plannedStore();
         let snapshot = store.getSnapshot('ferrye14')!;

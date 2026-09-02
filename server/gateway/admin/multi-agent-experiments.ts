@@ -585,6 +585,7 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
                         agentId: entry.agentId, type: 'manual-request',
                         sourceKey: `experiment:${run.experimentId}:${definition.digest}:${entry.agentId}`,
                         occurredAt: now,
+                        selectionSeed: definition.input.seed,
                         summary: `Trusted multi-agent experiment ${run.label}: ${run.summary}` }, now);
                     dependencies.store.recordParticipant(run.experimentId, entry.agentId, record);
                 } catch (error) {

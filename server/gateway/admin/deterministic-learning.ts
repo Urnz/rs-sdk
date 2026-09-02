@@ -23,6 +23,7 @@ export async function resolveLearnAndPlan(agentId: string, goal: AgentGoal,
         agentPath?: string;
         catalog?: AdminAgentSkillCatalogOptions;
         now?: string;
+        selectionSeed?: string;
     } = {}): Promise<DeterministicLearningResult | null> {
     if (goal.horizon !== 'immediate' || goal.status !== 'active') return null;
     const knownByReference = new Map(knownSkills.map(item => [reference(item.skill), item]));
@@ -82,7 +83,8 @@ export async function resolveLearnAndPlan(agentId: string, goal: AgentGoal,
         }
         const snapshot = store.getSnapshot(agentId)!;
         const decision = planNextAction(snapshot, { now: options.now,
-            availableSkills: catalog.map(skill => ({ id: skill.id, version: skill.version })) });
+            availableSkills: catalog.map(skill => ({ id: skill.id, version: skill.version })),
+            selectionSeed: options.selectionSeed });
         return { resolution, learned, assigned, decision };
     } finally { store.close(); }
 }

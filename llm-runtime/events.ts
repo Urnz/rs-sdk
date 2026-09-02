@@ -8,6 +8,8 @@ export interface LlmReplanEvent {
     sourceKey: string;
     occurredAt: string;
     summary: string;
+    /** Trusted deterministic selector for equal-priority immediate goals. */
+    selectionSeed?: string;
 }
 
 export interface LlmReplanGateResult {

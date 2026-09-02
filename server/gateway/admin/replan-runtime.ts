@@ -1,6 +1,7 @@
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { observeLiveState } from '../../../agent-state/live.js';
+import { selectImmediateGoal } from '../../../agent-state/planner.js';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { LlmReplanEvent } from '../../../llm-runtime/events.js';
 import { listAdminAgents } from './agent-state.js';
@@ -116,8 +117,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
             const current = refreshed.agents.find(entry => entry.identity.agentId === agentId);
             if (!current) return { runId: event.eventId, status: 'skipped', reason: 'Agent state disappeared before planning.' };
             try {
-                const immediate = current.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
-                    .sort((left, right) => right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
+                const immediate = selectImmediateGoal(current, event.selectionSeed);
                 const config = (await loadLlmRuntimeConfig(options.llmConfigPath ? {
                     defaultConfigPath: options.llmConfigPath,
                     overrideConfigPath: `${options.llmConfigPath}.override`
@@ -135,7 +135,8 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 }, now), agentPath);
                 if (immediate) {
                     const deterministic = await resolveLearnAndPlan(agentId, immediate, current.catalogSkills,
-                        current.knownSkills, { now, agentPath, catalog: options.skillCatalog });
+                        current.knownSkills, { now, agentPath, catalog: options.skillCatalog,
+                            selectionSeed: event.selectionSeed });
                     if (deterministic?.decision.kind === 'execute-skill') {
                         const requested = `${deterministic.resolution.skill.id}@${deterministic.resolution.skill.version}`;
                         const candidate = await resolveAdminSkillForAgent(requested, agentId, options.skillCatalog);

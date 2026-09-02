@@ -97,12 +97,14 @@ describe('persistent multi-agent experiment runner', () => {
         const store = new MultiAgentExperimentStore(join(root, 'experiments.sqlite'));
         let active = 0;
         let maximumActive = 0;
+        const selectionSeeds = new Set<string | undefined>();
         const runIds = new Map([['agent-a', '11111111-1111-4111-8111-111111111111'],
             ['agent-b', '22222222-2222-4222-8222-222222222222']]);
         const coordinator = new AgentReplanCoordinator({
             resolveAgentId: async () => null,
             listAgentIds: async () => [],
             plan: async (agentId, event) => {
+                selectionSeeds.add(event.selectionSeed);
                 active++;
                 maximumActive = Math.max(maximumActive, active);
                 await Bun.sleep(15);
@@ -128,6 +130,7 @@ describe('persistent multi-agent experiment runner', () => {
         expect(started.run.participants.every(item => item.status === 'pending')).toBeTrue();
         const dispatched = await started.completion;
         expect(maximumActive).toBe(2);
+        expect(selectionSeeds).toEqual(new Set(['world-42']));
         expect(dispatched.status).toBe('running');
         expect(dispatched.baselineEconomy.totalCoins).toBe(100);
         expect(dispatched.dispatchEconomy?.totalCoins).toBe(110);
