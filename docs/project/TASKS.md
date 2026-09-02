@@ -424,8 +424,12 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] Institution→player GP-vállalást elfogadáskor exact treasuryben lefoglalni,
       a másik fél bizonyított teljesítése után engine-ticken, stabil settlement ID-val
       kifizetni, majd commitolni; hiba esetén auditáltan újrapróbálható maradjon.
-    - [ ] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt, valamint
-      institution→institution főkönyvi átvezetést készíteni.
+    - [x] Institution→institution átvezetéshez exact payer/payee treasuryket,
+      előzetes foglalást és stabil settlement ID-t használó atomi, idempotens
+      debit+credit főkönyvi primitívet készíteni, túlcsordulás és önutalás nélkül.
+    - [ ] Az institution-főkönyvi primitívet csak hiteles szerződéses, adó- vagy
+      banki teljesítési esemény után meghívható settlement-orchestrátorhoz kötni.
+    - [ ] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt készíteni.
 - [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
   - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,
     optimista revíziót és vissza nem nyitható lezárt lifecycle-t tartósítani.

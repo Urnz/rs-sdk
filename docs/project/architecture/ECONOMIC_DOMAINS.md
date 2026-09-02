@@ -84,7 +84,7 @@ ingatlan marad, amelynek belépési és használati szabályait a Property mod k
 - A Property mod tulajdon- és használati eseményt publikál; nem számol adót.
 - A governance mod az esemény és a területi szabály alapján adókötelezettséget állapít meg.
 - A Business mod bérleti vagy tulajdoni hivatkozással használ ingatlant; nem írja át a tulajdonost.
-- A tényleges pénzmozgást egy későbbi közös, idempotens gazdasági főkönyv hajtja végre.
+- A tényleges institution-pénzmozgást a közös, idempotens treasury-főkönyv hajtja végre.
 - A modok közötti szerződés csak verziózott azonosítókat és eseményeket tartalmazhat.
 - Egy modul kikapcsolása nem törölhet másik modul által hivatkozott domainadatot.
 
@@ -98,8 +98,11 @@ egy változatlan aktív szerződésbe kerülnek.
 
 Az ajánlat vagy szerződés önmagában:
 
-- nem teremt, nem foglal és nem mozgat pénzt vagy tárgyat;
-- nem módosít treasury-, player-save-, Property- vagy AgentState-egyenleget;
+- nem teremt pénzt vagy tárgyat;
+- institution→player GP-vállalásnál elfogadáskor treasury-fedezetet foglalhat,
+  de a másik fél hiteles teljesítése előtt nem fizethet;
+- önmagában nem módosít player-save-, Property- vagy AgentState-egyenleget; a
+  treasury csak az explicit fedezetfoglalási és settlement-porton változhat;
 - nem tekinthető teljesítési bizonyítéknak;
 - csak koordinációs és audit határ a későbbi hiteles skill-run, gazdasági esemény
   és idempotens settlement számára.
@@ -110,10 +113,22 @@ csak exact-counterparty player-trade eseményből, a szolgáltatás csak előre
 rögzített exact skillverzióból bizonyítható. Egyik fél naplója sem teljesíti a
 másik fél szolgáltatását, és egy run nem használható másik szerződéshez.
 
-A `fulfilled` itt megfigyelt játékbeli teljesítést jelent, nem új settlementet.
-A következő gazdasági főkönyvi szelet feladata az lesz, hogy a szerződésből előre
-induló teljesítéshez fedezetet foglaljon, majd a tényleges játékművelet alapján
-idempotensen commitoljon vagy release-eljen.
+Institution→player GP esetén az elfogadáskor foglalt treasury-fedezetet a másik fél
+hiteles teljesítése után az idempotens engine reward settlement fizeti ki. A
+player-oldali GP és tárgy továbbra is kizárólag exact-counterparty trade runnal
+igazolható; előre foglaló inventory-escrow még nincs.
+
+A közös treasury már biztosít külön institution→institution főkönyvi primitívet.
+Ez egy stabil settlement ID alatt, egyetlen SQLite tranzakcióban commitolja a payer
+korábbi foglalását, csökkenti a payer egyenlegét, növeli az exact payee egyenlegét,
+és változtathatatlan transfer-rekordot ír. A pontos retry nem mozgat újabb pénzt;
+eltérő payer, payee, összeg vagy reservation ugyanazzal az ID-val fail-closed.
+Önutalás és a maximális egyenleg túlcsordítása tiltott.
+
+Ez a primitív szándékosan még nem hívható meg pusztán egy ajánlat elfogadásából.
+A szerződéses, adó- vagy banki orchestrátornak előbb hiteles domain-eseménnyel kell
+igazolnia a teljesítési feltételt; így a treasury API nem kerüli meg a szerződés
+teljesítési kapuját.
 
 Tervezett függési irány:
 
