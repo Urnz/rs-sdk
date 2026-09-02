@@ -6,7 +6,7 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import type { SkillEvent } from '../../../agent-skills/types.js';
 import { EconomicContractStore, type CreateEconomicOffer } from './economic-contracts.js';
 import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
-    settleReadyEconomicContract } from './economic-contract-settlement.js';
+    resolveEconomicContract, settleReadyEconomicContract } from './economic-contract-settlement.js';
 import { InstitutionTreasuryStore } from './institution-treasury.js';
 import type { EnginePlayerEscrowRequest, EnginePlayerEscrowResult } from './player-escrow.js';
 import type { AdminSkillRun } from './skill-history.js';
@@ -131,9 +131,13 @@ describe('funded economic contract settlement', () => {
         expect(failed).toMatchObject({ settlementError: 'Engine offline',
             contract: { settlements: [expect.objectContaining({ status: 'settling', error: 'Engine offline' })] } });
         const afterFailure = new EconomicContractStore(options.contractsPath);
-        expect(afterFailure.getContract(accepted.contract.contractId)?.settlements[0])
+        const failedContract = afterFailure.getContract(accepted.contract.contractId)!;
+        const failedContractId = failedContract.contractId, failedContractRevision = failedContract.revision;
+        expect(failedContract.settlements[0])
             .toMatchObject({ status: 'settling', error: 'Engine offline' });
         afterFailure.close();
+        await expect(resolveEconomicContract(failedContractId, 'defaulted', failedContractRevision,
+            'Do not release an ambiguous payment.', options)).rejects.toThrow('Ambiguous settling funds');
         const treasury = new InstitutionTreasuryStore(options.treasuryPath);
         expect(treasury.get('business', 'varrock-forge')).toMatchObject({ balanceGp: 10_000, reservedGp: 2_000 });
         treasury.close();
@@ -273,5 +277,87 @@ describe('funded economic contract settlement', () => {
         const unchanged = new EconomicContractStore(options.contractsPath);
         expect(unchanged.getOffer(created.offerId)).toMatchObject({ status: 'open', contractId: null });
         unchanged.close();
+    });
+
+    test('cancels an unperformed contract and releases institution treasury funding', async () => {
+        const options = fixture();
+        const contracts = new EconomicContractStore(options.contractsPath);
+        const created = contracts.create(offer(), options.now);
+        contracts.close();
+        const accepted = await acceptFundedEconomicOffer(created.offerId, 'ferrye14', created.revision, options);
+        const cancelled = await resolveEconomicContract(accepted.contract.contractId, 'cancelled',
+            accepted.contract.revision, 'Both parties cancelled before performance.',
+            { ...options, now: '2026-09-02T10:01:00.000Z' });
+        const reopened = new EconomicContractStore(options.contractsPath);
+        expect(reopened.getContract(cancelled.contractId)).toEqual(cancelled);
+        expect(reopened.listReadySettlements(cancelled.contractId)).toEqual([]);
+        reopened.close();
+        expect(cancelled).toMatchObject({ status: 'cancelled', resolvedAt: '2026-09-02T10:01:00.000Z',
+            resolutionNote: 'Both parties cancelled before performance.',
+            settlements: [expect.objectContaining({ status: 'released', releasedAt: expect.any(String) })] });
+        const treasury = new InstitutionTreasuryStore(options.treasuryPath);
+        expect(treasury.get('business', 'varrock-forge')).toMatchObject({ balanceGp: 10_000,
+            reservedGp: 0, availableGp: 10_000 });
+        treasury.close();
+    });
+
+    test('leaves a failed player release in cancelling state and retries without reopening performance', async () => {
+        const options = fixture();
+        const contracts = new EconomicContractStore(options.contractsPath);
+        const created = contracts.create(offer({ creatorAgentId: 'ferrye14', counterpartyAgentId: 'worker2',
+            kind: 'trade', creatorProvides: { gp: 250, items: [], service: null },
+            counterpartyProvides: { gp: 0,
+                items: [{ id: 436, name: 'Copper ore', count: 2 }], service: null } }), options.now);
+        contracts.close();
+        const harness = escrowHarness();
+        const accepted = await acceptFundedEconomicOffer(created.offerId, 'worker2', created.revision,
+            { ...options, escrower: harness.escrower });
+        await expect(resolveEconomicContract(accepted.contract.contractId, 'cancelled',
+            accepted.contract.revision, 'Cancel before exchange.', { ...options,
+                now: '2026-09-02T10:01:00.000Z', escrower: async request => {
+                    if (request.operation === 'release') throw new Error('Engine offline');
+                    return harness.escrower(request);
+                } })).rejects.toThrow('Engine offline');
+        const pendingStore = new EconomicContractStore(options.contractsPath);
+        const pending = pendingStore.getContract(accepted.contract.contractId)!;
+        const pendingContractId = pending.contractId, pendingEscrowId = pending.playerEscrows[0]!.escrowId;
+        expect(pending).toMatchObject({ status: 'cancelling', resolutionNote: 'Cancel before exchange.' });
+        expect(pendingStore.listReadyPlayerEscrows(pendingContractId)).toEqual([]);
+        expect(() => pendingStore.startPlayerEscrowSettlement(pendingEscrowId))
+            .toThrow('Contract stopped');
+        pendingStore.close();
+        const cancelled = await resolveEconomicContract(pendingContractId, 'cancelled', accepted.contract.revision,
+            'Cancel before exchange.', { ...options, now: '2026-09-02T10:02:00.000Z',
+                escrower: harness.escrower });
+        expect(cancelled).toMatchObject({ status: 'cancelled',
+            playerEscrows: [expect.objectContaining({ status: 'released' }),
+                expect.objectContaining({ status: 'released' })] });
+        expect(harness.calls.map(call => call.operation)).toEqual(['hold', 'hold', 'release', 'release']);
+    });
+
+    test('requires default instead of cancellation after evidence and releases only uncommitted funding', async () => {
+        const options = fixture();
+        const contracts = new EconomicContractStore(options.contractsPath);
+        const created = contracts.create(offer({ creatorAgentId: 'ferrye14', counterpartyAgentId: 'worker2',
+            creatorProvides: { gp: 400, items: [], service: null },
+            counterpartyProvides: { gp: 0, items: [], service: 'Mine copper.',
+                skill: { id: 'mining.varrock.copper', version: '1.0.0' } } }), options.now);
+        contracts.close();
+        const harness = escrowHarness();
+        const accepted = await acceptFundedEconomicOffer(created.offerId, 'worker2', created.revision,
+            { ...options, escrower: harness.escrower });
+        const evidenceStore = new EconomicContractStore(options.contractsPath);
+        const evidenced = evidenceStore.recordRunEvidence(accepted.contract.contractId, 'worker2',
+            completedRun('worker2'), new Map([['ferrye14', 'ferrye14'], ['worker2', 'worker2']]),
+            '2026-09-02T10:02:00.000Z');
+        expect(() => evidenceStore.startResolution(evidenced.contractId, 'cancelled', evidenced.revision,
+            'Too late to cancel.', '2026-09-02T10:03:00.000Z')).toThrow('must be defaulted');
+        evidenceStore.close();
+        const defaulted = await resolveEconomicContract(evidenced.contractId, 'defaulted', evidenced.revision,
+            'The payer failed after the service was performed.', { ...options,
+                now: '2026-09-02T10:03:00.000Z', escrower: harness.escrower });
+        expect(defaulted).toMatchObject({ status: 'defaulted', partyASatisfied: false,
+            partyBSatisfied: true, playerEscrows: [expect.objectContaining({ status: 'released' })] });
+        expect(harness.calls.map(call => call.operation)).toEqual(['hold', 'release']);
     });
 });

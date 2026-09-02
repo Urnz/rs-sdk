@@ -32,7 +32,8 @@ export interface EconomicContractEvidence {
     recordedAt: string;
 }
 
-export type EconomicContractSettlementStatus = 'funded' | 'settling' | 'committed';
+type StoredEconomicContractSettlementStatus = 'funded' | 'settling' | 'committed';
+export type EconomicContractSettlementStatus = StoredEconomicContractSettlementStatus | 'released';
 
 export interface EconomicContractSettlement {
     settlementId: string;
@@ -50,10 +51,11 @@ export interface EconomicContractSettlement {
     createdAt: string;
     updatedAt: string;
     committedAt: string | null;
+    releasedAt: string | null;
 }
 
 export type CreateEconomicContractSettlement = Omit<EconomicContractSettlement,
-    'contractId' | 'status' | 'error' | 'createdAt' | 'updatedAt' | 'committedAt'>;
+    'contractId' | 'status' | 'error' | 'createdAt' | 'updatedAt' | 'committedAt' | 'releasedAt'>;
 
 export interface EconomicContractPlayerEscrow {
     escrowId: string;
@@ -69,10 +71,11 @@ export interface EconomicContractPlayerEscrow {
     createdAt: string;
     updatedAt: string;
     committedAt: string | null;
+    releasedAt: string | null;
 }
 
 export type CreateEconomicContractPlayerEscrow = Omit<EconomicContractPlayerEscrow,
-    'contractId' | 'status' | 'error' | 'createdAt' | 'updatedAt' | 'committedAt'>;
+    'contractId' | 'status' | 'error' | 'createdAt' | 'updatedAt' | 'committedAt' | 'releasedAt'>;
 
 export interface CreateEconomicOffer {
     creatorAgentId: string;
@@ -107,7 +110,7 @@ export interface EconomicContract {
     partyAProvides: EconomicObligation;
     partyBProvides: EconomicObligation;
     termsDigest: string;
-    status: 'active' | 'fulfilled';
+    status: 'active' | 'fulfilled' | 'cancelling' | 'defaulting' | 'cancelled' | 'defaulted';
     partyASatisfied: boolean;
     partyBSatisfied: boolean;
     evidence: EconomicContractEvidence[];
@@ -115,6 +118,8 @@ export interface EconomicContract {
     playerEscrows: EconomicContractPlayerEscrow[];
     acceptedAt: string;
     fulfilledAt: string | null;
+    resolvedAt: string | null;
+    resolutionNote: string;
     revision: number;
 }
 
@@ -129,7 +134,9 @@ interface ContractRow {
     contract_id: string; source_offer_id: string; kind: EconomicOfferKind; party_a_agent_id: string;
     party_b_agent_id: string; title: string; summary: string; party_a_provides_json: string;
     party_b_provides_json: string; terms_digest: string; status: 'active'; accepted_at: string; revision: number;
-    fulfilled_at: string | null;
+    fulfilled_at: string | null; resolution: 'active' | 'fulfilled' | 'cancelled' | 'defaulted';
+    resolution_intent: string | null; resolution_note: string; resolution_started_at: string | null;
+    resolved_at: string | null;
 }
 
 interface EvidenceRow {
@@ -142,15 +149,15 @@ interface SettlementRow {
     settlement_id: string; contract_id: string; party: 'a' | 'b'; payer_agent_id: string;
     payer_kind: InstitutionKind; payer_actor_id: string; payee_agent_id: string;
     payee_username: string; amount_gp: number; reservation_id: string;
-    status: EconomicContractSettlementStatus; error: string; created_at: string;
-    updated_at: string; committed_at: string | null;
+    status: StoredEconomicContractSettlementStatus; error: string; created_at: string;
+    updated_at: string; committed_at: string | null; released_at: string | null;
 }
 
 interface PlayerEscrowRow {
     escrow_id: string; contract_id: string; party: 'a' | 'b'; payer_agent_id: string;
     payer_username: string; payee_agent_id: string; payee_username: string; assets_json: string;
-    status: EconomicContractSettlementStatus; error: string; created_at: string;
-    updated_at: string; committed_at: string | null;
+    status: StoredEconomicContractSettlementStatus; error: string; created_at: string;
+    updated_at: string; committed_at: string | null; released_at: string | null;
 }
 
 function agentId(value: string, field: string): string {
@@ -223,8 +230,9 @@ function settlement(row: SettlementRow): EconomicContractSettlement {
     return { settlementId: row.settlement_id, contractId: row.contract_id, party: row.party,
         payerAgentId: row.payer_agent_id, payerKind: row.payer_kind, payerActorId: row.payer_actor_id,
         payeeAgentId: row.payee_agent_id, payeeUsername: row.payee_username, amountGp: row.amount_gp,
-        reservationId: row.reservation_id, status: row.status, error: row.error,
-        createdAt: row.created_at, updatedAt: row.updated_at, committedAt: row.committed_at };
+        reservationId: row.reservation_id, status: row.released_at ? 'released' : row.status, error: row.error,
+        createdAt: row.created_at, updatedAt: row.updated_at,
+        committedAt: row.committed_at, releasedAt: row.released_at };
 }
 
 function playerEscrow(row: PlayerEscrowRow): EconomicContractPlayerEscrow {
@@ -232,8 +240,8 @@ function playerEscrow(row: PlayerEscrowRow): EconomicContractPlayerEscrow {
         payerAgentId: row.payer_agent_id, payerUsername: row.payer_username,
         payeeAgentId: row.payee_agent_id, payeeUsername: row.payee_username,
         assets: JSON.parse(row.assets_json) as EconomicContractPlayerEscrow['assets'],
-        status: row.status, error: row.error, createdAt: row.created_at,
-        updatedAt: row.updated_at, committedAt: row.committed_at };
+        status: row.released_at ? 'released' : row.status, error: row.error, createdAt: row.created_at,
+        updatedAt: row.updated_at, committedAt: row.committed_at, releasedAt: row.released_at };
 }
 
 function obligationSatisfied(required: EconomicObligation, records: EconomicContractEvidence[],
@@ -258,7 +266,8 @@ function contract(row: ContractRow, records: EconomicContractEvidence[], settlem
         partyAAgentId: row.party_a_agent_id, partyBAgentId: row.party_b_agent_id,
         title: row.title, summary: row.summary,
         partyAProvides, partyBProvides, termsDigest: row.terms_digest,
-        status: row.fulfilled_at ? 'fulfilled' : 'active',
+        status: row.resolution_intent === 'cancelled' ? 'cancelling'
+            : row.resolution_intent === 'defaulted' ? 'defaulting' : row.resolution,
         partyASatisfied: obligationSatisfied(partyAProvides, records.filter(item => item.party === 'a'),
             settlements.filter(item => item.party === 'a' && item.status === 'committed')
                 .reduce((total, item) => total + item.amountGp, 0)
@@ -274,7 +283,8 @@ function contract(row: ContractRow, records: EconomicContractEvidence[], settlem
             playerEscrows.filter(item => item.party === 'b' && item.status === 'committed')
                 .flatMap(item => item.assets.items), playerEscrows.some(item => item.party === 'b')),
         evidence: records, settlements, playerEscrows, acceptedAt: row.accepted_at,
-        fulfilledAt: row.fulfilled_at, revision: row.revision };
+        fulfilledAt: row.fulfilled_at, resolvedAt: row.resolved_at,
+        resolutionNote: row.resolution_note, revision: row.revision };
 }
 
 function partySecured(current: EconomicContract, party: 'a' | 'b'): boolean {
@@ -283,9 +293,10 @@ function partySecured(current: EconomicContract, party: 'a' | 'b'): boolean {
     const settlements = current.settlements.filter(item => item.party === party);
     const escrows = current.playerEscrows.filter(item => item.party === party);
     return obligationSatisfied(required, records,
-        settlements.reduce((total, item) => total + item.amountGp, 0)
-            + escrows.reduce((total, item) => total + item.assets.gp, 0),
-        escrows.flatMap(item => item.assets.items), escrows.length > 0);
+        settlements.filter(item => item.status !== 'released').reduce((total, item) => total + item.amountGp, 0)
+            + escrows.filter(item => item.status !== 'released').reduce((total, item) => total + item.assets.gp, 0),
+        escrows.filter(item => item.status !== 'released').flatMap(item => item.assets.items),
+        escrows.length > 0);
 }
 
 export function validateEconomicOffer(input: CreateEconomicOffer, now = new Date().toISOString()): CreateEconomicOffer & { termsDigest: string } {
@@ -331,6 +342,13 @@ export class EconomicContractStore {
             status TEXT NOT NULL CHECK (status = 'active'), accepted_at TEXT NOT NULL,
             revision INTEGER NOT NULL CHECK (revision >= 1))`);
         this.addColumn('economic_contract', 'fulfilled_at', 'TEXT');
+        this.addColumn('economic_contract', 'resolution', "TEXT NOT NULL DEFAULT 'active'");
+        this.addColumn('economic_contract', 'resolution_intent', 'TEXT');
+        this.addColumn('economic_contract', 'resolution_note', "TEXT NOT NULL DEFAULT ''");
+        this.addColumn('economic_contract', 'resolution_started_at', 'TEXT');
+        this.addColumn('economic_contract', 'resolved_at', 'TEXT');
+        this.database.run(`UPDATE economic_contract SET resolution = 'fulfilled', resolved_at = fulfilled_at
+            WHERE fulfilled_at IS NOT NULL AND resolution = 'active'`);
         this.database.run(`CREATE TABLE IF NOT EXISTS economic_contract_evidence (
             evidence_id TEXT PRIMARY KEY, contract_id TEXT NOT NULL REFERENCES economic_contract(contract_id),
             party TEXT NOT NULL CHECK (party IN ('a', 'b')), actor_agent_id TEXT NOT NULL,
@@ -354,6 +372,8 @@ export class EconomicContractStore {
             status TEXT NOT NULL CHECK (status IN ('funded', 'settling', 'committed')),
             error TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, committed_at TEXT,
             UNIQUE (contract_id, party))`);
+        this.addColumn('economic_contract_settlement', 'released_at', 'TEXT');
+        this.addColumn('economic_contract_player_escrow', 'released_at', 'TEXT');
     }
 
     private addColumn(table: string, column: string, declaration: string): void {
@@ -538,7 +558,7 @@ export class EconomicContractStore {
     listReadySettlements(contractId: string): EconomicContractSettlement[] {
         const current = this.getContract(contractId);
         if (!current || current.status !== 'active') return [];
-        return current.settlements.filter(item => item.status !== 'committed'
+        return current.settlements.filter(item => item.status !== 'committed' && item.status !== 'released'
             && partySecured(current, item.party === 'a' ? 'b' : 'a'));
     }
 
@@ -546,16 +566,23 @@ export class EconomicContractStore {
         const current = this.getSettlement(settlementId);
         if (!current) throw new Error('Economic contract settlement does not exist');
         if (current.status === 'committed' || current.status === 'settling') return current;
-        this.database.run(`UPDATE economic_contract_settlement SET status = 'settling', error = '',
-            updated_at = ?2 WHERE settlement_id = ?1 AND status = 'funded'`,
+        if (current.status === 'released') throw new Error('Released contract settlement cannot be started');
+        const started = this.database.run(`UPDATE economic_contract_settlement SET status = 'settling', error = '',
+            updated_at = ?2 WHERE settlement_id = ?1 AND status = 'funded' AND released_at IS NULL
+                AND EXISTS (SELECT 1 FROM economic_contract contract
+                    WHERE contract.contract_id = economic_contract_settlement.contract_id
+                    AND contract.resolution = 'active' AND contract.resolution_intent IS NULL)`,
         [settlementId, isoTimestamp(now, 'now')]);
+        if (started.changes !== 1) throw new Error('Contract stopped before settlement could start');
         return this.getSettlement(settlementId)!;
     }
 
     noteSettlementFailure(settlementId: string, message: string,
         now = new Date().toISOString()): EconomicContractSettlement {
         const current = this.getSettlement(settlementId);
-        if (!current || current.status === 'committed') throw new Error('Contract settlement is not pending');
+        if (!current || current.status === 'committed' || current.status === 'released') {
+            throw new Error('Contract settlement is not pending');
+        }
         this.database.run(`UPDATE economic_contract_settlement SET status = 'settling', error = ?2,
             updated_at = ?3 WHERE settlement_id = ?1 AND status != 'committed'`,
         [settlementId, boundedText(message, 'settlementError', 500), isoTimestamp(now, 'now')]);
@@ -567,16 +594,18 @@ export class EconomicContractStore {
         const current = this.getSettlement(settlementId);
         if (!current) throw new Error('Economic contract settlement does not exist');
         if (current.status === 'committed') return this.getContract(current.contractId)!;
+        if (current.status === 'released') throw new Error('Released contract settlement cannot be committed');
         const transaction = this.database.transaction(() => {
             const updated = this.database.run(`UPDATE economic_contract_settlement SET status = 'committed',
                 error = '', committed_at = ?2, updated_at = ?2
-                WHERE settlement_id = ?1 AND status IN ('funded', 'settling')`, [settlementId, committedAt]);
+                WHERE settlement_id = ?1 AND status = 'settling' AND released_at IS NULL`, [settlementId, committedAt]);
             if (updated.changes !== 1) throw new Error('Contract settlement changed before commit');
             const contractAfterPayment = this.getContract(current.contractId)!;
             this.database.run(`UPDATE economic_contract SET revision = revision + 1
                 WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId]);
             if (contractAfterPayment.partyASatisfied && contractAfterPayment.partyBSatisfied) {
-                this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2
+                this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2,
+                    resolution = 'fulfilled', resolved_at = ?2
                     WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId, committedAt]);
             }
         });
@@ -593,7 +622,7 @@ export class EconomicContractStore {
     listReadyPlayerEscrows(contractId: string): EconomicContractPlayerEscrow[] {
         const current = this.getContract(contractId);
         if (!current || current.status !== 'active') return [];
-        return current.playerEscrows.filter(item => item.status !== 'committed'
+        return current.playerEscrows.filter(item => item.status !== 'committed' && item.status !== 'released'
             && partySecured(current, item.party === 'a' ? 'b' : 'a'));
     }
 
@@ -602,16 +631,23 @@ export class EconomicContractStore {
         const current = this.getPlayerEscrow(escrowId);
         if (!current) throw new Error('Economic contract player escrow does not exist');
         if (current.status === 'committed' || current.status === 'settling') return current;
-        this.database.run(`UPDATE economic_contract_player_escrow SET status = 'settling', error = '',
-            updated_at = ?2 WHERE escrow_id = ?1 AND status = 'funded'`,
+        if (current.status === 'released') throw new Error('Released contract player escrow cannot be started');
+        const started = this.database.run(`UPDATE economic_contract_player_escrow SET status = 'settling', error = '',
+            updated_at = ?2 WHERE escrow_id = ?1 AND status = 'funded' AND released_at IS NULL
+                AND EXISTS (SELECT 1 FROM economic_contract contract
+                    WHERE contract.contract_id = economic_contract_player_escrow.contract_id
+                    AND contract.resolution = 'active' AND contract.resolution_intent IS NULL)`,
         [escrowId, isoTimestamp(now, 'now')]);
+        if (started.changes !== 1) throw new Error('Contract stopped before player escrow could settle');
         return this.getPlayerEscrow(escrowId)!;
     }
 
     notePlayerEscrowFailure(escrowId: string, message: string,
         now = new Date().toISOString()): EconomicContractPlayerEscrow {
         const current = this.getPlayerEscrow(escrowId);
-        if (!current || current.status === 'committed') throw new Error('Contract player escrow is not pending');
+        if (!current || current.status === 'committed' || current.status === 'released') {
+            throw new Error('Contract player escrow is not pending');
+        }
         this.database.run(`UPDATE economic_contract_player_escrow SET status = 'settling', error = ?2,
             updated_at = ?3 WHERE escrow_id = ?1 AND status != 'committed'`,
         [escrowId, boundedText(message, 'escrowError', 500), isoTimestamp(now, 'now')]);
@@ -623,21 +659,113 @@ export class EconomicContractStore {
         const current = this.getPlayerEscrow(escrowId);
         if (!current) throw new Error('Economic contract player escrow does not exist');
         if (current.status === 'committed') return this.getContract(current.contractId)!;
+        if (current.status === 'released') throw new Error('Released contract player escrow cannot be committed');
         const transaction = this.database.transaction(() => {
             const updated = this.database.run(`UPDATE economic_contract_player_escrow SET status = 'committed',
                 error = '', committed_at = ?2, updated_at = ?2
-                WHERE escrow_id = ?1 AND status IN ('funded', 'settling')`, [escrowId, committedAt]);
+                WHERE escrow_id = ?1 AND status = 'settling' AND released_at IS NULL`, [escrowId, committedAt]);
             if (updated.changes !== 1) throw new Error('Contract player escrow changed before commit');
             const contractAfterPayment = this.getContract(current.contractId)!;
             this.database.run(`UPDATE economic_contract SET revision = revision + 1
                 WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId]);
             if (contractAfterPayment.partyASatisfied && contractAfterPayment.partyBSatisfied) {
-                this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2
+                this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2,
+                    resolution = 'fulfilled', resolved_at = ?2
                     WHERE contract_id = ?1 AND fulfilled_at IS NULL`, [current.contractId, committedAt]);
             }
         });
         transaction.immediate();
         return this.getContract(current.contractId)!;
+    }
+
+    markSettlementReleased(settlementId: string,
+        now = new Date().toISOString()): EconomicContractSettlement {
+        const current = this.getSettlement(settlementId);
+        if (!current) throw new Error('Economic contract settlement does not exist');
+        if (current.status === 'released') return current;
+        if (current.status !== 'funded') throw new Error('Only unambiguous funded settlement may be released');
+        const timestamp = isoTimestamp(now, 'now');
+        const updated = this.database.run(`UPDATE economic_contract_settlement SET released_at = ?2,
+            error = '', updated_at = ?2 WHERE settlement_id = ?1 AND status = 'funded'
+                AND committed_at IS NULL AND released_at IS NULL`, [settlementId, timestamp]);
+        if (updated.changes !== 1) throw new Error('Contract settlement changed before release');
+        return this.getSettlement(settlementId)!;
+    }
+
+    markPlayerEscrowReleased(escrowId: string,
+        now = new Date().toISOString()): EconomicContractPlayerEscrow {
+        const current = this.getPlayerEscrow(escrowId);
+        if (!current) throw new Error('Economic contract player escrow does not exist');
+        if (current.status === 'released') return current;
+        if (current.status !== 'funded') throw new Error('Only unambiguous funded player escrow may be released');
+        const timestamp = isoTimestamp(now, 'now');
+        const updated = this.database.run(`UPDATE economic_contract_player_escrow SET released_at = ?2,
+            error = '', updated_at = ?2 WHERE escrow_id = ?1 AND status = 'funded'
+                AND committed_at IS NULL AND released_at IS NULL`, [escrowId, timestamp]);
+        if (updated.changes !== 1) throw new Error('Contract player escrow changed before release');
+        return this.getPlayerEscrow(escrowId)!;
+    }
+
+    startResolution(contractId: string, resolution: 'cancelled' | 'defaulted',
+        expectedRevision: number, note: string, now = new Date().toISOString()): EconomicContract {
+        const current = this.getContract(contractId);
+        if (!current) throw new Error('Economic contract does not exist');
+        const resolutionNote = boundedText(note, 'resolutionNote', 240);
+        if (current.status === resolution) {
+            if (current.resolutionNote !== resolutionNote) throw new Error('Contract resolution replay changed its reason');
+            return current;
+        }
+        const pendingStatus = resolution === 'cancelled' ? 'cancelling' : 'defaulting';
+        if (current.status === pendingStatus) {
+            if (current.resolutionNote !== resolutionNote) throw new Error('Contract resolution replay changed its reason');
+            return current;
+        }
+        if (current.revision !== expectedRevision) throw new Error('Contract changed before resolution; refresh and try again');
+        if (current.status !== 'active') throw new Error(`Contract cannot enter ${resolution} from ${current.status}`);
+        if ([...current.settlements, ...current.playerEscrows].some(item => item.status === 'settling')) {
+            throw new Error('Ambiguous settling funds must be retried or reconciled before contract resolution');
+        }
+        if (resolution === 'cancelled' && (current.evidence.length > 0
+            || [...current.settlements, ...current.playerEscrows].some(item => item.status === 'committed'))) {
+            throw new Error('Partially performed contract must be defaulted instead of cancelled');
+        }
+        const timestamp = isoTimestamp(now, 'now');
+        const updated = this.database.run(`UPDATE economic_contract SET resolution_intent = ?2,
+            resolution_note = ?3, resolution_started_at = ?4, revision = revision + 1
+            WHERE contract_id = ?1 AND resolution = 'active' AND resolution_intent IS NULL AND revision = ?5
+                AND NOT EXISTS (SELECT 1 FROM economic_contract_settlement payment
+                    WHERE payment.contract_id = ?1 AND payment.status = 'settling' AND payment.released_at IS NULL)
+                AND NOT EXISTS (SELECT 1 FROM economic_contract_player_escrow held
+                    WHERE held.contract_id = ?1 AND held.status = 'settling' AND held.released_at IS NULL)
+                AND (?2 = 'defaulted' OR (NOT EXISTS (SELECT 1 FROM economic_contract_evidence evidence
+                    WHERE evidence.contract_id = ?1)
+                    AND NOT EXISTS (SELECT 1 FROM economic_contract_settlement payment
+                        WHERE payment.contract_id = ?1 AND payment.status = 'committed')
+                    AND NOT EXISTS (SELECT 1 FROM economic_contract_player_escrow held
+                        WHERE held.contract_id = ?1 AND held.status = 'committed')))`,
+        [contractId, resolution, resolutionNote, timestamp, expectedRevision]);
+        if (updated.changes !== 1) throw new Error('Contract changed before resolution; refresh and try again');
+        return this.getContract(contractId)!;
+    }
+
+    completeResolution(contractId: string, resolution: 'cancelled' | 'defaulted',
+        now = new Date().toISOString()): EconomicContract {
+        const current = this.getContract(contractId);
+        if (!current) throw new Error('Economic contract does not exist');
+        if (current.status === resolution) return current;
+        const expectedStatus = resolution === 'cancelled' ? 'cancelling' : 'defaulting';
+        if (current.status !== expectedStatus) throw new Error('Contract resolution was not started');
+        if ([...current.settlements, ...current.playerEscrows]
+            .some(item => item.status !== 'committed' && item.status !== 'released')) {
+            throw new Error('Contract still has unresolved funding');
+        }
+        const timestamp = isoTimestamp(now, 'now');
+        const updated = this.database.run(`UPDATE economic_contract SET resolution = ?2,
+            resolution_intent = NULL, resolved_at = ?3, revision = revision + 1
+            WHERE contract_id = ?1 AND resolution = 'active' AND resolution_intent = ?2`,
+        [contractId, resolution, timestamp]);
+        if (updated.changes !== 1) throw new Error('Contract changed before resolution completion');
+        return this.getContract(contractId)!;
     }
 
     recordRunEvidence(contractId: string, actorAgentIdInput: string, run: AdminSkillRun,
@@ -689,6 +817,10 @@ export class EconomicContractStore {
         if (!relevant) throw new Error('Skill run contains no evidence relevant to this party obligation');
         const recordedAt = isoTimestamp(now, 'now');
         const transaction = this.database.transaction(() => {
+            const locked = this.getContract(contractId);
+            if (!locked || locked.status !== 'active' || locked.revision !== current.revision) {
+                throw new Error('Economic contract changed before evidence recording');
+            }
             this.database.run(`INSERT INTO economic_contract_evidence (evidence_id, contract_id, party,
                 actor_agent_id, run_id, journal_digest, matched_gp, matched_items_json, matched_service,
                 economy_event_ids_json, recorded_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)`,
@@ -698,7 +830,8 @@ export class EconomicContractStore {
             const updated = this.getContract(contractId)!;
             if (updated.partyASatisfied && updated.partyBSatisfied) {
                 this.database.run(`UPDATE economic_contract SET fulfilled_at = ?2,
-                    revision = revision + 1 WHERE contract_id = ?1 AND fulfilled_at IS NULL`,
+                    resolution = 'fulfilled', resolved_at = ?2, revision = revision + 1
+                    WHERE contract_id = ?1 AND fulfilled_at IS NULL`,
                 [contractId, recordedAt]);
             } else {
                 this.database.run(`UPDATE economic_contract SET revision = revision + 1

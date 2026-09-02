@@ -80,7 +80,7 @@ import { MultiAgentExperimentStore, startMultiAgentExperiment } from './multi-ag
 import { multiAgentExperimentsDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
 import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
-    settleReadyEconomicContract } from './economic-contract-settlement.js';
+    resolveEconomicContract, settleReadyEconomicContract } from './economic-contract-settlement.js';
 import { BusinessManagerStore, type BusinessPolicyMode, type BusinessStatus,
     type EmploymentRole } from './business-manager.js';
 import { proposeBusinessPolicyForAgent } from './business-agent-port.js';
@@ -728,6 +728,32 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 await appendAudit({ operator: 'local-admin', action: 'economic-contract.settlement.retry',
                     reason, success: false, error: String(error),
                     after: { contractId: economicContractSettlementMatch[1] } });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const economicContractResolutionMatch = url.pathname
+            .match(/^\/api\/admin\/economic-contracts\/([0-9a-f-]{36})\/resolve$/i);
+        if (req.method === 'POST' && economicContractResolutionMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const resolution = oneOf(body.resolution, ['cancelled', 'defaulted'] as const, 'resolution');
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen szerződésrevízió.');
+            }
+            const store = new EconomicContractStore(economicContractsDbPath);
+            try {
+                const before = store.getContract(economicContractResolutionMatch[1]);
+                const contract = await resolveEconomicContract(economicContractResolutionMatch[1],
+                    resolution, expectedRevision, reason);
+                await appendAudit({ operator: 'local-admin', action: `economic-contract.${resolution}`,
+                    reason, success: true, before, after: contract });
+                return json({ ok: true, contract });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: `economic-contract.${resolution}`,
+                    reason, success: false, error: String(error),
+                    after: { contractId: economicContractResolutionMatch[1], expectedRevision } });
                 throw error;
             } finally { store.close(); }
         }

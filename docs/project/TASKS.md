@@ -429,7 +429,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       debit+credit főkönyvi primitívet készíteni, túlcsordulás és önutalás nélkül.
     - [ ] Az institution-főkönyvi primitívet csak hiteles szerződéses, adó- vagy
       banki teljesítési esemény után meghívható settlement-orchestrátorhoz kötni.
-    - [ ] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt készíteni.
+    - [x] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt készíteni.
       - [x] GP-t és legfeljebb 28 normalizált itemtípust előellenőrző, tartós,
         idempotens hold/release tárolót készíteni; részleges inventory-műveletet
         kompenzálni, bizonytalan állapotot pedig `reconcile` státusszal lezárni.
@@ -438,7 +438,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       - [x] A player→player GP- és item-vállalást elfogadáskor stabil escrow ID-val
         holdolni, majd csak a másik fél fedezett vagy hitelesen igazolt teljesítése
         után exact payee-nek commitolni; acceptance-hibánál release-t kérni.
-      - [ ] Szerződéses cancellation/default lifecycle-t és szabályait létrehozni,
+      - [x] Szerződéses cancellation/default lifecycle-t és szabályait létrehozni,
         majd a még nem commitolt player-escrowt és treasury-foglalást release-elni.
 - [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
   - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,

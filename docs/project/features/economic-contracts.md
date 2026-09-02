@@ -38,8 +38,32 @@ determinisztikusan származik, ezért egy folyamatmegszakítás utáni retry nem
 új foglalást. Fedezet nélkül a szerződés nem jön létre.
 
 Avatar nélküli institution itemet vagy fizikai szolgáltatást nem vállalhat ezen az
-útvonalon. Institution→institution kifizetés és player inventory-escrow sincs még;
-ezek nem kerülhetik meg a későbbi főkönyvi és engine-oldali foglalási modellt.
+útvonalon. Institution→institution kifizetés még nincs az orchestrátorhoz kötve.
+
+Player→player GP- vagy itemvállalásnál az elfogadás előtt a teljes eszközlista
+engine-oldali inventory escrowba kerül. A stabil escrow ID a szerződésből és a
+félből determinisztikusan származik; a szerződés külön főkönyve az exact payer és
+payee agentet, avatárt, eszközöket és settlement állapotot is rögzíti.
+
+## Cancellation és default
+
+Az aktív szerződés két külön végállapotot támogat:
+
+- `cancelled`: kizárólag teljesítés és bizonyíték nélküli szerződés rendezett,
+  explicit admin-törlése;
+- `defaulted`: részben teljesített vagy ténylegesen meghiúsult szerződés végleges
+  lezárása, a már végrehajtott átadások visszafordítása nélkül.
+
+A feloldás kétlépcsős. A szerződés előbb `cancelling` vagy `defaulting` állapotba
+kerül, ami megállít minden új bizonyítást és settlementet. Ezután az orchestrátor
+idempotensen release-eli a még nyitott treasury-foglalásokat és player-escrowkat,
+majd csak minden receipt után írja a végállapotot. Engine-hibánál a köztes állapot
+megmarad és ugyanazzal az indokkal újrapróbálható.
+
+`settling` fedezet nem oldható fel, mert a külső engine-művelet kimenetele ilyenkor
+bizonytalan lehet. Előbb az eredeti settlementet kell idempotensen újrapróbálni
+vagy kézzel egyeztetni. Ez akadályozza meg, hogy már jóváírt pénzhez vagy tárgyhoz
+a fizető fél fedezete is visszakerüljön.
 
 ## Adminfelület és biztonság
 
@@ -48,9 +72,11 @@ lezárt ajánlatokat, valamint az aktív szerződéseket. A gazdasági lista olv
 admin-hitelesítést igényel. Minden létrehozás és státuszváltás bekerül az admin
 auditnaplóba.
 
-Az aktív szerződés megmutatja az előre fedezett kifizetéseket, azok payer/payee
-kötését, összegét és `funded/settling/committed` állapotát. Átmeneti engine-hiba
-után ugyanitt külön auditált újrapróbálás érhető el.
+Az admin szerződéskártya megmutatja az intézményi és player-fedezeteket, azok
+payer/payee kötését, összegét és `funded/settling/committed/released` állapotát.
+Átmeneti engine-hiba után ugyanitt külön auditált újrapróbálás érhető el. Az aktív
+szerződésen külön teljesítés előtti törlés és meghiúsultként lezárás található;
+a köztes feloldás szintén innen próbálható újra.
 
 ## Hiteles teljesítési bizonyíték
 
@@ -61,9 +87,12 @@ idegen avatárt vagy másik szerződéshez már felhasznált run ID-t.
 
 Az illesztés szabályai:
 
-- a vállalt GP csak az exact másik avatárral lezárt player-trade negatív
-  coin-deltájából számít;
-- a vállalt tárgy csak ugyanennek a trade-nek az igazolt kimenő tételeiből számít;
+- az escrow nélküli vállalt GP csak az exact másik avatárral lezárt player-trade
+  negatív coin-deltájából számít;
+- az escrow nélküli vállalt tárgy csak ugyanennek a trade-nek az igazolt kimenő
+  tételeiből számít;
+- az escrowzott GP és tárgy kizárólag az exact payee részére commitolt engine-
+  escrowból számít, ezért külön trade-run nem teljesítheti még egyszer;
 - a szolgáltatás csak a feltételben rögzített exact skillverzió completed runjával
   igazolható;
 - több saját run részleges mennyisége összeadható, de ugyanaz a run globálisan
@@ -74,10 +103,12 @@ Csak akkor lesz a szerződés `fulfilled`, amikor mindkét fél összes GP-, tá
 szolgáltatásvállalása külön bizonyított. A journal digest és az eventazonosítók
 megmaradnak, a pontos replay idempotens, a megváltozott journal elutasított.
 
-Player által vállalt GP és tárgy esetén a `fulfilled` továbbra is a tényleges,
-exact-counterparty player-trade run bizonyítékából következik. Előre fedezett
-institution→player GP esetén viszont a másik fél összes vállalt teljesítése után a
-gateway ugyanazt az engine-tickes, idempotens reward csatornát használja, mint a
-player-megbízások. Sikeres engine receipt után commitolja a treasury-foglalást és
-csak ezután jelöli a settlementet teljesítettnek. Hiba esetén a pénz foglalva és a
-szerződés aktív marad; retry ugyanazzal a settlement ID-val nem fizethet kétszer.
+Player escrow esetén a másik fél igazolt szolgáltatása vagy saját előre foglalt
+fedezete nyitja meg a commitot. Két player tiszta eszközcseréje így nem kerül
+holtpontra, de a szerződés csak mindkét exact jóváírás után lesz `fulfilled`.
+
+Előre fedezett institution→player GP esetén a gateway ugyanazt az engine-tickes,
+idempotens reward csatornát használja, mint a player-megbízások. Sikeres engine
+receipt után commitolja a treasury-foglalást és csak ezután jelöli a settlementet
+teljesítettnek. Hiba esetén a fedezet foglalva marad; retry ugyanazzal a stabil
+settlement- vagy escrow ID-val nem fizethet kétszer.

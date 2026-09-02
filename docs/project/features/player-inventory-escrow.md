@@ -19,9 +19,9 @@ fél kötelezettsége hiteles skill-runnal igazolt vagy szintén előre fedezett
 
 Ha az elfogadott szerződés létrehozása nem erősíthető meg, az orchestrátor release-t
 kér minden már megkísérelt holdra. Sikertelen engine-commit után `settling` marad,
-és ugyanazzal az escrow ID-val újrapróbálható. A még hiányzó cancellation/default
-lifecycle feladata lesz a már aktív, de szabályosan meghiúsult szerződések nyitott
-escrowinak és treasury-foglalásainak release-e.
+és ugyanazzal az escrow ID-val újrapróbálható. A cancellation/default lifecycle a
+már aktív szerződés még egyértelműen `funded` escrowit is release-eli; bizonytalan
+`settling` állapotból viszont előbb settlement-retry vagy kézi egyeztetés kötelező.
 
 ## Normalizált eszközök
 

@@ -221,6 +221,39 @@ export async function settleReadyEconomicContract(contractId: string,
     }
 }
 
+export async function resolveEconomicContract(contractId: string, resolution: 'cancelled' | 'defaulted',
+    expectedRevision: number, note: string,
+    options: EconomicContractSettlementOptions = {}): Promise<EconomicContract> {
+    const contracts = new EconomicContractStore(options.contractsPath ?? economicContractsDbPath);
+    const treasury = new InstitutionTreasuryStore(options.treasuryPath ?? institutionTreasuryDbPath);
+    try {
+        let current = contracts.startResolution(contractId, resolution, expectedRevision, note, options.now);
+        for (const payment of current.settlements) {
+            if (payment.status === 'committed' || payment.status === 'released') continue;
+            const released = treasury.release(payment.reservationId, options.now);
+            if (!released || released.reservationId !== payment.reservationId
+                || released.kind !== payment.payerKind || released.actorId !== payment.payerActorId
+                || released.amountGp !== payment.amountGp || released.status !== 'released') {
+                throw new Error('Treasury returned a mismatched contract release receipt');
+            }
+            contracts.markSettlementReleased(payment.settlementId, options.now);
+        }
+        current = contracts.getContract(contractId)!;
+        for (const held of current.playerEscrows) {
+            if (held.status === 'committed' || held.status === 'released') continue;
+            const receipt = await (options.escrower ?? requestEnginePlayerEscrow)({
+                escrowId: held.escrowId, operation: 'release', username: held.payerUsername
+            });
+            validatePlayerEscrowReceipt(receipt, held, 'release');
+            contracts.markPlayerEscrowReleased(held.escrowId, options.now);
+        }
+        return contracts.completeResolution(contractId, resolution, options.now);
+    } finally {
+        treasury.close();
+        contracts.close();
+    }
+}
+
 export async function recordAndSettleEconomicContractEvidence(contractId: string, actorAgentId: string,
     run: AdminSkillRun, avatarByAgentId: ReadonlyMap<string, string | null>,
     options: EconomicContractSettlementOptions = {}): Promise<EconomicContractEvidenceOutcome> {

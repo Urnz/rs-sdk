@@ -124,9 +124,13 @@ műveleteket. A másik fél igazolt szolgáltatása vagy saját előre foglalt f
 után az exact payee commit idempotensen újrapróbálható; a contract főkönyv csak a
 visszaellenőrzött engine receipt után jelöli teljesítettnek.
 
-Az aktív szerződés cancellation/default állapota még nincs modellezve. Ennek
-bevezetéséig az elfogadás meghiúsulásakor történik automatikus release, de egy már
-aktív szerződés nyitott fedezetének későbbi feloldása nem kérhető.
+Az aktív szerződés explicit `cancelled` és `defaulted` végállapotot használ. A
+cancel csak bizonyíték és commit nélküli ügylethez, a default részleges teljesítés
+után is alkalmazható, de egyik sem fordít vissza commitolt átadást. A kétlépcsős
+`cancelling/defaulting` intent előbb lezárja az új evidence és settlement útját,
+majd idempotensen release-eli a még nyitott treasury- és player-fedezetet. A
+bizonytalan `settling` rekord feloldása fail-closed tiltott, amíg az eredeti
+műveletet nem próbálták újra vagy nem egyeztették.
 
 A közös treasury már biztosít külön institution→institution főkönyvi primitívet.
 Ez egy stabil settlement ID alatt, egyetlen SQLite tranzakcióban commitolja a payer

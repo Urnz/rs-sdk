@@ -625,15 +625,24 @@ function renderEconomicContracts(offers, contracts) {
             `<li>${payment.party.toUpperCase()} fél · ${escapeHtml(payment.payerKind)}:${escapeHtml(payment.payerActorId)} → ${escapeHtml(payment.payeeUsername)} · ${fmt.format(payment.amountGp)} gp · ${escapeHtml(payment.status)}${payment.error ? ` · ${escapeHtml(payment.error)}` : ''}</li>`).join('')}</ul></details>` : '';
         const playerEscrows = item.playerEscrows?.length ? `<details><summary>Játékos-escrowk (${item.playerEscrows.length})</summary><ul>${item.playerEscrows.map(held =>
             `<li>${held.party.toUpperCase()} fél · ${escapeHtml(held.payerUsername)} → ${escapeHtml(held.payeeUsername)} · ${fmt.format(held.assets.gp)} gp · ${held.assets.items.map(product => `${fmt.format(product.count)}× #${product.id}`).join(', ') || 'nincs tárgy'} · ${escapeHtml(held.status)}${held.error ? ` · ${escapeHtml(held.error)}` : ''}</li>`).join('')}</ul></details>` : '';
-        const pendingSettlement = item.settlements?.some(payment => payment.status !== 'committed')
-            || item.playerEscrows?.some(held => held.status !== 'committed');
-        const actions = item.status === 'active' ? `<div class="agent-heading-actions">
+        const pendingSettlement = item.settlements?.some(payment => !['committed', 'released'].includes(payment.status))
+            || item.playerEscrows?.some(held => !['committed', 'released'].includes(held.status));
+        const activeActions = item.status === 'active' ? `
             ${item.partyASatisfied ? '' : `<button class="button small primary" data-action="economic-contract-evidence" data-contract-id="${escapeHtml(item.contractId)}" data-actor-id="${escapeHtml(item.partyAAgentId)}">A fél bizonyítéka</button>`}
             ${item.partyBSatisfied ? '' : `<button class="button small primary" data-action="economic-contract-evidence" data-contract-id="${escapeHtml(item.contractId)}" data-actor-id="${escapeHtml(item.partyBAgentId)}">B fél bizonyítéka</button>`}
-            ${pendingSettlement ? `<button class="button small secondary" data-action="economic-contract-settle" data-contract-id="${escapeHtml(item.contractId)}">Fedezet teljesítése / újrapróbálása</button>` : ''}</div>` : '';
-        return `<article class="capability-gap-card ${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(economicOfferKindLabels[item.kind] || item.kind)} · ${item.status === 'fulfilled' ? 'Teljesítve' : 'Aktív'} · ${new Date(item.acceptedAt).toLocaleString('hu-HU')}</small></div>
+            ${pendingSettlement ? `<button class="button small secondary" data-action="economic-contract-settle" data-contract-id="${escapeHtml(item.contractId)}">Fedezet teljesítése / újrapróbálása</button>` : ''}
+            <button class="button small ghost" data-action="economic-contract-resolve" data-resolution="cancelled" data-contract-id="${escapeHtml(item.contractId)}" data-revision="${item.revision}">Teljesítés előtti törlés</button>
+            <button class="button small danger" data-action="economic-contract-resolve" data-resolution="defaulted" data-contract-id="${escapeHtml(item.contractId)}" data-revision="${item.revision}">Meghiúsultnak jelölés</button>` : '';
+        const retryResolution = ['cancelling', 'defaulting'].includes(item.status)
+            ? `<button class="button small danger" data-action="economic-contract-resolve" data-resolution="${item.status === 'cancelling' ? 'cancelled' : 'defaulted'}" data-contract-id="${escapeHtml(item.contractId)}" data-revision="${item.revision}">Fedezetfeloldás újrapróbálása</button>` : '';
+        const actions = activeActions || retryResolution
+            ? `<div class="agent-heading-actions">${activeActions}${retryResolution}</div>` : '';
+        const statusLabels = { active: 'Aktív', fulfilled: 'Teljesítve', cancelling: 'Törlés folyamatban',
+            defaulting: 'Meghiúsítás folyamatban', cancelled: 'Törölve', defaulted: 'Meghiúsult' };
+        return `<article class="capability-gap-card ${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(economicOfferKindLabels[item.kind] || item.kind)} · ${escapeHtml(statusLabels[item.status] || item.status)} · ${new Date(item.acceptedAt).toLocaleString('hu-HU')}</small></div>
         <p>${escapeHtml(item.summary)}</p><div class="capability-gap-meta"><span>${escapeHtml(item.partyAAgentId)}: ${escapeHtml(economicObligationText(item.partyAProvides))}</span><span>${escapeHtml(item.partyBAgentId)}: ${escapeHtml(economicObligationText(item.partyBProvides))}</span></div>
-        <div class="capability-gap-meta"><span>A fél: ${item.partyASatisfied ? 'igazolt' : 'függő'}</span><span>B fél: ${item.partyBSatisfied ? 'igazolt' : 'függő'}</span>${item.fulfilledAt ? `<span>lezárva: ${new Date(item.fulfilledAt).toLocaleString('hu-HU')}</span>` : ''}</div>
+        <div class="capability-gap-meta"><span>A fél: ${item.partyASatisfied ? 'igazolt' : 'függő'}</span><span>B fél: ${item.partyBSatisfied ? 'igazolt' : 'függő'}</span>${item.resolvedAt ? `<span>lezárva: ${new Date(item.resolvedAt).toLocaleString('hu-HU')}</span>` : ''}</div>
+        ${item.resolutionNote ? `<p>${escapeHtml(item.resolutionNote)}</p>` : ''}
         <small>Csak exact-avatar, post-acceptance completed run fogadható el · digest: ${escapeHtml(item.termsDigest)}</small>${evidence}${settlements}${playerEscrows}${actions}</article>`;
     }).join('')}`
         : '<p class="empty">Még nincs elfogadott szerződés.</p>';
@@ -1730,6 +1739,24 @@ document.addEventListener('click', async event => {
                 method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
             });
             toast('A szerződéses kifizetés sikeresen lezárult.'); await refreshEconomicContracts();
+        }
+        if (button.dataset.action === 'economic-contract-resolve') {
+            const resolution = button.dataset.resolution;
+            const warning = resolution === 'cancelled'
+                ? 'A törlés csak teljesítés nélküli szerződésnél engedélyezett, és minden nyitott fedezetet visszaad. Folytatod?'
+                : 'A meghiúsítás végleges. A már teljesített átadásokat nem fordítja vissza, csak a nyitott fedezetet oldja fel. Folytatod?';
+            if (!confirm(warning)) return;
+            const reason = prompt('Kötelező admin audit indoklás:', resolution === 'cancelled'
+                ? 'A felek közös megegyezéssel, teljesítés előtt törölték a szerződést.'
+                : 'A szerződés részben vagy egészben meghiúsult.');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/economic-contracts/${encodeURIComponent(button.dataset.contractId)}/resolve`, {
+                method: 'POST', mutation: true, body: JSON.stringify({ resolution,
+                    expectedRevision: Number(button.dataset.revision), reason: reason.trim() })
+            });
+            toast(resolution === 'cancelled' ? 'A szerződés törölve, a fedezet felszabadítva.'
+                : 'A szerződés meghiúsultként lezárva, a nyitott fedezet felszabadítva.');
+            await refreshEconomicContracts();
         }
         if (button.dataset.action === 'business-status') {
             const business = state.businesses.find(item => item.businessId === button.dataset.businessId);

@@ -87,6 +87,16 @@ describe('admin authorization boundary', () => {
         const response = await handleAdminRequest(request, new URL(request.url), context);
         expect(response?.status).toBe(401);
     });
+
+    test('rejects contract cancellation and default without local admin authorization', async () => {
+        const context = { gatewayBots: () => new Map(), supervisor: {} as BotSupervisor };
+        const request = new Request('http://localhost:7780/api/admin/economic-contracts/11111111-1111-4111-8111-111111111111/resolve', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resolution: 'defaulted', expectedRevision: 1, reason: 'forged' })
+        });
+        const response = await handleAdminRequest(request, new URL(request.url), context);
+        expect(response?.status).toBe(401);
+    });
 });
 
 describe('online and offline state collision', () => {
