@@ -479,6 +479,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
   - [x] Exact skill-runokból skilldiverzitást, koncentrációt, termelést,
     felhasználást, shop- és player-trade aktivitást mérni.
+  - [x] A verified skill-runok sikeres úticél- és gyűjtési evidence-éből régió- és
+    célpontdiverzitást, továbbá agentenként nettó GP-t, termelést és célhoz kötött
+    sikeres runokat tartósítani és az adminpanelen megjeleníteni.
   - [ ] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
     jövedelmet és agentenkénti célhaladást mérni.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti

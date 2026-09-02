@@ -54,6 +54,26 @@ export interface MultiAgentExperimentMetrics {
     uniqueSkills: number;
     skillConcentration: number;
     skillRuns: Array<{ skillId: string; runs: number }>;
+    uniqueTargets: number;
+    uniqueRegions: number;
+    goalLinkedRuns: number;
+    successfulGoalRuns: number;
+    participantResults: MultiAgentExperimentParticipantResult[];
+}
+
+export interface MultiAgentExperimentParticipantResult {
+    agentId: string;
+    avatarPlayerUsername: string;
+    goalId: string | null;
+    skillId: string | null;
+    status: string;
+    netCoins: number;
+    producedItems: number;
+    consumedItems: number;
+    shopTransactions: number;
+    playerTrades: number;
+    targets: string[];
+    regions: string[];
 }
 
 export interface MultiAgentExperimentRun {
@@ -142,6 +162,44 @@ function participant(row: ParticipantRow): MultiAgentExperimentParticipant {
         updatedAt: row.updated_at };
 }
 
+function recordGoalId(record: ReplanRecord | null): string | null {
+    const decision = record?.outcome?.decision;
+    if (!decision || typeof decision !== 'object') return null;
+    const goalId = (decision as Record<string, unknown>).goalId;
+    return typeof goalId === 'string' && /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(goalId) ? goalId : null;
+}
+
+function runTargets(run: AdminSkillRun | null): string[] {
+    if (!run) return [];
+    const targets = new Set<string>();
+    for (const event of run.events) {
+        if (event.type !== 'step.succeeded' || !event.data || typeof event.data !== 'object') continue;
+        const target = event.data.target;
+        if (!target || typeof target !== 'object' || Array.isArray(target)) continue;
+        const { kind, name } = target as Record<string, unknown>;
+        if ((kind === 'loc' || kind === 'npc') && typeof name === 'string' && name.trim()) {
+            targets.add(`${kind}:${name.trim().toLocaleLowerCase('en-US')}`);
+        }
+    }
+    return [...targets].sort();
+}
+
+function runRegions(run: AdminSkillRun | null): string[] {
+    if (!run) return [];
+    const regions = new Set<string>();
+    for (const event of run.events) {
+        if (event.type !== 'step.succeeded' || !event.data || typeof event.data !== 'object') continue;
+        const destination = event.data.destination;
+        if (!destination || typeof destination !== 'object' || Array.isArray(destination)) continue;
+        const { x, z } = destination as Record<string, unknown>;
+        if (typeof x === 'number' && Number.isSafeInteger(x) && x >= 0 && x <= 16_383
+            && typeof z === 'number' && Number.isSafeInteger(z) && z >= 0 && z <= 16_383) {
+            regions.add(`${Math.floor(x / 64)},${Math.floor(z / 64)}`);
+        }
+    }
+    return [...regions].sort((left, right) => left.localeCompare(right, 'en-US', { numeric: true }));
+}
+
 function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnapshot,
     finishedAt: string): MultiAgentExperimentMetrics {
     const baselineItems = new Map(run.baselineEconomy.itemStock.map(item => [item.id, item]));
@@ -155,13 +213,20 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         .slice(0, 100);
     const completedParticipants = run.participants.filter(item => item.status === 'completed').length;
     const skillCounts = new Map<string, number>();
-    const economicEvents = run.participants.flatMap(item => {
+    const participantResults = run.participants.map(item => {
         const skillRun = item.skillRun;
-        if (!skillRun) return [];
-        skillCounts.set(skillRun.skill.id, (skillCounts.get(skillRun.skill.id) ?? 0) + 1);
-        return extractEconomyEvents({ runId: skillRun.runId, username: skillRun.username,
-            skillId: skillRun.skill.id, events: skillRun.events });
+        if (skillRun) skillCounts.set(skillRun.skill.id, (skillCounts.get(skillRun.skill.id) ?? 0) + 1);
+        const events = skillRun ? extractEconomyEvents({ runId: skillRun.runId, username: skillRun.username,
+            skillId: skillRun.skill.id, events: skillRun.events }) : [];
+        const summary = summarizeEconomyEvents(events);
+        return { result: { agentId: item.agentId, avatarPlayerUsername: item.avatarPlayerUsername,
+            goalId: recordGoalId(item.record), skillId: skillRun?.skill.id ?? null, status: item.status,
+            netCoins: summary.netCoins, producedItems: summary.producedItems,
+            consumedItems: summary.consumedItems, shopTransactions: summary.shopTransactions,
+            playerTrades: summary.playerTrades, targets: runTargets(skillRun), regions: runRegions(skillRun) }, events };
     });
+    const economicEvents = participantResults.flatMap(item => item.events);
+    const results = participantResults.map(item => item.result);
     const skillRuns = [...skillCounts].map(([skillId, runs]) => ({ skillId, runs }))
         .sort((left, right) => right.runs - left.runs || left.skillId.localeCompare(right.skillId));
     const totalSkillRuns = skillRuns.reduce((total, item) => total + item.runs, 0);
@@ -176,7 +241,12 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         unsuccessfulParticipants: run.participants.length - completedParticipants,
         itemStockDelta, economicEvents: economicEvents.length,
         economicEventSummary: summarizeEconomyEvents(economicEvents),
-        uniqueSkills: skillRuns.length, skillConcentration, skillRuns };
+        uniqueSkills: skillRuns.length, skillConcentration, skillRuns,
+        uniqueTargets: new Set(results.flatMap(item => item.targets)).size,
+        uniqueRegions: new Set(results.flatMap(item => item.regions)).size,
+        goalLinkedRuns: results.filter(item => item.goalId !== null).length,
+        successfulGoalRuns: results.filter(item => item.goalId !== null && item.status === 'completed').length,
+        participantResults: results };
 }
 
 export class MultiAgentExperimentStore {

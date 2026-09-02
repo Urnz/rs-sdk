@@ -294,7 +294,8 @@ describe('rs-sdk skill runtime', () => {
         const result = await new RsSdkSkillRuntime(bot, sdk).execute('gather-loc', {
             name: 'rocks copper ore', match: 'exact', option: 'mine', item: 'copper ore', skill: 'Mining'
         }, new AbortController().signal);
-        expect(result).toMatchObject({ success: true, code: 'gathered' });
+        expect(result).toMatchObject({ success: true, code: 'gathered',
+            data: { target: { kind: 'loc', name: 'rocks copper ore' } } });
     });
 
     test('returns a stable gather-timeout code when no progress is observed', async () => {
@@ -307,7 +308,8 @@ describe('rs-sdk skill runtime', () => {
         const result = await new RsSdkSkillRuntime(bot, sdk).execute('gather-npc', {
             name: 'fishing spot', option: 'cage', item: 'lobster', skill: 'Fishing'
         }, new AbortController().signal);
-        expect(result).toMatchObject({ success: false, code: 'gather-timeout' });
+        expect(result).toMatchObject({ success: false, code: 'gather-timeout',
+            data: { target: { kind: 'npc', name: 'fishing spot' } } });
     });
 
     test('retargets a moving fishing spot until real inventory evidence appears', async () => {
@@ -424,7 +426,8 @@ describe('rs-sdk skill runtime', () => {
             .toMatchObject({ success: true, code: 'dialog-completed' });
         expect(clicks).toEqual(['continue', 'Yes please.']);
         expect(await runtime.execute('wait-for-area', { x: 2956, z: 3143, tolerance: 2 }, new AbortController().signal))
-            .toMatchObject({ success: true, code: 'area-reached' });
+            .toMatchObject({ success: true, code: 'area-reached',
+                data: { destination: { x: 2956, z: 3143, tolerance: 2 } } });
     });
 
     test('refuses dialog options that were not explicitly allowed', async () => {

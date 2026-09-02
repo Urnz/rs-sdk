@@ -28,13 +28,26 @@ function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandi
 
 function skillRun(runId: string, username: string, status: AdminSkillRun['status'] = 'completed'): AdminSkillRun {
     const skillId = username === 'agent-a' ? 'test.mine-copper' : 'test.fish-lobster';
+    const resource = username === 'agent-a'
+        ? { id: 436, name: 'Copper ore', target: 'Copper rocks', x: 3200, z: 3400 }
+        : { id: 377, name: 'Raw lobster', target: 'Fishing spot', x: 2900, z: 3150 };
     return { runId, username, skill: { id: skillId, version: '1.0.0' }, status,
         reason: status === 'completed' ? 'Cycle completed.' : 'Cycle failed.', message: '', operations: 4,
         durationMs: 1_000, startedAt: '2026-09-01T10:00:01.000Z', finishedAt: '2026-09-01T10:00:02.000Z',
-        events: [{ runId, type: 'step.succeeded', timestamp: '2026-09-01T10:00:01.500Z',
-            skill: { id: skillId, version: '1.0.0' }, stepId: 'gather', operation: 'gather-loc',
-            data: { inventoryDelta: [{ id: username === 'agent-a' ? 436 : 377,
-                name: username === 'agent-a' ? 'Copper ore' : 'Raw lobster', count: 1, delta: 1 }] } }] };
+        events: [
+            { runId, type: 'step.succeeded', timestamp: '2026-09-01T10:00:01.100Z',
+                skill: { id: skillId, version: '1.0.0' }, stepId: 'travel', operation: 'walk-to',
+                data: { destination: { x: resource.x, z: resource.z, tolerance: 3 } } },
+            { runId, type: 'step.succeeded', timestamp: '2026-09-01T10:00:01.500Z',
+                skill: { id: skillId, version: '1.0.0' }, stepId: 'gather', operation: 'gather-loc',
+                data: { target: { kind: username === 'agent-a' ? 'loc' : 'npc', name: resource.target },
+                    inventoryDelta: [{ id: resource.id, name: resource.name, count: 1, delta: 1 }] } },
+            ...(username === 'agent-a' ? [{ runId, type: 'step.succeeded' as const,
+                timestamp: '2026-09-01T10:00:01.800Z', skill: { id: skillId, version: '1.0.0' },
+                stepId: 'sell', operation: 'sell-to-shop' as const, data: { amountSold: 1,
+                    inventoryDelta: [{ id: resource.id, name: resource.name, count: 0, delta: -1 },
+                        { id: 995, name: 'Coins', count: 10, delta: 10 }] } }] : [])
+        ] };
 }
 
 describe('seeded multi-agent experiment definition', () => {
@@ -62,6 +75,8 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('input[name="experimentAgentId"]:checked');
     expect(script).toContain('metrics.economicEventSummary.producedItems');
     expect(script).toContain('metrics.skillConcentration');
+    expect(script).toContain('metrics?.participantResults');
+    expect(script).toContain('metrics.uniqueTargets');
 });
 
 describe('persistent multi-agent experiment runner', () => {
@@ -82,7 +97,8 @@ describe('persistent multi-agent experiment runner', () => {
                 await Bun.sleep(15);
                 active--;
                 return { runId: runIds.get(agentId)!, status: 'executing',
-                    decision: { kind: 'execute-skill', agentId }, reason: `Accepted ${event.sourceKey}` };
+                    decision: { kind: 'execute-skill', agentId, goalId: `${agentId}.earn` },
+                    reason: `Accepted ${event.sourceKey}` };
             },
             append: () => undefined
         });
@@ -119,9 +135,16 @@ describe('persistent multi-agent experiment runner', () => {
         expect(completed?.finalEconomy?.totalCoins).toBe(120);
         expect(completed?.metrics).toMatchObject({ totalCoinsDelta: 20, totalXpDelta: 0,
             completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 3_000,
-            economicEvents: 2, economicEventSummary: { producedItems: 2 },
+            economicEvents: 3, economicEventSummary: { producedItems: 2, shopTransactions: 1, netCoins: 10 },
             uniqueSkills: 2, skillConcentration: 0.5,
-            skillRuns: [{ skillId: 'test.fish-lobster', runs: 1 }, { skillId: 'test.mine-copper', runs: 1 }] });
+            skillRuns: [{ skillId: 'test.fish-lobster', runs: 1 }, { skillId: 'test.mine-copper', runs: 1 }],
+            uniqueTargets: 2, uniqueRegions: 2, goalLinkedRuns: 2, successfulGoalRuns: 2,
+            participantResults: expect.arrayContaining([
+                expect.objectContaining({ agentId: 'agent-a', goalId: 'agent-a.earn', netCoins: 10,
+                    producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'], regions: ['50,53'] }),
+                expect.objectContaining({ agentId: 'agent-b', goalId: 'agent-b.earn', netCoins: 0,
+                    producedItems: 1, targets: ['npc:fishing spot'], regions: ['45,49'] })
+            ]) });
         expect(completed?.participants.every(item => item.status === 'completed' && item.skillRun)).toBeTrue();
         const replay = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
             skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Duplicate process event.', dependencies,

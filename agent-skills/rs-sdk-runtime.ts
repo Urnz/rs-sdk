@@ -96,12 +96,13 @@ export class RsSdkSkillRuntime implements SkillRuntime {
     async execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal): Promise<SkillOperationResult> {
         if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
         switch (operation) {
-            case 'walk-to':
-                return normalized(await this.bot.walkTo(
-                    numberArg(args, 'x', undefined, 0, 16_383),
-                    numberArg(args, 'z', undefined, 0, 16_383),
-                    numberArg(args, 'tolerance', 3, 0, 50)
-                ));
+            case 'walk-to': {
+                const x = numberArg(args, 'x', undefined, 0, 16_383);
+                const z = numberArg(args, 'z', undefined, 0, 16_383);
+                const tolerance = numberArg(args, 'tolerance', 3, 0, 50);
+                return normalized(await this.bot.walkTo(x, z, tolerance),
+                    { destination: { x, z, tolerance } });
+            }
             case 'wait-for-area': {
                 const x = numberArg(args, 'x', undefined, 0, 16_383);
                 const z = numberArg(args, 'z', undefined, 0, 16_383);
@@ -114,9 +115,11 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                             && Math.abs(playerX - x) <= tolerance
                             && Math.abs(playerZ - z) <= tolerance;
                     }, numberArg(args, 'timeoutMs', 30_000, 100, 60_000)), signal);
-                    return { success: true, message: `Arrived near (${x}, ${z})`, code: 'area-reached' };
+                    return { success: true, message: `Arrived near (${x}, ${z})`, code: 'area-reached',
+                        data: { destination: { x, z, tolerance } } };
                 } catch {
-                    return { success: false, message: `Did not arrive near (${x}, ${z})`, code: 'area-timeout' };
+                    return { success: false, message: `Did not arrive near (${x}, ${z})`, code: 'area-timeout',
+                        data: { destination: { x, z, tolerance } } };
                 }
             }
             case 'talk-to-npc':
@@ -239,7 +242,9 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                             success: true,
                             message: `Gathered ${itemName} after ${interactions} target interaction${interactions === 1 ? '' : 's'}`,
                             code: 'gathered',
-                            data: { interactions, inventoryDelta: inventoryDelta(beforeInventory, snapshotInventory(this.sdk)) }
+                            data: { interactions, target: { kind: operation === 'gather-loc' ? 'loc' : 'npc',
+                                name: stringArg(args, 'name') },
+                            inventoryDelta: inventoryDelta(beforeInventory, snapshotInventory(this.sdk)) }
                         };
                     } catch {
                         if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
@@ -249,7 +254,8 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                     success: false,
                     message: `No ${itemName} or ${skill ?? 'skill'} progress observed; retargeted ${interactions} times`,
                     code: 'gather-timeout',
-                    data: { interactions, lastInteraction }
+                    data: { interactions, target: { kind: operation === 'gather-loc' ? 'loc' : 'npc',
+                        name: stringArg(args, 'name') }, lastInteraction }
                 };
             }
             case 'smith-at-anvil': {

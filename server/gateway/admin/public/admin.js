@@ -560,15 +560,20 @@ function renderMultiAgentExperiments(experiments) {
         const statusLabel = run.status === 'running' && dispatch ? 'Skillfutások folyamatban'
             : experimentStatusLabels[run.status] || run.status;
         const signed = value => `${value > 0 ? '+' : ''}${fmt.format(value)}`;
-        const participants = run.participants.map(item => `<li><strong>${escapeHtml(item.agentId)}</strong>
+        const resultByAgent = new Map((metrics?.participantResults || []).map(item => [item.agentId, item]));
+        const participants = run.participants.map(item => {
+            const result = resultByAgent.get(item.agentId);
+            const measured = result ? ` · ${signed(result.netCoins)} gp · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} régió${result.goalId ? ` · cél: ${escapeHtml(result.goalId)}` : ''}` : '';
+            return `<li><strong>${escapeHtml(item.agentId)}</strong>
             <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}</span>
             <small>${escapeHtml(item.reason || 'Függőben')}${item.skillRun
-        ? ` · ${fmt.format(item.skillRun.operations)} művelet / ${fmt.format(item.skillRun.durationMs)} ms` : ''}</small></li>`).join('');
+        ? ` · ${fmt.format(item.skillRun.operations)} művelet / ${fmt.format(item.skillRun.durationMs)} ms` : ''}${measured}</small></li>`;
+        }).join('');
         const itemDeltas = metrics?.itemStockDelta?.length
             ? `<details><summary>Készletváltozások (${metrics.itemStockDelta.length})</summary><ul>${metrics.itemStockDelta.map(item =>
                 `<li>${escapeHtml(item.name)} (#${item.id}): ${signed(item.count)}</li>`).join('')}</ul></details>` : '';
         const activityMetrics = metrics?.economicEventSummary
-            ? `<div class="capability-gap-meta"><span>${fmt.format(metrics.economicEvents)} gazdasági esemény</span><span>termelés: ${fmt.format(metrics.economicEventSummary.producedItems)}</span><span>felhasználás: ${fmt.format(metrics.economicEventSummary.consumedItems)}</span><span>shop: ${fmt.format(metrics.economicEventSummary.shopTransactions)}</span><span>trade: ${fmt.format(metrics.economicEventSummary.playerTrades)}</span><span>${fmt.format(metrics.uniqueSkills)} skill · koncentráció ${metrics.skillConcentration.toLocaleString('hu-HU')}</span></div>` : '';
+            ? `<div class="capability-gap-meta"><span>${fmt.format(metrics.economicEvents)} gazdasági esemény</span><span>termelés: ${fmt.format(metrics.economicEventSummary.producedItems)}</span><span>felhasználás: ${fmt.format(metrics.economicEventSummary.consumedItems)}</span><span>shop: ${fmt.format(metrics.economicEventSummary.shopTransactions)}</span><span>trade: ${fmt.format(metrics.economicEventSummary.playerTrades)}</span><span>${fmt.format(metrics.uniqueSkills)} skill · koncentráció ${metrics.skillConcentration.toLocaleString('hu-HU')}</span><span>${fmt.format(metrics.uniqueTargets || 0)} célpont · ${fmt.format(metrics.uniqueRegions || 0)} régió</span><span>célhoz kötött siker: ${fmt.format(metrics.successfulGoalRuns || 0)}/${fmt.format(metrics.goalLinkedRuns || 0)}</span></div>` : '';
         const skillRuns = metrics?.skillRuns?.length
             ? `<details><summary>Skillmegoszlás (${metrics.uniqueSkills})</summary><ul>${metrics.skillRuns.map(item =>
                 `<li>${escapeHtml(item.skillId)}: ${fmt.format(item.runs)} run</li>`).join('')}</ul></details>` : '';

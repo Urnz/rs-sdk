@@ -40,11 +40,26 @@ A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 - minden résztvevő lezárása után a közös végső gazdasági pillanatképet és az abból
   számolt pénz-, XP-, session-XP-, online- és legfeljebb száz készletdeltát.
 
+A verified runtime a sikeres `walk-to`/`wait-for-area` lépések deklarált és
+ellenőrzött célkoordinátáját, valamint a sikeres gather-lépések célponttípusát és
+nevét strukturált journal-evidence-ként rögzíti. A kísérleti lezárás ebből 64×64
+tile-os map-square régiókat és egyedi `loc`/`npc` célpontokat képez. Ez a
+meglátogatott úti célokat méri, nem állítja, hogy a teljes köztes útvonal minden
+mezőjét megfigyelte.
+
+Az összesített eredmény mellett minden résztvevő külön, tartós eredménysort kap:
+nettó journal-GP, termelt és felhasznált tárgymennyiség, shop- és player-trade
+darabszám, egyedi célpontok és régiók, exact skill, valamint a planner döntésének
+goal ID-ja. A `successfulGoalRuns` csak azt jelenti, hogy a célhoz kötött exact
+skill-run sikeresen lezárult; a hosszú távú cél tényleges teljesülését nem találja
+ki és nem módosítja automatikusan.
+
 A második snapshot továbbra is külön dispatch-állapot: a kísérlet addig `running`,
 amíg minden `executing` résztvevőhöz meg nem érkezik a skill-exit és a hiteles
 napló. Sikeres process-exit napló nélkül fail-closed hibának számít. Az ismételt
 exit esemény nem írja felül a terminális rekordot és nem készít új snapshotot.
 
-Ez a szelet már a teljes kohorsz tényleges futási ablakát méri. A kontrollcsoportos
-replay, az ár-/kereskedelmi események és a hosszabb idősoros metrikák továbbra is a
-12. fázis következő részei.
+Ez a szelet már a teljes kohorsz tényleges futási ablakát és agentenkénti
+tevékenységét méri. A kontrollcsoportos replay, a hiteles áradatok, a célállapot
+tényleges változása és a hosszabb idősoros metrikák továbbra is a 12. fázis
+következő részei.
