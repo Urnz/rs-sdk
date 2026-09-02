@@ -3,9 +3,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AgentReplanCoordinator } from './replan-coordinator.js';
-import { MultiAgentExperimentStore, multiAgentExperimentDefinition,
+import { compareMultiAgentExperiments, MultiAgentExperimentStore, multiAgentExperimentDefinition,
     reconcileMultiAgentExperimentSkillRun, startMultiAgentExperiment,
-    type MultiAgentExperimentCandidate } from './multi-agent-experiments.js';
+    type MultiAgentExperimentCandidate, type MultiAgentExperimentEnvironment } from './multi-agent-experiments.js';
 import type { EconomySnapshot } from './types.js';
 import { adminPublicDir } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
@@ -24,6 +24,15 @@ function economy(timestamp: string, coins: number): EconomySnapshot {
 function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandidate {
     return { agentId, role: 'player', subjectKind: 'player', identityPlayerUsername: avatar,
         avatarPlayerUsername: avatar, onlineFresh: true };
+}
+
+function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvironment {
+    return { schemaVersion: 1, activeRevision: 7, capturedAt: '2026-09-01T09:59:59.000Z', mods: [
+        { id: 'economy.diminishing-xp', version: '1.0.0', dataSchemaVersion: 1,
+            enabled: diminishingXp, config: { recoveryMinutes: 30, minimumMultiplier: 0.2 } },
+        { id: 'property.ownership', version: '1.0.0', dataSchemaVersion: 1,
+            enabled: true, config: { welcomeMessage: 'Varrock' } }
+    ] };
 }
 
 function skillRun(runId: string, username: string, status: AdminSkillRun['status'] = 'completed'): AdminSkillRun {
@@ -71,12 +80,14 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(html).toContain('id="multi-agent-experiment-form"');
     expect(html).toContain('id="multi-agent-candidate-list"');
     expect(html).toContain('id="multi-agent-experiment-list"');
+    expect(html).toContain('id="multi-agent-comparison-form"');
     expect(script).toContain('/api/admin/multi-agent-experiments');
     expect(script).toContain('input[name="experimentAgentId"]:checked');
     expect(script).toContain('metrics.economicEventSummary.producedItems');
     expect(script).toContain('metrics.skillConcentration');
     expect(script).toContain('metrics?.participantResults');
     expect(script).toContain('metrics.uniqueTargets');
+    expect(script).toContain('/api/admin/multi-agent-experiments/compare');
 });
 
 describe('persistent multi-agent experiment runner', () => {
@@ -107,10 +118,13 @@ describe('persistent multi-agent experiment runner', () => {
             summary: 'Start one bounded mining cycle for each agent.', agentIds: ['agent-a', 'agent-b'] }, {
             coordinator, store,
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
+            worldModEnvironment: async () => experimentEnvironment(),
             economySnapshot: async () => economy(`2026-09-01T10:00:0${snapshotCalls}.000Z`, 100 + snapshotCalls++ * 10)
         }, '2026-09-01T10:00:00.000Z');
 
         expect(started.run.status).toBe('running');
+        expect(started.run.environment.mods.find(mod => mod.id === 'economy.diminishing-xp')?.enabled).toBeFalse();
+        expect(started.run.environmentDigest).toHaveLength(64);
         expect(started.run.participants.every(item => item.status === 'pending')).toBeTrue();
         const dispatched = await started.completion;
         expect(maximumActive).toBe(2);
@@ -146,6 +160,17 @@ describe('persistent multi-agent experiment runner', () => {
                     producedItems: 1, targets: ['npc:fishing spot'], regions: ['45,49'] })
             ]) });
         expect(completed?.participants.every(item => item.status === 'completed' && item.skillRun)).toBeTrue();
+        const treatment = JSON.parse(JSON.stringify(completed)) as NonNullable<typeof completed>;
+        treatment.experimentId = 'treatment-run';
+        treatment.environment = experimentEnvironment(true);
+        treatment.metrics!.totalXpDelta = 125;
+        const comparison = compareMultiAgentExperiments(completed!, treatment);
+        expect(comparison).toMatchObject({ controlExperimentId: completed!.experimentId,
+            treatmentExperimentId: 'treatment-run', seed: 'world-42',
+            environmentDifference: { modId: 'economy.diminishing-xp', controlEnabled: false, treatmentEnabled: true },
+            treatmentMinusControl: { totalXpDelta: 125 } });
+        treatment.environment.mods[1]!.config.welcomeMessage = 'Falador';
+        expect(() => compareMultiAgentExperiments(completed!, treatment)).toThrow('differ only');
         const replay = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
             skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Duplicate process event.', dependencies,
             '2026-09-01T10:00:04.000Z');
@@ -169,6 +194,7 @@ describe('persistent multi-agent experiment runner', () => {
             append: () => undefined });
         const dependencies = { coordinator, store,
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
+            worldModEnvironment: async () => experimentEnvironment(),
             economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 100) };
         const started = await startMultiAgentExperiment({ label: 'Journal check', seed: 'seed',
             summary: 'Require authoritative journals.', agentIds: ['agent-a', 'agent-b'] }, dependencies);
@@ -189,7 +215,9 @@ describe('persistent multi-agent experiment runner', () => {
         const coordinator = new AgentReplanCoordinator({ resolveAgentId: async () => null,
             listAgentIds: async () => [], plan: async () => ({ runId: 'never', status: 'skipped', reason: 'never' }),
             append: () => undefined });
-        const dependencies = { coordinator, store, economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 0) };
+        const dependencies = { coordinator, store,
+            worldModEnvironment: async () => experimentEnvironment(),
+            economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 0) };
         await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Duplicate avatar test.',
             agentIds: ['agent-a', 'agent-b'] }, { ...dependencies,
             listCandidates: async () => [candidate('agent-a', 'same-player'), candidate('agent-b', 'same-player')] }))

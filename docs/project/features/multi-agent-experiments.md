@@ -32,6 +32,9 @@ kap, de azonos definícióhoz azonos digest és résztvevősorrend tartozik.
 A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 
 - a definíciót, seedet, digestet és státuszt;
+- az engine-ből közvetlenül kiolvasott aktív world-mod revisiont, valamint minden
+  mod exact verzióját, adatséma-verzióját, kapcsolóját és konfigurációját egy
+  kanonikus, SHA-256 digestelt környezeti pillanatképben;
 - az indítás előtti közös gazdasági baseline-t;
 - a dispatch lezárása utáni közös pillanatképet;
 - agentenként az event gate teljes rekordját, planner státuszt, indokot és
@@ -63,3 +66,20 @@ Ez a szelet már a teljes kohorsz tényleges futási ablakát és agentenkénti
 tevékenységét méri. A kontrollcsoportos replay, a hiteles áradatok, a célállapot
 tényleges változása és a hosszabb idősoros metrikák továbbra is a 12. fázis
 következő részei.
+
+## Kontrollált futáspárok
+
+Az adminpanel két már lezárt futást tud diminishing XP kontroll–kezelés párként
+összevetni. Az összehasonlítás fail-closed: mindkét futásnak hibamentesen
+`completed` állapotúnak, azonos seedűnek és pontosan azonos agentkohorszúnak kell
+lennie. Az összes mod exact verziója, adatséma-verziója és konfigurációja azonos
+kell legyen; kizárólag az `economy.diminishing-xp` aktív `enabled` értéke térhet
+el, kontrollnál `false`, kezelésnél `true` irányban.
+
+A kísérlet indítása függő hot reload, restart, migráció, rollback vagy elérhetetlen
+engine esetén még az adatbázisírás előtt leáll. Így a kért adminbeállítás helyett
+mindig a ténylegesen futó engine-állapot kerül a mérés mellé. Az összehasonlítás a
+kezelés mínusz kontroll pénz-, XP-, gazdasági esemény-, skill-, célpont-, régió- és
+célhoz kötött sikerdeltáit adja vissza, és auditbejegyzést készít. Ez még nem
+kapcsolja át automatikusan a modot és nem állítja vissza a botmentéseket: a két élő
+futást a kezelő indítja el külön, azonos előfeltételekkel.

@@ -475,6 +475,10 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
 - [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
   kikapcsolt és bekapcsolt állapotát összehasonlítva.
+  - [x] Minden futáshoz az engine tényleges aktív world-mod állapotát exact,
+    digestelt környezeti snapshotként menteni, függő aktiválásnál fail-closed
+    leállni, és csak azonos seed/kohorsz mellett, kizárólag a diminishing XP
+    kapcsoló eltérését elfogadó auditált kontroll–kezelés összehasonlítást adni.
 - [ ] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
   termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
   - [x] Exact skill-runokból skilldiverzitást, koncentrációt, termelést,

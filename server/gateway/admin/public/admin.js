@@ -579,7 +579,7 @@ function renderMultiAgentExperiments(experiments) {
                 `<li>${escapeHtml(item.skillId)}: ${fmt.format(item.runs)} run</li>`).join('')}</ul></details>` : '';
         return `<article class="capability-gap-card ${escapeHtml(run.status)}">
             <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(statusLabel)}</small></div>
-            <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · digest: ${escapeHtml(run.definitionDigest)}</small></div>
+            <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · definíció: ${escapeHtml(run.definitionDigest)} · world-mod: ${escapeHtml(run.environmentDigest || 'legacy')}</small></div>
             <div class="capability-gap-meta"><span>${run.participants.length} agent</span><span>baseline: ${fmt.format(baseline.totalCoins)} gp / ${baseline.online} online</span>${dispatch ? `<span>dispatch után: ${fmt.format(dispatch.totalCoins)} gp / ${dispatch.online} online</span>` : '<span>dispatch folyamatban</span>'}</div>
             ${final && metrics ? `<div class="capability-gap-meta"><span>végeredmény: ${fmt.format(final.totalCoins)} gp</span><span>pénz: ${signed(metrics.totalCoinsDelta)} gp</span><span>XP: ${signed(metrics.totalXpDelta)}</span><span>${metrics.completedParticipants}/${run.participants.length} sikeres</span><span>${fmt.format(metrics.durationMs)} ms</span></div>` : ''}
             ${activityMetrics}
@@ -589,6 +589,27 @@ function renderMultiAgentExperiments(experiments) {
             ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
         </article>`;
     }).join('') : '<p class="empty">Még nincs multi-agent kísérlet.</p>';
+    renderMultiAgentComparisonOptions();
+}
+
+function renderMultiAgentComparisonOptions() {
+    const form = $('#multi-agent-comparison-form');
+    if (!form) return;
+    const previousControl = form.elements.controlExperimentId.value;
+    const previousTreatment = form.elements.treatmentExperimentId.value;
+    const diminishingEnabled = run => run.environment?.mods
+        ?.find(mod => mod.id === 'economy.diminishing-xp')?.enabled;
+    const options = enabled => state.multiAgentExperiments
+        .filter(run => run.status === 'completed' && diminishingEnabled(run) === enabled)
+        .map(run => `<option value="${escapeHtml(run.experimentId)}">${escapeHtml(run.label)} · ${escapeHtml(run.seed)} · ${new Date(run.startedAt).toLocaleString('hu-HU')}</option>`).join('');
+    form.elements.controlExperimentId.innerHTML = `<option value="">Válassz kontrollfutást…</option>${options(false)}`;
+    form.elements.treatmentExperimentId.innerHTML = `<option value="">Válassz kezelt futást…</option>${options(true)}`;
+    if (state.multiAgentExperiments.some(run => run.experimentId === previousControl)) {
+        form.elements.controlExperimentId.value = previousControl;
+    }
+    if (state.multiAgentExperiments.some(run => run.experimentId === previousTreatment)) {
+        form.elements.treatmentExperimentId.value = previousTreatment;
+    }
 }
 
 async function refreshMultiAgentExperiments() {
@@ -2451,6 +2472,30 @@ $('#multi-agent-experiment-form').addEventListener('submit', async event => {
                 summary: form.elements.summary.value, reason: form.elements.reason.value, agentIds }) });
         toast(`A kísérlet elindult: ${response.experiment.experimentId}.`);
         await refreshMultiAgentExperiments();
+    } finally { button.disabled = false; }
+});
+$('#multi-agent-comparison-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+        const response = await api('/api/admin/multi-agent-experiments/compare', {
+            method: 'POST', mutation: true, body: JSON.stringify({
+                controlExperimentId: form.elements.controlExperimentId.value,
+                treatmentExperimentId: form.elements.treatmentExperimentId.value,
+                reason: form.elements.reason.value
+            })
+        });
+        const delta = response.comparison.treatmentMinusControl;
+        $('#multi-agent-comparison-result').textContent = [
+            `Seed: ${response.comparison.seed}`,
+            `Agentek: ${response.comparison.agentIds.join(', ')}`,
+            `Kezelés − kontroll: ${delta.totalXpDelta >= 0 ? '+' : ''}${delta.totalXpDelta} XP, ${delta.totalCoinsDelta >= 0 ? '+' : ''}${delta.totalCoinsDelta} gp`,
+            `Gazdasági esemény: ${delta.economicEvents >= 0 ? '+' : ''}${delta.economicEvents}; skilldiverzitás: ${delta.uniqueSkills >= 0 ? '+' : ''}${delta.uniqueSkills}; koncentráció: ${delta.skillConcentration >= 0 ? '+' : ''}${delta.skillConcentration}`,
+            `Célpontdiverzitás: ${delta.uniqueTargets >= 0 ? '+' : ''}${delta.uniqueTargets}; régiódiverzitás: ${delta.uniqueRegions >= 0 ? '+' : ''}${delta.uniqueRegions}; célhoz kötött siker: ${delta.successfulGoalRuns >= 0 ? '+' : ''}${delta.successfulGoalRuns}`
+        ].join('\n');
+        toast('A kontrollált összehasonlítás elkészült.');
     } finally { button.disabled = false; }
 });
 $('#reload-economic-contracts').addEventListener('click', () => refreshEconomicContracts()

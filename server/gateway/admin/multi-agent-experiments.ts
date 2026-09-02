@@ -18,6 +18,21 @@ export interface MultiAgentExperimentInput {
     agentIds: readonly string[];
 }
 
+export interface MultiAgentExperimentWorldMod {
+    id: string;
+    version: string;
+    dataSchemaVersion: number;
+    enabled: boolean;
+    config: Record<string, boolean | number | string>;
+}
+
+export interface MultiAgentExperimentEnvironment {
+    schemaVersion: 1;
+    activeRevision: number;
+    capturedAt: string;
+    mods: MultiAgentExperimentWorldMod[];
+}
+
 export interface MultiAgentExperimentCandidate {
     agentId: string;
     role: string;
@@ -79,6 +94,8 @@ export interface MultiAgentExperimentParticipantResult {
 export interface MultiAgentExperimentRun {
     experimentId: string;
     definitionDigest: string;
+    environmentDigest: string;
+    environment: MultiAgentExperimentEnvironment;
     label: string;
     seed: string;
     summary: string;
@@ -99,6 +116,7 @@ interface ExperimentRow {
     experiment_id: string; definition_digest: string; label: string; seed: string; summary: string;
     status: MultiAgentExperimentStatus; baseline_economy_json: string; dispatch_economy_json: string | null;
     final_economy_json: string | null; metrics_json: string | null;
+    environment_digest: string; environment_json: string;
     started_at: string; dispatched_at: string | null; finished_at: string | null; error: string | null; revision: number;
 }
 
@@ -140,6 +158,82 @@ export function validateMultiAgentExperimentInput(input: MultiAgentExperimentInp
 
 function hash(value: string): string {
     return createHash('sha256').update(value).digest('hex');
+}
+
+function canonicalConfig(config: Record<string, boolean | number | string>): Record<string, boolean | number | string> {
+    return Object.fromEntries(Object.entries(config).sort(([left], [right]) => left.localeCompare(right)));
+}
+
+export function validateMultiAgentExperimentEnvironment(
+    input: MultiAgentExperimentEnvironment
+): { environment: MultiAgentExperimentEnvironment; digest: string } {
+    if (!input || typeof input !== 'object' || input.schemaVersion !== 1
+        || !Number.isSafeInteger(input.activeRevision) || input.activeRevision < 0
+        || Number.isNaN(Date.parse(input.capturedAt)) || !Array.isArray(input.mods) || input.mods.length === 0) {
+        throw new Error('Experiment world-mod environment is invalid');
+    }
+    const ids = new Set<string>();
+    const mods = input.mods.map(mod => {
+        if (!mod || typeof mod !== 'object' || !/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(mod.id)
+            || ids.has(mod.id) || !/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(mod.version)
+            || !Number.isSafeInteger(mod.dataSchemaVersion) || mod.dataSchemaVersion < 1
+            || typeof mod.enabled !== 'boolean' || !mod.config || typeof mod.config !== 'object'
+            || Array.isArray(mod.config) || Object.values(mod.config).some(value =>
+                !['boolean', 'number', 'string'].includes(typeof value)
+                || (typeof value === 'number' && !Number.isFinite(value)))) {
+            throw new Error('Experiment world-mod entry is invalid');
+        }
+        ids.add(mod.id);
+        return { id: mod.id, version: mod.version, dataSchemaVersion: mod.dataSchemaVersion,
+            enabled: mod.enabled, config: canonicalConfig(mod.config) };
+    }).sort((left, right) => left.id.localeCompare(right.id));
+    const environment = { schemaVersion: 1 as const, activeRevision: input.activeRevision,
+        capturedAt: timestamp(input.capturedAt), mods };
+    return { environment, digest: hash(JSON.stringify({ schemaVersion: 1, mods })) };
+}
+
+export interface MultiAgentExperimentComparison {
+    controlExperimentId: string;
+    treatmentExperimentId: string;
+    seed: string;
+    agentIds: string[];
+    environmentDifference: { modId: 'economy.diminishing-xp'; controlEnabled: false; treatmentEnabled: true };
+    treatmentMinusControl: Pick<MultiAgentExperimentMetrics, 'totalCoinsDelta' | 'totalXpDelta'
+        | 'sessionXpDelta' | 'economicEvents' | 'uniqueSkills' | 'skillConcentration'
+        | 'uniqueTargets' | 'uniqueRegions' | 'successfulGoalRuns'>;
+}
+
+export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
+    treatment: MultiAgentExperimentRun): MultiAgentExperimentComparison {
+    if (control.status !== 'completed' || treatment.status !== 'completed' || !control.metrics || !treatment.metrics) {
+        throw new Error('A controlled comparison requires two successfully completed experiments');
+    }
+    const controlAgents = control.participants.map(item => item.agentId).sort();
+    const treatmentAgents = treatment.participants.map(item => item.agentId).sort();
+    if (control.seed !== treatment.seed || JSON.stringify(controlAgents) !== JSON.stringify(treatmentAgents)) {
+        throw new Error('Controlled experiments must use the same seed and exact agent cohort');
+    }
+    const controlEnvironment = validateMultiAgentExperimentEnvironment(control.environment).environment;
+    const treatmentEnvironment = validateMultiAgentExperimentEnvironment(treatment.environment).environment;
+    const normalize = (environment: MultiAgentExperimentEnvironment, expectedEnabled: boolean) => environment.mods.map(mod =>
+        mod.id === 'economy.diminishing-xp' ? { ...mod, enabled: expectedEnabled } : mod);
+    const controlDiminishing = controlEnvironment.mods.find(mod => mod.id === 'economy.diminishing-xp');
+    const treatmentDiminishing = treatmentEnvironment.mods.find(mod => mod.id === 'economy.diminishing-xp');
+    if (!controlDiminishing || !treatmentDiminishing || controlDiminishing.enabled
+        || !treatmentDiminishing.enabled || JSON.stringify(normalize(controlEnvironment, false))
+            !== JSON.stringify(normalize(treatmentEnvironment, false))) {
+        throw new Error('Controlled pair must differ only by the active diminishing XP switch');
+    }
+    const difference = <K extends keyof MultiAgentExperimentMetrics>(key: K): number =>
+        Number(treatment.metrics![key]) - Number(control.metrics![key]);
+    return { controlExperimentId: control.experimentId, treatmentExperimentId: treatment.experimentId,
+        seed: control.seed, agentIds: controlAgents,
+        environmentDifference: { modId: 'economy.diminishing-xp', controlEnabled: false, treatmentEnabled: true },
+        treatmentMinusControl: { totalCoinsDelta: difference('totalCoinsDelta'),
+            totalXpDelta: difference('totalXpDelta'), sessionXpDelta: difference('sessionXpDelta'),
+            economicEvents: difference('economicEvents'), uniqueSkills: difference('uniqueSkills'),
+            skillConcentration: difference('skillConcentration'), uniqueTargets: difference('uniqueTargets'),
+            uniqueRegions: difference('uniqueRegions'), successfulGoalRuns: difference('successfulGoalRuns') } };
 }
 
 export function multiAgentExperimentDefinition(input: MultiAgentExperimentInput): {
@@ -272,6 +366,9 @@ export class MultiAgentExperimentStore {
         this.addColumn('multi_agent_experiment', 'final_economy_json', 'TEXT');
         this.addColumn('multi_agent_experiment', 'metrics_json', 'TEXT');
         this.addColumn('multi_agent_experiment', 'dispatched_at', 'TEXT');
+        this.addColumn('multi_agent_experiment', 'environment_digest', "TEXT NOT NULL DEFAULT 'legacy'");
+        this.addColumn('multi_agent_experiment', 'environment_json',
+            "TEXT NOT NULL DEFAULT '{\"schemaVersion\":1,\"activeRevision\":0,\"capturedAt\":\"1970-01-01T00:00:00.000Z\",\"mods\":[]}'");
         this.addColumn('multi_agent_experiment_participant', 'skill_run_json', 'TEXT');
     }
 
@@ -290,6 +387,8 @@ export class MultiAgentExperimentStore {
             WHERE experiment_id = ?1 ORDER BY ordinal`).all(experimentId) as ParticipantRow[]).map(participant);
         return { experimentId: row.experiment_id, definitionDigest: row.definition_digest,
             label: row.label, seed: row.seed, summary: row.summary, status: row.status,
+            environmentDigest: row.environment_digest,
+            environment: JSON.parse(row.environment_json) as MultiAgentExperimentEnvironment,
             baselineEconomy: JSON.parse(row.baseline_economy_json) as EconomySnapshot,
             dispatchEconomy: row.dispatch_economy_json ? JSON.parse(row.dispatch_economy_json) as EconomySnapshot : null,
             finalEconomy: row.final_economy_json ? JSON.parse(row.final_economy_json) as EconomySnapshot : null,
@@ -307,15 +406,18 @@ export class MultiAgentExperimentStore {
 
     create(definition: ReturnType<typeof multiAgentExperimentDefinition>,
         candidates: ReadonlyMap<string, MultiAgentExperimentCandidate>, baseline: EconomySnapshot,
+        environmentInput: MultiAgentExperimentEnvironment,
         now = new Date().toISOString(), experimentId = randomUUID()): MultiAgentExperimentRun {
         const startedAt = timestamp(now);
+        const { environment, digest: environmentDigest } = validateMultiAgentExperimentEnvironment(environmentInput);
         const transaction = this.database.transaction(() => {
             this.database.run(`INSERT INTO multi_agent_experiment
-                (experiment_id, definition_digest, label, seed, summary, status, baseline_economy_json,
-                    dispatch_economy_json, started_at, finished_at, error, revision)
-                VALUES (?1, ?2, ?3, ?4, ?5, 'running', ?6, NULL, ?7, NULL, NULL, 1)`,
-            [experimentId, definition.digest, definition.input.label, definition.input.seed,
-                definition.input.summary, JSON.stringify(baseline), startedAt]);
+                (experiment_id, definition_digest, environment_digest, environment_json, label, seed, summary,
+                    status, baseline_economy_json, dispatch_economy_json, started_at, finished_at, error, revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'running', ?8, NULL, ?9, NULL, NULL, 1)`,
+            [experimentId, definition.digest, environmentDigest, JSON.stringify(environment),
+                definition.input.label, definition.input.seed, definition.input.summary,
+                JSON.stringify(baseline), startedAt]);
             definition.orderedAgentIds.forEach((id, ordinal) => {
                 const candidate = candidates.get(id)!;
                 this.database.run(`INSERT INTO multi_agent_experiment_participant
@@ -440,6 +542,7 @@ export class MultiAgentExperimentStore {
 export interface MultiAgentExperimentDependencies {
     listCandidates(): Promise<readonly MultiAgentExperimentCandidate[]>;
     economySnapshot(): Promise<EconomySnapshot>;
+    worldModEnvironment(): Promise<MultiAgentExperimentEnvironment>;
     coordinator: AgentReplanCoordinator;
     store: MultiAgentExperimentStore;
 }
@@ -470,8 +573,10 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
     }> {
     const definition = multiAgentExperimentDefinition(input);
     const candidates = preflight(definition, await dependencies.listCandidates());
-    const baseline = await dependencies.economySnapshot();
-    const run = dependencies.store.create(definition, candidates, baseline, now);
+    const [baseline, environment] = await Promise.all([
+        dependencies.economySnapshot(), dependencies.worldModEnvironment()
+    ]);
+    const run = dependencies.store.create(definition, candidates, baseline, environment, now);
     const completion = (async () => {
         try {
             await Promise.all(run.participants.map(async entry => {

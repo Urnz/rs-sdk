@@ -167,6 +167,19 @@
                 <div class="llm-save-row"><p class="dialog-note">Az aktuális autonóm policy valódi allowlistelt skilleket indíthat a résztvevő botokon.</p>
                     <button id="start-multi-agent-experiment" class="button primary" type="submit">Kísérlet indítása</button></div>
             </form>
+            <details class="agent-section">
+                <summary>Kontrollált diminishing XP összehasonlítás</summary>
+                <form id="multi-agent-comparison-form" class="llm-settings-form">
+                    <p class="dialog-note">Csak két hibamentesen lezárt futás hasonlítható össze: azonos seed, pontosan azonos agentkohorsz és azonos aktív modverziók/beállítások mellett kizárólag a diminishing XP kapcsoló térhet el.</p>
+                    <div class="llm-form-grid">
+                        <label>Kontroll (mod kikapcsolva)<select name="controlExperimentId" required></select></label>
+                        <label>Kezelés (mod bekapcsolva)<select name="treatmentExperimentId" required></select></label>
+                    </div>
+                    <label>Indoklás az admin audithoz<input name="reason" maxlength="240" value="Diminishing XP kontrollált összehasonlítás" required></label>
+                    <div class="llm-save-row"><span></span><button class="button primary" type="submit">Futások összehasonlítása</button></div>
+                    <pre id="multi-agent-comparison-result" class="structured-preview">Még nincs összehasonlítás.</pre>
+                </form>
+            </details>
             <div class="panel-heading table-heading skill-trial-heading">
                 <div><p class="eyebrow">TARTÓS FUTÁSNAPLÓ</p><h3>Kohorszok és agentenkénti eredmények</h3></div>
             </div>

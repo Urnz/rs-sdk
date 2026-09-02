@@ -76,7 +76,8 @@ import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/type
 import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
 import type { SkillGrantKind } from '../../../agent-skills/learning.js';
 import { resolveLearnAndPlan } from './deterministic-learning.js';
-import { MultiAgentExperimentStore, startMultiAgentExperiment } from './multi-agent-experiments.js';
+import { compareMultiAgentExperiments, MultiAgentExperimentStore, startMultiAgentExperiment,
+    type MultiAgentExperimentEnvironment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
 import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
@@ -103,6 +104,19 @@ const WORLD_MAP_URL = (() => {
     }
 })();
 const WORLD_MAP_ORIGIN = new URL(WORLD_MAP_URL).origin;
+
+async function activeExperimentEnvironment(): Promise<MultiAgentExperimentEnvironment> {
+    const view = await listWorldMods();
+    if (view.activeRevision === null) throw new Error('Az engine aktív world-mod állapota nem érhető el.');
+    const unresolved = view.mods.filter(mod => !['active', 'disabled'].includes(mod.status) || !mod.active);
+    if (unresolved.length) {
+        throw new Error(`A kísérlet előtt alkalmazd az összes függő world-mod változást: ${unresolved.map(mod => mod.id).join(', ')}`);
+    }
+    return { schemaVersion: 1, activeRevision: view.activeRevision, capturedAt: new Date().toISOString(),
+        mods: view.mods.map(mod => ({ id: mod.id, version: mod.version,
+            dataSchemaVersion: mod.dataSchemaVersion, enabled: mod.active!.enabled,
+            config: mod.active!.config })) };
+}
 
 function json(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body, null, 2), {
@@ -1500,6 +1514,27 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         }
 
         const agentLlmDryRunMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/llm-dry-run$/);
+        if (req.method === 'POST' && url.pathname === '/api/admin/multi-agent-experiments/compare') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const controlExperimentId = text(body, 'controlExperimentId', true);
+            const treatmentExperimentId = text(body, 'treatmentExperimentId', true);
+            const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
+            try {
+                const control = store.get(controlExperimentId);
+                const treatment = store.get(treatmentExperimentId);
+                if (!control || !treatment) throw new Error('Az egyik kiválasztott kísérlet nem található.');
+                const comparison = compareMultiAgentExperiments(control, treatment);
+                await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.compare', reason,
+                    success: true, after: comparison });
+                return json({ ok: true, comparison });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.compare', reason,
+                    success: false, error: String(error),
+                    after: { controlExperimentId, treatmentExperimentId } });
+                throw error;
+            } finally { store.close(); }
+        }
         if (req.method === 'POST' && url.pathname === '/api/admin/multi-agent-experiments') {
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
@@ -1523,11 +1558,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                             onlineFresh: Boolean(gateway?.state?.player && gateway.status === 'active'
                                 && Date.now() - gateway.lastStateReceivedAt <= 5_000) };
                     }),
-                    economySnapshot: async () => economySnapshot(await catalog())
+                    economySnapshot: async () => economySnapshot(await catalog()),
+                    worldModEnvironment: activeExperimentEnvironment
                 });
                 await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.start', reason,
                     success: true, after: { experimentId: started.run.experimentId,
-                        definitionDigest: started.run.definitionDigest, agentIds } }).catch(() => undefined);
+                        definitionDigest: started.run.definitionDigest,
+                        environmentDigest: started.run.environmentDigest, agentIds } }).catch(() => undefined);
                 void started.completion.then(completed => appendAudit({ operator: 'system',
                     action: 'multi-agent-experiment.dispatched', reason: 'A háttérben futó dispatch lezárult; a futó skillek eredményeire várunk.',
                     success: completed.status !== 'failed', after: completed }))
