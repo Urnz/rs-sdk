@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { createSaveData, Items, Locations } from '../../../sdk/test/utils/save-generator';
 import { deriveAdminStatus, economySnapshot, xpTelemetry } from './catalog';
 import { readPlayerSave } from './save-reader';
-import { listAdminSkills, resolveAdminSkill, validateAdminSkillParameters } from './skill-catalog';
+import { listAdminDraftSkills, listAdminSkills, resolveAdminDraftSkill, resolveAdminSkill,
+    validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, resolveAdminTeleportDestination } from './teleport';
 import { validateOfflineSaveDraft } from './offline-editor';
 import { readSkillRun, readSkillRunHistory } from './skill-history';
@@ -134,6 +135,24 @@ describe('admin agent skill catalog', () => {
             reference: 'mining.varrock-east.copper-to-bank@1.0.0',
             name: 'Varrock east copper to bank'
         }));
+    });
+
+    test('lists shared development drafts separately and resolves only exact draft versions', async () => {
+        const drafts = await listAdminDraftSkills();
+        expect(drafts).toHaveLength(2);
+        expect(drafts).toContainEqual(expect.objectContaining({
+            reference: 'mining.varrock-east.copper-to-general-store@0.1.0',
+            name: 'Varrock east copper to general store'
+        }));
+        expect(drafts).toContainEqual(expect.objectContaining({
+            reference: 'mining.varrock-east.iron-to-general-store@0.1.0'
+        }));
+        await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-general-store@0.1.0'))
+            .resolves.toMatchObject({ definition: { status: 'draft', sharing: { visibility: 'shared' } } });
+        await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-general-store'))
+            .rejects.toThrow('id@verzió');
+        await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-bank@1.0.0'))
+            .rejects.toThrow('draft');
     });
 
     test('applies defaults and rejects missing, unknown or out-of-range parameters', async () => {

@@ -171,6 +171,27 @@ A katalógus első lezárt készlete:
 Mindegyik megtartja a forrásául szolgáló `0.1.0` draftot, a verified provenance
 pedig tartalmazza a sikeres élő futások azonosítóit.
 
+## Phase 12 bevételtermelő draftok
+
+A `mining.varrock-east.copper-to-general-store@0.1.0` és
+`mining.varrock-east.iron-to-general-store@0.1.0` skill egy korlátozott mennyiségű
+ércet gyűjt a Varrock keleti bányában, majd az exact `Shop keeper` NPC-nél eladja
+az adott érctípust. A célmennyiség alapértéke 5, maximuma 20; a vas változat 15-ös
+Mining szintet követel. Mindkettő megosztott, agent-eredetű `draft`, ezért nem
+jelenik meg verified agenttudásként és nem választható autonóm futásra.
+
+Az admin Skills fül külön fejlesztési katalógusban mutatja őket. A próbafuttatás
+csak credentiallel rendelkező, friss online és tétlen botra indulhat; a paraméterek
+sémával ellenőrzöttek, a kezelőnek a valódi bányászat és tárgyeladás kockázatát
+külön meg kell erősítenie, az indítás pedig auditbejegyzést kap. A draftok csak
+két külön sikeres élő journal determinisztikus ellenőrzése és emberi publikálás
+után kaphatnak verified verziót.
+
+A kezdeti autonóm policy verified, exact allowlistelt és limiteken belüli skillben
+enged `sell-to-shop` műveletet. A vásárlás és a másik szereplőnek történő
+itemátadás továbbra is tiltott; a két draft státusza miatt ez a policyváltozás
+önmagában egyiket sem teszi autonóm módon futtathatóvá.
+
 ## Karamja fishing
 
 A `fishing.karamja.lobster-to-draynor-bank@0.1.0` draft végrehajtja a Port Sarim

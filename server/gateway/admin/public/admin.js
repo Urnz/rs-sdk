@@ -3,6 +3,7 @@ const state = {
     economy: null,
     config: null,
     skills: [],
+    skillDrafts: [],
     teleportDestinations: [],
     skillRuns: [],
     economyEvents: [],
@@ -108,6 +109,7 @@ function selectAdminTab(tab) {
         refreshMultiAgentExperiments(), refreshEconomicContracts(), refreshBusinesses()
     ])
         .catch(error => toast(error.message, true));
+    if (tab === 'skills') void refreshSkillDrafts().catch(error => toast(error.message, true));
 }
 
 const llmConfigSourceLabels = { 'server-override': 'Szerver saját beállítása', 'project-default': 'Projekt alapbeállítása' };
@@ -230,6 +232,25 @@ async function refreshCapabilityGaps() {
     const [gaps, trials] = await Promise.all([api('/api/admin/capability-gaps'), api('/api/admin/skill-trials')]);
     renderCapabilityGaps(gaps.gaps);
     renderSkillTrials(trials.trials);
+}
+
+function renderSkillDrafts(drafts) {
+    state.skillDrafts = drafts || [];
+    $('#skill-draft-count').textContent = `${state.skillDrafts.length} draft`;
+    $('#skill-draft-list').innerHTML = state.skillDrafts.length ? state.skillDrafts.map(draft => {
+        const defaults = Object.fromEntries(Object.entries(draft.parameters || {})
+            .filter(([, parameter]) => parameter.default !== undefined)
+            .map(([name, parameter]) => [name, parameter.default]));
+        return `<article class="capability-gap-card">
+            <div><strong>${escapeHtml(draft.name)}</strong><small>${escapeHtml(draft.reference)}</small></div>
+            <div><p>${escapeHtml(draft.description)}</p><small>${escapeHtml(draft.tags.join(', '))} · max ${draft.limits.maxOperations} művelet · ${Math.round(draft.limits.timeoutMs / 1000)} s</small></div>
+            <div class="skill-trial-actions"><button class="button small" data-action="skill-draft-run" data-reference="${escapeHtml(draft.reference)}" data-defaults="${escapeHtml(JSON.stringify(defaults))}">Próbafuttatás</button></div>
+        </article>`;
+    }).join('') : '<p class="empty">Nincs kézzel próbálható megosztott draft.</p>';
+}
+
+async function refreshSkillDrafts() {
+    renderSkillDrafts((await api('/api/admin/skill-drafts')).drafts);
 }
 
 function renderWorldDirector(templates, runtime = null) {
@@ -2055,6 +2076,34 @@ document.addEventListener('click', async event => {
             toast('A draft első elkülönített tesztfutása elindult.');
             await refreshCapabilityGaps(); await refresh();
         }
+        if (button.dataset.action === 'skill-draft-run') {
+            const draft = state.skillDrafts.find(entry => entry.reference === button.dataset.reference);
+            if (!draft) throw new Error('A draft már nem található; frissítsd a listát.');
+            const suggestedBot = state.bots.find(bot => bot.status === 'active' && bot.hasCredentials
+                && !bot.currentSkill)?.username || '';
+            const username = prompt('A külön tesztelésre kijelölt online bot neve:', suggestedBot);
+            if (!username?.trim()) return;
+            const rawParameters = prompt('Skill paraméterek JSON objektumként:', button.dataset.defaults || '{}');
+            if (rawParameters === null) return;
+            let parameters;
+            try { parameters = JSON.parse(rawParameters); }
+            catch { throw new Error('A paraméterek nem érvényes JSON-t alkotnak.'); }
+            if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) {
+                throw new Error('A paramétereknek JSON objektumnak kell lenniük.');
+            }
+            const reason = prompt('A draft futtatásának auditindoklása:', 'Phase 12 bevételtermelő skill izolált élő próbája');
+            if (!reason?.trim()) return;
+            if (!confirm(`A NEM ELLENŐRZÖTT ${draft.reference} valódi műveleteket végez és tárgyakat adhat el a(z) ${username.trim()} boton. Folytatod?`)) return;
+            button.disabled = true;
+            try {
+                await api(`/api/admin/skill-drafts/${encodeURIComponent(draft.reference)}/run`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ username: username.trim(), parameters,
+                        reason: reason.trim(), acknowledgeDraftRisk: true })
+                });
+                toast('A fejlesztési draft élő próbafuttatása elindult.');
+                await refresh();
+            } finally { button.disabled = false; }
+        }
         if (button.dataset.action === 'skill-trial-run') {
             const trial = state.skillTrials.find(entry => entry.trialId === button.dataset.trialId);
             if (!trial) throw new Error('A próba már nem található.');
@@ -2805,7 +2854,8 @@ const bootstrap = await Promise.all([
     api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
     api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
     api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles'),
-    api('/api/admin/llm-replans?limit=100'), api('/api/admin/multi-agent-experiments?limit=50')
+    api('/api/admin/llm-replans?limit=100'), api('/api/admin/multi-agent-experiments?limit=50'),
+    api('/api/admin/skill-drafts')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
 renderLlmSettings(bootstrap[3]);
@@ -2814,6 +2864,7 @@ renderSkillTrials(bootstrap[5].trials);
 renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
 renderLlmReplans(bootstrap[8].records);
 renderMultiAgentExperiments(bootstrap[9].experiments);
+renderSkillDrafts(bootstrap[10].drafts);
 selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

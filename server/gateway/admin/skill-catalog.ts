@@ -51,6 +51,28 @@ export async function listAdminSkills(): Promise<AdminSkillSummary[]> {
     return [...latest.values()].map(skill => summary(skill.definition, legacySkillPolicy(skill.definition.sharing)));
 }
 
+export async function listAdminDraftSkills(): Promise<AdminSkillSummary[]> {
+    const registry = await loadVerifiedRegistry();
+    return registry.list({ status: 'draft' })
+        .filter(skill => skill.definition.sharing.visibility === 'shared'
+            && skill.definition.provenance.authorKind === 'agent')
+        .map(skill => summary(skill.definition, legacySkillPolicy(skill.definition.sharing)));
+}
+
+export async function resolveAdminDraftSkill(requested: string): Promise<RegisteredSkill> {
+    const separator = requested.lastIndexOf('@');
+    if (separator <= 0 || separator === requested.length - 1) {
+        throw new Error('A draft skillt pontos id@verzió hivatkozással kell megadni.');
+    }
+    const registry = await loadVerifiedRegistry();
+    const skill = registry.get({ id: requested.slice(0, separator), version: requested.slice(separator + 1) });
+    if (!skill || skill.definition.status !== 'draft' || skill.definition.sharing.visibility !== 'shared'
+        || skill.definition.provenance.authorKind !== 'agent') {
+        throw new Error(`Nem található megosztott draft skill: ${requested}`);
+    }
+    return skill;
+}
+
 export interface AdminAgentSkillCatalogOptions {
     learningPath?: string;
     policyRoot?: string;

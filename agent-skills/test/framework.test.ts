@@ -539,6 +539,18 @@ describe('sharing and persistence', () => {
             .toContain('mining.varrock-east.copper-to-bank@0.1.0');
         expect(registry.getLatest('mining.varrock-east.copper-to-bank')?.definition)
             .toMatchObject({ version: '1.0.0', status: 'verified' });
+        const incomeDrafts = loaded.filter(entry => entry.definition.tags.includes('selling'));
+        expect(incomeDrafts.map(entry => entry.definition.id).sort()).toEqual([
+            'mining.varrock-east.copper-to-general-store',
+            'mining.varrock-east.iron-to-general-store'
+        ]);
+        for (const entry of incomeDrafts) {
+            expect(entry.definition).toMatchObject({ status: 'draft',
+                provenance: { authorKind: 'agent', authorId: 'phase12-skill-designer' },
+                sharing: { visibility: 'shared' }, parameters: { 'target-ore': { default: 5, maximum: 20 } } });
+            expect(entry.definition.steps.some(step => step.kind === 'operation'
+                && step.operation === 'sell-to-shop')).toBe(true);
+        }
     });
 
     test('writes immutable run journals', async () => {

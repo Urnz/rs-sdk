@@ -79,8 +79,12 @@ describe('autonomous skill execution policy', () => {
             .toMatchObject({ allowed: false, reason: expect.stringContaining('limit') });
     });
 
-    test('forbids economic transfers and composed calls even when allowlisted', () => {
+    test('allows bounded selling but forbids spending, actor transfers and composed calls', () => {
+        expect(evaluateAutonomousSkillPolicy(config, skill('sell-to-shop')))
+            .toMatchObject({ allowed: true });
         expect(evaluateAutonomousSkillPolicy(config, skill('buy-from-shop')))
+            .toMatchObject({ allowed: false, reason: expect.stringContaining('forbidden') });
+        expect(evaluateAutonomousSkillPolicy(config, skill('trade-give-item')))
             .toMatchObject({ allowed: false, reason: expect.stringContaining('forbidden') });
         expect(evaluateAutonomousSkillPolicy(config, { ...skill(), steps: [{ kind: 'call', id: 'nested',
             skill: { id: 'procedure.route', version: '1.0.0' }, arguments: {} }] }))

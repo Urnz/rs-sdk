@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "id": "mining.varrock-east.iron-to-general-store",
+  "version": "0.1.0",
+  "name": "Varrock east iron to general store",
+  "description": "Mine a bounded amount of iron ore at Varrock east, then sell every carried iron ore to the Varrock General Store. Development draft requiring isolated live verification.",
+  "status": "draft",
+  "tags": ["mining", "selling", "economy", "varrock", "route"],
+  "parameters": {
+    "target-ore": {
+      "type": "number",
+      "description": "Minimum iron ore carried before leaving for the shop.",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 20
+    }
+  },
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "phase12-skill-designer",
+    "createdAt": "2026-09-03T10:00:00.000Z",
+    "notes": "Source-reviewed development draft. Keep outside autonomous allowlists until two independent successful live runs and human promotion."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 600000, "maxOperations": 90 },
+  "preconditions": [
+    { "condition": "inventory-contains", "arguments": { "name": "pickaxe", "match": "contains", "amount": 1 } },
+    { "condition": "skill-level-at-least", "arguments": { "skill": "Mining", "level": 15 } },
+    { "condition": "inventory-free-slots-at-least", "arguments": { "slots": { "parameter": "target-ore" } } }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-to-varrock-east-mine",
+      "operation": "walk-to",
+      "arguments": { "x": 3285, "z": 3365, "tolerance": 5 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "repeat",
+      "id": "mine-target-iron",
+      "until": { "condition": "inventory-contains", "arguments": { "name": "iron ore", "match": "exact", "amount": { "parameter": "target-ore" } } },
+      "maxIterations": 25,
+      "steps": [
+        {
+          "kind": "operation",
+          "id": "mine-iron-rock",
+          "operation": "gather-loc",
+          "arguments": { "name": "rocks iron ore", "match": "exact", "option": "mine", "item": "iron ore", "skill": "Mining", "timeoutMs": 15000 },
+          "maxAttempts": 3
+        }
+      ]
+    },
+    {
+      "kind": "operation",
+      "id": "walk-to-varrock-general-store",
+      "operation": "walk-to",
+      "arguments": { "x": 3218, "z": 3415, "tolerance": 3 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "open-varrock-general-store",
+      "operation": "open-shop",
+      "arguments": { "name": "Shop keeper", "match": "exact" },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "sell-iron-ore",
+      "operation": "sell-to-shop",
+      "arguments": { "name": "Iron ore", "match": "exact", "amount": -1 },
+      "maxAttempts": 2
+    },
+    { "kind": "operation", "id": "close-shop", "operation": "close-shop", "arguments": {} }
+  ]
+}

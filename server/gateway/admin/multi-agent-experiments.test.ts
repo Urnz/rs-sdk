@@ -88,6 +88,9 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('metrics?.participantResults');
     expect(script).toContain('metrics.uniqueTargets');
     expect(script).toContain('/api/admin/multi-agent-experiments/compare');
+    expect(html).toContain('id="skill-draft-list"');
+    expect(script).toContain('/api/admin/skill-drafts');
+    expect(script).toContain('data-action="skill-draft-run"');
 });
 
 describe('persistent multi-agent experiment runner', () => {

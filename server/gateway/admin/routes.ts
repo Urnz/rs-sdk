@@ -5,7 +5,8 @@ import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, re
 import { adminPublicDir, adminTrashDir, agentSkillsLocalDir, botsDir, experimentsDir, playerSavesDir,
     repoRoot, skillRunsDir, skillTrialsPath, skillVerificationsDir } from './paths';
 import { BotSupervisor } from './supervisor';
-import { listAdminSkills, resolveAdminSkill, resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill-catalog';
+import { listAdminDraftSkills, listAdminSkills, resolveAdminDraftSkill, resolveAdminSkill,
+    resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
 import { readSkillRun, readSkillRunHistory } from './skill-history';
 import { readEconomyEvents, type EconomyEventKind } from './transaction-telemetry';
@@ -378,6 +379,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (req.method === 'GET' && url.pathname === '/api/admin/skills') {
             return json({ skills: await listAdminSkills() });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/skill-drafts') {
+            return json({ drafts: await listAdminDraftSkills() });
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/agents') {
@@ -770,6 +775,35 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     after: { contractId: economicContractResolutionMatch[1], expectedRevision } });
                 throw error;
             } finally { store.close(); }
+        }
+
+        const draftRunMatch = url.pathname.match(/^\/api\/admin\/skill-drafts\/([^/]+)\/run$/);
+        if (req.method === 'POST' && draftRunMatch?.[1]) {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const username = text(body, 'username', true).toLowerCase();
+            const requested = decodeURIComponent(draftRunMatch[1]);
+            if (body.acknowledgeDraftRisk !== true) {
+                throw new Error('A draft tesztfuttatás kockázatát külön meg kell erősíteni.');
+            }
+            const draft = await resolveAdminDraftSkill(requested);
+            const bot = (await catalog()).find(entry => entry.username === username);
+            if (!bot || bot.status !== 'active' || !bot.hasCredentials || bot.currentSkill) {
+                throw new Error('A tesztbotnak friss online, credentiallel rendelkező és tétlen botnak kell lennie.');
+            }
+            const parameters = validateAdminSkillParameters(draft.definition, body.parameters);
+            try {
+                const process = await context.supervisor.startSkill(username, draft.definition.id + '@'
+                    + draft.definition.version, parameters, { allowDraft: true });
+                await appendAudit({ operator: 'local-admin', action: 'skill-draft.run', username, reason,
+                    success: true, after: { reference: requested, checksum: draft.checksum, parameters, process } });
+                return json({ ok: true, draft: { reference: requested, checksum: draft.checksum }, process }, 202);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'skill-draft.run', username, reason,
+                    success: false, after: { reference: requested, checksum: draft.checksum, parameters },
+                    error: String(error) });
+                throw error;
+            }
         }
 
         const gapTrialMatch = url.pathname.match(/^\/api\/admin\/capability-gaps\/(gap-[a-f0-9]{20})\/trials$/);

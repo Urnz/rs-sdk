@@ -92,3 +92,12 @@ kezelés mínusz kontroll pénz-, XP-, gazdasági esemény-, skill-, célpont-, 
 célhoz kötött sikerdeltáit adja vissza, és auditbejegyzést készít. Ez még nem
 kapcsolja át automatikusan a modot és nem állítja vissza a botmentéseket: a két élő
 futást a kezelő indítja el külön, azonos előfeltételekkel.
+
+## Bevételtermelő előfeltétel
+
+A réz- és vasérc Varrock General Store-ban történő értékesítésére két bounded,
+forráskódos draft készült. Ezek valódi nettó pénzváltozást és shop-sell telemetriát
+tudnak majd adni a kísérleteknek, de az admin fejlesztési futtatóban előbb külön
+élő bizonyítékot kell gyűjteni hozzájuk. Draftként nem kerülhetnek autonóm
+allowlistre; verified promóciójuk és egy eltérő helyszínű pénzkereső útvonal
+továbbra is a diminishing XP összehasonlítás nyitott előfeltétele.

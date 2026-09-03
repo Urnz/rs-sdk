@@ -55,7 +55,9 @@ export interface GatewayAgentReplanOptions {
     skillCatalog?: AdminAgentSkillCatalogOptions;
 }
 
-const FORBIDDEN_AUTONOMOUS_OPERATIONS = new Set(['buy-from-shop', 'sell-to-shop', 'trade-give-item']);
+// Exact, reviewed selling is a bounded income action. Buying and player transfers can
+// create open-ended spending or move assets to another actor, so they remain forbidden.
+const FORBIDDEN_AUTONOMOUS_OPERATIONS = new Set(['buy-from-shop', 'trade-give-item']);
 
 export function evaluateAutonomousSkillPolicy(config: LlmAutonomousExecutionConfig,
     definition: SkillDefinition): { allowed: boolean; reason: string } {
