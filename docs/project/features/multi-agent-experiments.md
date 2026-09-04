@@ -87,6 +87,17 @@ termék/oldal szerint súlyozott egységár készül. Ellentétes coinirányú v
 termékre nem felbontható eseményből nem talál ki árat. A piaci árlista és a
 bevétel/kiadás a kísérleti adminnézetben is megjelenik.
 
+Az összesítés mellett a lezárás a futás kezdetéhez igazított, nulláról induló
+perc-bucketeket is képez. Minden bucket tartalmazza az evidence-et adó agenteket, a
+gazdasági események számát, bruttó bevételt és kiadást, termelést, felhasználást,
+valamint az adott percben először megfigyelt agent–régió párok számát. Ugyanez az
+idősor agentenként is tartós része az eredménynek. Üres perceket a rendszer nem
+talál ki és nem tárol; a timestampen kívüli eseményt nem húzza be a futási ablakba.
+Ez rövid futásnál jellemzően egyetlen bucket, hosszabb kísérletnél viszont már
+megmutatja, mikor változott a termelés, mobilitás vagy piaci aktivitás.
+Az evidence-agent nem online jelenlétmérő: egy mozdulatlan, gazdasági esemény
+nélküli agent nem kerül bele pusztán attól, hogy a gatewayhez kapcsolódott.
+
 A második snapshot továbbra is külön dispatch-állapot: a kísérlet addig `running`,
 amíg minden `executing` résztvevőhöz meg nem érkezik a skill-exit és a hiteles
 napló. Sikeres process-exit napló nélkül fail-closed hibának számít. Az ismételt

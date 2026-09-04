@@ -588,7 +588,7 @@ function renderMultiAgentExperiments(experiments) {
             const goalState = goal && result.goalId
                 ? ` · cél: ${escapeHtml(result.goalId)} (${escapeHtml(goal.outcome)}${goal.baseline && goal.final ? `, r${goal.baseline.revision}→r${goal.final.revision}` : ''})`
                 : '';
-            const measured = result ? ` · ${signed(result.netCoins)} gp nettó · ${fmt.format(result.grossIncomeGp || 0)} gp bevétel · ${fmt.format(result.grossSpendingGp || 0)} gp kiadás · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} élő régió · ${(result.skillEvidenceRegions || []).length} skill-célrégió${goalState}` : '';
+            const measured = result ? ` · ${signed(result.netCoins)} gp nettó · ${fmt.format(result.grossIncomeGp || 0)} gp bevétel · ${fmt.format(result.grossSpendingGp || 0)} gp kiadás · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} élő régió · ${(result.skillEvidenceRegions || []).length} skill-célrégió · ${(result.activityTimeline || []).length} időbucket${goalState}` : '';
             return `<li><strong>${escapeHtml(item.agentId)}</strong>
             <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}${item.baselineAvatarDigest ? ` · baseline ${escapeHtml(item.baselineAvatarDigest.slice(0, 12))}` : ' · legacy baseline'}${item.baselineAvatar && !item.baselineAvatar.bankKnown ? ' · bank ismeretlen' : ''}</span>
             <small>${escapeHtml(item.reason || 'Függőben')}${item.skillRun
@@ -605,6 +605,9 @@ function renderMultiAgentExperiments(experiments) {
         const marketPrices = metrics?.marketPrices?.length
             ? `<details><summary>Megfigyelt piaci árak (${metrics.marketPrices.length})</summary><ul>${metrics.marketPrices.map(item =>
                 `<li>${item.side === 'buy' ? 'Vétel' : 'Eladás'} · ${escapeHtml(item.itemName)}${item.itemId === null ? '' : ` (#${item.itemId})`}: ${item.weightedAverageUnitPrice.toLocaleString('hu-HU')} gp/db · ${fmt.format(item.quantity)} db / ${fmt.format(item.transactions)} tranzakció</li>`).join('')}</ul></details>` : '';
+        const activityTimeline = metrics?.activityTimeline?.length
+            ? `<details><summary>Aktivitási idősor (${metrics.activityTimeline.length} perc-bucket)</summary><ol>${metrics.activityTimeline.map(bucket =>
+                `<li><strong>+${bucket.minute}. perc</strong> · ${fmt.format(bucket.evidenceAgentIds.length)} evidence-agent · ${fmt.format(bucket.economicEvents)} esemény · ${fmt.format(bucket.grossIncomeGp)} gp bevétel · ${fmt.format(bucket.grossSpendingGp)} gp kiadás · ${fmt.format(bucket.producedItems)} termelt · ${fmt.format(bucket.consumedItems)} felhasznált · ${fmt.format(bucket.newRegions)} új agent-régió</li>`).join('')}</ol></details>` : '';
         return `<article class="capability-gap-card ${escapeHtml(run.status)}">
             <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(statusLabel)}</small></div>
             <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · definíció: ${escapeHtml(run.definitionDigest)} · world-mod: ${escapeHtml(run.environmentDigest || 'legacy')}</small></div>
@@ -614,6 +617,7 @@ function renderMultiAgentExperiments(experiments) {
             <details><summary>Agentenkénti eredmények</summary><ol class="experiment-participants">${participants}</ol></details>
             ${skillRuns}
             ${marketPrices}
+            ${activityTimeline}
             ${itemDeltas}
             ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
         </article>`;

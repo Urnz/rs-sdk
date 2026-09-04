@@ -512,6 +512,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] A futó kísérletek exact avatarjainak élő gateway-pozícióiból levelenként
     64×64 tile-os, deduplikált régiónaplót vezetni; ezt a skill célkoordinátáiból
     származó evidence-régióktól elkülönítve mérni és megjeleníteni.
+  - [x] A hiteles piaci és régióeseményeket a futás kezdetéhez igazított,
+    percenkénti időbucketekbe rendezni agentenként és kohorszszinten, bevétel-,
+    kiadás-, termelés-, felhasználás-, új régió- és evidence-agent mutatókkal.
   - [ ] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
     jövedelmet és agentenkénti célhaladást mérni.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti

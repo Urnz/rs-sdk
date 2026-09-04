@@ -10,7 +10,7 @@ import { agentStateDbPath, multiAgentExperimentsDbPath } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { extractEconomyEvents, summarizeEconomyEvents,
     summarizeMarketCoinFlow, summarizeMarketPrices, type EconomyEventSummary,
-    type MarketPriceObservation } from './transaction-telemetry.js';
+    type EconomyEvent, type MarketPriceObservation } from './transaction-telemetry.js';
 
 export type MultiAgentExperimentStatus = 'running' | 'completed' | 'completed-with-errors' | 'failed';
 
@@ -93,7 +93,27 @@ export interface MultiAgentExperimentParticipant {
     baselineAvatar: MultiAgentExperimentAvatarBaseline | null;
     baselineAvatarDigest: string | null;
     worldRegions: string[];
+    worldRegionObservations: MultiAgentExperimentWorldRegionObservation[];
     updatedAt: string;
+}
+
+export interface MultiAgentExperimentWorldRegionObservation {
+    region: string;
+    firstPosition: { x: number; z: number; level: number };
+    observedAt: string;
+}
+
+export interface MultiAgentExperimentActivityBucket {
+    minute: number;
+    startedAt: string;
+    endedAt: string;
+    evidenceAgentIds: string[];
+    economicEvents: number;
+    grossIncomeGp: number;
+    grossSpendingGp: number;
+    producedItems: number;
+    consumedItems: number;
+    newRegions: number;
 }
 
 export interface MultiAgentExperimentMetrics {
@@ -119,6 +139,7 @@ export interface MultiAgentExperimentMetrics {
     successfulGoalRuns: number;
     actualGoalChanges: number;
     actualGoalsCompleted: number;
+    activityTimeline: MultiAgentExperimentActivityBucket[];
     participantResults: MultiAgentExperimentParticipantResult[];
 }
 
@@ -139,6 +160,7 @@ export interface MultiAgentExperimentParticipantResult {
     targets: string[];
     regions: string[];
     skillEvidenceRegions: string[];
+    activityTimeline: MultiAgentExperimentActivityBucket[];
 }
 
 export interface MultiAgentExperimentRun {
@@ -337,6 +359,7 @@ function participant(row: ParticipantRow): MultiAgentExperimentParticipant {
             ? JSON.parse(row.baseline_avatar_json) as MultiAgentExperimentAvatarBaseline : null,
         baselineAvatarDigest: row.baseline_avatar_digest,
         worldRegions: [],
+        worldRegionObservations: [],
         updatedAt: row.updated_at };
 }
 
@@ -512,6 +535,43 @@ function runRegions(run: AdminSkillRun | null): string[] {
     return [...regions].sort((left, right) => left.localeCompare(right, 'en-US', { numeric: true }));
 }
 
+function activityTimeline(startedAt: string, finishedAt: string, sources: Array<{
+    agentId: string; events: EconomyEvent[]; observations: MultiAgentExperimentWorldRegionObservation[];
+}>): MultiAgentExperimentActivityBucket[] {
+    const start = Date.parse(startedAt);
+    const end = Date.parse(finishedAt);
+    const buckets = new Map<number, { agentIds: Set<string>; events: EconomyEvent[]; regions: Set<string> }>();
+    const bucket = (value: string): number | null => {
+        const time = Date.parse(value);
+        return Number.isNaN(time) || time < start || time > end ? null : Math.floor((time - start) / 60_000);
+    };
+    for (const source of sources) {
+        for (const event of source.events) {
+            const minute = bucket(event.timestamp);
+            if (minute === null) continue;
+            const entry = buckets.get(minute) ?? { agentIds: new Set<string>(), events: [], regions: new Set<string>() };
+            entry.agentIds.add(source.agentId); entry.events.push(event); buckets.set(minute, entry);
+        }
+        for (const observation of source.observations) {
+            const minute = bucket(observation.observedAt);
+            if (minute === null) continue;
+            const entry = buckets.get(minute) ?? { agentIds: new Set<string>(), events: [], regions: new Set<string>() };
+            entry.agentIds.add(source.agentId); entry.regions.add(`${source.agentId}\0${observation.region}`);
+            buckets.set(minute, entry);
+        }
+    }
+    return [...buckets].sort(([left], [right]) => left - right).map(([minute, entry]) => {
+        const summary = summarizeEconomyEvents(entry.events);
+        const coins = summarizeMarketCoinFlow(entry.events);
+        return { minute, startedAt: new Date(start + minute * 60_000).toISOString(),
+            endedAt: new Date(Math.min(end, start + (minute + 1) * 60_000)).toISOString(),
+            evidenceAgentIds: [...entry.agentIds].sort(), economicEvents: entry.events.length,
+            grossIncomeGp: coins.grossIncomeGp, grossSpendingGp: coins.grossSpendingGp,
+            producedItems: summary.producedItems, consumedItems: summary.consumedItems,
+            newRegions: entry.regions.size };
+    });
+}
+
 function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnapshot,
     finishedAt: string): MultiAgentExperimentMetrics {
     const baselineItems = new Map(run.baselineEconomy.itemStock.map(item => [item.id, item]));
@@ -539,7 +599,9 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
             grossSpendingGp: coinFlow.grossSpendingGp, producedItems: summary.producedItems,
             consumedItems: summary.consumedItems, shopTransactions: summary.shopTransactions,
             playerTrades: summary.playerTrades, targets: runTargets(skillRun), regions: item.worldRegions,
-            skillEvidenceRegions: runRegions(skillRun) }, events };
+            skillEvidenceRegions: runRegions(skillRun),
+            activityTimeline: activityTimeline(run.startedAt, finishedAt, [{ agentId: item.agentId, events,
+                observations: item.worldRegionObservations }]) }, events };
     });
     const economicEvents = participantResults.flatMap(item => item.events);
     const marketCoinFlow = summarizeMarketCoinFlow(economicEvents);
@@ -567,6 +629,10 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         successfulGoalRuns: results.filter(item => item.goalId !== null && item.status === 'completed').length,
         actualGoalChanges: results.filter(item => item.goalProgress.changed).length,
         actualGoalsCompleted: results.filter(item => item.goalProgress.completedDuringExperiment).length,
+        activityTimeline: activityTimeline(run.startedAt, finishedAt, run.participants.map((item, index) => ({
+            agentId: item.agentId, events: participantResults[index]!.events,
+            observations: item.worldRegionObservations
+        }))),
         participantResults: results };
 }
 
@@ -625,13 +691,19 @@ export class MultiAgentExperimentStore {
         if (!row) return null;
         const participants = (this.database.query(`SELECT * FROM multi_agent_experiment_participant
             WHERE experiment_id = ?1 ORDER BY ordinal`).all(experimentId) as ParticipantRow[]).map(participant);
-        const regions = this.database.query(`SELECT agent_id, level, region_x, region_z
+        const regions = this.database.query(`SELECT agent_id, level, region_x, region_z, first_x, first_z, observed_at
             FROM multi_agent_experiment_world_region WHERE experiment_id = ?1
             ORDER BY agent_id, level, region_x, region_z`).all(experimentId) as Array<{
                 agent_id: string; level: number; region_x: number; region_z: number;
+                first_x: number; first_z: number; observed_at: string;
             }>;
-        for (const entry of participants) entry.worldRegions = regions.filter(region => region.agent_id === entry.agentId)
-            .map(region => worldRegion(region.level, region.region_x * 64, region.region_z * 64));
+        for (const entry of participants) {
+            entry.worldRegionObservations = regions.filter(region => region.agent_id === entry.agentId)
+                .map(region => ({ region: worldRegion(region.level, region.region_x * 64, region.region_z * 64),
+                    firstPosition: { x: region.first_x, z: region.first_z, level: region.level },
+                    observedAt: region.observed_at }));
+            entry.worldRegions = entry.worldRegionObservations.map(observation => observation.region);
+        }
         return { experimentId: row.experiment_id, definitionDigest: row.definition_digest,
             label: row.label, seed: row.seed, summary: row.summary, status: row.status,
             environmentDigest: row.environment_digest,

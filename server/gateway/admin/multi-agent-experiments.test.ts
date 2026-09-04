@@ -106,6 +106,7 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('metrics.actualGoalChanges');
     expect(script).toContain('goal.outcome');
     expect(script).toContain('result.skillEvidenceRegions');
+    expect(script).toContain('metrics.activityTimeline');
     expect(script).toContain('/api/admin/multi-agent-experiments/compare');
     expect(html).toContain('id="skill-draft-list"');
     expect(script).toContain('/api/admin/skill-drafts');
@@ -162,9 +163,9 @@ describe('persistent multi-agent experiment runner', () => {
         expect(dispatched.participants.map(item => item.agentId).sort()).toEqual(['agent-a', 'agent-b']);
         expect(dispatched.participants.every(item => item.status === 'executing' && item.record?.gate.accepted)).toBeTrue();
         expect(store.recordWorldObservation('agent-a', { x: 3264, z: 3400, level: 0 },
-            '2026-09-01T10:00:01.500Z')).toBe(1);
+            '2026-09-01T10:01:01.500Z')).toBe(1);
         expect(store.recordWorldObservation('agent-a', { x: 3265, z: 3401, level: 0 },
-            '2026-09-01T10:00:01.600Z')).toBe(0);
+            '2026-09-01T10:01:01.600Z')).toBe(0);
         expect(store.recordWorldObservation('unrelated', { x: 3200, z: 3400, level: 0 },
             '2026-09-01T10:00:01.700Z')).toBe(0);
 
@@ -178,11 +179,11 @@ describe('persistent multi-agent experiment runner', () => {
         expect(snapshotCalls).toBe(2);
         const completed = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
             skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Process completed.', dependencies,
-            '2026-09-01T10:00:03.000Z');
+            '2026-09-01T10:01:03.000Z');
         expect(completed?.status).toBe('completed');
         expect(completed?.finalEconomy?.totalCoins).toBe(120);
         expect(completed?.metrics).toMatchObject({ totalCoinsDelta: 20, totalXpDelta: 0,
-            completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 3_000,
+            completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 63_000,
             economicEvents: 3, economicEventSummary: { producedItems: 2, shopTransactions: 1, netCoins: 10 },
             grossIncomeGp: 10, grossSpendingGp: 0,
             marketPrices: [{ side: 'sell', itemId: 436, itemName: 'Copper ore', quantity: 1,
@@ -191,16 +192,28 @@ describe('persistent multi-agent experiment runner', () => {
             skillRuns: [{ skillId: 'test.fish-lobster', runs: 1 }, { skillId: 'test.mine-copper', runs: 1 }],
             uniqueTargets: 2, uniqueRegions: 3, goalLinkedRuns: 2, successfulGoalRuns: 2,
             actualGoalChanges: 1, actualGoalsCompleted: 1,
+            activityTimeline: [{ minute: 0, startedAt: '2026-09-01T10:00:00.000Z',
+                endedAt: '2026-09-01T10:01:00.000Z', evidenceAgentIds: ['agent-a', 'agent-b'],
+                economicEvents: 3, grossIncomeGp: 10, grossSpendingGp: 0,
+                producedItems: 2, consumedItems: 0, newRegions: 2 },
+            { minute: 1, startedAt: '2026-09-01T10:01:00.000Z', endedAt: '2026-09-01T10:01:03.000Z',
+                evidenceAgentIds: ['agent-a'], economicEvents: 0, grossIncomeGp: 0, grossSpendingGp: 0,
+                producedItems: 0, consumedItems: 0, newRegions: 1 }],
             participantResults: expect.arrayContaining([
                 expect.objectContaining({ agentId: 'agent-a', goalId: 'agent-a.earn', netCoins: 10,
                     grossIncomeGp: 10, grossSpendingGp: 0,
                     producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'],
                     regions: ['0:50,53', '0:51,53'], skillEvidenceRegions: ['50,53'],
+                    activityTimeline: [expect.objectContaining({ minute: 0, economicEvents: 2,
+                        grossIncomeGp: 10, producedItems: 1, newRegions: 1 }),
+                    expect.objectContaining({ minute: 1, economicEvents: 0, newRegions: 1 })],
                     goalProgress: expect.objectContaining({ outcome: 'completed', changed: true,
                         completedDuringExperiment: true }) }),
                 expect.objectContaining({ agentId: 'agent-b', goalId: 'agent-b.earn', netCoins: 0,
                     producedItems: 1, targets: ['npc:fishing spot'], regions: ['0:45,49'],
                     skillEvidenceRegions: ['45,49'],
+                    activityTimeline: [expect.objectContaining({ minute: 0, economicEvents: 1,
+                        grossIncomeGp: 0, producedItems: 1, newRegions: 1 })],
                     goalProgress: expect.objectContaining({ outcome: 'unchanged', changed: false,
                         completedDuringExperiment: false }) })
             ]) });
@@ -231,7 +244,7 @@ describe('persistent multi-agent experiment runner', () => {
         expect(() => compareMultiAgentExperiments(completed!, treatment)).toThrow('differ only');
         const replay = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
             skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Duplicate process event.', dependencies,
-            '2026-09-01T10:00:04.000Z');
+            '2026-09-01T10:01:04.000Z');
         expect(replay).toEqual(completed);
         expect(snapshotCalls).toBe(3);
         store.close();
