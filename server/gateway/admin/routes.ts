@@ -77,7 +77,8 @@ import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/type
 import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
 import type { SkillGrantKind } from '../../../agent-skills/learning.js';
 import { resolveLearnAndPlan } from './deterministic-learning.js';
-import { compareMultiAgentExperiments, MultiAgentExperimentStore, startMultiAgentExperiment,
+import { compareMultiAgentExperiments, MultiAgentExperimentStore, readMultiAgentExperimentGoalSnapshots,
+    startMultiAgentExperiment,
     type MultiAgentExperimentEnvironment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
@@ -1593,6 +1594,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                                 && Date.now() - gateway.lastStateReceivedAt <= 5_000) };
                     }),
                     economySnapshot: async () => economySnapshot(await catalog()),
+                    goalSnapshots: async ids => readMultiAgentExperimentGoalSnapshots(ids),
                     worldModEnvironment: activeExperimentEnvironment
                 });
                 await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.start', reason,

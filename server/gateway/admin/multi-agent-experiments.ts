@@ -2,9 +2,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import { AgentStateStore } from '../../../agent-state/store.js';
+import type { AgentGoal, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
 import type { EconomySnapshot } from './types.js';
 import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.js';
-import { multiAgentExperimentsDbPath } from './paths.js';
+import { agentStateDbPath, multiAgentExperimentsDbPath } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { extractEconomyEvents, summarizeEconomyEvents,
     summarizeMarketCoinFlow, summarizeMarketPrices, type EconomyEventSummary,
@@ -43,6 +45,26 @@ export interface MultiAgentExperimentCandidate {
     onlineFresh: boolean;
 }
 
+export interface MultiAgentExperimentGoalSnapshot {
+    goalId: string;
+    horizon: GoalHorizon;
+    status: GoalStatus;
+    revision: number;
+    updatedAt: string;
+    completedAt: string | null;
+}
+
+export type MultiAgentExperimentGoalSnapshots = Record<string, MultiAgentExperimentGoalSnapshot[]>;
+
+export interface MultiAgentExperimentGoalProgress {
+    outcome: 'not-linked' | 'created' | 'unchanged' | 'updated' | 'completed' | 'blocked' | 'abandoned'
+        | 'missing-final';
+    changed: boolean;
+    completedDuringExperiment: boolean;
+    baseline: MultiAgentExperimentGoalSnapshot | null;
+    final: MultiAgentExperimentGoalSnapshot | null;
+}
+
 export interface MultiAgentExperimentParticipant {
     agentId: string;
     avatarPlayerUsername: string;
@@ -53,6 +75,8 @@ export interface MultiAgentExperimentParticipant {
     reason: string | null;
     record: ReplanRecord | null;
     skillRun: AdminSkillRun | null;
+    baselineGoals: MultiAgentExperimentGoalSnapshot[];
+    finalGoals: MultiAgentExperimentGoalSnapshot[] | null;
     updatedAt: string;
 }
 
@@ -77,6 +101,8 @@ export interface MultiAgentExperimentMetrics {
     uniqueRegions: number;
     goalLinkedRuns: number;
     successfulGoalRuns: number;
+    actualGoalChanges: number;
+    actualGoalsCompleted: number;
     participantResults: MultiAgentExperimentParticipantResult[];
 }
 
@@ -84,6 +110,7 @@ export interface MultiAgentExperimentParticipantResult {
     agentId: string;
     avatarPlayerUsername: string;
     goalId: string | null;
+    goalProgress: MultiAgentExperimentGoalProgress;
     skillId: string | null;
     status: string;
     netCoins: number;
@@ -129,7 +156,8 @@ interface ExperimentRow {
 interface ParticipantRow {
     experiment_id: string; agent_id: string; avatar_player_username: string; ordinal: number;
     event_id: string; status: string; run_id: string | null; reason: string | null;
-    record_json: string | null; skill_run_json: string | null; updated_at: string;
+    record_json: string | null; skill_run_json: string | null;
+    baseline_goals_json: string; final_goals_json: string | null; updated_at: string;
 }
 
 function boundedText(value: string, field: string, maximum: number): string {
@@ -207,7 +235,7 @@ export interface MultiAgentExperimentComparison {
     treatmentMinusControl: Pick<MultiAgentExperimentMetrics, 'totalCoinsDelta' | 'totalXpDelta'
         | 'sessionXpDelta' | 'economicEvents' | 'uniqueSkills' | 'skillConcentration'
         | 'uniqueTargets' | 'uniqueRegions' | 'successfulGoalRuns' | 'grossIncomeGp'
-        | 'grossSpendingGp'>;
+        | 'grossSpendingGp' | 'actualGoalChanges' | 'actualGoalsCompleted'>;
 }
 
 export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
@@ -241,7 +269,9 @@ export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
             economicEvents: difference('economicEvents'), uniqueSkills: difference('uniqueSkills'),
             skillConcentration: difference('skillConcentration'), uniqueTargets: difference('uniqueTargets'),
             uniqueRegions: difference('uniqueRegions'), successfulGoalRuns: difference('successfulGoalRuns'),
-            grossIncomeGp: difference('grossIncomeGp'), grossSpendingGp: difference('grossSpendingGp') } };
+            grossIncomeGp: difference('grossIncomeGp'), grossSpendingGp: difference('grossSpendingGp'),
+            actualGoalChanges: difference('actualGoalChanges'),
+            actualGoalsCompleted: difference('actualGoalsCompleted') } };
 }
 
 export function multiAgentExperimentDefinition(input: MultiAgentExperimentInput): {
@@ -261,7 +291,51 @@ function participant(row: ParticipantRow): MultiAgentExperimentParticipant {
         ordinal: row.ordinal, eventId: row.event_id, status: row.status, runId: row.run_id,
         reason: row.reason, record: row.record_json ? JSON.parse(row.record_json) as ReplanRecord : null,
         skillRun: row.skill_run_json ? JSON.parse(row.skill_run_json) as AdminSkillRun : null,
+        baselineGoals: JSON.parse(row.baseline_goals_json) as MultiAgentExperimentGoalSnapshot[],
+        finalGoals: row.final_goals_json
+            ? JSON.parse(row.final_goals_json) as MultiAgentExperimentGoalSnapshot[] : null,
         updatedAt: row.updated_at };
+}
+
+function snapshotGoal(goal: AgentGoal): MultiAgentExperimentGoalSnapshot {
+    return { goalId: goal.goalId, horizon: goal.horizon, status: goal.status, revision: goal.revision,
+        updatedAt: timestamp(goal.updatedAt), completedAt: goal.completedAt ? timestamp(goal.completedAt) : null };
+}
+
+export function readMultiAgentExperimentGoalSnapshots(agentIds: readonly string[],
+    path = agentStateDbPath): MultiAgentExperimentGoalSnapshots {
+    const store = new AgentStateStore(path);
+    try {
+        return Object.fromEntries(agentIds.map(id => {
+            const normalized = agentId(id);
+            return [normalized, store.listGoals(normalized).map(snapshotGoal)
+                .sort((left, right) => left.goalId.localeCompare(right.goalId))];
+        }));
+    } finally { store.close(); }
+}
+
+function validateGoalSnapshots(agentIds: readonly string[], input: MultiAgentExperimentGoalSnapshots):
+MultiAgentExperimentGoalSnapshots {
+    const output: MultiAgentExperimentGoalSnapshots = {};
+    for (const id of agentIds) {
+        const goals = input[id];
+        if (!Array.isArray(goals) || goals.length > 1_000) {
+            throw new Error(`Experiment goal snapshot is missing or too large for ${id}`);
+        }
+        const seen = new Set<string>();
+        output[id] = goals.map(goal => {
+            if (!goal || typeof goal !== 'object' || agentId(goal.goalId) !== goal.goalId || seen.has(goal.goalId)
+                || !['life', 'long-term', 'current', 'immediate'].includes(goal.horizon)
+                || !['active', 'completed', 'blocked', 'abandoned'].includes(goal.status)
+                || !Number.isSafeInteger(goal.revision) || goal.revision < 1) {
+                throw new Error(`Experiment goal snapshot is invalid for ${id}`);
+            }
+            seen.add(goal.goalId);
+            return { ...goal, updatedAt: timestamp(goal.updatedAt),
+                completedAt: goal.completedAt ? timestamp(goal.completedAt) : null };
+        }).sort((left, right) => left.goalId.localeCompare(right.goalId));
+    }
+    return output;
 }
 
 function recordGoalId(record: ReplanRecord | null): string | null {
@@ -269,6 +343,26 @@ function recordGoalId(record: ReplanRecord | null): string | null {
     if (!decision || typeof decision !== 'object') return null;
     const goalId = (decision as Record<string, unknown>).goalId;
     return typeof goalId === 'string' && /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(goalId) ? goalId : null;
+}
+
+function goalProgress(participant: MultiAgentExperimentParticipant,
+    goalId: string | null): MultiAgentExperimentGoalProgress {
+    if (!goalId) return { outcome: 'not-linked', changed: false, completedDuringExperiment: false,
+        baseline: null, final: null };
+    const baseline = participant.baselineGoals.find(goal => goal.goalId === goalId) ?? null;
+    const final = participant.finalGoals?.find(goal => goal.goalId === goalId) ?? null;
+    if (!final) return { outcome: 'missing-final', changed: false, completedDuringExperiment: false,
+        baseline, final: null };
+    if (!baseline) return { outcome: 'created', changed: true,
+        completedDuringExperiment: final.status === 'completed', baseline: null, final };
+    const changed = final.revision !== baseline.revision || final.status !== baseline.status
+        || final.updatedAt !== baseline.updatedAt;
+    const completedDuringExperiment = baseline.status !== 'completed' && final.status === 'completed';
+    const outcome = completedDuringExperiment ? 'completed'
+        : final.status === 'blocked' && baseline.status !== 'blocked' ? 'blocked'
+            : final.status === 'abandoned' && baseline.status !== 'abandoned' ? 'abandoned'
+                : changed ? 'updated' : 'unchanged';
+    return { outcome, changed, completedDuringExperiment, baseline, final };
 }
 
 function runTargets(run: AdminSkillRun | null): string[] {
@@ -322,8 +416,9 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
             skillId: skillRun.skill.id, events: skillRun.events }) : [];
         const summary = summarizeEconomyEvents(events);
         const coinFlow = summarizeMarketCoinFlow(events);
+        const goalId = recordGoalId(item.record);
         return { result: { agentId: item.agentId, avatarPlayerUsername: item.avatarPlayerUsername,
-            goalId: recordGoalId(item.record), skillId: skillRun?.skill.id ?? null, status: item.status,
+            goalId, goalProgress: goalProgress(item, goalId), skillId: skillRun?.skill.id ?? null, status: item.status,
             netCoins: coinFlow.grossIncomeGp - coinFlow.grossSpendingGp, grossIncomeGp: coinFlow.grossIncomeGp,
             grossSpendingGp: coinFlow.grossSpendingGp, producedItems: summary.producedItems,
             consumedItems: summary.consumedItems, shopTransactions: summary.shopTransactions,
@@ -353,6 +448,8 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         uniqueRegions: new Set(results.flatMap(item => item.regions)).size,
         goalLinkedRuns: results.filter(item => item.goalId !== null).length,
         successfulGoalRuns: results.filter(item => item.goalId !== null && item.status === 'completed').length,
+        actualGoalChanges: results.filter(item => item.goalProgress.changed).length,
+        actualGoalsCompleted: results.filter(item => item.goalProgress.completedDuringExperiment).length,
         participantResults: results };
 }
 
@@ -383,6 +480,8 @@ export class MultiAgentExperimentStore {
         this.addColumn('multi_agent_experiment', 'environment_json',
             "TEXT NOT NULL DEFAULT '{\"schemaVersion\":1,\"activeRevision\":0,\"capturedAt\":\"1970-01-01T00:00:00.000Z\",\"mods\":[]}'");
         this.addColumn('multi_agent_experiment_participant', 'skill_run_json', 'TEXT');
+        this.addColumn('multi_agent_experiment_participant', 'baseline_goals_json', "TEXT NOT NULL DEFAULT '[]'");
+        this.addColumn('multi_agent_experiment_participant', 'final_goals_json', 'TEXT');
     }
 
     private addColumn(table: string, column: string, declaration: string): void {
@@ -419,10 +518,12 @@ export class MultiAgentExperimentStore {
 
     create(definition: ReturnType<typeof multiAgentExperimentDefinition>,
         candidates: ReadonlyMap<string, MultiAgentExperimentCandidate>, baseline: EconomySnapshot,
+        baselineGoalInput: MultiAgentExperimentGoalSnapshots,
         environmentInput: MultiAgentExperimentEnvironment,
         now = new Date().toISOString(), experimentId = randomUUID()): MultiAgentExperimentRun {
         const startedAt = timestamp(now);
         const { environment, digest: environmentDigest } = validateMultiAgentExperimentEnvironment(environmentInput);
+        const baselineGoals = validateGoalSnapshots(definition.orderedAgentIds, baselineGoalInput);
         const transaction = this.database.transaction(() => {
             this.database.run(`INSERT INTO multi_agent_experiment
                 (experiment_id, definition_digest, environment_digest, environment_json, label, seed, summary,
@@ -435,10 +536,10 @@ export class MultiAgentExperimentStore {
                 const candidate = candidates.get(id)!;
                 this.database.run(`INSERT INTO multi_agent_experiment_participant
                     (experiment_id, agent_id, avatar_player_username, ordinal, event_id, status,
-                        run_id, reason, record_json, updated_at)
-                    VALUES (?1, ?2, ?3, ?4, ?5, 'pending', NULL, NULL, NULL, ?6)`,
+                        run_id, reason, record_json, baseline_goals_json, updated_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, 'pending', NULL, NULL, NULL, ?6, ?7)`,
                 [experimentId, id, candidate.avatarPlayerUsername!, ordinal,
-                    `${experimentId}.${id}`, startedAt]);
+                    `${experimentId}.${id}`, JSON.stringify(baselineGoals[id]), startedAt]);
             });
         });
         transaction.immediate();
@@ -523,7 +624,8 @@ export class MultiAgentExperimentStore {
             && run.participants.every(item => item.status !== 'pending' && item.status !== 'executing'));
     }
 
-    finish(experimentId: string, finalEconomy: EconomySnapshot, now = new Date().toISOString()): MultiAgentExperimentRun {
+    finish(experimentId: string, finalEconomy: EconomySnapshot,
+        finalGoalInput: MultiAgentExperimentGoalSnapshots, now = new Date().toISOString()): MultiAgentExperimentRun {
         const finishedAt = timestamp(now);
         const current = this.get(experimentId);
         if (!current) throw new Error('Experiment is missing');
@@ -531,13 +633,21 @@ export class MultiAgentExperimentStore {
         if (!current.dispatchEconomy || current.participants.some(item => item.status === 'pending' || item.status === 'executing')) {
             throw new Error('Experiment cannot finish before every dispatched skill run resolves');
         }
-        const metrics = economyMetrics(current, finalEconomy, finishedAt);
-        const status: MultiAgentExperimentStatus = metrics.unsuccessfulParticipants
-            ? 'completed-with-errors' : 'completed';
-        this.database.run(`UPDATE multi_agent_experiment SET status = ?2, final_economy_json = ?3,
-            metrics_json = ?4, finished_at = ?5, revision = revision + 1
-            WHERE experiment_id = ?1 AND status = 'running'`,
-        [experimentId, status, JSON.stringify(finalEconomy), JSON.stringify(metrics), finishedAt]);
+        const finalGoals = validateGoalSnapshots(current.participants.map(item => item.agentId), finalGoalInput);
+        const transaction = this.database.transaction(() => {
+            for (const item of current.participants) this.database.run(`UPDATE multi_agent_experiment_participant
+                SET final_goals_json = ?3 WHERE experiment_id = ?1 AND agent_id = ?2`,
+            [experimentId, item.agentId, JSON.stringify(finalGoals[item.agentId])]);
+            const withFinalGoals = this.get(experimentId)!;
+            const metrics = economyMetrics(withFinalGoals, finalEconomy, finishedAt);
+            const status: MultiAgentExperimentStatus = metrics.unsuccessfulParticipants
+                ? 'completed-with-errors' : 'completed';
+            this.database.run(`UPDATE multi_agent_experiment SET status = ?2, final_economy_json = ?3,
+                metrics_json = ?4, finished_at = ?5, revision = revision + 1
+                WHERE experiment_id = ?1 AND status = 'running'`,
+            [experimentId, status, JSON.stringify(finalEconomy), JSON.stringify(metrics), finishedAt]);
+        });
+        transaction.immediate();
         return this.get(experimentId)!;
     }
 
@@ -556,6 +666,7 @@ export interface MultiAgentExperimentDependencies {
     listCandidates(): Promise<readonly MultiAgentExperimentCandidate[]>;
     economySnapshot(): Promise<EconomySnapshot>;
     worldModEnvironment(): Promise<MultiAgentExperimentEnvironment>;
+    goalSnapshots(agentIds: readonly string[]): Promise<MultiAgentExperimentGoalSnapshots>;
     coordinator: AgentReplanCoordinator;
     store: MultiAgentExperimentStore;
 }
@@ -586,10 +697,11 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
     }> {
     const definition = multiAgentExperimentDefinition(input);
     const candidates = preflight(definition, await dependencies.listCandidates());
-    const [baseline, environment] = await Promise.all([
-        dependencies.economySnapshot(), dependencies.worldModEnvironment()
+    const [baseline, environment, baselineGoals] = await Promise.all([
+        dependencies.economySnapshot(), dependencies.worldModEnvironment(),
+        dependencies.goalSnapshots(definition.orderedAgentIds)
     ]);
-    const run = dependencies.store.create(definition, candidates, baseline, environment, now);
+    const run = dependencies.store.create(definition, candidates, baseline, baselineGoals, environment, now);
     const completion = (async () => {
         try {
             await Promise.all(run.participants.map(async entry => {
@@ -608,7 +720,8 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
             }));
             const dispatched = dependencies.store.markDispatched(run.experimentId, await dependencies.economySnapshot());
             return dependencies.store.isReadyToFinalize(run.experimentId)
-                ? dependencies.store.finish(run.experimentId, await dependencies.economySnapshot())
+                ? dependencies.store.finish(run.experimentId, await dependencies.economySnapshot(),
+                    await dependencies.goalSnapshots(run.participants.map(item => item.agentId)))
                 : dispatched;
         } catch (error) {
             return dependencies.store.fail(run.experimentId, error instanceof Error ? error.message : String(error));
@@ -619,9 +732,10 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
 
 export async function reconcileMultiAgentExperimentSkillRun(runId: string, skillRun: AdminSkillRun | null,
     processSucceeded: boolean, fallbackReason: string,
-    dependencies: Pick<MultiAgentExperimentDependencies, 'store' | 'economySnapshot'>,
+    dependencies: Pick<MultiAgentExperimentDependencies, 'store' | 'economySnapshot' | 'goalSnapshots'>,
     now = new Date().toISOString()): Promise<MultiAgentExperimentRun | null> {
     const run = dependencies.store.recordSkillRun(runId, skillRun, processSucceeded, fallbackReason, now);
     if (!run || !dependencies.store.isReadyToFinalize(run.experimentId)) return run;
-    return dependencies.store.finish(run.experimentId, await dependencies.economySnapshot(), now);
+    return dependencies.store.finish(run.experimentId, await dependencies.economySnapshot(),
+        await dependencies.goalSnapshots(run.participants.map(item => item.agentId)), now);
 }

@@ -502,6 +502,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] Hiteles shop- és player-trade coin-deltákból agentenként és összesítve
     bruttó bevételt/kiadást, a shop eseményekből pedig termékenként súlyozott
     vételi/eladási egységárat képezni és a kísérleti nézetben megjeleníteni.
+  - [x] A dispatch előtti és minden résztvevő lezárása utáni goal-adattári
+    snapshotból a döntésben kiválasztott cél revision- és státuszváltozását,
+    valamint tényleges teljesülését agentenként tartósítani és megjeleníteni.
   - [ ] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
     jövedelmet és agentenkénti célhaladást mérni.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti

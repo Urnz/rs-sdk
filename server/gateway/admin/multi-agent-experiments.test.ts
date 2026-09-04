@@ -35,6 +35,15 @@ function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvir
     ] };
 }
 
+function goalSnapshots(agentIds: readonly string[], completedAgentId?: string) {
+    return Object.fromEntries(agentIds.map(agentId => [agentId, [{ goalId: `${agentId}.earn`, horizon: 'immediate' as const,
+        status: agentId === completedAgentId ? 'completed' as const : 'active' as const,
+        revision: agentId === completedAgentId ? 2 : 1,
+        updatedAt: agentId === completedAgentId
+            ? '2026-09-01T10:00:03.000Z' : '2026-09-01T09:59:00.000Z',
+        completedAt: agentId === completedAgentId ? '2026-09-01T10:00:03.000Z' : null }]]));
+}
+
 function skillRun(runId: string, username: string, status: AdminSkillRun['status'] = 'completed'): AdminSkillRun {
     const skillId = username === 'agent-a' ? 'test.mine-copper' : 'test.fish-lobster';
     const resource = username === 'agent-a'
@@ -87,6 +96,8 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('metrics.skillConcentration');
     expect(script).toContain('metrics?.participantResults');
     expect(script).toContain('metrics.uniqueTargets');
+    expect(script).toContain('metrics.actualGoalChanges');
+    expect(script).toContain('goal.outcome');
     expect(script).toContain('/api/admin/multi-agent-experiments/compare');
     expect(html).toContain('id="skill-draft-list"');
     expect(script).toContain('/api/admin/skill-drafts');
@@ -119,11 +130,13 @@ describe('persistent multi-agent experiment runner', () => {
             append: () => undefined
         });
         let snapshotCalls = 0;
+        let goalSnapshotCalls = 0;
         const started = await startMultiAgentExperiment({ label: 'Copper cohort', seed: 'world-42',
             summary: 'Start one bounded mining cycle for each agent.', agentIds: ['agent-a', 'agent-b'] }, {
             coordinator, store,
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
             worldModEnvironment: async () => experimentEnvironment(),
+            goalSnapshots: async ids => goalSnapshots(ids, goalSnapshotCalls++ === 0 ? undefined : 'agent-a'),
             economySnapshot: async () => economy(`2026-09-01T10:00:0${snapshotCalls}.000Z`, 100 + snapshotCalls++ * 10)
         }, '2026-09-01T10:00:00.000Z');
 
@@ -142,6 +155,7 @@ describe('persistent multi-agent experiment runner', () => {
         expect(dispatched.participants.every(item => item.status === 'executing' && item.record?.gate.accepted)).toBeTrue();
 
         const dependencies = { store,
+            goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids, 'agent-a'),
             economySnapshot: async () => economy(`2026-09-01T10:00:0${snapshotCalls}.000Z`, 100 + snapshotCalls++ * 10) };
         const first = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-a')!,
             skillRun(runIds.get('agent-a')!, 'agent-a'), true, 'Process completed.', dependencies,
@@ -162,13 +176,22 @@ describe('persistent multi-agent experiment runner', () => {
             uniqueSkills: 2, skillConcentration: 0.5,
             skillRuns: [{ skillId: 'test.fish-lobster', runs: 1 }, { skillId: 'test.mine-copper', runs: 1 }],
             uniqueTargets: 2, uniqueRegions: 2, goalLinkedRuns: 2, successfulGoalRuns: 2,
+            actualGoalChanges: 1, actualGoalsCompleted: 1,
             participantResults: expect.arrayContaining([
                 expect.objectContaining({ agentId: 'agent-a', goalId: 'agent-a.earn', netCoins: 10,
                     grossIncomeGp: 10, grossSpendingGp: 0,
-                    producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'], regions: ['50,53'] }),
+                    producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'], regions: ['50,53'],
+                    goalProgress: expect.objectContaining({ outcome: 'completed', changed: true,
+                        completedDuringExperiment: true }) }),
                 expect.objectContaining({ agentId: 'agent-b', goalId: 'agent-b.earn', netCoins: 0,
-                    producedItems: 1, targets: ['npc:fishing spot'], regions: ['45,49'] })
+                    producedItems: 1, targets: ['npc:fishing spot'], regions: ['45,49'],
+                    goalProgress: expect.objectContaining({ outcome: 'unchanged', changed: false,
+                        completedDuringExperiment: false }) })
             ]) });
+        expect(completed?.participants.find(item => item.agentId === 'agent-a')).toMatchObject({
+            baselineGoals: [{ goalId: 'agent-a.earn', status: 'active', revision: 1 }],
+            finalGoals: [{ goalId: 'agent-a.earn', status: 'completed', revision: 2 }]
+        });
         expect(completed?.participants.every(item => item.status === 'completed' && item.skillRun)).toBeTrue();
         const treatment = JSON.parse(JSON.stringify(completed)) as NonNullable<typeof completed>;
         treatment.experimentId = 'treatment-run';
@@ -205,6 +228,7 @@ describe('persistent multi-agent experiment runner', () => {
         const dependencies = { coordinator, store,
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
             worldModEnvironment: async () => experimentEnvironment(),
+            goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids),
             economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 100) };
         const started = await startMultiAgentExperiment({ label: 'Journal check', seed: 'seed',
             summary: 'Require authoritative journals.', agentIds: ['agent-a', 'agent-b'] }, dependencies);
@@ -227,6 +251,7 @@ describe('persistent multi-agent experiment runner', () => {
             append: () => undefined });
         const dependencies = { coordinator, store,
             worldModEnvironment: async () => experimentEnvironment(),
+            goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids),
             economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 0) };
         await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Duplicate avatar test.',
             agentIds: ['agent-a', 'agent-b'] }, { ...dependencies,
