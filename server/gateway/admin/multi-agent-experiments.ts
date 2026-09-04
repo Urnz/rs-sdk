@@ -276,6 +276,71 @@ export interface MultiAgentExperimentComparison {
         | 'sessionXpDelta' | 'economicEvents' | 'uniqueSkills' | 'skillConcentration'
         | 'uniqueTargets' | 'uniqueRegions' | 'successfulGoalRuns' | 'grossIncomeGp'
         | 'grossSpendingGp' | 'actualGoalChanges' | 'actualGoalsCompleted'>;
+    activityTimeline: MultiAgentExperimentActivityComparisonBucket[];
+}
+
+export interface MultiAgentExperimentActivityComparisonValue {
+    evidenceAgents: number;
+    economicEvents: number;
+    grossIncomeGp: number;
+    grossSpendingGp: number;
+    producedItems: number;
+    consumedItems: number;
+    newRegions: number;
+}
+
+export interface MultiAgentExperimentActivityComparisonBucket {
+    minute: number;
+    control: MultiAgentExperimentActivityComparisonValue;
+    treatment: MultiAgentExperimentActivityComparisonValue;
+    treatmentMinusControl: MultiAgentExperimentActivityComparisonValue;
+}
+
+function comparisonTimelineValue(bucket: MultiAgentExperimentActivityBucket | undefined):
+MultiAgentExperimentActivityComparisonValue {
+    return { evidenceAgents: bucket?.evidenceAgentIds.length ?? 0,
+        economicEvents: bucket?.economicEvents ?? 0, grossIncomeGp: bucket?.grossIncomeGp ?? 0,
+        grossSpendingGp: bucket?.grossSpendingGp ?? 0, producedItems: bucket?.producedItems ?? 0,
+        consumedItems: bucket?.consumedItems ?? 0, newRegions: bucket?.newRegions ?? 0 };
+}
+
+function compareActivityTimelines(control: MultiAgentExperimentActivityBucket[] | undefined,
+    treatment: MultiAgentExperimentActivityBucket[] | undefined): MultiAgentExperimentActivityComparisonBucket[] {
+    const byMinute = (input: MultiAgentExperimentActivityBucket[] | undefined, label: string) => {
+        const output = new Map<number, MultiAgentExperimentActivityBucket>();
+        for (const bucket of input ?? []) {
+            if (!Number.isSafeInteger(bucket.minute) || bucket.minute < 0 || output.has(bucket.minute)) {
+                throw new Error(`${label} experiment activity timeline is invalid`);
+            }
+            const counts = [bucket.economicEvents, bucket.grossIncomeGp, bucket.grossSpendingGp,
+                bucket.producedItems, bucket.consumedItems, bucket.newRegions];
+            if (!Array.isArray(bucket.evidenceAgentIds)
+                || new Set(bucket.evidenceAgentIds).size !== bucket.evidenceAgentIds.length
+                || bucket.evidenceAgentIds.some(id => typeof id !== 'string' || !id)
+                || counts.some(value => !Number.isSafeInteger(value) || value < 0)) {
+                throw new Error(`${label} experiment activity timeline is invalid`);
+            }
+            output.set(bucket.minute, bucket);
+        }
+        return output;
+    };
+    const controlByMinute = byMinute(control, 'Control');
+    const treatmentByMinute = byMinute(treatment, 'Treatment');
+    const minutes = [...new Set([...controlByMinute.keys(), ...treatmentByMinute.keys()])].sort((a, b) => a - b);
+    return minutes.map(minute => {
+        const controlValue = comparisonTimelineValue(controlByMinute.get(minute));
+        const treatmentValue = comparisonTimelineValue(treatmentByMinute.get(minute));
+        return { minute, control: controlValue, treatment: treatmentValue,
+            treatmentMinusControl: {
+                evidenceAgents: treatmentValue.evidenceAgents - controlValue.evidenceAgents,
+                economicEvents: treatmentValue.economicEvents - controlValue.economicEvents,
+                grossIncomeGp: treatmentValue.grossIncomeGp - controlValue.grossIncomeGp,
+                grossSpendingGp: treatmentValue.grossSpendingGp - controlValue.grossSpendingGp,
+                producedItems: treatmentValue.producedItems - controlValue.producedItems,
+                consumedItems: treatmentValue.consumedItems - controlValue.consumedItems,
+                newRegions: treatmentValue.newRegions - controlValue.newRegions
+            } };
+    });
 }
 
 export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
@@ -332,7 +397,9 @@ export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
             uniqueRegions: difference('uniqueRegions'), successfulGoalRuns: difference('successfulGoalRuns'),
             grossIncomeGp: difference('grossIncomeGp'), grossSpendingGp: difference('grossSpendingGp'),
             actualGoalChanges: difference('actualGoalChanges'),
-            actualGoalsCompleted: difference('actualGoalsCompleted') } };
+            actualGoalsCompleted: difference('actualGoalsCompleted') },
+        activityTimeline: compareActivityTimelines(control.metrics.activityTimeline,
+            treatment.metrics.activityTimeline) };
 }
 
 export function multiAgentExperimentDefinition(input: MultiAgentExperimentInput): {

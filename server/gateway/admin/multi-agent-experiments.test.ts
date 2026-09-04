@@ -107,6 +107,7 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('goal.outcome');
     expect(script).toContain('result.skillEvidenceRegions');
     expect(script).toContain('metrics.activityTimeline');
+    expect(script).toContain('response.comparison.activityTimeline');
     expect(script).toContain('/api/admin/multi-agent-experiments/compare');
     expect(html).toContain('id="skill-draft-list"');
     expect(script).toContain('/api/admin/skill-drafts');
@@ -226,11 +227,21 @@ describe('persistent multi-agent experiment runner', () => {
         treatment.experimentId = 'treatment-run';
         treatment.environment = experimentEnvironment(true);
         treatment.metrics!.totalXpDelta = 125;
+        treatment.metrics!.activityTimeline[0]!.grossIncomeGp = 15;
+        treatment.metrics!.activityTimeline.pop();
         const comparison = compareMultiAgentExperiments(completed!, treatment);
         expect(comparison).toMatchObject({ controlExperimentId: completed!.experimentId,
             treatmentExperimentId: 'treatment-run', seed: 'world-42',
             environmentDifference: { modId: 'economy.diminishing-xp', controlEnabled: false, treatmentEnabled: true },
-            treatmentMinusControl: { totalXpDelta: 125 } });
+            treatmentMinusControl: { totalXpDelta: 125 },
+            activityTimeline: [
+                expect.objectContaining({ minute: 0,
+                    treatmentMinusControl: expect.objectContaining({ grossIncomeGp: 5, newRegions: 0 }) }),
+                expect.objectContaining({ minute: 1,
+                    treatment: expect.objectContaining({ economicEvents: 0, grossIncomeGp: 0 }),
+                    treatmentMinusControl: expect.objectContaining({ economicEvents: 0, grossIncomeGp: 0,
+                        producedItems: 0, newRegions: -1, evidenceAgents: -1 }) })
+            ] });
         const tamperedBaseline = JSON.parse(JSON.stringify(treatment)) as NonNullable<typeof completed>;
         tamperedBaseline.participants[0]!.baselineAvatarDigest = 'different';
         expect(() => compareMultiAgentExperiments(completed!, tamperedBaseline)).toThrow('digest is invalid');

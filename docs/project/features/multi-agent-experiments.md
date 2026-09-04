@@ -132,6 +132,13 @@ célhoz kötött sikerdeltáit adja vissza, és auditbejegyzést készít. Ez m�
 kapcsolja át automatikusan a modot és nem állítja vissza a botmentéseket: a két élő
 futást a kezelő indítja el külön, azonos előfeltételekkel.
 
+A két ritka aktivitási idősort a rendszer nem falióra-időpont, hanem a futás
+kezdetétől számított percszám alapján illeszti össze. A csak az egyik futásban
+szereplő perc másik oldala nulla, ezért a kezelés mínusz kontroll eltérés
+bucketenként is látható bevételre, kiadásra, termelésre, felhasználásra, új
+agent–régiókra, gazdasági eseményekre és evidence-agentek számára. Ismétlődő vagy
+negatív percindexnél az összehasonlítás fail-closed leáll.
+
 ## Bevételtermelő előfeltétel
 
 A réz- és vasérc Varrock General Store-ban történő értékesítésére két bounded,

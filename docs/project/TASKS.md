@@ -496,6 +496,8 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     HP-val, run energyvel, inventoryval, equipmenttel, bankkal és skillekkel; a
     kontroll–kezelés összevetést eltérő avatár-/goal-baseline vagy ismeretlen bank
     esetén fail-closed elutasítani.
+  - [x] A kontroll és kezelés ritka perc-idősorait relatív percszám alapján
+    összeilleszteni, és bucketenként kezelés mínusz kontroll aktivitásdeltát adni.
 - [ ] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
   termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
   - [x] Exact skill-runokból skilldiverzitást, koncentrációt, termelést,

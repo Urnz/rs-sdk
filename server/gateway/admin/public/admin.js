@@ -2549,13 +2549,19 @@ $('#multi-agent-comparison-form').addEventListener('submit', async event => {
             })
         });
         const delta = response.comparison.treatmentMinusControl;
+        const signed = value => `${value >= 0 ? '+' : ''}${value}`;
+        const timeline = response.comparison.activityTimeline || [];
         $('#multi-agent-comparison-result').textContent = [
             `Seed: ${response.comparison.seed}`,
             `Agentek: ${response.comparison.agentIds.join(', ')}`,
             `Kezelés − kontroll: ${delta.totalXpDelta >= 0 ? '+' : ''}${delta.totalXpDelta} XP, ${delta.totalCoinsDelta >= 0 ? '+' : ''}${delta.totalCoinsDelta} gp`,
             `Bruttó bevétel: ${delta.grossIncomeGp >= 0 ? '+' : ''}${delta.grossIncomeGp} gp; bruttó kiadás: ${delta.grossSpendingGp >= 0 ? '+' : ''}${delta.grossSpendingGp} gp`,
             `Gazdasági esemény: ${delta.economicEvents >= 0 ? '+' : ''}${delta.economicEvents}; skilldiverzitás: ${delta.uniqueSkills >= 0 ? '+' : ''}${delta.uniqueSkills}; koncentráció: ${delta.skillConcentration >= 0 ? '+' : ''}${delta.skillConcentration}`,
-            `Célpontdiverzitás: ${delta.uniqueTargets >= 0 ? '+' : ''}${delta.uniqueTargets}; régiódiverzitás: ${delta.uniqueRegions >= 0 ? '+' : ''}${delta.uniqueRegions}; célhoz kötött siker: ${delta.successfulGoalRuns >= 0 ? '+' : ''}${delta.successfulGoalRuns}; tényleges célváltozás: ${(delta.actualGoalChanges || 0) >= 0 ? '+' : ''}${delta.actualGoalChanges || 0}; teljesült cél: ${(delta.actualGoalsCompleted || 0) >= 0 ? '+' : ''}${delta.actualGoalsCompleted || 0}`
+            `Célpontdiverzitás: ${delta.uniqueTargets >= 0 ? '+' : ''}${delta.uniqueTargets}; régiódiverzitás: ${delta.uniqueRegions >= 0 ? '+' : ''}${delta.uniqueRegions}; célhoz kötött siker: ${delta.successfulGoalRuns >= 0 ? '+' : ''}${delta.successfulGoalRuns}; tényleges célváltozás: ${(delta.actualGoalChanges || 0) >= 0 ? '+' : ''}${delta.actualGoalChanges || 0}; teljesült cél: ${(delta.actualGoalsCompleted || 0) >= 0 ? '+' : ''}${delta.actualGoalsCompleted || 0}`,
+            ...(timeline.length ? ['Percenkénti kezelés − kontroll:', ...timeline.map(bucket => {
+                const value = bucket.treatmentMinusControl;
+                return `+${bucket.minute}. perc: ${signed(value.grossIncomeGp)} gp bevétel, ${signed(value.grossSpendingGp)} gp kiadás, ${signed(value.producedItems)} termelt, ${signed(value.consumedItems)} felhasznált, ${signed(value.newRegions)} új régió, ${signed(value.evidenceAgents)} evidence-agent`;
+            })] : ['Nincs idősoros aktivitási adat.'])
         ].join('\n');
         toast('A kontrollált összehasonlítás elkészült.');
     } finally { button.disabled = false; }
