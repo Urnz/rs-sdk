@@ -17,3 +17,6 @@ helyben futó agent-társadalom és gazdasági szimuláció kialakítása.
 
 Részletes terv: [TASKS.md](TASKS.md).
 
+Hosszú távú világ- és gazdaságszimulációs ötletek:
+[SIMULATION_VISION.md](SIMULATION_VISION.md).
+
