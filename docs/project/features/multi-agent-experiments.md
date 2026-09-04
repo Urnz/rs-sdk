@@ -45,6 +45,9 @@ A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
   mod exact verzióját, adatséma-verzióját, kapcsolóját és konfigurációját egy
   kanonikus, SHA-256 digestelt környezeti pillanatképben;
 - az indítás előtti közös gazdasági baseline-t;
+- agentenként a kanonikus, SHA-256 digestelt induló avatárállapotot: pozíciót,
+  HP-t, run energyt, inventoryt, equipmentet, ismert bankot és teljes skill/XP
+  listát, továbbá a goal-adattár induló snapshotját;
 - a dispatch lezárása utáni közös pillanatképet;
 - agentenként az event gate teljes rekordját, planner státuszt, indokot és
   esetleges skill-run azonosítót;
@@ -101,6 +104,14 @@ Az adminpanel két már lezárt futást tud diminishing XP kontroll–kezelés p
 lennie. Az összes mod exact verziója, adatséma-verziója és konfigurációja azonos
 kell legyen; kizárólag az `economy.diminishing-xp` aktív `enabled` értéke térhet
 el, kontrollnál `false`, kezelésnél `true` irányban.
+
+Azonos agentnév önmagában nem jelent azonos kezdőállapotot. Az összehasonlító
+kapu ezért agentenként megköveteli az avatár-baseline digest és a teljes induló
+goal-snapshot egyezését is. A banknak mindkét futás kezdetén ismertnek kell lennie;
+két üres, de valójában ismeretlen bank nem tekinthető egyező állapotnak. Emiatt
+egy valódi kontroll–kezelés pár előtt az agentmentéseket és az AgentState-adatot is
+azonos baseline-ra kell visszaállítani. A digest az itemeket és skilleket
+kanonikus sorrendben kezeli, tehát a kliens listasorrendje nem okoz hamis eltérést.
 
 A kísérlet indítása függő hot reload, restart, migráció, rollback vagy elérhetetlen
 engine esetén még az adatbázisírás előtt leáll. Így a kért adminbeállítás helyett

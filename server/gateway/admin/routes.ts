@@ -1590,8 +1590,22 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                             subjectKind: agent.controlProfile.subjectKind,
                             identityPlayerUsername: agent.identity.playerUsername,
                             avatarPlayerUsername: avatar,
-                            position: gateway?.state?.player ? { x: gateway.state.player.worldX,
-                                z: gateway.state.player.worldZ, level: gateway.state.player.level } : null,
+                            avatarBaseline: gateway?.state?.player ? {
+                                username: avatar!, position: { x: gateway.state.player.worldX,
+                                    z: gateway.state.player.worldZ, level: gateway.state.player.level },
+                                hitpoints: { current: gateway.state.player.hp, maximum: gateway.state.player.maxHp },
+                                runEnergy: gateway.state.player.runEnergy,
+                                inventory: gateway.state.inventory.map(({ id, name, count }) => ({ id, name, count })),
+                                equipment: gateway.state.equipment.map(({ id, name, count }) => ({ id, name, count })),
+                                bankKnown: gateway.bankKnown === true,
+                                bank: gateway.bankKnown === true
+                                    ? gateway.state.bank.items.map(({ id, name, count }) => ({ id, name, count })) : [],
+                                skills: gateway.state.skills
+                                    .filter(skill => !/^(?:stat|unused)\s*1[89]$/i.test(skill.name))
+                                    .map(({ name, level, baseLevel, experience }) => ({
+                                        name, level, baseLevel, experience
+                                    }))
+                            } : null,
                             onlineFresh: Boolean(gateway?.state?.player && gateway.status === 'active'
                                 && Date.now() - gateway.lastStateReceivedAt <= 5_000) };
                     }),

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AgentReplanCoordinator } from './replan-coordinator.js';
@@ -24,7 +25,12 @@ function economy(timestamp: string, coins: number): EconomySnapshot {
 function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandidate {
     const position = agentId === 'agent-a' ? { x: 3200, z: 3400, level: 0 } : { x: 2900, z: 3150, level: 0 };
     return { agentId, role: 'player', subjectKind: 'player', identityPlayerUsername: avatar,
-        avatarPlayerUsername: avatar, onlineFresh: true, position };
+        avatarPlayerUsername: avatar, onlineFresh: true, avatarBaseline: { username: avatar, position,
+            hitpoints: { current: 10, maximum: 10 }, runEnergy: 10_000,
+            inventory: [{ id: 995, name: 'Coins', count: 100 }], equipment: [], bankKnown: true,
+            bank: [{ id: 436, name: 'Copper ore', count: 5 }],
+            skills: Array.from({ length: 19 }, (_, index) => ({ name: `Skill ${index}`,
+                level: 10, baseLevel: 10, experience: 1_154 })) } };
 }
 
 function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvironment {
@@ -212,6 +218,15 @@ describe('persistent multi-agent experiment runner', () => {
             treatmentExperimentId: 'treatment-run', seed: 'world-42',
             environmentDifference: { modId: 'economy.diminishing-xp', controlEnabled: false, treatmentEnabled: true },
             treatmentMinusControl: { totalXpDelta: 125 } });
+        const tamperedBaseline = JSON.parse(JSON.stringify(treatment)) as NonNullable<typeof completed>;
+        tamperedBaseline.participants[0]!.baselineAvatarDigest = 'different';
+        expect(() => compareMultiAgentExperiments(completed!, tamperedBaseline)).toThrow('digest is invalid');
+        const changedBaseline = JSON.parse(JSON.stringify(treatment)) as NonNullable<typeof completed>;
+        changedBaseline.participants[0]!.baselineAvatar!.inventory[0]!.count++;
+        changedBaseline.participants[0]!.baselineAvatarDigest = createHash('sha256')
+            .update(JSON.stringify({ schemaVersion: 1, ...changedBaseline.participants[0]!.baselineAvatar }))
+            .digest('hex');
+        expect(() => compareMultiAgentExperiments(completed!, changedBaseline)).toThrow('identical avatar baselines');
         treatment.environment.mods[1]!.config.welcomeMessage = 'Falador';
         expect(() => compareMultiAgentExperiments(completed!, treatment)).toThrow('differ only');
         const replay = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
@@ -273,8 +288,8 @@ describe('persistent multi-agent experiment runner', () => {
             .rejects.toThrow('fresh online');
         await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Position test.',
             agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
-            candidate('agent-a'), { ...candidate('agent-b'), position: null }] }))
-            .rejects.toThrow('live world position');
+            candidate('agent-a'), { ...candidate('agent-b'), avatarBaseline: null }] }))
+            .rejects.toThrow('avatar baseline');
         await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Institution test.',
             agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
             candidate('agent-a'), { ...candidate('agent-b'), role: 'institution', subjectKind: 'business',

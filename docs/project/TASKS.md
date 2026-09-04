@@ -492,6 +492,10 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     digestelt környezeti snapshotként menteni, függő aktiválásnál fail-closed
     leállni, és csak azonos seed/kohorsz mellett, kizárólag a diminishing XP
     kapcsoló eltérését elfogadó auditált kontroll–kezelés összehasonlítást adni.
+  - [x] Agentenként kanonikus, digestelt induló avatárállapotot menteni pozícióval,
+    HP-val, run energyvel, inventoryval, equipmenttel, bankkal és skillekkel; a
+    kontroll–kezelés összevetést eltérő avatár-/goal-baseline vagy ismeretlen bank
+    esetén fail-closed elutasítani.
 - [ ] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
   termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
   - [x] Exact skill-runokból skilldiverzitást, koncentrációt, termelést,

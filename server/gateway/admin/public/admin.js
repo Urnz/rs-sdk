@@ -590,7 +590,7 @@ function renderMultiAgentExperiments(experiments) {
                 : '';
             const measured = result ? ` · ${signed(result.netCoins)} gp nettó · ${fmt.format(result.grossIncomeGp || 0)} gp bevétel · ${fmt.format(result.grossSpendingGp || 0)} gp kiadás · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} élő régió · ${(result.skillEvidenceRegions || []).length} skill-célrégió${goalState}` : '';
             return `<li><strong>${escapeHtml(item.agentId)}</strong>
-            <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}</span>
+            <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}${item.baselineAvatarDigest ? ` · baseline ${escapeHtml(item.baselineAvatarDigest.slice(0, 12))}` : ' · legacy baseline'}${item.baselineAvatar && !item.baselineAvatar.bankKnown ? ' · bank ismeretlen' : ''}</span>
             <small>${escapeHtml(item.reason || 'Függőben')}${item.skillRun
         ? ` · ${fmt.format(item.skillRun.operations)} művelet / ${fmt.format(item.skillRun.durationMs)} ms` : ''}${measured}</small></li>`;
         }).join('');

@@ -43,7 +43,19 @@ export interface MultiAgentExperimentCandidate {
     identityPlayerUsername: string | null;
     avatarPlayerUsername: string | null;
     onlineFresh: boolean;
-    position: { x: number; z: number; level: number } | null;
+    avatarBaseline: MultiAgentExperimentAvatarBaseline | null;
+}
+
+export interface MultiAgentExperimentAvatarBaseline {
+    username: string;
+    position: { x: number; z: number; level: number };
+    hitpoints: { current: number; maximum: number };
+    runEnergy: number;
+    inventory: Array<{ id: number; name: string; count: number }>;
+    equipment: Array<{ id: number; name: string; count: number }>;
+    bankKnown: boolean;
+    bank: Array<{ id: number; name: string; count: number }>;
+    skills: Array<{ name: string; level: number; baseLevel: number; experience: number }>;
 }
 
 export interface MultiAgentExperimentGoalSnapshot {
@@ -78,6 +90,8 @@ export interface MultiAgentExperimentParticipant {
     skillRun: AdminSkillRun | null;
     baselineGoals: MultiAgentExperimentGoalSnapshot[];
     finalGoals: MultiAgentExperimentGoalSnapshot[] | null;
+    baselineAvatar: MultiAgentExperimentAvatarBaseline | null;
+    baselineAvatarDigest: string | null;
     worldRegions: string[];
     updatedAt: string;
 }
@@ -160,7 +174,8 @@ interface ParticipantRow {
     experiment_id: string; agent_id: string; avatar_player_username: string; ordinal: number;
     event_id: string; status: string; run_id: string | null; reason: string | null;
     record_json: string | null; skill_run_json: string | null;
-    baseline_goals_json: string; final_goals_json: string | null; updated_at: string;
+    baseline_goals_json: string; final_goals_json: string | null;
+    baseline_avatar_json: string | null; baseline_avatar_digest: string | null; updated_at: string;
 }
 
 function boundedText(value: string, field: string, maximum: number): string {
@@ -251,6 +266,27 @@ export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
     if (control.seed !== treatment.seed || JSON.stringify(controlAgents) !== JSON.stringify(treatmentAgents)) {
         throw new Error('Controlled experiments must use the same seed and exact agent cohort');
     }
+    for (const controlParticipant of control.participants) {
+        const treatmentParticipant = treatment.participants.find(item => item.agentId === controlParticipant.agentId)!;
+        const controlDigest = controlParticipant.baselineAvatar
+            ? canonicalAvatarBaseline(controlParticipant.baselineAvatar, controlParticipant.avatarPlayerUsername).digest : null;
+        const treatmentDigest = treatmentParticipant.baselineAvatar
+            ? canonicalAvatarBaseline(treatmentParticipant.baselineAvatar, treatmentParticipant.avatarPlayerUsername).digest : null;
+        if (!controlParticipant.baselineAvatarDigest || controlDigest !== controlParticipant.baselineAvatarDigest
+            || !treatmentParticipant.baselineAvatarDigest || treatmentDigest !== treatmentParticipant.baselineAvatarDigest) {
+            throw new Error(`Controlled experiment avatar baseline digest is invalid for ${controlParticipant.agentId}`);
+        }
+        if (controlParticipant.baselineAvatarDigest !== treatmentParticipant.baselineAvatarDigest) {
+            throw new Error(`Controlled experiments require identical avatar baselines for ${controlParticipant.agentId}`);
+        }
+        if (!controlParticipant.baselineAvatar?.bankKnown || !treatmentParticipant.baselineAvatar?.bankKnown) {
+            throw new Error(`Controlled experiments require a known bank baseline for ${controlParticipant.agentId}`);
+        }
+        if (hash(JSON.stringify(controlParticipant.baselineGoals))
+            !== hash(JSON.stringify(treatmentParticipant.baselineGoals))) {
+            throw new Error(`Controlled experiments require identical goal baselines for ${controlParticipant.agentId}`);
+        }
+    }
     const controlEnvironment = validateMultiAgentExperimentEnvironment(control.environment).environment;
     const treatmentEnvironment = validateMultiAgentExperimentEnvironment(treatment.environment).environment;
     const normalize = (environment: MultiAgentExperimentEnvironment, expectedEnabled: boolean) => environment.mods.map(mod =>
@@ -297,6 +333,9 @@ function participant(row: ParticipantRow): MultiAgentExperimentParticipant {
         baselineGoals: JSON.parse(row.baseline_goals_json) as MultiAgentExperimentGoalSnapshot[],
         finalGoals: row.final_goals_json
             ? JSON.parse(row.final_goals_json) as MultiAgentExperimentGoalSnapshot[] : null,
+        baselineAvatar: row.baseline_avatar_json
+            ? JSON.parse(row.baseline_avatar_json) as MultiAgentExperimentAvatarBaseline : null,
+        baselineAvatarDigest: row.baseline_avatar_digest,
         worldRegions: [],
         updatedAt: row.updated_at };
 }
@@ -305,7 +344,7 @@ function worldRegion(level: number, x: number, z: number): string {
     return `${level}:${Math.floor(x / 64)},${Math.floor(z / 64)}`;
 }
 
-function validateWorldPosition(position: MultiAgentExperimentCandidate['position'], owner: string):
+function validateWorldPosition(position: MultiAgentExperimentAvatarBaseline['position'] | null, owner: string):
 { x: number; z: number; level: number } {
     if (!position || !Number.isSafeInteger(position.x) || position.x < 0 || position.x > 16_383
         || !Number.isSafeInteger(position.z) || position.z < 0 || position.z > 16_383
@@ -313,6 +352,65 @@ function validateWorldPosition(position: MultiAgentExperimentCandidate['position
         throw new Error(`Experiment agent ${owner} has no valid live world position`);
     }
     return position;
+}
+
+function canonicalAvatarItems(input: MultiAgentExperimentAvatarBaseline['inventory'], field: string, maximum: number):
+MultiAgentExperimentAvatarBaseline['inventory'] {
+    if (!Array.isArray(input) || input.length > maximum) throw new Error(`Experiment ${field} baseline is invalid`);
+    const items = new Map<string, { id: number; name: string; count: number }>();
+    for (const item of input) {
+        if (!item || !Number.isSafeInteger(item.id) || item.id < 0 || item.id > 65_535
+            || typeof item.name !== 'string' || !item.name.trim() || item.name.length > 100
+            || !Number.isSafeInteger(item.count) || item.count < 1 || item.count > 2_147_483_647) {
+            throw new Error(`Experiment ${field} baseline item is invalid`);
+        }
+        const name = item.name.trim();
+        const key = String(item.id);
+        const current = items.get(key);
+        if (current && current.name.toLocaleLowerCase('en-US') !== name.toLocaleLowerCase('en-US')) {
+            throw new Error(`Experiment ${field} baseline has conflicting names for item ${item.id}`);
+        }
+        const count = (current?.count ?? 0) + item.count;
+        if (!Number.isSafeInteger(count) || count > 2_147_483_647) throw new Error(`Experiment ${field} count overflow`);
+        items.set(key, { id: item.id,
+            name: current && current.name.localeCompare(name) < 0 ? current.name : name, count });
+    }
+    return [...items.values()].sort((left, right) => left.id - right.id || left.name.localeCompare(right.name));
+}
+
+function canonicalAvatarBaseline(input: MultiAgentExperimentAvatarBaseline | null,
+    expectedUsername: string): { baseline: MultiAgentExperimentAvatarBaseline; digest: string } {
+    if (!input || typeof input !== 'object' || typeof input.username !== 'string'
+        || input.username.toLocaleLowerCase('en-US')
+        !== expectedUsername.toLocaleLowerCase('en-US')) throw new Error(`Experiment avatar baseline is invalid for ${expectedUsername}`);
+    const position = validateWorldPosition(input.position, expectedUsername);
+    if (!input.hitpoints || !Number.isSafeInteger(input.hitpoints.current) || input.hitpoints.current < 0
+        || !Number.isSafeInteger(input.hitpoints.maximum) || input.hitpoints.maximum < 1
+        || input.hitpoints.current > 255 || !Number.isSafeInteger(input.runEnergy)
+        || input.runEnergy < 0 || input.runEnergy > 10_000 || typeof input.bankKnown !== 'boolean'
+        || !Array.isArray(input.skills) || input.skills.length < 19 || input.skills.length > 30) {
+        throw new Error(`Experiment avatar baseline is invalid for ${expectedUsername}`);
+    }
+    const skillNames = new Set<string>();
+    const skills = input.skills.map(skill => {
+        if (!skill || typeof skill.name !== 'string' || !skill.name.trim() || skill.name.length > 40
+            || !Number.isSafeInteger(skill.level) || skill.level < 0 || skill.level > 255
+            || !Number.isSafeInteger(skill.baseLevel) || skill.baseLevel < 1 || skill.baseLevel > 255
+            || !Number.isSafeInteger(skill.experience) || skill.experience < 0 || skill.experience > 2_147_483_647) {
+            throw new Error(`Experiment avatar skill baseline is invalid for ${expectedUsername}`);
+        }
+        const name = skill.name.trim();
+        const key = name.toLocaleLowerCase('en-US');
+        if (skillNames.has(key)) throw new Error(`Experiment avatar skill baseline is duplicated for ${expectedUsername}`);
+        skillNames.add(key);
+        return { name, level: skill.level, baseLevel: skill.baseLevel, experience: skill.experience };
+    }).sort((left, right) => left.name.localeCompare(right.name));
+    const baseline = { username: expectedUsername.toLocaleLowerCase('en-US'), position: { ...position },
+        hitpoints: { ...input.hitpoints }, runEnergy: input.runEnergy,
+        inventory: canonicalAvatarItems(input.inventory, 'inventory', 28),
+        equipment: canonicalAvatarItems(input.equipment, 'equipment', 28), bankKnown: input.bankKnown,
+        bank: canonicalAvatarItems(input.bank, 'bank', 2_000), skills };
+    return { baseline, digest: hash(JSON.stringify({ schemaVersion: 1, ...baseline })) };
 }
 
 function snapshotGoal(goal: AgentGoal): MultiAgentExperimentGoalSnapshot {
@@ -510,6 +608,8 @@ export class MultiAgentExperimentStore {
         this.addColumn('multi_agent_experiment_participant', 'skill_run_json', 'TEXT');
         this.addColumn('multi_agent_experiment_participant', 'baseline_goals_json', "TEXT NOT NULL DEFAULT '[]'");
         this.addColumn('multi_agent_experiment_participant', 'final_goals_json', 'TEXT');
+        this.addColumn('multi_agent_experiment_participant', 'baseline_avatar_json', 'TEXT');
+        this.addColumn('multi_agent_experiment_participant', 'baseline_avatar_digest', 'TEXT');
     }
 
     private addColumn(table: string, column: string, declaration: string): void {
@@ -569,13 +669,16 @@ export class MultiAgentExperimentStore {
                 JSON.stringify(baseline), startedAt]);
             definition.orderedAgentIds.forEach((id, ordinal) => {
                 const candidate = candidates.get(id)!;
-                const position = validateWorldPosition(candidate.position, id);
+                const avatar = canonicalAvatarBaseline(candidate.avatarBaseline, candidate.avatarPlayerUsername!);
+                const position = avatar.baseline.position;
                 this.database.run(`INSERT INTO multi_agent_experiment_participant
                     (experiment_id, agent_id, avatar_player_username, ordinal, event_id, status,
-                        run_id, reason, record_json, baseline_goals_json, updated_at)
-                    VALUES (?1, ?2, ?3, ?4, ?5, 'pending', NULL, NULL, NULL, ?6, ?7)`,
+                        run_id, reason, record_json, baseline_goals_json, baseline_avatar_json,
+                        baseline_avatar_digest, updated_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, 'pending', NULL, NULL, NULL, ?6, ?7, ?8, ?9)`,
                 [experimentId, id, candidate.avatarPlayerUsername!, ordinal,
-                    `${experimentId}.${id}`, JSON.stringify(baselineGoals[id]), startedAt]);
+                    `${experimentId}.${id}`, JSON.stringify(baselineGoals[id]), JSON.stringify(avatar.baseline),
+                    avatar.digest, startedAt]);
                 this.database.run(`INSERT INTO multi_agent_experiment_world_region
                     (experiment_id, agent_id, level, region_x, region_z, first_x, first_z, observed_at)
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
@@ -742,7 +845,7 @@ function preflight(definition: ReturnType<typeof multiAgentExperimentDefinition>
             throw new Error(`Experiment agent ${id} has no exact player-avatar binding`);
         }
         if (!candidate.onlineFresh) throw new Error(`Experiment agent ${id} has no fresh online world state`);
-        validateWorldPosition(candidate.position, id);
+        canonicalAvatarBaseline(candidate.avatarBaseline, avatar);
         if (avatars.has(avatar)) throw new Error(`Experiment agents cannot share avatar ${avatar}`);
         avatars.add(avatar); selected.set(id, candidate);
     }
