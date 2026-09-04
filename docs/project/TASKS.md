@@ -499,6 +499,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] A verified skill-runok sikeres úticél- és gyűjtési evidence-éből régió- és
     célpontdiverzitást, továbbá agentenként nettó GP-t, termelést és célhoz kötött
     sikeres runokat tartósítani és az adminpanelen megjeleníteni.
+  - [x] Hiteles shop- és player-trade coin-deltákból agentenként és összesítve
+    bruttó bevételt/kiadást, a shop eseményekből pedig termékenként súlyozott
+    vételi/eladási egységárat képezni és a kísérleti nézetben megjeleníteni.
   - [ ] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
     jövedelmet és agentenkénti célhaladást mérni.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti

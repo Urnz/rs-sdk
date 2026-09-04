@@ -59,6 +59,18 @@ Az adottságok befolyásolhatják a tanulási sebességet, a személyes skillpla
 a hibaarányt és a szükségletek terhelését. Ne legyen egyetlen mindenre jó build:
 az induló pontkeret valódi kompromisszumokat teremtsen.
 
+A skillplafon itt nem pusztán balanszeszköz, hanem a világmodell fontos állítása:
+egy karakter ne válhasson egyszerre világszínvonalú orvossá, versenyzővé,
+zenésszé, bányásszá és kovácscsá. A 99-es szint körülbelül egy PhD-szintű
+elméleti tudást és több évtizednyi gyakorlati tapasztalatot jelképezzen. Egyetlen
+szakmában is csak kevés, megfelelő adottságú és tartósan specializálódó karakter
+érhesse el; több egymástól távoli szakmában pedig gyakorlatilag senki.
+
+Az induló pontok ezért elsősorban ne kész szinteket, hanem skillenkénti potenciált
+és tanulási szorzót adjanak. A pontos eloszlás kísérleti konfiguráció legyen, de
+lehetséges kiindulás az alacsony átlagos mellékskill-plafon, néhány 60–80 közötti
+szakterület és legfeljebb egy ritka 90–99 közötti fő specializáció.
+
 ### Személyes skill és effektív képesség
 
 Ajánlott két külön fogalom:
@@ -68,10 +80,24 @@ Ajánlott két külön fogalom:
 2. **Effektív termelési képesség:** személyes kompetencia + eszköz + műhely +
    gép + recept/tudás + csapat + szervezeti folyamat.
 
-Így egy ember valóban ne tudjon egyedül mikrochipet vagy más ipari terméket
-előállítani, de ezt ne a vállalkozási tagság által mágikusan feloldott 99-es
-szint modellezze. A magas szintű termék receptje követeljen megfelelő létesítményt,
-gépeket, több munkakört és összehangolt termelési lépéseket.
+Ez a két korlát egymást kiegészíti, nem helyettesíti. A személyes plafon biztosítja
+a ritka mesterszintet és a specializációt. A szervezeti képesség biztosítja, hogy
+bizonyos kitermeléshez vagy gyártáshoz még a kivételes egyéni tudás se legyen elég.
+A vállalkozási tagság nem emeli meg mágikusan a személyes szintet, csak szabályos
+hozzáférést adhat a szükséges infrastruktúrához és szervezeti folyamathoz.
+
+Ehhez nem szükséges rögtön jelentősen kibővíteni az itemkatalógust. Már a meglévő
+OSRS-anyagok ritkasága is újradefiniálható. Például rune bányászathoz egyszerre
+kellhet megfelelő személyes Mining-szint, aktív munkaviszony vagy szerződés,
+rune-kitermelési képességű vállalkozás, annak tulajdonában vagy bérletében álló
+bánya, megfelelő felszerelés és konkrét munkamegbízás. Rune tárgy készítéséhez
+ugyanígy magas Smithing-szint, megfelelő kovácsműhely, facility-képesség, recept,
+eszköz és alapanyag kellhet.
+
+Egy alacsony szintű alkalmazott tehát a műhelytől még nem válik mesterkováccsá,
+egy 99-es független kovács pedig műhely és jogosultság nélkül nem gyárthat rune
+tárgyat. A magas szintű termékekhez később gépek, több munkakör és összehangolt
+termelési lépések is előírhatók.
 
 A 99-es személyes szint megtartása, korlátozása vagy teljes megszüntetése külön
 kísérleti policy legyen. Összehasonlítandó változatok:
@@ -80,6 +106,14 @@ kísérleti policy legyen. Összehasonlítandó változatok:
 - adottságfüggő személyes plafon;
 - puha plafon, amely fölött a tanulás egyre lassabb;
 - alacsonyabb személyes plafon, de magas szervezeti/facility bónusz.
+
+Javasolt külön technikai modellek:
+
+- `SkillPotentialProfile`: skillenkénti személyes plafon és tanulási szorzó;
+- `FacilityCapability`: például `mining.rune-extraction` vagy
+  `smithing.rune-forging`;
+- `ProductionRequirement`: személyes szint, facility, munkakör, jogosultság,
+  recept, eszköz és inputok együttes követelménye.
 
 ## 2. Szükségletek, idő és életvitel
 

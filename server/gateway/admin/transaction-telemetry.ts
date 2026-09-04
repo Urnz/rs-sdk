@@ -37,6 +37,21 @@ export interface EconomyEventSummary {
     netCoins: number;
 }
 
+export interface MarketPriceObservation {
+    side: 'buy' | 'sell';
+    itemId: number | null;
+    itemName: string;
+    quantity: number;
+    totalCoins: number;
+    weightedAverageUnitPrice: number;
+    transactions: number;
+}
+
+export interface MarketCoinFlow {
+    grossIncomeGp: number;
+    grossSpendingGp: number;
+}
+
 interface InventoryDelta {
     id: number;
     name: string;
@@ -167,7 +182,7 @@ export function extractEconomyEvents(run: EconomyJournalRun): EconomyEvent[] {
         if (event.operation === 'trade-give-item') {
             const gave = tradeItems(data.gave);
             const received = tradeItems(data.received);
-            if (gave.length || received.length) result.push(eventFor(
+            if (gave.length || received.length || coinsDelta !== 0) result.push(eventFor(
                 run, event, ordinal, 'player-trade', received, gave, coinsDelta,
                 typeof data.partner === 'string' ? data.partner : null, partial
             ));
@@ -301,6 +316,38 @@ export function summarizeEconomyEvents(events: EconomyEvent[]): EconomyEventSumm
         summary.netCoins += event.coinsDelta;
         return summary;
     }, { producedItems: 0, consumedItems: 0, shopTransactions: 0, playerTrades: 0, netCoins: 0 });
+}
+
+export function summarizeMarketCoinFlow(events: EconomyEvent[]): MarketCoinFlow {
+    return events.reduce((summary, event) => {
+        if (!['shop-buy', 'shop-sell', 'player-trade'].includes(event.kind)) return summary;
+        if (event.coinsDelta > 0) summary.grossIncomeGp += event.coinsDelta;
+        if (event.coinsDelta < 0) summary.grossSpendingGp += Math.abs(event.coinsDelta);
+        return summary;
+    }, { grossIncomeGp: 0, grossSpendingGp: 0 });
+}
+
+export function summarizeMarketPrices(events: EconomyEvent[]): MarketPriceObservation[] {
+    const groups = new Map<string, Omit<MarketPriceObservation, 'weightedAverageUnitPrice'>>();
+    for (const event of events) {
+        const side = event.kind === 'shop-buy' ? 'buy' : event.kind === 'shop-sell' ? 'sell' : null;
+        if (!side) continue;
+        const items = side === 'buy' ? event.itemsIn : event.itemsOut;
+        const totalCoins = side === 'buy' ? -event.coinsDelta : event.coinsDelta;
+        if (items.length !== 1 || totalCoins <= 0 || items[0]!.quantity <= 0) continue;
+        const item = items[0]!;
+        const key = `${side}:${item.id ?? `name:${item.name.toLocaleLowerCase('en-US')}`}`;
+        const current = groups.get(key) ?? { side, itemId: item.id, itemName: item.name,
+            quantity: 0, totalCoins: 0, transactions: 0 };
+        current.quantity += item.quantity;
+        current.totalCoins += totalCoins;
+        current.transactions++;
+        groups.set(key, current);
+    }
+    return [...groups.values()].map(group => ({ ...group,
+        weightedAverageUnitPrice: Number((group.totalCoins / group.quantity).toFixed(6)) }))
+        .sort((left, right) => left.side.localeCompare(right.side)
+            || left.itemName.localeCompare(right.itemName) || (left.itemId ?? -1) - (right.itemId ?? -1));
 }
 
 export async function readEconomyEvents(options: {

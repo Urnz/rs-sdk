@@ -66,6 +66,13 @@ goal ID-ja. A `successfulGoalRuns` csak azt jelenti, hogy a célhoz kötött exa
 skill-run sikeresen lezárult; a hosszú távú cél tényleges teljesülését nem találja
 ki és nem módosítja automatikusan.
 
+A hiteles shop- és player-trade coin-deltákból a rendszer a nettó változás mellett
+külön bruttó bevételt és kiadást számol agentenként és teljes kohorszra. A shop
+buy/sell események egyértelmű, egy terméket érintő inventory- és coin-deltáiból
+termék/oldal szerint súlyozott egységár készül. Ellentétes coinirányú vagy több
+termékre nem felbontható eseményből nem talál ki árat. A piaci árlista és a
+bevétel/kiadás a kísérleti adminnézetben is megjelenik.
+
 A második snapshot továbbra is külön dispatch-állapot: a kísérlet addig `running`,
 amíg minden `executing` résztvevőhöz meg nem érkezik a skill-exit és a hiteles
 napló. Sikeres process-exit napló nélkül fail-closed hibának számít. Az ismételt

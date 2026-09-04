@@ -7,7 +7,8 @@ import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.
 import { multiAgentExperimentsDbPath } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { extractEconomyEvents, summarizeEconomyEvents,
-    type EconomyEventSummary } from './transaction-telemetry.js';
+    summarizeMarketCoinFlow, summarizeMarketPrices, type EconomyEventSummary,
+    type MarketPriceObservation } from './transaction-telemetry.js';
 
 export type MultiAgentExperimentStatus = 'running' | 'completed' | 'completed-with-errors' | 'failed';
 
@@ -66,6 +67,9 @@ export interface MultiAgentExperimentMetrics {
     itemStockDelta: Array<{ id: number; name: string; count: number }>;
     economicEvents: number;
     economicEventSummary: EconomyEventSummary;
+    grossIncomeGp: number;
+    grossSpendingGp: number;
+    marketPrices: MarketPriceObservation[];
     uniqueSkills: number;
     skillConcentration: number;
     skillRuns: Array<{ skillId: string; runs: number }>;
@@ -83,6 +87,8 @@ export interface MultiAgentExperimentParticipantResult {
     skillId: string | null;
     status: string;
     netCoins: number;
+    grossIncomeGp: number;
+    grossSpendingGp: number;
     producedItems: number;
     consumedItems: number;
     shopTransactions: number;
@@ -200,7 +206,8 @@ export interface MultiAgentExperimentComparison {
     environmentDifference: { modId: 'economy.diminishing-xp'; controlEnabled: false; treatmentEnabled: true };
     treatmentMinusControl: Pick<MultiAgentExperimentMetrics, 'totalCoinsDelta' | 'totalXpDelta'
         | 'sessionXpDelta' | 'economicEvents' | 'uniqueSkills' | 'skillConcentration'
-        | 'uniqueTargets' | 'uniqueRegions' | 'successfulGoalRuns'>;
+        | 'uniqueTargets' | 'uniqueRegions' | 'successfulGoalRuns' | 'grossIncomeGp'
+        | 'grossSpendingGp'>;
 }
 
 export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
@@ -225,7 +232,7 @@ export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
         throw new Error('Controlled pair must differ only by the active diminishing XP switch');
     }
     const difference = <K extends keyof MultiAgentExperimentMetrics>(key: K): number =>
-        Number(treatment.metrics![key]) - Number(control.metrics![key]);
+        Number(treatment.metrics![key] ?? 0) - Number(control.metrics![key] ?? 0);
     return { controlExperimentId: control.experimentId, treatmentExperimentId: treatment.experimentId,
         seed: control.seed, agentIds: controlAgents,
         environmentDifference: { modId: 'economy.diminishing-xp', controlEnabled: false, treatmentEnabled: true },
@@ -233,7 +240,8 @@ export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
             totalXpDelta: difference('totalXpDelta'), sessionXpDelta: difference('sessionXpDelta'),
             economicEvents: difference('economicEvents'), uniqueSkills: difference('uniqueSkills'),
             skillConcentration: difference('skillConcentration'), uniqueTargets: difference('uniqueTargets'),
-            uniqueRegions: difference('uniqueRegions'), successfulGoalRuns: difference('successfulGoalRuns') } };
+            uniqueRegions: difference('uniqueRegions'), successfulGoalRuns: difference('successfulGoalRuns'),
+            grossIncomeGp: difference('grossIncomeGp'), grossSpendingGp: difference('grossSpendingGp') } };
 }
 
 export function multiAgentExperimentDefinition(input: MultiAgentExperimentInput): {
@@ -313,13 +321,16 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         const events = skillRun ? extractEconomyEvents({ runId: skillRun.runId, username: skillRun.username,
             skillId: skillRun.skill.id, events: skillRun.events }) : [];
         const summary = summarizeEconomyEvents(events);
+        const coinFlow = summarizeMarketCoinFlow(events);
         return { result: { agentId: item.agentId, avatarPlayerUsername: item.avatarPlayerUsername,
             goalId: recordGoalId(item.record), skillId: skillRun?.skill.id ?? null, status: item.status,
-            netCoins: summary.netCoins, producedItems: summary.producedItems,
+            netCoins: coinFlow.grossIncomeGp - coinFlow.grossSpendingGp, grossIncomeGp: coinFlow.grossIncomeGp,
+            grossSpendingGp: coinFlow.grossSpendingGp, producedItems: summary.producedItems,
             consumedItems: summary.consumedItems, shopTransactions: summary.shopTransactions,
             playerTrades: summary.playerTrades, targets: runTargets(skillRun), regions: runRegions(skillRun) }, events };
     });
     const economicEvents = participantResults.flatMap(item => item.events);
+    const marketCoinFlow = summarizeMarketCoinFlow(economicEvents);
     const results = participantResults.map(item => item.result);
     const skillRuns = [...skillCounts].map(([skillId, runs]) => ({ skillId, runs }))
         .sort((left, right) => right.runs - left.runs || left.skillId.localeCompare(right.skillId));
@@ -335,6 +346,8 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         unsuccessfulParticipants: run.participants.length - completedParticipants,
         itemStockDelta, economicEvents: economicEvents.length,
         economicEventSummary: summarizeEconomyEvents(economicEvents),
+        grossIncomeGp: marketCoinFlow.grossIncomeGp, grossSpendingGp: marketCoinFlow.grossSpendingGp,
+        marketPrices: summarizeMarketPrices(economicEvents),
         uniqueSkills: skillRuns.length, skillConcentration, skillRuns,
         uniqueTargets: new Set(results.flatMap(item => item.targets)).size,
         uniqueRegions: new Set(results.flatMap(item => item.regions)).size,

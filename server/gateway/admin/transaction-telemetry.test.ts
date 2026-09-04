@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { SkillEvent, SkillOperationName } from '../../../agent-skills/types';
 import { EconomyEventStore, extractEconomyEvents, readEconomyEvents,
-    summarizeEconomyEvents } from './transaction-telemetry';
+    summarizeEconomyEvents, summarizeMarketCoinFlow, summarizeMarketPrices } from './transaction-telemetry';
 
 const runId = '12345678-1234-4234-8234-123456789abc';
 
@@ -70,6 +70,37 @@ describe('transaction telemetry', () => {
         expect(summarizeEconomyEvents(events)).toEqual({
             producedItems: 2, consumedItems: 1, shopTransactions: 1, playerTrades: 1, netCoins: 15
         });
+        expect(summarizeMarketCoinFlow(events)).toEqual({ grossIncomeGp: 25, grossSpendingGp: 10 });
+        expect(summarizeMarketPrices(events)).toEqual([{ side: 'buy', itemId: 2347, itemName: 'Hammer',
+            quantity: 2, totalCoins: 10, weightedAverageUnitPrice: 5, transactions: 1 }]);
+    });
+
+    test('uses weighted shop prices and ignores directionally invalid observations', () => {
+        const base = extractEconomyEvents(run);
+        expect(summarizeMarketPrices([...base,
+            { ...base[3]!, id: 'second-buy', itemsIn: [{ id: 2347, name: 'Hammer', quantity: 3 }],
+                coinsDelta: -21 },
+            { ...base[3]!, id: 'sell', kind: 'shop-sell', itemsIn: [],
+                itemsOut: [{ id: 436, name: 'Copper ore', quantity: 2 }], coinsDelta: 18 },
+            { ...base[3]!, id: 'invalid-direction', coinsDelta: 10 }
+        ])).toEqual([
+            { side: 'buy', itemId: 2347, itemName: 'Hammer', quantity: 5, totalCoins: 31,
+                weightedAverageUnitPrice: 6.2, transactions: 2 },
+            { side: 'sell', itemId: 436, itemName: 'Copper ore', quantity: 2, totalCoins: 18,
+                weightedAverageUnitPrice: 9, transactions: 1 }
+        ]);
+    });
+
+    test('keeps a pure GP player trade as trusted income without inventing an item price', () => {
+        const coinTrade = extractEconomyEvents({ runId, username: 'ferrye14', skillId: 'economy.test',
+            events: [operationEvent('trade-give-item', { partner: 'payer', gave: [],
+                received: [{ id: 995, name: 'Coins', count: 40 }],
+                inventoryDelta: [{ id: 995, name: 'Coins', count: 140, delta: 40 }] }, 5)] });
+        expect(coinTrade).toHaveLength(1);
+        expect(coinTrade[0]).toMatchObject({ kind: 'player-trade', counterparty: 'payer',
+            itemsIn: [], itemsOut: [], coinsDelta: 40 });
+        expect(summarizeMarketCoinFlow(coinTrade)).toEqual({ grossIncomeGp: 40, grossSpendingGp: 0 });
+        expect(summarizeMarketPrices(coinTrade)).toEqual([]);
     });
 
     test('reads immutable run journals, filters them, and ignores malformed files', async () => {

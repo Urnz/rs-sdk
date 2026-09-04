@@ -584,7 +584,7 @@ function renderMultiAgentExperiments(experiments) {
         const resultByAgent = new Map((metrics?.participantResults || []).map(item => [item.agentId, item]));
         const participants = run.participants.map(item => {
             const result = resultByAgent.get(item.agentId);
-            const measured = result ? ` · ${signed(result.netCoins)} gp · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} régió${result.goalId ? ` · cél: ${escapeHtml(result.goalId)}` : ''}` : '';
+            const measured = result ? ` · ${signed(result.netCoins)} gp nettó · ${fmt.format(result.grossIncomeGp || 0)} gp bevétel · ${fmt.format(result.grossSpendingGp || 0)} gp kiadás · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} régió${result.goalId ? ` · cél: ${escapeHtml(result.goalId)}` : ''}` : '';
             return `<li><strong>${escapeHtml(item.agentId)}</strong>
             <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}</span>
             <small>${escapeHtml(item.reason || 'Függőben')}${item.skillRun
@@ -594,10 +594,13 @@ function renderMultiAgentExperiments(experiments) {
             ? `<details><summary>Készletváltozások (${metrics.itemStockDelta.length})</summary><ul>${metrics.itemStockDelta.map(item =>
                 `<li>${escapeHtml(item.name)} (#${item.id}): ${signed(item.count)}</li>`).join('')}</ul></details>` : '';
         const activityMetrics = metrics?.economicEventSummary
-            ? `<div class="capability-gap-meta"><span>${fmt.format(metrics.economicEvents)} gazdasági esemény</span><span>termelés: ${fmt.format(metrics.economicEventSummary.producedItems)}</span><span>felhasználás: ${fmt.format(metrics.economicEventSummary.consumedItems)}</span><span>shop: ${fmt.format(metrics.economicEventSummary.shopTransactions)}</span><span>trade: ${fmt.format(metrics.economicEventSummary.playerTrades)}</span><span>${fmt.format(metrics.uniqueSkills)} skill · koncentráció ${metrics.skillConcentration.toLocaleString('hu-HU')}</span><span>${fmt.format(metrics.uniqueTargets || 0)} célpont · ${fmt.format(metrics.uniqueRegions || 0)} régió</span><span>célhoz kötött siker: ${fmt.format(metrics.successfulGoalRuns || 0)}/${fmt.format(metrics.goalLinkedRuns || 0)}</span></div>` : '';
+            ? `<div class="capability-gap-meta"><span>${fmt.format(metrics.economicEvents)} gazdasági esemény</span><span>bevétel: ${fmt.format(metrics.grossIncomeGp || 0)} gp</span><span>kiadás: ${fmt.format(metrics.grossSpendingGp || 0)} gp</span><span>termelés: ${fmt.format(metrics.economicEventSummary.producedItems)}</span><span>felhasználás: ${fmt.format(metrics.economicEventSummary.consumedItems)}</span><span>shop: ${fmt.format(metrics.economicEventSummary.shopTransactions)}</span><span>trade: ${fmt.format(metrics.economicEventSummary.playerTrades)}</span><span>${fmt.format(metrics.uniqueSkills)} skill · koncentráció ${metrics.skillConcentration.toLocaleString('hu-HU')}</span><span>${fmt.format(metrics.uniqueTargets || 0)} célpont · ${fmt.format(metrics.uniqueRegions || 0)} régió</span><span>célhoz kötött siker: ${fmt.format(metrics.successfulGoalRuns || 0)}/${fmt.format(metrics.goalLinkedRuns || 0)}</span></div>` : '';
         const skillRuns = metrics?.skillRuns?.length
             ? `<details><summary>Skillmegoszlás (${metrics.uniqueSkills})</summary><ul>${metrics.skillRuns.map(item =>
                 `<li>${escapeHtml(item.skillId)}: ${fmt.format(item.runs)} run</li>`).join('')}</ul></details>` : '';
+        const marketPrices = metrics?.marketPrices?.length
+            ? `<details><summary>Megfigyelt piaci árak (${metrics.marketPrices.length})</summary><ul>${metrics.marketPrices.map(item =>
+                `<li>${item.side === 'buy' ? 'Vétel' : 'Eladás'} · ${escapeHtml(item.itemName)}${item.itemId === null ? '' : ` (#${item.itemId})`}: ${item.weightedAverageUnitPrice.toLocaleString('hu-HU')} gp/db · ${fmt.format(item.quantity)} db / ${fmt.format(item.transactions)} tranzakció</li>`).join('')}</ul></details>` : '';
         return `<article class="capability-gap-card ${escapeHtml(run.status)}">
             <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(statusLabel)}</small></div>
             <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · definíció: ${escapeHtml(run.definitionDigest)} · world-mod: ${escapeHtml(run.environmentDigest || 'legacy')}</small></div>
@@ -606,6 +609,7 @@ function renderMultiAgentExperiments(experiments) {
             ${activityMetrics}
             <details><summary>Agentenkénti eredmények</summary><ol class="experiment-participants">${participants}</ol></details>
             ${skillRuns}
+            ${marketPrices}
             ${itemDeltas}
             ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
         </article>`;
@@ -2541,6 +2545,7 @@ $('#multi-agent-comparison-form').addEventListener('submit', async event => {
             `Seed: ${response.comparison.seed}`,
             `Agentek: ${response.comparison.agentIds.join(', ')}`,
             `Kezelés − kontroll: ${delta.totalXpDelta >= 0 ? '+' : ''}${delta.totalXpDelta} XP, ${delta.totalCoinsDelta >= 0 ? '+' : ''}${delta.totalCoinsDelta} gp`,
+            `Bruttó bevétel: ${delta.grossIncomeGp >= 0 ? '+' : ''}${delta.grossIncomeGp} gp; bruttó kiadás: ${delta.grossSpendingGp >= 0 ? '+' : ''}${delta.grossSpendingGp} gp`,
             `Gazdasági esemény: ${delta.economicEvents >= 0 ? '+' : ''}${delta.economicEvents}; skilldiverzitás: ${delta.uniqueSkills >= 0 ? '+' : ''}${delta.uniqueSkills}; koncentráció: ${delta.skillConcentration >= 0 ? '+' : ''}${delta.skillConcentration}`,
             `Célpontdiverzitás: ${delta.uniqueTargets >= 0 ? '+' : ''}${delta.uniqueTargets}; régiódiverzitás: ${delta.uniqueRegions >= 0 ? '+' : ''}${delta.uniqueRegions}; célhoz kötött siker: ${delta.successfulGoalRuns >= 0 ? '+' : ''}${delta.successfulGoalRuns}`
         ].join('\n');

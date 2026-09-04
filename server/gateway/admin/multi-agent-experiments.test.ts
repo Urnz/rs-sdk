@@ -156,11 +156,15 @@ describe('persistent multi-agent experiment runner', () => {
         expect(completed?.metrics).toMatchObject({ totalCoinsDelta: 20, totalXpDelta: 0,
             completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 3_000,
             economicEvents: 3, economicEventSummary: { producedItems: 2, shopTransactions: 1, netCoins: 10 },
+            grossIncomeGp: 10, grossSpendingGp: 0,
+            marketPrices: [{ side: 'sell', itemId: 436, itemName: 'Copper ore', quantity: 1,
+                totalCoins: 10, weightedAverageUnitPrice: 10, transactions: 1 }],
             uniqueSkills: 2, skillConcentration: 0.5,
             skillRuns: [{ skillId: 'test.fish-lobster', runs: 1 }, { skillId: 'test.mine-copper', runs: 1 }],
             uniqueTargets: 2, uniqueRegions: 2, goalLinkedRuns: 2, successfulGoalRuns: 2,
             participantResults: expect.arrayContaining([
                 expect.objectContaining({ agentId: 'agent-a', goalId: 'agent-a.earn', netCoins: 10,
+                    grossIncomeGp: 10, grossSpendingGp: 0,
                     producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'], regions: ['50,53'] }),
                 expect.objectContaining({ agentId: 'agent-b', goalId: 'agent-b.earn', netCoins: 0,
                     producedItems: 1, targets: ['npc:fishing spot'], regions: ['45,49'] })
