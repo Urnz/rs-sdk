@@ -99,7 +99,7 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
 - [x] Online bothoz biztonságos, előre jóváhagyott célpontos teleportot készíteni.
 - [x] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
   bank módosítást készíteni; futó játékos mentésfájlját közvetlenül nem írjuk.
-- [ ] Az offline editor coin-elhelyezési regresszióját javítani: ha a coin egy
+- [x] Az offline editor coin-elhelyezési regresszióját javítani: ha a coin egy
   része inventoryban, másik része bankban volt, egy változatlan mentéskör se
   veszítse el az inventoryrészt; külön round-trip teszt védje.
 - [x] Minden elkészült állapotmódosításhoz jogosultságot, indoklást,

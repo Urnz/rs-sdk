@@ -57,6 +57,7 @@ import { WealthTransactionEvent, WealthEvent } from '#/engine/entity/tracking/We
 import GameMap, { changeLocCollision, changeNpcCollision, changePlayerCollision } from '#/engine/GameMap.js';
 import { CollisionFlag, isFlagged, isZoneAllocated } from '#/engine/routefinder/index.js';
 import { Inventory } from '#/engine/Inventory.js';
+import { preserveAdminCoinPlacement } from '#/engine/AdminOfflineSaveCoins.js';
 import ScriptPointer from '#/engine/script/ScriptPointer.js';
 import ScriptProvider from '#/engine/script/ScriptProvider.js';
 import ScriptRunner from '#/engine/script/ScriptRunner.js';
@@ -1600,9 +1601,17 @@ class World {
         const inventoryId = InvType.INV;
         const bankId = InvType.getId('bank');
         if (inventoryId === -1 || bankId === -1) throw new Error('Canonical inventory types are not loaded.');
+        const currentInventoryCoins = player.getInventory(inventoryId)?.getItemCount(995) ?? 0;
         const inventory = this.buildAdminInventory(inventoryId, draft.inventory, false);
         const bank = this.buildAdminInventory(bankId, draft.bank, false);
-        if (draft.coins > 0 && bank.add(995, draft.coins) !== draft.coins) throw new Error('The bank has no room for the requested coins.');
+        const coinPlacement = preserveAdminCoinPlacement(draft.coins, currentInventoryCoins);
+        let bankCoins = coinPlacement.bank;
+        if (coinPlacement.inventory > 0 && inventory.add(995, coinPlacement.inventory) !== coinPlacement.inventory) {
+            // A newly filled inventory may no longer have room for its previous coin stack.
+            // The dedicated editor field promises the total, so retain it safely in the bank.
+            bankCoins += coinPlacement.inventory;
+        }
+        if (bankCoins > 0 && bank.add(995, bankCoins) !== bankCoins) throw new Error('The bank has no room for the requested coins.');
 
         for (const skill of draft.skills) {
             const normalized = skill.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
