@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "id": "mining.varrock-east.copper-to-general-store",
+  "version": "1.0.0",
+  "name": "Varrock east copper to general store",
+  "description": "Mine a bounded amount of copper ore at Varrock east, then sell every carried copper ore to the Varrock General Store. Development draft requiring isolated live verification.",
+  "status": "verified",
+  "tags": ["mining", "selling", "economy", "varrock", "route"],
+  "parameters": {
+    "target-ore": {
+      "type": "number",
+      "description": "Minimum copper ore carried before leaving for the shop.",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 20
+    }
+  },
+  "provenance": {
+    "authorKind": "system",
+    "authorId": "deterministic-skill-verifier",
+    "createdAt": "2026-09-03T16:11:40.259Z",
+    "derivedFrom": {
+      "id": "mining.varrock-east.copper-to-general-store",
+      "version": "0.1.0"
+    },
+    "notes": "Automatically promoted from mining.varrock-east.copper-to-general-store@0.1.0; evidence runs: 28886c31-1e8d-47b1-a199-93917e8dc94f, 7d911a32-0ab6-4cf0-a041-f553e104cfd6."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 600000, "maxOperations": 90 },
+  "preconditions": [
+    { "condition": "inventory-contains", "arguments": { "name": "pickaxe", "match": "contains", "amount": 1 } },
+    { "condition": "skill-level-at-least", "arguments": { "skill": "Mining", "level": 1 } },
+    { "condition": "inventory-free-slots-at-least", "arguments": { "slots": { "parameter": "target-ore" } } }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-to-varrock-east-mine",
+      "operation": "walk-to",
+      "arguments": { "x": 3285, "z": 3365, "tolerance": 5 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "repeat",
+      "id": "mine-target-copper",
+      "until": { "condition": "inventory-contains", "arguments": { "name": "copper ore", "match": "exact", "amount": { "parameter": "target-ore" } } },
+      "maxIterations": 25,
+      "steps": [
+        {
+          "kind": "operation",
+          "id": "mine-copper-rock",
+          "operation": "gather-loc",
+          "arguments": { "name": "rocks copper ore", "match": "exact", "option": "mine", "item": "copper ore", "skill": "Mining", "timeoutMs": 15000 },
+          "maxAttempts": 3
+        }
+      ]
+    },
+    {
+      "kind": "operation",
+      "id": "walk-to-varrock-general-store",
+      "operation": "walk-to",
+      "arguments": { "x": 3218, "z": 3415, "tolerance": 3 },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "open-varrock-general-store",
+      "operation": "open-shop",
+      "arguments": { "name": "Shop keeper", "match": "exact" },
+      "maxAttempts": 2
+    },
+    {
+      "kind": "operation",
+      "id": "sell-copper-ore",
+      "operation": "sell-to-shop",
+      "arguments": { "name": "Copper ore", "match": "exact", "amount": -1 },
+      "maxAttempts": 2
+    },
+    { "kind": "operation", "id": "close-shop", "operation": "close-shop", "arguments": {} }
+  ]
+}

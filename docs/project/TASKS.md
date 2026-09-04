@@ -479,9 +479,10 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] Réz- és vasércre két bounded kitermelés → Varrock General Store értékesítés
     fejlesztési draftot, valamint explicit megerősítésű, auditált admin
     próbafuttatót készíteni.
-  - [ ] Mindkét bevételtermelő draftot legalább két független élő futással
-    ellenőrizni, emberileg verified verzióvá promótálni, majd külön helyszínű
-    pénzkereső alternatívával bővíteni.
+  - [x] Mindkét bevételtermelő draftot két független élő futással ellenőrizni,
+    determinisztikusan validálni és forráskódos verified verzióvá promótálni.
+  - [ ] Külön helyszínű pénzkereső alternatívával bővíteni, hogy a diminishing XP
+    valódi hely- és tevékenységváltást is kiválthasson.
 - [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
   kikapcsolt és bekapcsolt állapotát összehasonlítva.
   - [x] Minden futáshoz az engine tényleges aktív world-mod állapotát exact,

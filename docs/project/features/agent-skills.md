@@ -171,26 +171,35 @@ A katalógus első lezárt készlete:
 Mindegyik megtartja a forrásául szolgáló `0.1.0` draftot, a verified provenance
 pedig tartalmazza a sikeres élő futások azonosítóit.
 
-## Phase 12 bevételtermelő draftok
+## Phase 12 bevételtermelő skillek
 
 A `mining.varrock-east.copper-to-general-store@0.1.0` és
 `mining.varrock-east.iron-to-general-store@0.1.0` skill egy korlátozott mennyiségű
 ércet gyűjt a Varrock keleti bányában, majd az exact `Shop keeper` NPC-nél eladja
 az adott érctípust. A célmennyiség alapértéke 5, maximuma 20; a vas változat 15-ös
-Mining szintet követel. Mindkettő megosztott, agent-eredetű `draft`, ezért nem
-jelenik meg verified agenttudásként és nem választható autonóm futásra.
+Mining szintet követel. Mindkettő megőrzi az agent-eredetű `0.1.0` draftot, de a
+közös katalógus legfrissebb változata már verified `1.0.0`.
 
 Az admin Skills fül külön fejlesztési katalógusban mutatja őket. A próbafuttatás
 csak credentiallel rendelkező, friss online és tétlen botra indulhat; a paraméterek
 sémával ellenőrzöttek, a kezelőnek a valódi bányászat és tárgyeladás kockázatát
-külön meg kell erősítenie, az indítás pedig auditbejegyzést kap. A draftok csak
-két külön sikeres élő journal determinisztikus ellenőrzése és emberi publikálás
-után kaphatnak verified verziót.
+külön meg kell erősítenie, az indítás pedig auditbejegyzést kap. Publikálás után
+a történeti draft eltűnik ebből a futtatható listából és közvetlen draftindítással
+sem érhető el.
+
+Ferrye14 mindkét változatból két független, 5 érces élő kört teljesített. A réz
+runok `28886c31-1e8d-47b1-a199-93917e8dc94f` és
+`7d911a32-0ab6-4cf0-a041-f553e104cfd6`, a vas runok
+`6f3a6981-3a34-4112-824b-798388c0862a` és
+`872eaa51-e440-400e-a470-102ef5e2d2cd`. Mindegyik hiánytalan eladással zárult;
+a két rézkör 3–3, a két vaskör 26–26 gp bevételt adott. A verifier mindkét
+skillnél minden ellenőrzést elfogadott, beleértve a 84/90 névleges műveleti
+korlátot és az azonos paraméterezést.
 
 A kezdeti autonóm policy verified, exact allowlistelt és limiteken belüli skillben
 enged `sell-to-shop` műveletet. A vásárlás és a másik szereplőnek történő
-itemátadás továbbra is tiltott; a két draft státusza miatt ez a policyváltozás
-önmagában egyiket sem teszi autonóm módon futtathatóvá.
+itemátadás továbbra is tiltott. A két verified skill autonóm végrehajtásához ettől
+függetlenül exact allowlist és az agent saját ismert-skill állapota szükséges.
 
 ## Karamja fishing
 

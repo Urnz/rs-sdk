@@ -539,7 +539,8 @@ describe('sharing and persistence', () => {
             .toContain('mining.varrock-east.copper-to-bank@0.1.0');
         expect(registry.getLatest('mining.varrock-east.copper-to-bank')?.definition)
             .toMatchObject({ version: '1.0.0', status: 'verified' });
-        const incomeDrafts = loaded.filter(entry => entry.definition.tags.includes('selling'));
+        const incomeDrafts = loaded.filter(entry => entry.definition.tags.includes('selling')
+            && entry.definition.status === 'draft');
         expect(incomeDrafts.map(entry => entry.definition.id).sort()).toEqual([
             'mining.varrock-east.copper-to-general-store',
             'mining.varrock-east.iron-to-general-store'
@@ -551,6 +552,12 @@ describe('sharing and persistence', () => {
             expect(entry.definition.steps.some(step => step.kind === 'operation'
                 && step.operation === 'sell-to-shop')).toBe(true);
         }
+        expect(registry.getLatest('mining.varrock-east.copper-to-general-store')?.definition)
+            .toMatchObject({ version: '1.0.0', status: 'verified',
+                provenance: { authorId: 'deterministic-skill-verifier' } });
+        expect(registry.getLatest('mining.varrock-east.iron-to-general-store')?.definition)
+            .toMatchObject({ version: '1.0.0', status: 'verified',
+                provenance: { authorId: 'deterministic-skill-verifier' } });
     });
 
     test('writes immutable run journals', async () => {

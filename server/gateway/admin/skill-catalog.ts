@@ -53,9 +53,11 @@ export async function listAdminSkills(): Promise<AdminSkillSummary[]> {
 
 export async function listAdminDraftSkills(): Promise<AdminSkillSummary[]> {
     const registry = await loadVerifiedRegistry();
+    const verifiedIds = new Set(registry.list({ status: 'verified' }).map(skill => skill.definition.id));
     return registry.list({ status: 'draft' })
         .filter(skill => skill.definition.sharing.visibility === 'shared'
-            && skill.definition.provenance.authorKind === 'agent')
+            && skill.definition.provenance.authorKind === 'agent'
+            && !verifiedIds.has(skill.definition.id))
         .map(skill => summary(skill.definition, legacySkillPolicy(skill.definition.sharing)));
 }
 
@@ -67,7 +69,8 @@ export async function resolveAdminDraftSkill(requested: string): Promise<Registe
     const registry = await loadVerifiedRegistry();
     const skill = registry.get({ id: requested.slice(0, separator), version: requested.slice(separator + 1) });
     if (!skill || skill.definition.status !== 'draft' || skill.definition.sharing.visibility !== 'shared'
-        || skill.definition.provenance.authorKind !== 'agent') {
+        || skill.definition.provenance.authorKind !== 'agent'
+        || registry.list({ status: 'verified' }).some(entry => entry.definition.id === skill.definition.id)) {
         throw new Error(`Nem található megosztott draft skill: ${requested}`);
     }
     return skill;

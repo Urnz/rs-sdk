@@ -96,8 +96,8 @@ futást a kezelő indítja el külön, azonos előfeltételekkel.
 ## Bevételtermelő előfeltétel
 
 A réz- és vasérc Varrock General Store-ban történő értékesítésére két bounded,
-forráskódos draft készült. Ezek valódi nettó pénzváltozást és shop-sell telemetriát
-tudnak majd adni a kísérleteknek, de az admin fejlesztési futtatóban előbb külön
-élő bizonyítékot kell gyűjteni hozzájuk. Draftként nem kerülhetnek autonóm
-allowlistre; verified promóciójuk és egy eltérő helyszínű pénzkereső útvonal
-továbbra is a diminishing XP összehasonlítás nyitott előfeltétele.
+forráskódos verified skill készült. Mindkettőt két külön 5 érces élő journal
+igazolja; a futások nettó pénzváltozást és shop-sell telemetriát is rögzítettek.
+Így már exact allowlistre és agenttudásba helyezhetők. Egy eltérő helyszínű
+pénzkereső útvonal továbbra is a diminishing XP összehasonlítás nyitott
+előfeltétele, mert a két jelenlegi skill ugyanazt a bányát és boltot használja.
