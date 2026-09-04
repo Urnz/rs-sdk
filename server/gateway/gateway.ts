@@ -33,6 +33,8 @@ import { EconomyEventStore } from './admin/transaction-telemetry';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
+const multiAgentExperimentWorldStore = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
+const lastExperimentWorldRegion = new Map<string, string>();
 
 // Login server configuration - when enabled, SDK connections require per-bot authentication
 const LOGIN_SERVER_ENABLED = process.env.LOGIN_SERVER === 'true';
@@ -466,6 +468,20 @@ const SyncModule = {
             }
             session.lastState = message.state;
             session.lastStateReceivedAt = Date.now();
+            if (message.state.player) {
+                const player = message.state.player;
+                const region = `${player.level}:${Math.floor(player.worldX / 64)},${Math.floor(player.worldZ / 64)}`;
+                if (lastExperimentWorldRegion.get(session.username.toLowerCase()) !== region) {
+                    try {
+                        multiAgentExperimentWorldStore.recordWorldObservation(session.username, {
+                            x: player.worldX, z: player.worldZ, level: player.level
+                        }, new Date(session.lastStateReceivedAt).toISOString());
+                        lastExperimentWorldRegion.set(session.username.toLowerCase(), region);
+                    } catch (error) {
+                        console.error('[MultiAgentExperiment] World observation failed:', error);
+                    }
+                }
+            }
             agentReplanCoordinator?.observeWorldState(session.username, message.state);
             if (message.state.gameMessages?.length) {
                 chatHistoryFor(session.username).record(message.state.gameMessages);

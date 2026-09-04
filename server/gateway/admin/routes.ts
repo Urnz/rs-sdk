@@ -1590,6 +1590,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                             subjectKind: agent.controlProfile.subjectKind,
                             identityPlayerUsername: agent.identity.playerUsername,
                             avatarPlayerUsername: avatar,
+                            position: gateway?.state?.player ? { x: gateway.state.player.worldX,
+                                z: gateway.state.player.worldZ, level: gateway.state.player.level } : null,
                             onlineFresh: Boolean(gateway?.state?.player && gateway.status === 'active'
                                 && Date.now() - gateway.lastStateReceivedAt <= 5_000) };
                     }),

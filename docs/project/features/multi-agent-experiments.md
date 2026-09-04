@@ -48,23 +48,34 @@ A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 - a dispatch lezárása utáni közös pillanatképet;
 - agentenként az event gate teljes rekordját, planner státuszt, indokot és
   esetleges skill-run azonosítót;
+- az exact avatar élő gateway-koordinátáiból képzett, szintenként deduplikált
+  64×64 tile-os régiókat, az indulási régióval együtt;
 - a `runId`-hoz tartozó hiteles, terminális skill-naplót;
 - minden résztvevő lezárása után a közös végső gazdasági pillanatképet és az abból
   számolt pénz-, XP-, session-XP-, online- és legfeljebb száz készletdeltát.
 
-A verified runtime a sikeres `walk-to`/`wait-for-area` lépések deklarált és
-ellenőrzött célkoordinátáját, valamint a sikeres gather-lépések célponttípusát és
-nevét strukturált journal-evidence-ként rögzíti. A kísérleti lezárás ebből 64×64
-tile-os map-square régiókat és egyedi `loc`/`npc` célpontokat képez. Ez a
-meglátogatott úti célokat méri, nem állítja, hogy a teljes köztes útvonal minden
-mezőjét megfigyelte.
+A gateway minden futó kísérlet exact avatarjának tényleges player-pozícióját
+figyeli. Az indulási koordináta kötelező preflight-adat, utána pedig csak
+régióváltáskor ír, így a gyakori state frame-ek nem terhelik felesleges SQLite
+írásokkal a gatewayt. A `(level, floor(x / 64), floor(z / 64))` kulcs egy futáson
+és agenten belül deduplikált. Ez a mutató a gateway által ténylegesen megfigyelt
+bejárt régiókat méri; két state frame közötti átmenetet nem talál ki.
+
+Ettől külön a verified runtime a sikeres `walk-to`/`wait-for-area` lépések
+deklarált és ellenőrzött célkoordinátáját, valamint a sikeres gather-lépések
+célponttípusát és nevét strukturált journal-evidence-ként rögzíti. Ezekből külön
+`skillEvidenceRegions` és egyedi `loc`/`npc` célpontok készülnek. Így az
+adminfelület nem nevezi bejárt régiónak azt, ami csak egy skill sikeres
+célkoordinátája volt.
 
 Az összesített eredmény mellett minden résztvevő külön, tartós eredménysort kap:
 nettó journal-GP, termelt és felhasznált tárgymennyiség, shop- és player-trade
-darabszám, egyedi célpontok és régiók, exact skill, valamint a planner döntésének
-goal ID-ja. A `successfulGoalRuns` csak azt jelenti, hogy a célhoz kötött exact
-skill-run sikeresen lezárult; a hosszú távú cél tényleges teljesülését nem találja
-ki és nem módosítja automatikusan.
+darabszám, egyedi célpontok, megfigyelt élő régiók, skill-célrégiók, exact skill,
+valamint a planner döntésének goal ID-ja. A dispatch előtti és lezáráskori
+goal-adattári snapshot exact státusz- és revision-változást is ad. A
+`successfulGoalRuns` továbbra is csak sikeres célhoz kötött skill-run; ettől külön
+az `actualGoalChanges` és `actualGoalsCompleted` jelzi a cél tényleges tartós
+változását, illetve teljesülését. A mérő nem módosít célállapotot automatikusan.
 
 A hiteles shop- és player-trade coin-deltákból a rendszer a nettó változás mellett
 külön bruttó bevételt és kiadást számol agentenként és teljes kohorszra. A shop
@@ -79,9 +90,8 @@ napló. Sikeres process-exit napló nélkül fail-closed hibának számít. Az i
 exit esemény nem írja felül a terminális rekordot és nem készít új snapshotot.
 
 Ez a szelet már a teljes kohorsz tényleges futási ablakát és agentenkénti
-tevékenységét méri. A kontrollcsoportos replay, a hiteles áradatok, a célállapot
-tényleges változása és a hosszabb idősoros metrikák továbbra is a 12. fázis
-következő részei.
+tevékenységét méri. A kontrollcsoportos replay és a hosszabb idősoros metrikák
+továbbra is a 12. fázis következő részei.
 
 ## Kontrollált futáspárok
 

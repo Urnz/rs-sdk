@@ -22,8 +22,9 @@ function economy(timestamp: string, coins: number): EconomySnapshot {
 }
 
 function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandidate {
+    const position = agentId === 'agent-a' ? { x: 3200, z: 3400, level: 0 } : { x: 2900, z: 3150, level: 0 };
     return { agentId, role: 'player', subjectKind: 'player', identityPlayerUsername: avatar,
-        avatarPlayerUsername: avatar, onlineFresh: true };
+        avatarPlayerUsername: avatar, onlineFresh: true, position };
 }
 
 function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvironment {
@@ -98,6 +99,7 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('metrics.uniqueTargets');
     expect(script).toContain('metrics.actualGoalChanges');
     expect(script).toContain('goal.outcome');
+    expect(script).toContain('result.skillEvidenceRegions');
     expect(script).toContain('/api/admin/multi-agent-experiments/compare');
     expect(html).toContain('id="skill-draft-list"');
     expect(script).toContain('/api/admin/skill-drafts');
@@ -153,6 +155,12 @@ describe('persistent multi-agent experiment runner', () => {
         expect(dispatched.finalEconomy).toBeNull();
         expect(dispatched.participants.map(item => item.agentId).sort()).toEqual(['agent-a', 'agent-b']);
         expect(dispatched.participants.every(item => item.status === 'executing' && item.record?.gate.accepted)).toBeTrue();
+        expect(store.recordWorldObservation('agent-a', { x: 3264, z: 3400, level: 0 },
+            '2026-09-01T10:00:01.500Z')).toBe(1);
+        expect(store.recordWorldObservation('agent-a', { x: 3265, z: 3401, level: 0 },
+            '2026-09-01T10:00:01.600Z')).toBe(0);
+        expect(store.recordWorldObservation('unrelated', { x: 3200, z: 3400, level: 0 },
+            '2026-09-01T10:00:01.700Z')).toBe(0);
 
         const dependencies = { store,
             goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids, 'agent-a'),
@@ -175,16 +183,18 @@ describe('persistent multi-agent experiment runner', () => {
                 totalCoins: 10, weightedAverageUnitPrice: 10, transactions: 1 }],
             uniqueSkills: 2, skillConcentration: 0.5,
             skillRuns: [{ skillId: 'test.fish-lobster', runs: 1 }, { skillId: 'test.mine-copper', runs: 1 }],
-            uniqueTargets: 2, uniqueRegions: 2, goalLinkedRuns: 2, successfulGoalRuns: 2,
+            uniqueTargets: 2, uniqueRegions: 3, goalLinkedRuns: 2, successfulGoalRuns: 2,
             actualGoalChanges: 1, actualGoalsCompleted: 1,
             participantResults: expect.arrayContaining([
                 expect.objectContaining({ agentId: 'agent-a', goalId: 'agent-a.earn', netCoins: 10,
                     grossIncomeGp: 10, grossSpendingGp: 0,
-                    producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'], regions: ['50,53'],
+                    producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'],
+                    regions: ['0:50,53', '0:51,53'], skillEvidenceRegions: ['50,53'],
                     goalProgress: expect.objectContaining({ outcome: 'completed', changed: true,
                         completedDuringExperiment: true }) }),
                 expect.objectContaining({ agentId: 'agent-b', goalId: 'agent-b.earn', netCoins: 0,
-                    producedItems: 1, targets: ['npc:fishing spot'], regions: ['45,49'],
+                    producedItems: 1, targets: ['npc:fishing spot'], regions: ['0:45,49'],
+                    skillEvidenceRegions: ['45,49'],
                     goalProgress: expect.objectContaining({ outcome: 'unchanged', changed: false,
                         completedDuringExperiment: false }) })
             ]) });
@@ -261,6 +271,10 @@ describe('persistent multi-agent experiment runner', () => {
             agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
             candidate('agent-a'), { ...candidate('agent-b'), onlineFresh: false }] }))
             .rejects.toThrow('fresh online');
+        await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Position test.',
+            agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
+            candidate('agent-a'), { ...candidate('agent-b'), position: null }] }))
+            .rejects.toThrow('live world position');
         await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Institution test.',
             agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
             candidate('agent-a'), { ...candidate('agent-b'), role: 'institution', subjectKind: 'business',

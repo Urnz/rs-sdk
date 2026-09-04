@@ -588,7 +588,7 @@ function renderMultiAgentExperiments(experiments) {
             const goalState = goal && result.goalId
                 ? ` · cél: ${escapeHtml(result.goalId)} (${escapeHtml(goal.outcome)}${goal.baseline && goal.final ? `, r${goal.baseline.revision}→r${goal.final.revision}` : ''})`
                 : '';
-            const measured = result ? ` · ${signed(result.netCoins)} gp nettó · ${fmt.format(result.grossIncomeGp || 0)} gp bevétel · ${fmt.format(result.grossSpendingGp || 0)} gp kiadás · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} régió${goalState}` : '';
+            const measured = result ? ` · ${signed(result.netCoins)} gp nettó · ${fmt.format(result.grossIncomeGp || 0)} gp bevétel · ${fmt.format(result.grossSpendingGp || 0)} gp kiadás · ${fmt.format(result.producedItems)} termelt · ${result.targets.length} célpont · ${result.regions.length} élő régió · ${(result.skillEvidenceRegions || []).length} skill-célrégió${goalState}` : '';
             return `<li><strong>${escapeHtml(item.agentId)}</strong>
             <span>${escapeHtml(item.status)}${item.runId ? ` · run ${escapeHtml(item.runId)}` : ''}</span>
             <small>${escapeHtml(item.reason || 'Függőben')}${item.skillRun

@@ -505,6 +505,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] A dispatch előtti és minden résztvevő lezárása utáni goal-adattári
     snapshotból a döntésben kiválasztott cél revision- és státuszváltozását,
     valamint tényleges teljesülését agentenként tartósítani és megjeleníteni.
+  - [x] A futó kísérletek exact avatarjainak élő gateway-pozícióiból levelenként
+    64×64 tile-os, deduplikált régiónaplót vezetni; ezt a skill célkoordinátáiból
+    származó evidence-régióktól elkülönítve mérni és megjeleníteni.
   - [ ] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
     jövedelmet és agentenkénti célhaladást mérni.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti

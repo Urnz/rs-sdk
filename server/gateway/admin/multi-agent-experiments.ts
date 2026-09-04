@@ -43,6 +43,7 @@ export interface MultiAgentExperimentCandidate {
     identityPlayerUsername: string | null;
     avatarPlayerUsername: string | null;
     onlineFresh: boolean;
+    position: { x: number; z: number; level: number } | null;
 }
 
 export interface MultiAgentExperimentGoalSnapshot {
@@ -77,6 +78,7 @@ export interface MultiAgentExperimentParticipant {
     skillRun: AdminSkillRun | null;
     baselineGoals: MultiAgentExperimentGoalSnapshot[];
     finalGoals: MultiAgentExperimentGoalSnapshot[] | null;
+    worldRegions: string[];
     updatedAt: string;
 }
 
@@ -122,6 +124,7 @@ export interface MultiAgentExperimentParticipantResult {
     playerTrades: number;
     targets: string[];
     regions: string[];
+    skillEvidenceRegions: string[];
 }
 
 export interface MultiAgentExperimentRun {
@@ -294,7 +297,22 @@ function participant(row: ParticipantRow): MultiAgentExperimentParticipant {
         baselineGoals: JSON.parse(row.baseline_goals_json) as MultiAgentExperimentGoalSnapshot[],
         finalGoals: row.final_goals_json
             ? JSON.parse(row.final_goals_json) as MultiAgentExperimentGoalSnapshot[] : null,
+        worldRegions: [],
         updatedAt: row.updated_at };
+}
+
+function worldRegion(level: number, x: number, z: number): string {
+    return `${level}:${Math.floor(x / 64)},${Math.floor(z / 64)}`;
+}
+
+function validateWorldPosition(position: MultiAgentExperimentCandidate['position'], owner: string):
+{ x: number; z: number; level: number } {
+    if (!position || !Number.isSafeInteger(position.x) || position.x < 0 || position.x > 16_383
+        || !Number.isSafeInteger(position.z) || position.z < 0 || position.z > 16_383
+        || !Number.isSafeInteger(position.level) || position.level < 0 || position.level > 3) {
+        throw new Error(`Experiment agent ${owner} has no valid live world position`);
+    }
+    return position;
 }
 
 function snapshotGoal(goal: AgentGoal): MultiAgentExperimentGoalSnapshot {
@@ -422,7 +440,8 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
             netCoins: coinFlow.grossIncomeGp - coinFlow.grossSpendingGp, grossIncomeGp: coinFlow.grossIncomeGp,
             grossSpendingGp: coinFlow.grossSpendingGp, producedItems: summary.producedItems,
             consumedItems: summary.consumedItems, shopTransactions: summary.shopTransactions,
-            playerTrades: summary.playerTrades, targets: runTargets(skillRun), regions: runRegions(skillRun) }, events };
+            playerTrades: summary.playerTrades, targets: runTargets(skillRun), regions: item.worldRegions,
+            skillEvidenceRegions: runRegions(skillRun) }, events };
     });
     const economicEvents = participantResults.flatMap(item => item.events);
     const marketCoinFlow = summarizeMarketCoinFlow(economicEvents);
@@ -473,6 +492,15 @@ export class MultiAgentExperimentStore {
             event_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL, run_id TEXT, reason TEXT,
             record_json TEXT, updated_at TEXT NOT NULL,
             PRIMARY KEY (experiment_id, agent_id), UNIQUE (experiment_id, ordinal))`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS multi_agent_experiment_world_region (
+            experiment_id TEXT NOT NULL, agent_id TEXT NOT NULL, level INTEGER NOT NULL,
+            region_x INTEGER NOT NULL, region_z INTEGER NOT NULL, first_x INTEGER NOT NULL,
+            first_z INTEGER NOT NULL, observed_at TEXT NOT NULL,
+            PRIMARY KEY (experiment_id, agent_id, level, region_x, region_z),
+            FOREIGN KEY (experiment_id, agent_id) REFERENCES multi_agent_experiment_participant(experiment_id, agent_id)
+                ON DELETE RESTRICT)`);
+        this.database.run(`CREATE INDEX IF NOT EXISTS multi_agent_experiment_world_region_actor
+            ON multi_agent_experiment_world_region(agent_id, observed_at)`);
         this.addColumn('multi_agent_experiment', 'final_economy_json', 'TEXT');
         this.addColumn('multi_agent_experiment', 'metrics_json', 'TEXT');
         this.addColumn('multi_agent_experiment', 'dispatched_at', 'TEXT');
@@ -497,6 +525,13 @@ export class MultiAgentExperimentStore {
         if (!row) return null;
         const participants = (this.database.query(`SELECT * FROM multi_agent_experiment_participant
             WHERE experiment_id = ?1 ORDER BY ordinal`).all(experimentId) as ParticipantRow[]).map(participant);
+        const regions = this.database.query(`SELECT agent_id, level, region_x, region_z
+            FROM multi_agent_experiment_world_region WHERE experiment_id = ?1
+            ORDER BY agent_id, level, region_x, region_z`).all(experimentId) as Array<{
+                agent_id: string; level: number; region_x: number; region_z: number;
+            }>;
+        for (const entry of participants) entry.worldRegions = regions.filter(region => region.agent_id === entry.agentId)
+            .map(region => worldRegion(region.level, region.region_x * 64, region.region_z * 64));
         return { experimentId: row.experiment_id, definitionDigest: row.definition_digest,
             label: row.label, seed: row.seed, summary: row.summary, status: row.status,
             environmentDigest: row.environment_digest,
@@ -534,16 +569,38 @@ export class MultiAgentExperimentStore {
                 JSON.stringify(baseline), startedAt]);
             definition.orderedAgentIds.forEach((id, ordinal) => {
                 const candidate = candidates.get(id)!;
+                const position = validateWorldPosition(candidate.position, id);
                 this.database.run(`INSERT INTO multi_agent_experiment_participant
                     (experiment_id, agent_id, avatar_player_username, ordinal, event_id, status,
                         run_id, reason, record_json, baseline_goals_json, updated_at)
                     VALUES (?1, ?2, ?3, ?4, ?5, 'pending', NULL, NULL, NULL, ?6, ?7)`,
                 [experimentId, id, candidate.avatarPlayerUsername!, ordinal,
                     `${experimentId}.${id}`, JSON.stringify(baselineGoals[id]), startedAt]);
+                this.database.run(`INSERT INTO multi_agent_experiment_world_region
+                    (experiment_id, agent_id, level, region_x, region_z, first_x, first_z, observed_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+                [experimentId, id, position.level, Math.floor(position.x / 64), Math.floor(position.z / 64),
+                    position.x, position.z, startedAt]);
             });
         });
         transaction.immediate();
         return this.get(experimentId)!;
+    }
+
+    recordWorldObservation(avatarPlayerUsername: string, position: { x: number; z: number; level: number },
+        now = new Date().toISOString()): number {
+        const username = avatarPlayerUsername.trim().toLocaleLowerCase('en-US');
+        if (!/^[a-z0-9 _-]{1,12}$/.test(username)) throw new Error('Experiment world observation username is invalid');
+        const valid = validateWorldPosition(position, username);
+        const observedAt = timestamp(now);
+        const result = this.database.run(`INSERT OR IGNORE INTO multi_agent_experiment_world_region
+            (experiment_id, agent_id, level, region_x, region_z, first_x, first_z, observed_at)
+            SELECT participant.experiment_id, participant.agent_id, ?2, ?3, ?4, ?5, ?6, ?7
+            FROM multi_agent_experiment_participant AS participant
+            JOIN multi_agent_experiment AS experiment ON experiment.experiment_id = participant.experiment_id
+            WHERE lower(participant.avatar_player_username) = ?1 AND experiment.status = 'running'`,
+        [username, valid.level, Math.floor(valid.x / 64), Math.floor(valid.z / 64), valid.x, valid.z, observedAt]);
+        return result.changes;
     }
 
     recordParticipant(experimentId: string, agent: string, record: ReplanRecord,
@@ -685,6 +742,7 @@ function preflight(definition: ReturnType<typeof multiAgentExperimentDefinition>
             throw new Error(`Experiment agent ${id} has no exact player-avatar binding`);
         }
         if (!candidate.onlineFresh) throw new Error(`Experiment agent ${id} has no fresh online world state`);
+        validateWorldPosition(candidate.position, id);
         if (avatars.has(avatar)) throw new Error(`Experiment agents cannot share avatar ${avatar}`);
         avatars.add(avatar); selected.set(id, candidate);
     }
