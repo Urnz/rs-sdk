@@ -542,20 +542,67 @@ describe('sharing and persistence', () => {
         const incomeDrafts = loaded.filter(entry => entry.definition.tags.includes('selling')
             && entry.definition.status === 'draft');
         expect(incomeDrafts.map(entry => entry.definition.id).sort()).toEqual([
+            'fishing.karamja.lobster-to-general-store',
             'mining.varrock-east.copper-to-general-store',
             'mining.varrock-east.iron-to-general-store'
         ]);
         for (const entry of incomeDrafts) {
             expect(entry.definition).toMatchObject({ status: 'draft',
                 provenance: { authorKind: 'agent', authorId: 'phase12-skill-designer' },
-                sharing: { visibility: 'shared' }, parameters: { 'target-ore': { default: 5, maximum: 20 } } });
+                sharing: { visibility: 'shared' } });
             expect(entry.definition.steps.some(step => step.kind === 'operation'
                 && step.operation === 'sell-to-shop')).toBe(true);
         }
+        const miningIncomeDrafts = incomeDrafts.filter(entry => entry.definition.tags.includes('mining'));
+        for (const entry of miningIncomeDrafts) {
+            expect(entry.definition.parameters).toMatchObject({
+                'target-ore': { default: 5, maximum: 20 }
+            });
+        }
+
+        const karamjaIncome = loaded.find(entry =>
+            entry.definition.id === 'fishing.karamja.lobster-to-general-store');
+        expect(karamjaIncome?.definition.status).toBe('draft');
+        expect(karamjaIncome?.definition.parameters).toMatchObject({
+            'target-lobsters': { default: 5, maximum: 20 }
+        });
+        expect(karamjaIncome?.definition.steps.some(step => step.kind === 'repeat'
+            && step.id === 'fish-until-target'
+            && step.maxIterations === 25)).toBe(true);
+        expect(karamjaIncome?.definition.steps.some(step => step.kind === 'operation'
+            && step.operation === 'withdraw-item'
+            && step.arguments.name === 'Coins'
+            && step.arguments.amount === 60)).toBe(true);
+        expect(karamjaIncome?.definition.steps.some(step => step.kind === 'operation'
+            && step.operation === 'walk-to'
+            && step.arguments.x === 2905
+            && step.arguments.z === 3149)).toBe(true);
+        expect(karamjaIncome?.definition.steps.some(step => step.kind === 'operation'
+            && step.operation === 'wait-for-area'
+            && step.arguments.x === 3032
+            && step.arguments.z === 3216)).toBe(true);
+        expect(karamjaIncome?.definition.steps.some(step => step.kind === 'operation'
+            && step.id === 'cross-port-sarim-gangplank'
+            && step.operation === 'interact-loc'
+            && step.arguments.x === 3031
+            && step.arguments.z === 3217)).toBe(true);
+        expect(karamjaIncome?.definition.steps.some(step => step.kind === 'operation'
+            && step.id === 'confirm-port-sarim-shore'
+            && step.operation === 'wait-for-area'
+            && step.arguments.x === 3029
+            && step.arguments.z === 3217)).toBe(true);
+        expect(karamjaIncome?.definition.steps.some(step => step.kind === 'operation'
+            && step.id === 'deposit-income'
+            && step.operation === 'deposit-item'
+            && step.arguments.name === 'Coins'
+            && step.arguments.amount === -1)).toBe(true);
         expect(registry.getLatest('mining.varrock-east.copper-to-general-store')?.definition)
             .toMatchObject({ version: '1.0.0', status: 'verified',
                 provenance: { authorId: 'deterministic-skill-verifier' } });
         expect(registry.getLatest('mining.varrock-east.iron-to-general-store')?.definition)
+            .toMatchObject({ version: '1.0.0', status: 'verified',
+                provenance: { authorId: 'deterministic-skill-verifier' } });
+        expect(registry.getLatest('fishing.karamja.lobster-to-general-store')?.definition)
             .toMatchObject({ version: '1.0.0', status: 'verified',
                 provenance: { authorId: 'deterministic-skill-verifier' } });
     });

@@ -99,6 +99,9 @@ Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dok
 - [x] Online bothoz biztonságos, előre jóváhagyott célpontos teleportot készíteni.
 - [x] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
   bank módosítást készíteni; futó játékos mentésfájlját közvetlenül nem írjuk.
+- [ ] Az offline editor coin-elhelyezési regresszióját javítani: ha a coin egy
+  része inventoryban, másik része bankban volt, egy változatlan mentéskör se
+  veszítse el az inventoryrészt; külön round-trip teszt védje.
 - [x] Minden elkészült állapotmódosításhoz jogosultságot, indoklást,
   időpontot és visszakövethető auditbejegyzést követelni.
 - [x] Webes admin panelt készíteni kereshető, rendezhető és szűrhető botlistával,
@@ -471,7 +474,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     fail-closed legyen, és az eredeti eseménysorrend visszajátszható maradjon.
   - [x] A kísérlet hiteles runjaiból termelés-, felhasználás-, shop-, trade-,
     skilldiverzitás- és Herfindahl-koncentráció metrikát tartósítani és megjeleníteni.
-- [ ] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
+- [x] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
   egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
   - [x] Azonos prioritású immediate célokat alternatívaként kezelni, és a
     kísérleti seedet az eventtől a determinisztikus skillfeloldásig végigvezetve
@@ -481,7 +484,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     próbafuttatót készíteni.
   - [x] Mindkét bevételtermelő draftot két független élő futással ellenőrizni,
     determinisztikusan validálni és forráskódos verified verzióvá promótálni.
-  - [ ] Külön helyszínű pénzkereső alternatívával bővíteni, hogy a diminishing XP
+  - [x] Külön helyszínű pénzkereső alternatívával bővíteni, hogy a diminishing XP
     valódi hely- és tevékenységváltást is kiválthasson.
 - [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
   kikapcsolt és bekapcsolt állapotát összehasonlítva.

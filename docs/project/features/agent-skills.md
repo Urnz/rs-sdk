@@ -196,6 +196,20 @@ a két rézkör 3–3, a két vaskör 26–26 gp bevételt adott. A verifier min
 skillnél minden ellenőrzést elfogadott, beleértve a 84/90 névleges műveleti
 korlátot és az azonos paraméterezést.
 
+A külön régiós és külön tevékenységű alternatíva a
+`fishing.karamja.lobster-to-general-store@1.0.0`. Draynor bankból pontosan 60 gp
+oda-vissza viteldíjat vesz fel, Port Sarimból Karamjára hajózik, legfeljebb 20
+lobstert fog, a Karamja General Store-ban eladja a teljes fogást, majd visszatér
+és minden coint Draynorban bankol. A Port Sarim-i kiszállás az exact
+`Gangplank (3031, 3217)` objektumot és külön parti érkezés-ellenőrzést használ,
+mert a név szerinti keresés a szomszédos felszálló gangplankot is kiválaszthatná.
+
+A végleges draftot Ferrye14 két független, azonos `target-lobsters=2` futása
+igazolja: `1c222a5f-dd15-45dd-a21f-2397c15131fa` és
+`889845bc-03da-4799-955e-f3789753054d`. Mindkét kör 115 gp eladási bevételt,
+60 gp kompkiadást és így +55 gp nettó banki növekedést adott. A verifier minden
+ellenőrzést elfogadott, beleértve a 90/100 névleges műveleti korlátot.
+
 A kezdeti autonóm policy verified, exact allowlistelt és limiteken belüli skillben
 enged `sell-to-shop` műveletet. A vásárlás és a másik szereplőnek történő
 itemátadás továbbra is tiltott. A két verified skill autonóm végrehajtásához ettől

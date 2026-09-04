@@ -129,7 +129,7 @@ describe('admin lifecycle status', () => {
 describe('admin agent skill catalog', () => {
     test('lists only the latest verified shared versions', async () => {
         const skills = await listAdminSkills();
-        expect(skills.length).toBeGreaterThanOrEqual(7);
+        expect(skills.length).toBeGreaterThanOrEqual(8);
         expect(new Set(skills.map(skill => skill.id)).size).toBe(skills.length);
         expect(skills).toContainEqual(expect.objectContaining({
             reference: 'mining.varrock-east.copper-to-bank@1.0.0',
@@ -141,11 +141,16 @@ describe('admin agent skill catalog', () => {
         expect(skills).toContainEqual(expect.objectContaining({
             reference: 'mining.varrock-east.iron-to-general-store@1.0.0'
         }));
+        expect(skills).toContainEqual(expect.objectContaining({
+            reference: 'fishing.karamja.lobster-to-general-store@1.0.0'
+        }));
     });
 
     test('hides source drafts after their exact verified successor is published', async () => {
         const drafts = await listAdminDraftSkills();
         expect(drafts).toHaveLength(0);
+        await expect(resolveAdminDraftSkill('fishing.karamja.lobster-to-general-store@0.1.0'))
+            .rejects.toThrow('draft');
         await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-general-store@0.1.0'))
             .rejects.toThrow('draft');
         await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-general-store'))

@@ -97,7 +97,10 @@ futást a kezelő indítja el külön, azonos előfeltételekkel.
 
 A réz- és vasérc Varrock General Store-ban történő értékesítésére két bounded,
 forráskódos verified skill készült. Mindkettőt két külön 5 érces élő journal
-igazolja; a futások nettó pénzváltozást és shop-sell telemetriát is rögzítettek.
-Így már exact allowlistre és agenttudásba helyezhetők. Egy eltérő helyszínű
-pénzkereső útvonal továbbra is a diminishing XP összehasonlítás nyitott
-előfeltétele, mert a két jelenlegi skill ugyanazt a bányát és boltot használja.
+igazolja. A külön helyszínű és tevékenységű
+`fishing.karamja.lobster-to-general-store@1.0.0` két további, azonos paraméterű
+élő körben a teljes Draynor → Port Sarim → Karamja → helyi bolt → Draynor
+útvonalat teljesítette, körönként +55 gp nettó eredménnyel. A három alternatíva
+nettó pénzváltozást, shop-sell telemetriát, eltérő régiót és két külön játékbeli
+skillt ad a diminishing XP kontrollált összehasonlításához; exact allowlistre és
+agenttudásba helyezhetők.

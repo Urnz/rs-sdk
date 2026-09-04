@@ -18,7 +18,7 @@ describe('shared versus isolated skill discovery experiment', () => {
             seed: 'paired-test', agentCount: 8, tasksPerAgent: 12, trials: 6, discoveryCostMultiplier: 3
         });
 
-        expect(report.catalog).toHaveLength(7);
+        expect(report.catalog).toHaveLength(8);
         expect(report.trials).toHaveLength(12);
         for (let index = 0; index < report.trials.length; index += 2) {
             const shared = report.trials[index]!;
