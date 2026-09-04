@@ -75,12 +75,31 @@ describe('persistent agent identity and goals', () => {
     test('does not end a parent while it has active children', () => {
         const store = new AgentStateStore(databasePath());
         addIdentity(store);
-        const life = store.createGoal('ferrye14', { goalId: 'ferrye.life', horizon: 'life', title: 'Life' });
+        const life = store.createGoal('ferrye14', { goalId: 'ferrye.life', horizon: 'life', title: 'Life' },
+            '2026-09-05T10:00:00.000Z');
         const long = store.createGoal('ferrye14', { goalId: 'ferrye.long', parentGoalId: life.goalId,
-            horizon: 'long-term', title: 'Long term' });
+            horizon: 'long-term', title: 'Long term' }, '2026-09-05T10:01:00.000Z');
         expect(() => store.setGoalStatus(life.goalId, life.revision, 'completed')).toThrow('active child');
-        expect(store.setGoalStatus(long.goalId, long.revision, 'completed').completedAt).not.toBeNull();
-        expect(store.setGoalStatus(life.goalId, life.revision, 'completed').status).toBe('completed');
+        expect(store.setGoalStatus(long.goalId, long.revision, 'completed',
+            '2026-09-05T10:02:00.000Z').completedAt).not.toBeNull();
+        expect(store.setGoalStatus(life.goalId, life.revision, 'completed',
+            '2026-09-05T10:03:00.000Z').status).toBe('completed');
+        expect(store.listGoalEvents('ferrye14')).toEqual([
+            expect.objectContaining({ sequence: 1, goalId: 'ferrye.life', kind: 'created',
+                previousStatus: null, status: 'active', previousRevision: null, revision: 1,
+                occurredAt: '2026-09-05T10:00:00.000Z' }),
+            expect.objectContaining({ sequence: 2, goalId: 'ferrye.long', kind: 'created',
+                previousStatus: null, status: 'active', previousRevision: null, revision: 1,
+                occurredAt: '2026-09-05T10:01:00.000Z' }),
+            expect.objectContaining({ sequence: 3, goalId: 'ferrye.long', kind: 'status-changed',
+                previousStatus: 'active', status: 'completed', previousRevision: 1, revision: 2,
+                occurredAt: '2026-09-05T10:02:00.000Z' }),
+            expect.objectContaining({ sequence: 4, goalId: 'ferrye.life', kind: 'status-changed',
+                previousStatus: 'active', status: 'completed', previousRevision: 1, revision: 2,
+                occurredAt: '2026-09-05T10:03:00.000Z' })
+        ]);
+        expect(store.listGoalEvents('ferrye14', '2026-09-05T10:01:30.000Z',
+            '2026-09-05T10:02:30.000Z')).toHaveLength(1);
         store.close();
     });
 
@@ -178,6 +197,9 @@ describe('working memory', () => {
         legacy.run(`INSERT INTO agent_identity VALUES
             ('legacy', 'legacy', 'Legacy agent', 'Existing identity', '["careful"]', '[]',
             '2026-08-29T10:00:00.000Z', '2026-08-29T10:00:00.000Z', 1)`);
+        legacy.run(`INSERT INTO agent_goal VALUES
+            ('legacy.life', 'legacy', NULL, 'life', 'Legacy life goal', '', 'active', 50,
+            '2026-08-29T10:00:00.000Z', '2026-08-29T10:00:00.000Z', NULL, 1)`);
         legacy.run('PRAGMA user_version = 1');
         legacy.close(true);
 
@@ -185,6 +207,10 @@ describe('working memory', () => {
         expect(store.getIdentity('legacy')?.displayName).toBe('Legacy agent');
         expect(store.listEconomicActorLinks('legacy')).toEqual([expect.objectContaining({
             actorKind: 'player', actorId: 'legacy', role: 'self', source: 'identity'
+        })]);
+        expect(store.listGoalEvents('legacy')).toEqual([expect.objectContaining({
+            goalId: 'legacy.life', kind: 'imported', status: 'active', revision: 1,
+            occurredAt: '2026-08-29T10:00:00.000Z'
         })]);
         expect(store.setWorkingMemory('legacy', null, {
             summary: 'Migrated safely', observedAt: '2026-08-29T12:00:00.000Z'
@@ -344,6 +370,9 @@ describe('known skills and deterministic planner', () => {
         const assigned = store.setGoalSkill('ferrye14', goal.goalId, goal.revision, replacement,
             '2026-08-29T12:01:00.000Z');
         expect(assigned).toMatchObject({ skill: replacement, revision: goal.revision + 1 });
+        expect(store.listGoalEvents('ferrye14').find(event => event.kind === 'skill-assigned')).toMatchObject({ goalId: goal.goalId,
+            kind: 'skill-assigned', previousStatus: 'active', status: 'active',
+            previousRevision: goal.revision, revision: goal.revision + 1, skill: replacement });
         expect(() => store.setGoalSkill('ferrye14', goal.goalId, goal.revision, miningSkill)).toThrow('changed');
         expect(() => store.setGoalSkill('other', assigned.goalId, assigned.revision, miningSkill)).toThrow();
         store.close();

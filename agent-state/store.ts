@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
-import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalProposal, type AgentIdentity, type AgentSnapshot,
+import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalEvent, type AgentGoalProposal, type AgentIdentity, type AgentSnapshot,
     type AgentControlProfile, type AgentDecisionRecord, type AgentDecisionTrigger,
     type AgentPlayerActionManualStatus, type AgentPlayerActionRequest, type AgentPlayerActionStatus,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
@@ -30,6 +30,11 @@ interface GoalRow {
     goal_id: string; agent_id: string; parent_goal_id: string | null; horizon: AgentGoal['horizon'];
     title: string; description: string; status: GoalStatus; priority: number; created_at: string;
     skill_id: string | null; skill_version: string | null; updated_at: string; completed_at: string | null; revision: number;
+}
+interface GoalEventRow {
+    sequence: number; goal_id: string; agent_id: string; kind: AgentGoalEvent['kind'];
+    previous_status: GoalStatus | null; status: GoalStatus; previous_revision: number | null;
+    revision: number; skill_id: string | null; skill_version: string | null; occurred_at: string;
 }
 interface GoalProposalRow {
     proposal_id: string; run_id: string; agent_id: string; anchor_goal_id: string; anchor_goal_revision: number;
@@ -113,6 +118,13 @@ function goal(row: GoalRow): AgentGoal {
         title: row.title, description: row.description, status: row.status, priority: row.priority,
         skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
         createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at, revision: row.revision };
+}
+function goalEvent(row: GoalEventRow): AgentGoalEvent {
+    return { sequence: row.sequence, goalId: row.goal_id, agentId: row.agent_id, kind: row.kind,
+        previousStatus: row.previous_status, status: row.status, previousRevision: row.previous_revision,
+        revision: row.revision,
+        skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
+        occurredAt: row.occurred_at };
 }
 function goalProposal(row: GoalProposalRow): AgentGoalProposal {
     return { proposalId: row.proposal_id, runId: row.run_id, agentId: row.agent_id,
@@ -647,6 +659,11 @@ export class AgentStateStore {
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'active', ?7, ?8, ?9, ?10, ?10, NULL, 1)`,
             [value.goalId, normalizedAgentId, value.parentGoalId, value.horizon, value.title, value.description,
                 value.priority, value.skill?.id ?? null, value.skill?.version ?? null, now]);
+            this.database.run(`INSERT INTO agent_goal_event
+                (goal_id, agent_id, kind, previous_status, status, previous_revision, revision,
+                skill_id, skill_version, occurred_at)
+                VALUES (?1, ?2, 'created', NULL, 'active', NULL, 1, ?3, ?4, ?5)`,
+            [value.goalId, normalizedAgentId, value.skill?.id ?? null, value.skill?.version ?? null, now]);
         });
         transaction.immediate();
         return this.requireGoal(value.goalId);
@@ -733,6 +750,12 @@ export class AgentStateStore {
                 [value.goalId, proposal.agentId, value.parentGoalId, value.horizon, value.title, value.description,
                     value.priority, value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill?.id ?? null : null,
                     value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill?.version ?? null : null, now]);
+                const goalSkill = value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill : null;
+                this.database.run(`INSERT INTO agent_goal_event
+                    (goal_id, agent_id, kind, previous_status, status, previous_revision, revision,
+                    skill_id, skill_version, occurred_at)
+                    VALUES (?1, ?2, 'created', NULL, 'active', NULL, 1, ?3, ?4, ?5)`,
+                [value.goalId, proposal.agentId, goalSkill?.id ?? null, goalSkill?.version ?? null, now]);
             }
             const status = proposal.skill ? 'approved' : 'completed';
             const result = this.database.run(`UPDATE agent_goal_proposal SET status = ?3, approval_id = ?4,
@@ -794,6 +817,12 @@ export class AgentStateStore {
                 completed_at = CASE WHEN ?3 = 'completed' THEN ?4 ELSE NULL END, revision = revision + 1
                 WHERE goal_id = ?1 AND revision = ?2`, [current.goalId, expectedRevision, status, now]);
             if (result.changes !== 1) throw new Error('Goal changed before update; refresh and try again');
+            this.database.run(`INSERT INTO agent_goal_event
+                (goal_id, agent_id, kind, previous_status, status, previous_revision, revision,
+                skill_id, skill_version, occurred_at)
+                VALUES (?1, ?2, 'status-changed', ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
+            [current.goalId, current.agentId, current.status, status, current.revision, current.revision + 1,
+                current.skill?.id ?? null, current.skill?.version ?? null, now]);
         });
         transaction.immediate();
         return unchanged ?? this.requireGoal(normalizedGoalId);
@@ -817,6 +846,17 @@ export class AgentStateStore {
         return (rows as GoalRow[]).map(goal);
     }
 
+    listGoalEvents(agentId: string, since?: string, until?: string): AgentGoalEvent[] {
+        const normalized = normalizeAgentId(agentId);
+        if (since && Number.isNaN(Date.parse(since))) throw new Error('Goal event start time must be an ISO timestamp');
+        if (until && Number.isNaN(Date.parse(until))) throw new Error('Goal event end time must be an ISO timestamp');
+        if (since && until && since > until) throw new Error('Goal event time range is invalid');
+        const rows = this.database.query(`SELECT * FROM agent_goal_event WHERE agent_id = ?1
+            AND (?2 IS NULL OR occurred_at >= ?2) AND (?3 IS NULL OR occurred_at <= ?3)
+            ORDER BY occurred_at, sequence`).all(normalized, since ?? null, until ?? null);
+        return (rows as GoalEventRow[]).map(goalEvent);
+    }
+
     setGoalSkill(agentId: string, goalId: string, expectedRevision: number,
         skill: AgentSkillReference, now = new Date().toISOString()): AgentGoal {
         const normalizedAgentId = normalizeAgentId(agentId);
@@ -834,6 +874,12 @@ export class AgentStateStore {
                 updated_at = ?6, revision = revision + 1 WHERE goal_id = ?1 AND agent_id = ?2 AND revision = ?3`,
             [normalizedGoalId, normalizedAgentId, expectedRevision, normalizedSkill.id, normalizedSkill.version, now]);
             if (result.changes !== 1) throw new Error('Agent goal changed before skill assignment; refresh and try again');
+            this.database.run(`INSERT INTO agent_goal_event
+                (goal_id, agent_id, kind, previous_status, status, previous_revision, revision,
+                skill_id, skill_version, occurred_at)
+                VALUES (?1, ?2, 'skill-assigned', ?3, ?3, ?4, ?5, ?6, ?7, ?8)`,
+            [current.goalId, current.agentId, current.status, current.revision, current.revision + 1,
+                normalizedSkill.id, normalizedSkill.version, now]);
         });
         transaction.immediate();
         return this.getGoal(normalizedGoalId)!;
@@ -1750,6 +1796,33 @@ export class AgentStateStore {
                 this.database.run(`CREATE INDEX agent_goal_proposal_agent_status
                     ON agent_goal_proposal(agent_id, status, created_at DESC)`);
                 this.database.run('PRAGMA user_version = 14');
+            });
+            transaction.immediate();
+        }
+        if (version < 15) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_goal_event (
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                    goal_id TEXT NOT NULL REFERENCES agent_goal(goal_id) ON DELETE RESTRICT,
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    kind TEXT NOT NULL CHECK (kind IN ('created', 'imported', 'status-changed', 'skill-assigned')),
+                    previous_status TEXT CHECK (previous_status IS NULL OR previous_status IN
+                        ('active', 'completed', 'blocked', 'abandoned')),
+                    status TEXT NOT NULL CHECK (status IN ('active', 'completed', 'blocked', 'abandoned')),
+                    previous_revision INTEGER CHECK (previous_revision IS NULL OR previous_revision >= 1),
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    skill_id TEXT, skill_version TEXT, occurred_at TEXT NOT NULL,
+                    CHECK ((skill_id IS NULL) = (skill_version IS NULL)))`);
+                this.database.run(`CREATE INDEX agent_goal_event_agent_time
+                    ON agent_goal_event(agent_id, occurred_at, sequence)`);
+                this.database.run(`CREATE UNIQUE INDEX agent_goal_event_goal_revision_kind
+                    ON agent_goal_event(goal_id, revision, kind)`);
+                this.database.run(`INSERT INTO agent_goal_event
+                    (goal_id, agent_id, kind, previous_status, status, previous_revision, revision,
+                    skill_id, skill_version, occurred_at)
+                    SELECT goal_id, agent_id, 'imported', NULL, status, NULL, revision,
+                    skill_id, skill_version, updated_at FROM agent_goal`);
+                this.database.run('PRAGMA user_version = 15');
             });
             transaction.immediate();
         }

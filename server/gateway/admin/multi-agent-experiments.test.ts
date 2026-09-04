@@ -51,6 +51,14 @@ function goalSnapshots(agentIds: readonly string[], completedAgentId?: string) {
         completedAt: agentId === completedAgentId ? '2026-09-01T10:00:03.000Z' : null }]]));
 }
 
+function goalEvents(agentIds: readonly string[], completedAgentId?: string) {
+    return Object.fromEntries(agentIds.map(agentId => [agentId, agentId === completedAgentId ? [{
+        sequence: 7, goalId: `${agentId}.earn`, agentId, kind: 'status-changed' as const,
+        previousStatus: 'active' as const, status: 'completed' as const, previousRevision: 1, revision: 2,
+        skill: null, occurredAt: '2026-09-01T10:00:03.000Z'
+    }] : []]));
+}
+
 function skillRun(runId: string, username: string, status: AdminSkillRun['status'] = 'completed'): AdminSkillRun {
     const skillId = username === 'agent-a' ? 'test.mine-copper' : 'test.fish-lobster';
     const resource = username === 'agent-a'
@@ -107,6 +115,7 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('goal.outcome');
     expect(script).toContain('result.skillEvidenceRegions');
     expect(script).toContain('metrics.activityTimeline');
+    expect(script).toContain('bucket.goalsCompleted');
     expect(script).toContain('response.comparison.activityTimeline');
     expect(script).toContain('/api/admin/multi-agent-experiments/compare');
     expect(html).toContain('id="skill-draft-list"');
@@ -147,6 +156,7 @@ describe('persistent multi-agent experiment runner', () => {
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
             worldModEnvironment: async () => experimentEnvironment(),
             goalSnapshots: async ids => goalSnapshots(ids, goalSnapshotCalls++ === 0 ? undefined : 'agent-a'),
+            goalEvents: async ids => goalEvents(ids, 'agent-a'),
             economySnapshot: async () => economy(`2026-09-01T10:00:0${snapshotCalls}.000Z`, 100 + snapshotCalls++ * 10)
         }, '2026-09-01T10:00:00.000Z');
 
@@ -172,6 +182,7 @@ describe('persistent multi-agent experiment runner', () => {
 
         const dependencies = { store,
             goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids, 'agent-a'),
+            goalEvents: async (ids: readonly string[]) => goalEvents(ids, 'agent-a'),
             economySnapshot: async () => economy(`2026-09-01T10:00:0${snapshotCalls}.000Z`, 100 + snapshotCalls++ * 10) };
         const first = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-a')!,
             skillRun(runIds.get('agent-a')!, 'agent-a'), true, 'Process completed.', dependencies,
@@ -196,9 +207,11 @@ describe('persistent multi-agent experiment runner', () => {
             activityTimeline: [{ minute: 0, startedAt: '2026-09-01T10:00:00.000Z',
                 endedAt: '2026-09-01T10:01:00.000Z', evidenceAgentIds: ['agent-a', 'agent-b'],
                 economicEvents: 3, grossIncomeGp: 10, grossSpendingGp: 0,
+                goalEvents: 1, goalsCompleted: 1, goalsBlocked: 0, goalsAbandoned: 0,
                 producedItems: 2, consumedItems: 0, newRegions: 2 },
             { minute: 1, startedAt: '2026-09-01T10:01:00.000Z', endedAt: '2026-09-01T10:01:03.000Z',
                 evidenceAgentIds: ['agent-a'], economicEvents: 0, grossIncomeGp: 0, grossSpendingGp: 0,
+                goalEvents: 0, goalsCompleted: 0, goalsBlocked: 0, goalsAbandoned: 0,
                 producedItems: 0, consumedItems: 0, newRegions: 1 }],
             participantResults: expect.arrayContaining([
                 expect.objectContaining({ agentId: 'agent-a', goalId: 'agent-a.earn', netCoins: 10,
@@ -206,7 +219,8 @@ describe('persistent multi-agent experiment runner', () => {
                     producedItems: 1, shopTransactions: 1, targets: ['loc:copper rocks'],
                     regions: ['0:50,53', '0:51,53'], skillEvidenceRegions: ['50,53'],
                     activityTimeline: [expect.objectContaining({ minute: 0, economicEvents: 2,
-                        grossIncomeGp: 10, producedItems: 1, newRegions: 1 }),
+                        grossIncomeGp: 10, producedItems: 1, newRegions: 1,
+                        goalEvents: 1, goalsCompleted: 1 }),
                     expect.objectContaining({ minute: 1, economicEvents: 0, newRegions: 1 })],
                     goalProgress: expect.objectContaining({ outcome: 'completed', changed: true,
                         completedDuringExperiment: true }) }),
@@ -278,6 +292,7 @@ describe('persistent multi-agent experiment runner', () => {
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
             worldModEnvironment: async () => experimentEnvironment(),
             goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids),
+            goalEvents: async (ids: readonly string[]) => goalEvents(ids),
             economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 100) };
         const started = await startMultiAgentExperiment({ label: 'Journal check', seed: 'seed',
             summary: 'Require authoritative journals.', agentIds: ['agent-a', 'agent-b'] }, dependencies);
@@ -301,6 +316,7 @@ describe('persistent multi-agent experiment runner', () => {
         const dependencies = { coordinator, store,
             worldModEnvironment: async () => experimentEnvironment(),
             goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids),
+            goalEvents: async (ids: readonly string[]) => goalEvents(ids),
             economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 0) };
         await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Duplicate avatar test.',
             agentIds: ['agent-a', 'agent-b'] }, { ...dependencies,

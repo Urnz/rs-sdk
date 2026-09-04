@@ -498,7 +498,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     esetén fail-closed elutasítani.
   - [x] A kontroll és kezelés ritka perc-idősorait relatív percszám alapján
     összeilleszteni, és bucketenként kezelés mínusz kontroll aktivitásdeltát adni.
-- [ ] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
+- [x] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
   termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
   - [x] Exact skill-runokból skilldiverzitást, koncentrációt, termelést,
     felhasználást, shop- és player-trade aktivitást mérni.
@@ -517,8 +517,11 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] A hiteles piaci és régióeseményeket a futás kezdetéhez igazított,
     percenkénti időbucketekbe rendezni agentenként és kohorszszinten, bevétel-,
     kiadás-, termelés-, felhasználás-, új régió- és evidence-agent mutatókkal.
-  - [ ] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
+  - [x] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
     jövedelmet és agentenkénti célhaladást mérni.
+    - [x] Az AgentState-ben append-only, állapotírással atomi céltransition-ledgert
+      vezetni; a futási ablak céleseményeit percenként teljesült/elakadt/elhagyott
+      bontásban az agent- és kohorsz-idősorba, majd a kontroll–kezelés deltába kötni.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti
   konfigurációként kezelni; előbb kézi/kereséses, később automatizált vagy
   tanulásalapú optimalizálással vizsgálni, egyetlen univerzális optimum ígérete nélkül.

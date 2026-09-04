@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AgentStateStore } from '../../../agent-state/store.js';
-import type { AgentGoal, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
+import type { AgentGoal, AgentGoalEvent, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
 import type { EconomySnapshot } from './types.js';
 import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.js';
 import { agentStateDbPath, multiAgentExperimentsDbPath } from './paths.js';
@@ -68,6 +68,7 @@ export interface MultiAgentExperimentGoalSnapshot {
 }
 
 export type MultiAgentExperimentGoalSnapshots = Record<string, MultiAgentExperimentGoalSnapshot[]>;
+export type MultiAgentExperimentGoalEvents = Record<string, AgentGoalEvent[]>;
 
 export interface MultiAgentExperimentGoalProgress {
     outcome: 'not-linked' | 'created' | 'unchanged' | 'updated' | 'completed' | 'blocked' | 'abandoned'
@@ -109,6 +110,10 @@ export interface MultiAgentExperimentActivityBucket {
     endedAt: string;
     evidenceAgentIds: string[];
     economicEvents: number;
+    goalEvents: number;
+    goalsCompleted: number;
+    goalsBlocked: number;
+    goalsAbandoned: number;
     grossIncomeGp: number;
     grossSpendingGp: number;
     producedItems: number;
@@ -282,6 +287,10 @@ export interface MultiAgentExperimentComparison {
 export interface MultiAgentExperimentActivityComparisonValue {
     evidenceAgents: number;
     economicEvents: number;
+    goalEvents: number;
+    goalsCompleted: number;
+    goalsBlocked: number;
+    goalsAbandoned: number;
     grossIncomeGp: number;
     grossSpendingGp: number;
     producedItems: number;
@@ -301,7 +310,9 @@ MultiAgentExperimentActivityComparisonValue {
     return { evidenceAgents: bucket?.evidenceAgentIds.length ?? 0,
         economicEvents: bucket?.economicEvents ?? 0, grossIncomeGp: bucket?.grossIncomeGp ?? 0,
         grossSpendingGp: bucket?.grossSpendingGp ?? 0, producedItems: bucket?.producedItems ?? 0,
-        consumedItems: bucket?.consumedItems ?? 0, newRegions: bucket?.newRegions ?? 0 };
+        consumedItems: bucket?.consumedItems ?? 0, newRegions: bucket?.newRegions ?? 0,
+        goalEvents: bucket?.goalEvents ?? 0, goalsCompleted: bucket?.goalsCompleted ?? 0,
+        goalsBlocked: bucket?.goalsBlocked ?? 0, goalsAbandoned: bucket?.goalsAbandoned ?? 0 };
 }
 
 function compareActivityTimelines(control: MultiAgentExperimentActivityBucket[] | undefined,
@@ -313,7 +324,9 @@ function compareActivityTimelines(control: MultiAgentExperimentActivityBucket[] 
                 throw new Error(`${label} experiment activity timeline is invalid`);
             }
             const counts = [bucket.economicEvents, bucket.grossIncomeGp, bucket.grossSpendingGp,
-                bucket.producedItems, bucket.consumedItems, bucket.newRegions];
+                bucket.producedItems, bucket.consumedItems, bucket.newRegions,
+                bucket.goalEvents ?? 0, bucket.goalsCompleted ?? 0, bucket.goalsBlocked ?? 0,
+                bucket.goalsAbandoned ?? 0];
             if (!Array.isArray(bucket.evidenceAgentIds)
                 || new Set(bucket.evidenceAgentIds).size !== bucket.evidenceAgentIds.length
                 || bucket.evidenceAgentIds.some(id => typeof id !== 'string' || !id)
@@ -338,7 +351,11 @@ function compareActivityTimelines(control: MultiAgentExperimentActivityBucket[] 
                 grossSpendingGp: treatmentValue.grossSpendingGp - controlValue.grossSpendingGp,
                 producedItems: treatmentValue.producedItems - controlValue.producedItems,
                 consumedItems: treatmentValue.consumedItems - controlValue.consumedItems,
-                newRegions: treatmentValue.newRegions - controlValue.newRegions
+                newRegions: treatmentValue.newRegions - controlValue.newRegions,
+                goalEvents: treatmentValue.goalEvents - controlValue.goalEvents,
+                goalsCompleted: treatmentValue.goalsCompleted - controlValue.goalsCompleted,
+                goalsBlocked: treatmentValue.goalsBlocked - controlValue.goalsBlocked,
+                goalsAbandoned: treatmentValue.goalsAbandoned - controlValue.goalsAbandoned
             } };
     });
 }
@@ -520,6 +537,57 @@ export function readMultiAgentExperimentGoalSnapshots(agentIds: readonly string[
     } finally { store.close(); }
 }
 
+export function readMultiAgentExperimentGoalEvents(agentIds: readonly string[], since: string, until: string,
+    path = agentStateDbPath): MultiAgentExperimentGoalEvents {
+    const store = new AgentStateStore(path);
+    try {
+        return Object.fromEntries(agentIds.map(id => {
+            const normalized = agentId(id);
+            return [normalized, store.listGoalEvents(normalized, timestamp(since), timestamp(until))];
+        }));
+    } finally { store.close(); }
+}
+
+function validateGoalEvents(agentIds: readonly string[], input: MultiAgentExperimentGoalEvents,
+    startedAt: string, finishedAt: string): MultiAgentExperimentGoalEvents {
+    const output: MultiAgentExperimentGoalEvents = {};
+    for (const id of agentIds) {
+        const events = input[id];
+        if (!Array.isArray(events) || events.length > 10_000) throw new Error(`Experiment goal events are invalid for ${id}`);
+        const sequences = new Set<number>();
+        output[id] = events.map(event => {
+            const previousStatusValid = event.previousStatus === null
+                || ['active', 'completed', 'blocked', 'abandoned'].includes(event.previousStatus);
+            const previousRevisionValid = event.previousRevision === null
+                || Number.isSafeInteger(event.previousRevision) && event.previousRevision >= 1;
+            const skillValid = event.skill === null || Boolean(event.skill && typeof event.skill.id === 'string'
+                && /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(event.skill.id)
+                && typeof event.skill.version === 'string' && /^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(event.skill.version));
+            const transitionValid = (event.kind === 'created' || event.kind === 'imported')
+                ? event.previousStatus === null && event.previousRevision === null
+                : event.previousStatus !== null && event.previousRevision !== null
+                    && event.revision === event.previousRevision + 1
+                    && (event.kind !== 'status-changed' || event.previousStatus !== event.status)
+                    && (event.kind !== 'skill-assigned' || event.previousStatus === event.status && event.skill !== null);
+            if (!event || event.agentId !== id || agentId(event.goalId) !== event.goalId
+                || !Number.isSafeInteger(event.sequence) || event.sequence < 1 || sequences.has(event.sequence)
+                || !['created', 'imported', 'status-changed', 'skill-assigned'].includes(event.kind)
+                || !['active', 'completed', 'blocked', 'abandoned'].includes(event.status)
+                || !Number.isSafeInteger(event.revision) || event.revision < 1
+                || !previousStatusValid || !previousRevisionValid || !skillValid || !transitionValid) {
+                throw new Error(`Experiment goal event is invalid for ${id}`);
+            }
+            sequences.add(event.sequence);
+            const occurredAt = timestamp(event.occurredAt);
+            if (occurredAt < startedAt || occurredAt > finishedAt) {
+                throw new Error(`Experiment goal event falls outside the run for ${id}`);
+            }
+            return { ...event, occurredAt };
+        }).sort((left, right) => left.occurredAt.localeCompare(right.occurredAt) || left.sequence - right.sequence);
+    }
+    return output;
+}
+
 function validateGoalSnapshots(agentIds: readonly string[], input: MultiAgentExperimentGoalSnapshots):
 MultiAgentExperimentGoalSnapshots {
     const output: MultiAgentExperimentGoalSnapshots = {};
@@ -604,10 +672,14 @@ function runRegions(run: AdminSkillRun | null): string[] {
 
 function activityTimeline(startedAt: string, finishedAt: string, sources: Array<{
     agentId: string; events: EconomyEvent[]; observations: MultiAgentExperimentWorldRegionObservation[];
+    goalEvents: AgentGoalEvent[];
 }>): MultiAgentExperimentActivityBucket[] {
     const start = Date.parse(startedAt);
     const end = Date.parse(finishedAt);
-    const buckets = new Map<number, { agentIds: Set<string>; events: EconomyEvent[]; regions: Set<string> }>();
+    const buckets = new Map<number, { agentIds: Set<string>; events: EconomyEvent[]; regions: Set<string>;
+        goalEvents: AgentGoalEvent[] }>();
+    const emptyBucket = () => ({ agentIds: new Set<string>(), events: [] as EconomyEvent[],
+        regions: new Set<string>(), goalEvents: [] as AgentGoalEvent[] });
     const bucket = (value: string): number | null => {
         const time = Date.parse(value);
         return Number.isNaN(time) || time < start || time > end ? null : Math.floor((time - start) / 60_000);
@@ -616,15 +688,21 @@ function activityTimeline(startedAt: string, finishedAt: string, sources: Array<
         for (const event of source.events) {
             const minute = bucket(event.timestamp);
             if (minute === null) continue;
-            const entry = buckets.get(minute) ?? { agentIds: new Set<string>(), events: [], regions: new Set<string>() };
+            const entry = buckets.get(minute) ?? emptyBucket();
             entry.agentIds.add(source.agentId); entry.events.push(event); buckets.set(minute, entry);
         }
         for (const observation of source.observations) {
             const minute = bucket(observation.observedAt);
             if (minute === null) continue;
-            const entry = buckets.get(minute) ?? { agentIds: new Set<string>(), events: [], regions: new Set<string>() };
+            const entry = buckets.get(minute) ?? emptyBucket();
             entry.agentIds.add(source.agentId); entry.regions.add(`${source.agentId}\0${observation.region}`);
             buckets.set(minute, entry);
+        }
+        for (const event of source.goalEvents) {
+            const minute = bucket(event.occurredAt);
+            if (minute === null) continue;
+            const entry = buckets.get(minute) ?? emptyBucket();
+            entry.agentIds.add(source.agentId); entry.goalEvents.push(event); buckets.set(minute, entry);
         }
     }
     return [...buckets].sort(([left], [right]) => left - right).map(([minute, entry]) => {
@@ -633,6 +711,10 @@ function activityTimeline(startedAt: string, finishedAt: string, sources: Array<
         return { minute, startedAt: new Date(start + minute * 60_000).toISOString(),
             endedAt: new Date(Math.min(end, start + (minute + 1) * 60_000)).toISOString(),
             evidenceAgentIds: [...entry.agentIds].sort(), economicEvents: entry.events.length,
+            goalEvents: entry.goalEvents.length,
+            goalsCompleted: entry.goalEvents.filter(event => event.kind === 'status-changed' && event.status === 'completed').length,
+            goalsBlocked: entry.goalEvents.filter(event => event.kind === 'status-changed' && event.status === 'blocked').length,
+            goalsAbandoned: entry.goalEvents.filter(event => event.kind === 'status-changed' && event.status === 'abandoned').length,
             grossIncomeGp: coins.grossIncomeGp, grossSpendingGp: coins.grossSpendingGp,
             producedItems: summary.producedItems, consumedItems: summary.consumedItems,
             newRegions: entry.regions.size };
@@ -640,7 +722,7 @@ function activityTimeline(startedAt: string, finishedAt: string, sources: Array<
 }
 
 function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnapshot,
-    finishedAt: string): MultiAgentExperimentMetrics {
+    goalEvents: MultiAgentExperimentGoalEvents, finishedAt: string): MultiAgentExperimentMetrics {
     const baselineItems = new Map(run.baselineEconomy.itemStock.map(item => [item.id, item]));
     const finalItems = new Map(finalEconomy.itemStock.map(item => [item.id, item]));
     const ids = new Set([...baselineItems.keys(), ...finalItems.keys()]);
@@ -668,7 +750,7 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
             playerTrades: summary.playerTrades, targets: runTargets(skillRun), regions: item.worldRegions,
             skillEvidenceRegions: runRegions(skillRun),
             activityTimeline: activityTimeline(run.startedAt, finishedAt, [{ agentId: item.agentId, events,
-                observations: item.worldRegionObservations }]) }, events };
+                observations: item.worldRegionObservations, goalEvents: goalEvents[item.agentId]! }]) }, events };
     });
     const economicEvents = participantResults.flatMap(item => item.events);
     const marketCoinFlow = summarizeMarketCoinFlow(economicEvents);
@@ -698,7 +780,7 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         actualGoalsCompleted: results.filter(item => item.goalProgress.completedDuringExperiment).length,
         activityTimeline: activityTimeline(run.startedAt, finishedAt, run.participants.map((item, index) => ({
             agentId: item.agentId, events: participantResults[index]!.events,
-            observations: item.worldRegionObservations
+            observations: item.worldRegionObservations, goalEvents: goalEvents[item.agentId]!
         }))),
         participantResults: results };
 }
@@ -924,7 +1006,8 @@ export class MultiAgentExperimentStore {
     }
 
     finish(experimentId: string, finalEconomy: EconomySnapshot,
-        finalGoalInput: MultiAgentExperimentGoalSnapshots, now = new Date().toISOString()): MultiAgentExperimentRun {
+        finalGoalInput: MultiAgentExperimentGoalSnapshots, goalEventInput: MultiAgentExperimentGoalEvents,
+        now = new Date().toISOString()): MultiAgentExperimentRun {
         const finishedAt = timestamp(now);
         const current = this.get(experimentId);
         if (!current) throw new Error('Experiment is missing');
@@ -933,12 +1016,14 @@ export class MultiAgentExperimentStore {
             throw new Error('Experiment cannot finish before every dispatched skill run resolves');
         }
         const finalGoals = validateGoalSnapshots(current.participants.map(item => item.agentId), finalGoalInput);
+        const goalEvents = validateGoalEvents(current.participants.map(item => item.agentId), goalEventInput,
+            current.startedAt, finishedAt);
         const transaction = this.database.transaction(() => {
             for (const item of current.participants) this.database.run(`UPDATE multi_agent_experiment_participant
                 SET final_goals_json = ?3 WHERE experiment_id = ?1 AND agent_id = ?2`,
             [experimentId, item.agentId, JSON.stringify(finalGoals[item.agentId])]);
             const withFinalGoals = this.get(experimentId)!;
-            const metrics = economyMetrics(withFinalGoals, finalEconomy, finishedAt);
+            const metrics = economyMetrics(withFinalGoals, finalEconomy, goalEvents, finishedAt);
             const status: MultiAgentExperimentStatus = metrics.unsuccessfulParticipants
                 ? 'completed-with-errors' : 'completed';
             this.database.run(`UPDATE multi_agent_experiment SET status = ?2, final_economy_json = ?3,
@@ -966,6 +1051,7 @@ export interface MultiAgentExperimentDependencies {
     economySnapshot(): Promise<EconomySnapshot>;
     worldModEnvironment(): Promise<MultiAgentExperimentEnvironment>;
     goalSnapshots(agentIds: readonly string[]): Promise<MultiAgentExperimentGoalSnapshots>;
+    goalEvents(agentIds: readonly string[], since: string, until: string): Promise<MultiAgentExperimentGoalEvents>;
     coordinator: AgentReplanCoordinator;
     store: MultiAgentExperimentStore;
 }
@@ -1019,10 +1105,14 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
                 }
             }));
             const dispatched = dependencies.store.markDispatched(run.experimentId, await dependencies.economySnapshot());
-            return dependencies.store.isReadyToFinalize(run.experimentId)
-                ? dependencies.store.finish(run.experimentId, await dependencies.economySnapshot(),
-                    await dependencies.goalSnapshots(run.participants.map(item => item.agentId)))
-                : dispatched;
+            if (!dependencies.store.isReadyToFinalize(run.experimentId)) return dispatched;
+            const finishedAt = new Date().toISOString();
+            const ids = run.participants.map(item => item.agentId);
+            const [finalEconomy, finalGoals, goalEvents] = await Promise.all([
+                dependencies.economySnapshot(), dependencies.goalSnapshots(ids),
+                dependencies.goalEvents(ids, run.startedAt, finishedAt)
+            ]);
+            return dependencies.store.finish(run.experimentId, finalEconomy, finalGoals, goalEvents, finishedAt);
         } catch (error) {
             return dependencies.store.fail(run.experimentId, error instanceof Error ? error.message : String(error));
         }
@@ -1032,10 +1122,11 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
 
 export async function reconcileMultiAgentExperimentSkillRun(runId: string, skillRun: AdminSkillRun | null,
     processSucceeded: boolean, fallbackReason: string,
-    dependencies: Pick<MultiAgentExperimentDependencies, 'store' | 'economySnapshot' | 'goalSnapshots'>,
+    dependencies: Pick<MultiAgentExperimentDependencies, 'store' | 'economySnapshot' | 'goalSnapshots' | 'goalEvents'>,
     now = new Date().toISOString()): Promise<MultiAgentExperimentRun | null> {
     const run = dependencies.store.recordSkillRun(runId, skillRun, processSucceeded, fallbackReason, now);
     if (!run || !dependencies.store.isReadyToFinalize(run.experimentId)) return run;
     return dependencies.store.finish(run.experimentId, await dependencies.economySnapshot(),
-        await dependencies.goalSnapshots(run.participants.map(item => item.agentId)), now);
+        await dependencies.goalSnapshots(run.participants.map(item => item.agentId)),
+        await dependencies.goalEvents(run.participants.map(item => item.agentId), run.startedAt, now), now);
 }

@@ -80,6 +80,13 @@ goal-adattári snapshot exact státusz- és revision-változást is ad. A
 az `actualGoalChanges` és `actualGoalsCompleted` jelzi a cél tényleges tartós
 változását, illetve teljesülését. A mérő nem módosít célállapotot automatikusan.
 
+Az AgentState v15-től a célmódosításokat külön, append-only `agent_goal_event`
+ledger is rögzíti. A cél létrehozása, státuszváltása és skill-hozzárendelése az
+állapotírással azonos tranzakcióban kap monoton sorszámú eseményt. Régi célok
+egyszeri `imported` állapotként kerülnek át, mert azok történeti létrehozási ideje
+nem rekonstruálható hitelesen. A kísérlet kizárólag a saját kezdő- és záróideje
+közé eső eseményeket fogadja el.
+
 A hiteles shop- és player-trade coin-deltákból a rendszer a nettó változás mellett
 külön bruttó bevételt és kiadást számol agentenként és teljes kohorszra. A shop
 buy/sell események egyértelmű, egy terméket érintő inventory- és coin-deltáiból
@@ -90,11 +97,13 @@ bevétel/kiadás a kísérleti adminnézetben is megjelenik.
 Az összesítés mellett a lezárás a futás kezdetéhez igazított, nulláról induló
 perc-bucketeket is képez. Minden bucket tartalmazza az evidence-et adó agenteket, a
 gazdasági események számát, bruttó bevételt és kiadást, termelést, felhasználást,
-valamint az adott percben először megfigyelt agent–régió párok számát. Ugyanez az
+valamint az adott percben először megfigyelt agent–régió párok számát. A
+célledgerből ugyanide kerül a célesemények, teljesülések, elakadások és elhagyások
+száma. Ugyanez az
 idősor agentenként is tartós része az eredménynek. Üres perceket a rendszer nem
 talál ki és nem tárol; a timestampen kívüli eseményt nem húzza be a futási ablakba.
 Ez rövid futásnál jellemzően egyetlen bucket, hosszabb kísérletnél viszont már
-megmutatja, mikor változott a termelés, mobilitás vagy piaci aktivitás.
+megmutatja, mikor változott a termelés, mobilitás, piaci aktivitás vagy célállapot.
 Az evidence-agent nem online jelenlétmérő: egy mozdulatlan, gazdasági esemény
 nélküli agent nem kerül bele pusztán attól, hogy a gatewayhez kapcsolódott.
 
@@ -104,8 +113,8 @@ napló. Sikeres process-exit napló nélkül fail-closed hibának számít. Az i
 exit esemény nem írja felül a terminális rekordot és nem készít új snapshotot.
 
 Ez a szelet már a teljes kohorsz tényleges futási ablakát és agentenkénti
-tevékenységét méri. A kontrollcsoportos replay és a hosszabb idősoros metrikák
-továbbra is a 12. fázis következő részei.
+tevékenységét méri. A tényleges kontroll–kezelés élő futtatása és a verziózott
+kísérleti paraméterhangolás továbbra is a 12. fázis következő része.
 
 ## Kontrollált futáspárok
 
@@ -136,7 +145,8 @@ A két ritka aktivitási idősort a rendszer nem falióra-időpont, hanem a fut�
 kezdetétől számított percszám alapján illeszti össze. A csak az egyik futásban
 szereplő perc másik oldala nulla, ezért a kezelés mínusz kontroll eltérés
 bucketenként is látható bevételre, kiadásra, termelésre, felhasználásra, új
-agent–régiókra, gazdasági eseményekre és evidence-agentek számára. Ismétlődő vagy
+agent–régiókra, gazdasági és céleseményekre, céllezárási kimenetekre és
+evidence-agentek számára. Ismétlődő vagy
 negatív percindexnél az összehasonlítás fail-closed leáll.
 
 ## Bevételtermelő előfeltétel

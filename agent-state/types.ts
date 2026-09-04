@@ -1,7 +1,8 @@
-export const AGENT_STATE_SCHEMA_VERSION = 14 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 15 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
+export type AgentGoalEventKind = 'created' | 'imported' | 'status-changed' | 'skill-assigned';
 export type AgentSkillKnowledgeStatus = 'known' | 'preferred' | 'blocked';
 export type AgentEpisodeKind = 'observation' | 'action' | 'outcome' | 'interaction' | 'discovery' | 'economic';
 export type AgentEpisodeSource = 'manual' | 'system' | 'skill' | 'planner';
@@ -73,6 +74,20 @@ export interface AgentGoal {
     updatedAt: string;
     completedAt: string | null;
     revision: number;
+}
+
+/** Append-only evidence of a persisted goal transition. */
+export interface AgentGoalEvent {
+    sequence: number;
+    goalId: string;
+    agentId: string;
+    kind: AgentGoalEventKind;
+    previousStatus: GoalStatus | null;
+    status: GoalStatus;
+    previousRevision: number | null;
+    revision: number;
+    skill: AgentSkillReference | null;
+    occurredAt: string;
 }
 
 export interface CreateAgentGoal {

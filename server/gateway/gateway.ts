@@ -25,7 +25,7 @@ import { GatewayWorldDirectorScheduler, loadWorldDirectorConfig, WorldDirectorDi
     WorldDirectorStore } from './admin/world-director-runtime';
 import { EngineWorldDirectorAdapter } from './admin/world-director-engine-adapter';
 import { reconcileAdminGoalProposalRun, reconcileAdminPlayerActionRun } from './admin/agent-state';
-import { MultiAgentExperimentStore, readMultiAgentExperimentGoalSnapshots,
+import { MultiAgentExperimentStore, readMultiAgentExperimentGoalEvents, readMultiAgentExperimentGoalSnapshots,
     reconcileMultiAgentExperimentSkillRun } from './admin/multi-agent-experiments';
 import { economyEventsDbPath, multiAgentExperimentsDbPath } from './admin/paths';
 import { readSkillRun } from './admin/skill-history';
@@ -914,6 +914,7 @@ botSupervisor.onSkillExit(event => {
                 `${event.snapshot.skill} ${failed ? 'failed' : 'exited successfully'} with exit code ${event.snapshot.exitCode}.`, {
                     store,
                     goalSnapshots: async ids => readMultiAgentExperimentGoalSnapshots(ids),
+                    goalEvents: async (ids, since, until) => readMultiAgentExperimentGoalEvents(ids, since, until),
                     economySnapshot: async () => economySnapshot(await buildBotCatalog(adminGatewayBots(), botSupervisor.list()))
                 }, occurredAt);
             if (experiment?.finishedAt) console.log(`[MultiAgentExperiment] ${experiment.experimentId} finished as ${experiment.status}.`);
