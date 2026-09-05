@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { AgentGoal, AgentGoalEvent, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
+import { validateExperimentParameterProfile, type ExperimentParameterProfile } from './experiment-parameters.js';
 import type { EconomySnapshot } from './types.js';
 import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.js';
 import { agentStateDbPath, multiAgentExperimentsDbPath } from './paths.js';
@@ -19,6 +20,8 @@ export interface MultiAgentExperimentInput {
     seed: string;
     summary: string;
     agentIds: readonly string[];
+    parameterProfileId: string;
+    parameterProfileVersion: string;
 }
 
 export interface MultiAgentExperimentWorldMod {
@@ -173,6 +176,8 @@ export interface MultiAgentExperimentRun {
     definitionDigest: string;
     environmentDigest: string;
     environment: MultiAgentExperimentEnvironment;
+    parameterProfileDigest: string | null;
+    parameterProfile: ExperimentParameterProfile | null;
     label: string;
     seed: string;
     summary: string;
@@ -194,6 +199,7 @@ interface ExperimentRow {
     status: MultiAgentExperimentStatus; baseline_economy_json: string; dispatch_economy_json: string | null;
     final_economy_json: string | null; metrics_json: string | null;
     environment_digest: string; environment_json: string;
+    parameter_profile_digest: string | null; parameter_profile_json: string | null;
     started_at: string; dispatched_at: string | null; finished_at: string | null; error: string | null; revision: number;
 }
 
@@ -230,9 +236,16 @@ export function validateMultiAgentExperimentInput(input: MultiAgentExperimentInp
     if (unique.length < 2 || unique.length > 50 || unique.length !== input.agentIds.length) {
         throw new Error('An experiment requires 2-50 unique agent ids');
     }
+    const parameterProfileVersion = boundedText(input.parameterProfileVersion,
+        'Experiment parameter profile version', 64);
+    if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(parameterProfileVersion)) {
+        throw new Error('Experiment parameter profile version must be semantic');
+    }
     return { label: boundedText(input.label, 'Experiment label', 120),
         seed: boundedText(input.seed, 'Experiment seed', 128),
-        summary: boundedText(input.summary, 'Experiment summary', 320), agentIds: unique };
+        summary: boundedText(input.summary, 'Experiment summary', 320), agentIds: unique,
+        parameterProfileId: agentId(input.parameterProfileId),
+        parameterProfileVersion };
 }
 
 function hash(value: string): string {
@@ -370,6 +383,19 @@ export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
     if (control.seed !== treatment.seed || JSON.stringify(controlAgents) !== JSON.stringify(treatmentAgents)) {
         throw new Error('Controlled experiments must use the same seed and exact agent cohort');
     }
+    const checkedProfileDigest = (run: MultiAgentExperimentRun): string => {
+        if (!run.parameterProfile || !run.parameterProfileDigest) {
+            throw new Error('Controlled experiments require an exact parameter profile');
+        }
+        const validated = validateExperimentParameterProfile(run.parameterProfile, run.parameterProfile.createdAt);
+        if (validated.digest !== run.parameterProfileDigest || validated.digest !== run.parameterProfile.digest) {
+            throw new Error('Controlled experiment parameter profile digest is invalid');
+        }
+        return validated.digest;
+    };
+    if (checkedProfileDigest(control) !== checkedProfileDigest(treatment)) {
+        throw new Error('Controlled experiments require the same exact parameter profile');
+    }
     for (const controlParticipant of control.participants) {
         const treatmentParticipant = treatment.participants.find(item => item.agentId === controlParticipant.agentId)!;
         const controlDigest = controlParticipant.baselineAvatar
@@ -424,8 +450,10 @@ export function multiAgentExperimentDefinition(input: MultiAgentExperimentInput)
 } {
     const validated = validateMultiAgentExperimentInput(input);
     const canonicalAgentIds = [...validated.agentIds].sort();
-    const digest = hash(JSON.stringify({ schemaVersion: 1, label: validated.label, seed: validated.seed,
-        summary: validated.summary, agentIds: canonicalAgentIds }));
+    const digest = hash(JSON.stringify({ schemaVersion: 2, label: validated.label, seed: validated.seed,
+        summary: validated.summary, agentIds: canonicalAgentIds,
+        parameterProfileId: validated.parameterProfileId,
+        parameterProfileVersion: validated.parameterProfileVersion }));
     const orderedAgentIds = [...canonicalAgentIds].sort((left, right) =>
         hash(`${validated.seed}\0${left}`).localeCompare(hash(`${validated.seed}\0${right}`)) || left.localeCompare(right));
     return { input: validated, orderedAgentIds, digest };
@@ -820,6 +848,8 @@ export class MultiAgentExperimentStore {
         this.addColumn('multi_agent_experiment', 'environment_digest', "TEXT NOT NULL DEFAULT 'legacy'");
         this.addColumn('multi_agent_experiment', 'environment_json',
             "TEXT NOT NULL DEFAULT '{\"schemaVersion\":1,\"activeRevision\":0,\"capturedAt\":\"1970-01-01T00:00:00.000Z\",\"mods\":[]}'");
+        this.addColumn('multi_agent_experiment', 'parameter_profile_digest', 'TEXT');
+        this.addColumn('multi_agent_experiment', 'parameter_profile_json', 'TEXT');
         this.addColumn('multi_agent_experiment_participant', 'skill_run_json', 'TEXT');
         this.addColumn('multi_agent_experiment_participant', 'baseline_goals_json', "TEXT NOT NULL DEFAULT '[]'");
         this.addColumn('multi_agent_experiment_participant', 'final_goals_json', 'TEXT');
@@ -857,6 +887,9 @@ export class MultiAgentExperimentStore {
             label: row.label, seed: row.seed, summary: row.summary, status: row.status,
             environmentDigest: row.environment_digest,
             environment: JSON.parse(row.environment_json) as MultiAgentExperimentEnvironment,
+            parameterProfileDigest: row.parameter_profile_digest,
+            parameterProfile: row.parameter_profile_json
+                ? JSON.parse(row.parameter_profile_json) as ExperimentParameterProfile : null,
             baselineEconomy: JSON.parse(row.baseline_economy_json) as EconomySnapshot,
             dispatchEconomy: row.dispatch_economy_json ? JSON.parse(row.dispatch_economy_json) as EconomySnapshot : null,
             finalEconomy: row.final_economy_json ? JSON.parse(row.final_economy_json) as EconomySnapshot : null,
@@ -875,17 +908,25 @@ export class MultiAgentExperimentStore {
     create(definition: ReturnType<typeof multiAgentExperimentDefinition>,
         candidates: ReadonlyMap<string, MultiAgentExperimentCandidate>, baseline: EconomySnapshot,
         baselineGoalInput: MultiAgentExperimentGoalSnapshots,
-        environmentInput: MultiAgentExperimentEnvironment,
+        environmentInput: MultiAgentExperimentEnvironment, parameterProfileInput: ExperimentParameterProfile,
         now = new Date().toISOString(), experimentId = randomUUID()): MultiAgentExperimentRun {
         const startedAt = timestamp(now);
         const { environment, digest: environmentDigest } = validateMultiAgentExperimentEnvironment(environmentInput);
         const baselineGoals = validateGoalSnapshots(definition.orderedAgentIds, baselineGoalInput);
+        const parameterProfile = validateExperimentParameterProfile(parameterProfileInput, parameterProfileInput.createdAt);
+        if (parameterProfile.digest !== parameterProfileInput.digest
+            || parameterProfile.profileId !== definition.input.parameterProfileId
+            || parameterProfile.version !== definition.input.parameterProfileVersion) {
+            throw new Error('Experiment parameter profile reference or digest is invalid');
+        }
         const transaction = this.database.transaction(() => {
             this.database.run(`INSERT INTO multi_agent_experiment
-                (experiment_id, definition_digest, environment_digest, environment_json, label, seed, summary,
+                (experiment_id, definition_digest, environment_digest, environment_json,
+                    parameter_profile_digest, parameter_profile_json, label, seed, summary,
                     status, baseline_economy_json, dispatch_economy_json, started_at, finished_at, error, revision)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'running', ?8, NULL, ?9, NULL, NULL, 1)`,
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'running', ?10, NULL, ?11, NULL, NULL, 1)`,
             [experimentId, definition.digest, environmentDigest, JSON.stringify(environment),
+                parameterProfile.digest, JSON.stringify(parameterProfile),
                 definition.input.label, definition.input.seed, definition.input.summary,
                 JSON.stringify(baseline), startedAt]);
             definition.orderedAgentIds.forEach((id, ordinal) => {
@@ -1050,6 +1091,7 @@ export interface MultiAgentExperimentDependencies {
     listCandidates(): Promise<readonly MultiAgentExperimentCandidate[]>;
     economySnapshot(): Promise<EconomySnapshot>;
     worldModEnvironment(): Promise<MultiAgentExperimentEnvironment>;
+    parameterProfile(profileId: string, version: string): Promise<ExperimentParameterProfile>;
     goalSnapshots(agentIds: readonly string[]): Promise<MultiAgentExperimentGoalSnapshots>;
     goalEvents(agentIds: readonly string[], since: string, until: string): Promise<MultiAgentExperimentGoalEvents>;
     coordinator: AgentReplanCoordinator;
@@ -1083,11 +1125,12 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
     }> {
     const definition = multiAgentExperimentDefinition(input);
     const candidates = preflight(definition, await dependencies.listCandidates());
-    const [baseline, environment, baselineGoals] = await Promise.all([
+    const [baseline, environment, baselineGoals, parameterProfile] = await Promise.all([
         dependencies.economySnapshot(), dependencies.worldModEnvironment(),
-        dependencies.goalSnapshots(definition.orderedAgentIds)
+        dependencies.goalSnapshots(definition.orderedAgentIds),
+        dependencies.parameterProfile(definition.input.parameterProfileId, definition.input.parameterProfileVersion)
     ]);
-    const run = dependencies.store.create(definition, candidates, baseline, baselineGoals, environment, now);
+    const run = dependencies.store.create(definition, candidates, baseline, baselineGoals, environment, parameterProfile, now);
     const completion = (async () => {
         try {
             await Promise.all(run.participants.map(async entry => {

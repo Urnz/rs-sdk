@@ -38,6 +38,34 @@ célt/skillel adja, eltérő seedek viszont determinisztikusan szétoszthatják 
 kohorszt az alternatívák között. Magasabb prioritású cél továbbra is mindig nyer;
 seed nélküli normál működésben megmarad a stabil goal-ID sorrend.
 
+## Verziózott paraméterprofilok
+
+Minden új multi-agent futás exact `profileId@version` kísérleti paraméterprofilt
+igényel. A profil négy, egymástól függetlenül bővíthető listát tartalmaz:
+
+- resource/célpont respawnidőt tickben;
+- activity-kulcshoz tartozó XP-jutalomszorzót;
+- itemenkénti vételi és/vagy eladási piaci árat;
+- késztermék itemenkénti gazdasági értékét.
+
+A listaelemek kulcs szerint egyediek, méret- és értékkorlátosak, kanonikus
+sorrendűek. A teljes tartalom SHA-256 digestet kap, a `profileId + version` pedig
+változtathatatlan: módosításhoz új szemantikus verzió szükséges. Exact ismétlés
+idempotens, ugyanazon verzió eltérő tartalma fail-closed hibát ad. Az `origin`
+megkülönbözteti a `manual`, `grid-search`, `automated` és `learning` eredetet,
+de egyik sem állítja, hogy univerzális optimumot talált.
+
+Az adminpanelen profil készíthető, listázható és futáshoz választható. A futás a
+teljes profilt és digestjét saját SQLite rekordjába másolja, ezért a későbbi
+visszajátszás nem függ egy változó „aktuális” konfigurációtól. Kontroll–kezelés
+összehasonlítás csak azonos, sértetlen profildigesttel engedélyezett.
+
+Ez a réteg egyelőre reprodukálható kísérleti bemenet és provenance, nem általános
+engine-konfigurációs kerülőút. Az egyes paraméterkategóriákat külön, ellenőrzött
+adapternek kell majd a tényleges engine-be alkalmaznia és visszaolvasnia. Addig a
+profil nem bizonyítja önmagában, hogy egy érték aktív a játékvilágban; ezt továbbra
+is az engine/world-mod snapshot igazolja.
+
 A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 
 - a definíciót, seedet, digestet és státuszt;
@@ -45,6 +73,7 @@ A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
   mod exact verzióját, adatséma-verzióját, kapcsolóját és konfigurációját egy
   kanonikus, SHA-256 digestelt környezeti pillanatképben;
 - az indítás előtti közös gazdasági baseline-t;
+- az exact verziózott kísérleti paraméterprofilt és annak digestjét;
 - agentenként a kanonikus, SHA-256 digestelt induló avatárállapotot: pozíciót,
   HP-t, run energyt, inventoryt, equipmentet, ismert bankot és teljes skill/XP
   listát, továbbá a goal-adattár induló snapshotját;

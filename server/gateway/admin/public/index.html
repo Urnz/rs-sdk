@@ -159,10 +159,33 @@
                     <button id="reload-multi-agent-experiments" class="button ghost" type="button">Frissítés</button></div>
             </div>
             <p class="agent-intro">Egy futás legalább két, külön exact avatarhoz kötött online player-agent autonóm ciklusát indítja párhuzamosan. A seed, a résztvevősorrend, a döntések és az indítás előtti/utáni közös gazdasági pillanatkép tartósan megmarad.</p>
+            <details class="agent-section" open>
+                <summary>Verziózott kísérleti paraméterprofilok</summary>
+                <p class="dialog-note">A profil változtathatatlan: módosításhoz új szemantikus verziót készíts. Ez reprodukálható bemenetet dokumentál; az engine csak a külön elkészített adaptereken keresztül alkalmazhatja az értékeket.</p>
+                <form id="experiment-parameter-profile-form" class="llm-settings-form">
+                    <div class="llm-form-grid">
+                        <label>Profilazonosító<input name="profileId" maxlength="64" value="economy.baseline" required></label>
+                        <label>Verzió<input name="version" maxlength="64" value="1.0.0" required></label>
+                        <label>Megnevezés<input name="label" maxlength="120" value="Első gazdasági baseline" required></label>
+                        <label>Eredet<select name="origin"><option value="manual">Kézi</option><option value="grid-search">Rácskeresés</option><option value="automated">Automatizált</option><option value="learning">Tanulásalapú</option></select></label>
+                    </div>
+                    <label>Leírás<input name="description" maxlength="500" value="Kézzel rögzített kiinduló paraméterek."></label>
+                    <label>Paraméterek (JSON)<textarea name="parameters" rows="10" spellcheck="false" required>{
+  "respawns": [{"targetKey":"loc:copper-rocks:varrock-east","ticks":100}],
+  "xpRewards": [{"activityKey":"mining:copper:varrock-east","multiplier":1}],
+  "marketPrices": [{"itemId":436,"itemName":"Copper ore","buyGp":3,"sellGp":1}],
+  "finishedProducts": [{"itemId":1205,"itemName":"Bronze dagger","valueGp":16}]
+}</textarea></label>
+                    <label>Indoklás az admin audithoz<input name="reason" maxlength="240" value="Új reprodukálható kísérleti paraméterverzió" required></label>
+                    <div class="llm-save-row"><span></span><button class="button primary" type="submit">Profil létrehozása</button></div>
+                </form>
+                <div id="experiment-parameter-profile-list" class="capability-gap-list scroll-region" role="region" aria-label="Kísérleti paraméterprofilok" tabindex="0"><p class="empty">Betöltés…</p></div>
+            </details>
             <form id="multi-agent-experiment-form" class="llm-settings-form">
                 <div class="llm-form-grid">
                     <label>Kísérlet neve<input name="label" maxlength="120" value="Első multi-agent kohorsz" required></label>
                     <label>Determinisztikus seed<input name="seed" maxlength="128" value="osrs-economy-phase12-001" required></label>
+                    <label>Paraméterprofil<select name="parameterProfile" required><option value="">Előbb hozz létre profilt…</option></select></label>
                 </div>
                 <label>Dispatch célja<textarea name="summary" maxlength="320" rows="3" required>Indíts egyetlen biztonságos, célvezérelt autonóm munkaciklust minden kiválasztott agentnél.</textarea></label>
                 <fieldset>

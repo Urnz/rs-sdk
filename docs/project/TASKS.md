@@ -525,6 +525,16 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 - [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti
   konfigurációként kezelni; előbb kézi/kereséses, később automatizált vagy
   tanulásalapú optimalizálással vizsgálni, egyetlen univerzális optimum ígérete nélkül.
+  - [x] Bounded, kanonikus, SHA-256 digestelt és `profileId@semver` szerint
+    változtathatatlan paraméterprofilt készíteni respawn-, XP-jutalom-, piaci ár-
+    és késztermékérték-listával, valamint manual/grid-search/automated/learning
+    provenance-szal.
+  - [x] Auditált admin API-t és felületet adni profil létrehozásához/listázásához,
+    az exact profilt minden új futásba bemásolni, és eltérő vagy sérült profildigest
+    esetén a kontroll–kezelés összehasonlítást fail-closed elutasítani.
+  - [ ] Paraméterkategóriánként ellenőrzött engine-adaptert készíteni, amely az
+    alkalmazott értéket visszaolvassa; profil alapján kontroll–kezelés futáspárt
+    indítani, majd kézi és rácskereséses kalibrációt összehasonlítani.
 
 ## 13. Fázis – bankrendszer, hitelek és vállalkozások
 

@@ -82,6 +82,9 @@ import { compareMultiAgentExperiments, MultiAgentExperimentStore, readMultiAgent
     startMultiAgentExperiment,
     type MultiAgentExperimentEnvironment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
+import { ExperimentParameterStore, type ExperimentParameterOrigin,
+    type ExperimentParameterSet } from './experiment-parameters.js';
+import { experimentParametersDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
 import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
     resolveEconomicContract, settleReadyEconomicContract } from './economic-contract-settlement.js';
@@ -301,6 +304,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             } finally { store.close(); }
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/experiment-parameter-profiles') {
+            const store = new ExperimentParameterStore(experimentParametersDbPath);
+            try {
+                return json({ profiles: store.list(Number(url.searchParams.get('limit') || 100)) });
+            } finally { store.close(); }
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/admin/llm-settings') {
             return json(await readAdminLlmSettings());
         }
@@ -502,6 +512,27 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const store = new BusinessManagerStore(businessManagerDbPath);
             try {
                 return json({ businesses: store.list(Number(url.searchParams.get('limit') || 100)) });
+            } finally { store.close(); }
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/experiment-parameter-profiles') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const store = new ExperimentParameterStore(experimentParametersDbPath);
+            try {
+                const profile = store.create({ profileId: text(body, 'profileId', true),
+                    version: text(body, 'version', true), label: text(body, 'label', true),
+                    description: text(body, 'description'),
+                    origin: oneOf(body.origin, ['manual', 'grid-search', 'automated', 'learning'] as const,
+                        'origin') as ExperimentParameterOrigin,
+                    parameters: body.parameters as ExperimentParameterSet });
+                await appendAudit({ operator: 'local-admin', action: 'experiment-parameter-profile.create', reason,
+                    success: true, after: profile });
+                return json({ ok: true, profile }, 201);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'experiment-parameter-profile.create', reason,
+                    success: false, error: String(error) });
+                throw error;
             } finally { store.close(); }
         }
 
@@ -1581,7 +1612,9 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 const initial = await listAdminAgents();
                 const gateways = context.gatewayBots();
                 const started = await startMultiAgentExperiment({ label: text(body, 'label', true),
-                    seed: text(body, 'seed', true), summary: text(body, 'summary', true), agentIds }, {
+                    seed: text(body, 'seed', true), summary: text(body, 'summary', true), agentIds,
+                    parameterProfileId: text(body, 'parameterProfileId', true),
+                    parameterProfileVersion: text(body, 'parameterProfileVersion', true) }, {
                     store, coordinator: context.replanCoordinator,
                     listCandidates: async () => initial.agents.map(agent => {
                         const avatar = agent.controlProfile.avatarPlayerUsername;
@@ -1613,12 +1646,21 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     economySnapshot: async () => economySnapshot(await catalog()),
                     goalSnapshots: async ids => readMultiAgentExperimentGoalSnapshots(ids),
                     goalEvents: async (ids, since, until) => readMultiAgentExperimentGoalEvents(ids, since, until),
+                    parameterProfile: async (profileId, version) => {
+                        const profiles = new ExperimentParameterStore(experimentParametersDbPath);
+                        try {
+                            const profile = profiles.get(profileId, version);
+                            if (!profile) throw new Error(`A kísérleti paraméterprofil nem található: ${profileId}@${version}`);
+                            return profile;
+                        } finally { profiles.close(); }
+                    },
                     worldModEnvironment: activeExperimentEnvironment
                 });
                 await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.start', reason,
                     success: true, after: { experimentId: started.run.experimentId,
                         definitionDigest: started.run.definitionDigest,
-                        environmentDigest: started.run.environmentDigest, agentIds } }).catch(() => undefined);
+                        environmentDigest: started.run.environmentDigest,
+                        parameterProfileDigest: started.run.parameterProfileDigest, agentIds } }).catch(() => undefined);
                 void started.completion.then(completed => appendAudit({ operator: 'system',
                     action: 'multi-agent-experiment.dispatched', reason: 'A háttérben futó dispatch lezárult; a futó skillek eredményeire várunk.',
                     success: completed.status !== 'failed', after: completed }))

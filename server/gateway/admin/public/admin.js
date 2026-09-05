@@ -20,6 +20,7 @@ const state = {
     llmSettings: null,
     llmReplans: [],
     multiAgentExperiments: [],
+    experimentParameterProfiles: [],
     economicOffers: [],
     economicContracts: [],
     businesses: [],
@@ -106,7 +107,7 @@ function selectAdminTab(tab) {
         panel.hidden = panel.dataset.adminTabPanel !== tab;
     });
     if (tab === 'experiments') void Promise.all([
-        refreshMultiAgentExperiments(), refreshEconomicContracts(), refreshBusinesses()
+        refreshMultiAgentExperiments(), refreshExperimentParameterProfiles(), refreshEconomicContracts(), refreshBusinesses()
     ])
         .catch(error => toast(error.message, true));
     if (tab === 'skills') void refreshSkillDrafts().catch(error => toast(error.message, true));
@@ -558,6 +559,26 @@ function renderMultiAgentCandidates() {
     </label>`).join('') : '<p class="empty">Még nincs kiválasztható player-agent.</p>';
 }
 
+function renderExperimentParameterProfiles(profiles) {
+    state.experimentParameterProfiles = profiles;
+    const container = $('#experiment-parameter-profile-list');
+    container.innerHTML = profiles.length ? profiles.map(profile => {
+        const counts = profile.parameters;
+        return `<article class="capability-gap-card"><div><strong>${escapeHtml(profile.label)}</strong><small>${escapeHtml(profile.profileId)}@${escapeHtml(profile.version)} · ${escapeHtml(profile.origin)} · ${new Date(profile.createdAt).toLocaleString('hu-HU')}</small></div>
+            <p>${escapeHtml(profile.description || 'Nincs leírás.')}</p>
+            <div class="capability-gap-meta"><span>${counts.respawns.length} respawn</span><span>${counts.xpRewards.length} XP</span><span>${counts.marketPrices.length} piaci ár</span><span>${counts.finishedProducts.length} késztermék</span><span>digest: ${escapeHtml(profile.digest.slice(0, 12))}</span></div></article>`;
+    }).join('') : '<p class="empty">Még nincs paraméterprofil. Kísérlet csak exact verzióval indítható.</p>';
+    const select = $('#multi-agent-experiment-form').elements.parameterProfile;
+    const previous = select.value;
+    select.innerHTML = '<option value="">Válassz profilt…</option>' + profiles.map(profile =>
+        `<option value="${escapeHtml(`${profile.profileId}@${profile.version}`)}">${escapeHtml(profile.label)} · ${escapeHtml(profile.profileId)}@${escapeHtml(profile.version)}</option>`).join('');
+    if (profiles.some(profile => `${profile.profileId}@${profile.version}` === previous)) select.value = previous;
+}
+
+async function refreshExperimentParameterProfiles() {
+    renderExperimentParameterProfiles((await api('/api/admin/experiment-parameter-profiles?limit=100')).profiles);
+}
+
 function renderEconomicOfferAgentOptions() {
     const form = $('#economic-offer-form');
     if (!form) return;
@@ -610,7 +631,7 @@ function renderMultiAgentExperiments(experiments) {
                 `<li><strong>+${bucket.minute}. perc</strong> · ${fmt.format(bucket.evidenceAgentIds.length)} evidence-agent · ${fmt.format(bucket.economicEvents)} gazdasági esemény · ${fmt.format(bucket.goalEvents || 0)} célesemény (${fmt.format(bucket.goalsCompleted || 0)} teljesült, ${fmt.format(bucket.goalsBlocked || 0)} elakadt, ${fmt.format(bucket.goalsAbandoned || 0)} elhagyott) · ${fmt.format(bucket.grossIncomeGp)} gp bevétel · ${fmt.format(bucket.grossSpendingGp)} gp kiadás · ${fmt.format(bucket.producedItems)} termelt · ${fmt.format(bucket.consumedItems)} felhasznált · ${fmt.format(bucket.newRegions)} új agent-régió</li>`).join('')}</ol></details>` : '';
         return `<article class="capability-gap-card ${escapeHtml(run.status)}">
             <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(statusLabel)}</small></div>
-            <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · definíció: ${escapeHtml(run.definitionDigest)} · world-mod: ${escapeHtml(run.environmentDigest || 'legacy')}</small></div>
+            <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · definíció: ${escapeHtml(run.definitionDigest)} · world-mod: ${escapeHtml(run.environmentDigest || 'legacy')} · paraméterprofil: ${run.parameterProfile ? `${escapeHtml(run.parameterProfile.profileId)}@${escapeHtml(run.parameterProfile.version)} (${escapeHtml(run.parameterProfileDigest?.slice(0, 12) || '')})` : 'legacy/nincs'}</small></div>
             <div class="capability-gap-meta"><span>${run.participants.length} agent</span><span>baseline: ${fmt.format(baseline.totalCoins)} gp / ${baseline.online} online</span>${dispatch ? `<span>dispatch után: ${fmt.format(dispatch.totalCoins)} gp / ${dispatch.online} online</span>` : '<span>dispatch folyamatban</span>'}</div>
             ${final && metrics ? `<div class="capability-gap-meta"><span>végeredmény: ${fmt.format(final.totalCoins)} gp</span><span>pénz: ${signed(metrics.totalCoinsDelta)} gp</span><span>XP: ${signed(metrics.totalXpDelta)}</span><span>${metrics.completedParticipants}/${run.participants.length} sikeres</span><span>${fmt.format(metrics.durationMs)} ms</span></div>` : ''}
             ${activityMetrics}
@@ -2518,19 +2539,39 @@ $('#reload-llm-replans').addEventListener('click', () => refreshLlmReplans()
     .then(() => toast('Az autonóm döntési napló frissítve.')).catch(error => toast(error.message, true)));
 $('#reload-multi-agent-experiments').addEventListener('click', () => refreshMultiAgentExperiments()
     .then(() => toast('A multi-agent futásnapló frissítve.')).catch(error => toast(error.message, true)));
+$('#experiment-parameter-profile-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+        let parameters;
+        try { parameters = JSON.parse(form.elements.parameters.value); }
+        catch { throw new Error('A paramétermező nem érvényes JSON.'); }
+        await api('/api/admin/experiment-parameter-profiles', { method: 'POST', mutation: true,
+            body: JSON.stringify({ profileId: form.elements.profileId.value, version: form.elements.version.value,
+                label: form.elements.label.value, description: form.elements.description.value,
+                origin: form.elements.origin.value, parameters, reason: form.elements.reason.value }) });
+        await refreshExperimentParameterProfiles();
+        toast('A változtathatatlan paraméterprofil elkészült.');
+    } finally { button.disabled = false; }
+});
 $('#multi-agent-experiment-form').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
     const agentIds = [...form.querySelectorAll('input[name="experimentAgentId"]:checked')]
         .map(input => input.value);
     if (agentIds.length < 2) { toast('Legalább két online player-agentet válassz.', true); return; }
+    const [parameterProfileId, parameterProfileVersion] = form.elements.parameterProfile.value.split('@');
+    if (!parameterProfileId || !parameterProfileVersion) { toast('Válassz exact paraméterprofilt.', true); return; }
     if (!confirm(`${agentIds.length} agent párhuzamos autonóm ciklusa indulhat el valódi skillekkel. Folytatod?`)) return;
     const button = $('#start-multi-agent-experiment');
     button.disabled = true;
     try {
         const response = await api('/api/admin/multi-agent-experiments', { method: 'POST', mutation: true,
             body: JSON.stringify({ label: form.elements.label.value, seed: form.elements.seed.value,
-                summary: form.elements.summary.value, reason: form.elements.reason.value, agentIds }) });
+                summary: form.elements.summary.value, reason: form.elements.reason.value, agentIds,
+                parameterProfileId, parameterProfileVersion }) });
         toast(`A kísérlet elindult: ${response.experiment.experimentId}.`);
         await refreshMultiAgentExperiments();
     } finally { button.disabled = false; }
@@ -2874,7 +2915,7 @@ const bootstrap = await Promise.all([
     api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
     api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles'),
     api('/api/admin/llm-replans?limit=100'), api('/api/admin/multi-agent-experiments?limit=50'),
-    api('/api/admin/skill-drafts')
+    api('/api/admin/skill-drafts'), api('/api/admin/experiment-parameter-profiles?limit=100')
 ]);
 state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
 renderLlmSettings(bootstrap[3]);
@@ -2884,6 +2925,7 @@ renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
 renderLlmReplans(bootstrap[8].records);
 renderMultiAgentExperiments(bootstrap[9].experiments);
 renderSkillDrafts(bootstrap[10].drafts);
+renderExperimentParameterProfiles(bootstrap[11].profiles);
 selectAdminTab('bots');
 await refresh();
 setInterval(refresh, state.config.refreshMs || 5000);

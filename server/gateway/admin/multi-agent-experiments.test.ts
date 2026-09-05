@@ -10,6 +10,7 @@ import { compareMultiAgentExperiments, MultiAgentExperimentStore, multiAgentExpe
 import type { EconomySnapshot } from './types.js';
 import { adminPublicDir } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
+import { validateExperimentParameterProfile } from './experiment-parameters.js';
 
 const directories: string[] = [];
 
@@ -41,6 +42,20 @@ function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvir
             enabled: true, config: { welcomeMessage: 'Varrock' } }
     ] };
 }
+
+function parameterProfile() {
+    return validateExperimentParameterProfile({ profileId: 'economy.baseline', version: '1.0.0',
+        label: 'Economy baseline', origin: 'manual', parameters: {
+            respawns: [{ targetKey: 'loc:copper-rocks:varrock-east', ticks: 100 }],
+            xpRewards: [{ activityKey: 'mining:copper:varrock-east', multiplier: 1 }],
+            marketPrices: [{ itemId: 436, itemName: 'Copper ore', buyGp: 3, sellGp: 1 }],
+            finishedProducts: [{ itemId: 1205, itemName: 'Bronze dagger', valueGp: 16 }]
+        } }, '2026-09-01T09:00:00.000Z');
+}
+
+const experimentInput = { label: 'Copper cohort', seed: 'world-42',
+    summary: 'Compare two miners.', agentIds: ['agent-a', 'agent-b'],
+    parameterProfileId: 'economy.baseline', parameterProfileVersion: '1.0.0' };
 
 function goalSnapshots(agentIds: readonly string[], completedAgentId?: string) {
     return Object.fromEntries(agentIds.map(agentId => [agentId, [{ goalId: `${agentId}.earn`, horizon: 'immediate' as const,
@@ -85,10 +100,8 @@ function skillRun(runId: string, username: string, status: AdminSkillRun['status
 
 describe('seeded multi-agent experiment definition', () => {
     test('is input-order independent while retaining a deterministic seeded dispatch order', () => {
-        const first = multiAgentExperimentDefinition({ label: 'Copper cohort', seed: 'world-42',
-            summary: 'Compare two miners.', agentIds: ['agent-b', 'agent-a'] });
-        const second = multiAgentExperimentDefinition({ label: 'Copper cohort', seed: 'world-42',
-            summary: 'Compare two miners.', agentIds: ['agent-a', 'agent-b'] });
+        const first = multiAgentExperimentDefinition({ ...experimentInput, agentIds: ['agent-b', 'agent-a'] });
+        const second = multiAgentExperimentDefinition(experimentInput);
         expect(first.digest).toBe(second.digest);
         expect(first.orderedAgentIds).toEqual(second.orderedAgentIds);
         expect(new Set(first.orderedAgentIds)).toEqual(new Set(['agent-a', 'agent-b']));
@@ -102,6 +115,8 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     ]);
     expect(html).toContain('data-tab="experiments"');
     expect(html).toContain('id="multi-agent-experiment-form"');
+    expect(html).toContain('id="experiment-parameter-profile-form"');
+    expect(script).toContain('/api/admin/experiment-parameter-profiles');
     expect(html).toContain('id="multi-agent-candidate-list"');
     expect(html).toContain('id="multi-agent-experiment-list"');
     expect(html).toContain('id="multi-agent-comparison-form"');
@@ -150,11 +165,12 @@ describe('persistent multi-agent experiment runner', () => {
         });
         let snapshotCalls = 0;
         let goalSnapshotCalls = 0;
-        const started = await startMultiAgentExperiment({ label: 'Copper cohort', seed: 'world-42',
-            summary: 'Start one bounded mining cycle for each agent.', agentIds: ['agent-a', 'agent-b'] }, {
+        const started = await startMultiAgentExperiment({ ...experimentInput,
+            summary: 'Start one bounded mining cycle for each agent.' }, {
             coordinator, store,
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
             worldModEnvironment: async () => experimentEnvironment(),
+            parameterProfile: async () => parameterProfile(),
             goalSnapshots: async ids => goalSnapshots(ids, goalSnapshotCalls++ === 0 ? undefined : 'agent-a'),
             goalEvents: async ids => goalEvents(ids, 'agent-a'),
             economySnapshot: async () => economy(`2026-09-01T10:00:0${snapshotCalls}.000Z`, 100 + snapshotCalls++ * 10)
@@ -163,6 +179,7 @@ describe('persistent multi-agent experiment runner', () => {
         expect(started.run.status).toBe('running');
         expect(started.run.environment.mods.find(mod => mod.id === 'economy.diminishing-xp')?.enabled).toBeFalse();
         expect(started.run.environmentDigest).toHaveLength(64);
+        expect(started.run.parameterProfileDigest).toBe(parameterProfile().digest);
         expect(started.run.participants.every(item => item.status === 'pending')).toBeTrue();
         const dispatched = await started.completion;
         expect(maximumActive).toBe(2);
@@ -256,6 +273,14 @@ describe('persistent multi-agent experiment runner', () => {
                     treatmentMinusControl: expect.objectContaining({ economicEvents: 0, grossIncomeGp: 0,
                         producedItems: 0, newRegions: -1, evidenceAgents: -1 }) })
             ] });
+        const differentProfile = JSON.parse(JSON.stringify(treatment)) as NonNullable<typeof completed>;
+        differentProfile.parameterProfile = validateExperimentParameterProfile({ ...parameterProfile(),
+            version: '1.0.1' }, '2026-09-01T09:00:00.000Z');
+        differentProfile.parameterProfileDigest = differentProfile.parameterProfile.digest;
+        expect(() => compareMultiAgentExperiments(completed!, differentProfile)).toThrow('same exact parameter');
+        const tamperedProfile = JSON.parse(JSON.stringify(treatment)) as NonNullable<typeof completed>;
+        tamperedProfile.parameterProfile!.parameters.respawns[0]!.ticks++;
+        expect(() => compareMultiAgentExperiments(completed!, tamperedProfile)).toThrow('digest is invalid');
         const tamperedBaseline = JSON.parse(JSON.stringify(treatment)) as NonNullable<typeof completed>;
         tamperedBaseline.participants[0]!.baselineAvatarDigest = 'different';
         expect(() => compareMultiAgentExperiments(completed!, tamperedBaseline)).toThrow('digest is invalid');
@@ -291,11 +316,12 @@ describe('persistent multi-agent experiment runner', () => {
         const dependencies = { coordinator, store,
             listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
             worldModEnvironment: async () => experimentEnvironment(),
+            parameterProfile: async () => parameterProfile(),
             goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids),
             goalEvents: async (ids: readonly string[]) => goalEvents(ids),
             economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 100) };
-        const started = await startMultiAgentExperiment({ label: 'Journal check', seed: 'seed',
-            summary: 'Require authoritative journals.', agentIds: ['agent-a', 'agent-b'] }, dependencies);
+        const started = await startMultiAgentExperiment({ ...experimentInput, label: 'Journal check', seed: 'seed',
+            summary: 'Require authoritative journals.' }, dependencies);
         const dispatched = await started.completion;
         for (const id of runIds) await reconcileMultiAgentExperimentSkillRun(id, null, true,
             'Process exited with code 0 but journal is absent.', dependencies);
@@ -315,23 +341,20 @@ describe('persistent multi-agent experiment runner', () => {
             append: () => undefined });
         const dependencies = { coordinator, store,
             worldModEnvironment: async () => experimentEnvironment(),
+            parameterProfile: async () => parameterProfile(),
             goalSnapshots: async (ids: readonly string[]) => goalSnapshots(ids),
             goalEvents: async (ids: readonly string[]) => goalEvents(ids),
             economySnapshot: async () => economy('2026-09-01T10:00:00.000Z', 0) };
-        await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Duplicate avatar test.',
-            agentIds: ['agent-a', 'agent-b'] }, { ...dependencies,
+        await expect(startMultiAgentExperiment({ ...experimentInput, label: 'Invalid', seed: 'seed', summary: 'Duplicate avatar test.' }, { ...dependencies,
             listCandidates: async () => [candidate('agent-a', 'same-player'), candidate('agent-b', 'same-player')] }))
             .rejects.toThrow('cannot share avatar');
-        await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Offline test.',
-            agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
+        await expect(startMultiAgentExperiment({ ...experimentInput, label: 'Invalid', seed: 'seed', summary: 'Offline test.' }, { ...dependencies, listCandidates: async () => [
             candidate('agent-a'), { ...candidate('agent-b'), onlineFresh: false }] }))
             .rejects.toThrow('fresh online');
-        await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Position test.',
-            agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
+        await expect(startMultiAgentExperiment({ ...experimentInput, label: 'Invalid', seed: 'seed', summary: 'Position test.' }, { ...dependencies, listCandidates: async () => [
             candidate('agent-a'), { ...candidate('agent-b'), avatarBaseline: null }] }))
             .rejects.toThrow('avatar baseline');
-        await expect(startMultiAgentExperiment({ label: 'Invalid', seed: 'seed', summary: 'Institution test.',
-            agentIds: ['agent-a', 'agent-b'] }, { ...dependencies, listCandidates: async () => [
+        await expect(startMultiAgentExperiment({ ...experimentInput, label: 'Invalid', seed: 'seed', summary: 'Institution test.' }, { ...dependencies, listCandidates: async () => [
             candidate('agent-a'), { ...candidate('agent-b'), role: 'institution', subjectKind: 'business',
                 identityPlayerUsername: null, avatarPlayerUsername: null }] }))
             .rejects.toThrow('exact player-avatar');
