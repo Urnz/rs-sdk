@@ -101,6 +101,22 @@ describe('world mod registry and state', () => {
         } })).toThrow('piaci árlista');
     });
 
+    test('validates experiment finished-product capital values independently from shop prices', async () => {
+        const products = (await loadWorldModManifests()).find(entry => entry.id === 'experiment.finished-product-valuation');
+        expect(products).toBeDefined();
+        const defaults = Object.fromEntries(products!.settings.map(setting => [setting.key, setting.default]));
+        expect(validateWorldModEntry(products!, { enabled: false, config: defaults })).toMatchObject({ enabled: false });
+        expect(() => validateWorldModEntry(products!, { enabled: true, config: defaults })).toThrow('készterméklista');
+        expect(validateWorldModEntry(products!, { enabled: true, config: {
+            ...defaults, profileDigest: 'a'.repeat(64),
+            productsJson: '[{"itemId":1205,"itemName":"Bronze dagger","valueGp":0}]'
+        } })).toMatchObject({ enabled: true });
+        expect(() => validateWorldModEntry(products!, { enabled: true, config: {
+            ...defaults, profileDigest: 'a'.repeat(64),
+            productsJson: '[{"itemId":1205,"itemName":"Bronze dagger","valueGp":-1}]'
+        } })).toThrow('készterméklista');
+    });
+
     test('serializes concurrent writes so the same revision cannot win twice', async () => {
         const { manifestPath, statePath } = await fixture();
         const results = await Promise.allSettled([

@@ -264,7 +264,7 @@ export function economySnapshot(entries: BotCatalogEntry[]): EconomySnapshot {
         totalXpPerHour: entries.reduce((sum, entry) => sum + (entry.xpPerHour ?? 0), 0),
         averageTotalLevel: entries.length === 0 ? 0 : Math.round(entries.reduce((sum, entry) => sum + entry.totalLevel, 0) / entries.length),
         itemStock: [...stock.entries()].map(([id, item]) => ({ id, ...item }))
-            .sort((left, right) => right.count - left.count).slice(0, 20)
+            .sort((left, right) => right.count - left.count || left.id - right.id).slice(0, 2_000)
     };
 }
 

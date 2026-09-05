@@ -546,8 +546,9 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       árkijelzésébe és tranzakciójába kötni két célzott RuneScript opcode-pal;
       null irány esetén vanilla fallbackkel, saját metrikával és exact aktív
       profil-visszaolvasással.
-    - [ ] A késztermékérték külön domainadapterét elkészíteni, aktív
-      érték-visszaolvasással.
+    - [x] A késztermékértéket külön, gameplay-áraktól független hot-reload
+      domainadapterként alkalmazni; exact aktív profil-visszaolvasással, valamint
+      létrejött, elfogyott és nettó termelőtőke-érték futásvégi metrikával.
     - [ ] Exact alkalmazott profilokkal kontroll–kezelés futáspárt indítani, majd
       kézi és rácskereséses kalibráció eredményét összehasonlítani.
 

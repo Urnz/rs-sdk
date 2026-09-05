@@ -575,7 +575,10 @@ function renderExperimentParameterProfiles(profiles) {
                 ${counts.respawns.length ? '' : 'disabled'}>Respawnprofil alkalmazása</button>
                 <button type="button" class="button ghost" data-action="experiment-profile-apply-market"
                 data-profile-id="${escapeHtml(profile.profileId)}" data-profile-version="${escapeHtml(profile.version)}"
-                ${counts.marketPrices.length ? '' : 'disabled'}>Piaci árprofil alkalmazása</button></div></article>`;
+                ${counts.marketPrices.length ? '' : 'disabled'}>Piaci árprofil alkalmazása</button>
+                <button type="button" class="button ghost" data-action="experiment-profile-apply-finished-products"
+                data-profile-id="${escapeHtml(profile.profileId)}" data-profile-version="${escapeHtml(profile.version)}"
+                ${counts.finishedProducts.length ? '' : 'disabled'}>Késztermékérték-profil alkalmazása</button></div></article>`;
     }).join('') : '<p class="empty">Még nincs paraméterprofil. Kísérlet csak exact verzióval indítható.</p>';
     const select = $('#multi-agent-experiment-form').elements.parameterProfile;
     const previous = select.value;
@@ -635,6 +638,12 @@ function renderMultiAgentExperiments(experiments) {
         const marketPrices = metrics?.marketPrices?.length
             ? `<details><summary>Megfigyelt piaci árak (${metrics.marketPrices.length})</summary><ul>${metrics.marketPrices.map(item =>
                 `<li>${item.side === 'buy' ? 'Vétel' : 'Eladás'} · ${escapeHtml(item.itemName)}${item.itemId === null ? '' : ` (#${item.itemId})`}: ${item.weightedAverageUnitPrice.toLocaleString('hu-HU')} gp/db · ${fmt.format(item.quantity)} db / ${fmt.format(item.transactions)} tranzakció</li>`).join('')}</ul></details>` : '';
+        const finishedProductValuation = metrics?.finishedProductValuation;
+        const finishedProductValues = finishedProductValuation
+            ? `<details><summary>Késztermék-tőkeérték (${signed(finishedProductValuation.netValueDeltaGp)} gp)</summary>
+                <div class="capability-gap-meta"><span>létrejött: ${fmt.format(finishedProductValuation.grossProducedValueGp)} gp</span><span>elfogyott: ${fmt.format(finishedProductValuation.grossConsumedValueGp)} gp</span><span>nettó: ${signed(finishedProductValuation.netValueDeltaGp)} gp</span><span>profil: ${escapeHtml(finishedProductValuation.profileId)}@${escapeHtml(finishedProductValuation.profileVersion)} (${escapeHtml(finishedProductValuation.profileDigest.slice(0, 12))})</span></div>
+                ${finishedProductValuation.products.length ? `<ul>${finishedProductValuation.products.map(item =>
+                    `<li>${escapeHtml(item.itemName)} (#${item.itemId}): ${signed(item.countDelta)} db × ${fmt.format(item.unitValueGp)} gp = ${signed(item.valueDeltaGp)} gp</li>`).join('')}</ul>` : '<p class="empty">Nem változott profilban értékelt késztermék készlete.</p>'}</details>` : '';
         const activityTimeline = metrics?.activityTimeline?.length
             ? `<details><summary>Aktivitási idősor (${metrics.activityTimeline.length} perc-bucket)</summary><ol>${metrics.activityTimeline.map(bucket =>
                 `<li><strong>+${bucket.minute}. perc</strong> · ${fmt.format(bucket.evidenceAgentIds.length)} evidence-agent · ${fmt.format(bucket.economicEvents)} gazdasági esemény · ${fmt.format(bucket.goalEvents || 0)} célesemény (${fmt.format(bucket.goalsCompleted || 0)} teljesült, ${fmt.format(bucket.goalsBlocked || 0)} elakadt, ${fmt.format(bucket.goalsAbandoned || 0)} elhagyott) · ${fmt.format(bucket.grossIncomeGp)} gp bevétel · ${fmt.format(bucket.grossSpendingGp)} gp kiadás · ${fmt.format(bucket.producedItems)} termelt · ${fmt.format(bucket.consumedItems)} felhasznált · ${fmt.format(bucket.newRegions)} új agent-régió</li>`).join('')}</ol></details>` : '';
@@ -647,6 +656,7 @@ function renderMultiAgentExperiments(experiments) {
             <details><summary>Agentenkénti eredmények</summary><ol class="experiment-participants">${participants}</ol></details>
             ${skillRuns}
             ${marketPrices}
+            ${finishedProductValues}
             ${activityTimeline}
             ${itemDeltas}
             ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
@@ -1755,6 +1765,20 @@ document.addEventListener('click', async event => {
                     method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
                 });
                 toast(`A piaci árprofil aktív és visszaolvasva (engine revízió: ${result.activeRevision}).`);
+            } finally { button.disabled = false; }
+        }
+        if (button.dataset.action === 'experiment-profile-apply-finished-products') {
+            const profileId = button.dataset.profileId;
+            const version = button.dataset.profileVersion;
+            const reason = prompt('A késztermékérték-profil alkalmazásának indoklása:', `Kísérleti késztermékérték-profil alkalmazása: ${profileId}@${version}`);
+            if (!reason?.trim()) return;
+            if (!confirm(`${profileId}@${version} késztermékértékei hot reloaddal bekerülnek az élő kísérleti környezetbe. Folytatod?`)) return;
+            button.disabled = true;
+            try {
+                const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-finished-products`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
+                });
+                toast(`A késztermékérték-profil aktív és visszaolvasva (engine revízió: ${result.activeRevision}).`);
             } finally { button.disabled = false; }
         }
         if (button.dataset.action === 'property-purchase') {

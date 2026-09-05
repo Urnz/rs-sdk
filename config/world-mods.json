@@ -154,6 +154,60 @@
       ]
     },
     {
+      "id": "experiment.finished-product-valuation",
+      "name": "Kísérleti késztermékértékelés",
+      "version": "1.0.0",
+      "dataSchemaVersion": 1,
+      "category": "experiment",
+      "description": "Egy exact verziózott kísérleti profil alapján külön méri a késztermékkészlet termelőtőke-értékének változását.",
+      "activation": "hot-reload",
+      "disablePolicy": {
+        "mode": "stateless",
+        "description": "Kikapcsolva a játék változatlanul működik, de az új kísérletek nem kapnak késztermékérték-metrikát."
+      },
+      "hooks": ["experiment.finished-product-valuation"],
+      "dependencies": [],
+      "conflicts": [],
+      "settings": [
+        {
+          "key": "profileId",
+          "label": "Forrásprofil azonosító",
+          "type": "string",
+          "default": "economy.baseline",
+          "minimum": 3,
+          "maximum": 64,
+          "description": "Az alkalmazott változtathatatlan paraméterprofil azonosítója."
+        },
+        {
+          "key": "profileVersion",
+          "label": "Forrásprofil verzió",
+          "type": "string",
+          "default": "1.0.0",
+          "minimum": 5,
+          "maximum": 64,
+          "description": "Az alkalmazott profil exact szemantikus verziója."
+        },
+        {
+          "key": "profileDigest",
+          "label": "Forrásprofil SHA-256",
+          "type": "string",
+          "default": "0000000000000000000000000000000000000000000000000000000000000000",
+          "minimum": 64,
+          "maximum": 64,
+          "description": "A teljes forrásprofil integritását azonosító digest."
+        },
+        {
+          "key": "productsJson",
+          "label": "Késztermékértékek (JSON)",
+          "type": "string",
+          "default": "[]",
+          "minimum": 2,
+          "maximum": 262144,
+          "description": "Az adapter által validált itemId, itemName és valueGp lista; profilból alkalmazd."
+        }
+      ]
+    },
+    {
       "id": "experiment.respawn-calibration",
       "name": "Kísérleti respawn-kalibráció",
       "version": "1.0.0",

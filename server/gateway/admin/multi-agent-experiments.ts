@@ -12,6 +12,8 @@ import type { AdminSkillRun } from './skill-history.js';
 import { extractEconomyEvents, summarizeEconomyEvents,
     summarizeMarketCoinFlow, summarizeMarketPrices, type EconomyEventSummary,
     type EconomyEvent, type MarketPriceObservation } from './transaction-telemetry.js';
+import { evaluateExperimentFinishedProducts,
+    type ExperimentFinishedProductValuation } from './experiment-finished-product-adapter.js';
 
 export type MultiAgentExperimentStatus = 'running' | 'completed' | 'completed-with-errors' | 'failed';
 
@@ -138,6 +140,7 @@ export interface MultiAgentExperimentMetrics {
     grossIncomeGp: number;
     grossSpendingGp: number;
     marketPrices: MarketPriceObservation[];
+    finishedProductValuation: ExperimentFinishedProductValuation | null;
     uniqueSkills: number;
     skillConcentration: number;
     skillRuns: Array<{ skillId: string; runs: number }>;
@@ -782,6 +785,9 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
     });
     const economicEvents = participantResults.flatMap(item => item.events);
     const marketCoinFlow = summarizeMarketCoinFlow(economicEvents);
+    const finishedProductValuation = run.parameterProfile
+        ? evaluateExperimentFinishedProducts(run.parameterProfile, run.environment, run.baselineEconomy, finalEconomy)
+        : null;
     const results = participantResults.map(item => item.result);
     const skillRuns = [...skillCounts].map(([skillId, runs]) => ({ skillId, runs }))
         .sort((left, right) => right.runs - left.runs || left.skillId.localeCompare(right.skillId));
@@ -799,6 +805,7 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         economicEventSummary: summarizeEconomyEvents(economicEvents),
         grossIncomeGp: marketCoinFlow.grossIncomeGp, grossSpendingGp: marketCoinFlow.grossSpendingGp,
         marketPrices: summarizeMarketPrices(economicEvents),
+        finishedProductValuation,
         uniqueSkills: skillRuns.length, skillConcentration, skillRuns,
         uniqueTargets: new Set(results.flatMap(item => item.targets)).size,
         uniqueRegions: new Set(results.flatMap(item => item.regions)).size,

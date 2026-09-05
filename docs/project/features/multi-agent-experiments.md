@@ -148,6 +148,26 @@ a vanilla fallbackeket. Ezek árlekérdezések, nem tranzakciószámlálók, mer
 több darab vásárlásakor vagy eladásakor darabonként újraszámolja az árat. A valódi
 tranzakciók továbbra is a gazdasági eseménynapló hiteles shop eseményeiben mérhetők.
 
+### Késztermékérték-adapter
+
+Az admin profilkártyájának **Késztermékérték-profil alkalmazása** gombja a
+`finishedProducts` listát az alapból kikapcsolt
+`experiment.finished-product-valuation` hot-reload modba írja. Backup és audit
+után csak az engine-ből visszaolvasott exact profilazonosító, verzió, teljes
+profildigest és terméklista egyezésekor jelez sikert.
+
+Ez az érték szándékosan nem itemár: nem módosítja a cache `cost` mezőjét, a
+shopokat, az alkímiát, a halálkori item-megőrzést vagy a tényleges GP-egyenleget.
+A multi-agent kísérlet a futáskor rögzített aktív modból és a kiválasztott exact
+profilból értékeli a baseline és a végső teljes, legfeljebb 2000 különböző itemet
+tartalmazó készletsnapshot különbségét. Külön közli a létrejött, az elfogyott és a
+nettó termelőtőke-értéket, valamint az itemenkénti darab- és GP-deltát.
+
+A kikapcsolt adapter `null`/nem elérhető metrikát ad, nem hamis nullás eredményt.
+Ha az aktív mod provenance-e nem egyezik a futáshoz választott profillal, a mérés
+fail-closed hibával megáll. A nulla `valueGp` érvényes kísérleti érték. Az adapter
+kikapcsolása semmilyen játékállapotot nem módosít vagy töröl.
+
 A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 
 - a definíciót, seedet, digestet és státuszt;

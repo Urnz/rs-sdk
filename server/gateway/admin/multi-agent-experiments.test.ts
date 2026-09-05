@@ -20,7 +20,8 @@ afterEach(async () => {
 
 function economy(timestamp: string, coins: number): EconomySnapshot {
     return { timestamp, bots: 2, online: 2, totalCoins: coins, totalXp: 2000,
-        sessionXpGained: 0, totalXpPerHour: 0, averageTotalLevel: 10, itemStock: [] };
+        sessionXpGained: 0, totalXpPerHour: 0, averageTotalLevel: 10,
+        itemStock: [{ id: 1205, name: 'Bronze dagger', count: coins >= 120 ? 5 : 2 }] };
 }
 
 function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandidate {
@@ -35,9 +36,14 @@ function candidate(agentId: string, avatar = agentId): MultiAgentExperimentCandi
 }
 
 function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvironment {
+    const profile = parameterProfile();
     return { schemaVersion: 1, activeRevision: 7, capturedAt: '2026-09-01T09:59:59.000Z', mods: [
         { id: 'economy.diminishing-xp', version: '1.0.0', dataSchemaVersion: 1,
             enabled: diminishingXp, config: { recoveryMinutes: 30, minimumMultiplier: 0.2 } },
+        { id: 'experiment.finished-product-valuation', version: '1.0.0', dataSchemaVersion: 1,
+            enabled: true, config: { profileId: profile.profileId, profileVersion: profile.version,
+                profileDigest: profile.digest,
+                productsJson: JSON.stringify(profile.parameters.finishedProducts) } },
         { id: 'property.ownership', version: '1.0.0', dataSchemaVersion: 1,
             enabled: true, config: { welcomeMessage: 'Varrock' } }
     ] };
@@ -122,12 +128,15 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('/apply-respawn');
     expect(script).toContain('data-action="experiment-profile-apply-market"');
     expect(script).toContain('/apply-market');
+    expect(script).toContain('data-action="experiment-profile-apply-finished-products"');
+    expect(script).toContain('/apply-finished-products');
     expect(html).toContain('id="multi-agent-candidate-list"');
     expect(html).toContain('id="multi-agent-experiment-list"');
     expect(html).toContain('id="multi-agent-comparison-form"');
     expect(script).toContain('/api/admin/multi-agent-experiments');
     expect(script).toContain('input[name="experimentAgentId"]:checked');
     expect(script).toContain('metrics.economicEventSummary.producedItems');
+    expect(script).toContain('metrics?.finishedProductValuation');
     expect(script).toContain('metrics.skillConcentration');
     expect(script).toContain('metrics?.participantResults');
     expect(script).toContain('metrics.uniqueTargets');
@@ -220,6 +229,9 @@ describe('persistent multi-agent experiment runner', () => {
             completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 63_000,
             economicEvents: 3, economicEventSummary: { producedItems: 2, shopTransactions: 1, netCoins: 10 },
             grossIncomeGp: 10, grossSpendingGp: 0,
+            finishedProductValuation: { grossProducedValueGp: 48, grossConsumedValueGp: 0,
+                netValueDeltaGp: 48, products: [{ itemId: 1205, itemName: 'Bronze dagger',
+                    unitValueGp: 16, countDelta: 3, valueDeltaGp: 48 }] },
             marketPrices: [{ side: 'sell', itemId: 436, itemName: 'Copper ore', quantity: 1,
                 totalCoins: 10, weightedAverageUnitPrice: 10, transactions: 1 }],
             uniqueSkills: 2, skillConcentration: 0.5,

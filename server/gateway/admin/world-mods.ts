@@ -216,6 +216,26 @@ const PLAYER_SKILLS = new Set([
 ]);
 
 function validateModSpecificConfig(manifest: WorldModManifest, config: Record<string, boolean | number | string>, enabled: boolean): void {
+    if (manifest.id === 'experiment.finished-product-valuation') {
+        if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(String(config.profileId))) throw new Error('Érvénytelen késztermék-profilazonosító.');
+        if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(String(config.profileVersion))) throw new Error('Érvénytelen késztermék-profilverzió.');
+        if (!/^[a-f0-9]{64}$/.test(String(config.profileDigest))) throw new Error('Érvénytelen késztermék-profildigest.');
+        let products: unknown;
+        try { products = JSON.parse(String(config.productsJson)) as unknown; }
+        catch { throw new Error('A késztermékértékek nem érvényes JSON-adatok.'); }
+        const seen = new Set<number>();
+        if (!Array.isArray(products) || (enabled && products.length === 0) || products.length > 2_000
+            || products.some(entry => {
+                if (!isRecord(entry) || !Number.isSafeInteger(entry.itemId) || Number(entry.itemId) < 0
+                    || Number(entry.itemId) > 65_535 || seen.has(Number(entry.itemId))
+                    || typeof entry.itemName !== 'string' || !entry.itemName.trim()
+                    || entry.itemName.trim().length > 100 || !Number.isSafeInteger(entry.valueGp)
+                    || Number(entry.valueGp) < 0 || Number(entry.valueGp) > 2_147_483_647) return true;
+                seen.add(Number(entry.itemId));
+                return false;
+            })) throw new Error('A készterméklista üres, ismétlődő vagy érvénytelen itemet/értéket tartalmaz.');
+        return;
+    }
     if (manifest.id === 'experiment.market-calibration') {
         if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(String(config.profileId))) throw new Error('Érvénytelen piaciár-profilazonosító.');
         if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(String(config.profileVersion))) throw new Error('Érvénytelen piaciár-profilverzió.');
