@@ -535,6 +535,14 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [ ] Paraméterkategóriánként ellenőrzött engine-adaptert készíteni, amely az
     alkalmazott értéket visszaolvassa; profil alapján kontroll–kezelés futáspárt
     indítani, majd kézi és rácskereséses kalibrációt összehasonlítani.
+    - [x] Első kategóriaadapterként az exact profil XP-szorzóit külön hot-reload
+      world modba alkalmazni; az engine-ben selector-prioritással, saját metrikával
+      és a diminishing XP előtt futtatni, majd az aktív profil ID/verzió/digest és
+      konfiguráció exact visszaolvasását megkövetelni.
+    - [ ] A respawnidők, piaci árak és késztermékértékek külön domainadaptereit
+      elkészíteni, aktív érték-visszaolvasással.
+    - [ ] Exact alkalmazott profilokkal kontroll–kezelés futáspárt indítani, majd
+      kézi és rácskereséses kalibráció eredményét összehasonlítani.
 
 ## 13. Fázis – bankrendszer, hitelek és vállalkozások
 

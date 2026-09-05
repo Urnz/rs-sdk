@@ -124,6 +124,65 @@ describe('world mod hot reload lifecycle', () => {
         });
     });
 
+    test('applies profile calibration before diminishing XP and exposes separate evidence', () => {
+        const diminishingConfig = {
+            affectedSkills: 'FISHING', regionSize: 64, recoveryMinutes: 60,
+            tier2At: 5, tier3At: 15, tier4At: 30, tier5At: 60,
+            multiplier2: 0.9, multiplier3: 0.7, multiplier4: 0.4, multiplier5: 0.15
+        };
+        const active = snapshot({
+            'experiment.xp-calibration': {
+                enabled: true, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 2,
+                config: { profileId: 'economy.baseline', profileVersion: '1.0.0', profileDigest: 'a'.repeat(64),
+                    rewardsJson: '[{"activityKey":"skill:fishing","multiplier":1.5}]' }
+            },
+            'economy.diminishing-xp': {
+                enabled: true, config: diminishingConfig, version: '1.0.0', dataSchemaVersion: 1,
+                activation: 'hot-reload', appliedRevision: 2
+            }
+        });
+        active.metrics['experiment.xp-calibration']!.counters = {};
+        active.metrics['economy.diminishing-xp']!.counters = {};
+        const granted = runWorldModXpAwardHook(active, { username: 'Ferry14' }, 'FISHING', 100, {
+            script: 'fishing', targetKind: 'npc', targetId: 316, x: 2924, z: 3179, level: 0
+        }, {
+            award: (_username, _skill, _context, calibratedBaseXp) => ({
+                activityKey: 'key', baseXp: calibratedBaseXp, grantedXp: Math.round(calibratedBaseXp * 0.7),
+                multiplier: 0.7, repetitionScore: 15, nextRecoveryAt: new Date(0).toISOString()
+            }),
+            summary: () => ({ playersTracked: 1, activitiesTracked: 1 })
+        });
+        expect(granted).toBe(105);
+        expect(active.metrics['experiment.xp-calibration']!.counters).toMatchObject({
+            baseXp: 100, grantedXp: 150, adjustedXp: 50, matchedAwards: 1, unmatchedAwards: 0
+        });
+        expect(active.metrics['economy.diminishing-xp']!.counters).toMatchObject({ baseXp: 150, grantedXp: 105 });
+    });
+
+    test('fails open from invalid calibration while still running diminishing XP', () => {
+        const active = snapshot({
+            'experiment.xp-calibration': {
+                enabled: true, config: {}, version: '1.0.0', dataSchemaVersion: 1,
+                activation: 'hot-reload', appliedRevision: 1
+            },
+            'economy.diminishing-xp': {
+                enabled: true, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 1,
+                config: { affectedSkills: 'FISHING', regionSize: 64, recoveryMinutes: 60,
+                    tier2At: 5, tier3At: 15, tier4At: 30, tier5At: 60,
+                    multiplier2: 0.9, multiplier3: 0.7, multiplier4: 0.4, multiplier5: 0.15 }
+            }
+        });
+        const granted = runWorldModXpAwardHook(active, { username: 'Ferry14' }, 'FISHING', 100, {
+            script: 'fishing', targetKind: 'npc', targetId: 316, x: 2924, z: 3179, level: 0
+        }, {
+            award: () => ({ activityKey: 'key', baseXp: 100, grantedXp: 70, multiplier: 0.7,
+                repetitionScore: 15, nextRecoveryAt: new Date(0).toISOString() }),
+            summary: () => ({ playersTracked: 1, activitiesTracked: 1 })
+        });
+        expect(granted).toBe(70);
+        expect(active.metrics['experiment.xp-calibration']).toMatchObject({ status: 'error', hookErrors: 1 });
+    });
+
     test('fails open to the original XP award when diminishing configuration is invalid', () => {
         const active = snapshot({
             'economy.diminishing-xp': {

@@ -206,7 +206,7 @@ export function validateWorldModEntry(manifest: WorldModManifest, value: unknown
             validateSetting(setting, requestedConfig[setting.key] ?? setting.default)
         ]))
     };
-    validateModSpecificConfig(manifest, entry.config);
+    validateModSpecificConfig(manifest, entry.config, entry.enabled);
     return entry;
 }
 
@@ -215,7 +215,25 @@ const PLAYER_SKILLS = new Set([
     'FLETCHING', 'FISHING', 'FIREMAKING', 'CRAFTING', 'SMITHING', 'MINING', 'HERBLORE', 'AGILITY', 'THIEVING', 'RUNECRAFT'
 ]);
 
-function validateModSpecificConfig(manifest: WorldModManifest, config: Record<string, boolean | number | string>): void {
+function validateModSpecificConfig(manifest: WorldModManifest, config: Record<string, boolean | number | string>, enabled: boolean): void {
+    if (manifest.id === 'experiment.xp-calibration') {
+        if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(String(config.profileId))) throw new Error('Érvénytelen XP-profilazonosító.');
+        if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(String(config.profileVersion))) throw new Error('Érvénytelen XP-profilverzió.');
+        if (!/^[a-f0-9]{64}$/.test(String(config.profileDigest))) throw new Error('Érvénytelen XP-profildigest.');
+        let rewards: unknown;
+        try { rewards = JSON.parse(String(config.rewardsJson)) as unknown; }
+        catch { throw new Error('Az XP-szorzók nem érvényes JSON-adatok.'); }
+        const selector = /^(?:all|skill:[a-z]+|script:[a-z0-9_.-]+|target:(?:loc|npc|obj|none):(?:\d+|none)|activity:[a-z0-9_.:/-]+)$/;
+        const seen = new Set<string>();
+        if (!Array.isArray(rewards) || (enabled && rewards.length === 0) || rewards.length > 500 || rewards.some(entry => {
+            if (!isRecord(entry) || typeof entry.activityKey !== 'string' || typeof entry.multiplier !== 'number') return true;
+            const key = entry.activityKey.trim().toLowerCase();
+            if (!selector.test(key) || seen.has(key) || !Number.isFinite(entry.multiplier) || entry.multiplier < 0 || entry.multiplier > 10) return true;
+            seen.add(key);
+            return false;
+        })) throw new Error('Az XP-szorzólista üres, ismétlődő vagy érvénytelen selectort/szorzót tartalmaz.');
+        return;
+    }
     if (manifest.id !== 'economy.diminishing-xp') return;
     const skills = String(config.affectedSkills).split(',').map(value => value.trim().toUpperCase()).filter(Boolean);
     const unknownSkills = skills.filter(skill => !PLAYER_SKILLS.has(skill));

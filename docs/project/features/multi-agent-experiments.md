@@ -60,11 +60,38 @@ teljes profilt és digestjét saját SQLite rekordjába másolja, ezért a kés�
 visszajátszás nem függ egy változó „aktuális” konfigurációtól. Kontroll–kezelés
 összehasonlítás csak azonos, sértetlen profildigesttel engedélyezett.
 
-Ez a réteg egyelőre reprodukálható kísérleti bemenet és provenance, nem általános
-engine-konfigurációs kerülőút. Az egyes paraméterkategóriákat külön, ellenőrzött
-adapternek kell majd a tényleges engine-be alkalmaznia és visszaolvasnia. Addig a
-profil nem bizonyítja önmagában, hogy egy érték aktív a játékvilágban; ezt továbbra
-is az engine/world-mod snapshot igazolja.
+Ez a réteg reprodukálható kísérleti bemenet és provenance, nem általános
+engine-konfigurációs kerülőút. Az első konkrét kategóriaadapter az XP-jutalmakhoz
+elkészült; a respawn-, ár- és késztermékérték-lista továbbra sem módosítja magától
+a játékvilágot. Egy profil létezése önmagában továbbra sem bizonyít aktív értéket:
+ezt az engine-ből visszaolvasott world-mod snapshot igazolja.
+
+### XP-kalibrációs adapter
+
+Az admin profilkártyájának **XP-profil alkalmazása** gombja az exact profil
+XP-listáját az alapból kikapcsolt `experiment.xp-calibration` hot-reload modba
+írja. A művelet automatikus konfigurációmentést készít, aktiválja a modot, hot
+reloadot kér, majd az engine aktív állapotából visszaolvassa a profilazonosítót,
+verziót, teljes profildigestet és az XP-listát. Csak teljes egyezésnél sikeres; az
+alkalmazás külön admin auditbejegyzést kap.
+
+Az `activityKey` nem szabad szöveg az adapterben, hanem az alábbi selectorok
+egyike. A felsorolás egyben a prioritás, tehát a legkonkrétabb találat nyer:
+
+- `activity:<skill>/<script>/<target-kind>/<target-id>/<level>/<x>/<z>` – exact
+  aktivitás és mező, például
+  `activity:fishing/fishing-spot/npc/316/0/2924/3179`;
+- `target:npc:316`, `target:loc:2090` vagy a megfelelő más targettípus;
+- `script:fishing-spot` – normalizált engine scriptnév;
+- `skill:mining` – minden, az adott skillhez tartozó XP-jutalom;
+- `all` – végső globális fallback.
+
+Ha egyik selector sem illeszkedik, az XP változatlan. Találatnál az engine a
+profil szorzójával kalibrálja az alap XP-t, és csak ezután futtatja az opcionális
+`economy.diminishing-xp` modot. A két hatás külön runtime számlálókat kap. Hibás
+kalibrációs konfiguráció fail-open módon az eredeti XP-vel folytatja a diminishing
+hookot, ezért az adapterhibából nem lesz elveszett jutalom. A mod kikapcsolása
+azonnal visszaállítja az eredeti XP-folyamot, tartós gameplay-adatot nem töröl.
 
 A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 

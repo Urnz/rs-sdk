@@ -566,7 +566,10 @@ function renderExperimentParameterProfiles(profiles) {
         const counts = profile.parameters;
         return `<article class="capability-gap-card"><div><strong>${escapeHtml(profile.label)}</strong><small>${escapeHtml(profile.profileId)}@${escapeHtml(profile.version)} · ${escapeHtml(profile.origin)} · ${new Date(profile.createdAt).toLocaleString('hu-HU')}</small></div>
             <p>${escapeHtml(profile.description || 'Nincs leírás.')}</p>
-            <div class="capability-gap-meta"><span>${counts.respawns.length} respawn</span><span>${counts.xpRewards.length} XP</span><span>${counts.marketPrices.length} piaci ár</span><span>${counts.finishedProducts.length} késztermék</span><span>digest: ${escapeHtml(profile.digest.slice(0, 12))}</span></div></article>`;
+            <div class="capability-gap-meta"><span>${counts.respawns.length} respawn</span><span>${counts.xpRewards.length} XP</span><span>${counts.marketPrices.length} piaci ár</span><span>${counts.finishedProducts.length} késztermék</span><span>digest: ${escapeHtml(profile.digest.slice(0, 12))}</span></div>
+            <div class="world-mod-actions"><button type="button" class="button ghost" data-action="experiment-profile-apply-xp"
+                data-profile-id="${escapeHtml(profile.profileId)}" data-profile-version="${escapeHtml(profile.version)}"
+                ${counts.xpRewards.length ? '' : 'disabled'}>XP-profil alkalmazása</button></div></article>`;
     }).join('') : '<p class="empty">Még nincs paraméterprofil. Kísérlet csak exact verzióval indítható.</p>';
     const select = $('#multi-agent-experiment-form').elements.parameterProfile;
     const previous = select.value;
@@ -1706,6 +1709,20 @@ document.addEventListener('click', async event => {
             Number(button.dataset.propertyLevel), button.dataset.propertyLabel
         );
         if (button.dataset.action === 'world-mod-save') await saveWorldMod(button);
+        if (button.dataset.action === 'experiment-profile-apply-xp') {
+            const profileId = button.dataset.profileId;
+            const version = button.dataset.profileVersion;
+            const reason = prompt('Az XP-profil alkalmazásának indoklása:', `Kísérleti XP-profil alkalmazása: ${profileId}@${version}`);
+            if (!reason?.trim()) return;
+            if (!confirm(`${profileId}@${version} XP-szorzói hot reloaddal bekerülnek az élő engine-be. Folytatod?`)) return;
+            button.disabled = true;
+            try {
+                const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-xp`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
+                });
+                toast(`Az XP-profil aktív és visszaolvasva (engine revízió: ${result.activeRevision}).`);
+            } finally { button.disabled = false; }
+        }
         if (button.dataset.action === 'property-purchase') {
             const propertyId = button.dataset.propertyId;
             const username = prompt('Melyik online játékos vásárolja meg az ingatlant?');

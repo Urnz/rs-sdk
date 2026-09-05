@@ -7,6 +7,7 @@ import {
     type DiminishingXpActivityView,
     type XpActivityContext
 } from '#/mods/DiminishingXp.js';
+import { applyExperimentXpMultiplier, parseExperimentXpConfig } from '#/mods/ExperimentXp.js';
 
 type ConfigValue = boolean | number | string;
 export type WorldModActivation = 'hot-reload' | 'restart-required';
@@ -299,17 +300,40 @@ export function runWorldModXpAwardHook(
     context: XpActivityContext,
     store?: Pick<DiminishingXpStore, 'award' | 'summary'> & Partial<Pick<DiminishingXpStore, 'inspect'>>
 ): number {
+    let calibratedXp = baseXp;
+    const calibrationId = 'experiment.xp-calibration';
+    const calibration = activeSnapshot.mods[calibrationId];
+    const calibrationMetric = activeSnapshot.metrics[calibrationId];
+    if (calibration?.enabled && calibrationMetric) {
+        calibrationMetric.hookInvocations++;
+        calibrationMetric.lastHookAt = new Date().toISOString();
+        try {
+            const config = parseExperimentXpConfig(calibration.config);
+            const award = applyExperimentXpMultiplier(baseXp, skill, context, config);
+            calibratedXp = award.grantedXp;
+            calibrationMetric.counters.baseXp = (calibrationMetric.counters.baseXp ?? 0) + baseXp;
+            calibrationMetric.counters.grantedXp = (calibrationMetric.counters.grantedXp ?? 0) + calibratedXp;
+            calibrationMetric.counters.adjustedXp = (calibrationMetric.counters.adjustedXp ?? 0) + calibratedXp - baseXp;
+            calibrationMetric.counters.matchedAwards = (calibrationMetric.counters.matchedAwards ?? 0) + (award.selector ? 1 : 0);
+            calibrationMetric.counters.unmatchedAwards = (calibrationMetric.counters.unmatchedAwards ?? 0) + (award.selector ? 0 : 1);
+        } catch (error) {
+            calibrationMetric.status = 'error';
+            calibrationMetric.hookErrors++;
+            calibrationMetric.lastError = error instanceof Error ? error.message : String(error);
+            console.error(`[WorldMods] ${calibrationId} hook failed open: ${calibrationMetric.lastError}`);
+        }
+    }
     const modId = 'economy.diminishing-xp';
     const mod = activeSnapshot.mods[modId];
     const metric = activeSnapshot.metrics[modId];
-    if (!mod?.enabled || !metric) return baseXp;
+    if (!mod?.enabled || !metric) return calibratedXp;
     metric.hookInvocations++;
     metric.lastHookAt = new Date().toISOString();
     try {
         const config = parseDiminishingXpConfig(mod.config);
-        if (!config.affectedSkills.has(skill.toUpperCase())) return baseXp;
+        if (!config.affectedSkills.has(skill.toUpperCase())) return calibratedXp;
         const activeStore = store ?? getDiminishingXpStore();
-        const award = activeStore.award(player.username, skill, context, baseXp, config);
+        const award = activeStore.award(player.username, skill, context, calibratedXp, config);
         metric.counters.baseXp = (metric.counters.baseXp ?? 0) + award.baseXp;
         metric.counters.grantedXp = (metric.counters.grantedXp ?? 0) + award.grantedXp;
         metric.counters.withheldXp = (metric.counters.withheldXp ?? 0) + award.baseXp - award.grantedXp;
@@ -324,7 +348,7 @@ export function runWorldModXpAwardHook(
         metric.hookErrors++;
         metric.lastError = error instanceof Error ? error.message : String(error);
         console.error(`[WorldMods] ${modId} hook failed open: ${metric.lastError}`);
-        return baseXp;
+        return calibratedXp;
     }
 }
 
