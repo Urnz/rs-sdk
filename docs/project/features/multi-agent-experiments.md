@@ -61,10 +61,12 @@ visszajátszás nem függ egy változó „aktuális” konfigurációtól. Kont
 összehasonlítás csak azonos, sértetlen profildigesttel engedélyezett.
 
 Ez a réteg reprodukálható kísérleti bemenet és provenance, nem általános
-engine-konfigurációs kerülőút. Az első konkrét kategóriaadapter az XP-jutalmakhoz
-elkészült; a respawn-, ár- és késztermékérték-lista továbbra sem módosítja magától
-a játékvilágot. Egy profil létezése önmagában továbbra sem bizonyít aktív értéket:
-ezt az engine-ből visszaolvasott world-mod snapshot igazolja.
+engine-konfigurációs kerülőút. Mind a négy kategóriaadapter elkészült. Egy profil
+létezése önmagában nem bizonyít aktív értéket: ezt az engine-ből visszaolvasott
+world-mod snapshot igazolja. Indítás előtt, még a futásrekord és a skill-dispatch
+előtt, minden nem üres kategória exact aktív adaptert igényel, támogatott verzióval
+és teljes konfigurációegyezéssel. Üres kategória adaptere nem lehet bekapcsolva.
+Ugyanez a kapu a korábban eltárolt futások összevetésekor is érvényes.
 
 ### XP-kalibrációs adapter
 
@@ -244,8 +246,9 @@ napló. Sikeres process-exit napló nélkül fail-closed hibának számít. Az i
 exit esemény nem írja felül a terminális rekordot és nem készít új snapshotot.
 
 Ez a szelet már a teljes kohorsz tényleges futási ablakát és agentenkénti
-tevékenységét méri. A tényleges kontroll–kezelés élő futtatása és a verziózott
-kísérleti paraméterhangolás továbbra is a 12. fázis következő része.
+tevékenységét méri. A tényleges kontroll–kezelés élő futtatását és a verziózott
+profilok kézi/rácskereséses összevetését a
+[2026-09-05-i elfogadási próba](phase12-calibration-2026-09-05.md) igazolja.
 
 ## Kontrollált futáspárok
 
@@ -280,7 +283,75 @@ agent–régiókra, gazdasági és céleseményekre, céllezárási kimenetekre 
 evidence-agentek számára. Ismétlődő vagy
 negatív percindexnél az összehasonlítás fail-closed leáll.
 
-## Bevételtermelő előfeltétel
+## Phase 12 lezárási protokoll
+
+Az első lezárási kísérlet egy kézi és két előre rögzített rácspontot jelent,
+profilonként külön kontroll–kezelés párral (összesen hat élő futás). A rács
+kézzel felsorolható, például egyetlen XP-szorzó két értékével, a többi paraméter
+rögzítése mellett. A `grid-search` címke önmagában nem bizonyít keresést:
+előre fel kell jegyezni a tengelyt, az értékeket, majd minden jelöltet le kell futtatni.
+
+1. Válassz legalább két exact player-agentet, közös seedet és azonos célleírást.
+   Mentsd a leállított agentek avatár- és AgentState-baseline-ját, valamint a
+   világ/mod állapotát. A bank legyen ismert. A többi autonóm futást állítsd le.
+2. Hozd létre a változtathatatlan kézi és a két `grid-search` profilt. Minden
+   nem üres kategóriájukhoz alkalmazd a meglévő adaptert az adminpanelen.
+   Az üres kategóriák adaptereit kapcsold ki. Várd meg az aktív visszaolvasást.
+3. Minden egyes futás előtt ugyanazt a baseline-t állítsd vissza; alkalmazd a
+   jelölt profilt, majd állítsd a diminishing XP kapcsolót a futás ágának
+   megfelelően. Indítsd ugyanazt a kohorszt és várd meg a terminális eredményt.
+   Őrizd meg a hat külön futásazonosítót, a profilokat és a naplókat.
+4. A meglévő kontroll–kezelés összehasonlítóval ellenőrizd a három párt.
+   Ezután az alábbi admin API-val hasonlítsd össze a kalibrációkat.
+5. Állítsd vissza a kísérlet előtti konfigurációt/állapotot, és rögzítsd a mért
+   eredményt, a futási időket és a korlátokat. Csak ezután pipálható ki a feladat.
+
+`POST /api/admin/multi-agent-experiments/calibration-compare`, a meglévő admin
+hitelesítéssel és CSRF-védelemmel, a következő törzset fogadja:
+
+```json
+{
+  "reason": "Phase 12 kézi és kétpontos rácskeresés összevetése",
+  "manual": { "controlExperimentId": "manual-control", "treatmentExperimentId": "manual-treatment" },
+  "grid": [
+    { "controlExperimentId": "grid-1-control", "treatmentExperimentId": "grid-1-treatment" },
+    { "controlExperimentId": "grid-2-control", "treatmentExperimentId": "grid-2-treatment" }
+  ]
+}
+```
+
+Ugyanez a **Kísérletek → Kézi és rácskereséses kalibráció összevetése** panelen
+is elérhető. A választók csak hibamentesen lezárt, megfelelő provenance-ú és
+kapcsolóállapotú futásokat kínálnak. Két rácspont kötelező, további pontok 16-ig
+hozzáadhatók és eltávolíthatók. A szerver ellenőrzi a kiválasztott párokat;
+hibánál a felület a sikertelen összevetést jelzi az előző eredmény helyett.
+
+Az azonosítók helyére valódi, hibamentesen lezárt futások kerüljenek. Az API
+2–16 különböző paraméterű rácsjelöltet fogad; újrafelhasznált futást, hibás
+provenance-t, eltérő seedet, kohorszt, célleírást, avatár/goal-baseline-t vagy
+nem kalibrációs modbeállítást elutasít. Minden páron belül csak a diminishing XP
+kapcsoló térhet el. A válasz megőrzi a profilokat, a páronkénti hatást és az
+`effectMinusManual` mezőben a rácsjelölt kezelés–kontroll hatásának eltérését a
+kézi profil kezelés–kontroll hatásától. A siker és a hiba admin auditba kerül.
+
+Ez leíró összevetés: nem választ univerzális optimumot, nem állít statisztikai
+szignifikanciát, és nem generál vagy indít automatikusan rácsfutásokat. A seed a
+planner választását rögzíti; az élő engine teljes véletlenfolyamát és az összes
+világállapot azonosságát a jelenlegi összehasonlító kapu nem bizonyítja.
+
+Migráció: nincs új adatbázisséma vagy meglévő rekordot módosító migráció.
+A régi, alkalmazott profilt nem igazoló futások megmaradnak, de az összevetés
+elutasítja őket. Visszaállítás: a kódváltozás visszavonható, az audit és a
+futásnaplók megtartandók; új méréshez megfelelő aktív adapterekkel új futás kell.
+
+Ellenőrzés (2026-09-05): `bun run check` sikeres, 609 teszt, 0 hiba; a külső
+collision-oracle ellenőrzést a teszt elérhetetlenség miatt kihagyta. A helyi
+stack elindítása után hat élő kohorszfutás és tizenkét agent-skill futás
+hibamentesen lezárult. A kalibrációs API és a böngészős felület ugyanazt az
+ellenőrzött összevetést adta. Az eredeti konfigurációk visszaállítása igazolt;
+a [részletes jelentés](phase12-calibration-2026-09-05.md) rögzíti a korlátokat is.
+
+## Bevételtermelő skillek
 
 A réz- és vasérc Varrock General Store-ban történő értékesítésére két bounded,
 forráskódos verified skill készült. Mindkettőt két külön 5 érces élő journal

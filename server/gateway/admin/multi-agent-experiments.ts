@@ -5,6 +5,7 @@ import { Database } from 'bun:sqlite';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { AgentGoal, AgentGoalEvent, GoalHorizon, GoalStatus } from '../../../agent-state/types.js';
 import { validateExperimentParameterProfile, type ExperimentParameterProfile } from './experiment-parameters.js';
+import { verifyExperimentAppliedProfile } from './experiment-applied-profile.js';
 import type { EconomySnapshot } from './types.js';
 import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.js';
 import { agentStateDbPath, multiAgentExperimentsDbPath } from './paths.js';
@@ -399,6 +400,8 @@ export function compareMultiAgentExperiments(control: MultiAgentExperimentRun,
     if (checkedProfileDigest(control) !== checkedProfileDigest(treatment)) {
         throw new Error('Controlled experiments require the same exact parameter profile');
     }
+    verifyExperimentAppliedProfile(control.parameterProfile!, control.environment);
+    verifyExperimentAppliedProfile(treatment.parameterProfile!, treatment.environment);
     for (const controlParticipant of control.participants) {
         const treatmentParticipant = treatment.participants.find(item => item.agentId === controlParticipant.agentId)!;
         const controlDigest = controlParticipant.baselineAvatar
@@ -926,6 +929,7 @@ export class MultiAgentExperimentStore {
             || parameterProfile.version !== definition.input.parameterProfileVersion) {
             throw new Error('Experiment parameter profile reference or digest is invalid');
         }
+        verifyExperimentAppliedProfile(parameterProfile, environment);
         const transaction = this.database.transaction(() => {
             this.database.run(`INSERT INTO multi_agent_experiment
                 (experiment_id, definition_digest, environment_digest, environment_json,

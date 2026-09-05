@@ -1,0 +1,991 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-05T18:24:12.574Z",
+  "seed": "phase12-live-20260905",
+  "scope": "Private LostCity technical calibration acceptance; not a long-term economic experiment",
+  "codeBranch": "codex/phase12-calibration-comparison",
+  "baseCommit": "e6ad896bf",
+  "selectedSkill": "mining.varrock-east.iron-to-general-store@1.0.0",
+  "availableAlternatives": [
+    {
+      "id": "mining.varrock-east.copper-to-general-store",
+      "version": "1.0.0"
+    },
+    {
+      "id": "mining.varrock-east.iron-to-general-store",
+      "version": "1.0.0"
+    }
+  ],
+  "operationsPerAgent": "Collect 5 iron ore and sell to the general store",
+  "externalLlmCalls": 0,
+  "grid": {
+    "axis": "xpRewards[skill:mining].multiplier",
+    "values": [
+      0.5,
+      1.5
+    ],
+    "manual": 1
+  },
+  "diminishingThresholds": [
+    2,
+    3,
+    4,
+    5
+  ],
+  "diminishingMultipliers": [
+    0.9,
+    0.7,
+    0.4,
+    0.15
+  ],
+  "recoveryMinutes": 60,
+  "resetProtocol": "Dedicated avatar save restore, known bank via SDK, fixed allowed teleport destinations; engine restart and empty experimental diminishing history between arms. Goal snapshots remained unchanged; memory histories were retained and did not participate in deterministic exact-skill selection.",
+  "runs": [
+    {
+      "label": "manual",
+      "arm": "control",
+      "experimentId": "17492fef-93cd-4e1a-a374-808d74cf0b28",
+      "startedAt": "2026-09-05T18:02:02.247Z",
+      "finishedAt": "2026-09-05T18:03:50.738Z",
+      "status": "completed",
+      "profileDigest": "a21005501366f5b35ca7851eed99496df1b3842a439718894a50cda90c0e1b58",
+      "durationMs": 108491,
+      "xp": 8750,
+      "gp": 40,
+      "produced": 10,
+      "transactions": 2,
+      "baselineDigests": [
+        {
+          "agentId": "p12miner1",
+          "digest": "a5b5fa14921a5fe3259d08630205699f8ff37d45d94175146ba28afe6d4f8095"
+        },
+        {
+          "agentId": "p12miner2",
+          "digest": "a78602aa98efc2d0bf96796ca5b94b3d7a4a385d20bbe34b436418f4f08c7603"
+        }
+      ],
+      "skillRunIds": [
+        "47bf760d-e237-43ce-9fbe-ab0c7f344ed2",
+        "b6015fa4-3762-450a-bef0-d132416094ba"
+      ]
+    },
+    {
+      "label": "manual",
+      "arm": "treatment",
+      "experimentId": "c98d915e-ad1f-4089-8152-26abe4ed8ba7",
+      "startedAt": "2026-09-05T18:06:03.573Z",
+      "finishedAt": "2026-09-05T18:07:57.480Z",
+      "status": "completed",
+      "profileDigest": "a21005501366f5b35ca7851eed99496df1b3842a439718894a50cda90c0e1b58",
+      "durationMs": 113907,
+      "xp": 5514,
+      "gp": 40,
+      "produced": 10,
+      "transactions": 2,
+      "baselineDigests": [
+        {
+          "agentId": "p12miner1",
+          "digest": "a5b5fa14921a5fe3259d08630205699f8ff37d45d94175146ba28afe6d4f8095"
+        },
+        {
+          "agentId": "p12miner2",
+          "digest": "a78602aa98efc2d0bf96796ca5b94b3d7a4a385d20bbe34b436418f4f08c7603"
+        }
+      ],
+      "skillRunIds": [
+        "06a25cf2-6930-4e4e-a1da-2cdacf88e7b3",
+        "fe76edd4-eef9-4da2-b7c2-a31861b1f0f9"
+      ]
+    },
+    {
+      "label": "grid-low",
+      "arm": "control",
+      "experimentId": "f9729062-3d34-4ad5-bb71-72af9646898e",
+      "startedAt": "2026-09-05T18:09:16.031Z",
+      "finishedAt": "2026-09-05T18:11:08.009Z",
+      "status": "completed",
+      "profileDigest": "07ca9cfafae32f5d4e39de17b564dfcbdbd6f85630acd04f8fcffe96bc9d9c8b",
+      "durationMs": 111978,
+      "xp": 4374,
+      "gp": 40,
+      "produced": 10,
+      "transactions": 2,
+      "baselineDigests": [
+        {
+          "agentId": "p12miner1",
+          "digest": "a5b5fa14921a5fe3259d08630205699f8ff37d45d94175146ba28afe6d4f8095"
+        },
+        {
+          "agentId": "p12miner2",
+          "digest": "a78602aa98efc2d0bf96796ca5b94b3d7a4a385d20bbe34b436418f4f08c7603"
+        }
+      ],
+      "skillRunIds": [
+        "b0d846f8-99e4-4396-88ad-ead1edaa7f2b",
+        "bf5d9073-02ba-470b-8c4a-6d427c851c19"
+      ]
+    },
+    {
+      "label": "grid-low",
+      "arm": "treatment",
+      "experimentId": "c6f135f7-fbc7-47ca-a861-d25dda3735fa",
+      "startedAt": "2026-09-05T18:12:20.135Z",
+      "finishedAt": "2026-09-05T18:14:03.598Z",
+      "status": "completed",
+      "profileDigest": "07ca9cfafae32f5d4e39de17b564dfcbdbd6f85630acd04f8fcffe96bc9d9c8b",
+      "durationMs": 103463,
+      "xp": 2754,
+      "gp": 40,
+      "produced": 10,
+      "transactions": 2,
+      "baselineDigests": [
+        {
+          "agentId": "p12miner1",
+          "digest": "a5b5fa14921a5fe3259d08630205699f8ff37d45d94175146ba28afe6d4f8095"
+        },
+        {
+          "agentId": "p12miner2",
+          "digest": "a78602aa98efc2d0bf96796ca5b94b3d7a4a385d20bbe34b436418f4f08c7603"
+        }
+      ],
+      "skillRunIds": [
+        "02b3b0f3-7e0f-4400-8325-303be95712a0",
+        "d0c494a8-1f2a-4746-921c-0b8c8b84b4d9"
+      ]
+    },
+    {
+      "label": "grid-high",
+      "arm": "control",
+      "experimentId": "cc3a7bc3-cc79-4618-888b-659383764847",
+      "startedAt": "2026-09-05T18:15:34.507Z",
+      "finishedAt": "2026-09-05T18:17:20.040Z",
+      "status": "completed",
+      "profileDigest": "0a8c3122127c4bd839511fc4b60ce6b28906c9296672928ef878c9716faef66a",
+      "durationMs": 105533,
+      "xp": 13124,
+      "gp": 40,
+      "produced": 10,
+      "transactions": 2,
+      "baselineDigests": [
+        {
+          "agentId": "p12miner1",
+          "digest": "a5b5fa14921a5fe3259d08630205699f8ff37d45d94175146ba28afe6d4f8095"
+        },
+        {
+          "agentId": "p12miner2",
+          "digest": "a78602aa98efc2d0bf96796ca5b94b3d7a4a385d20bbe34b436418f4f08c7603"
+        }
+      ],
+      "skillRunIds": [
+        "2be6ba3f-36dd-49ef-b56d-277fe9e02b05",
+        "fece8427-58e2-4baa-927a-7e9f07c22c9c"
+      ]
+    },
+    {
+      "label": "grid-high",
+      "arm": "treatment",
+      "experimentId": "ca9339eb-a930-4393-98c6-c0a24f50b001",
+      "startedAt": "2026-09-05T18:18:40.444Z",
+      "finishedAt": "2026-09-05T18:20:15.998Z",
+      "status": "completed",
+      "profileDigest": "0a8c3122127c4bd839511fc4b60ce6b28906c9296672928ef878c9716faef66a",
+      "durationMs": 95554,
+      "xp": 8274,
+      "gp": 40,
+      "produced": 10,
+      "transactions": 2,
+      "baselineDigests": [
+        {
+          "agentId": "p12miner1",
+          "digest": "a5b5fa14921a5fe3259d08630205699f8ff37d45d94175146ba28afe6d4f8095"
+        },
+        {
+          "agentId": "p12miner2",
+          "digest": "a78602aa98efc2d0bf96796ca5b94b3d7a4a385d20bbe34b436418f4f08c7603"
+        }
+      ],
+      "skillRunIds": [
+        "a7fadf5f-b796-4239-a11f-b40d143fcf5c",
+        "6c39fd34-f963-4b71-b817-cd8777d89303"
+      ]
+    }
+  ],
+  "profiles": [
+    {
+      "schemaVersion": 1,
+      "profileId": "phase12.live.grid-high",
+      "version": "1.0.0",
+      "label": "grid-high",
+      "description": "Predeclared mining XP grid: 0.5 and 1.5 versus manual 1; all other parameters fixed.",
+      "origin": "grid-search",
+      "parameters": {
+        "respawns": [
+          {
+            "targetKey": "loc:2090",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2091",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2092",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2093",
+            "ticks": 4
+          }
+        ],
+        "xpRewards": [
+          {
+            "activityKey": "skill:mining",
+            "multiplier": 1.5
+          }
+        ],
+        "marketPrices": [
+          {
+            "itemId": 436,
+            "itemName": "Copper ore",
+            "buyGp": 3,
+            "sellGp": 2
+          },
+          {
+            "itemId": 440,
+            "itemName": "Iron ore",
+            "buyGp": 6,
+            "sellGp": 4
+          }
+        ],
+        "finishedProducts": [
+          {
+            "itemId": 436,
+            "itemName": "Copper ore",
+            "valueGp": 2
+          },
+          {
+            "itemId": 440,
+            "itemName": "Iron ore",
+            "valueGp": 4
+          }
+        ]
+      },
+      "digest": "0a8c3122127c4bd839511fc4b60ce6b28906c9296672928ef878c9716faef66a",
+      "createdAt": "2026-09-05T13:55:52.112Z"
+    },
+    {
+      "schemaVersion": 1,
+      "profileId": "phase12.live.grid-low",
+      "version": "1.0.0",
+      "label": "grid-low",
+      "description": "Predeclared mining XP grid: 0.5 and 1.5 versus manual 1; all other parameters fixed.",
+      "origin": "grid-search",
+      "parameters": {
+        "respawns": [
+          {
+            "targetKey": "loc:2090",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2091",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2092",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2093",
+            "ticks": 4
+          }
+        ],
+        "xpRewards": [
+          {
+            "activityKey": "skill:mining",
+            "multiplier": 0.5
+          }
+        ],
+        "marketPrices": [
+          {
+            "itemId": 436,
+            "itemName": "Copper ore",
+            "buyGp": 3,
+            "sellGp": 2
+          },
+          {
+            "itemId": 440,
+            "itemName": "Iron ore",
+            "buyGp": 6,
+            "sellGp": 4
+          }
+        ],
+        "finishedProducts": [
+          {
+            "itemId": 436,
+            "itemName": "Copper ore",
+            "valueGp": 2
+          },
+          {
+            "itemId": 440,
+            "itemName": "Iron ore",
+            "valueGp": 4
+          }
+        ]
+      },
+      "digest": "07ca9cfafae32f5d4e39de17b564dfcbdbd6f85630acd04f8fcffe96bc9d9c8b",
+      "createdAt": "2026-09-05T13:55:52.105Z"
+    },
+    {
+      "schemaVersion": 1,
+      "profileId": "phase12.live.manual",
+      "version": "1.0.0",
+      "label": "manual",
+      "description": "Predeclared mining XP grid: 0.5 and 1.5 versus manual 1; all other parameters fixed.",
+      "origin": "manual",
+      "parameters": {
+        "respawns": [
+          {
+            "targetKey": "loc:2090",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2091",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2092",
+            "ticks": 4
+          },
+          {
+            "targetKey": "loc:2093",
+            "ticks": 4
+          }
+        ],
+        "xpRewards": [
+          {
+            "activityKey": "skill:mining",
+            "multiplier": 1
+          }
+        ],
+        "marketPrices": [
+          {
+            "itemId": 436,
+            "itemName": "Copper ore",
+            "buyGp": 3,
+            "sellGp": 2
+          },
+          {
+            "itemId": 440,
+            "itemName": "Iron ore",
+            "buyGp": 6,
+            "sellGp": 4
+          }
+        ],
+        "finishedProducts": [
+          {
+            "itemId": 436,
+            "itemName": "Copper ore",
+            "valueGp": 2
+          },
+          {
+            "itemId": 440,
+            "itemName": "Iron ore",
+            "valueGp": 4
+          }
+        ]
+      },
+      "digest": "a21005501366f5b35ca7851eed99496df1b3842a439718894a50cda90c0e1b58",
+      "createdAt": "2026-09-05T13:55:52.095Z"
+    }
+  ],
+  "comparison": {
+    "schemaVersion": 1,
+    "manual": {
+      "profile": {
+        "schemaVersion": 1,
+        "profileId": "phase12.live.manual",
+        "version": "1.0.0",
+        "label": "manual",
+        "description": "Predeclared mining XP grid: 0.5 and 1.5 versus manual 1; all other parameters fixed.",
+        "origin": "manual",
+        "parameters": {
+          "respawns": [
+            {
+              "targetKey": "loc:2090",
+              "ticks": 4
+            },
+            {
+              "targetKey": "loc:2091",
+              "ticks": 4
+            },
+            {
+              "targetKey": "loc:2092",
+              "ticks": 4
+            },
+            {
+              "targetKey": "loc:2093",
+              "ticks": 4
+            }
+          ],
+          "xpRewards": [
+            {
+              "activityKey": "skill:mining",
+              "multiplier": 1
+            }
+          ],
+          "marketPrices": [
+            {
+              "itemId": 436,
+              "itemName": "Copper ore",
+              "buyGp": 3,
+              "sellGp": 2
+            },
+            {
+              "itemId": 440,
+              "itemName": "Iron ore",
+              "buyGp": 6,
+              "sellGp": 4
+            }
+          ],
+          "finishedProducts": [
+            {
+              "itemId": 436,
+              "itemName": "Copper ore",
+              "valueGp": 2
+            },
+            {
+              "itemId": 440,
+              "itemName": "Iron ore",
+              "valueGp": 4
+            }
+          ]
+        },
+        "createdAt": "2026-09-05T13:55:52.095Z",
+        "digest": "a21005501366f5b35ca7851eed99496df1b3842a439718894a50cda90c0e1b58"
+      },
+      "comparison": {
+        "controlExperimentId": "17492fef-93cd-4e1a-a374-808d74cf0b28",
+        "treatmentExperimentId": "c98d915e-ad1f-4089-8152-26abe4ed8ba7",
+        "seed": "phase12-live-20260905",
+        "agentIds": [
+          "p12miner1",
+          "p12miner2"
+        ],
+        "environmentDifference": {
+          "modId": "economy.diminishing-xp",
+          "controlEnabled": false,
+          "treatmentEnabled": true
+        },
+        "treatmentMinusControl": {
+          "totalCoinsDelta": 0,
+          "totalXpDelta": -3236,
+          "sessionXpDelta": -3236,
+          "economicEvents": 0,
+          "uniqueSkills": 0,
+          "skillConcentration": 0,
+          "uniqueTargets": 0,
+          "uniqueRegions": 0,
+          "successfulGoalRuns": 0,
+          "grossIncomeGp": 0,
+          "grossSpendingGp": 0,
+          "actualGoalChanges": 0,
+          "actualGoalsCompleted": 0
+        },
+        "activityTimeline": [
+          {
+            "minute": 0,
+            "control": {
+              "evidenceAgents": 2,
+              "economicEvents": 6,
+              "grossIncomeGp": 0,
+              "grossSpendingGp": 0,
+              "producedItems": 6,
+              "consumedItems": 0,
+              "newRegions": 5,
+              "goalEvents": 0,
+              "goalsCompleted": 0,
+              "goalsBlocked": 0,
+              "goalsAbandoned": 0
+            },
+            "treatment": {
+              "evidenceAgents": 2,
+              "economicEvents": 7,
+              "grossIncomeGp": 0,
+              "grossSpendingGp": 0,
+              "producedItems": 7,
+              "consumedItems": 0,
+              "newRegions": 5,
+              "goalEvents": 0,
+              "goalsCompleted": 0,
+              "goalsBlocked": 0,
+              "goalsAbandoned": 0
+            },
+            "treatmentMinusControl": {
+              "evidenceAgents": 0,
+              "economicEvents": 1,
+              "grossIncomeGp": 0,
+              "grossSpendingGp": 0,
+              "producedItems": 1,
+              "consumedItems": 0,
+              "newRegions": 0,
+              "goalEvents": 0,
+              "goalsCompleted": 0,
+              "goalsBlocked": 0,
+              "goalsAbandoned": 0
+            }
+          },
+          {
+            "minute": 1,
+            "control": {
+              "evidenceAgents": 2,
+              "economicEvents": 6,
+              "grossIncomeGp": 40,
+              "grossSpendingGp": 0,
+              "producedItems": 4,
+              "consumedItems": 0,
+              "newRegions": 2,
+              "goalEvents": 0,
+              "goalsCompleted": 0,
+              "goalsBlocked": 0,
+              "goalsAbandoned": 0
+            },
+            "treatment": {
+              "evidenceAgents": 2,
+              "economicEvents": 5,
+              "grossIncomeGp": 40,
+              "grossSpendingGp": 0,
+              "producedItems": 3,
+              "consumedItems": 0,
+              "newRegions": 2,
+              "goalEvents": 0,
+              "goalsCompleted": 0,
+              "goalsBlocked": 0,
+              "goalsAbandoned": 0
+            },
+            "treatmentMinusControl": {
+              "evidenceAgents": 0,
+              "economicEvents": -1,
+              "grossIncomeGp": 0,
+              "grossSpendingGp": 0,
+              "producedItems": -1,
+              "consumedItems": 0,
+              "newRegions": 0,
+              "goalEvents": 0,
+              "goalsCompleted": 0,
+              "goalsBlocked": 0,
+              "goalsAbandoned": 0
+            }
+          }
+        ]
+      }
+    },
+    "candidates": [
+      {
+        "profile": {
+          "schemaVersion": 1,
+          "profileId": "phase12.live.grid-low",
+          "version": "1.0.0",
+          "label": "grid-low",
+          "description": "Predeclared mining XP grid: 0.5 and 1.5 versus manual 1; all other parameters fixed.",
+          "origin": "grid-search",
+          "parameters": {
+            "respawns": [
+              {
+                "targetKey": "loc:2090",
+                "ticks": 4
+              },
+              {
+                "targetKey": "loc:2091",
+                "ticks": 4
+              },
+              {
+                "targetKey": "loc:2092",
+                "ticks": 4
+              },
+              {
+                "targetKey": "loc:2093",
+                "ticks": 4
+              }
+            ],
+            "xpRewards": [
+              {
+                "activityKey": "skill:mining",
+                "multiplier": 0.5
+              }
+            ],
+            "marketPrices": [
+              {
+                "itemId": 436,
+                "itemName": "Copper ore",
+                "buyGp": 3,
+                "sellGp": 2
+              },
+              {
+                "itemId": 440,
+                "itemName": "Iron ore",
+                "buyGp": 6,
+                "sellGp": 4
+              }
+            ],
+            "finishedProducts": [
+              {
+                "itemId": 436,
+                "itemName": "Copper ore",
+                "valueGp": 2
+              },
+              {
+                "itemId": 440,
+                "itemName": "Iron ore",
+                "valueGp": 4
+              }
+            ]
+          },
+          "createdAt": "2026-09-05T13:55:52.105Z",
+          "digest": "07ca9cfafae32f5d4e39de17b564dfcbdbd6f85630acd04f8fcffe96bc9d9c8b"
+        },
+        "comparison": {
+          "controlExperimentId": "f9729062-3d34-4ad5-bb71-72af9646898e",
+          "treatmentExperimentId": "c6f135f7-fbc7-47ca-a861-d25dda3735fa",
+          "seed": "phase12-live-20260905",
+          "agentIds": [
+            "p12miner1",
+            "p12miner2"
+          ],
+          "environmentDifference": {
+            "modId": "economy.diminishing-xp",
+            "controlEnabled": false,
+            "treatmentEnabled": true
+          },
+          "treatmentMinusControl": {
+            "totalCoinsDelta": 0,
+            "totalXpDelta": -1620,
+            "sessionXpDelta": -1620,
+            "economicEvents": 0,
+            "uniqueSkills": 0,
+            "skillConcentration": 0,
+            "uniqueTargets": 0,
+            "uniqueRegions": 0,
+            "successfulGoalRuns": 0,
+            "grossIncomeGp": 0,
+            "grossSpendingGp": 0,
+            "actualGoalChanges": 0,
+            "actualGoalsCompleted": 0
+          },
+          "activityTimeline": [
+            {
+              "minute": 0,
+              "control": {
+                "evidenceAgents": 2,
+                "economicEvents": 6,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": 6,
+                "consumedItems": 0,
+                "newRegions": 5,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatment": {
+                "evidenceAgents": 2,
+                "economicEvents": 8,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": 8,
+                "consumedItems": 0,
+                "newRegions": 6,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatmentMinusControl": {
+                "evidenceAgents": 0,
+                "economicEvents": 2,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": 2,
+                "consumedItems": 0,
+                "newRegions": 1,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              }
+            },
+            {
+              "minute": 1,
+              "control": {
+                "evidenceAgents": 2,
+                "economicEvents": 6,
+                "grossIncomeGp": 40,
+                "grossSpendingGp": 0,
+                "producedItems": 4,
+                "consumedItems": 0,
+                "newRegions": 2,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatment": {
+                "evidenceAgents": 2,
+                "economicEvents": 4,
+                "grossIncomeGp": 40,
+                "grossSpendingGp": 0,
+                "producedItems": 2,
+                "consumedItems": 0,
+                "newRegions": 1,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatmentMinusControl": {
+                "evidenceAgents": 0,
+                "economicEvents": -2,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": -2,
+                "consumedItems": 0,
+                "newRegions": -1,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              }
+            }
+          ]
+        },
+        "effectMinusManual": {
+          "totalCoinsDelta": 0,
+          "totalXpDelta": 1616,
+          "sessionXpDelta": 1616,
+          "economicEvents": 0,
+          "uniqueSkills": 0,
+          "skillConcentration": 0,
+          "uniqueTargets": 0,
+          "uniqueRegions": 0,
+          "successfulGoalRuns": 0,
+          "grossIncomeGp": 0,
+          "grossSpendingGp": 0,
+          "actualGoalChanges": 0,
+          "actualGoalsCompleted": 0
+        }
+      },
+      {
+        "profile": {
+          "schemaVersion": 1,
+          "profileId": "phase12.live.grid-high",
+          "version": "1.0.0",
+          "label": "grid-high",
+          "description": "Predeclared mining XP grid: 0.5 and 1.5 versus manual 1; all other parameters fixed.",
+          "origin": "grid-search",
+          "parameters": {
+            "respawns": [
+              {
+                "targetKey": "loc:2090",
+                "ticks": 4
+              },
+              {
+                "targetKey": "loc:2091",
+                "ticks": 4
+              },
+              {
+                "targetKey": "loc:2092",
+                "ticks": 4
+              },
+              {
+                "targetKey": "loc:2093",
+                "ticks": 4
+              }
+            ],
+            "xpRewards": [
+              {
+                "activityKey": "skill:mining",
+                "multiplier": 1.5
+              }
+            ],
+            "marketPrices": [
+              {
+                "itemId": 436,
+                "itemName": "Copper ore",
+                "buyGp": 3,
+                "sellGp": 2
+              },
+              {
+                "itemId": 440,
+                "itemName": "Iron ore",
+                "buyGp": 6,
+                "sellGp": 4
+              }
+            ],
+            "finishedProducts": [
+              {
+                "itemId": 436,
+                "itemName": "Copper ore",
+                "valueGp": 2
+              },
+              {
+                "itemId": 440,
+                "itemName": "Iron ore",
+                "valueGp": 4
+              }
+            ]
+          },
+          "createdAt": "2026-09-05T13:55:52.112Z",
+          "digest": "0a8c3122127c4bd839511fc4b60ce6b28906c9296672928ef878c9716faef66a"
+        },
+        "comparison": {
+          "controlExperimentId": "cc3a7bc3-cc79-4618-888b-659383764847",
+          "treatmentExperimentId": "ca9339eb-a930-4393-98c6-c0a24f50b001",
+          "seed": "phase12-live-20260905",
+          "agentIds": [
+            "p12miner1",
+            "p12miner2"
+          ],
+          "environmentDifference": {
+            "modId": "economy.diminishing-xp",
+            "controlEnabled": false,
+            "treatmentEnabled": true
+          },
+          "treatmentMinusControl": {
+            "totalCoinsDelta": 0,
+            "totalXpDelta": -4850,
+            "sessionXpDelta": -4850,
+            "economicEvents": 0,
+            "uniqueSkills": 0,
+            "skillConcentration": 0,
+            "uniqueTargets": 0,
+            "uniqueRegions": 0,
+            "successfulGoalRuns": 0,
+            "grossIncomeGp": 0,
+            "grossSpendingGp": 0,
+            "actualGoalChanges": 0,
+            "actualGoalsCompleted": 0
+          },
+          "activityTimeline": [
+            {
+              "minute": 0,
+              "control": {
+                "evidenceAgents": 2,
+                "economicEvents": 8,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": 8,
+                "consumedItems": 0,
+                "newRegions": 6,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatment": {
+                "evidenceAgents": 2,
+                "economicEvents": 10,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": 10,
+                "consumedItems": 0,
+                "newRegions": 6,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatmentMinusControl": {
+                "evidenceAgents": 0,
+                "economicEvents": 2,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": 2,
+                "consumedItems": 0,
+                "newRegions": 0,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              }
+            },
+            {
+              "minute": 1,
+              "control": {
+                "evidenceAgents": 2,
+                "economicEvents": 4,
+                "grossIncomeGp": 40,
+                "grossSpendingGp": 0,
+                "producedItems": 2,
+                "consumedItems": 0,
+                "newRegions": 1,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatment": {
+                "evidenceAgents": 2,
+                "economicEvents": 2,
+                "grossIncomeGp": 40,
+                "grossSpendingGp": 0,
+                "producedItems": 0,
+                "consumedItems": 0,
+                "newRegions": 1,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              },
+              "treatmentMinusControl": {
+                "evidenceAgents": 0,
+                "economicEvents": -2,
+                "grossIncomeGp": 0,
+                "grossSpendingGp": 0,
+                "producedItems": -2,
+                "consumedItems": 0,
+                "newRegions": 0,
+                "goalEvents": 0,
+                "goalsCompleted": 0,
+                "goalsBlocked": 0,
+                "goalsAbandoned": 0
+              }
+            }
+          ]
+        },
+        "effectMinusManual": {
+          "totalCoinsDelta": 0,
+          "totalXpDelta": -1614,
+          "sessionXpDelta": -1614,
+          "economicEvents": 0,
+          "uniqueSkills": 0,
+          "skillConcentration": 0,
+          "uniqueTargets": 0,
+          "uniqueRegions": 0,
+          "successfulGoalRuns": 0,
+          "grossIncomeGp": 0,
+          "grossSpendingGp": 0,
+          "actualGoalChanges": 0,
+          "actualGoalsCompleted": 0
+        }
+      }
+    ],
+    "interpretation": "Descriptive treatment-minus-control effects; no optimum or statistical significance inferred."
+  },
+  "restoration": {
+    "restoredAt": "2026-09-05T18:24:12.218Z",
+    "configMatch": true,
+    "avatarsOffline": [
+      "p12miner1",
+      "p12miner2"
+    ],
+    "worldModRevision": 48,
+    "activeRevision": 48
+  },
+  "limitations": [
+    "One seed and one cohort, one pair per profile; no uncertainty estimate",
+    "Engine random stream and full world state are not seeded by the experiment seed",
+    "Both agents selected the same iron skill; no measured specialization or strategy adaptation",
+    "All produced ore was sold; net finished-product stock valuation is zero",
+    "Raw journals and database exports stay local; no credentials or player saves in this report"
+  ]
+}

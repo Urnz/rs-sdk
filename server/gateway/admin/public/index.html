@@ -210,6 +210,22 @@
                     <pre id="multi-agent-comparison-result" class="structured-preview">Még nincs összehasonlítás.</pre>
                 </form>
             </details>
+            <details class="agent-section">
+                <summary>Kézi és rácskereséses kalibráció összevetése</summary>
+                <form id="experiment-calibration-form" class="llm-settings-form">
+                    <p class="dialog-note">Válassz egy kézi profillal és legalább két különböző rácsponttal végzett kontroll–kezelés párt. Azonos seed, agentek és kezdőállapot szükséges.</p>
+                    <fieldset class="llm-form-grid" data-calibration-origin="manual">
+                        <legend>Kézi referencia</legend>
+                        <label>Kontroll<select data-arm="control" required></select></label>
+                        <label>Kezelés<select data-arm="treatment" required></select></label>
+                    </fieldset>
+                    <div id="experiment-calibration-grid"></div>
+                    <button id="add-calibration-candidate" class="button" type="button">Rácspont hozzáadása</button>
+                    <label>Indoklás az admin audithoz<input name="reason" maxlength="240" value="Kézi és rácskereséses kalibráció összevetése" required></label>
+                    <button class="button primary" type="submit">Kalibrációk összehasonlítása</button>
+                    <pre id="experiment-calibration-result" class="structured-preview" aria-live="polite">Még nincs kalibrációs összevetés.</pre>
+                </form>
+            </details>
             <div class="panel-heading table-heading skill-trial-heading">
                 <div><p class="eyebrow">TARTÓS FUTÁSNAPLÓ</p><h3>Kohorszok és agentenkénti eredmények</h3></div>
             </div>

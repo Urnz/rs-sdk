@@ -663,6 +663,42 @@ function renderMultiAgentExperiments(experiments) {
         </article>`;
     }).join('') : '<p class="empty">Még nincs multi-agent kísérlet.</p>';
     renderMultiAgentComparisonOptions();
+    renderCalibrationOptions();
+}
+
+function renderCalibrationOptions() {
+    for (const group of document.querySelectorAll('[data-calibration-origin]')) {
+        for (const select of group.querySelectorAll('select[data-arm]')) {
+            const previous = select.value;
+            const enabled = select.dataset.arm === 'treatment';
+            const runs = state.multiAgentExperiments.filter(run => run.status === 'completed'
+                && run.parameterProfile?.origin === group.dataset.calibrationOrigin
+                && run.environment?.mods?.find(mod => mod.id === 'economy.diminishing-xp')?.enabled === enabled);
+            select.innerHTML = '<option value="">Válassz futást…</option>' + runs.map(run =>
+                `<option value="${escapeHtml(run.experimentId)}">${escapeHtml(run.label)} · ${escapeHtml(run.parameterProfile.profileId)}@${escapeHtml(run.parameterProfile.version)}</option>`).join('');
+            if (runs.some(run => run.experimentId === previous)) select.value = previous;
+        }
+    }
+}
+
+function addCalibrationCandidate() {
+    const container = $('#experiment-calibration-grid');
+    if (container.children.length >= 16) return;
+    const group = document.createElement('fieldset');
+    group.className = 'llm-form-grid';
+    group.dataset.calibrationOrigin = 'grid-search';
+    group.innerHTML = `<legend>Rácspont</legend>
+        <label>Kontroll<select data-arm="control" required></select></label>
+        <label>Kezelés<select data-arm="treatment" required></select></label>
+        <button class="button" type="button">Rácspont eltávolítása</button>`;
+    group.querySelector('button').addEventListener('click', () => {
+        if (container.children.length <= 2) { toast('Legalább két rácspont szükséges.', true); return; }
+        group.remove();
+        $('#add-calibration-candidate').disabled = false;
+    });
+    container.append(group);
+    $('#add-calibration-candidate').disabled = container.children.length >= 16;
+    renderCalibrationOptions();
 }
 
 function renderMultiAgentComparisonOptions() {
@@ -2649,6 +2685,39 @@ $('#multi-agent-experiment-form').addEventListener('submit', async event => {
                 parameterProfileId, parameterProfileVersion }) });
         toast(`A kísérlet elindult: ${response.experiment.experimentId}.`);
         await refreshMultiAgentExperiments();
+    } finally { button.disabled = false; }
+});
+$('#add-calibration-candidate').addEventListener('click', addCalibrationCandidate);
+addCalibrationCandidate();
+addCalibrationCandidate();
+$('#experiment-calibration-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    const readPair = group => ({ controlExperimentId: group.querySelector('[data-arm="control"]').value,
+        treatmentExperimentId: group.querySelector('[data-arm="treatment"]').value });
+    button.disabled = true;
+    try {
+        const { comparison } = await api('/api/admin/multi-agent-experiments/calibration-compare', {
+            method: 'POST', mutation: true, body: JSON.stringify({ reason: form.elements.reason.value,
+                manual: readPair(form.querySelector('[data-calibration-origin="manual"]')),
+                grid: [...form.querySelectorAll('[data-calibration-origin="grid-search"]')].map(readPair) })
+        });
+        const signed = value => `${value >= 0 ? '+' : ''}${fmt.format(value)}`;
+        const reference = comparison.manual.comparison.treatmentMinusControl;
+        $('#experiment-calibration-result').textContent = [
+            `Seed: ${comparison.manual.comparison.seed}`,
+            `Kézi kezelés − kontroll: ${signed(reference.totalXpDelta)} XP, ${signed(reference.totalCoinsDelta)} gp`,
+            ...comparison.candidates.map(candidate => {
+                const delta = candidate.comparison.treatmentMinusControl;
+                return `${candidate.profile.label}: ${signed(delta.totalXpDelta)} XP, ${signed(delta.totalCoinsDelta)} gp; a kézi hatáshoz képest ${signed(candidate.effectMinusManual.totalXpDelta)} XP, ${signed(candidate.effectMinusManual.totalCoinsDelta)} gp`;
+            }),
+            'Leíró összevetés; önmagában nem bizonyít optimumot vagy statisztikai szignifikanciát.'
+        ].join('\n');
+        toast('A kalibrációs összevetés elkészült és auditálva van.');
+    } catch (error) {
+        $('#experiment-calibration-result').textContent = `Az összevetés sikertelen: ${error.message}`;
+        toast(error.message, true);
     } finally { button.disabled = false; }
 });
 $('#multi-agent-comparison-form').addEventListener('submit', async event => {

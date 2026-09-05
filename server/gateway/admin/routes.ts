@@ -77,6 +77,7 @@ import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/type
 import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
 import type { SkillGrantKind } from '../../../agent-skills/learning.js';
 import { resolveLearnAndPlan } from './deterministic-learning.js';
+import { compareExperimentCalibrations } from './experiment-calibration.js';
 import { compareMultiAgentExperiments, MultiAgentExperimentStore, readMultiAgentExperimentGoalEvents,
     readMultiAgentExperimentGoalSnapshots,
     startMultiAgentExperiment,
@@ -1716,6 +1717,32 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         }
 
         const agentLlmDryRunMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/llm-dry-run$/);
+        if (req.method === 'POST' && url.pathname === '/api/admin/multi-agent-experiments/calibration-compare') {
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
+            try {
+                const readPair = (input: unknown) => {
+                    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid calibration pair');
+                    const pair = input as Record<string, unknown>;
+                    const control = store.get(text(pair, 'controlExperimentId', true));
+                    const treatment = store.get(text(pair, 'treatmentExperimentId', true));
+                    if (!control || !treatment) throw new Error('Calibration experiment not found');
+                    return { control, treatment };
+                };
+                if (!Array.isArray(body.grid) || body.grid.length < 2 || body.grid.length > 16) {
+                    throw new Error('Calibration comparison requires 2-16 measured grid candidates');
+                }
+                const comparison = compareExperimentCalibrations(readPair(body.manual), body.grid.map(readPair));
+                await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.calibration-compare', reason,
+                    success: true, after: comparison });
+                return json({ ok: true, comparison });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.calibration-compare', reason,
+                    success: false, error: String(error) });
+                throw error;
+            } finally { store.close(); }
+        }
         if (req.method === 'POST' && url.pathname === '/api/admin/multi-agent-experiments/compare') {
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);

@@ -406,12 +406,22 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
 
 ## 12. Fázis – multi-agent gazdaság
 
+A fázis jelenlegi lezárási feltétele (2026-09-05): a meglévő multi-agent,
+szerződéses és mérési infrastruktúrával egy kézi és legalább két előre kijelölt
+rácspont exact profiljának kontroll–kezelés futáspárja, azonos seed/kohorsz és
+visszaállított baseline mellett; megőrzött futásazonosítók és auditált összevetés.
+Ez minimum hat élő futás, nem hosszú távú gazdasági validáció. Új domain,
+automatikus optimalizáló és tanulásalapú keresés nem lezárási előfeltétel.
+Az adó- és banki integráció a saját későbbi fázisához tartozik.
+Valódi működési vagy mérési akadály indoklással bekerülhet a fázisba; egy későbbi
+fejlesztési lehetőség önmagában nem válik új lezárási előfeltétellé.
+
 - [x] Több agent párhuzamos futása elkülönített állapottal és közös világban.
   - [x] Seedelt kohorsz-dispatchert és külön admin „Kísérletek” fület készíteni,
     amely csak egyedi exact avatarhoz kötött, friss online player-agenteket enged.
   - [x] A teljes kohorsz preflightját írás előtt elvégezni, majd az agentciklusokat
     párhuzamosan indítani és agentenként külön event/run eredményt tartósítani.
-- [ ] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
+- [x] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
   - [x] Két exact persistent agent közötti, lejáró trade/work/service ajánlatokat
     és elfogadáskor változatlan feltételekkel képzett egyszerű szerződést tartósítani.
   - [x] A feltételeket GP-, tárgy- és szolgáltatás-kötelezettségekre bontani,
@@ -422,7 +432,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] Egy run globális újrafelhasználását és a megváltozott journal replayét
     tiltani, a pontos replayt idempotensen kezelni, majd csak mindkét fél összes
     kötelezettségének igazolása után `fulfilled` állapotot képezni.
-  - [ ] A szerződésből induló tényleges játékbeli átadást és treasury/player
+  - [x] A szerződésből induló tényleges játékbeli átadást és treasury/player
     elszámolást előre foglalt fedezettel, idempotensen végrehajtani.
     - [x] Institution→player GP-vállalást elfogadáskor exact treasuryben lefoglalni,
       a másik fél bizonyított teljesítése után engine-ticken, stabil settlement ID-val
@@ -432,8 +442,6 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       debit+credit főkönyvi primitívet készíteni, túlcsordulás és önutalás nélkül.
     - [x] Az institution-főkönyvi primitívet hiteles szerződéses teljesítés után
       meghívható settlement-orchestrátorhoz kötni.
-    - [ ] Az institution-főkönyvi primitívet a későbbi adó- és banki domainekben is
-      kizárólag hiteles teljesítési esemény után meghívható orchestrátorhoz kötni.
     - [x] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt készíteni.
       - [x] GP-t és legfeljebb 28 normalizált itemtípust előellenőrző, tartós,
         idempotens hold/release tárolót készíteni; részleges inventory-műveletet
@@ -486,7 +494,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     determinisztikusan validálni és forráskódos verified verzióvá promótálni.
   - [x] Külön helyszínű pénzkereső alternatívával bővíteni, hogy a diminishing XP
     valódi hely- és tevékenységváltást is kiválthasson.
-- [ ] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
+- [x] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
   kikapcsolt és bekapcsolt állapotát összehasonlítva.
   - [x] Minden futáshoz az engine tényleges aktív world-mod állapotát exact,
     digestelt környezeti snapshotként menteni, függő aktiválásnál fail-closed
@@ -522,7 +530,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] Az AgentState-ben append-only, állapotírással atomi céltransition-ledgert
       vezetni; a futási ablak céleseményeit percenként teljesült/elakadt/elhagyott
       bontásban az agent- és kohorsz-idősorba, majd a kontroll–kezelés deltába kötni.
-- [ ] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti
+- [x] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti
   konfigurációként kezelni; előbb kézi/kereséses, később automatizált vagy
   tanulásalapú optimalizálással vizsgálni, egyetlen univerzális optimum ígérete nélkül.
   - [x] Bounded, kanonikus, SHA-256 digestelt és `profileId@semver` szerint
@@ -532,7 +540,7 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
   - [x] Auditált admin API-t és felületet adni profil létrehozásához/listázásához,
     az exact profilt minden új futásba bemásolni, és eltérő vagy sérült profildigest
     esetén a kontroll–kezelés összehasonlítást fail-closed elutasítani.
-  - [ ] Paraméterkategóriánként ellenőrzött engine-adaptert készíteni, amely az
+  - [x] Paraméterkategóriánként ellenőrzött engine-adaptert készíteni, amely az
     alkalmazott értéket visszaolvassa; profil alapján kontroll–kezelés futáspárt
     indítani, majd kézi és rácskereséses kalibrációt összehasonlítani.
     - [x] Első kategóriaadapterként az exact profil XP-szorzóit külön hot-reload
@@ -549,10 +557,25 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] A késztermékértéket külön, gameplay-áraktól független hot-reload
       domainadapterként alkalmazni; exact aktív profil-visszaolvasással, valamint
       létrejött, elfogyott és nettó termelőtőke-érték futásvégi metrikával.
-    - [ ] Exact alkalmazott profilokkal kontroll–kezelés futáspárt indítani, majd
+    - [x] Exact alkalmazott profilokkal kontroll–kezelés futáspárt indítani, majd
       kézi és rácskereséses kalibráció eredményét összehasonlítani.
 
+      Lezárva (2026-09-05): hat sikeres élő kohorszfutás, tizenkét sikeres
+      agent-skill végrehajtás, mindhárom profilhoz hiteles kontroll–kezelés pár.
+      Az exact avatar-/goal-baseline és profilkapuk, valamint az auditált API-
+      és böngészős kalibrációs összevetés átmentek. Az eredeti konfigurációk
+      visszaállítva, a kísérleti avatárok offline állapotban maradtak.
+      [Eredmény és futásazonosítók](features/phase12-calibration-2026-09-05.md).
+
+Elfogadási eredmény: a 12. fázis technikai minimuma teljesült. Az automatizált
+vagy tanulásalapú optimalizálás és a hosszú távú társadalmi hatásvizsgálat későbbi
+kutatási irány; ez a rövid mérés nem választ univerzális optimumot.
+
 ## 13. Fázis – bankrendszer, hitelek és vállalkozások
+
+- [ ] Az institution-főkönyvi primitívet a banki és a 15. fázis adózási domainjében
+  kizárólag hiteles teljesítési esemény után meghívható orchestrátorhoz kötni
+  (a 12. fázisból áthelyezett jövőbeli integráció).
 
 - [ ] Pénzbetét, kamat, tartalék és könyvelési főkönyv modellje.
 - [ ] Hitel, futamidő, kamat, törlesztés és késedelem.

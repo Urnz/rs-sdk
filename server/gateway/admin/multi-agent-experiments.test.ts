@@ -11,6 +11,8 @@ import type { EconomySnapshot } from './types.js';
 import { adminPublicDir } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { validateExperimentParameterProfile } from './experiment-parameters.js';
+import { EXPERIMENT_ADAPTERS } from './experiment-applied-profile.js';
+import { compareExperimentCalibrations } from './experiment-calibration.js';
 
 const directories: string[] = [];
 
@@ -40,10 +42,8 @@ function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvir
     return { schemaVersion: 1, activeRevision: 7, capturedAt: '2026-09-01T09:59:59.000Z', mods: [
         { id: 'economy.diminishing-xp', version: '1.0.0', dataSchemaVersion: 1,
             enabled: diminishingXp, config: { recoveryMinutes: 30, minimumMultiplier: 0.2 } },
-        { id: 'experiment.finished-product-valuation', version: '1.0.0', dataSchemaVersion: 1,
-            enabled: true, config: { profileId: profile.profileId, profileVersion: profile.version,
-                profileDigest: profile.digest,
-                productsJson: JSON.stringify(profile.parameters.finishedProducts) } },
+        ...EXPERIMENT_ADAPTERS.map(adapter => ({ id: adapter.id, version: '1.0.0', dataSchemaVersion: 1,
+            ...adapter.build(profile) })),
         { id: 'property.ownership', version: '1.0.0', dataSchemaVersion: 1,
             enabled: true, config: { welcomeMessage: 'Varrock' } }
     ] };
@@ -52,8 +52,8 @@ function experimentEnvironment(diminishingXp = false): MultiAgentExperimentEnvir
 function parameterProfile() {
     return validateExperimentParameterProfile({ profileId: 'economy.baseline', version: '1.0.0',
         label: 'Economy baseline', origin: 'manual', parameters: {
-            respawns: [{ targetKey: 'loc:copper-rocks:varrock-east', ticks: 100 }],
-            xpRewards: [{ activityKey: 'mining:copper:varrock-east', multiplier: 1 }],
+            respawns: [{ targetKey: 'loc:2090', ticks: 100 }],
+            xpRewards: [{ activityKey: 'skill:mining', multiplier: 1 }],
             marketPrices: [{ itemId: 436, itemName: 'Copper ore', buyGp: 3, sellGp: 1 }],
             finishedProducts: [{ itemId: 1205, itemName: 'Bronze dagger', valueGp: 16 }]
         } }, '2026-09-01T09:00:00.000Z');
@@ -307,7 +307,41 @@ describe('persistent multi-agent experiment runner', () => {
             .update(JSON.stringify({ schemaVersion: 1, ...changedBaseline.participants[0]!.baselineAvatar }))
             .digest('hex');
         expect(() => compareMultiAgentExperiments(completed!, changedBaseline)).toThrow('identical avatar baselines');
-        treatment.environment.mods[1]!.config.welcomeMessage = 'Falador';
+        const gridPair = (multiplier: number) => {
+            const control = JSON.parse(JSON.stringify(completed)) as NonNullable<typeof completed>;
+            const treated = JSON.parse(JSON.stringify(treatment)) as typeof treatment;
+            const profile = validateExperimentParameterProfile({ ...parameterProfile(),
+                profileId: `grid.candidate-${multiplier}`, origin: 'grid-search', parameters: {
+                    ...parameterProfile().parameters, xpRewards: [{ activityKey: 'skill:mining', multiplier }]
+                } });
+            for (const run of [control, treated]) {
+                run.experimentId += `-grid-${multiplier}`;
+                run.parameterProfile = profile;
+                run.parameterProfileDigest = profile.digest;
+                for (const adapter of EXPERIMENT_ADAPTERS) {
+                    run.environment.mods.find(mod => mod.id === adapter.id)!.config = adapter.build(profile).config;
+                }
+            }
+            treated.metrics!.totalXpDelta = 100 * multiplier;
+            return { control, treatment: treated };
+        };
+        const manual = { control: completed!, treatment };
+        const grid = [gridPair(1), gridPair(2)];
+        const calibration = compareExperimentCalibrations(manual, grid);
+        expect(calibration.candidates.map(row => row.effectMinusManual.totalXpDelta)).toEqual([-25, 75]);
+        expect(() => compareExperimentCalibrations(manual, [grid[0]!, grid[0]!])).toThrow('cannot be reused');
+        const wrongSeed = structuredClone(grid);
+        wrongSeed[1]!.control.seed = wrongSeed[1]!.treatment.seed = 'other';
+        expect(() => compareExperimentCalibrations(manual, wrongSeed)).toThrow('same seed');
+        const wrongEnvironment = structuredClone(grid);
+        for (const run of [wrongEnvironment[1]!.control, wrongEnvironment[1]!.treatment]) {
+            run.environment.mods.find(mod => mod.id === 'property.ownership')!.config.welcomeMessage = 'Other';
+        }
+        expect(() => compareExperimentCalibrations(manual, wrongEnvironment)).toThrow('non-parameter environment');
+        const unapplied = structuredClone(treatment);
+        unapplied.environment.mods.find(mod => mod.id === 'experiment.xp-calibration')!.enabled = false;
+        expect(() => compareMultiAgentExperiments(completed!, unapplied)).toThrow('exact parameter profile');
+        treatment.environment.mods.find(mod => mod.id === 'property.ownership')!.config.welcomeMessage = 'Falador';
         expect(() => compareMultiAgentExperiments(completed!, treatment)).toThrow('differ only');
         const replay = await reconcileMultiAgentExperimentSkillRun(runIds.get('agent-b')!,
             skillRun(runIds.get('agent-b')!, 'agent-b'), true, 'Duplicate process event.', dependencies,
@@ -375,6 +409,19 @@ describe('persistent multi-agent experiment runner', () => {
             candidate('agent-a'), { ...candidate('agent-b'), role: 'institution', subjectKind: 'business',
                 identityPlayerUsername: null, avatarPlayerUsername: null }] }))
             .rejects.toThrow('exact player-avatar');
+        expect(store.list()).toHaveLength(0);
+        for (const adapter of EXPERIMENT_ADAPTERS) {
+            for (const defect of ['disabled', 'stale', 'missing'] as const) {
+                const environment = experimentEnvironment();
+                const mod = environment.mods.find(entry => entry.id === adapter.id)!;
+                if (defect === 'disabled') mod.enabled = false;
+                if (defect === 'stale') mod.config.profileDigest = 'stale';
+                if (defect === 'missing') environment.mods = environment.mods.filter(entry => entry.id !== adapter.id);
+                await expect(startMultiAgentExperiment(experimentInput, { ...dependencies,
+                    listCandidates: async () => [candidate('agent-a'), candidate('agent-b')],
+                    worldModEnvironment: async () => environment })).rejects.toThrow('exact parameter profile');
+            }
+        }
         expect(store.list()).toHaveLength(0);
         store.close();
     });
