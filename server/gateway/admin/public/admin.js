@@ -572,7 +572,10 @@ function renderExperimentParameterProfiles(profiles) {
                 ${counts.xpRewards.length ? '' : 'disabled'}>XP-profil alkalmazása</button>
                 <button type="button" class="button ghost" data-action="experiment-profile-apply-respawn"
                 data-profile-id="${escapeHtml(profile.profileId)}" data-profile-version="${escapeHtml(profile.version)}"
-                ${counts.respawns.length ? '' : 'disabled'}>Respawnprofil alkalmazása</button></div></article>`;
+                ${counts.respawns.length ? '' : 'disabled'}>Respawnprofil alkalmazása</button>
+                <button type="button" class="button ghost" data-action="experiment-profile-apply-market"
+                data-profile-id="${escapeHtml(profile.profileId)}" data-profile-version="${escapeHtml(profile.version)}"
+                ${counts.marketPrices.length ? '' : 'disabled'}>Piaci árprofil alkalmazása</button></div></article>`;
     }).join('') : '<p class="empty">Még nincs paraméterprofil. Kísérlet csak exact verzióval indítható.</p>';
     const select = $('#multi-agent-experiment-form').elements.parameterProfile;
     const previous = select.value;
@@ -1738,6 +1741,20 @@ document.addEventListener('click', async event => {
                     method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
                 });
                 toast(`A respawnprofil aktív és visszaolvasva (engine revízió: ${result.activeRevision}).`);
+            } finally { button.disabled = false; }
+        }
+        if (button.dataset.action === 'experiment-profile-apply-market') {
+            const profileId = button.dataset.profileId;
+            const version = button.dataset.profileVersion;
+            const reason = prompt('A piaci árprofil alkalmazásának indoklása:', `Kísérleti piaci árprofil alkalmazása: ${profileId}@${version}`);
+            if (!reason?.trim()) return;
+            if (!confirm(`${profileId}@${version} bolti vételi és eladási árai hot reloaddal bekerülnek az élő engine-be. Folytatod?`)) return;
+            button.disabled = true;
+            try {
+                const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-market`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
+                });
+                toast(`A piaci árprofil aktív és visszaolvasva (engine revízió: ${result.activeRevision}).`);
             } finally { button.disabled = false; }
         }
         if (button.dataset.action === 'property-purchase') {

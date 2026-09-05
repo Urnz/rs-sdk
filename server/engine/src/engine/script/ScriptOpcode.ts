@@ -322,6 +322,8 @@ export const enum ScriptOpcode {
     OC_WEARPOS2,
     OC_WEARPOS3,
     OC_WEIGHT,
+    OC_MARKET_BUY_COST, // custom: experiment profile shop override
+    OC_MARKET_SELL_COST, // custom: experiment profile shop override
 
     // Inventory ops (4300-4399)
     BOTH_DROPSLOT = 4300,
@@ -770,6 +772,8 @@ export const ScriptOpcodeMap: Map<string, number> = new Map([
     ['OC_WEARPOS2', ScriptOpcode.OC_WEARPOS2],
     ['OC_WEARPOS3', ScriptOpcode.OC_WEARPOS3],
     ['OC_WEIGHT', ScriptOpcode.OC_WEIGHT],
+    ['OC_MARKET_BUY_COST', ScriptOpcode.OC_MARKET_BUY_COST],
+    ['OC_MARKET_SELL_COST', ScriptOpcode.OC_MARKET_SELL_COST],
 
     ['BOTH_DROPSLOT', ScriptOpcode.BOTH_DROPSLOT],
     ['BOTH_MOVEINV', ScriptOpcode.BOTH_MOVEINV],

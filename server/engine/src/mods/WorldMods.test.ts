@@ -4,6 +4,7 @@ import {
     mergeHotReloadSnapshot,
     runWorldModPlayerLoginHooks,
     runWorldModRespawnHook,
+    runWorldModMarketPriceHook,
     runWorldModXpAwardHook,
     type ActiveMod,
     type ActiveWorldModSnapshot,
@@ -220,6 +221,33 @@ describe('world mod hot reload lifecycle', () => {
         expect(runWorldModRespawnHook(active, 60,
             { kind: 'obj', targetId: 436, level: 0, x: 3200, z: 3200 })).toBe(60);
         expect(active.metrics['experiment.respawn-calibration']).toMatchObject({ status: 'error', hookErrors: 1 });
+    });
+
+    test('returns independent exact shop prices and records lookup evidence', () => {
+        const active = snapshot({
+            'experiment.market-calibration': {
+                enabled: true, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 4,
+                config: { profileId: 'economy.baseline', profileVersion: '1.0.0', profileDigest: 'c'.repeat(64),
+                    pricesJson: '[{"itemId":436,"itemName":"Copper ore","buyGp":3,"sellGp":1}]' }
+            }
+        });
+        active.metrics['experiment.market-calibration']!.counters = {};
+        expect(runWorldModMarketPriceHook(active, 436, 'buy')).toBe(3);
+        expect(runWorldModMarketPriceHook(active, 436, 'sell')).toBe(1);
+        expect(runWorldModMarketPriceHook(active, 438, 'sell')).toBeNull();
+        expect(active.metrics['experiment.market-calibration']!.counters).toEqual({
+            buyLookups: 1, matchedLookups: 2, configuredGp: 4, sellLookups: 2, vanillaFallbacks: 1
+        });
+    });
+
+    test('uses a null vanilla fallback for disabled or invalid market profiles', () => {
+        const disabled: ActiveMod = { enabled: false, config: {}, version: '1.0.0', dataSchemaVersion: 1,
+            activation: 'hot-reload', appliedRevision: 1 };
+        const inactive = snapshot({ 'experiment.market-calibration': disabled });
+        expect(runWorldModMarketPriceHook(inactive, 436, 'buy')).toBeNull();
+        const invalid = snapshot({ 'experiment.market-calibration': { ...disabled, enabled: true } });
+        expect(runWorldModMarketPriceHook(invalid, 436, 'buy')).toBeNull();
+        expect(invalid.metrics['experiment.market-calibration']).toMatchObject({ status: 'error', hookErrors: 1 });
     });
 
     test('fails open to the original XP award when diminishing configuration is invalid', () => {

@@ -121,6 +121,33 @@ létszámtól. Nem egyező target megtartja a vanilla timert. A mod csak az újo
 ütemezett respawnokra hat; a már futó timereket hot reloadkor nem írja át. Hibás
 konfigurációnál fail-open módon szintén a már kiszámolt vanilla timer marad.
 
+### Bolti piaciár-adapter
+
+Az admin profilkártyájának **Piaci árprofil alkalmazása** gombja az exact profil
+`marketPrices` listáját az alapból kikapcsolt `experiment.market-calibration`
+hot-reload modba írja. Az alkalmazás automatikus backupot és auditot készít, majd
+az engine aktív állapotából exact profilazonosító, verzió, digest és teljes árlista
+egyezést követel.
+
+Az adapter az item globális cache-`cost` értékét nem módosítja, mert az az
+alkímiára, a halálkori item-megőrzésre és más játékrendszerekre is nem kívánt
+hatással lenne. Ehelyett két célzott RuneScript opcode kizárólag a shop
+`adjusted_item_cost_buying` és `adjusted_item_cost_selling` folyamataiban kér
+profilárat. Emiatt ugyanaz az exact ár jelenik meg az információs üzenetben és
+kerül levonásra vagy kifizetésre a valódi tranzakcióban.
+
+Egy market sor az engine `itemId` mellett külön `buyGp` és `sellGp` értéket
+tartalmaz. Itt a `buyGp` az az összeg, amelyet a játékos fizet egy darabért a
+boltnak; a `sellGp` az, amelyet a bolt fizet a játékosnak. Bármelyik irány lehet
+`null`: abban az irányban továbbra is a vanilla készlet- és shopfüggő képlet fut.
+A nulla explicit profilár, tehát nem azonos a `null` fallbackkel. Ismeretlen item,
+kikapcsolt mod vagy adapterhiba szintén a vanilla képletre esik vissza.
+
+A runtime metrikák elkülönítik a buy/sell lekérdezéseket, a profil-találatokat és
+a vanilla fallbackeket. Ezek árlekérdezések, nem tranzakciószámlálók, mert a shop
+több darab vásárlásakor vagy eladásakor darabonként újraszámolja az árat. A valódi
+tranzakciók továbbra is a gazdasági eseménynapló hiteles shop eseményeiben mérhetők.
+
 A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 
 - a definíciót, seedet, digestet és státuszt;

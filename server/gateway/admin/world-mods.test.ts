@@ -85,6 +85,22 @@ describe('world mod registry and state', () => {
         } })).toThrow('respawnlista');
     });
 
+    test('validates independent direction-specific experiment shop prices', async () => {
+        const market = (await loadWorldModManifests()).find(entry => entry.id === 'experiment.market-calibration');
+        expect(market).toBeDefined();
+        const defaults = Object.fromEntries(market!.settings.map(setting => [setting.key, setting.default]));
+        expect(validateWorldModEntry(market!, { enabled: false, config: defaults })).toMatchObject({ enabled: false });
+        expect(() => validateWorldModEntry(market!, { enabled: true, config: defaults })).toThrow('piaci árlista');
+        expect(validateWorldModEntry(market!, { enabled: true, config: {
+            ...defaults, profileDigest: 'a'.repeat(64),
+            pricesJson: '[{"itemId":436,"itemName":"Copper ore","buyGp":null,"sellGp":0}]'
+        } })).toMatchObject({ enabled: true });
+        expect(() => validateWorldModEntry(market!, { enabled: true, config: {
+            ...defaults, profileDigest: 'a'.repeat(64),
+            pricesJson: '[{"itemId":436,"itemName":"Copper ore","buyGp":null,"sellGp":null}]'
+        } })).toThrow('piaci árlista');
+    });
+
     test('serializes concurrent writes so the same revision cannot win twice', async () => {
         const { manifestPath, statePath } = await fixture();
         const results = await Promise.allSettled([

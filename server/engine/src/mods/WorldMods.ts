@@ -10,6 +10,8 @@ import {
 import { applyExperimentXpMultiplier, parseExperimentXpConfig } from '#/mods/ExperimentXp.js';
 import { applyExperimentRespawnTicks, parseExperimentRespawnConfig,
     type RespawnTargetContext } from '#/mods/ExperimentRespawn.js';
+import { parseExperimentMarketConfig, resolveExperimentMarketPrice,
+    type MarketPriceDirection } from '#/mods/ExperimentMarket.js';
 
 type ConfigValue = boolean | number | string;
 export type WorldModActivation = 'hot-reload' | 'restart-required';
@@ -289,6 +291,34 @@ export function runWorldModRespawnHook(activeSnapshot: ActiveWorldModSnapshot, b
         metric.lastError = error instanceof Error ? error.message : String(error);
         console.error(`[WorldMods] ${modId} hook failed open: ${metric.lastError}`);
         return baseTicks;
+    }
+}
+
+export function resolveWorldModMarketPrice(itemId: number, direction: MarketPriceDirection): number | null {
+    return runWorldModMarketPriceHook(snapshot, itemId, direction);
+}
+
+export function runWorldModMarketPriceHook(activeSnapshot: ActiveWorldModSnapshot, itemId: number,
+    direction: MarketPriceDirection): number | null {
+    const modId = 'experiment.market-calibration';
+    const mod = activeSnapshot.mods[modId];
+    const metric = activeSnapshot.metrics[modId];
+    if (!mod?.enabled || !metric) return null;
+    metric.hookInvocations++;
+    metric.lastHookAt = new Date().toISOString();
+    try {
+        const configured = resolveExperimentMarketPrice(itemId, direction, parseExperimentMarketConfig(mod.config));
+        const matched = configured !== null;
+        incrementCounter(activeSnapshot, modId, `${direction}Lookups`);
+        incrementCounter(activeSnapshot, modId, matched ? 'matchedLookups' : 'vanillaFallbacks');
+        if (matched) metric.counters.configuredGp = (metric.counters.configuredGp ?? 0) + configured;
+        return configured;
+    } catch (error) {
+        metric.status = 'error';
+        metric.hookErrors++;
+        metric.lastError = error instanceof Error ? error.message : String(error);
+        console.error(`[WorldMods] ${modId} hook failed open: ${metric.lastError}`);
+        return null;
     }
 }
 

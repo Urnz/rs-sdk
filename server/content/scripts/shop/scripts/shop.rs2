@@ -137,6 +137,10 @@ return (calc($diff - $base));
 
 // Purchase cost at a specifc stack count
 [proc,adjusted_item_cost_buying](obj $obj, int $diff)(int)
+def_int $experiment_price = oc_market_buy_cost($obj);
+if($experiment_price ! -1) {
+    return ($experiment_price);
+}
 def_int $cost = oc_cost($obj);
 def_int $value = ~calc_shop_value($cost, %shop_haggle, %shop_sell, ~price_mod(%shop, $diff, $obj));
 // Unlike sell values, shop purchase values can't be 0 (I believe...), not entirely sure if this is how
@@ -148,6 +152,10 @@ return ($value);
 
 // Sell value at a specific stack count
 [proc,adjusted_item_cost_selling](obj $obj, int $diff)(int)
+def_int $experiment_price = oc_market_sell_cost($obj);
+if($experiment_price ! -1) {
+    return ($experiment_price);
+}
 def_int $cost = oc_cost($obj);
 return (~calc_shop_value($cost, %shop_haggle, %shop_buy, ~price_mod(%shop, $diff, $obj)));
 

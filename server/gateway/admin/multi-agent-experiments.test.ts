@@ -120,6 +120,8 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('data-action="experiment-profile-apply-xp"');
     expect(script).toContain('data-action="experiment-profile-apply-respawn"');
     expect(script).toContain('/apply-respawn');
+    expect(script).toContain('data-action="experiment-profile-apply-market"');
+    expect(script).toContain('/apply-market');
     expect(html).toContain('id="multi-agent-candidate-list"');
     expect(html).toContain('id="multi-agent-experiment-list"');
     expect(html).toContain('id="multi-agent-comparison-form"');

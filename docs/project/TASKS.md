@@ -542,8 +542,12 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
     - [x] A loc-, obj- és NPC-respawnidőt külön hot-reload world moddal a központi
       életciklusban felülírni; stabil base resource ID-t, exact mező/type prioritást,
       saját runtime metrikát és exact aktív profil-visszaolvasást használni.
-    - [ ] A piaci árak és késztermékértékek külön domainadaptereit elkészíteni,
-      aktív érték-visszaolvasással.
+    - [x] A profil itemenként független buy/sell GP-árait kizárólag a shop
+      árkijelzésébe és tranzakciójába kötni két célzott RuneScript opcode-pal;
+      null irány esetén vanilla fallbackkel, saját metrikával és exact aktív
+      profil-visszaolvasással.
+    - [ ] A késztermékérték külön domainadapterét elkészíteni, aktív
+      érték-visszaolvasással.
     - [ ] Exact alkalmazott profilokkal kontroll–kezelés futáspárt indítani, majd
       kézi és rácskereséses kalibráció eredményét összehasonlítani.
 

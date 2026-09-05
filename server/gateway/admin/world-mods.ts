@@ -216,6 +216,27 @@ const PLAYER_SKILLS = new Set([
 ]);
 
 function validateModSpecificConfig(manifest: WorldModManifest, config: Record<string, boolean | number | string>, enabled: boolean): void {
+    if (manifest.id === 'experiment.market-calibration') {
+        if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(String(config.profileId))) throw new Error('Érvénytelen piaciár-profilazonosító.');
+        if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(String(config.profileVersion))) throw new Error('Érvénytelen piaciár-profilverzió.');
+        if (!/^[a-f0-9]{64}$/.test(String(config.profileDigest))) throw new Error('Érvénytelen piaciár-profildigest.');
+        let prices: unknown;
+        try { prices = JSON.parse(String(config.pricesJson)) as unknown; }
+        catch { throw new Error('A piaci árak nem érvényes JSON-adatok.'); }
+        const seen = new Set<number>();
+        const validPrice = (value: unknown) => value === null
+            || (Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= 2_147_483_647);
+        if (!Array.isArray(prices) || (enabled && prices.length === 0) || prices.length > 2_000 || prices.some(entry => {
+            if (!isRecord(entry) || !Number.isSafeInteger(entry.itemId) || Number(entry.itemId) < 0
+                || Number(entry.itemId) > 65_535 || seen.has(Number(entry.itemId))
+                || typeof entry.itemName !== 'string' || !entry.itemName.trim() || entry.itemName.trim().length > 100
+                || !validPrice(entry.buyGp) || !validPrice(entry.sellGp)
+                || (entry.buyGp === null && entry.sellGp === null)) return true;
+            seen.add(Number(entry.itemId));
+            return false;
+        })) throw new Error('A piaci árlista üres, ismétlődő vagy érvénytelen itemet/árat tartalmaz.');
+        return;
+    }
     if (manifest.id === 'experiment.respawn-calibration') {
         if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(String(config.profileId))) throw new Error('Érvénytelen respawn-profilazonosító.');
         if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(String(config.profileVersion))) throw new Error('Érvénytelen respawn-profilverzió.');

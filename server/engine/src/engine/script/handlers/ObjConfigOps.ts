@@ -4,6 +4,7 @@ import ParamType from '#/cache/config/ParamType.js';
 import { ScriptOpcode } from '#/engine/script/ScriptOpcode.js';
 import { CommandHandlers } from '#/engine/script/ScriptRunner.js';
 import { check, ObjTypeValid, ParamTypeValid } from '#/engine/script/ScriptValidators.js';
+import { resolveWorldModMarketPrice } from '#/mods/WorldMods.js';
 
 const ObjConfigOps: CommandHandlers = {
     [ScriptOpcode.OC_NAME]: state => {
@@ -54,6 +55,16 @@ const ObjConfigOps: CommandHandlers = {
 
     [ScriptOpcode.OC_COST]: state => {
         state.pushInt(check(state.popInt(), ObjTypeValid).cost);
+    },
+
+    [ScriptOpcode.OC_MARKET_BUY_COST]: state => {
+        const objType = check(state.popInt(), ObjTypeValid);
+        state.pushInt(resolveWorldModMarketPrice(objType.id, 'buy') ?? -1);
+    },
+
+    [ScriptOpcode.OC_MARKET_SELL_COST]: state => {
+        const objType = check(state.popInt(), ObjTypeValid);
+        state.pushInt(resolveWorldModMarketPrice(objType.id, 'sell') ?? -1);
     },
 
     [ScriptOpcode.OC_TRADEABLE]: state => {

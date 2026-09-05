@@ -797,6 +797,10 @@
 [command,oc_wearpos3](obj $obj)(int)
 // info: Get the cost from an obj config
 [command,oc_cost](obj $obj)(int)
+// info: Get an exact experiment-profile shop buy price, or -1 for vanilla pricing
+[command,oc_market_buy_cost](obj $obj)(int)
+// info: Get an exact experiment-profile shop sell price, or -1 for vanilla pricing
+[command,oc_market_sell_cost](obj $obj)(int)
 // info: Return true if an obj is tradeable
 [command,oc_tradeable](obj $obj)(boolean)
 // info: Get the internal debug name from an obj config
