@@ -93,6 +93,34 @@ kalibrációs konfiguráció fail-open módon az eredeti XP-vel folytatja a dimi
 hookot, ezért az adapterhibából nem lesz elveszett jutalom. A mod kikapcsolása
 azonnal visszaállítja az eredeti XP-folyamot, tartós gameplay-adatot nem töröl.
 
+### Respawn-kalibrációs adapter
+
+Az admin profilkártyájának **Respawnprofil alkalmazása** gombja az exact profil
+respawnlistáját az alapból kikapcsolt `experiment.respawn-calibration` hot-reload
+modba írja. Az XP-adapterhez hasonlóan automatikus backupot és auditbejegyzést
+készít, majd csak az engine-ből visszaolvasott exact profilazonosító, verzió,
+digest és targetlista egyezésekor jelez sikert.
+
+A támogatott `targetKey` formák:
+
+- `loc:<id>`, `obj:<id>` vagy `npc:<id>` – minden ilyen base resource típus;
+- `loc:<id>:<level>:<x>:<z>` és ennek `obj`/`npc` változata – egyetlen exact
+  világpont, amely mindig elsőbbséget élvez a típus-szintű selectorral szemben.
+
+Például a `loc:2090` a 2090-es base loc minden kitermelés utáni timerét, a
+`loc:2090:0:3285:3367` csak az adott mezőn található példányt állítja. A konkrét
+ID az admin élő állapotában vagy az SDK `nearby.locs`, `nearby.groundItems` és
+`nearby.npcs` megfigyelésében kereshető meg. A szimbolikus
+`loc:copper-rocks:varrock-east` alak szándékosan nem elfogadott, mert nem kötődik
+egyértelmű engine-entitáshoz.
+
+A profil `ticks` értéke találatnál a ténylegesen ütemezett respawn timer. NPC és
+ground-object esetén a vanilla játékosszám-skálázás előbb kiszámolódik, de exact
+profiltalálat felülírja, így az alkalmazott kísérleti érték nem függ az online
+létszámtól. Nem egyező target megtartja a vanilla timert. A mod csak az újonnan
+ütemezett respawnokra hat; a már futó timereket hot reloadkor nem írja át. Hibás
+konfigurációnál fail-open módon szintén a már kiszámolt vanilla timer marad.
+
 A `.local/admin/multi-agent-experiments.sqlite` megőrzi:
 
 - a definíciót, seedet, digestet és státuszt;

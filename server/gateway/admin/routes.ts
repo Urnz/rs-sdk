@@ -86,6 +86,8 @@ import { ExperimentParameterStore, type ExperimentParameterOrigin,
     type ExperimentParameterSet } from './experiment-parameters.js';
 import { buildExperimentXpWorldModEntry, EXPERIMENT_XP_MOD_ID,
     verifyExperimentXpWorldMod } from './experiment-xp-adapter.js';
+import { buildExperimentRespawnWorldModEntry, EXPERIMENT_RESPAWN_MOD_ID,
+    verifyExperimentRespawnWorldMod } from './experiment-respawn-adapter.js';
 import { experimentParametersDbPath } from './paths.js';
 import { EconomicContractStore, type EconomicObligation, type EconomicOfferKind } from './economic-contracts.js';
 import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
@@ -564,6 +566,37 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     activation, backupId: update.backup.id });
             } catch (error) {
                 await appendAudit({ operator: 'local-admin', action: 'experiment-parameter-profile.apply-xp', reason,
+                    success: false, after: { profileId, version }, error: String(error) });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const experimentRespawnApplyMatch = url.pathname.match(/^\/api\/admin\/experiment-parameter-profiles\/([^/]+)\/([^/]+)\/apply-respawn$/);
+        if (req.method === 'POST' && experimentRespawnApplyMatch?.[1] && experimentRespawnApplyMatch[2]) {
+            const profileId = decodeURIComponent(experimentRespawnApplyMatch[1]);
+            const version = decodeURIComponent(experimentRespawnApplyMatch[2]);
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const store = new ExperimentParameterStore(experimentParametersDbPath);
+            try {
+                const profile = store.get(profileId, version);
+                if (!profile) throw new Error('A kiválasztott paraméterprofil nem található.');
+                const entry = buildExperimentRespawnWorldModEntry(profile);
+                const beforeView = await listWorldMods();
+                const update = await updateWorldMod(EXPERIMENT_RESPAWN_MOD_ID, entry, beforeView.revision,
+                    undefined, undefined, undefined, reason);
+                const activation = await requestWorldModHotReload();
+                const activeView = await listWorldMods();
+                const activeMod = verifyExperimentRespawnWorldMod(profile, activeView.mods);
+                await appendAudit({ operator: 'local-admin', action: 'experiment-parameter-profile.apply-respawn', reason,
+                    success: true, before: { revision: update.before.revision, mod: update.before.mods[EXPERIMENT_RESPAWN_MOD_ID] },
+                    after: { revision: update.after.revision, mod: activeMod.active, profileId, version,
+                        profileDigest: profile.digest, activation, backupId: update.backup.id } });
+                return json({ ok: true, profileId, version, profileDigest: profile.digest,
+                    revision: update.after.revision, activeRevision: activeView.activeRevision,
+                    activation, backupId: update.backup.id });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'experiment-parameter-profile.apply-respawn', reason,
                     success: false, after: { profileId, version }, error: String(error) });
                 throw error;
             } finally { store.close(); }

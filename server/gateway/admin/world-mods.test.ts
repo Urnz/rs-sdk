@@ -71,6 +71,20 @@ describe('world mod registry and state', () => {
         })).toThrow('nem növekedhetnek');
     });
 
+    test('allows empty disabled experiment adapters but validates enabled respawn selectors', async () => {
+        const respawn = (await loadWorldModManifests()).find(entry => entry.id === 'experiment.respawn-calibration');
+        expect(respawn).toBeDefined();
+        const defaults = Object.fromEntries(respawn!.settings.map(setting => [setting.key, setting.default]));
+        expect(validateWorldModEntry(respawn!, { enabled: false, config: defaults })).toMatchObject({ enabled: false });
+        expect(() => validateWorldModEntry(respawn!, { enabled: true, config: defaults })).toThrow('respawnlista');
+        expect(validateWorldModEntry(respawn!, { enabled: true, config: {
+            ...defaults, profileDigest: 'a'.repeat(64), targetsJson: '[{"targetKey":"npc:1","ticks":50}]'
+        } })).toMatchObject({ enabled: true });
+        expect(() => validateWorldModEntry(respawn!, { enabled: true, config: {
+            ...defaults, profileDigest: 'a'.repeat(64), targetsJson: '[{"targetKey":"npc:goblin","ticks":50}]'
+        } })).toThrow('respawnlista');
+    });
+
     test('serializes concurrent writes so the same revision cannot win twice', async () => {
         const { manifestPath, statePath } = await fixture();
         const results = await Promise.allSettled([

@@ -539,8 +539,11 @@ auditálható, és hibánál vagy limitnél biztonságosan leáll.
       world modba alkalmazni; az engine-ben selector-prioritással, saját metrikával
       és a diminishing XP előtt futtatni, majd az aktív profil ID/verzió/digest és
       konfiguráció exact visszaolvasását megkövetelni.
-    - [ ] A respawnidők, piaci árak és késztermékértékek külön domainadaptereit
-      elkészíteni, aktív érték-visszaolvasással.
+    - [x] A loc-, obj- és NPC-respawnidőt külön hot-reload world moddal a központi
+      életciklusban felülírni; stabil base resource ID-t, exact mező/type prioritást,
+      saját runtime metrikát és exact aktív profil-visszaolvasást használni.
+    - [ ] A piaci árak és késztermékértékek külön domainadaptereit elkészíteni,
+      aktív érték-visszaolvasással.
     - [ ] Exact alkalmazott profilokkal kontroll–kezelés futáspárt indítani, majd
       kézi és rácskereséses kalibráció eredményét összehasonlítani.
 

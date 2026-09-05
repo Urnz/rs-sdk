@@ -3,6 +3,7 @@ import {
     formatBoundedWorldDirectorSignal,
     mergeHotReloadSnapshot,
     runWorldModPlayerLoginHooks,
+    runWorldModRespawnHook,
     runWorldModXpAwardHook,
     type ActiveMod,
     type ActiveWorldModSnapshot,
@@ -181,6 +182,44 @@ describe('world mod hot reload lifecycle', () => {
         });
         expect(granted).toBe(70);
         expect(active.metrics['experiment.xp-calibration']).toMatchObject({ status: 'error', hookErrors: 1 });
+    });
+
+    test('applies an exact respawn profile and records the scheduled timer', () => {
+        const active = snapshot({
+            'experiment.respawn-calibration': {
+                enabled: true, version: '1.0.0', dataSchemaVersion: 1, activation: 'hot-reload', appliedRevision: 3,
+                config: { profileId: 'economy.baseline', profileVersion: '1.0.0', profileDigest: 'b'.repeat(64),
+                    targetsJson: '[{"targetKey":"loc:2090","ticks":25}]' }
+            }
+        });
+        active.metrics['experiment.respawn-calibration']!.counters = {};
+        expect(runWorldModRespawnHook(active, 80,
+            { kind: 'loc', targetId: 2090, level: 0, x: 3285, z: 3367 })).toBe(25);
+        expect(active.metrics['experiment.respawn-calibration']!.counters).toEqual({
+            baseTicks: 80, scheduledTicks: 25, adjustedTicks: -55, matchedRespawns: 1, unmatchedRespawns: 0
+        });
+    });
+
+    test('keeps non-positive and disabled respawn timers byte-for-byte unchanged', () => {
+        const disabled: ActiveMod = { enabled: false, config: {}, version: '1.0.0', dataSchemaVersion: 1,
+            activation: 'hot-reload', appliedRevision: 1 };
+        const active = snapshot({ 'experiment.respawn-calibration': disabled });
+        const before = structuredClone(active.metrics['experiment.respawn-calibration']);
+        const context = { kind: 'npc' as const, targetId: 1, level: 0, x: 3200, z: 3200 };
+        expect(runWorldModRespawnHook(active, 50, context)).toBe(50);
+        disabled.enabled = true;
+        expect(runWorldModRespawnHook(active, -1, context)).toBe(-1);
+        expect(active.metrics['experiment.respawn-calibration']).toEqual(before);
+    });
+
+    test('fails open to the resolved vanilla respawn timer on invalid config', () => {
+        const active = snapshot({
+            'experiment.respawn-calibration': { enabled: true, config: {}, version: '1.0.0', dataSchemaVersion: 1,
+                activation: 'hot-reload', appliedRevision: 1 }
+        });
+        expect(runWorldModRespawnHook(active, 60,
+            { kind: 'obj', targetId: 436, level: 0, x: 3200, z: 3200 })).toBe(60);
+        expect(active.metrics['experiment.respawn-calibration']).toMatchObject({ status: 'error', hookErrors: 1 });
     });
 
     test('fails open to the original XP award when diminishing configuration is invalid', () => {

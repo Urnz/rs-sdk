@@ -216,6 +216,24 @@ const PLAYER_SKILLS = new Set([
 ]);
 
 function validateModSpecificConfig(manifest: WorldModManifest, config: Record<string, boolean | number | string>, enabled: boolean): void {
+    if (manifest.id === 'experiment.respawn-calibration') {
+        if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(String(config.profileId))) throw new Error('Érvénytelen respawn-profilazonosító.');
+        if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(String(config.profileVersion))) throw new Error('Érvénytelen respawn-profilverzió.');
+        if (!/^[a-f0-9]{64}$/.test(String(config.profileDigest))) throw new Error('Érvénytelen respawn-profildigest.');
+        let targets: unknown;
+        try { targets = JSON.parse(String(config.targetsJson)) as unknown; }
+        catch { throw new Error('A respawnidők nem érvényes JSON-adatok.'); }
+        const selector = /^(?:loc|obj|npc):\d+(?::\d+:\d+:\d+)?$/;
+        const seen = new Set<string>();
+        if (!Array.isArray(targets) || (enabled && targets.length === 0) || targets.length > 500 || targets.some(entry => {
+            if (!isRecord(entry) || typeof entry.targetKey !== 'string' || !Number.isSafeInteger(entry.ticks)) return true;
+            const key = entry.targetKey.trim().toLowerCase();
+            if (!selector.test(key) || seen.has(key) || Number(entry.ticks) < 1 || Number(entry.ticks) > 12_000) return true;
+            seen.add(key);
+            return false;
+        })) throw new Error('A respawnlista üres, ismétlődő vagy érvénytelen selectort/ticks értéket tartalmaz.');
+        return;
+    }
     if (manifest.id === 'experiment.xp-calibration') {
         if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(String(config.profileId))) throw new Error('Érvénytelen XP-profilazonosító.');
         if (!/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(String(config.profileVersion))) throw new Error('Érvénytelen XP-profilverzió.');

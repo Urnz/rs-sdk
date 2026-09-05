@@ -569,7 +569,10 @@ function renderExperimentParameterProfiles(profiles) {
             <div class="capability-gap-meta"><span>${counts.respawns.length} respawn</span><span>${counts.xpRewards.length} XP</span><span>${counts.marketPrices.length} piaci ár</span><span>${counts.finishedProducts.length} késztermék</span><span>digest: ${escapeHtml(profile.digest.slice(0, 12))}</span></div>
             <div class="world-mod-actions"><button type="button" class="button ghost" data-action="experiment-profile-apply-xp"
                 data-profile-id="${escapeHtml(profile.profileId)}" data-profile-version="${escapeHtml(profile.version)}"
-                ${counts.xpRewards.length ? '' : 'disabled'}>XP-profil alkalmazása</button></div></article>`;
+                ${counts.xpRewards.length ? '' : 'disabled'}>XP-profil alkalmazása</button>
+                <button type="button" class="button ghost" data-action="experiment-profile-apply-respawn"
+                data-profile-id="${escapeHtml(profile.profileId)}" data-profile-version="${escapeHtml(profile.version)}"
+                ${counts.respawns.length ? '' : 'disabled'}>Respawnprofil alkalmazása</button></div></article>`;
     }).join('') : '<p class="empty">Még nincs paraméterprofil. Kísérlet csak exact verzióval indítható.</p>';
     const select = $('#multi-agent-experiment-form').elements.parameterProfile;
     const previous = select.value;
@@ -1721,6 +1724,20 @@ document.addEventListener('click', async event => {
                     method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
                 });
                 toast(`Az XP-profil aktív és visszaolvasva (engine revízió: ${result.activeRevision}).`);
+            } finally { button.disabled = false; }
+        }
+        if (button.dataset.action === 'experiment-profile-apply-respawn') {
+            const profileId = button.dataset.profileId;
+            const version = button.dataset.profileVersion;
+            const reason = prompt('A respawnprofil alkalmazásának indoklása:', `Kísérleti respawnprofil alkalmazása: ${profileId}@${version}`);
+            if (!reason?.trim()) return;
+            if (!confirm(`${profileId}@${version} respawnidői hot reloaddal bekerülnek az élő engine-be. A már futó timerek nem változnak. Folytatod?`)) return;
+            button.disabled = true;
+            try {
+                const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-respawn`, {
+                    method: 'POST', mutation: true, body: JSON.stringify({ reason: reason.trim() })
+                });
+                toast(`A respawnprofil aktív és visszaolvasva (engine revízió: ${result.activeRevision}).`);
             } finally { button.disabled = false; }
         }
         if (button.dataset.action === 'property-purchase') {

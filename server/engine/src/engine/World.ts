@@ -112,7 +112,7 @@ import { getPropertyRuntime, type PropertyView } from '#/mods/PropertyRuntime.js
 import { formatPropertyRegisterLines } from '#/mods/PropertyRegister.js';
 import type { PropertyPendingResolution, PropertyPurchaseRecord } from '#/mods/PropertyStore.js';
 import { formatWorldDirectorSignalMessage, isWorldModEnabled, onWorldModPlayerLogin,
-    recordWorldModDomainEvent } from '#/mods/WorldMods.js';
+    recordWorldModDomainEvent, applyWorldModRespawnDuration } from '#/mods/WorldMods.js';
 import { getPlayerRewardStore, type PlayerRewardRecord } from '#/mods/PlayerRewardStore.js';
 import { getPlayerInventoryEscrowStore, type PlayerEscrowAssets,
     type PlayerInventoryEscrowRecord } from '#/mods/PlayerInventoryEscrowStore.js';
@@ -2514,7 +2514,11 @@ class World {
 
     removeNpc(npc: Npc, duration: number): void {
         const zone = this.gameMap.getZone(npc.x, npc.z, npc.level);
-        const adjustedDuration = this.scaleByPlayerCount(duration);
+        const vanillaDuration = this.scaleByPlayerCount(duration);
+        const adjustedDuration = npc.lifecycle === EntityLifeCycle.RESPAWN
+            ? applyWorldModRespawnDuration(vanillaDuration,
+                { kind: 'npc', targetId: npc.type, level: npc.level, x: npc.x, z: npc.z })
+            : vanillaDuration;
         zone.leave(npc);
         npc.isActive = false;
 
@@ -2580,6 +2584,11 @@ class World {
             }
         }
 
+        if (loc.lifecycle === EntityLifeCycle.RESPAWN) {
+            duration = applyWorldModRespawnDuration(duration,
+                { kind: 'loc', targetId: loc.baseType, level: loc.level, x: loc.x, z: loc.z });
+        }
+
         // Update loc to new type
         loc.change(typeID, shape, angle);
 
@@ -2625,6 +2634,10 @@ class World {
         }
 
         const type: LocType = LocType.get(loc.type);
+        if (loc.lifecycle === EntityLifeCycle.RESPAWN) {
+            duration = applyWorldModRespawnDuration(duration,
+                { kind: 'loc', targetId: loc.baseType, level: loc.level, x: loc.x, z: loc.z });
+        }
         if (type.blockwalk) {
             changeLocCollision(loc.shape, loc.angle, type.blockrange, type.length, type.width, type.active, loc.x, loc.z, loc.level, false);
         }
@@ -2733,7 +2746,11 @@ class World {
         }
         // printDebug(`[World] removeObj => name: ${ObjType.get(obj.type).name}, duration: ${duration}`);
         const zone: Zone = this.gameMap.getZone(obj.x, obj.z, obj.level);
-        const adjustedDuration = this.scaleByPlayerCount(duration);
+        const vanillaDuration = this.scaleByPlayerCount(duration);
+        const adjustedDuration = obj.lifecycle === EntityLifeCycle.RESPAWN
+            ? applyWorldModRespawnDuration(vanillaDuration,
+                { kind: 'obj', targetId: obj.type, level: obj.level, x: obj.x, z: obj.z })
+            : vanillaDuration;
         zone.removeObj(obj);
         this.trackZone(zone);
 

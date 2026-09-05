@@ -100,6 +100,60 @@
       ]
     },
     {
+      "id": "experiment.respawn-calibration",
+      "name": "Kísérleti respawn-kalibráció",
+      "version": "1.0.0",
+      "dataSchemaVersion": 1,
+      "category": "experiment",
+      "description": "Egy exact verziózott kísérleti profil loc-, obj- és NPC-respawnidőit alkalmazza a központi world-életciklusban.",
+      "activation": "hot-reload",
+      "disablePolicy": {
+        "mode": "stateless",
+        "description": "Kikapcsolva az új respawn timerek ismét vanilla értéket kapnak; a már futó timereket nem írja át visszamenőleg."
+      },
+      "hooks": ["world.respawn"],
+      "dependencies": [],
+      "conflicts": [],
+      "settings": [
+        {
+          "key": "profileId",
+          "label": "Forrásprofil azonosító",
+          "type": "string",
+          "default": "economy.baseline",
+          "minimum": 3,
+          "maximum": 64,
+          "description": "Az alkalmazott változtathatatlan paraméterprofil azonosítója."
+        },
+        {
+          "key": "profileVersion",
+          "label": "Forrásprofil verzió",
+          "type": "string",
+          "default": "1.0.0",
+          "minimum": 5,
+          "maximum": 64,
+          "description": "Az alkalmazott profil exact szemantikus verziója."
+        },
+        {
+          "key": "profileDigest",
+          "label": "Forrásprofil SHA-256",
+          "type": "string",
+          "default": "0000000000000000000000000000000000000000000000000000000000000000",
+          "minimum": 64,
+          "maximum": 64,
+          "description": "A teljes forrásprofil integritását azonosító digest."
+        },
+        {
+          "key": "targetsJson",
+          "label": "Respawnidők (JSON)",
+          "type": "string",
+          "default": "[]",
+          "minimum": 2,
+          "maximum": 65535,
+          "description": "Az adapter által validált targetKey és ticks lista; profilból alkalmazd."
+        }
+      ]
+    },
+    {
       "id": "experiment.xp-calibration",
       "name": "Kísérleti XP-kalibráció",
       "version": "1.0.0",

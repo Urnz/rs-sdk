@@ -8,6 +8,8 @@ import {
     type XpActivityContext
 } from '#/mods/DiminishingXp.js';
 import { applyExperimentXpMultiplier, parseExperimentXpConfig } from '#/mods/ExperimentXp.js';
+import { applyExperimentRespawnTicks, parseExperimentRespawnConfig,
+    type RespawnTargetContext } from '#/mods/ExperimentRespawn.js';
 
 type ConfigValue = boolean | number | string;
 export type WorldModActivation = 'hot-reload' | 'restart-required';
@@ -258,6 +260,36 @@ export function runWorldModPlayerLoginHooks(activeSnapshot: ActiveWorldModSnapsh
 
 export function onWorldModPlayerLogin(player: Player): void {
     runWorldModPlayerLoginHooks(snapshot, player);
+}
+
+export function applyWorldModRespawnDuration(baseTicks: number, context: RespawnTargetContext): number {
+    return runWorldModRespawnHook(snapshot, baseTicks, context);
+}
+
+export function runWorldModRespawnHook(activeSnapshot: ActiveWorldModSnapshot, baseTicks: number,
+    context: RespawnTargetContext): number {
+    const modId = 'experiment.respawn-calibration';
+    const mod = activeSnapshot.mods[modId];
+    const metric = activeSnapshot.metrics[modId];
+    if (baseTicks <= 0 || !mod?.enabled || !metric) return baseTicks;
+    metric.hookInvocations++;
+    metric.lastHookAt = new Date().toISOString();
+    try {
+        const config = parseExperimentRespawnConfig(mod.config);
+        const result = applyExperimentRespawnTicks(baseTicks, context, config);
+        metric.counters.baseTicks = (metric.counters.baseTicks ?? 0) + baseTicks;
+        metric.counters.scheduledTicks = (metric.counters.scheduledTicks ?? 0) + result.scheduledTicks;
+        metric.counters.adjustedTicks = (metric.counters.adjustedTicks ?? 0) + result.scheduledTicks - baseTicks;
+        metric.counters.matchedRespawns = (metric.counters.matchedRespawns ?? 0) + (result.selector ? 1 : 0);
+        metric.counters.unmatchedRespawns = (metric.counters.unmatchedRespawns ?? 0) + (result.selector ? 0 : 1);
+        return result.scheduledTicks;
+    } catch (error) {
+        metric.status = 'error';
+        metric.hookErrors++;
+        metric.lastError = error instanceof Error ? error.message : String(error);
+        console.error(`[WorldMods] ${modId} hook failed open: ${metric.lastError}`);
+        return baseTicks;
+    }
 }
 
 function getDiminishingXpStore(): DiminishingXpStore {
