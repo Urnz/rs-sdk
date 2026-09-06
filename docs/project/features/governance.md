@@ -66,19 +66,21 @@ settles them.
 The SQLite database stores an explicit `governance_schema.version`. Version 1 created faction, jurisdiction and
 territory tables. Version 2 added budgets and the immutable budget audit. Version 3 added fiscal policies,
 single-active-version indexes and policy audit. Version 4 added verified source events and immutable due
-obligations. Version 5 adds exemptions, obligation resolutions and their append-only audits. Each migration runs
-in one immediate transaction, and the full
+obligations. Version 5 adds exemptions, obligation resolutions and their append-only audits. Version 6 adds the
+verified manor-property portfolio and its audit. Each migration runs in one immediate transaction, and the full
 v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Future migrations must upgrade one
 known version at a time and preserve stable IDs. Unknown versions fail closed instead of being silently rewritten.
 
-Rollback for version 5 is operational: stop governance and collection writers, reconcile any treasury transfer
-whose settlement ID has no matching obligation resolution, then restore the pre-deployment v4 governance database
-backup. Never reverse a treasury transfer merely because the governance backup predates its resolution; reconcile it
+Rollback for version 6 is operational: stop governance, collection and manor-property writers, then restore the
+pre-deployment v5 governance database backup. Before that restore, export the manor-property links and audit for
+reconciliation with the authoritative Property state after rollback. Also reconcile any treasury transfer whose
+settlement ID has no matching obligation resolution before restoring an older governance backup. Never reverse a
+treasury transfer merely because the governance backup predates its resolution; reconcile it
 forward using the immutable settlement ID and treasury transfer record.
 The new database is isolated at `.local/economy/governance.sqlite`, so rollback does not rewrite player saves,
 property, business, treasury or banking databases. Before a later destructive schema change, export the three
-base governance tables, budgets, policies, source events, obligations and both audits, then verify row counts and
-foreign keys after restore. Because treasury provisioning is idempotent and creates only a zero-balance account,
+base governance tables, budgets, policies, source events, obligations, links and all audits, then verify row counts
+and foreign keys after restore. Because treasury provisioning is idempotent and creates only a zero-balance account,
 a governance rollback may leave an
 unused faction treasury account; it must not be deleted automatically if it has ever received funds.
 
@@ -110,7 +112,22 @@ databases can be completed forward without charging twice. Player-side debts fai
 player settlement adapter exists. Failed attempts remain unresolved and append an audit entry; an administrator may
 waive a debt only with an explicit bounded reason, producing an immutable resolution and audit in one transaction.
 
+## Manor property portfolios
+
+A manor requires both a `manor` faction and a `manor` jurisdiction; the generic hierarchy remains unchanged and no
+specialized manor agent class exists. Its portfolio can contain multiple Property references, but each Property can
+belong to at most one manor portfolio. Governance does not become the ownership source of truth: every link is
+derived from a verifier-approved, normalized Property state whose exact owner is the manor faction's economic
+`treasuryActorId`. Display names, descriptions and other untrusted presentation fields are discarded.
+
+Each link stores the Property state version and evidence digest. Older evidence, changed content under the same
+version and verifier timestamps older than the source state fail closed. A manor may designate at most one linked
+property as its seat using an optimistic jurisdiction revision. When a newer verified Property state proves that a
+linked asset is no longer owned by the manor, unlinking and clearing an affected seat happen in one transaction and
+append actor-attributed audit entries. Legacy `seatPropertyId` values remain visible as unverified references until
+they are reconciled; they never count as owned portfolio assets by themselves.
+
 ## Next slice
 
-The next slice models manors as jurisdictions that can own multiple properties and optionally designate one as
-their seat.
+The next slice adds the safe governance lifecycle: disabling new obligation generation while preserving treasury,
+debt and property reads.

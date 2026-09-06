@@ -639,7 +639,7 @@ későbbi kiadás.
 - [x] A Governance read/write portját a faction-agent allowlistelt domain
   tooljaihoz kötni, minden fizikai játékbeli műveletet player-megbízásként hagyva.
 - [x] Adóbeszedést, mentességet, hátralékot és auditálható adminbeavatkozást készíteni.
-- [ ] Az uradalmat joghatósági egységként kezelni, amely több ingatlant birtokolhat,
+- [x] Az uradalmat joghatósági egységként kezelni, amely több ingatlant birtokolhat,
   és opcionálisan egy várat vagy más Propertyt használhat székhelyként.
 - [ ] Biztonságos lifecycle: kikapcsolva új kötelezettség ne keletkezzen, de a
   meglévő kincstár, tartozás és tulajdon read-only módon megmaradjon.

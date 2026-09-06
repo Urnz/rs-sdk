@@ -226,7 +226,7 @@ export class GovernanceStore {
         this.database.run('INSERT OR IGNORE INTO governance_schema (singleton, version) VALUES (1, 1)');
         const schema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number } | null;
-        if (!schema || schema.version < 1 || schema.version > 5) {
+        if (!schema || schema.version < 1 || schema.version > 6) {
             throw new Error(`Unsupported governance schema version: ${schema?.version ?? 'missing'}`);
         }
         this.database.run(`CREATE TABLE IF NOT EXISTS governance_faction (
@@ -264,6 +264,9 @@ export class GovernanceStore {
         const obligationSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number };
         if (obligationSchema.version === 4) this.migrateVersionFourToFive();
+        const collectionSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+            .get() as { version: number };
+        if (collectionSchema.version === 5) this.migrateVersionFiveToSix();
     }
 
     close(): void { this.database.close(true); }
@@ -695,6 +698,30 @@ export class GovernanceStore {
                 action TEXT NOT NULL CHECK (action IN ('collected', 'exempted', 'waived', 'collection-failed')),
                 actor_agent_id TEXT NOT NULL, settlement_id TEXT, reason TEXT NOT NULL, created_at TEXT NOT NULL)`);
             this.database.run('UPDATE governance_schema SET version = 5 WHERE singleton = 1 AND version = 4');
+        });
+        transaction.immediate();
+    }
+
+    private migrateVersionFiveToSix(): void {
+        const transaction = this.database.transaction(() => {
+            const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+                .get() as { version: number } | null;
+            if (current?.version === 6) return;
+            if (current?.version !== 5) throw new Error('Governance schema changed during migration');
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_manor_property (
+                manor_jurisdiction_id TEXT NOT NULL REFERENCES governance_jurisdiction(jurisdiction_id),
+                property_id TEXT NOT NULL UNIQUE, property_state_version INTEGER NOT NULL
+                CHECK (property_state_version >= 1), evidence_digest TEXT NOT NULL
+                CHECK (length(evidence_digest) = 64), acquired_at TEXT, verified_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL, PRIMARY KEY (manor_jurisdiction_id, property_id))`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_manor_property_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                manor_jurisdiction_id TEXT NOT NULL REFERENCES governance_jurisdiction(jurisdiction_id),
+                property_id TEXT, action TEXT NOT NULL
+                CHECK (action IN ('linked', 'verified', 'unlinked', 'seat-designated', 'seat-cleared')),
+                property_state_version INTEGER NOT NULL CHECK (property_state_version >= 1),
+                actor_agent_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL)`);
+            this.database.run('UPDATE governance_schema SET version = 6 WHERE singleton = 1 AND version = 5');
         });
         transaction.immediate();
     }
