@@ -44,22 +44,42 @@ executable policy. The pure calculator rounds proportional amounts down and appl
 deterministically. A subsidy is represented as a positive amount; its later obligation adapter determines the
 reversed payer/payee direction rather than encoding negative money.
 
+## Verified obligations
+
+The obligation adapter accepts only typed Property or Business source events and requires an independent
+verifier to return the SHA-256 digest of the normalized event. Source-domain and trigger combinations are
+allowlisted. The supplied source reference is unique inside its domain, so renaming an event ID cannot charge
+the same upstream event again. The Property transfer adapter uses the exact transfer receipt, recipient and
+property location; the Business revenue adapter accepts only complete, positive `shop-sell` or `player-trade`
+economy events. Its caller must establish the worker-to-business binding before verification.
+
+Processing resolves the event coordinate through the deterministic broadest-to-narrowest jurisdiction chain and
+selects the policy versions that were effective at the event timestamp, not whichever version happens to be
+active during delayed processing. The verified source event and every positive obligation are inserted in one
+immediate transaction. `(eventId, policyId)` and deterministic obligation IDs prevent duplicate creation across
+retries. Tax, tariff and fee obligations point from the subject to the jurisdiction faction treasury; subsidies
+reverse that direction. These records remain `due` and move no GP until the later collection layer verifies and
+settles them.
+
 ## Persistence and migration
 
 The SQLite database stores an explicit `governance_schema.version`. Version 1 created faction, jurisdiction and
-territory tables. Version 2 added budgets and the immutable budget audit. Version 3 adds fiscal policies,
-single-active-version indexes and policy audit. Each migration runs in one immediate transaction, and the full
+territory tables. Version 2 added budgets and the immutable budget audit. Version 3 added fiscal policies,
+single-active-version indexes and policy audit. Version 4 adds verified source events and immutable due
+obligations. Each migration runs in one immediate transaction, and the full
 v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Future migrations must upgrade one
 known version at a time and preserve stable IDs. Unknown versions fail closed instead of being silently rewritten.
 
-Rollback for version 3 is operational: stop governance writers and restore the pre-deployment v2 database backup.
+Rollback for version 4 is operational: stop governance writers and restore the pre-deployment v3 database backup.
 The new database is isolated at `.local/economy/governance.sqlite`, so rollback does not rewrite player saves,
 property, business, treasury or banking databases. Before a later destructive schema change, export the three
-base governance tables, budget tables and audit, then verify row counts and foreign keys after restore. Because
-treasury provisioning is idempotent and creates only a zero-balance account, a v2-to-v1 rollback may leave an
+base governance tables, budgets, policies, source events, obligations and both audits, then verify row counts and
+foreign keys after restore. Because treasury provisioning is idempotent and creates only a zero-balance account,
+a governance rollback may leave an
 unused faction treasury account; it must not be deleted automatically if it has ever received funds.
 
 ## Next slice
 
-The next slice converts trusted Property and Business events into idempotent obligations. Policy evaluation will
-consume the deterministic jurisdiction chain, but only verified settlement events may move treasury funds.
+The next slice exposes the bounded Governance read/write port to exact faction agents. It may inspect scopes,
+budgets, policies and obligations or submit inert proposals, but only verified settlement events may move treasury
+funds.

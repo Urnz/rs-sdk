@@ -85,7 +85,7 @@ function text(value: string, field: string): string {
 
 function timestamp(value: string, field: string): string {
     if (!Number.isFinite(Date.parse(value))) throw new Error(`${field} is invalid`);
-    return value;
+    return new Date(value).toISOString();
 }
 
 function gp(value: number, field: string, allowZero = true): number {
@@ -215,6 +215,16 @@ export class GovernancePolicyStore {
                 AND status = 'active' ORDER BY trigger_kind, kind, policy_key`)
                 .all(jurisdictionId) as PolicyRow[];
         return rows.map(policy);
+    }
+
+    listEffective(jurisdictionIdInput: string, trigger: GovernancePolicyTrigger,
+        occurredAtInput: string): GovernancePolicy[] {
+        const jurisdictionId = stableId(jurisdictionIdInput, 'jurisdictionId');
+        const occurredAt = timestamp(occurredAtInput, 'occurredAt');
+        return (this.database.query(`SELECT * FROM governance_policy
+            WHERE jurisdiction_id = ?1 AND trigger_kind = ?2 AND activated_at IS NOT NULL
+            AND activated_at <= ?3 AND (revoked_at IS NULL OR revoked_at > ?3)
+            ORDER BY kind, policy_key, version`).all(jurisdictionId, trigger, occurredAt) as PolicyRow[]).map(policy);
     }
 
     activate(policyIdInput: string, expectedRevision: number, approvedByAgentIdInput: string,
