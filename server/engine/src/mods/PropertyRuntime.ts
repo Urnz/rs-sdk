@@ -4,6 +4,7 @@ import {
     PropertyStore,
     type PropertyPendingResolution,
     type PropertyPurchaseRecord,
+    type PropertyTransferReceipt,
     type PropertyWallet
 } from './PropertyStore.js';
 
@@ -75,6 +76,12 @@ export class PropertyRuntime {
         const property = this.list().find(entry => entry.propertyId === propertyId);
         if (!property) throw new Error(`Reset property disappeared from catalog: ${propertyId}`);
         return property;
+    }
+
+    transferOwnership(transferId: string, propertyId: string, expectedVersion: number,
+        from: { kind: 'player'|'business'|'faction'; id: string },
+        to: { kind: 'player'|'business'|'faction'; id: string }, now = new Date().toISOString()): PropertyTransferReceipt {
+        return this.store.transferOwnership(transferId, propertyId, expectedVersion, from, to, now);
     }
 
     reconcilePending(

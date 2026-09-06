@@ -9,6 +9,7 @@ import World, {
     type AdminPlayerRewardResult,
     type AdminWorldDirectorEventResult,
     type AdminPropertyMaintenanceResult,
+    type AdminPropertyTransferResult,
     type AdminPropertyPurchaseResult,
     type AdminTeleportResult
 } from '#/engine/World.js';
@@ -171,6 +172,36 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         }
         try {
             const result: AdminPropertyMaintenanceResult = World.adminResetProperty(propertyId, Number(expectedVersion), commandId);
+            return json(result);
+        } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 409);
+        }
+    }
+
+    if (url.pathname === '/api/internal/admin/properties/transfer') {
+        const allowedFields = new Set(['commandId', 'transferId', 'propertyId', 'expectedVersion', 'from', 'to']);
+        if (Object.keys(body).some(key => !allowedFields.has(key))) {
+            return json({ error: 'Property transfer request contains forbidden fields' }, 400);
+        }
+        const propertyId = typeof body.propertyId === 'string' ? body.propertyId.trim() : '';
+        const transferId = typeof body.transferId === 'string' ? body.transferId.trim() : '';
+        const expectedVersion = body.expectedVersion;
+        const actor = (value: unknown): value is { kind: 'player' | 'business' | 'faction'; id: string } => {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+            const candidate = value as Record<string, unknown>;
+            return Object.keys(candidate).every(key => key === 'kind' || key === 'id')
+                && Object.keys(candidate).length === 2
+                && ['player', 'business', 'faction'].includes(String(candidate.kind))
+                && /^[a-z0-9][a-z0-9._-]{0,63}$/.test(String(candidate.id));
+        };
+        if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/.test(propertyId)
+            || !/^[a-zA-Z0-9][a-zA-Z0-9._:-]{7,95}$/.test(transferId)
+            || !Number.isInteger(expectedVersion) || !actor(body.from) || !actor(body.to)) {
+            return json({ error: 'Invalid property transfer request' }, 400);
+        }
+        try {
+            const result: AdminPropertyTransferResult = World.adminTransferProperty(commandId, transferId,
+                propertyId, Number(expectedVersion), body.from, body.to);
             return json(result);
         } catch (error) {
             return json({ error: error instanceof Error ? error.message : String(error) }, 409);

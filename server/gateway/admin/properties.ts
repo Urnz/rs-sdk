@@ -56,6 +56,8 @@ export interface EnginePropertyMaintenanceResult {
     purchase?: AdminPropertyPurchaseRecord;
     tick: number;
 }
+export interface EnginePropertyTransferResult { ok:true;commandId:string;transfer:{transferId:string;propertyId:string;
+    from:AdminPropertyOwner;to:AdminPropertyOwner;beforeVersion:number;version:number;createdAt:string};tick:number }
 
 function engineConfig(): { baseUrl: string; token: string } {
     const token = process.env.ENGINE_ADMIN_TOKEN?.trim();
@@ -119,4 +121,9 @@ export function requestEnginePropertyReconciliation(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionId, resolution, commandId })
     });
+}
+
+export function requestEnginePropertyTransfer(request:{commandId:string;transferId:string;propertyId:string;
+    expectedVersion:number;from:AdminPropertyOwner;to:AdminPropertyOwner}):Promise<EnginePropertyTransferResult>{
+    return engineRequest('/api/internal/admin/properties/transfer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)})
 }

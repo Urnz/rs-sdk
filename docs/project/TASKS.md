@@ -573,15 +573,60 @@ kutatási irány; ez a rövid mérés nem választ univerzális optimumot.
 
 ## 13. Fázis – bankrendszer, hitelek és vállalkozások
 
-- [ ] Az institution-főkönyvi primitívet a banki és a 15. fázis adózási domainjében
+- [x] Az institution-főkönyvi primitívet a banki és a 15. fázis adózási domainjében
   kizárólag hiteles teljesítési esemény után meghívható orchestrátorhoz kötni
   (a 12. fázisból áthelyezett jövőbeli integráció).
+  - [x] A banki és adózási eseménytípusokat külön allowlistelni, a hitelesítést
+    szűk, típusos verifier-port mögé tenni, és az exact event-/settlement-kötést
+    digestelt, változtathatatlan identitású SQLite rekordban tartósítani.
+  - [x] A foglalt institution-pénz átvezetését csak sikeres evidence-receipt után
+    engedni; exact retry ne fizessen kétszer, módosított request és cross-domain
+    esemény pedig fail-closed álljon meg.
 
-- [ ] Pénzbetét, kamat, tartalék és könyvelési főkönyv modellje.
-- [ ] Hitel, futamidő, kamat, törlesztés és késedelem.
-- [ ] Fedezet és nemteljesítés; például műhely lefoglalása.
-- [ ] Atomi, kettős könyveléshez közelítő tranzakciók és auditálás.
-- [ ] Csőd, bankroham és pénzügyi fertőzés biztonságos szimulációs korlátai.
+- [x] Pénzbetét, kamat, tartalék és könyvelési főkönyv modellje.
+  - [x] Verziózott bank- és institution-betéti számlát, bázispontos kamat- és
+    tartalékrátát, valamint treasury cash alapján számolt tartalékpozíciót adni.
+  - [x] Csak committed banki settlement receiptből, idempotensen könyvelni a
+    betétet, kivétet és kamatot kiegyenlített debit/credit számlapárral.
+- [x] Hitel, futamidő, kamat, törlesztés és késedelem.
+  - [x] Institution-hitelfelvevőre kötött, bázispontos kamatú, napokban korlátozott
+    futamidejű hitelt és `approved → active/overdue → repaid` lifecycle-t adni.
+  - [x] Folyósítást és törlesztést exact committed banki settlementhez kötni,
+    a napi egyszerű kamatot determinisztikusan képezni, és részfizetésnél előbb
+    a kamatot, majd a tőkét csökkenteni.
+- [x] Fedezet és nemteljesítés; például műhely lefoglalása.
+  - [x] Exact Property-t csak hiteles tulajdonosi receipt után fedezetként lekötni,
+    overdue hitelt optimista revízióval defaulted állapotba vinni, és a lefoglalást
+    idempotens, receipt-ellenőrzött Property-adapteren át végrehajtani.
+- [x] Atomi, kettős könyveléshez közelítő tranzakciók és auditálás.
+  - [x] Az egyenlegmódosítást, az azonos összegű debit/credit postingokat és a
+    SHA-256 auditlánc új elemét egyetlen immediate SQLite tranzakcióban írni,
+    valamint a teljes lánc újraellenőrzését biztosítani.
+- [x] Csőd, bankroham és pénzügyi fertőzés biztonságos szimulációs korlátai.
+  - [x] A kockázati forgatókönyvet treasury-/Property-write nélküli tiszta
+    függvényben, intézmény-, él-, mélység-, kitettség-, kivételi-, default- és
+    veszteségráta-plafonnal, determinisztikus digesttel értékelni.
+
+### 13. fázis MVP-zárás
+
+- [x] Hiteles, tartós banki event-store/verifier és azon át vezetett orchestrált
+  settlement szolgáltatás; a gateway ne fogadjon tetszőleges verifier implementációt.
+- [x] A collateral defaultját közvetlenül a hitelledgerből ellenőrizni, és valós,
+  receipt-ellenőrzött engine Property-átruházási adaptert használni.
+- [x] A hitelfolyósítás receiptjét változtathatatlanul tartósítani, és módosított
+  replay esetén fail-closed megállni.
+- [x] A törlesztési replayt kamatelszámolás előtt felismerni, hogy retry önmagában
+  ne módosíthassa a hitelállapotot.
+- [x] Az auditlánc mellett a journal-, posting- és auditrekordszámot, a pontos két
+  postingot és azok egyenlegét is ellenőrizni.
+- [x] Újranyitásos end-to-end tesztet adni a settlement → folyósítás → fedezet →
+  késedelem → default → Property receipt → lefoglalás teljes útjára.
+- [x] Az MVP szereplőkörét explicit rögzíteni; az első műhelyfinanszírozási use
+  case-t a támogatott actor- és Property-portokkal konzisztenssé tenni.
+
+Elfogadási eredmény: a fenti zárókapuk teljesültek; a 13. fázis technikai MVP-je
+lezárt. Adminfelület, player-banki integráció és hosszú távú gazdasági kalibráció
+későbbi kiadás.
 
 ## 14. Fázis – új skillek és termelési láncok
 

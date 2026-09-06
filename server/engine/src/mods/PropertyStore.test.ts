@@ -186,4 +186,22 @@ describe('property purchase store', () => {
         expect(() => store.resetProperty(property.propertyId, version)).toThrow('must be reconciled');
         store.close();
     });
+
+    test('transfers exact ownership idempotently with an immutable receipt', () => {
+        const path = databasePath();
+        const store = new PropertyStore(catalog, path);
+        store.purchase({ transactionId: 'purchase-transfer-1', propertyId: property.propertyId, buyer }, wallet());
+        const owned = store.listProperties()[0]!;
+        const bank = { kind: 'business' as const, id: 'bank-of-varrock' };
+        const receipt = store.transferOwnership('loan-default:transfer-1', property.propertyId,
+            owned.version, buyer, bank);
+        expect(receipt).toMatchObject({ from: buyer, to: bank, version: owned.version + 1 });
+        store.close();
+        const reopened = new PropertyStore(catalog, path);
+        expect(reopened.transferOwnership('loan-default:transfer-1', property.propertyId,
+            owned.version, buyer, bank)).toEqual(receipt);
+        expect(() => reopened.transferOwnership('loan-default:transfer-1', property.propertyId,
+            owned.version, buyer, { kind: 'business', id: 'other-bank' })).toThrow('reused');
+        reopened.close();
+    });
 });

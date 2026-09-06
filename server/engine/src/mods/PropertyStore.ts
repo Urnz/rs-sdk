@@ -27,6 +27,8 @@ export interface PropertyWallet {
     /** Refund must be idempotent for the supplied transaction id. */
     refund(owner: EconomicActorRef, amount: number, transactionId: string): void;
 }
+export interface PropertyTransferReceipt { transferId: string; propertyId: string; from: EconomicActorRef;
+    to: EconomicActorRef; beforeVersion: number; version: number; createdAt: string }
 
 interface PropertyRow {
     property_id: string;
@@ -49,6 +51,9 @@ interface PurchaseRow {
     updated_at: string;
     error: string | null;
 }
+interface PropertyTransferRow { transfer_id: string; property_id: string; from_kind: EconomicActorRef['kind'];
+    from_id: string; to_kind: EconomicActorRef['kind']; to_id: string; before_version: number;
+    version: number; created_at: string }
 
 function purchaseRecord(row: PurchaseRow): PropertyPurchaseRecord {
     return {
@@ -111,6 +116,11 @@ export class PropertyStore {
             updated_at TEXT NOT NULL,
             error TEXT
             )`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS property_transfer (
+            transfer_id TEXT PRIMARY KEY, property_id TEXT NOT NULL REFERENCES property_state(property_id),
+            from_kind TEXT NOT NULL, from_id TEXT NOT NULL, to_kind TEXT NOT NULL, to_id TEXT NOT NULL,
+            before_version INTEGER NOT NULL, version INTEGER NOT NULL, created_at TEXT NOT NULL
+            )`);
             this.synchronizeCatalog(now);
         } catch (error) {
             this.database.clearQueryCache();
@@ -139,6 +149,33 @@ export class PropertyStore {
             ? this.database.query('SELECT * FROM property_purchase WHERE status = ?1 ORDER BY created_at').all(status)
             : this.database.query('SELECT * FROM property_purchase ORDER BY created_at').all();
         return (rows as PurchaseRow[]).map(purchaseRecord);
+    }
+
+    transferOwnership(transferId: string, propertyId: string, expectedVersion: number,
+        fromInput: EconomicActorRef, toInput: EconomicActorRef, now = new Date().toISOString()): PropertyTransferReceipt {
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9._:-]{7,95}$/.test(transferId)) throw new Error('Property transfer id is invalid');
+        const from = validateEconomicActorRef(fromInput, 'property transfer owner');
+        const to = validateEconomicActorRef(toInput, 'property transfer recipient');
+        if (from.kind === to.kind && from.id === to.id) throw new Error('Property transfer requires different owners');
+        const existing = this.database.query('SELECT * FROM property_transfer WHERE transfer_id=?1')
+            .get(transferId) as PropertyTransferRow | null;
+        if (existing) {
+            if (existing.property_id !== propertyId || existing.from_kind !== from.kind || existing.from_id !== from.id
+                || existing.to_kind !== to.kind || existing.to_id !== to.id || existing.before_version !== expectedVersion) {
+                throw new Error('Property transfer id was reused for another request');
+            }
+            return { transferId, propertyId, from, to, beforeVersion: existing.before_version,
+                version: existing.version, createdAt: existing.created_at };
+        }
+        const transaction = this.database.transaction(() => {
+            const changed = this.database.run(`UPDATE property_state SET owner_kind=?4,owner_id=?5,
+                updated_at=?6,version=version+1 WHERE property_id=?1 AND version=?2 AND status='owned'
+                AND owner_kind=?3 AND owner_id=?7`, [propertyId, expectedVersion, from.kind, to.kind, to.id, now, from.id]);
+            if (changed.changes !== 1) throw new Error('Property owner changed before transfer');
+            this.database.run('INSERT INTO property_transfer VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)',
+                [transferId, propertyId, from.kind, from.id, to.kind, to.id, expectedVersion, expectedVersion + 1, now]);
+        }); transaction.immediate();
+        return { transferId, propertyId, from, to, beforeVersion: expectedVersion, version: expectedVersion + 1, createdAt: now };
     }
 
     resetProperty(propertyId: string, expectedVersion: number, now = new Date().toISOString()): PropertyStateEntry {
