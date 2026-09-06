@@ -633,7 +633,7 @@ későbbi kiadás.
 - [x] Általános Faction és Jurisdiction modell királyságokhoz, városokhoz,
   uradalmakhoz, céhekhez és más hierarchikus egységekhez.
 - [x] Területi tagságot és egymásba ágyazott joghatóságot konfigurálni.
-- [ ] Kincstárat és költségvetést a közös gazdasági főkönyvhöz kapcsolni.
+- [x] Kincstárat és költségvetést a közös gazdasági főkönyvhöz kapcsolni.
 - [ ] Adó-, vám-, illeték- és támogatási szabályokat verziózott policyként kezelni.
 - [ ] Property- és Business-eseményekből idempotens kötelezettségeket képezni.
 - [ ] A Governance read/write portját a faction-agent allowlistelt domain

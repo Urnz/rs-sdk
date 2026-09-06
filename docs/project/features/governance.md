@@ -16,20 +16,36 @@ Territory assignment is replay-safe: an existing `territoryId` accepts an exact 
 content. Faction, jurisdiction, treasury actor and property references use normalized, bounded identifiers;
 display names are treated as untrusted input and stored only after length and whitespace validation.
 
+## Treasury and budgets
+
+Each faction has one stable `treasuryActorId`. `GovernanceFinanceService` provisions and reconciles that exact
+actor as a `faction` account in the shared institution treasury; governance never copies its balance. A combined
+read snapshot exposes faction identity, the current treasury state and the active budget while all actual GP
+reservation and transfer remains atomic in `InstitutionTreasuryStore`.
+
+Budgets are immutable numbered plans per faction. Creation must use the next version, and activation atomically
+supersedes the previous active version with optimistic revision protection. Creation, activation, supersession
+and closure append actor-attributed audit entries in the same governance transaction. Idempotent replays bind
+to the original creator or approver and reject changed provenance. A budget is an authorization ceiling, not a
+second balance or a reservation; later spending must still pass through the treasury settlement layer.
+
 ## Persistence and migration
 
-The SQLite database stores an explicit `governance_schema.version`. Version 1 creates additive faction,
-jurisdiction and territory tables plus lookup indexes. A future migration must run in one immediate transaction,
-upgrade one known version at a time, preserve stable IDs, and include a reopen-and-migrate test using the prior
-schema fixture. Unknown versions fail closed instead of being silently rewritten.
+The SQLite database stores an explicit `governance_schema.version`. Version 1 created faction, jurisdiction and
+territory tables. Version 2 adds budgets, a single-active-budget index and the immutable budget audit. The
+v1-to-v2 migration runs in one immediate transaction and has a reopen-and-migrate test using a prior-schema
+fixture. Future migrations must upgrade one known version at a time and preserve stable IDs. Unknown versions
+fail closed instead of being silently rewritten.
 
-Rollback for version 1 is operational: stop governance writers and restore the pre-deployment database backup.
+Rollback for version 2 is operational: stop governance writers and restore the pre-deployment v1 database backup.
 The new database is isolated at `.local/economy/governance.sqlite`, so rollback does not rewrite player saves,
 property, business, treasury or banking databases. Before a later destructive schema change, export the three
-governance tables and verify row counts and foreign keys after restore.
+base governance tables, budget tables and audit, then verify row counts and foreign keys after restore. Because
+treasury provisioning is idempotent and creates only a zero-balance account, a v2-to-v1 rollback may leave an
+unused faction treasury account; it must not be deleted automatically if it has ever received funds.
 
 ## Next slice
 
-`Faction.treasuryActorId` is the stable join key reserved for the shared institution treasury. The next slice
-will provision that account and introduce versioned budgets before tax, tariff, fee and subsidy policies are
-allowed to emit settlement obligations.
+The next slice introduces versioned tax, tariff, fee and subsidy policies. Policy evaluation will consume the
+deterministic jurisdiction chain and may emit obligations, but only verified settlement events may move treasury
+funds.

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Database } from 'bun:sqlite';
 import { GovernanceStore } from './governance.js';
 
 const directories: string[] = [];
@@ -129,5 +130,86 @@ describe('governance domain', () => {
             jurisdictionId: 'misthalin-realm', level: 4,
             minX: 0, maxX: 1, minZ: 0, maxZ: 1 })).toThrow('level is invalid');
         governance.close();
+    });
+
+    test('versions budgets and atomically supersedes the active plan with an audit trail', () => {
+        const governance = store();
+        governance.createFaction({ factionId: 'varrock', kind: 'city', name: 'Varrock' });
+        const first = governance.createBudget({ budgetId: 'varrock-2027-v1', factionId: 'varrock', version: 1,
+            name: 'Varrock 2027 base', validFrom: '2027-01-01T00:00:00.000Z',
+            validUntil: '2028-01-01T00:00:00.000Z', revenueTargetGp: 100_000,
+            spendingLimitGp: 80_000, createdByAgentId: 'varrock-steward' }, '2026-09-06T12:00:00.000Z');
+        expect(governance.createBudget({ budgetId: 'varrock-2027-v1', factionId: 'varrock', version: 1,
+            name: 'Varrock 2027 base', validFrom: '2027-01-01T00:00:00.000Z',
+            validUntil: '2028-01-01T00:00:00.000Z', revenueTargetGp: 100_000,
+            spendingLimitGp: 80_000, createdByAgentId: 'varrock-steward' })).toEqual(first);
+        expect(() => governance.createBudget({ budgetId: 'varrock-2027-v1', factionId: 'varrock', version: 1,
+            name: 'Varrock 2027 base', validFrom: '2027-01-01T00:00:00.000Z',
+            validUntil: '2028-01-01T00:00:00.000Z', revenueTargetGp: 100_000,
+            spendingLimitGp: 80_000, createdByAgentId: 'another-agent' }))
+            .toThrow('reused with different content');
+        const active = governance.activateBudget(first.budgetId, first.revision, 'varrock-council',
+            '2026-12-20T10:00:00.000Z');
+        expect(governance.activateBudget(first.budgetId, first.revision, 'varrock-council')).toEqual(active);
+        expect(() => governance.activateBudget(first.budgetId, first.revision, 'foreign-agent'))
+            .toThrow('different approver');
+        const second = governance.createBudget({ budgetId: 'varrock-2027-v2', factionId: 'varrock', version: 2,
+            name: 'Varrock 2027 amended', validFrom: '2027-01-01T00:00:00.000Z',
+            validUntil: '2028-01-01T00:00:00.000Z', revenueTargetGp: 120_000,
+            spendingLimitGp: 90_000, createdByAgentId: 'varrock-steward' });
+
+        expect(() => governance.activateBudget(second.budgetId, 2, 'varrock-council'))
+            .toThrow('changed before activation');
+        expect(governance.getActiveBudget('varrock')).toEqual(active);
+        const replacement = governance.activateBudget(second.budgetId, second.revision, 'varrock-council',
+            '2026-12-21T10:00:00.000Z');
+        expect(replacement).toMatchObject({ version: 2, status: 'active', revision: 2 });
+        expect(governance.getBudget(first.budgetId)).toMatchObject({ status: 'superseded', revision: 3 });
+        expect(governance.listBudgets('varrock').map(item => item.version)).toEqual([2, 1]);
+        expect(governance.listBudgetAudit('varrock').map(item => item.action))
+            .toEqual(['created', 'activated', 'created', 'superseded', 'activated']);
+        governance.close();
+    });
+
+    test('rejects skipped versions and invalid budget windows without writing audit', () => {
+        const governance = store();
+        governance.createFaction({ factionId: 'falador', kind: 'city', name: 'Falador' });
+        const base = { budgetId: 'falador-2027-v2', factionId: 'falador', version: 2,
+            name: 'Falador plan', validFrom: '2027-01-01T00:00:00.000Z',
+            validUntil: '2028-01-01T00:00:00.000Z', revenueTargetGp: 50_000,
+            spendingLimitGp: 40_000, createdByAgentId: 'falador-steward' };
+        expect(() => governance.createBudget(base)).toThrow('must follow');
+        expect(() => governance.createBudget({ ...base, version: 1,
+            validUntil: base.validFrom })).toThrow('validity window');
+        expect(governance.listBudgetAudit('falador')).toEqual([]);
+        governance.close();
+    });
+
+    test('migrates a version one database in place and preserves faction identity', () => {
+        const path = databasePath();
+        const legacy = new Database(path, { create: true, strict: true });
+        legacy.run(`CREATE TABLE governance_schema (
+            singleton INTEGER PRIMARY KEY CHECK (singleton = 1), version INTEGER NOT NULL CHECK (version >= 1))`);
+        legacy.run('INSERT INTO governance_schema (singleton, version) VALUES (1, 1)');
+        legacy.run(`CREATE TABLE governance_faction (
+            faction_id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL,
+            treasury_actor_id TEXT NOT NULL UNIQUE, revision INTEGER NOT NULL,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+        legacy.run(`INSERT INTO governance_faction VALUES
+            ('misthalin', 'kingdom', 'Misthalin', 'misthalin', 1,
+                '2026-09-06T08:00:00.000Z', '2026-09-06T08:00:00.000Z')`);
+        legacy.close(true);
+
+        const governance = new GovernanceStore(path);
+        expect(governance.getFaction('misthalin')).toMatchObject({ factionId: 'misthalin', revision: 1 });
+        expect(governance.createBudget({ budgetId: 'misthalin-2027-v1', factionId: 'misthalin', version: 1,
+            name: 'Misthalin 2027', validFrom: '2027-01-01T00:00:00.000Z',
+            validUntil: '2028-01-01T00:00:00.000Z', revenueTargetGp: 100_000,
+            spendingLimitGp: 90_000, createdByAgentId: 'royal-steward' })).toMatchObject({ status: 'draft' });
+        governance.close();
+        const migrated = new Database(path, { strict: true });
+        expect(migrated.query('SELECT version FROM governance_schema WHERE singleton = 1').get())
+            .toEqual({ version: 2 });
+        migrated.close(true);
     });
 });
