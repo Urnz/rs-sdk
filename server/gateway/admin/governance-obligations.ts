@@ -209,6 +209,15 @@ export class GovernanceObligationStore {
             WHERE event_id = ?1 ORDER BY sequence, obligation_id`).all(eventId) as ObligationRow[]).map(obligation);
     }
 
+    listForActor(actorInput: GovernanceEconomicActorRef, limit = 100): GovernanceObligation[] {
+        const actorValue = actor(actorInput);
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error('limit is invalid');
+        return (this.database.query(`SELECT * FROM governance_obligation
+            WHERE (debtor_kind = ?1 AND debtor_id = ?2) OR (creditor_kind = ?1 AND creditor_id = ?2)
+            ORDER BY created_at DESC, obligation_id LIMIT ?3`)
+            .all(actorValue.kind, actorValue.id, limit) as ObligationRow[]).map(obligation);
+    }
+
     async process(eventInput: GovernanceSourceEvent, verifier: GovernanceSourceEventVerifier,
         now = new Date().toISOString()): Promise<GovernanceObligation[]> {
         const event = normalizeEvent(eventInput);

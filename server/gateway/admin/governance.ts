@@ -323,6 +323,14 @@ export class GovernanceStore {
         return row ? jurisdiction(row) : null;
     }
 
+    listJurisdictions(factionIdInput: string, limit = 100): Jurisdiction[] {
+        const factionId = stableId(factionIdInput, 'factionId');
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error('limit is invalid');
+        return (this.database.query(`SELECT * FROM governance_jurisdiction
+            WHERE faction_id = ?1 ORDER BY depth, jurisdiction_id LIMIT ?2`)
+            .all(factionId, limit) as JurisdictionRow[]).map(jurisdiction);
+    }
+
     assignTerritory(input: AssignTerritory, now = new Date().toISOString()): JurisdictionTerritory {
         const territoryId = stableId(input.territoryId, 'territoryId');
         const jurisdictionId = stableId(input.jurisdictionId, 'jurisdictionId');

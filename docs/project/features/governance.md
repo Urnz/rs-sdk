@@ -78,8 +78,21 @@ foreign keys after restore. Because treasury provisioning is idempotent and crea
 a governance rollback may leave an
 unused faction treasury account; it must not be deleted automatically if it has ever received funds.
 
+## Faction-agent port
+
+The Governance port resolves an institution agent through its exact `faction` subject binding. Its bounded read
+snapshot includes only that faction, its jurisdictions and policy versions, its active budget, the treasury account
+identified by the faction's stable `treasuryActorId`, and obligations where that treasury actor is debtor or creditor.
+It never exposes another faction merely because its jurisdiction is a territorial parent or child.
+
+The only Governance write available to the faction agent is creation of an inert policy draft for one of its own
+jurisdictions. The port stamps the authenticated agent ID as provenance and limits maximum subsidy exposure by the
+agent's operational budget; activation and revocation remain approval operations outside the agent port. Faction
+agents have no physical execution authority. Player work stays a typed player-action request, requires an active
+faction budget, and is bounded by both its spending limit and the agent's operational limit. Treasury reservation
+and settlement use the faction's exact treasury actor even when it differs from the faction subject ID.
+
 ## Next slice
 
-The next slice exposes the bounded Governance read/write port to exact faction agents. It may inspect scopes,
-budgets, policies and obligations or submit inert proposals, but only verified settlement events may move treasury
-funds.
+The next slice adds collection, exemptions, arrears and audited administrative intervention. Only verified
+settlement events may move treasury funds.

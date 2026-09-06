@@ -5,7 +5,7 @@ import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
 import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
     retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
-import type { AgentCommitmentStatus, AgentPlayerActionManualStatus, AgentSkillKnowledgeStatus,
+import type { AgentCommitmentStatus, AgentControlProfile, AgentPlayerActionManualStatus, AgentSkillKnowledgeStatus,
     AgentSkillReference, CreateAgentCommitment,
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
     CreateAgentPlayerActionRequest, SetAgentControlProfile, SetAgentRelationship,
@@ -19,6 +19,7 @@ import { requestEnginePlayerReward } from './player-rewards.js';
 import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
 import { BusinessManagerStore } from './business-manager.js';
 import { businessManagerPathFor, validateBusinessPlayerActionForAgent } from './business-agent-port.js';
+import { factionTreasuryActorForAgent, validateFactionPlayerActionForAgent } from './governance-agent-port.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
@@ -28,6 +29,11 @@ function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
 
 export function institutionTreasuryPathFor(path = agentStateDbPath): string {
     return path === agentStateDbPath ? institutionTreasuryDbPath : join(dirname(path), 'institution-treasury.sqlite');
+}
+
+function treasuryActorIdForAgent(agentId: string, profile: AgentControlProfile, path: string): string {
+    return profile.subjectKind === 'faction'
+        ? factionTreasuryActorForAgent(agentId, path) : profile.subjectId;
 }
 
 function useTreasury<T>(path: string, callback: (store: InstitutionTreasuryStore) => T): T {
@@ -198,9 +204,13 @@ export function createAdminPlayerActionRequest(requesterAgentId: string,
     if (profile.subjectKind === 'business') {
         validateBusinessPlayerActionForAgent(requesterAgentId, input, path);
     }
+    if (profile.subjectKind === 'faction') {
+        validateFactionPlayerActionForAgent(requesterAgentId, input, path);
+    }
+    const treasuryActorId = treasuryActorIdForAgent(requesterAgentId, profile, path);
     const held = input.rewardGp
         ? useTreasury(path, store => store.reserve(profile.subjectKind as InstitutionKind,
-            profile.subjectId, input.requestId, input.rewardGp!)) : null;
+            treasuryActorId, input.requestId, input.rewardGp!)) : null;
     try {
         return useStore(path, store => store.createPlayerActionRequest(requesterAgentId, input));
     } catch (error) {
@@ -276,7 +286,8 @@ export async function settleAdminPlayerActionReward(settlementId: string, path =
     try {
         useTreasury(path, store => {
             if (!store.getReservation(state.request.requestId)) {
-                store.reserve(state.requester.subjectKind as InstitutionKind, state.requester.subjectId,
+                store.reserve(state.requester.subjectKind as InstitutionKind,
+                    treasuryActorIdForAgent(state.request.requesterAgentId, state.requester, path),
                     state.request.requestId, state.request.rewardGp);
             }
             store.bindSettlement(state.request.requestId, settlementId);
@@ -299,7 +310,7 @@ export function updateAdminInstitutionTreasury(agentId: string, expectedRevision
     const profile = useStore(path, store => store.getControlProfile(agentId));
     if (!profile || profile.role !== 'institution') throw new Error('Csak institution agentnek lehet treasury-je.');
     return useTreasury(path, store => store.setBalance(profile.subjectKind as InstitutionKind,
-        profile.subjectId, expectedRevision, balanceGp));
+        treasuryActorIdForAgent(agentId, profile, path), expectedRevision, balanceGp));
 }
 
 export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {

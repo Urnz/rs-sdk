@@ -205,6 +205,14 @@ export class GovernancePolicyStore {
         return row ? policy(row) : null;
     }
 
+    listForJurisdiction(jurisdictionIdInput: string, limit = 100): GovernancePolicy[] {
+        const jurisdictionId = stableId(jurisdictionIdInput, 'jurisdictionId');
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error('limit is invalid');
+        return (this.database.query(`SELECT * FROM governance_policy WHERE jurisdiction_id = ?1
+            ORDER BY policy_key, version DESC, policy_id LIMIT ?2`)
+            .all(jurisdictionId, limit) as PolicyRow[]).map(policy);
+    }
+
     listActive(jurisdictionIdInput: string, trigger?: GovernancePolicyTrigger): GovernancePolicy[] {
         const jurisdictionId = stableId(jurisdictionIdInput, 'jurisdictionId');
         const rows = trigger
