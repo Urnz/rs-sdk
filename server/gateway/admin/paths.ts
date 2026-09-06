@@ -42,3 +42,4 @@ export const multiAgentExperimentsDbPath = join(adminLocalDir, 'multi-agent-expe
 export const experimentParametersDbPath = join(adminLocalDir, 'experiment-parameters.sqlite');
 export const economicContractsDbPath = join(repoRoot, '.local', 'economy', 'contracts.sqlite');
 export const businessManagerDbPath = join(repoRoot, '.local', 'economy', 'businesses.sqlite');
+export const governanceDbPath = join(repoRoot, '.local', 'economy', 'governance.sqlite');

@@ -628,25 +628,11 @@ Elfogadási eredmény: a fenti zárókapuk teljesültek; a 13. fázis technikai 
 lezárt. Adminfelület, player-banki integráció és hosszú távú gazdasági kalibráció
 későbbi kiadás.
 
-## 14. Fázis – új skillek és termelési láncok
+## 14. Fázis – factionök, államok és joghatóságok
 
-- [ ] A klasszikus játék-skillektől független, adatvezérelt `Skill[]` rendszer.
-- [ ] Lehetséges új skillek: engineering, machining, accounting, banking,
-  management, medicine, law, logistics és politics.
-- [ ] Hosszú termelési lánc prototípusa: érc → olvasztás → acél → öntés →
-  megmunkálás → alkatrész → gép → gyár.
-- [ ] A késztermékeknek termelőtőke-értéket adni, nem csak XP-veszteséget.
-- [ ] Ingatlanok fejlesztése, eladása/bérlése és gazdasági hatásvizsgálata.
-- [ ] Regressziós benchmark feladatok és ismételhető értékelés.
-- [ ] Mentések verziózása és automatizált migrációs tesztek.
-- [ ] Telemetriai dashboard a szerver, botok, gazdaság és LLM-költségek számára.
-- [ ] Dokumentált kiadási és visszaállítási folyamat.
-
-## 15. Fázis – factionök, államok és joghatóságok
-
-- [ ] Általános Faction és Jurisdiction modell királyságokhoz, városokhoz,
+- [x] Általános Faction és Jurisdiction modell királyságokhoz, városokhoz,
   uradalmakhoz, céhekhez és más hierarchikus egységekhez.
-- [ ] Területi tagságot és egymásba ágyazott joghatóságot konfigurálni.
+- [x] Területi tagságot és egymásba ágyazott joghatóságot konfigurálni.
 - [ ] Kincstárat és költségvetést a közös gazdasági főkönyvhöz kapcsolni.
 - [ ] Adó-, vám-, illeték- és támogatási szabályokat verziózott policyként kezelni.
 - [ ] Property- és Business-eseményekből idempotens kötelezettségeket képezni.
@@ -660,6 +646,20 @@ későbbi kiadás.
 
 Elfogadási feltétel: két egymásba ágyazott joghatóság szabályai determinisztikusan
 képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla terhelés nélkül.
+
+## 15. Fázis – új skillek és termelési láncok
+
+- [ ] A klasszikus játék-skillektől független, adatvezérelt `Skill[]` rendszer.
+- [ ] Lehetséges új skillek: engineering, machining, accounting, banking,
+  management, medicine, law, logistics és politics.
+- [ ] Hosszú termelési lánc prototípusa: érc → olvasztás → acél → öntés →
+  megmunkálás → alkatrész → gép → gyár.
+- [ ] A késztermékeknek termelőtőke-értéket adni, nem csak XP-veszteséget.
+- [ ] Ingatlanok fejlesztése, eladása/bérlése és gazdasági hatásvizsgálata.
+- [ ] Regressziós benchmark feladatok és ismételhető értékelés.
+- [ ] Mentések verziózása és automatizált migrációs tesztek.
+- [ ] Telemetriai dashboard a szerver, botok, gazdaság és LLM-költségek számára.
+- [ ] Dokumentált kiadási és visszaállítási folyamat.
 
 ## 16. Fázis – több-szerveres admin vezérlőközpont
 
