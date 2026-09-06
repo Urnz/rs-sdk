@@ -179,9 +179,11 @@ export class GovernanceCollectionService {
         const reason = text(input.reason, 'reason', 8);
         const createdByAgentId = id(input.createdByAgentId, 'createdByAgentId');
         const createdAt = timestamp(now, 'now');
-        const scope = this.database.query('SELECT 1 FROM governance_jurisdiction WHERE jurisdiction_id = ?1')
-            .get(jurisdictionId);
+        const scope = this.database.query(`SELECT f.status FROM governance_jurisdiction j
+            JOIN governance_faction f ON f.faction_id = j.faction_id WHERE j.jurisdiction_id = ?1`)
+            .get(jurisdictionId) as { status: 'active' | 'disabled' } | null;
         if (!scope) throw new Error('Jurisdiction does not exist');
+        if (scope.status !== 'active') throw new Error('Faction is disabled and read-only');
         if (policyKey && !this.database.query(`SELECT 1 FROM governance_policy
             WHERE jurisdiction_id = ?1 AND policy_key = ?2 LIMIT 1`).get(jurisdictionId, policyKey)) {
             throw new Error('Exemption policy family does not exist in the jurisdiction');
@@ -219,6 +221,7 @@ export class GovernanceCollectionService {
         const revokedAt = timestamp(now, 'now');
         const current = this.getExemption(exemptionId);
         if (!current) throw new Error('Exemption does not exist');
+        this.assertJurisdictionWritable(current.jurisdictionId);
         if (current.status === 'revoked') return current;
         const transaction = this.database.transaction(() => {
             const updated = this.database.run(`UPDATE governance_exemption SET status = 'revoked',
@@ -277,6 +280,7 @@ export class GovernanceCollectionService {
         const settledAt = timestamp(now, 'now');
         const obligation = this.obligations.getObligation(obligationId);
         if (!obligation) throw new Error('Governance obligation does not exist');
+        this.assertObligationWritable(obligationId);
         const existing = this.getResolution(obligationId);
         if (existing) {
             if (existing.kind !== 'collected' || existing.settlementId !== settlementId) {
@@ -310,6 +314,7 @@ export class GovernanceCollectionService {
         now = new Date().toISOString()): GovernanceObligationResolution {
         const obligationId = id(obligationIdInput, 'obligationId');
         if (!this.obligations.getObligation(obligationId)) throw new Error('Governance obligation does not exist');
+        this.assertObligationWritable(obligationId);
         const actorAgentId = id(actorAgentIdInput, 'actorAgentId');
         const reason = text(reasonInput, 'reason', 8);
         const resolvedAt = timestamp(now, 'now');
@@ -343,6 +348,21 @@ export class GovernanceCollectionService {
             [obligationId, kind, actorAgentId, settlementId, reason, resolvedAt]);
         });
         transaction.immediate();
+    }
+
+    private assertJurisdictionWritable(jurisdictionId: string): void {
+        const row = this.database.query(`SELECT f.status FROM governance_jurisdiction j
+            JOIN governance_faction f ON f.faction_id = j.faction_id WHERE j.jurisdiction_id = ?1`)
+            .get(jurisdictionId) as { status: 'active' | 'disabled' } | null;
+        if (!row || row.status !== 'active') throw new Error('Faction is disabled and read-only');
+    }
+
+    private assertObligationWritable(obligationId: string): void {
+        const row = this.database.query(`SELECT f.status FROM governance_obligation o
+            JOIN governance_jurisdiction j ON j.jurisdiction_id = o.jurisdiction_id
+            JOIN governance_faction f ON f.faction_id = j.faction_id WHERE o.obligation_id = ?1`)
+            .get(obligationId) as { status: 'active' | 'disabled' } | null;
+        if (!row || row.status !== 'active') throw new Error('Faction is disabled and read-only');
     }
 
     private insertAudit(obligationId: string, action: GovernanceObligationAuditEntry['action'],

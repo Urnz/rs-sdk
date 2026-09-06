@@ -641,7 +641,7 @@ későbbi kiadás.
 - [x] Adóbeszedést, mentességet, hátralékot és auditálható adminbeavatkozást készíteni.
 - [x] Az uradalmat joghatósági egységként kezelni, amely több ingatlant birtokolhat,
   és opcionálisan egy várat vagy más Propertyt használhat székhelyként.
-- [ ] Biztonságos lifecycle: kikapcsolva új kötelezettség ne keletkezzen, de a
+- [x] Biztonságos lifecycle: kikapcsolva új kötelezettség ne keletkezzen, de a
   meglévő kincstár, tartozás és tulajdon read-only módon megmaradjon.
 
 Elfogadási feltétel: két egymásba ágyazott joghatóság szabályai determinisztikusan

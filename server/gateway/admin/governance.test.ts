@@ -209,7 +209,7 @@ describe('governance domain', () => {
         governance.close();
         const migrated = new Database(path, { strict: true });
         expect(migrated.query('SELECT version FROM governance_schema WHERE singleton = 1').get())
-            .toEqual({ version: 6 });
+            .toEqual({ version: 7 });
         migrated.close(true);
     });
 });

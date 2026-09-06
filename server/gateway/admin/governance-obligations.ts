@@ -269,6 +269,8 @@ export class GovernanceObligationStore {
             const scopes = this.governance.resolveAt(event.location.x, event.location.z, event.location.level);
             let sequence = 0;
             for (const scope of scopes) {
+                if (scope.faction.status !== 'active'
+                    || !this.governance.isFactionActiveAt(scope.faction.factionId, event.occurredAt)) continue;
                 const policies = this.policies.listEffective(scope.jurisdictionId, event.trigger, event.occurredAt);
                 for (const policy of policies) {
                     const exemption = this.database.query(`SELECT exemption_id FROM governance_exemption

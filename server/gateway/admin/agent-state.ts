@@ -284,11 +284,11 @@ export async function settleAdminPlayerActionReward(settlementId: string, path =
         return { request, username: profile.avatarPlayerUsername, requester };
     });
     try {
+        const treasuryActorId = treasuryActorIdForAgent(state.request.requesterAgentId, state.requester, path);
         useTreasury(path, store => {
             if (!store.getReservation(state.request.requestId)) {
                 store.reserve(state.requester.subjectKind as InstitutionKind,
-                    treasuryActorIdForAgent(state.request.requesterAgentId, state.requester, path),
-                    state.request.requestId, state.request.rewardGp);
+                    treasuryActorId, state.request.requestId, state.request.rewardGp);
             }
             store.bindSettlement(state.request.requestId, settlementId);
         });

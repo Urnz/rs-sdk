@@ -67,12 +67,14 @@ The SQLite database stores an explicit `governance_schema.version`. Version 1 cr
 territory tables. Version 2 added budgets and the immutable budget audit. Version 3 added fiscal policies,
 single-active-version indexes and policy audit. Version 4 added verified source events and immutable due
 obligations. Version 5 adds exemptions, obligation resolutions and their append-only audits. Version 6 adds the
-verified manor-property portfolio and its audit. Each migration runs in one immediate transaction, and the full
+verified manor-property portfolio and its audit. Version 7 adds faction lifecycle state and audit. Each migration
+runs in one immediate transaction, and the full
 v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Future migrations must upgrade one
 known version at a time and preserve stable IDs. Unknown versions fail closed instead of being silently rewritten.
 
-Rollback for version 6 is operational: stop governance, collection and manor-property writers, then restore the
-pre-deployment v5 governance database backup. Before that restore, export the manor-property links and audit for
+Rollback for version 7 is operational: stop governance, collection and manor-property writers, then restore the
+pre-deployment v6 governance database backup. Before that restore, export lifecycle state and audit together with
+the manor-property links and audit for
 reconciliation with the authoritative Property state after rollback. Also reconcile any treasury transfer whose
 settlement ID has no matching obligation resolution before restoring an older governance backup. Never reverse a
 treasury transfer merely because the governance backup predates its resolution; reconcile it
@@ -127,7 +129,21 @@ linked asset is no longer owned by the manor, unlinking and clearing an affected
 append actor-attributed audit entries. Legacy `seatPropertyId` values remain visible as unverified references until
 they are reconciled; they never count as owned portfolio assets by themselves.
 
+## Safe faction lifecycle
+
+Every faction starts active and can be disabled or re-enabled only through an optimistic, actor- and reason-audited
+lifecycle transition. Disabled factions are read-only across budget, policy, exemption, collection, player-request
+treasury settlement and manor-property mutation paths. Existing faction identity, treasury balance, obligations,
+arrears and owned-property portfolio remain queryable without copying or deleting source data.
+
+Obligation generation checks both the faction's current status and its lifecycle state at the verified source event
+time. Therefore processing stops immediately while disabled, and an event that occurred inside a disabled interval
+cannot be charged later merely because the faction was re-enabled. Migrated factions with no lifecycle audit are
+treated as historically active, preserving pre-v7 policy and event behavior. Re-enabling permits only events outside
+the disabled interval; it never mutates or recreates skipped historical obligations.
+
 ## Next slice
 
-The next slice adds the safe governance lifecycle: disabling new obligation generation while preserving treasury,
-debt and property reads.
+The Phase 14 MVP is complete. Its acceptance path verifies that one economic event resolves broad-to-narrow across
+two nested jurisdictions, creates one obligation per effective policy, and books both treasury transfers exactly
+once across idempotent retries.

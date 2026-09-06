@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 
 export type FactionKind = 'kingdom' | 'city' | 'manor' | 'guild' | 'other';
+export type FactionStatus = 'active' | 'disabled';
 export type JurisdictionKind = 'realm' | 'city' | 'manor' | 'guild' | 'district' | 'other';
 export type GovernanceBudgetStatus = 'draft' | 'active' | 'superseded' | 'closed';
 export type GovernanceBudgetAuditAction = 'created' | 'activated' | 'superseded' | 'closed';
@@ -12,6 +13,8 @@ export interface Faction {
     kind: FactionKind;
     name: string;
     treasuryActorId: string;
+    status: FactionStatus;
+    disabledAt: string | null;
     revision: number;
     createdAt: string;
     updatedAt: string;
@@ -116,6 +119,7 @@ export interface CreateGovernanceBudget {
 
 interface FactionRow {
     faction_id: string; kind: FactionKind; name: string; treasury_actor_id: string;
+    status: FactionStatus; disabled_at: string | null;
     revision: number; created_at: string; updated_at: string;
 }
 
@@ -178,7 +182,8 @@ function coordinate(value: number, field: string): number {
 
 function faction(row: FactionRow): Faction {
     return { factionId: row.faction_id, kind: row.kind, name: row.name,
-        treasuryActorId: row.treasury_actor_id, revision: row.revision,
+        treasuryActorId: row.treasury_actor_id, status: row.status, disabledAt: row.disabled_at,
+        revision: row.revision,
         createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
@@ -226,7 +231,7 @@ export class GovernanceStore {
         this.database.run('INSERT OR IGNORE INTO governance_schema (singleton, version) VALUES (1, 1)');
         const schema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number } | null;
-        if (!schema || schema.version < 1 || schema.version > 6) {
+        if (!schema || schema.version < 1 || schema.version > 7) {
             throw new Error(`Unsupported governance schema version: ${schema?.version ?? 'missing'}`);
         }
         this.database.run(`CREATE TABLE IF NOT EXISTS governance_faction (
@@ -267,6 +272,9 @@ export class GovernanceStore {
         const collectionSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number };
         if (collectionSchema.version === 5) this.migrateVersionFiveToSix();
+        const manorSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+            .get() as { version: number };
+        if (manorSchema.version === 6) this.migrateVersionSixToSeven();
     }
 
     close(): void { this.database.close(true); }
@@ -295,10 +303,81 @@ export class GovernanceStore {
         return row ? faction(row) : null;
     }
 
+    setFactionStatus(factionIdInput: string, expectedRevision: number, status: FactionStatus,
+        actorAgentIdInput: string, reasonInput: string, now = new Date().toISOString()): Faction {
+        const factionId = stableId(factionIdInput, 'factionId');
+        const actorAgentId = stableId(actorAgentIdInput, 'actorAgentId');
+        const reason = boundedText(reasonInput, 'reason', 500);
+        if (reason.length < 8) throw new Error('reason is invalid');
+        if (!['active', 'disabled'].includes(status)) throw new Error('Faction status is invalid');
+        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+            throw new Error('Faction revision is invalid');
+        }
+        const current = this.getFaction(factionId);
+        if (!current) throw new Error('Faction does not exist');
+        if (current.status === status) {
+            const latest = this.database.query(`SELECT action, actor_agent_id, reason
+                FROM governance_faction_lifecycle_audit WHERE faction_id = ?1
+                ORDER BY sequence DESC LIMIT 1`).get(factionId) as {
+                    action: 'disabled' | 'enabled'; actor_agent_id: string; reason: string;
+                } | null;
+            if (!latest && status === 'active') return current;
+            const action = status === 'disabled' ? 'disabled' : 'enabled';
+            if (!latest || latest.action !== action || latest.actor_agent_id !== actorAgentId
+                || latest.reason !== reason) {
+                throw new Error('Faction lifecycle replay has different audit provenance');
+            }
+            return current;
+        }
+        const changedAt = timestamp(now);
+        const transaction = this.database.transaction(() => {
+            const updated = this.database.run(`UPDATE governance_faction SET status = ?3,
+                disabled_at = CASE WHEN ?3 = 'disabled' THEN ?4 ELSE NULL END,
+                revision = revision + 1, updated_at = ?4 WHERE faction_id = ?1 AND revision = ?2`,
+            [factionId, expectedRevision, status, changedAt]);
+            if (updated.changes !== 1) throw new Error('Faction changed before lifecycle update; refresh and try again');
+            this.database.run(`INSERT INTO governance_faction_lifecycle_audit
+                (faction_id, action, actor_agent_id, reason, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5)`,
+            [factionId, status === 'disabled' ? 'disabled' : 'enabled', actorAgentId, reason, changedAt]);
+        });
+        transaction.immediate();
+        return this.getFaction(factionId)!;
+    }
+
+    listFactionLifecycleAudit(factionIdInput: string): Array<{ sequence: number; factionId: string;
+        action: 'disabled' | 'enabled'; actorAgentId: string; reason: string; createdAt: string }> {
+        const factionId = stableId(factionIdInput, 'factionId');
+        return (this.database.query(`SELECT sequence, faction_id, action, actor_agent_id, reason, created_at
+            FROM governance_faction_lifecycle_audit WHERE faction_id = ?1 ORDER BY sequence`)
+            .all(factionId) as Array<{ sequence: number; faction_id: string; action: 'disabled' | 'enabled';
+                actor_agent_id: string; reason: string; created_at: string }>).map(row => ({
+            sequence: row.sequence, factionId: row.faction_id, action: row.action,
+            actorAgentId: row.actor_agent_id, reason: row.reason, createdAt: row.created_at
+        }));
+    }
+
+    assertFactionActive(factionIdInput: string): Faction {
+        const factionValue = this.getFaction(factionIdInput);
+        if (!factionValue) throw new Error('Faction does not exist');
+        if (factionValue.status !== 'active') throw new Error('Faction is disabled and read-only');
+        return factionValue;
+    }
+
+    isFactionActiveAt(factionIdInput: string, atInput: string): boolean {
+        const factionValue = this.getFaction(factionIdInput);
+        if (!factionValue) throw new Error('Faction does not exist');
+        const at = timestamp(atInput);
+        const row = this.database.query(`SELECT action FROM governance_faction_lifecycle_audit
+            WHERE faction_id = ?1 AND created_at <= ?2 ORDER BY created_at DESC, sequence DESC LIMIT 1`)
+            .get(factionValue.factionId, at) as { action: 'disabled' | 'enabled' } | null;
+        return !row || row.action === 'enabled';
+    }
+
     createJurisdiction(input: CreateJurisdiction, now = new Date().toISOString()): Jurisdiction {
         const jurisdictionId = stableId(input.jurisdictionId, 'jurisdictionId');
         const factionId = stableId(input.factionId, 'factionId');
-        if (!this.getFaction(factionId)) throw new Error('Faction does not exist');
+        this.assertFactionActive(factionId);
         if (!JURISDICTION_KINDS.includes(input.kind)) throw new Error('Jurisdiction kind is invalid');
         const name = boundedText(input.name, 'name', 120);
         const seatPropertyId = input.seatPropertyId ? stableId(input.seatPropertyId, 'seatPropertyId') : null;
@@ -342,6 +421,7 @@ export class GovernanceStore {
         const jurisdictionId = stableId(input.jurisdictionId, 'jurisdictionId');
         const owner = this.getJurisdiction(jurisdictionId);
         if (!owner) throw new Error('Jurisdiction does not exist');
+        this.assertFactionActive(owner.factionId);
         if (!Number.isSafeInteger(input.level) || input.level < 0 || input.level > 3) {
             throw new Error('level is invalid');
         }
@@ -413,7 +493,7 @@ export class GovernanceStore {
     createBudget(input: CreateGovernanceBudget, now = new Date().toISOString()): GovernanceBudget {
         const budgetId = stableId(input.budgetId, 'budgetId');
         const factionId = stableId(input.factionId, 'factionId');
-        if (!this.getFaction(factionId)) throw new Error('Faction does not exist');
+        this.assertFactionActive(factionId);
         if (!Number.isSafeInteger(input.version) || input.version < 1 || input.version > 1_000_000) {
             throw new Error('Budget version is invalid');
         }
@@ -482,6 +562,7 @@ export class GovernanceStore {
         const approvedByAgentId = stableId(approvedByAgentIdInput, 'approvedByAgentId');
         const current = this.getBudget(budgetId);
         if (!current) throw new Error('Budget does not exist');
+        this.assertFactionActive(current.factionId);
         if (current.status === 'active') {
             if (this.getBudgetAuditActor(budgetId, 'activated') !== approvedByAgentId) {
                 throw new Error('Budget activation replay has a different approver');
@@ -520,6 +601,7 @@ export class GovernanceStore {
         const closedByAgentId = stableId(closedByAgentIdInput, 'closedByAgentId');
         const current = this.getBudget(budgetId);
         if (!current) throw new Error('Budget does not exist');
+        this.assertFactionActive(current.factionId);
         if (current.status === 'closed') {
             if (this.getBudgetAuditActor(budgetId, 'closed') !== closedByAgentId) {
                 throw new Error('Budget close replay has a different actor');
@@ -722,6 +804,25 @@ export class GovernanceStore {
                 property_state_version INTEGER NOT NULL CHECK (property_state_version >= 1),
                 actor_agent_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL)`);
             this.database.run('UPDATE governance_schema SET version = 6 WHERE singleton = 1 AND version = 5');
+        });
+        transaction.immediate();
+    }
+
+    private migrateVersionSixToSeven(): void {
+        const transaction = this.database.transaction(() => {
+            const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+                .get() as { version: number } | null;
+            if (current?.version === 7) return;
+            if (current?.version !== 6) throw new Error('Governance schema changed during migration');
+            this.database.run(`ALTER TABLE governance_faction ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
+                CHECK (status IN ('active', 'disabled'))`);
+            this.database.run('ALTER TABLE governance_faction ADD COLUMN disabled_at TEXT');
+            this.database.run(`CREATE TABLE governance_faction_lifecycle_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                faction_id TEXT NOT NULL REFERENCES governance_faction(faction_id),
+                action TEXT NOT NULL CHECK (action IN ('disabled', 'enabled')),
+                actor_agent_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL)`);
+            this.database.run('UPDATE governance_schema SET version = 7 WHERE singleton = 1 AND version = 6');
         });
         transaction.immediate();
     }

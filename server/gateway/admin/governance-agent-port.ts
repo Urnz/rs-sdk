@@ -43,6 +43,7 @@ function exactFaction(profile: AgentControlProfile, path: string): Faction {
     try {
         const faction = governance.getFaction(profile.subjectId);
         if (!faction) throw new Error('The exact Faction subject does not exist');
+        if (faction.status !== 'active') throw new Error('Faction is disabled and read-only');
         return faction;
     } finally { governance.close(); }
 }
@@ -114,6 +115,7 @@ export function validateFactionPlayerActionForAgent(agentId: string,
     try {
         const faction = governance.getFaction(profile.subjectId);
         if (!faction) throw new Error('The exact Faction subject does not exist');
+        if (faction.status !== 'active') throw new Error('Faction is disabled and read-only');
         const budget = governance.getActiveBudget(faction.factionId);
         if (!budget) throw new Error('Faction player work requires an approved active budget');
         const rewardGp = input.rewardGp ?? 0;

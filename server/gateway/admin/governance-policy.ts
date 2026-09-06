@@ -158,9 +158,12 @@ export class GovernancePolicyStore {
         const calculation = normalizeCalculation(input.calculation);
         const createdByAgentId = stableId(input.createdByAgentId, 'createdByAgentId');
         const createdAt = timestamp(now, 'now');
-        const scope = this.database.query(`SELECT jurisdiction_id FROM governance_jurisdiction
-            WHERE jurisdiction_id = ?1`).get(jurisdictionId);
+        const scope = this.database.query(`SELECT j.jurisdiction_id, f.status FROM governance_jurisdiction j
+            JOIN governance_faction f ON f.faction_id = j.faction_id
+            WHERE j.jurisdiction_id = ?1`).get(jurisdictionId) as { jurisdiction_id: string;
+                status: 'active' | 'disabled' } | null;
         if (!scope) throw new Error('Jurisdiction does not exist');
+        if (scope.status !== 'active') throw new Error('Faction is disabled and read-only');
         const existing = this.get(policyId);
         if (existing) {
             const exact = existing.jurisdictionId === jurisdictionId && existing.policyKey === policyKey
@@ -241,6 +244,7 @@ export class GovernancePolicyStore {
         const approvedByAgentId = stableId(approvedByAgentIdInput, 'approvedByAgentId');
         const current = this.get(policyId);
         if (!current) throw new Error('Policy does not exist');
+        this.assertJurisdictionWritable(current.jurisdictionId);
         if (current.status === 'active') {
             if (this.getAuditActor(policyId, 'activated') !== approvedByAgentId) {
                 throw new Error('Policy activation replay has a different approver');
@@ -280,6 +284,7 @@ export class GovernancePolicyStore {
         const revokedByAgentId = stableId(revokedByAgentIdInput, 'revokedByAgentId');
         const current = this.get(policyId);
         if (!current) throw new Error('Policy does not exist');
+        this.assertJurisdictionWritable(current.jurisdictionId);
         if (current.status === 'revoked') {
             if (this.getAuditActor(policyId, 'revoked') !== revokedByAgentId) {
                 throw new Error('Policy revocation replay has a different actor');
@@ -322,5 +327,12 @@ export class GovernancePolicyStore {
             WHERE policy_id = ?1 AND action = ?2 ORDER BY sequence DESC LIMIT 1`)
             .get(policyId, action) as { actor_agent_id: string } | null;
         return row?.actor_agent_id ?? null;
+    }
+
+    private assertJurisdictionWritable(jurisdictionId: string): void {
+        const active = this.database.query(`SELECT 1 FROM governance_jurisdiction j
+            JOIN governance_faction f ON f.faction_id = j.faction_id
+            WHERE j.jurisdiction_id = ?1 AND f.status = 'active'`).get(jurisdictionId);
+        if (!active) throw new Error('Faction is disabled and read-only');
     }
 }

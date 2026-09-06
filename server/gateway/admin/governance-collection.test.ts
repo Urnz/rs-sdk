@@ -57,6 +57,63 @@ async function createObligation(governancePath: string, event = revenueEvent()) 
 }
 
 describe('governance collection, exemptions and arrears', () => {
+    test('books nested jurisdiction taxes once from the same verified event', async () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-governance-nested-booking-'));
+        directories.push(directory);
+        const governancePath = join(directory, 'governance.sqlite');
+        const treasuryPath = join(directory, 'treasury.sqlite');
+        const governance = new GovernanceStore(governancePath);
+        governance.createFaction({ factionId: 'misthalin', kind: 'kingdom', name: 'Misthalin' });
+        governance.createFaction({ factionId: 'varrock', kind: 'city', name: 'Varrock' });
+        governance.createJurisdiction({ jurisdictionId: 'misthalin-realm', factionId: 'misthalin',
+            kind: 'realm', name: 'Misthalin Realm' });
+        governance.assignTerritory({ territoryId: 'misthalin-main', jurisdictionId: 'misthalin-realm',
+            level: 0, minX: 3000, maxX: 3400, minZ: 3200, maxZ: 3600 });
+        governance.createJurisdiction({ jurisdictionId: 'varrock-city', factionId: 'varrock',
+            parentJurisdictionId: 'misthalin-realm', kind: 'city', name: 'Varrock City' });
+        governance.assignTerritory({ territoryId: 'varrock-walls', jurisdictionId: 'varrock-city',
+            level: 0, minX: 3200, maxX: 3300, minZ: 3400, maxZ: 3500 });
+        governance.close();
+        const policies = new GovernancePolicyStore(governancePath);
+        for (const definition of [
+            { policyId: 'realm-tax-1', jurisdictionId: 'misthalin-realm', policyKey: 'realm-tax', amountGp: 100 },
+            { policyId: 'city-tax-1', jurisdictionId: 'varrock-city', policyKey: 'city-tax', amountGp: 50 }
+        ]) {
+            const draft = policies.create({ ...definition, version: 1, kind: 'tax',
+                trigger: 'business-revenue', name: definition.policyId,
+                calculation: { mode: 'flat', amountGp: definition.amountGp }, createdByAgentId: 'admin' },
+            '2026-09-01T00:00:00.000Z');
+            policies.activate(draft.policyId, draft.revision, 'admin', '2026-09-01T01:00:00.000Z');
+        }
+        policies.close();
+        const source = { ...revenueEvent('business:nested-sale'), location: { level: 0, x: 3250, z: 3450 } };
+        const obligationStore = new GovernanceObligationStore(governancePath);
+        const obligations = await obligationStore.process(source, verifier, '2026-09-02T12:02:00.000Z');
+        expect(obligations.map(item => [item.jurisdictionId, item.amountGp]))
+            .toEqual([['misthalin-realm', 100], ['varrock-city', 50]]);
+        obligationStore.close();
+        const treasury = new InstitutionTreasuryStore(treasuryPath);
+        treasury.ensure('business', 'blue-moon');
+        treasury.setBalance('business', 'blue-moon', 1, 1_000);
+        treasury.ensure('faction', 'misthalin');
+        treasury.ensure('faction', 'varrock');
+        treasury.close();
+        const collection = new GovernanceCollectionService(governancePath, treasuryPath);
+        const settlementIds = ['44444444-4444-4444-8444-444444444444',
+            '55555555-5555-4555-8555-555555555555'];
+        obligations.forEach((obligation, index) => {
+            collection.collectInstitutionObligation(obligation.obligationId, settlementIds[index]!, 'collector');
+            collection.collectInstitutionObligation(obligation.obligationId, settlementIds[index]!, 'collector');
+        });
+        collection.close();
+        const booked = new InstitutionTreasuryStore(treasuryPath);
+        expect(booked.get('business', 'blue-moon')?.balanceGp).toBe(850);
+        expect(booked.get('faction', 'misthalin')?.balanceGp).toBe(100);
+        expect(booked.get('faction', 'varrock')?.balanceGp).toBe(50);
+        expect(booked.listTransfers()).toHaveLength(2);
+        booked.close();
+    });
+
     test('applies an effective exemption before obligation generation and audits revocation', async () => {
         const paths = fixture();
         const collection = new GovernanceCollectionService(paths.governancePath, paths.treasuryPath);

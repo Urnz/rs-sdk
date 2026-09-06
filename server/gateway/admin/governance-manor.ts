@@ -146,6 +146,7 @@ export class GovernanceManorService {
         verifier: ManorPropertyEvidenceVerifier, actorAgentIdInput: string, reasonInput: string,
         now = new Date().toISOString()): Promise<ManorPropertyLink | null> {
         const { jurisdiction, faction } = this.manor(manorJurisdictionIdInput);
+        if (faction.status !== 'active') throw new Error('Faction is disabled and read-only');
         const evidence = normalizeEvidence(property);
         const verified = await verifier.verify(Object.freeze({ ...evidence,
             owner: evidence.owner ? Object.freeze({ ...evidence.owner }) : null }));
@@ -224,6 +225,7 @@ export class GovernanceManorService {
         expectedJurisdictionRevision: number, actorAgentIdInput: string, reasonInput: string,
         now = new Date().toISOString()): ManorPortfolio {
         const { jurisdiction } = this.manor(manorJurisdictionIdInput);
+        this.governance.assertFactionActive(jurisdiction.factionId);
         const selectedPropertyId = propertyIdInput ? propertyId(propertyIdInput) : null;
         if (selectedPropertyId && !this.getLink(jurisdiction.jurisdictionId, selectedPropertyId)) {
             throw new Error('Manor seat must be one of its verified owned properties');
