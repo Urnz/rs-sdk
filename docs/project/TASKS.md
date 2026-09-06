@@ -638,7 +638,7 @@ későbbi kiadás.
 - [x] Property- és Business-eseményekből idempotens kötelezettségeket képezni.
 - [x] A Governance read/write portját a faction-agent allowlistelt domain
   tooljaihoz kötni, minden fizikai játékbeli műveletet player-megbízásként hagyva.
-- [ ] Adóbeszedést, mentességet, hátralékot és auditálható adminbeavatkozást készíteni.
+- [x] Adóbeszedést, mentességet, hátralékot és auditálható adminbeavatkozást készíteni.
 - [ ] Az uradalmat joghatósági egységként kezelni, amely több ingatlant birtokolhat,
   és opcionálisan egy várat vagy más Propertyt használhat székhelyként.
 - [ ] Biztonságos lifecycle: kikapcsolva új kötelezettség ne keletkezzen, de a

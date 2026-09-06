@@ -65,12 +65,16 @@ settles them.
 
 The SQLite database stores an explicit `governance_schema.version`. Version 1 created faction, jurisdiction and
 territory tables. Version 2 added budgets and the immutable budget audit. Version 3 added fiscal policies,
-single-active-version indexes and policy audit. Version 4 adds verified source events and immutable due
-obligations. Each migration runs in one immediate transaction, and the full
+single-active-version indexes and policy audit. Version 4 added verified source events and immutable due
+obligations. Version 5 adds exemptions, obligation resolutions and their append-only audits. Each migration runs
+in one immediate transaction, and the full
 v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Future migrations must upgrade one
 known version at a time and preserve stable IDs. Unknown versions fail closed instead of being silently rewritten.
 
-Rollback for version 4 is operational: stop governance writers and restore the pre-deployment v3 database backup.
+Rollback for version 5 is operational: stop governance and collection writers, reconcile any treasury transfer
+whose settlement ID has no matching obligation resolution, then restore the pre-deployment v4 governance database
+backup. Never reverse a treasury transfer merely because the governance backup predates its resolution; reconcile it
+forward using the immutable settlement ID and treasury transfer record.
 The new database is isolated at `.local/economy/governance.sqlite`, so rollback does not rewrite player saves,
 property, business, treasury or banking databases. Before a later destructive schema change, export the three
 base governance tables, budgets, policies, source events, obligations and both audits, then verify row counts and
@@ -92,7 +96,21 @@ agents have no physical execution authority. Player work stays a typed player-ac
 faction budget, and is bounded by both its spending limit and the agent's operational limit. Treasury reservation
 and settlement use the faction's exact treasury actor even when it differs from the faction subject ID.
 
+## Collection, exemptions and arrears
+
+Effective exemptions are exact beneficiary bindings scoped to a jurisdiction and optionally one policy family.
+They have bounded validity windows, optimistic revocation and append-only actor/reason audit. An exemption must have
+existed at the source event time; backdating a newly created exemption cannot silently erase an existing debt.
+Matching exemptions suppress obligation creation before the event transaction writes any charge.
+
+Unresolved obligations become arrears after a caller-supplied bounded grace period. Institution-to-institution debt
+is collected through the shared treasury's atomic reserve-and-transfer operation. The obligation resolution and its
+audit are idempotently reconciled by the same settlement ID, so a process failure between the treasury and governance
+databases can be completed forward without charging twice. Player-side debts fail closed until the later verified
+player settlement adapter exists. Failed attempts remain unresolved and append an audit entry; an administrator may
+waive a debt only with an explicit bounded reason, producing an immutable resolution and audit in one transaction.
+
 ## Next slice
 
-The next slice adds collection, exemptions, arrears and audited administrative intervention. Only verified
-settlement events may move treasury funds.
+The next slice models manors as jurisdictions that can own multiple properties and optionally designate one as
+their seat.

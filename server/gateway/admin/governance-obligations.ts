@@ -203,6 +203,13 @@ export class GovernanceObligationStore {
         return row ? sourceEvent(row) : null;
     }
 
+    getObligation(obligationIdInput: string): GovernanceObligation | null {
+        const obligationIdValue = boundedId(obligationIdInput, 'Governance obligation id');
+        const row = this.database.query('SELECT * FROM governance_obligation WHERE obligation_id = ?1')
+            .get(obligationIdValue) as ObligationRow | null;
+        return row ? obligation(row) : null;
+    }
+
     listForEvent(eventIdInput: string): GovernanceObligation[] {
         const eventId = boundedId(eventIdInput, 'Governance event id');
         return (this.database.query(`SELECT * FROM governance_obligation
@@ -264,6 +271,16 @@ export class GovernanceObligationStore {
             for (const scope of scopes) {
                 const policies = this.policies.listEffective(scope.jurisdictionId, event.trigger, event.occurredAt);
                 for (const policy of policies) {
+                    const exemption = this.database.query(`SELECT exemption_id FROM governance_exemption
+                        WHERE jurisdiction_id = ?1 AND (policy_key IS NULL OR policy_key = ?2)
+                        AND beneficiary_kind = ?3 AND beneficiary_id = ?4
+                        AND created_at <= ?5 AND valid_from <= ?5
+                        AND (valid_until IS NULL OR valid_until > ?5)
+                        AND (revoked_at IS NULL OR revoked_at > ?5)
+                        ORDER BY exemption_id LIMIT 1`)
+                        .get(scope.jurisdictionId, policy.policyKey, event.subject.kind,
+                            event.subject.id, event.occurredAt);
+                    if (exemption) continue;
                     const amountGp = calculateGovernancePolicyAmount(policy, event.basisGp);
                     if (amountGp === 0) continue;
                     const treasuryActor: GovernanceEconomicActorRef = {

@@ -226,7 +226,7 @@ export class GovernanceStore {
         this.database.run('INSERT OR IGNORE INTO governance_schema (singleton, version) VALUES (1, 1)');
         const schema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number } | null;
-        if (!schema || schema.version < 1 || schema.version > 4) {
+        if (!schema || schema.version < 1 || schema.version > 5) {
             throw new Error(`Unsupported governance schema version: ${schema?.version ?? 'missing'}`);
         }
         this.database.run(`CREATE TABLE IF NOT EXISTS governance_faction (
@@ -261,6 +261,9 @@ export class GovernanceStore {
         const policySchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number };
         if (policySchema.version === 3) this.migrateVersionThreeToFour();
+        const obligationSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+            .get() as { version: number };
+        if (obligationSchema.version === 4) this.migrateVersionFourToFive();
     }
 
     close(): void { this.database.close(true); }
@@ -651,6 +654,47 @@ export class GovernanceStore {
             this.database.run(`CREATE INDEX IF NOT EXISTS governance_obligation_debtor
                 ON governance_obligation(debtor_kind, debtor_id, status, created_at)`);
             this.database.run('UPDATE governance_schema SET version = 4 WHERE singleton = 1 AND version = 3');
+        });
+        transaction.immediate();
+    }
+
+    private migrateVersionFourToFive(): void {
+        const transaction = this.database.transaction(() => {
+            const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+                .get() as { version: number } | null;
+            if (current?.version === 5) return;
+            if (current?.version !== 4) throw new Error('Governance schema changed during migration');
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_exemption (
+                exemption_id TEXT PRIMARY KEY,
+                jurisdiction_id TEXT NOT NULL REFERENCES governance_jurisdiction(jurisdiction_id),
+                policy_key TEXT, beneficiary_kind TEXT NOT NULL
+                CHECK (beneficiary_kind IN ('player', 'business', 'faction')), beneficiary_id TEXT NOT NULL,
+                valid_from TEXT NOT NULL, valid_until TEXT, reason TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('active', 'revoked')),
+                revision INTEGER NOT NULL CHECK (revision >= 1), created_by_agent_id TEXT NOT NULL,
+                created_at TEXT NOT NULL, revoked_at TEXT, updated_at TEXT NOT NULL,
+                CHECK (valid_until IS NULL OR valid_until > valid_from))`);
+            this.database.run(`CREATE INDEX IF NOT EXISTS governance_exemption_lookup
+                ON governance_exemption(jurisdiction_id, beneficiary_kind, beneficiary_id, status, valid_from)`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_exemption_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                exemption_id TEXT NOT NULL REFERENCES governance_exemption(exemption_id),
+                action TEXT NOT NULL CHECK (action IN ('created', 'revoked')),
+                actor_agent_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL)`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_obligation_resolution (
+                obligation_id TEXT PRIMARY KEY REFERENCES governance_obligation(obligation_id),
+                resolution_kind TEXT NOT NULL CHECK (resolution_kind IN ('collected', 'exempted', 'waived')),
+                settlement_id TEXT UNIQUE, exemption_id TEXT REFERENCES governance_exemption(exemption_id),
+                actor_agent_id TEXT NOT NULL, reason TEXT NOT NULL, resolved_at TEXT NOT NULL,
+                CHECK ((resolution_kind = 'collected' AND settlement_id IS NOT NULL AND exemption_id IS NULL)
+                    OR (resolution_kind = 'exempted' AND settlement_id IS NULL AND exemption_id IS NOT NULL)
+                    OR (resolution_kind = 'waived' AND settlement_id IS NULL AND exemption_id IS NULL)))`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_obligation_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                obligation_id TEXT NOT NULL REFERENCES governance_obligation(obligation_id),
+                action TEXT NOT NULL CHECK (action IN ('collected', 'exempted', 'waived', 'collection-failed')),
+                actor_agent_id TEXT NOT NULL, settlement_id TEXT, reason TEXT NOT NULL, created_at TEXT NOT NULL)`);
+            this.database.run('UPDATE governance_schema SET version = 5 WHERE singleton = 1 AND version = 4');
         });
         transaction.immediate();
     }
