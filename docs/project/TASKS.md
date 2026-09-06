@@ -634,7 +634,7 @@ későbbi kiadás.
   uradalmakhoz, céhekhez és más hierarchikus egységekhez.
 - [x] Területi tagságot és egymásba ágyazott joghatóságot konfigurálni.
 - [x] Kincstárat és költségvetést a közös gazdasági főkönyvhöz kapcsolni.
-- [ ] Adó-, vám-, illeték- és támogatási szabályokat verziózott policyként kezelni.
+- [x] Adó-, vám-, illeték- és támogatási szabályokat verziózott policyként kezelni.
 - [ ] Property- és Business-eseményekből idempotens kötelezettségeket képezni.
 - [ ] A Governance read/write portját a faction-agent allowlistelt domain
   tooljaihoz kötni, minden fizikai játékbeli műveletet player-megbízásként hagyva.

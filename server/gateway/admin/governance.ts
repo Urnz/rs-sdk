@@ -226,7 +226,7 @@ export class GovernanceStore {
         this.database.run('INSERT OR IGNORE INTO governance_schema (singleton, version) VALUES (1, 1)');
         const schema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number } | null;
-        if (!schema || schema.version < 1 || schema.version > 2) {
+        if (!schema || schema.version < 1 || schema.version > 3) {
             throw new Error(`Unsupported governance schema version: ${schema?.version ?? 'missing'}`);
         }
         this.database.run(`CREATE TABLE IF NOT EXISTS governance_faction (
@@ -255,6 +255,9 @@ export class GovernanceStore {
         this.database.run(`CREATE INDEX IF NOT EXISTS governance_territory_bounds
             ON governance_territory(level, min_x, max_x, min_z, max_z)`);
         if (schema.version === 1) this.migrateVersionOneToTwo();
+        const currentSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+            .get() as { version: number };
+        if (currentSchema.version === 2) this.migrateVersionTwoToThree();
     }
 
     close(): void { this.database.close(true); }
@@ -534,7 +537,7 @@ export class GovernanceStore {
         const transaction = this.database.transaction(() => {
             const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
                 .get() as { version: number } | null;
-            if (current?.version === 2) return;
+            if (current?.version === 2 || current?.version === 3) return;
             if (current?.version !== 1) throw new Error('Governance schema changed during migration');
             this.database.run(`CREATE TABLE IF NOT EXISTS governance_budget (
                 budget_id TEXT PRIMARY KEY, faction_id TEXT NOT NULL REFERENCES governance_faction(faction_id),
@@ -558,6 +561,47 @@ export class GovernanceStore {
                 to_status TEXT NOT NULL CHECK (to_status IN ('draft', 'active', 'superseded', 'closed')),
                 created_at TEXT NOT NULL)`);
             this.database.run('UPDATE governance_schema SET version = 2 WHERE singleton = 1 AND version = 1');
+        });
+        transaction.immediate();
+    }
+
+    private migrateVersionTwoToThree(): void {
+        const transaction = this.database.transaction(() => {
+            const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+                .get() as { version: number } | null;
+            if (current?.version === 3) return;
+            if (current?.version !== 2) throw new Error('Governance schema changed during migration');
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_policy (
+                policy_id TEXT PRIMARY KEY,
+                jurisdiction_id TEXT NOT NULL REFERENCES governance_jurisdiction(jurisdiction_id),
+                policy_key TEXT NOT NULL, version INTEGER NOT NULL CHECK (version BETWEEN 1 AND 1000000),
+                kind TEXT NOT NULL CHECK (kind IN ('tax', 'tariff', 'fee', 'subsidy')),
+                trigger_kind TEXT NOT NULL CHECK (trigger_kind IN ('property-transfer', 'property-ownership',
+                    'business-revenue', 'business-registration', 'goods-import', 'property-development')),
+                name TEXT NOT NULL, calculation_mode TEXT NOT NULL CHECK (calculation_mode IN ('flat', 'basis-points')),
+                flat_amount_gp INTEGER, rate_bps INTEGER, minimum_gp INTEGER NOT NULL,
+                maximum_gp INTEGER NOT NULL, status TEXT NOT NULL
+                CHECK (status IN ('draft', 'active', 'superseded', 'revoked')),
+                revision INTEGER NOT NULL CHECK (revision >= 1), created_at TEXT NOT NULL,
+                activated_at TEXT, revoked_at TEXT, updated_at TEXT NOT NULL,
+                CHECK ((calculation_mode = 'flat' AND flat_amount_gp BETWEEN 1 AND 2147483647
+                    AND rate_bps IS NULL) OR (calculation_mode = 'basis-points' AND flat_amount_gp IS NULL
+                    AND rate_bps BETWEEN 1 AND 10000)),
+                CHECK (minimum_gp BETWEEN 0 AND 2147483647),
+                CHECK (maximum_gp BETWEEN minimum_gp AND 2147483647),
+                UNIQUE (jurisdiction_id, policy_key, version))`);
+            this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS governance_active_policy
+                ON governance_policy(jurisdiction_id, policy_key) WHERE status = 'active'`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS governance_policy_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                policy_id TEXT NOT NULL REFERENCES governance_policy(policy_id),
+                jurisdiction_id TEXT NOT NULL REFERENCES governance_jurisdiction(jurisdiction_id),
+                action TEXT NOT NULL CHECK (action IN ('created', 'activated', 'superseded', 'revoked')),
+                actor_agent_id TEXT NOT NULL, from_status TEXT
+                CHECK (from_status IS NULL OR from_status IN ('draft', 'active', 'superseded', 'revoked')),
+                to_status TEXT NOT NULL CHECK (to_status IN ('draft', 'active', 'superseded', 'revoked')),
+                created_at TEXT NOT NULL)`);
+            this.database.run('UPDATE governance_schema SET version = 3 WHERE singleton = 1 AND version = 2');
         });
         transaction.immediate();
     }

@@ -29,15 +29,30 @@ and closure append actor-attributed audit entries in the same governance transac
 to the original creator or approver and reject changed provenance. A budget is an authorization ceiling, not a
 second balance or a reservation; later spending must still pass through the treasury settlement layer.
 
+## Versioned fiscal policies
+
+Tax, tariff, fee and subsidy rules are immutable versions in a stable policy family. Each jurisdiction may have
+one active version per `policyKey`; activating a replacement atomically supersedes the previous version. Drafts
+are inert, and creation, activation, supersession and revocation carry an actor-bound audit trail with optimistic
+revision protection.
+
+The calculation language is deliberately small: a policy is either a positive flat GP amount or a basis-point
+rate with explicit minimum and maximum GP bounds. Policy kind and trigger must match a closed allowlist. Current
+triggers are `property-transfer`, `property-ownership`, `business-revenue`, `business-registration`,
+`goods-import` and `property-development`; arbitrary chat, model output or external event names cannot become
+executable policy. The pure calculator rounds proportional amounts down and applies the persisted bounds
+deterministically. A subsidy is represented as a positive amount; its later obligation adapter determines the
+reversed payer/payee direction rather than encoding negative money.
+
 ## Persistence and migration
 
 The SQLite database stores an explicit `governance_schema.version`. Version 1 created faction, jurisdiction and
-territory tables. Version 2 adds budgets, a single-active-budget index and the immutable budget audit. The
-v1-to-v2 migration runs in one immediate transaction and has a reopen-and-migrate test using a prior-schema
-fixture. Future migrations must upgrade one known version at a time and preserve stable IDs. Unknown versions
-fail closed instead of being silently rewritten.
+territory tables. Version 2 added budgets and the immutable budget audit. Version 3 adds fiscal policies,
+single-active-version indexes and policy audit. Each migration runs in one immediate transaction, and the full
+v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Future migrations must upgrade one
+known version at a time and preserve stable IDs. Unknown versions fail closed instead of being silently rewritten.
 
-Rollback for version 2 is operational: stop governance writers and restore the pre-deployment v1 database backup.
+Rollback for version 3 is operational: stop governance writers and restore the pre-deployment v2 database backup.
 The new database is isolated at `.local/economy/governance.sqlite`, so rollback does not rewrite player saves,
 property, business, treasury or banking databases. Before a later destructive schema change, export the three
 base governance tables, budget tables and audit, then verify row counts and foreign keys after restore. Because
@@ -46,6 +61,5 @@ unused faction treasury account; it must not be deleted automatically if it has 
 
 ## Next slice
 
-The next slice introduces versioned tax, tariff, fee and subsidy policies. Policy evaluation will consume the
-deterministic jurisdiction chain and may emit obligations, but only verified settlement events may move treasury
-funds.
+The next slice converts trusted Property and Business events into idempotent obligations. Policy evaluation will
+consume the deterministic jurisdiction chain, but only verified settlement events may move treasury funds.
