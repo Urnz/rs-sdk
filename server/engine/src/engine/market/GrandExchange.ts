@@ -123,10 +123,9 @@ function account(p: Player): MarketAccount {
             // One durable cut across carried player inventories prevents an item handed
             // from A to B between autosaves reappearing in A after B deposits it here.
             // This runs inside the exchange transaction, without yielding the world.
-            for (const other of World.playerLoop.all()) {
-                if (other !== p) marketStore().checkpoint(other.username, other.save(), true);
-            }
-            return p.save();
+            const save = p.save(false);
+            World.checkpointPlayers(p, save);
+            return save;
         },
         rollback: () => {
             before.forEach((item, i) => inv.set(i, item));
@@ -420,20 +419,10 @@ export function exchangeButton(p: Player, id: number): boolean {
             }
         }
         if (id === com('collect')) {
-            let items = 0,
-                gold = 0;
-            // Each offer is a separate atomic collection. Preserve already committed
-            // additions in the receipt if a later offer fails (e.g. a save error).
-            s.receipt = { token: ++nextReceipt, kind: 'collect', items: 0, coins: 0 };
-            for (const offer of marketStore().offers(p.username)) {
-                const result = marketStore().collect(account(p), offer.id, coins(), noteFor(offer.item));
-                items += result.items;
-                gold += result.coins;
-                s.receipt.items = items;
-                s.receipt.coins = gold;
-            }
+            const result = marketStore().collectMany(account(p), marketStore().offers(p.username).map(offer => ({ id: offer.id, itemId: noteFor(offer.item) })), coins());
+            s.receipt = { token: ++nextReceipt, kind: 'collect', ...result };
             s.screen = 'home';
-            render(p, `Collected ${items} items and ${gold} coins. Any overflow stays here.`);
+            render(p, `Collected ${result.items} items and ${result.coins} coins. Any overflow stays here.`);
             return true;
         }
         if (id === com('close')) {

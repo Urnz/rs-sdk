@@ -52,12 +52,26 @@ in-memory backpack. Counterparties' inventory is never remotely modified:
 only their escrow claims change. Cancellation is an idempotent ledger-only
 transaction.
 
-Placement and collection also checkpoint online players. Normal saves update
-existing checkpoints, and player loading prefers them over login-service saves.
-This makes the ledger authoritative for bystanders as well as traders. Recovery
-must account for temporary inventories and pending logout saves; checkpointing
-online players alone is not sufficient. Transient NPC, ground-item and shop state
-is not persisted by the exchange.
+Placement and collection checkpoint online players and pending logout saves in
+the same transaction. Autosaves, reconnects and logouts use the same world-wide
+checkpoint boundary, including first-time players. Loading prefers ledger saves
+over login-service saves, making the ledger authoritative for bystanders as well
+as traders. Saving one participant after an ordinary trade cannot advance only
+that participant's recovery state.
+
+Save version 8 includes player-owned temporary escrow (trade, duel, party-chest,
+death-kept items and unclaimed rewards). Taking a snapshot never closes another
+player's interface or changes their live inventory. On recovery these items
+return to the backpack, then the bank (notes are unnoted there). Stack/capacity
+overflow remains saved and is retried while the player is idle. Display-only
+crafting inventories are excluded. Version 7 saves remain readable; an older
+server cannot read version 8 saves, so rollback requires a compatible build.
+Transient NPC, ground-item and shop state is not persisted by the exchange.
+
+Collect-all transfers all six slots in one transaction and checkpoints the world
+once. Empty collections and collections blocked entirely by inventory capacity
+do not serialize or checkpoint players. A failed batch restores all its claims
+and inventory additions.
 
 **Operational consequences:** back up the ledger and its player checkpoints
 with the rest of the world. Use SQLite's backup API or stop the world before

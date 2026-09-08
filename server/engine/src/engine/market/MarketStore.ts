@@ -100,13 +100,13 @@ export class MarketStore {
     saved(owner: string): Uint8Array | undefined {
         return this.db.query<{ save: Uint8Array }, [string]>('SELECT save FROM accounts WHERE owner=?').get(owner)?.save;
     }
-    private transfer<T>(account: MarketAccount, action: () => T): T {
+    private transfer<T>(account: MarketAccount, action: () => T, needsCheckpoint = () => true): T {
         try {
             let value!: T;
             this.db
                 .transaction(() => {
                     const result = action();
-                    this.checkpoint(account.owner, account.save(), true);
+                    if (needsCheckpoint()) this.checkpoint(account.owner, account.save(), true);
                     value = result;
                 })
                 .immediate();
@@ -184,17 +184,29 @@ export class MarketStore {
             .immediate();
     }
     collect(account: MarketAccount, id: number, coinsId: number, itemId?: number): { items: number; coins: number } {
+        return this.collectMany(account, [{ id, itemId }], coinsId);
+    }
+    /** One inventory snapshot and durable transaction for all requested claims. */
+    collectMany(account: MarketAccount, requests: readonly { id: number; itemId?: number }[], coinsId: number): { items: number; coins: number } {
+        if (new Set(requests.map(r => r.id)).size !== requests.length) throw new Error('Duplicate collection offer.');
+        // Synchronous single-world access: no action can interleave with this preflight.
+        const offers = requests.map(request => ({ ...request, offer: this.owned(account.owner, request.id) }));
+        const result = { items: 0, coins: 0 };
+        if (offers.every(({ offer }) => !offer.items && !offer.coins && offer.state === 'open')) return result;
         return this.transfer(account, () => {
-            const o = this.owned(account.owner, id);
-            const items = o.items ? account.give(itemId ?? o.item, o.items) : 0;
-            const coins = o.coins ? account.give(coinsId, o.coins) : 0;
-            if (!Number.isInteger(items) || items < 0 || items > o.items || !Number.isInteger(coins) || coins < 0 || coins > o.coins) throw new Error('Invalid inventory transfer.');
-            o.items -= items;
-            o.coins -= coins;
-            if (o.state !== 'open' && !o.items && !o.coins) o.slot = -1;
-            this.update(o);
-            return { items, coins };
-        });
+            for (const { offer: o, itemId } of offers) {
+                const items = o.items ? account.give(itemId ?? o.item, o.items) : 0;
+                const coins = o.coins ? account.give(coinsId, o.coins) : 0;
+                if (!Number.isInteger(items) || items < 0 || items > o.items || !Number.isInteger(coins) || coins < 0 || coins > o.coins) throw new Error('Invalid inventory transfer.');
+                o.items -= items;
+                o.coins -= coins;
+                if (o.state !== 'open' && !o.items && !o.coins) o.slot = -1;
+                if (items || coins || o.slot === -1) this.update(o);
+                result.items += items;
+                result.coins += coins;
+            }
+            return result;
+        }, () => result.items > 0 || result.coins > 0);
     }
     quote(item: number, since = Date.now() - 86_400_000) {
         const book = this.db

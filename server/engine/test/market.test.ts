@@ -149,6 +149,34 @@ describe('Grand Exchange conservation and matching', () => {
         expect(() => s.cancel('b', o.id)).toThrow();
         expect(() => s.collect(b.account(), o.id, COINS)).toThrow();
     });
+    test('empty and capacity-blocked collections never serialize the world', () => {
+        const s = store(), a = new Wallet('a', 100);
+        const o = s.place(a.account(), ITEM, 'buy', 1, 10, COINS);
+        a.failSave = true;
+        expect(s.collect(a.account(), o.id, COINS)).toEqual({ items: 0, coins: 0 });
+        s.cancel(a.owner, o.id);
+        a.capacity = 90;
+        expect(s.collect(a.account(), o.id, COINS)).toEqual({ items: 0, coins: 0 });
+        expect(s.offers(a.owner)[0]?.coins).toBe(10);
+    });
+    test('batch collection validates every owner and rolls all offers back on save failure', () => {
+        const s = store(), a = new Wallet('a', 100), b = new Wallet('b', 100);
+        const first = s.place(a.account(), ITEM, 'buy', 1, 10, COINS);
+        const second = s.place(a.account(), ITEM, 'buy', 1, 20, COINS);
+        const foreign = s.place(b.account(), ITEM, 'buy', 1, 30, COINS);
+        for (const o of [first, second, foreign]) s.cancel(o.owner, o.id);
+        expect(() => s.collectMany(a.account(), [{ id: first.id }, { id: foreign.id }], COINS)).toThrow('Offer not found');
+        expect(() => s.collectMany(a.account(), [{ id: first.id }, { id: first.id }], COINS)).toThrow('Duplicate');
+        a.failSave = true;
+        const requests = [{ id: first.id }, { id: second.id }];
+        expect(() => s.collectMany(a.account(), requests, COINS)).toThrow('Disk failure');
+        expect(a.inv[COINS]).toBe(70);
+        expect(s.offers(a.owner).map(o => o.coins)).toEqual([10, 20]);
+        a.failSave = false;
+        expect(s.collectMany(a.account(), requests, COINS)).toEqual({ items: 0, coins: 30 });
+        expect(a.inv[COINS]).toBe(100);
+        expect(s.offers(a.owner)).toEqual([]);
+    });
     test('invalid totals and insufficient assets do not change ledger or inventory', () => {
         const s = store(),
             a = new Wallet('a', 100);

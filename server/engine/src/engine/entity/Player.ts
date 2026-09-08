@@ -188,7 +188,26 @@ export default class Player extends PathingEntity {
         [81, 44]
     ]);
 
-    save() {
+    // Only containers holding player-owned assets belong here; crafting previews do not.
+    static readonly RECOVERABLE_INVENTORIES = ['tradeoffer', 'dueloffer', 'duelwinnings', 'partyroom_tempinv', 'deathkeep', 'trail_rewardinv', 'trawler_rewardinv', 'duelarrows'];
+    recoveryItems: { id: number; count: number }[] = [];
+
+    /** Retry saved overflow when space becomes available, without dropping anything. */
+    recoverItems() {
+        if (!this.recoveryItems.length) return;
+        const inv = this.getInventory(InvType.INV)!;
+        const bank = this.getInventory(InvType.getId('bank'))!;
+        this.recoveryItems = this.recoveryItems.flatMap(item => {
+            let count = item.count - inv.add(item.id, item.count);
+            if (count) {
+                const type = ObjType.get(item.id);
+                count -= bank.add(type.certtemplate !== -1 ? type.certlink : item.id, count);
+            }
+            return count ? [{ id: item.id, count }] : [];
+        });
+    }
+
+    save(checkpoint = true) {
         const sav = Packet.alloc(2);
         sav.p2(PlayerLoading.SAV_MAGIC); // magic
         sav.p2(PlayerLoading.SAV_VERSION); // version
@@ -271,9 +290,23 @@ export default class Player extends PathingEntity {
         // last login info
         sav.p8(this.lastLoginTime);
 
+        // Serialize escrow separately. Never close another player's interface or mutate
+        // their live inventory while taking an exchange transaction's recovery snapshot.
+        const recovery = [...this.recoveryItems];
+        for (const name of Player.RECOVERABLE_INVENTORIES) {
+            const inventory = this.invs.get(InvType.getId(name));
+            if (inventory) recovery.push(...inventory.itemsFiltered);
+        }
+        if (recovery.length > 65535) throw new Error('Too many recovery items to save.');
+        sav.p2(recovery.length);
+        for (const item of recovery) {
+            sav.p2(item.id);
+            sav.p4(item.count);
+        }
+
         sav.p4(Packet.getcrc(sav.data, 0, sav.pos));
         const bytes = sav.data.subarray(0, sav.pos);
-        playerSaveStore()?.checkpoint(this.username, bytes);
+        if (checkpoint && playerSaveStore()) World.checkpointPlayers(this, bytes);
         return bytes;
     }
 
