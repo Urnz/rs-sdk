@@ -269,8 +269,14 @@ export function formatWorldStateForAgent(state: BotWorldState, goal: string): st
         }
     }
 
+    if (state.ge?.isOpen && state.modalOpen) {
+        lines.push('', `### Grand Exchange: ${state.ge.screen}`);
+        for (const offer of state.ge.offers) lines.push(`Offer #${offer.id} (slot ${offer.slot}): ${offer.side} ${offer.quantity} ${offer.name} @ ${offer.price} gp; ${offer.filled} filled; collect ${offer.items} items / ${offer.coins} gp`);
+        if (state.ge.error) lines.push(`GE error: ${state.ge.error}`);
+    }
+
     // Interface state (crafting menus like fletching)
-    if (state.interface && state.interface.isOpen) {
+    if (state.interface && state.interface.isOpen && !state.ge?.isOpen) {
         lines.push('');
         lines.push(`### Interface Open (id: ${state.interface.interfaceId})`);
         if (state.interface.options.length > 0) {

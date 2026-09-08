@@ -8,6 +8,8 @@ ignorefile = "server/.dockerignore"
 [env]
 # SDK bug reports land on the mounted volume so they survive deploys/restarts.
 BUG_REPORTS_FILE = "/opt/server/data/bug-reports.jsonl"
+# Grand Exchange escrow and authoritative player checkpoints survive redeploys.
+GE_DATABASE = "/opt/server/data/market.sqlite"
 NODE_DEBUG = "true"
 BUILD_STARTUP = "false"
 BUILD_STARTUP_UPDATE = "false"

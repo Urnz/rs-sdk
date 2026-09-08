@@ -27,6 +27,22 @@ Claude Code auto-discovers the MCP server via `.mcp.json`. Just:
 
 ## Tools
 
+### `get_market`
+
+Public Grand Exchange research without a bot connection or controller takeover:
+Use `get_market` with `operation: "status"` to check whether the server enables GE.
+Disabled servers return a clear `ge_unavailable` error for market data reads.
+
+```json
+{"origin":"http://localhost:8888","operation":"items","query":"logs","sort":"buyValue","days":7}
+```
+
+Operations: `status`, `items`, `item` (requires `item_id`), `history` (requires `item_id`).
+Use the game HTTP origin, not the gateway port. This tool cannot trade or read
+private offers. See [the GE guide](../sdk/MARKET.md) for typed options and trading
+through `bot.openGE()`, `bot.placeGEOffer()`, `bot.cancelGEOffer()` and collection.
+
+
 ### `execute_code`
 
 Execute TypeScript code on a bot. Auto-connects on first use using credentials from `bots/{name}/bot.env`.
@@ -66,6 +82,7 @@ disconnect_bot({ name: "mybot" });
 
 The server exposes API documentation as a resource:
 
+- `file://../sdk/MARKET.md` — GE workflow, market data, receipts and recovery.
 - `file://../sdk/API.md` — Auto-generated reference for `bot.*` (high-level actions) and `sdk.*` (low-level SDK)
 
 Read this to discover available methods.

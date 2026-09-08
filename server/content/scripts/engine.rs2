@@ -1061,3 +1061,6 @@
 
 // info: Return true if the world has random events enabled
 [command,map_random_events]()(boolean)
+
+// rs-sdk: physical Grand Exchange booth interaction.
+[command,ge_open](coord $counter)

@@ -143,6 +143,7 @@ export default class GameMap {
                 if (!this.members && !this.isFreeToPlay(absoluteX, absoluteZ)) {
                     continue;
                 }
+                if (!Environment.GE_ENABLED && id === NpcType.getId('grand_exchange_teller')) continue;
                 const npcType: NpcType = NpcType.get(id);
                 if (!npcType) {
                     printFatalError(`Invalid npc type ${id} in map m${mapsquareX >> 6}_${mapsquareZ >> 6}.jm2`);
@@ -276,6 +277,19 @@ export default class GameMap {
                 const length: number = type.length;
                 const shape: number = info >> 2;
                 const angle: number = info & 0x3;
+
+                if (!Environment.GE_ENABLED && locId === LocType.getId('grand_exchange_booth')) {
+                    // Restore the original bank table, including its collision, when GE
+                    // is disabled. Changed static locs also update the client's packed map.
+                    const zone = this.getZone(absoluteX, absoluteZ, actualLevel);
+                    const loc = new Loc(actualLevel, absoluteX, absoluteZ, width, length, EntityLifeCycle.RESPAWN, locId, shape, angle);
+                    zone.addStaticLoc(loc);
+                    loc.change(LocType.getId('banktable'), shape, angle);
+                    if (type.blockwalk) {
+                        changeLocCollision(shape, angle, type.blockrange, length, width, type.active, absoluteX, absoluteZ, actualLevel, true);
+                    }
+                    continue;
+                }
 
                 if (type.blockwalk) {
                     changeLocCollision(shape, angle, type.blockrange, length, width, type.active, absoluteX, absoluteZ, actualLevel, true);

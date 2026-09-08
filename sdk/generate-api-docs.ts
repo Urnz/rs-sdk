@@ -108,7 +108,7 @@ function extractResultTypes(path: string, source: string): TypeDoc[] {
         .filter((statement): statement is ts.InterfaceDeclaration =>
             ts.isInterfaceDeclaration(statement) &&
             hasModifier(statement, ts.SyntaxKind.ExportKeyword) &&
-            (statement.name.text.endsWith('Result') || statement.name.text.endsWith('State'))
+            (statement.name.text.endsWith('Result') || statement.name.text.endsWith('State') || statement.name.text.startsWith('GE') || statement.name.text.startsWith('Market'))
         )
         .map(statement => ({
             name: statement.name.text,
@@ -132,6 +132,8 @@ function markdownCell(text: string): string {
 
 function methodCategory(name: string, surface: 'actions' | 'sdk'): string {
     const lower = name.toLowerCase();
+
+    if (name.includes('GE') || name.startsWith('getMarket')) return 'Grand Exchange';
 
     if (surface === 'actions') {
         if (lower.includes('dialog') || lower.includes('blocking') || lower.includes('tutorial')) return 'UI & Dialog';
@@ -232,16 +234,20 @@ export async function buildApiModel(sdkDir = import.meta.dir): Promise<ApiModel>
     const actionsPath = join(sdkDir, 'actions.ts');
     const indexPath = join(sdkDir, 'index.ts');
     const typesPath = join(sdkDir, 'types.ts');
-    const [actionsSource, indexSource, typesSource] = await Promise.all([
+    const gePath = join(sdkDir, 'ge-types.d.ts');
+    const marketPath = join(sdkDir, 'market.ts');
+    const [actionsSource, indexSource, typesSource, geSource, marketSource] = await Promise.all([
         readFile(actionsPath, 'utf8'),
         readFile(indexPath, 'utf8'),
         readFile(typesPath, 'utf8'),
+        readFile(gePath, 'utf8'),
+        readFile(marketPath, 'utf8'),
     ]);
 
     return {
         botActionsMethods: extractPublicClassMethods(actionsPath, actionsSource, 'BotActions'),
         sdkMethods: extractPublicClassMethods(indexPath, indexSource, 'BotSDK'),
-        resultTypes: extractResultTypes(typesPath, typesSource),
+        resultTypes: [...extractResultTypes(typesPath, typesSource), ...extractResultTypes(gePath, geSource), ...extractResultTypes(marketPath, marketSource)],
     };
 }
 

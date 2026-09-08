@@ -1,3 +1,4 @@
+import type { GEState } from '../../../../sdk/ge-types.js';
 // types.ts - Bot SDK Type Definitions
 // All interfaces, constants, and type definitions for the Bot SDK
 
@@ -424,6 +425,7 @@ export interface BotState {
     shop: ShopState;
     bank: BankState;
     trade: TradeState;
+    ge?: GEState | null;
     inGame: boolean;
     /** Recent combat events (damage, kills) - bounded to last ~50 ticks */
     combatEvents: CombatEvent[];
@@ -509,6 +511,7 @@ export type BotAction =
     | { type: 'privateMessage'; targetName: string; message: string; reason: string }
     | { type: 'bankDeposit'; slot: number; amount: number; reason: string }
     | { type: 'bankWithdraw'; slot: number; amount: number; reason: string }
+    | { type: 'searchGE'; query: string; reason: string }
     | { type: 'submitCountDialog'; value: number; reason: string }
     // On-demand scanning (returns data in action result)
     | { type: 'scanNearbyLocs'; radius?: number; reason: string }

@@ -35,3 +35,9 @@ bots/*_fleet_monitor.sh
 bots/run_*_combat.sh
 bots/combat_status.sh
 bots/rs-sdk-remote.cron
+
+# Durable Grand Exchange ledger and SQLite WAL files
+server/engine/data/market.sqlite*
+
+# Generated when engine utilities are invoked from the repository root
+/data/

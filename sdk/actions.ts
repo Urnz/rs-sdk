@@ -3,6 +3,8 @@
 // Actions resolve when the EFFECT is complete (not just acknowledged)
 
 import { BotSDK } from './index';
+import { GEActions } from './ge-actions';
+import type { GEOfferRequest, GEActionResult } from './ge-types';
 import { ActionHelpers, ALREADY_FIGHTING_REFUSALS, NO_RUNES_REFUSALS } from './actions-helpers';
 import { findDoorsAlongPath, isTileWalkable } from './pathfinding';
 import type {
@@ -86,6 +88,7 @@ import {
 // completed, not closed). Everything else is informational or re-openable.
 // Ids from server/content/pack/interface.pack.
 const NEVER_AUTO_CLOSE = new Set([
+    10984, // grand_exchange - deliberate offer/draft session
     3323, // trademain - auto-close would silently decline a player trade
     3443, // tradeconfirm - second trade screen, same risk
     6412, // duel_confirm - same risk for duels
@@ -103,10 +106,30 @@ const PICKPOCKET_ACK_TICKS = 3;
 
 export class BotActions {
     private helpers: ActionHelpers;
+    private ge: GEActions;
 
     constructor(private sdk: BotSDK) {
         this.helpers = new ActionHelpers(sdk);
+        this.ge = new GEActions(sdk, this);
     }
+
+    /** Walk to the physical exchange and open it. Requires updated client/server GE state support. */
+    async openGE(timeout: number = 15_000): Promise<GEActionResult> { return this.ge.open(timeout); }
+
+    /** Search the in-game catalogue in a free slot; returns acknowledged results in state.search. */
+    async searchGE(query: string, side: 'buy' | 'sell' = 'buy', timeout: number = 15_000): Promise<GEActionResult> { return this.ge.search(query, side, timeout); }
+
+    /** Place an inventory-funded offer at an already open exchange and verify the server receipt. Never retries confirmation. */
+    async placeGEOffer(request: GEOfferRequest, timeout: number = 30_000): Promise<GEActionResult> { return this.ge.place(request, timeout); }
+
+    /** Cancel your offer's unfilled remainder; returned assets remain in collection. Uses offer ID, not slot. */
+    async cancelGEOffer(offerId: number, timeout: number = 15_000): Promise<GEActionResult> { return this.ge.cancel(offerId, timeout); }
+
+    /** Collect one offer, optionally as notes. Reports actual backpack additions; overflow stays in collection. */
+    async collectGEOffer(offerId: number, notes: boolean = true, timeout: number = 15_000): Promise<GEActionResult> { return this.ge.collect(offerId, notes, timeout); }
+
+    /** Collect every available claim as notes and coins; requires an open physical exchange. */
+    async collectGE(timeout: number = 15_000): Promise<GEActionResult> { return this.ge.collect(undefined, true, timeout); }
 
     // ============ Porcelain: UI Helpers ============
 
@@ -268,7 +291,7 @@ export class BotActions {
             // input. Skip deliberate sessions (shop/bank have their own close
             // actions) and modals where auto-close is destructive — see
             // NEVER_AUTO_CLOSE. Anything else is informational or re-openable.
-            if (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen
+            if (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen && !state.ge?.isOpen
                 && !NEVER_AUTO_CLOSE.has(state.interface.interfaceId)) {
                 await this.sdk.sendCloseModal();
                 await this.sdk.waitForStateChange(2000).catch(() => {});
@@ -293,7 +316,7 @@ export class BotActions {
         // "safe" to dismiss - see dismissBlockingUI.
         const hasSafeBlockingUI = (state: NonNullable<ReturnType<BotSDK['getState']>>) =>
             (state.dialog.isOpen && state.dialog.options.length <= 1) ||
-            (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen
+            (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen && !state.ge?.isOpen
                 && !NEVER_AUTO_CLOSE.has(state.interface.interfaceId));
 
         while (Date.now() < deadline) {

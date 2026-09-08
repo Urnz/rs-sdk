@@ -20,6 +20,7 @@ import { botManager } from './api/index.js';
 import { formatWorldState } from '../sdk/formatter.js';
 import { initPathfinding } from '../sdk/pathfinding.js';
 import { Spells } from '../sdk/spells.js';
+import { marketTool, readMarket } from './market-tools.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,7 +48,8 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
         name: 'SDK API Reference',
         description: 'Auto-generated reference for bot.* (high-level actions: chopTree, walkTo, attack, openBank, ...) and sdk.* (low-level: getState, sendWalk, findNearbyNpc, ...).',
         mimeType: 'text/markdown'
-      }
+      },
+      {uri: 'file://../sdk/MARKET.md', name: 'Grand Exchange guide', description: 'Public market reads, physical trading, offer receipts and recovery after uncertain outcomes.', mimeType: 'text/markdown'}
     ]
   };
 });
@@ -85,6 +87,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
+      marketTool,
       {
         name: 'execute_code',
         description: 'Execute TypeScript code on a bot. Auto-connects using credentials from bots/{name}/bot.env. The code runs in an async context with bot (BotActions), sdk (BotSDK), and Spells (spell component ids) available. WARNING: many MCP clients cap tool-call waits at ~60s; if the client gives up, the code KEEPS RUNNING on the bot until it finishes or hits the timeout - keep interactive snippets short and put long loops in a bots/{name}/*.ts script instead.',
@@ -139,6 +142,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 
   try {
     switch (name) {
+      case 'get_market': return successResponse(await readMarket(args ?? {}));
+
       case 'disconnect_bot': {
         const botName = args?.name as string;
 

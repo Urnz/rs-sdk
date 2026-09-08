@@ -109,7 +109,46 @@ survival) is described in the project memory; this file is the human-readable ch
       `handler/IfButtonHandler.ts` clears `resumeButtons` when a registered option resumes
       the script. Verify: `HEADLESS=true bun sdk/test/alkharid-gate-choice-resume.ts`.
 
+
+### Grand Exchange (rs-sdk)
+- [ ] **Physical market** — `src/engine/market/{MarketStore,MarketCatalog,GrandExchange}.ts`,
+      `GE_OPEN(coord)` opcode in `ScriptOpcode.ts` / `DebugOps.ts`, native `IfButtonHandler` and
+      `ResumePCountDialogHandler` hooks. Paired content: `engine.rs2` command, dedicated
+      `grand_exchange_booth`/`grand_exchange_teller` configs and triggers, `grand_exchange.if`,
+      append-only interface/loc/npc packs and `interface.order`. Map `m49_53.jm2`
+      reuses the west-wall bank table at 3180,3443 (original model, rotation and
+      collision) and places the teller at 3181,3445. Disabling GE restores the
+      original bank table. Ordinary bank booths remain banking-only.
+      `World.processPlayers` calls `tickExchange` to push changed offers; preserve this
+      with the visual offer form (there is no visible refresh button).
+      Repack with `BUILD_VERIFY=false` after custom content changes.
+- [ ] **Thumbnail search** — shared `ItemSearch.ts` aliases/fuzzy ranking; native search
+      components with client codes 30400–30402, 30410–30421 and 30440–30451.
+      `MARKET_SEARCH` client opcode **243**, length -1, must match engine
+      `ClientGameProt`/repository/decoder/handler and webclient `ClientProt`.
+      Payload: `pjstr(query)` then `p2(item)` (0 filters; positive selects a shown
+      canonical ID). Max query 48 ASCII characters; server requires a physical
+      session and matching current query/page. `Client.ts` keyboard and click hooks
+      use `MarketSearchInput.ts`; lite component clicks resolve displayed IDs too.
+      Rebuild standard and bot clients. No new server-to-client packet.
+      Verify `item-search.test.ts`, `bot/MarketSearchInput.test.ts` and the integration.
+- [ ] **Atomic recovery** — `Player.save()` checkpoints into the market ledger;
+      `PlayerLoading.load()` prefers that snapshot over stale login-service saves.
+      Placement/collection checkpoint all online players in the same SQLite transaction
+      to cover items handed between players since an autosave. Preserve both hooks.
+      `data/market.sqlite` (or `GE_DATABASE`) is authoritative durable data, including
+      player checkpoints; back it up with the world, never independently delete/restore it.
+- [ ] **Market web and SDK** — `web/pages/market.ts` registered in `web/index.ts`,
+      `public/market.html`, `view/bot.ejs` Market link; `sdk/market.ts` and three
+      `BotSDK.getMarket*` methods. API is GET-only and exposes no player identities.
+      Verify: root `bun test server/engine/test/market.test.ts sdk/test/market-client.test.ts`,
+      then `bun run test:market:integration` with built content. Full design/operations:
+      `docs/grand-exchange.md`; API: `sdk/MARKET.md`.
+
 ### Assets
+- [ ] **`FileStream.write`** — update `packed[archive][file]` after changed writes, so
+      same-pass version-list CRCs and `ondemand.zip` see the new map/model bytes.
+      Verify `bun test server/engine/test/file-stream.test.ts` from the root.
 - [ ] `public/img/skill/*` (19 files), `public/img/*`, favicons, hiscores images —
       restored after upstream website migrations deleted them. Verify pages render with images.
 - [ ] `tools/pack/PackAll.ts` `packOnDemandZip()` — regenerates `data/pack/ondemand.zip`

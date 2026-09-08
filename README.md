@@ -156,3 +156,14 @@ You cannot play Old School RuneScape here, buy RuneScape gold, or access any of 
 
 ## License
 This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). See the [LICENSE](LICENSE) file for details.
+
+### Grand Exchange
+
+The server includes a player-funded Grand Exchange at Varrock west bank, with a
+5% seller tax and a public price dashboard at `/market`. To run without GE, set
+`GE_ENABLED=false` in the engine environment and restart the server (no content
+rebuild needed). It defaults to `true`. Disabling GE restores the ordinary bank
+table and hides the teller and market link,
+and the SDK reports `ge_unavailable` when asked to use GE. See the
+[market API and player guide](sdk/MARKET.md) and
+[maintenance notes](docs/grand-exchange.md).

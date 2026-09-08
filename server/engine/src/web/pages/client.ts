@@ -23,6 +23,7 @@ export async function handleClientPage(url: URL): Promise<Response | null> {
             lowmem,
             members: Environment.NODE_MEMBERS,
             botUsername,
+            geEnabled: Environment.GE_ENABLED,
             maxMessageLength: Environment.node.maxMessageLength,
             profanityFilter: Environment.NODE_PROFANITY_FILTER,
             cachebust: CLIENT_CACHEBUST,

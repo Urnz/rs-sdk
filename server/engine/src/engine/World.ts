@@ -1,3 +1,4 @@
+import { tickExchange } from '#/engine/market/GrandExchange.js';
 // stdlib
 import fs from 'fs';
 import { Worker } from 'worker_threads';
@@ -794,6 +795,7 @@ class World {
                 // - interactions
                 // - movement
                 player.processInteraction();
+                if (Environment.GE_ENABLED) tickExchange(player);
 
                 // - run energy
                 player.updateEnergy();

@@ -1,3 +1,4 @@
+import type { GEState } from './ge-types';
 // Re-export all types from the agent types module
 // This file provides the full type definitions for remote SDK users
 
@@ -574,6 +575,8 @@ export interface BotWorldState {
     bank: BankState;
     /** Absent when the connected client predates trade support. */
     trade?: TradeState;
+    /** Null outside the exchange; absent on older clients. */
+    ge?: GEState | null;
     modalOpen: boolean;
     modalInterface: number;
     combatStyle?: CombatStyleState;
@@ -630,6 +633,7 @@ export type BotAction =
     | { type: 'setTab'; tabIndex: number; reason: string }
     | { type: 'bankDeposit'; slot: number; amount: number; reason: string }
     | { type: 'bankWithdraw'; slot: number; amount: number; reason: string }
+    | { type: 'searchGE'; query: string; reason: string }
     | { type: 'submitCountDialog'; value: number; reason: string }
     | { type: 'scanNearbyLocs'; radius?: number; reason: string }
     | { type: 'scanGroundItems'; radius?: number; reason: string }

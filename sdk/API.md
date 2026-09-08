@@ -12,6 +12,17 @@
 
 ## BotActions (high-level)
 
+### Grand Exchange
+
+| Signature | Description |
+|---|---|
+| `async openGE(timeout: number = 15_000): Promise<GEActionResult>` | Walk to the physical exchange and open it. Requires updated client/server GE state support. |
+| `async searchGE(query: string, side: 'buy' \| 'sell' = 'buy', timeout: number = 15_000): Promise<GEActionResult>` | Search the in-game catalogue in a free slot; returns acknowledged results in state.search. |
+| `async placeGEOffer(request: GEOfferRequest, timeout: number = 30_000): Promise<GEActionResult>` | Place an inventory-funded offer at an already open exchange and verify the server receipt. Never retries confirmation. |
+| `async cancelGEOffer(offerId: number, timeout: number = 15_000): Promise<GEActionResult>` | Cancel your offer's unfilled remainder; returned assets remain in collection. Uses offer ID, not slot. |
+| `async collectGEOffer(offerId: number, notes: boolean = true, timeout: number = 15_000): Promise<GEActionResult>` | Collect one offer, optionally as notes. Reports actual backpack additions; overflow stays in collection. |
+| `async collectGE(timeout: number = 15_000): Promise<GEActionResult>` | Collect every available claim as notes and coins; requires an open physical exchange. |
+
 ### UI & Dialog
 
 | Signature | Description |
@@ -217,6 +228,17 @@
 | `async waitForStateChange(timeout: number = 30000): Promise<BotWorldState>` | Wait for next state update from server. |
 | `async waitForTicks(ticks: number = 1): Promise<BotWorldState>` | Wait for a specific number of server ticks (~300ms each). |
 | `async waitForStateUpdate(): Promise<BotWorldState>` | Wait for the next state update from the server. This is the most common waiting pattern - ensures fresh data after an action. State updates arrive once per server tick (~300ms) when PLAYER_INFO is received. |
+
+### Grand Exchange
+
+| Signature | Description |
+|---|---|
+| `getGEAvailability(): Promise<GEAvailability>` | Check whether this server enables GE. No connected bot or physical access needed. |
+| `getMarketItems(query = '', options: MarketItemsOptions = {}): Promise<MarketItems>` | Read public Grand Exchange prices. Uses the game origin; no login or physical access needed. |
+| `getMarketItem(itemId: number, options: MarketItemOptions = {}): Promise<MarketQuote>` | Read current offers, latest trade and selected-period volume for a canonical item ID. |
+| `getMarketHistory(itemId: number, options: MarketHistoryOptions = {}): Promise<MarketHistory>` | Read historical trade prices and volumes in hour/day UTC buckets (milliseconds). |
+| `getGEState(): GEState \| null` | Private GE state while at an open physical exchange. Null when closed or unsupported. |
+| `async sendGESearch(query: string): Promise<ActionResult>` | Filter the open in-game GE catalogue. Success means dispatch; wait for the acknowledged query. |
 
 ### On-Demand Scanning
 
@@ -529,6 +551,8 @@ interface BotWorldState {
   bank: BankState;
   /** Absent when the connected client predates trade support. */
   trade?: TradeState;
+  /** Null outside the exchange; absent on older clients. */
+  ge?: GEState | null;
   modalOpen: boolean;
   modalInterface: number;
   combatStyle?: CombatStyleState;
@@ -875,5 +899,178 @@ interface StringAmuletResult {
   xpGained?: number;
   product?: InventoryItem;
   reason?: 'no_amulet' | 'no_string' | 'level_too_low' | 'timeout';
+}
+```
+
+### GEOffer
+
+Private exchange observations delivered only through an open in-game session.
+
+```typescript
+interface GEOffer {
+  id: number;
+  slot: number;
+  item: number;
+  name: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+  price: number;
+  remaining: number;
+  filled: number;
+  state: 'open' | 'completed' | 'cancelled';
+  /** Collectible balances, not assets already in the backpack. */
+  items: number;
+  coins: number;
+  gross: number;
+  tax: number;
+}
+```
+
+### GEState
+
+```typescript
+interface GEState {
+  isOpen: true;
+  session: number;
+  revision: number;
+  /** Advances for handled client commands, never for passive fill updates. */
+  actionRevision: number;
+  screen: 'home' | 'catalog' | 'draft' | 'offer';
+  offers: GEOffer[];
+  selectedOffer: number | null;
+  draft: { item: number; name: string; side: 'buy' | 'sell'; quantity: number; price: number; slot: number | null; } | null;
+  search: { query: string; side: 'buy' | 'sell'; page: number; total: number; results: { item: number; name: string; componentId: number }[]; } | null;
+  input: 'item' | 'quantity' | 'price' | null;
+  /** Named component IDs for the current screen; dispatched through ordinary UI handlers. */
+  controls: Record<string, number>;
+  notice: string;
+  error: string | null;
+  receipt: { token: number; kind: 'place' | 'cancel' | 'collect'; offerId?: number; items?: number; coins?: number; } | null;
+}
+```
+
+### GEOfferRequest
+
+```typescript
+interface GEOfferRequest {
+  item: number;
+  side: 'buy' | 'sell';
+  quantity: number;
+  price: number;
+  /** Zero-based offer slot. Defaults to the first empty slot. */
+  slot?: number;
+}
+```
+
+### GEActionResult
+
+```typescript
+interface GEActionResult {
+  success: boolean;
+  message: string;
+  reason?: string;
+  phase?: 'validation' | 'routing' | 'dispatch' | 'observation' | 'completion';
+  /** An observation timeout after a send may have applied the action: inspect state before retrying. */
+  outcome?: 'confirmed' | 'unknown';
+  offer?: GEOffer;
+  items?: number;
+  coins?: number;
+  state?: GEState;
+}
+```
+
+### MarketItemOptions
+
+```typescript
+interface MarketItemOptions {
+  days?: MarketDays;
+}
+```
+
+### MarketItemsOptions
+
+```typescript
+interface MarketItemsOptions {
+  limit?: number;
+  offset?: number;
+  sort?: MarketSort;
+}
+```
+
+### MarketHistoryOptions
+
+```typescript
+interface MarketHistoryOptions {
+  from?: number;
+  to?: number;
+  interval?: 3600000 | 86400000;
+}
+```
+
+### MarketQuote
+
+```typescript
+interface MarketQuote {
+  id: number;
+  name: string;
+  basePrice: number;
+  item: number;
+  bid: number | null;
+  ask: number | null;
+  buyQuantity: number;
+  /** Coins committed to unfilled bids, independent of the selected period. */
+  buyValue: number;
+  sellQuantity: number;
+  /** Completed item quantity in the selected period (24 hours by default). */
+  volume: number;
+  /** Gross coins exchanged in the selected period (24 hours by default). */
+  gross: number;
+  tax: number;
+  trades: number;
+  lastPrice: number | null;
+  lastTradeAt: number | null;
+  vwap: number | null;
+  referencePrice: number | null;
+  change: number | null;
+  changePercent: number | null;
+  /** Listed sell quantity × last price, not circulating supply. */
+  marketCap: number | null;
+}
+```
+
+### MarketItems
+
+```typescript
+interface MarketItems {
+  items: MarketQuote[];
+  total: number;
+  offset: number;
+  limit: number;
+  days: MarketDays;
+  sort: MarketSort;
+  updatedAt: number;
+  summary: { volume: number; gross: number; activeItems: number; totalItems: number; };
+  featured: MarketQuote | null;
+}
+```
+
+### MarketHistory
+
+```typescript
+interface MarketHistory {
+  item: number;
+  from: number;
+  to: number;
+  interval: number;
+  history: { time: number; volume: number; gross: number; tax: number; low: number; high: number; vwap: number; trades: number; }[];
+}
+```
+
+### GEAvailability
+
+```typescript
+interface GEAvailability {
+  enabled: boolean;
+  message?: string;
 }
 ```

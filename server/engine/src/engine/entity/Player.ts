@@ -1,3 +1,4 @@
+import { playerSaveStore } from '#/engine/market/MarketStore.js';
 import { PlayerInfoProt, Visibility } from '#/network/rsbuf/index.js';
 import { CollisionFlag, CollisionType } from '#/engine/routefinder/index.js';
 
@@ -271,7 +272,9 @@ export default class Player extends PathingEntity {
         sav.p8(this.lastLoginTime);
 
         sav.p4(Packet.getcrc(sav.data, 0, sav.pos));
-        return sav.data.subarray(0, sav.pos);
+        const bytes = sav.data.subarray(0, sav.pos);
+        playerSaveStore()?.checkpoint(this.username, bytes);
+        return bytes;
     }
 
     username: string;

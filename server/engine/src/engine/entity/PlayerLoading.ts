@@ -1,3 +1,4 @@
+import { playerSaveStore } from '#/engine/market/MarketStore.js';
 import InvType from '#/cache/config/InvType.js';
 import { NetworkPlayer } from '#/engine/entity/NetworkPlayer.js';
 import Player, { getExpByLevel, getLevelByExp } from '#/engine/entity/Player.js';
@@ -30,6 +31,9 @@ export class PlayerLoading {
         const hash64 = toBase37(name); // username or email.
         const name37 = toBase37(name); // always username.
         const safeName = fromBase37(name37); // always safe username.
+        // Exchange participants use the atomic ledger checkpoint, including after a crash.
+        const checkpoint = playerSaveStore()?.saved(safeName);
+        if (checkpoint) sav = new Packet(checkpoint);
 
         const player = client ? new NetworkPlayer(safeName, name37, hash64, client) : new Player(safeName, name37, hash64);
 

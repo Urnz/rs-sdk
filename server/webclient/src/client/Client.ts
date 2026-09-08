@@ -1,3 +1,4 @@
+import { MarketSearchInput, RESULT_ICON, visibleSearchComponent, SEARCH_FIELD } from '#/client/MarketSearchInput.js';
 import { playWave, setWaveVolume } from '#3rdparty/audio.js';
 import { stopMidi, setMidiVolume, playMidi } from '#3rdparty/tinymidipcm.js';
 
@@ -644,6 +645,18 @@ export class Client extends GameShell {
     private idkDesignColour: Int32Array = new Int32Array(5);
     private idkDesignButton1: Pix32 | null = null;
     private idkDesignButton2: Pix32 | null = null;
+    private readonly marketSearchInput = new MarketSearchInput((query, item) => {
+        this.out.p1Enc(ClientProt.MARKET_SEARCH);
+        this.out.p1(query.length + 3);
+        this.out.pjstr(query);
+        this.out.p2(item);
+    }, () => this.closeModal());
+
+    private handleMarketComponent(id: number): boolean {
+        this.marketSearchInput?.sync(IfType.list, this.mainModalId, this.dialogInputOpen);
+        return this.marketSearchInput?.click(id) ?? false;
+    }
+
     private readonly searchParams: URLSearchParams;
 
     // rs-sdk: Bot SDK overlay for bot development (dynamically loaded when enabled)
@@ -1868,6 +1881,12 @@ export class Client extends GameShell {
     /**
      * Submit a value for the P_COUNTDIALOG prompt (e.g. Withdraw-X, Deposit-X).
      */
+    searchGE(query: string): boolean {
+        if (!this.ingame || this.dialogInputOpen || !/^[a-zA-Z0-9 '()*-]{0,48}$/.test(query) || !visibleSearchComponent(IfType.list, this.mainModalId, SEARCH_FIELD)) return false;
+        this.marketSearchInput.sync(IfType.list, this.mainModalId, this.dialogInputOpen);
+        return this.marketSearchInput.setQuery(query);
+    }
+
     submitCountDialog(value: number): boolean {
         if (!this.ingame || !this.out) {
             console.log('[Client] submitCountDialog failed - not in game');
@@ -2802,14 +2821,16 @@ export class Client extends GameShell {
                 return;
             }
 
+            if (com.type === 0 && com.hide) return;
+
             const isClickable = com.buttonType === ButtonType.BUTTON_OK ||
                                com.buttonType === ButtonType.BUTTON_TARGET ||
                                com.buttonType === ButtonType.BUTTON_SELECT;
 
-            if (isClickable && (com.buttonText || com.text)) {
+            if (isClickable && !(com.width <= 0 || com.height <= 0) && (com.buttonText || com.text)) {
                 options.push({
                     index: options.length + 1,
-                    text: normaliseComponentText(com.buttonText) || normaliseComponentText(com.text) || `Option ${options.length + 1}`,
+                    text: normaliseComponentText(com.text) || normaliseComponentText(com.buttonText) || `Option ${options.length + 1}`,
                     componentId: comId
                 });
             }
@@ -2840,9 +2861,7 @@ export class Client extends GameShell {
         const interfaceOptions = this.getInterfaceOptions();
         if (optionIndex > 0 && optionIndex <= interfaceOptions.length) {
             const option = interfaceOptions[optionIndex - 1];
-            this.writePacketOpcode(ClientProt.IF_BUTTON);
-            this.out.p2(option.componentId);
-            return true;
+            return this.clickComponent(option.componentId);
         }
         return false;
     }
@@ -2854,6 +2873,8 @@ export class Client extends GameShell {
         if (!this.ingame || !this.out) {
             return false;
         }
+
+        if (this.marketSearchInput && this.handleMarketComponent(componentId)) return true;
 
         // buttontype=close components (every "Close Window" X) are handled
         // locally by the real client - the server registers no if_button
@@ -5407,6 +5428,7 @@ export class Client extends GameShell {
 
     // todo: order
     private async handleInputKey(): Promise<void> {
+        this.marketSearchInput?.sync(IfType.list, this.mainModalId, this.dialogInputOpen);
         Client.cyclelogic4++;
         if (Client.cyclelogic4 > 192) {
             Client.cyclelogic4 = 0;
@@ -5423,6 +5445,8 @@ export class Client extends GameShell {
                     if (key === -1) {
                         return;
                     }
+
+                    if (this.marketSearchInput?.key(key)) continue;
 
                     if (this.mainModalId !== -1 && this.mainModalId === this.reportAbuseComId) {
                         if (key === 8 && this.reportAbuseInput.length > 0) {
@@ -8351,6 +8375,8 @@ export class Client extends GameShell {
         return type !== 1;
     }
 
+    private interfaceReloadWarning = false;
+
     private async tcpIn(): Promise<boolean> {
         if (!this.stream) {
             return false;
@@ -8404,6 +8430,25 @@ export class Client extends GameShell {
             this.ptype2 = this.ptype1;
             this.ptype1 = this.ptype0;
             this.ptype0 = this.ptype;
+
+            // A browser can retain an older interface cache across a content update.
+            // These packets are already framed and read in full, so an unknown
+            // component can be skipped without losing alignment or logging out.
+            if (this.ptype === ServerProt.IF_SETTEXT || this.ptype === ServerProt.IF_SETHIDE ||
+                this.ptype === ServerProt.IF_SETCOLOUR || this.ptype === ServerProt.IF_SETOBJECT ||
+                this.ptype === ServerProt.IF_SETPOSITION || this.ptype === ServerProt.UPDATE_INV_FULL) {
+                const comId = this.in.g2();
+                this.in.pos = 0;
+                if (!IfType.list[comId]) {
+                    console.warn(`Ignoring interface update ${this.ptype} for missing component ${comId}; reload the page to update the interface cache.`);
+                    if (!this.interfaceReloadWarning) {
+                        this.interfaceReloadWarning = true;
+                        this.addChat(0, 'The game interface has changed. Please reload this page.', '');
+                    }
+                    this.ptype = -1;
+                    return true;
+                }
+            }
 
             if (this.ptype === ServerProt.IF_OPENCHAT) {
                 const comId: number = this.in.g2();
@@ -11668,6 +11713,7 @@ export class Client extends GameShell {
         }
 
         if (action === MiniMenuAction.IF_BUTTON) {
+            if (this.handleMarketComponent(c)) return;
             const com: IfType = IfType.list[c];
             let notify: boolean = true;
 
@@ -12548,7 +12594,7 @@ export class Client extends GameShell {
                                         icon.plotSprite(slotX, slotY);
                                     }
 
-                                    if (icon.owi === 33 || child.linkObjNumber[slot] !== 1) {
+                                    if ((child.clientCode < RESULT_ICON || child.clientCode >= RESULT_ICON + 12) && (icon.owi === 33 || child.linkObjNumber[slot] !== 1)) {
                                         const count: number = child.linkObjNumber[slot];
                                         this.p11?.drawString(this.invNumber(count), slotX + dx + 1, slotY + 10 + dy, Colour.BLACK);
                                         this.p11?.drawString(this.invNumber(count), slotX + dx, slotY + 9 + dy, Colour.YELLOW);

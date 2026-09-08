@@ -1,3 +1,4 @@
+import { handleMarket } from './pages/market.js';
 import { register } from 'prom-client';
 import Environment from '#/util/Environment.js';
 import World from '#/engine/World.js';
@@ -93,6 +94,9 @@ async function handleRequest(req: Request, server: Bun.Server, url: URL): Promis
             // SDK bug report index (GET) / submission (POST), no auth
             const bugReportResponse = await handleBugReport(req, url);
             if (bugReportResponse) return bugReportResponse;
+
+            const marketResponse = handleMarket(req, url);
+            if (marketResponse) return marketResponse;
 
             // Engine status endpoint
             if (url.pathname === '/engine-status' || url.pathname === '/engine-status/') {
