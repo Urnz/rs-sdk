@@ -11476,3 +11476,5 @@
 11475=grand_exchange:view_cancel
 11476=grand_exchange:agent_metadata
 11477=grand_exchange:agent_state
+11478=grand_exchange_side
+11479=grand_exchange_side:inv

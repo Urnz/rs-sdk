@@ -16,6 +16,8 @@ const { default: LocType } = await import('../src/cache/config/LocType.js');
 const { default: Packet } = await import('../src/io/Packet.js');
 const { PlayerLoading } = await import('../src/engine/entity/PlayerLoading.js');
 const { default: IfButtonHandler } = await import('../src/network/game/client/handler/IfButtonHandler.js');
+const { default: InvButtonHandler } = await import('../src/network/game/client/handler/InvButtonHandler.js');
+const { default: InvButton } = await import('../src/network/game/client/model/InvButton.js');
 const { default: IfButton } = await import('../src/network/game/client/model/IfButton.js');
 const { default: SearchHandler } = await import('../src/network/game/client/handler/MarketSearchHandler.js');
 const { default: SearchDecoder } = await import('../src/network/game/client/codec/MarketSearchDecoder.js');
@@ -50,9 +52,15 @@ try {
     const sdkCollision = JSON.parse(readFileSync('../../sdk/collision-data.json', 'utf8'));
     const boothTiles = sdkCollision.tiles.filter((t: number[]) => t[0] === 0 && t[1] === 3180 && [3443, 3444].includes(t[2]));
     assert.equal(boothTiles.length, 2);
-    assert(boothTiles.every((t: number[]) => (t[3] & 256) !== 0), 'SDK routes respect the original table footprint');
+    assert(
+        boothTiles.every((t: number[]) => (t[3] & 256) !== 0),
+        'SDK routes respect the original table footprint'
+    );
     const oldTiles = sdkCollision.tiles.filter((t: number[]) => t[0] === 0 && [3180, 3181].includes(t[1]) && [3439, 3440].includes(t[2]));
-    assert(oldTiles.every((t: number[]) => (t[3] & 256) === 0), 'SDK routes no longer avoid the removed stall');
+    assert(
+        oldTiles.every((t: number[]) => (t[3] & 256) === 0),
+        'SDK routes no longer avoid the removed stall'
+    );
     assert(findPathToLoc(0, 3183, 3437, 3180, 3443, 1, 2, 1, booth.angle, 10, 0).length > 0, 'Table is reachable from the entrance aisle');
     assert(findPathToEntity(0, 3183, 3437, teller.x, teller.z, 1, 1, 1).length > 0, 'Teller is reachable');
     const seller = PlayerLoading.load('geseller', new Packet(new Uint8Array()), null);
@@ -70,7 +78,13 @@ try {
     }
     World.playerLoop.add(1n, seller);
     World.playerLoop.add(2n, buyer);
-    seller.invAdd(inv, note, 10);
+    for (const [i, p] of [seller, buyer].entries()) {
+        p.slot = i + 1;
+        p.uid = ((Number(p.username37 & 0x1fffffn) << 11) | p.slot) >>> 0;
+        World.players[p.slot] = p;
+    }
+    seller.invAdd(inv, note, 8);
+    seller.invAdd(inv, logs, 2);
     buyer.invAdd(inv, coins, 200);
     const originalSeller = seller.save();
     // Reproduce a running server whose cache predates optional SDK metadata.
@@ -105,11 +119,52 @@ try {
         return new SearchHandler().handle(new SearchDecoder().decode(packet), p);
     };
     const count = (p: typeof seller, n: number) => assert(new CountHandler().handle(new Count(n), p));
+    const sellerUpdates: any[] = [];
+    seller.write = message => sellerUpdates.push(message);
+    const sellerState = () => JSON.parse(sellerUpdates.findLast(m => m.component === metadataId && m.text)?.text);
+    const side = Component.getId('grand_exchange_side:inv');
+    const inventoryClick = (p: typeof seller, item: number) =>
+        new InvButtonHandler().handle(
+            new InvButton(
+                1,
+                item,
+                p.getInventory(inv)!.items.findIndex(i => i?.id === item),
+                side
+            ),
+            p
+        );
     const script = ScriptProvider.getByTrigger(ServerTriggerType.OPLOC1, booth.type, -1);
     assert(script, 'Compiled booth trigger exists');
     seller.executeScript(ScriptRunner.init(script, seller, booth), true);
     assert.equal(seller.modalMain, Component.getId('grand_exchange'), 'Booth opens native interface');
+    assert.equal(seller.modalSide, Component.getId('grand_exchange_side'));
+    assert(
+        seller.invListeners.some(l => l.com === side),
+        'Backpack is transmitted to the sell sidebar'
+    );
+    assert(inventoryClick(seller, note), 'An inventory click opens a sell draft directly from home');
+    assert.deepEqual([sellerState().draft.item, sellerState().draft.side, sellerState().draft.quantity, sellerState().draft.slot], [logs, 'sell', 10, 0]);
+    assert.equal(marketStore().offers(seller.username).length, 0, 'Clicking does not submit an offer');
+    assert.equal(seller.getInventory(inv)!.getItemCount(note), 8, 'Draft creation does not escrow items');
+    click(seller, 'offer_price');
+    assert(inventoryClick(seller, logs), 'Loose items also open drafts and replace pending count input');
+    assert.equal(sellerState().input, null);
+    assert(
+        sellerUpdates.some(m => m.constructor.name === 'IfOpenMainSide'),
+        'Dismissing count input preserves the sidebar'
+    );
+    assert(!new CountHandler().handle(new Count(999), seller), 'A stale numeric reply cannot edit the replacement draft');
+    assert(!new InvButtonHandler().handle(new InvButton(1, logs, 0, side), seller), 'Stale inventory slots are rejected');
+    click(seller, 'home');
+    click(seller, 'slot4_buy');
+    search(seller, 'rune');
+    assert(inventoryClick(seller, note), 'Inventory clicks also work while browsing buy offers');
+    assert.equal(sellerState().draft.slot, 4, 'Inventory selling preserves the selected empty slot');
+    assert.equal(sellerState().draft.side, 'sell');
+    click(seller, 'home');
     click(seller, 'slot4_sell');
+    assert.equal(sellerState().search.query, '', 'New sell selection starts with the full backpack');
+    assert(sellerState().search.results.some((i: any) => i.item === logs));
     assert(search(seller, 'log'));
     assert(search(seller, 'log', coins)); // A non-result cannot be selected.
     assert(search(seller, 'old query', logs)); // A stale query cannot select an item.
@@ -119,14 +174,31 @@ try {
     assert(!search(seller, 'logs'), 'Search is closed once the draft opens');
     click(seller, 'offer_qty_all');
     click(seller, 'offer_quantity_plus');
+    assert.equal(sellerState().draft.quantity, 10, 'Plus cannot exceed the combined owned quantity');
+    click(seller, 'offer_quantity');
+    count(seller, 11);
+    assert.match(sellerState().error, /only have 10/);
+    assert.equal(sellerState().draft.quantity, 10);
     click(seller, 'offer_quantity_minus');
+    assert.equal(sellerState().draft.quantity, 9);
+    click(seller, 'offer_qty_all');
     click(seller, 'offer_price');
     count(seller, 10);
     click(seller, 'offer_confirm');
     assert.equal(seller.getInventory(inv)!.getItemCount(note), 0, 'notes escrowed');
+    assert.equal(seller.getInventory(inv)!.getItemCount(logs), 0, 'loose items escrowed with notes');
     assert.equal(marketStore().offers(seller.username)[0]?.remaining, 10);
     assert.equal(marketStore().offers(seller.username)[0]?.slot, 4, 'Offer uses the selected grid slot');
     assert(marketStore().saved(buyer.username), 'Other online players share the atomic save boundary');
+    click(seller, 'home');
+    click(seller, 'slot0_sell');
+    assert.equal(sellerState().search.total, 0);
+    assert.match(sellerUpdates.findLast(m => m.component === Component.getId('grand_exchange:subtitle'))?.text, /No sellable items/);
+    seller.closeModal();
+    assert(!seller.invListeners.some(l => l.com === side), 'Closing GE stops the sidebar inventory listener');
+    assert(!inventoryClick(seller, note), 'Closed GE rejects inventory clicks');
+    openExchange(seller, 3180, 3443);
+    click(seller, 'slot4_view');
     buyer.x = 3182;
     buyer.z = 3445;
     for (const trigger of [ServerTriggerType.OPNPC1, ServerTriggerType.OPNPC2]) {
@@ -148,11 +220,7 @@ try {
     click(buyer, 'offer_quantity');
     count(buyer, 2);
     click(buyer, 'offer_qty_all');
-    assert.equal(
-        buyerUpdates.findLast(m => m.component === Component.getId('grand_exchange:offer_quantity'))?.text,
-        '2',
-        'Buy All is ignored even if dispatched directly'
-    );
+    assert.equal(buyerUpdates.findLast(m => m.component === Component.getId('grand_exchange:offer_quantity'))?.text, '2', 'Buy All is ignored even if dispatched directly');
     assert.equal(buyerUpdates.findLast(m => m.component === Component.getId('grand_exchange:offer_sell_quantity'))?.hidden, true);
     click(buyer, 'offer_quantity');
     count(buyer, 10);
@@ -250,6 +318,9 @@ try {
         p.level = 0;
         p.invAdd(inv, coins, 1000);
         p.invAdd(inv, note, 20);
+        p.slot = Number(agentIndex);
+        p.uid = ((Number(p.username37 & 0x1fffffn) << 11) | p.slot) >>> 0;
+        World.players[p.slot] = p;
         World.playerLoop.add(agentIndex++, p);
         let ge: any = null;
         const sdk = new BotSDK({ botUsername: name, autoLaunchBrowser: false });
@@ -325,6 +396,17 @@ try {
         assert(result.success, result.message);
     }
     assert.equal((await a.bot.placeGEOffer({ item: logs, side: 'buy', quantity: 1, price: 1 })).reason, 'no_slot');
+    const beforeFull = JSON.stringify(marketStore().offers(a.p.username));
+    assert(inventoryClick(a.p, note));
+    assert.match(a.sdk.getState().ge.error, /slots are full/);
+    assert.equal(JSON.stringify(marketStore().offers(a.p.username)), beforeFull, 'Inventory clicks cannot overwrite occupied offers');
+    const invalid = agent('invalidsell');
+    assert(inventoryClick(invalid.p, coins));
+    assert.match(invalid.sdk.getState().ge.error, /cannot be traded/);
+    assert.equal(invalid.sdk.getState().ge.screen, 'home');
+    invalid.p.x = 3200;
+    assert(inventoryClick(invalid.p, note));
+    assert.equal(invalid.p.modalMain, -1, 'Inventory clicks recheck exchange distance');
     assert(largestStatePacket < 4997, 'Six-offer snapshots fit the native socket packet buffer including framing');
     // Raw forged/stale UI packets still cannot mutate remotely, regardless of SDK preflight.
     for (const operation of ['confirm', 'cancel', 'collect', 'count', 'search']) {
@@ -358,9 +440,7 @@ try {
     assert.equal(upstairs.p.modalMain, -1);
     assert.equal(upstairs.p.getInventory(inv)!.getItemCount(coins), upstairsCoins);
     console.log('PASS: SDK search/place/cancel/collect receipts, rejection, six slots, native state encoding and remote/floor guards.');
-    console.log(
-        'PASS: compiled booth → native fuzzy search/selection/click/count handlers → noted escrow → matching → 5% burn → local collection → save recovery → HTTP market data.'
-    );
+    console.log('PASS: compiled booth → native fuzzy search/selection/click/count handlers → noted escrow → matching → 5% burn → local collection → save recovery → HTTP market data.');
 } finally {
     marketStore().db.close();
     rmSync(dir, { recursive: true, force: true });

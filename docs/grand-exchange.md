@@ -18,8 +18,14 @@ at `/market`.
 | Read-only web/API | `server/engine/src/web/pages/market.ts`, `public/market.html`, web route and navigation |
 | SDK | `sdk/market.ts`, `sdk/ge-actions.ts`, `sdk/ge-types.d.ts` and methods in `sdk/index.ts` / `sdk/actions.ts` |
 
-Reuses `IF_OPENMAIN`, `IF_SETTEXT`, `IF_BUTTON` and `P_COUNTDIALOG`. The standard
-and bot/lite clients receive these existing messages. Typed search sends the bounded
+Reuses `IF_OPENMAIN_SIDE`, `UPDATE_INV_FULL`, `INV_BUTTON1`, `IF_SETTEXT`,
+`IF_BUTTON` and `P_COUNTDIALOG`. The standard
+and bot/lite clients receive these existing messages. While the exchange is open,
+a transmitted backpack sidebar offers a left-click Sell action. Clicking an item
+opens a sell draft in the selected empty slot (or the first free slot), combines
+loose items and notes, and defaults to the quantity owned. No items leave the
+backpack until Confirm. Sell quantity buttons stop at the amount owned, and
+manual quantities above it are rejected. Typed search sends the bounded
 `MARKET_SEARCH` client packet (243): ASCII query (max 48 characters) and selected
 item ID (0 means filter). No new server-to-client packet is introduced.
 Keyboard input stays in the field and is debounced by 180 ms; Enter flushes it.

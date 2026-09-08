@@ -15,7 +15,9 @@ const { default: InvType } = await import('../src/cache/config/InvType.js');
 const { default: ObjType } = await import('../src/cache/config/ObjType.js');
 const { default: Packet } = await import('../src/io/Packet.js');
 const { PlayerLoading } = await import('../src/engine/entity/PlayerLoading.js');
-const { openExchange, exchangeButton, exchangeSearch } = await import('../src/engine/market/GrandExchange.js');
+const { openExchange, exchangeButton, exchangeSearch, exchangeInventoryButton } = await import('../src/engine/market/GrandExchange.js');
+const { noteFor } = await import('../src/engine/market/MarketCatalog.js');
+const { default: UpdateInvFull } = await import('../src/network/game/server/model/UpdateInvFull.js');
 const { marketStore } = await import('../src/engine/market/MarketStore.js');
 try {
     World.reload();
@@ -48,8 +50,8 @@ try {
     const client = Object.create(Client.prototype);
     Object.assign(client, { p11: fonts[0], overMainComId: -1, overSideComId: -1, overChatComId: -1, objDragArea: 0, selectedArea: 0 });
     const player = PlayerLoading.load('gepreview', new Packet(new Uint8Array()), null);
-    player.x = 3182;
-    player.z = 3439;
+    player.x = 3181;
+    player.z = 3443;
     player.write = (message: any) => {
         const c = IfType.list[message.component];
         if (message.component === undefined) return;
@@ -91,11 +93,16 @@ try {
                 break;
         }
     };
-    const save = async (name: string) => {
-        const pixels = new Int32Array(512 * 334);
-        Pix2D.setPixels(pixels, 512, 334);
+    const save = async (name: string, sidebar = false) => {
+        const width = sidebar ? 730 : 512;
+        const pixels = new Int32Array(width * 334);
+        Pix2D.setPixels(pixels, width, 334);
         Pix3D.setRenderClipping();
         client.drawInterface(IfType.list[Component.getId('grand_exchange')], 0, 0, 0);
+        if (sidebar) {
+            player.write(new UpdateInvFull(Component.getId('grand_exchange_side:inv'), player.getInventory(InvType.getId('inv'))!));
+            client.drawInterface(IfType.list[Component.getId('grand_exchange_side')], 530, 0, 0);
+        }
         const rgba = Buffer.alloc(pixels.length * 4);
         pixels.forEach((rgb: number, i: number) => {
             rgba[i * 4] = (rgb >> 16) & 255;
@@ -103,9 +110,9 @@ try {
             rgba[i * 4 + 2] = rgb & 255;
             rgba[i * 4 + 3] = 255;
         });
-        await new Jimp({ width: 512, height: 334, data: rgba }).write(join(out, name + '.png') as `${string}.png`);
+        await new Jimp({ width, height: 334, data: rgba }).write(join(out, name + '.png') as `${string}.png`);
     };
-    openExchange(player, 3180, 3439);
+    openExchange(player, 3180, 3443);
     await save('empty');
     // Isolated visual fixtures, never connected to a game world or normal ledger.
     const fixtures = [
@@ -141,7 +148,11 @@ try {
     await save('offers');
     exchangeButton(player, Component.getId('grand_exchange:slot3_view'));
     await save('detail');
-    for (const [slot, name] of [[0, 'detail-cancelled'], [1, 'detail-completed'], [2, 'detail-buy']] as const) {
+    for (const [slot, name] of [
+        [0, 'detail-cancelled'],
+        [1, 'detail-completed'],
+        [2, 'detail-buy']
+    ] as const) {
         exchangeButton(player, Component.getId('grand_exchange:home'));
         exchangeButton(player, Component.getId(`grand_exchange:slot${slot}_view`));
         await save(name);
@@ -187,16 +198,33 @@ try {
     exchangeButton(player, Component.getId('grand_exchange:home'));
     player.invAdd(InvType.getId('inv'), ObjType.getId('rune_scimitar'), 1);
     exchangeButton(player, Component.getId('grand_exchange:slot4_sell'));
-    exchangeSearch(player, 'rscim');
-    exchangeSearch(player, 'rscim', ObjType.getId('rune_scimitar'));
+    const logs = ObjType.getId('logs');
+    const note = noteFor(logs);
+    player.invAdd(InvType.getId('inv'), note, 1250);
+    player.invAdd(InvType.getId('inv'), logs, 2);
+    exchangeSearch(player, '');
+    await save('sell-inventory', true);
+    client.menuNumEntries = 0;
+    const side = Component.getId('grand_exchange_side:inv');
+    Object.assign(client, { mouseX: 620, mouseY: 225, sideModalId: Component.getId('grand_exchange_side'), splitPrivateChat: 0 });
+    client.buildMinimenu();
+    const sellAction = client.menuNumEntries - 1;
+    assert.equal(client.menuOption[sellAction], 'Sell @lre@Logs', 'Sell is the default inventory click, including noted items');
+    assert.equal(client.menuParamC[sellAction], side);
+    assert(exchangeInventoryButton(player, side, client.menuParamB[sellAction], note, 1));
+    assert.equal(IfType.list[Component.getId('grand_exchange:offer_quantity')].text, '1,252');
     assert(!IfType.list[Component.getId('grand_exchange:offer_sell_quantity')].hide, 'Sell quantity shows All');
     client.menuNumEntries = 0;
     client.addComponentOptions(IfType.list[client.mainModalId], 216, 219, 0, 0, 0);
     assert.equal(client.menuParamC[client.menuNumEntries - 1], Component.getId('grand_exchange:offer_qty_all'), 'Sell All is clickable');
-    await save('sell-offer');
+    await save('sell-offer', true);
     exchangeButton(player, Component.getId('grand_exchange:home'));
     exchangeButton(player, Component.getId('grand_exchange:slot3_view'));
-    for (const [x, name] of [[80, 'view_collect'], [240, 'view_notes'], [410, 'view_cancel']] as const) {
+    for (const [x, name] of [
+        [80, 'view_collect'],
+        [240, 'view_notes'],
+        [410, 'view_cancel']
+    ] as const) {
         client.menuNumEntries = 0;
         client.addComponentOptions(IfType.list[client.mainModalId], x, 272, 0, 0, 0);
         assert.equal(client.menuParamC[client.menuNumEntries - 1], Component.getId(`grand_exchange:${name}`), `${name} is the default mouse action`);

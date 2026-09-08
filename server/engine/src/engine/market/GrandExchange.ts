@@ -11,7 +11,7 @@ import Component from '#/cache/config/Component.js';
 import InvType from '#/cache/config/InvType.js';
 import ObjType from '#/cache/config/ObjType.js';
 import type Player from '#/engine/entity/Player.js';
-import IfOpenMain from '#/network/game/server/model/IfOpenMain.js';
+import IfOpenMainSide from '#/network/game/server/model/IfOpenMainSide.js';
 import IfSetText from '#/network/game/server/model/IfSetText.js';
 import IfSetObject from '#/network/game/server/model/IfSetObject.js';
 import PCountDialog from '#/network/game/server/model/PCountDialog.js';
@@ -46,8 +46,27 @@ type Session = {
 const sessions = new WeakMap<Player, Session>();
 const com = (name: string) => Component.getId(`grand_exchange:${name}`);
 const root = () => Component.getId('grand_exchange');
+const sideRoot = () => Component.getId('grand_exchange_side');
+const sideInventory = () => Component.getId('grand_exchange_side:inv');
 const coins = () => ObjType.getId('coins');
 const backpack = (p: Player) => p.getInventory(InvType.getId('inv'))!;
+
+/** Combine loose items and notes into the quantities actually available to sell. */
+function sellableInventory(p: Player): Map<number, number> {
+    const owned = new Map<number, number>();
+    for (const item of backpack(p).itemsFiltered) {
+        try {
+            const id = canonicalItem(item.id);
+            owned.set(id, (owned.get(id) ?? 0) + item.count);
+        } catch {
+            // Coins and untradeable items cannot be offered.
+        }
+    }
+    return owned;
+}
+function availableQuantity(p: Player, item: number): number {
+    return Math.min(MAX_GP, sellableInventory(p).get(item) ?? 0);
+}
 
 /** World-space footprint of the existing bank table (rotated in m49_53) and stationary teller. */
 export const EXCHANGE_TABLE = { x: 3180, z: 3443, width: 1, length: 2 } as const;
@@ -90,7 +109,8 @@ export function openExchange(p: Player, x: number, z: number) {
         z
     });
     text(p, 'agent_state', '');
-    p.openMainModal(root());
+    p.invListenOnCom(InvType.getId('inv'), sideInventory(), p.uid);
+    p.openMainSideModal(root(), sideRoot());
     render(p);
 }
 function active(p: Player): Session | undefined {
@@ -229,10 +249,7 @@ function publishExchange(p: Player, notice = '') {
         screen: s.screen,
         offers,
         selectedOffer: s.screen === 'offer' ? s.offer : null,
-        draft:
-            s.screen === 'draft'
-                ? { item: s.item, name: ObjType.get(s.item).name ?? 'Item', side: s.side, quantity: s.quantity, price: s.price, slot: s.slot ?? null }
-                : null,
+        draft: s.screen === 'draft' ? { item: s.item, name: ObjType.get(s.item).name ?? 'Item', side: s.side, quantity: s.quantity, price: s.price, slot: s.slot ?? null } : null,
         search:
             s.screen === 'catalog'
                 ? {
@@ -261,7 +278,7 @@ function render(p: Player, notice = '') {
     // search after its field, results and receipt arrive, not before them.
     if (s.screen !== 'catalog') hide(p, 'search', true);
     text(p, 'search_clear', s.screen === 'catalog' ? 'Clear search' : '');
-    text(p, 'subtitle', s.screen === 'home' ? 'Select an offer slot to set up or view an offer.' : 'Choose an item, quantity and price.');
+    text(p, 'subtitle', s.screen === 'home' ? 'Click a backpack item to sell, or choose an offer slot.' : 'Choose an item, quantity and price.');
     for (let i = 0; i < 8; i++) text(p, `row${i}`, '');
     text(p, 'previous', '');
     text(p, 'next', '');
@@ -272,19 +289,11 @@ function render(p: Player, notice = '') {
         renderGrid(p);
     } else if (s.screen === 'catalog') {
         text(p, 'heading', 'Grand Exchange');
-        text(p, 'subtitle', s.side === 'buy' ? 'Search for an item to buy.' : 'Search the items in your backpack.');
+        text(p, 'subtitle', s.side === 'buy' ? 'Search for an item to buy.' : 'Choose an item from your backpack. Quantities include notes.');
         text(p, 'search_prompt', `What would you like to ${s.side}?`);
         text(p, 'search_query', s.query || 'Type a name or alias...');
         text(p, 'search_sort', { relevance: 'Sort: Best match', name: 'Sort: A-Z', 'name-desc': 'Sort: Z-A' }[s.sort]);
-        const owned = new Set(
-            backpack(p).itemsFiltered.flatMap(i => {
-                try {
-                    return [canonicalItem(i.id)];
-                } catch {
-                    return [];
-                }
-            })
-        );
+        const owned = sellableInventory(p);
         const items = catalog(s.query, s.sort).filter(o => s.side === 'buy' || owned.has(o.id));
         s.matches = items.length;
         s.page = Math.min(s.page, Math.max(0, Math.ceil(items.length / 12) - 1));
@@ -293,10 +302,12 @@ function render(p: Player, notice = '') {
         for (let i = 0; i < 12; i++) {
             hide(p, `result${i}`, !page[i]);
             if (!page[i]) continue;
-            icon(p, `result${i}_icon`, page[i].id, 1);
+            icon(p, `result${i}_icon`, page[i].id, s.side === 'sell' ? owned.get(page[i].id)! : 1);
             text(p, `result${i}_name`, wrapItemName(page[i].name));
         }
-        if (!items.length) text(p, 'subtitle', 'No matching items. Try another search.');
+        if (!items.length) {
+            text(p, 'subtitle', s.side === 'sell' ? (owned.size ? 'No backpack items match. Clear the search to see what you can sell.' : 'No sellable items in your backpack. Bring items from your bank.') : 'No matching items. Try another search.');
+        }
         text(p, 'search_ack', s.query);
         hide(p, 'search', false);
         text(p, 'previous', s.page > 0 ? 'Previous page' : '');
@@ -306,7 +317,7 @@ function render(p: Player, notice = '') {
         const total = s.price * s.quantity;
         hide(p, 'offer_sell_quantity', s.side !== 'sell');
         text(p, 'heading', 'Grand Exchange: Set up offer');
-        text(p, 'subtitle', s.side === 'buy' ? 'Buy offer' : 'Sell offer');
+        text(p, 'subtitle', s.side === 'buy' ? 'Buy offer' : `Sell offer - ${availableQuantity(p, s.item).toLocaleString('en-US')} available in your backpack`);
         text(p, 'offer_name', item.name!);
         const description = item.desc ?? 'Choose a quantity and a price for your offer.';
         const lines: string[] = [''];
@@ -360,13 +371,42 @@ export function tickExchange(p: Player): void {
     if (!s || !active(p) || (s.screen !== 'home' && s.screen !== 'offer')) return;
     if (s.offerSnapshot !== JSON.stringify(marketStore().offers(p.username))) render(p);
 }
+/** Inventory clicks create a draft only; the player still chooses a price and confirms. */
+export function exchangeInventoryButton(p: Player, component: number, slot: number, item: number, op: number): boolean {
+    if (component !== sideInventory()) return false;
+    const s = active(p);
+    if (!s || p.modalSide !== sideRoot() || op !== 1 || !backpack(p).hasAt(slot, item)) return true;
+    s.actionRevision++;
+    if (s.input) p.write(new IfOpenMainSide(root(), sideRoot()));
+    s.input = undefined;
+    s.error = null;
+    s.receipt = null;
+    try {
+        const id = canonicalItem(item);
+        const offers = marketStore().offers(p.username);
+        const selectedSlot = s.screen === 'catalog' || s.screen === 'draft' ? s.slot : undefined;
+        const freeSlot = selectedSlot !== undefined && !offers.some(o => o.slot === selectedSlot) ? selectedSlot : Array.from({ length: 6 }, (_, i) => i).find(i => !offers.some(o => o.slot === i));
+        if (freeSlot === undefined) throw new Error('All offer slots are full. Collect a completed offer to free a slot.');
+        s.side = 'sell';
+        s.slot = freeSlot;
+        s.query = '';
+        s.page = 0;
+        draft(p, id);
+        render(p);
+    } catch (error) {
+        s.error = error instanceof Error ? error.message : 'Item unavailable.';
+        render(p, s.error);
+    }
+    return true;
+}
+
 export function exchangeButton(p: Player, id: number): boolean {
     if (Component.get(id)?.rootLayer !== root()) return false;
     const s = active(p);
     if (!s) return true;
     s.actionRevision++;
     // A different click invalidates the numeric prompt on both server and client.
-    if (s.input) p.write(new IfOpenMain(root()));
+    if (s.input) p.write(new IfOpenMainSide(root(), sideRoot()));
     s.input = undefined;
     s.error = null;
     s.receipt = null;
@@ -382,10 +422,10 @@ export function exchangeButton(p: Player, id: number): boolean {
                 offer_qty_hundred: 100,
                 offer_qty_thousand: 1000
             };
-            for (const [button, step] of Object.entries(quantitySteps)) if (id === com(button)) s.quantity = Math.max(1, Math.min(MAX_GP, s.quantity + step));
+            const quantityLimit = s.side === 'sell' ? availableQuantity(p, s.item) : MAX_GP;
+            for (const [button, step] of Object.entries(quantitySteps)) if (id === com(button)) s.quantity = Math.max(1, Math.min(quantityLimit, s.quantity + step));
             if (id === com('offer_qty_all') && s.side === 'sell') {
-                const owned = [s.item, noteFor(s.item)].filter((id, i, a) => a.indexOf(id) === i).reduce((sum, id) => sum + backpack(p).getItemCount(id), 0);
-                s.quantity = Math.max(1, owned);
+                s.quantity = Math.max(1, quantityLimit);
             }
             if (id === com('offer_price_minus')) s.price = Math.max(1, s.price - 1);
             if (id === com('offer_price_plus')) s.price = Math.min(MAX_GP, s.price + 1);
@@ -412,6 +452,8 @@ export function exchangeButton(p: Player, id: number): boolean {
                     s.side = id === com(`slot${i}_buy`) ? 'buy' : 'sell';
                     s.slot = i;
                     s.screen = 'catalog';
+                    s.query = '';
+                    s.sort = 'relevance';
                     s.page = 0;
                     render(p);
                     return true;
@@ -419,7 +461,13 @@ export function exchangeButton(p: Player, id: number): boolean {
             }
         }
         if (id === com('collect')) {
-            const result = marketStore().collectMany(account(p), marketStore().offers(p.username).map(offer => ({ id: offer.id, itemId: noteFor(offer.item) })), coins());
+            const result = marketStore().collectMany(
+                account(p),
+                marketStore()
+                    .offers(p.username)
+                    .map(offer => ({ id: offer.id, itemId: noteFor(offer.item) })),
+                coins()
+            );
             s.receipt = { token: ++nextReceipt, kind: 'collect', ...result };
             s.screen = 'home';
             render(p, `Collected ${result.items} items and ${result.coins} coins. Any overflow stays here.`);
@@ -514,8 +562,10 @@ export function exchangeButton(p: Player, id: number): boolean {
 function draft(p: Player, id: number) {
     const s = sessions.get(p)!;
     marketItem(id);
+    const owned = availableQuantity(p, id);
+    if (s.side === 'sell' && !owned) throw new Error('This item is no longer in your backpack. Choose another item.');
     s.item = id;
-    s.quantity = 1;
+    s.quantity = s.side === 'sell' ? owned : 1;
     s.price = marketStore().quote(id).lastPrice ?? Math.max(1, ObjType.get(id).cost);
     s.screen = 'draft';
 }
@@ -530,7 +580,12 @@ export function exchangeCount(p: Player, value: number): boolean {
     try {
         positive(value, input);
         if (input === 'item') draft(p, value);
-        else s[input] = value;
+        else {
+            if (input === 'quantity' && s.side === 'sell' && value > availableQuantity(p, s.item)) {
+                throw new Error(`You only have ${availableQuantity(p, s.item).toLocaleString('en-US')} of this item in your backpack.`);
+            }
+            s[input] = value;
+        }
         render(p);
     } catch (error) {
         s.error = error instanceof Error ? error.message : 'Invalid number.';

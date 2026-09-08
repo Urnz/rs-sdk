@@ -12594,7 +12594,8 @@ export class Client extends GameShell {
                                         icon.plotSprite(slotX, slotY);
                                     }
 
-                                    if ((child.clientCode < RESULT_ICON || child.clientCode >= RESULT_ICON + 12) && (icon.owi === 33 || child.linkObjNumber[slot] !== 1)) {
+                                    const searchResult = child.clientCode >= RESULT_ICON && child.clientCode < RESULT_ICON + 12;
+                                    if (searchResult ? child.linkObjNumber[slot] > 1 : icon.owi === 33 || child.linkObjNumber[slot] !== 1) {
                                         const count: number = child.linkObjNumber[slot];
                                         this.p11?.drawString(this.invNumber(count), slotX + dx + 1, slotY + 10 + dy, Colour.BLACK);
                                         this.p11?.drawString(this.invNumber(count), slotX + dx, slotY + 9 + dy, Colour.YELLOW);

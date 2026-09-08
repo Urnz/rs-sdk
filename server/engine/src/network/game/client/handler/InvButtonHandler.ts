@@ -1,3 +1,4 @@
+import { exchangeInventoryButton } from '#/engine/market/GrandExchange.js';
 import Component from '#/cache/config/Component.js';
 import Player from '#/engine/entity/Player.js';
 import ScriptProvider from '#/engine/script/ScriptProvider.js';
@@ -44,6 +45,8 @@ export default class InvButtonHandler extends ClientGameMessageHandler<InvButton
             // bad client or lag: item does not exist in inventory
             return false;
         }
+
+        if (exchangeInventoryButton(player, comId, slot, obj, message.op)) return true;
 
         player.lastItem = obj;
         player.lastSlot = slot;
