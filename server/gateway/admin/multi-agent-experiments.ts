@@ -15,6 +15,8 @@ import { extractEconomyEvents, summarizeEconomyEvents,
     type EconomyEvent, type MarketPriceObservation } from './transaction-telemetry.js';
 import { evaluateExperimentFinishedProducts,
     type ExperimentFinishedProductValuation } from './experiment-finished-product-adapter.js';
+import { measureExperimentEconomyProvenance, readDefaultExperimentProvenanceSources,
+    type ExperimentEconomyProvenanceMetrics } from './experiment-economy-provenance.js';
 
 export type MultiAgentExperimentStatus = 'running' | 'completed' | 'completed-with-errors' | 'failed';
 
@@ -142,6 +144,7 @@ export interface MultiAgentExperimentMetrics {
     grossSpendingGp: number;
     marketPrices: MarketPriceObservation[];
     finishedProductValuation: ExperimentFinishedProductValuation | null;
+    economyProvenance: ExperimentEconomyProvenanceMetrics;
     uniqueSkills: number;
     skillConcentration: number;
     skillRuns: Array<{ skillId: string; runs: number }>;
@@ -791,6 +794,13 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
     const finishedProductValuation = run.parameterProfile
         ? evaluateExperimentFinishedProducts(run.parameterProfile, run.environment, run.baselineEconomy, finalEconomy)
         : null;
+    const provenanceSources = readDefaultExperimentProvenanceSources();
+    const economyProvenance = measureExperimentEconomyProvenance({
+        participantAgentIds: run.participants.map(item => item.agentId),
+        participantUsernames: run.participants.map(item => item.avatarPlayerUsername),
+        events: economicEvents, startedAt: run.startedAt, finishedAt,
+        fixture: provenanceSources.fixture, contracts: provenanceSources.contracts
+    });
     const results = participantResults.map(item => item.result);
     const skillRuns = [...skillCounts].map(([skillId, runs]) => ({ skillId, runs }))
         .sort((left, right) => right.runs - left.runs || left.skillId.localeCompare(right.skillId));
@@ -809,6 +819,7 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
         grossIncomeGp: marketCoinFlow.grossIncomeGp, grossSpendingGp: marketCoinFlow.grossSpendingGp,
         marketPrices: summarizeMarketPrices(economicEvents),
         finishedProductValuation,
+        economyProvenance,
         uniqueSkills: skillRuns.length, skillConcentration, skillRuns,
         uniqueTargets: new Set(results.flatMap(item => item.targets)).size,
         uniqueRegions: new Set(results.flatMap(item => item.regions)).size,

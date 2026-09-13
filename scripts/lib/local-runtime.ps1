@@ -30,6 +30,60 @@ function Get-BunExecutable {
     throw 'Bun nem található. Telepítsd, majd nyiss új terminált, vagy ellenőrizd az APPDATA alatti npm telepítést.'
 }
 
+function Resolve-LocalBotNames {
+    param(
+        [string]$BotName,
+        [string[]]$BotNames,
+        [string]$FixturePath,
+        [switch]$NoBot
+    )
+
+    $hasBotNames = $null -ne $BotNames -and $BotNames.Count -gt 0
+    if ($NoBot -and ($BotName -or $hasBotNames -or $FixturePath)) {
+        throw '-NoBot nem használható BotName, BotNames vagy FixturePath mellett.'
+    }
+    if ($BotName -and $hasBotNames) {
+        throw 'Használd vagy a -BotName, vagy a -BotNames kapcsolót.'
+    }
+    if ($NoBot) { return @() }
+
+    $resolved = [System.Collections.Generic.List[string]]::new()
+    if ($BotName) { $resolved.Add($BotName) }
+    foreach ($name in @($BotNames)) { if ($name) { $resolved.Add($name) } }
+    if ($FixturePath) {
+        $path = if ([System.IO.Path]::IsPathRooted($FixturePath)) {
+            [System.IO.Path]::GetFullPath($FixturePath)
+        } else {
+            [System.IO.Path]::GetFullPath((Join-Path (Get-LocalRepoRoot) $FixturePath))
+        }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "A fixture manifest nem található: $path"
+        }
+        $fixture = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+        $fixtureBots = if ($fixture.PSObject.Properties.Name -contains 'players') {
+            @($fixture.players)
+        } elseif ($fixture.PSObject.Properties.Name -contains 'bots') {
+            @($fixture.bots)
+        } else { @() }
+        if (-not $fixture.fixtureId -or $fixtureBots.Count -eq 0) {
+            throw 'A fixture manifesthez fixtureId és nem üres players vagy bots lista szükséges.'
+        }
+        foreach ($bot in $fixtureBots) {
+            if (-not $bot.username) { throw 'Minden fixture bothoz username szükséges.' }
+            $resolved.Add([string]$bot.username)
+        }
+    }
+
+    $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $result = @()
+    foreach ($name in $resolved) {
+        $value = $name.Trim()
+        if ($value -notmatch '^[a-zA-Z0-9]{1,12}$') { throw "Érvénytelen helyi botnév: $value" }
+        if ($seen.Add($value)) { $result += $value }
+    }
+    return @($result)
+}
+
 function Get-LocalRuntimeState {
     $path = Get-LocalStatePath
     if (-not (Test-Path -LiteralPath $path)) {
@@ -141,38 +195,45 @@ function Test-LocalHttp {
 }
 
 function Get-LocalHealth {
-    param([string]$BotName)
+    param([string]$BotName, [string[]]$BotNames)
 
     $state = Get-LocalRuntimeState
-    if (-not $BotName -and $state -and $state.botName) {
-        $BotName = [string]$state.botName
+    $selectedBotNames = @()
+    if ($BotName) { $selectedBotNames += $BotName }
+    $selectedBotNames += @($BotNames | Where-Object { $_ })
+    if ($selectedBotNames.Count -eq 0 -and $state) {
+        if ($state.PSObject.Properties.Name -contains 'botNames') {
+            $selectedBotNames = @($state.botNames | ForEach-Object { [string]$_ })
+        } elseif (($state.PSObject.Properties.Name -contains 'botName') -and $state.botName) {
+            $selectedBotNames = @([string]$state.botName)
+        }
     }
 
     $engineHttp = Test-LocalHttp -Uri 'http://localhost:8888/engine-status'
     $webclientHttp = Test-LocalHttp -Uri 'http://localhost:8888/client/client.js' -ExpectedContentType 'application/javascript'
     $gatewayHttp = Test-LocalHttp -Uri 'http://localhost:7780/status' -ExpectedContentType 'application/json'
 
-    $bot = $null
-    if ($BotName) {
+    $bots = @($selectedBotNames | ForEach-Object {
+        $selectedBotName = $_
         try {
-            $botResponse = Invoke-RestMethod -Uri "http://localhost:7780/status/$([Uri]::EscapeDataString($BotName))" -TimeoutSec 3
-            $bot = [pscustomobject]@{
-                name = $BotName
+            $botResponse = Invoke-RestMethod -Uri "http://localhost:7780/status/$([Uri]::EscapeDataString($selectedBotName))" -TimeoutSec 3
+            [pscustomobject]@{
+                name = $selectedBotName
                 healthy = $botResponse.status -eq 'active' -and [bool]$botResponse.inGame
                 status = $botResponse.status
                 inGame = [bool]$botResponse.inGame
                 stateAgeMs = $botResponse.stateAge
             }
         } catch {
-            $bot = [pscustomobject]@{
-                name = $BotName
+            [pscustomobject]@{
+                name = $selectedBotName
                 healthy = $false
                 status = 'unreachable'
                 inGame = $false
                 stateAgeMs = $null
             }
         }
-    }
+    })
 
     $processes = @()
     if ($state -and $state.components) {
@@ -186,16 +247,15 @@ function Get-LocalHealth {
     }
 
     $healthy = $engineHttp.healthy -and $webclientHttp.healthy -and $gatewayHttp.healthy
-    if ($bot) {
-        $healthy = $healthy -and $bot.healthy
-    }
+    if ($bots.Count -gt 0) { $healthy = $healthy -and @($bots | Where-Object { -not $_.healthy }).Count -eq 0 }
 
     return [pscustomobject]@{
         healthy = $healthy
         engine = $engineHttp
         webclient = $webclientHttp
         gateway = $gatewayHttp
-        bot = $bot
+        bot = if ($bots.Count -gt 0) { $bots[0] } else { $null }
+        bots = $bots
         processes = $processes
         runId = if ($state) { $state.runId } else { $null }
         logDirectory = if ($state) { $state.logDirectory } else { $null }

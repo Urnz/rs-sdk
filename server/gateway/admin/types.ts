@@ -47,6 +47,9 @@ export interface ManagedSkillRunSnapshot {
     startedAt: string;
     exitCode: number | null;
     logPath: string;
+    heartbeatAt?: string;
+    progressAt?: string;
+    progressSequence?: number;
     error?: string;
 }
 
@@ -123,4 +126,6 @@ export interface AuditEntry {
     after?: unknown;
     success: boolean;
     error?: string;
+    previousHash?: string;
+    entryHash?: string;
 }

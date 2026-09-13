@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$BotName,
+    [string[]]$BotNames,
+    [string]$FixturePath,
     [switch]$NoBot,
     [int]$TimeoutSeconds = 90
 )
@@ -12,16 +14,25 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Get-LocalRepoRoot
 $bun = Get-BunExecutable
 $runtimeRoot = Get-LocalRuntimeRoot
+$selectedBotNames = @(Resolve-LocalBotNames -BotName $BotName -BotNames $BotNames `
+    -FixturePath $FixturePath -NoBot:$NoBot)
 
-if (-not $NoBot -and -not $BotName) {
+if (-not $NoBot -and $selectedBotNames.Count -eq 0) {
     $candidates = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'bots') -Directory -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -ne '_template' })
     if ($candidates.Count -eq 1) {
-        $BotName = $candidates[0].Name
+        $selectedBotNames = @($candidates[0].Name)
     }
 }
 
-$existingHealth = Get-LocalHealth -BotName $BotName
+foreach ($selectedBotName in $selectedBotNames) {
+    $botEnvironmentPath = Join-Path $repoRoot "bots\$selectedBotName\bot.env"
+    if (-not (Test-Path -LiteralPath $botEnvironmentPath -PathType Leaf)) {
+        throw "A bot nem található vagy nincs bot.env fájlja: $selectedBotName"
+    }
+}
+
+$existingHealth = Get-LocalHealth -BotNames $selectedBotNames
 if ($existingHealth.healthy) {
     Write-Host 'A helyi stack már egészséges.'
     $existingHealth | ConvertTo-Json -Depth 6
@@ -39,11 +50,13 @@ $logDirectory = Join-Path $runtimeRoot "logs\$runId"
 New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
 
 $state = [ordered]@{
-    version = 1
+    version = 2
     runId = $runId
     startedAtUtc = [DateTime]::UtcNow.ToString('o')
     logDirectory = $logDirectory
-    botName = if ($NoBot) { $null } else { $BotName }
+    botName = if ($selectedBotNames.Count -gt 0) { $selectedBotNames[0] } else { $null }
+    botNames = $selectedBotNames
+    fixturePath = if ($FixturePath) { $FixturePath } else { $null }
     components = @()
 }
 
@@ -74,7 +87,9 @@ function Start-LocalComponent {
 $oldEasyStartup = $env:EASY_STARTUP
 $oldRegistration = $env:WEBSITE_REGISTRATION
 $oldEngineAdminToken = [Environment]::GetEnvironmentVariable('ENGINE_ADMIN_TOKEN', 'Process')
+$oldAutonomyStartupGraceMs = [Environment]::GetEnvironmentVariable('AUTONOMY_STARTUP_GRACE_MS', 'Process')
 $env:ENGINE_ADMIN_TOKEN = if ($oldEngineAdminToken) { $oldEngineAdminToken } else { [Guid]::NewGuid().ToString('N') }
+$env:AUTONOMY_STARTUP_GRACE_MS = [string](($TimeoutSeconds + 10) * 1000)
 
 try {
     Start-LocalComponent -Name 'gateway' -WorkingDirectory (Join-Path $repoRoot 'server\gateway') -Arguments @('run', 'gateway.ts') | Out-Null
@@ -95,20 +110,19 @@ try {
     # Only gateway and engine need the internal mutation token. Do not pass it to bot clients.
     Remove-Item Env:ENGINE_ADMIN_TOKEN -ErrorAction SilentlyContinue
 
-    if (-not $NoBot -and $BotName) {
-        $botDirectory = Join-Path $repoRoot "bots\$BotName"
-        if (-not (Test-Path -LiteralPath (Join-Path $botDirectory 'bot.env'))) {
-            throw "A bot nem található vagy nincs bot.env fájlja: $BotName"
-        }
-
-        Start-LocalComponent -Name 'bot' -WorkingDirectory (Join-Path $repoRoot 'server\webclient') `
-            -Arguments @('run', 'src/lite/runner.ts', $BotName) | Out-Null
-        Wait-LocalCondition -Description "$BotName bot bejelentkezése" -TimeoutSeconds $TimeoutSeconds -Condition {
-            (Get-LocalHealth -BotName $BotName).bot.healthy
+    foreach ($selectedBotName in $selectedBotNames) {
+        Start-LocalComponent -Name "bot-$($selectedBotName.ToLowerInvariant())" `
+            -WorkingDirectory (Join-Path $repoRoot 'server\webclient') `
+            -Arguments @('run', 'src/lite/runner.ts', $selectedBotName) | Out-Null
+    }
+    if ($selectedBotNames.Count -gt 0) {
+        Wait-LocalCondition -Description "$($selectedBotNames.Count) bot bejelentkezése" `
+            -TimeoutSeconds $TimeoutSeconds -Condition {
+            (Get-LocalHealth -BotNames $selectedBotNames).healthy
         }
     }
 
-    $health = Get-LocalHealth -BotName $(if ($NoBot) { $null } else { $BotName })
+    $health = Get-LocalHealth -BotNames $selectedBotNames
     Write-Host "Helyi stack elindult. Naplók: $logDirectory"
     $health | ConvertTo-Json -Depth 6
 } catch {
@@ -124,5 +138,10 @@ try {
         $env:ENGINE_ADMIN_TOKEN = $oldEngineAdminToken
     } else {
         Remove-Item Env:ENGINE_ADMIN_TOKEN -ErrorAction SilentlyContinue
+    }
+    if ($oldAutonomyStartupGraceMs) {
+        $env:AUTONOMY_STARTUP_GRACE_MS = $oldAutonomyStartupGraceMs
+    } else {
+        Remove-Item Env:AUTONOMY_STARTUP_GRACE_MS -ErrorAction SilentlyContinue
     }
 }

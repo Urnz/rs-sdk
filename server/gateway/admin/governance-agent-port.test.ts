@@ -7,7 +7,7 @@ import { physicalExecutionAuthority } from '../../../agent-state/control.js';
 import { GovernanceStore } from './governance.js';
 import { GovernancePolicyStore } from './governance-policy.js';
 import { InstitutionTreasuryStore } from './institution-treasury.js';
-import { createAdminPlayerActionRequest } from './agent-state.js';
+import { createAdminPlayerActionRequest, listAdminAgents } from './agent-state.js';
 import { inspectGovernanceForAgent, proposeFactionPolicyForAgent,
     validateFactionPlayerActionForAgent } from './governance-agent-port.js';
 
@@ -65,7 +65,7 @@ function fixture() {
 }
 
 describe('faction Governance agent port', () => {
-    test('reads only the exact faction projection and creates only an inert draft', () => {
+    test('reads only the exact faction projection and creates only an inert draft', async () => {
         const paths = fixture();
         const snapshot = inspectGovernanceForAgent('varrock-council', paths.agentPath,
             paths.governancePath, paths.treasuryPath);
@@ -74,6 +74,12 @@ describe('faction Governance agent port', () => {
             activeBudget: { budgetId: 'varrock-1' } });
         expect(snapshot.jurisdictions.map(item => item.jurisdiction.jurisdictionId)).toEqual(['varrock-city']);
         expect(snapshot.jurisdictions.flatMap(item => item.policies)).toEqual([]);
+        const view = (await listAdminAgents(paths.agentPath, { skillRuns: [] })).agents
+            .find(agent => agent.identity.agentId === 'varrock-council')!;
+        expect(view.decisionContext).toContain('Bound Faction subject only: varrock');
+        expect(view.decisionContext).toContain('varrock-1 limit 4000 gp');
+        expect(view.decisionContext).not.toContain('falador');
+        expect(view.decisionContext).not.toContain('foreign-tax-1');
 
         const proposal = proposeFactionPolicyForAgent('varrock-council', {
             policyId: 'varrock-tax-1', jurisdictionId: 'varrock-city', policyKey: 'market-tax', version: 1,

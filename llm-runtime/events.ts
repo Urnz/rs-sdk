@@ -1,5 +1,8 @@
 export type LlmReplanEventType = 'manual-request' | 'skill-finished' | 'skill-failed' | 'goal-changed'
-    | 'unexpected-world-event' | 'offer-received' | 'significant-economic-change' | 'capability-ready';
+    | 'unexpected-world-event' | 'offer-received' | 'significant-economic-change' | 'capability-ready'
+    | 'economic-contract-changed' | 'player-action-changed' | 'business-work-available'
+    | 'property-changed' | 'governance-changed' | 'allowlisted-world-event'
+    | 'autonomy-startup' | 'autonomy-reconnect' | 'autonomy-idle';
 
 export interface LlmReplanEvent {
     eventId: string;
@@ -36,6 +39,23 @@ export class LlmReplanEventGate {
         }
     }
 
+    /** Rebuilds bounded cooldown state from a trusted durable terminal journal. */
+    restoreAccepted(agentId: string, acceptedAt: string): void {
+        const timestamp = Date.parse(acceptedAt);
+        if (!agentId || Number.isNaN(timestamp)) throw new Error('Restored LLM replan admission is invalid');
+        const previous = this.lastAcceptedByAgent.get(agentId) ?? Number.NEGATIVE_INFINITY;
+        if (timestamp > previous) this.lastAcceptedByAgent.set(agentId, timestamp);
+    }
+
+    /** Releases only the exact process-local dedupe key after a proven transient admission failure. */
+    releaseForRetry(event: LlmReplanEvent, acceptedAt: string): boolean {
+        const timestamp = Date.parse(acceptedAt);
+        if (Number.isNaN(timestamp)) throw new Error('Released LLM replan admission is invalid');
+        const key = `${event.agentId}|${event.type}|${event.sourceKey}`;
+        if (this.seen.get(key) !== timestamp) return false;
+        return this.seen.delete(key);
+    }
+
     consider(event: LlmReplanEvent, now = new Date().toISOString()): LlmReplanGateResult {
         const current = Date.parse(now);
         const occurred = Date.parse(event.occurredAt);
@@ -51,7 +71,11 @@ export class LlmReplanEventGate {
         }
         const urgent = event.type === 'manual-request' || event.type === 'unexpected-world-event'
             || event.type === 'skill-finished' || event.type === 'skill-failed' || event.type === 'goal-changed'
-            || event.type === 'capability-ready';
+            || event.type === 'capability-ready' || event.type === 'autonomy-startup'
+            || event.type === 'autonomy-reconnect' || event.type === 'economic-contract-changed'
+            || event.type === 'player-action-changed' || event.type === 'business-work-available'
+            || event.type === 'property-changed' || event.type === 'governance-changed'
+            || event.type === 'allowlisted-world-event';
         if (!urgent && current < nextAllowed) {
             return { accepted: false, reason: 'cooldown', nextAllowedAt: new Date(nextAllowed).toISOString() };
         }

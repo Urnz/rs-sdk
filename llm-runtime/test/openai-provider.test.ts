@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { OpenAIResponsesProvider, createOpenAIProvider, type OpenAIFetch } from '../openai-provider.js';
 import type { LlmProviderRequest } from '../types.js';
+import { InferenceQueueRateLimitError } from '../queue.js';
 
 const request: LlmProviderRequest = {
     runId: '11111111-1111-4111-8111-111111111111', agentId: 'ferrye14', model: 'gpt-5.6-terra',
@@ -49,6 +50,17 @@ describe('OpenAI Responses provider', () => {
         catch (error) { expect(String(error)).not.toContain('test-secret'); }
     });
 
+    test('exposes sanitized provider rate limits with bounded retry timing', async () => {
+        const fetch = async () => new Response(JSON.stringify({ error: { code: 'rate_limit_exceeded',
+            message: 'secret provider detail' } }), { status: 429, headers: { 'Retry-After': '2' } });
+        try { await provider(fetch).complete(request, new AbortController().signal); }
+        catch (error) {
+            expect(error).toBeInstanceOf(InferenceQueueRateLimitError);
+            expect((error as InferenceQueueRateLimitError).retryAfterMs).toBe(2_000);
+            expect(String(error)).not.toContain('secret provider detail');
+        }
+    });
+
     test('requires an environment key and explicit pricing', () => {
         expect(() => createOpenAIProvider({ schemaVersion: 1, enabled: true, automaticReplanning: false,
             provider: 'openai', model: 'test',
@@ -58,6 +70,8 @@ describe('OpenAI Responses provider', () => {
                 cooldownMs: 3600000, maxAttemptsPerGap: 3, maxCostMicrosPerGap: 50000,
                 maxDailyCostMicros: 100000, maxDurationMs: 60000, maxOutputTokens: 6000 },
             autonomousExecution: { enabled: false, allowedSkills: [], maxOperations: 100, maxTimeoutMs: 900000 },
+            dailyBudget: { scope: 'lostcity-local', maxCostMicros: 10_000, maxDecisions: 100,
+                estimatedCostMicros: 100 },
             limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1,
                 maxCostMicros: 100, maxOutputTokens: 1000 } }, {}))
             .toThrow('OPENAI_API_KEY');

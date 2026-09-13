@@ -2,7 +2,9 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalEvent, type AgentGoalProposal, type AgentIdentity, type AgentSnapshot,
-    type AgentControlProfile, type AgentDecisionRecord, type AgentDecisionTrigger,
+    type AgentAutonomyControl, type AgentAutonomyEnrollment, type AgentAutonomyStatus, type AgentControlProfile,
+    type AgentDecisionRecord, type AgentDecisionTrigger, type AgentGoalExecution, type AgentSkillDispatch,
+    type AgentSkillRunOutcome, type AgentSkillRunOutcomeClassification,
     type AgentPlayerActionManualStatus, type AgentPlayerActionRequest, type AgentPlayerActionStatus,
     type AgentCommitment, type AgentCommitmentStatus, type AgentEpisode, type AgentEpisodeListOptions,
     type AgentEpisodeProtectionReason, type AgentEpisodePruneResult, type AgentEpisodeRetentionPreview,
@@ -13,13 +15,14 @@ import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalEvent, type A
     type CreateAgentConsolidationEvidence, type CreateAgentEpisode,
     type CreateAgentGoal, type CreateAgentGoalProposal, type CreateAgentIdentity, type CreateAgentKnowledge,
     type CreateAgentPlayerActionRequest, type GoalStatus,
-    type RecordAgentDecision, type SetAgentControlProfile,
+    type RecordAgentDecision, type SetAgentAutonomyEnrollment, type SetAgentControlProfile,
     type SetAgentEconomicActorLink, type SetAgentRelationship, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
+import { createSkillParameterBinding } from './skill-binding.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
     normalizeActorKey, normalizeEconomicActorId, normalizeSkillReference, validateCreateCommitment, validateCreateEpisode,
     validateCreateKnowledge, validateIdentityPatch, validateRelationship, validateSkillKnowledgeStatus,
-    validateControlProfile, validateCreatePlayerActionRequest, validateEconomicActorLink,
+    validateAutonomyEnrollment, validateControlProfile, validateCreatePlayerActionRequest, validateEconomicActorLink,
     validateWorkingMemory } from './validation.js';
 
 interface IdentityRow {
@@ -86,9 +89,34 @@ interface ControlProfileRow {
     last_decision_at: string | null; next_decision_at: string | null; created_at: string; updated_at: string;
     revision: number;
 }
+interface AutonomyEnrollmentRow {
+    agent_id: string; status: AgentAutonomyStatus; policy_id: string; policy_version: string;
+    next_wakeup_at: string | null; lease_owner: string | null; lease_expires_at: string | null;
+    failure_count: number; last_failure_fingerprint: string | null; quarantine_reason: string | null;
+    created_at: string; updated_at: string; revision: number;
+}
+interface AutonomyControlRow {
+    emergency_stop: number; reason: string | null; activated_at: string | null;
+    updated_at: string; revision: number;
+}
 interface DecisionRecordRow {
     decision_id: string; agent_id: string; trigger: AgentDecisionTrigger; llm_cost_micros: number;
-    operational_budget_gp: number; occurred_at: string; profile_revision: number;
+    operational_budget_gp: number; occurred_at: string; profile_revision: number; context_digest: string | null;
+}
+interface GoalExecutionRow {
+    goal_id: string; execution_policy: AgentGoalExecution['policy']; required_successful_runs: number;
+    successful_runs: number; cooldown_ms: number; next_eligible_at: string | null; last_run_id: string | null;
+    parameter_source_kind: AgentGoalExecution['binding']['sourceKind']; parameter_source_id: string;
+    parameters: string; parameter_digest: string; created_at: string; updated_at: string; revision: number;
+}
+interface SkillDispatchRow {
+    run_id: string; decision_id: string; agent_id: string; goal_id: string; skill_id: string; skill_version: string;
+    parameter_source_kind: AgentSkillDispatch['binding']['sourceKind']; parameter_source_id: string;
+    parameters: string; parameter_digest: string; policy_id: string; policy_version: string; created_at: string;
+}
+interface SkillOutcomeRow {
+    run_id: string; status: AgentSkillRunOutcome['status']; classification: AgentSkillRunOutcomeClassification;
+    detail: string; occurred_at: string;
 }
 interface PlayerActionRequestRow {
     request_id: string; requester_agent_id: string; assignee_agent_id: string;
@@ -118,6 +146,28 @@ function goal(row: GoalRow): AgentGoal {
         title: row.title, description: row.description, status: row.status, priority: row.priority,
         skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
         createdAt: row.created_at, updatedAt: row.updated_at, completedAt: row.completed_at, revision: row.revision };
+}
+function goalExecution(row: GoalExecutionRow): AgentGoalExecution {
+    return { goalId: row.goal_id, policy: row.execution_policy,
+        completion: { kind: 'successful-skill-runs', required: row.required_successful_runs },
+        progress: { successfulRuns: row.successful_runs }, cooldownMs: row.cooldown_ms,
+        nextEligibleAt: row.next_eligible_at, lastRunId: row.last_run_id,
+        binding: { sourceKind: row.parameter_source_kind, sourceId: row.parameter_source_id,
+            parameters: JSON.parse(row.parameters) as Record<string, string | number | boolean>,
+            digest: row.parameter_digest }, createdAt: row.created_at, updatedAt: row.updated_at,
+        revision: row.revision };
+}
+function skillDispatch(row: SkillDispatchRow): AgentSkillDispatch {
+    return { runId: row.run_id, decisionId: row.decision_id, agentId: row.agent_id, goalId: row.goal_id,
+        skill: { id: row.skill_id, version: row.skill_version },
+        binding: { sourceKind: row.parameter_source_kind, sourceId: row.parameter_source_id,
+            parameters: JSON.parse(row.parameters) as Record<string, string | number | boolean>,
+            digest: row.parameter_digest }, policyId: row.policy_id, policyVersion: row.policy_version,
+        createdAt: row.created_at };
+}
+function skillOutcome(row: SkillOutcomeRow): AgentSkillRunOutcome {
+    return { runId: row.run_id, status: row.status, classification: row.classification,
+        detail: row.detail, occurredAt: row.occurred_at };
 }
 function goalEvent(row: GoalEventRow): AgentGoalEvent {
     return { sequence: row.sequence, goalId: row.goal_id, agentId: row.agent_id, kind: row.kind,
@@ -188,10 +238,21 @@ function controlProfile(row: ControlProfileRow): AgentControlProfile {
         nextDecisionAt: row.next_decision_at, createdAt: row.created_at, updatedAt: row.updated_at,
         revision: row.revision };
 }
+function autonomyEnrollment(row: AutonomyEnrollmentRow): AgentAutonomyEnrollment {
+    return { agentId: row.agent_id, status: row.status, policyId: row.policy_id,
+        policyVersion: row.policy_version, nextWakeupAt: row.next_wakeup_at, leaseOwner: row.lease_owner,
+        leaseExpiresAt: row.lease_expires_at, failureCount: row.failure_count,
+        lastFailureFingerprint: row.last_failure_fingerprint, quarantineReason: row.quarantine_reason,
+        createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
+}
+function autonomyControl(row: AutonomyControlRow): AgentAutonomyControl {
+    return { emergencyStop: row.emergency_stop === 1, reason: row.reason,
+        activatedAt: row.activated_at, updatedAt: row.updated_at, revision: row.revision };
+}
 function decisionRecord(row: DecisionRecordRow): AgentDecisionRecord {
     return { decisionId: row.decision_id, agentId: row.agent_id, trigger: row.trigger,
         llmCostMicros: row.llm_cost_micros, operationalBudgetGp: row.operational_budget_gp,
-        occurredAt: row.occurred_at, profileRevision: row.profile_revision };
+        occurredAt: row.occurred_at, profileRevision: row.profile_revision, contextDigest: row.context_digest };
 }
 function playerActionRequest(row: PlayerActionRequestRow): AgentPlayerActionRequest {
     return { requestId: row.request_id, requesterAgentId: row.requester_agent_id,
@@ -305,6 +366,210 @@ export class AgentStateStore {
         return row ? controlProfile(row as ControlProfileRow) : null;
     }
 
+    getAutonomyEnrollment(agentId: string): AgentAutonomyEnrollment | null {
+        const normalized = normalizeAgentId(agentId);
+        const row = this.database.query('SELECT * FROM agent_autonomy_enrollment WHERE agent_id = ?1')
+            .get(normalized);
+        return row ? autonomyEnrollment(row as AutonomyEnrollmentRow) : null;
+    }
+
+    listAutonomyEnrollments(status?: AgentAutonomyStatus): AgentAutonomyEnrollment[] {
+        if (status !== undefined && !['desired', 'running', 'paused', 'quarantined'].includes(status)) {
+            throw new Error('Autonomy enrollment status is invalid');
+        }
+        const rows = status === undefined
+            ? this.database.query(`SELECT * FROM agent_autonomy_enrollment
+                ORDER BY COALESCE(next_wakeup_at, '9999-12-31T23:59:59.999Z'), agent_id`).all()
+            : this.database.query(`SELECT * FROM agent_autonomy_enrollment WHERE status = ?1
+                ORDER BY COALESCE(next_wakeup_at, '9999-12-31T23:59:59.999Z'), agent_id`).all(status);
+        return (rows as AutonomyEnrollmentRow[]).map(autonomyEnrollment);
+    }
+
+    getAutonomyControl(): AgentAutonomyControl {
+        const row = this.database.query(`SELECT emergency_stop, reason, activated_at, updated_at, revision
+            FROM agent_autonomy_control WHERE control_key = 'global'`).get() as AutonomyControlRow | null;
+        if (!row) throw new Error('Global autonomy control is missing');
+        return autonomyControl(row);
+    }
+
+    setAutonomyEmergencyStop(expectedRevision: number, active: boolean, reason: string,
+        now = new Date().toISOString()): AgentAutonomyControl {
+        const current = this.getAutonomyControl();
+        const normalizedReason = reason.trim();
+        if (!normalizedReason) throw new Error('Autonomy emergency-stop reason is required');
+        if (Number.isNaN(Date.parse(now))) throw new Error('Autonomy control time must be an ISO timestamp');
+        if (current.emergencyStop === active) return current;
+        const result = this.database.run(`UPDATE agent_autonomy_control SET emergency_stop = ?2,
+            reason = ?3, activated_at = ?4, updated_at = ?5, revision = revision + 1
+            WHERE control_key = 'global' AND revision = ?1`,
+        [expectedRevision, active ? 1 : 0, active ? normalizedReason : null, active ? now : null, now]);
+        if (result.changes !== 1) throw new Error('Global autonomy control changed before update; refresh and try again');
+        return this.getAutonomyControl();
+    }
+
+    pauseAutonomyEnrollment(agentId: string, expectedRevision: number,
+        now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const current = this.getAutonomyEnrollment(agentId);
+        if (!current) throw new Error(`Agent autonomy is not enrolled: ${normalizeAgentId(agentId)}`);
+        if (current.status === 'paused') return current;
+        return this.setAutonomyEnrollment(agentId, expectedRevision, { ...current, status: 'paused',
+            nextWakeupAt: null, leaseOwner: null, leaseExpiresAt: null, quarantineReason: null }, now);
+    }
+
+    resumeAutonomyEnrollment(agentId: string, expectedRevision: number,
+        now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const current = this.getAutonomyEnrollment(agentId);
+        if (!current) throw new Error(`Agent autonomy is not enrolled: ${normalizeAgentId(agentId)}`);
+        if (current.status === 'desired') return current;
+        if (current.status !== 'paused') throw new Error('Only a paused autonomy enrollment can be resumed');
+        return this.setAutonomyEnrollment(agentId, expectedRevision, { ...current, status: 'desired',
+            nextWakeupAt: now, leaseOwner: null, leaseExpiresAt: null, quarantineReason: null }, now);
+    }
+
+    releaseAutonomyQuarantine(agentId: string, expectedRevision: number,
+        now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const current = this.getAutonomyEnrollment(agentId);
+        if (!current) throw new Error(`Agent autonomy is not enrolled: ${normalizeAgentId(agentId)}`);
+        if (current.status === 'paused') return current;
+        if (current.status !== 'quarantined') throw new Error('Only a quarantined autonomy enrollment can be released');
+        return this.setAutonomyEnrollment(agentId, expectedRevision, { ...current, status: 'paused',
+            nextWakeupAt: null, leaseOwner: null, leaseExpiresAt: null, failureCount: 0,
+            lastFailureFingerprint: null, quarantineReason: null }, now);
+    }
+
+    createAutonomyEnrollment(agentId: string, input: SetAgentAutonomyEnrollment,
+        now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const normalized = normalizeAgentId(agentId);
+        const value = validateAutonomyEnrollment(input);
+        if (value.status === 'running') throw new Error('Use claimAutonomyEnrollment to enter running state');
+        const nowTime = Date.parse(now);
+        if (Number.isNaN(nowTime)) throw new Error('Autonomy enrollment time must be an ISO timestamp');
+        if (value.leaseExpiresAt && Date.parse(value.leaseExpiresAt) <= nowTime) {
+            throw new Error('Autonomy lease must expire after the enrollment time');
+        }
+        const transaction = this.database.transaction(() => {
+            this.requireIdentity(normalized);
+            if (this.getAutonomyEnrollment(normalized)) throw new Error(`Agent autonomy is already enrolled: ${normalized}`);
+            this.database.run(`INSERT INTO agent_autonomy_enrollment
+                (agent_id, status, policy_id, policy_version, next_wakeup_at, lease_owner, lease_expires_at,
+                failure_count, last_failure_fingerprint, quarantine_reason, created_at, updated_at, revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11, 1)`,
+            [normalized, value.status, value.policyId, value.policyVersion, value.nextWakeupAt ?? null,
+                value.leaseOwner ?? null, value.leaseExpiresAt ?? null, value.failureCount ?? 0,
+                value.lastFailureFingerprint ?? null, value.quarantineReason ?? null, now]);
+        });
+        transaction.immediate();
+        return this.getAutonomyEnrollment(normalized)!;
+    }
+
+    setAutonomyEnrollment(agentId: string, expectedRevision: number, input: SetAgentAutonomyEnrollment,
+        now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const normalized = normalizeAgentId(agentId);
+        const value = validateAutonomyEnrollment(input);
+        if (value.status === 'running') throw new Error('Use claimAutonomyEnrollment to enter running state');
+        const nowTime = Date.parse(now);
+        if (Number.isNaN(nowTime)) throw new Error('Autonomy enrollment time must be an ISO timestamp');
+        if (value.leaseExpiresAt && Date.parse(value.leaseExpiresAt) <= nowTime) {
+            throw new Error('Autonomy lease must expire after the update time');
+        }
+        const result = this.database.run(`UPDATE agent_autonomy_enrollment SET status = ?3,
+            policy_id = ?4, policy_version = ?5, next_wakeup_at = ?6, lease_owner = ?7,
+            lease_expires_at = ?8, failure_count = ?9, last_failure_fingerprint = ?10,
+            quarantine_reason = ?11, updated_at = ?12, revision = revision + 1
+            WHERE agent_id = ?1 AND revision = ?2`,
+        [normalized, expectedRevision, value.status, value.policyId, value.policyVersion,
+            value.nextWakeupAt ?? null, value.leaseOwner ?? null, value.leaseExpiresAt ?? null,
+            value.failureCount ?? 0, value.lastFailureFingerprint ?? null, value.quarantineReason ?? null, now]);
+        if (result.changes !== 1) throw new Error('Agent autonomy enrollment changed before update; refresh and try again');
+        return this.getAutonomyEnrollment(normalized)!;
+    }
+
+    claimAutonomyEnrollment(agentId: string, expectedRevision: number, leaseOwner: string,
+        leaseExpiresAt: string, now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const normalized = normalizeAgentId(agentId);
+        const current = this.getAutonomyEnrollment(normalized);
+        if (!current || current.revision !== expectedRevision || current.status !== 'desired') {
+            throw new Error('Agent autonomy enrollment is not claimable; refresh and try again');
+        }
+        const value = validateAutonomyEnrollment({ ...current, status: 'running', leaseOwner, leaseExpiresAt });
+        const nowTime = Date.parse(now);
+        if (Number.isNaN(nowTime)) throw new Error('Autonomy claim time must be an ISO timestamp');
+        if (current.nextWakeupAt && Date.parse(current.nextWakeupAt) > nowTime) {
+            throw new Error('Agent autonomy enrollment is not due yet');
+        }
+        if (Date.parse(leaseExpiresAt) <= nowTime) throw new Error('Autonomy lease must expire after the claim time');
+        const result = this.database.run(`UPDATE agent_autonomy_enrollment SET status = 'running',
+            next_wakeup_at = NULL, lease_owner = ?3, lease_expires_at = ?4, updated_at = ?5,
+            revision = revision + 1 WHERE agent_id = ?1 AND revision = ?2 AND status = 'desired'
+            AND (next_wakeup_at IS NULL OR next_wakeup_at <= ?5)`,
+        [normalized, expectedRevision, value.leaseOwner!, value.leaseExpiresAt!, now]);
+        if (result.changes !== 1) throw new Error('Agent autonomy enrollment was claimed concurrently');
+        return this.getAutonomyEnrollment(normalized)!;
+    }
+
+    renewAutonomyLease(agentId: string, expectedRevision: number, leaseOwner: string,
+        leaseExpiresAt: string, now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const normalized = normalizeAgentId(agentId);
+        const current = this.getAutonomyEnrollment(normalized);
+        if (!current || current.revision !== expectedRevision || current.status !== 'running'
+            || current.leaseOwner !== leaseOwner) {
+            throw new Error('Agent autonomy lease ownership changed; refresh and reconcile');
+        }
+        const value = validateAutonomyEnrollment({ ...current, leaseExpiresAt });
+        const nowTime = Date.parse(now);
+        if (Number.isNaN(nowTime) || Date.parse(leaseExpiresAt) <= nowTime) {
+            throw new Error('Autonomy lease renewal must expire after the update time');
+        }
+        const result = this.database.run(`UPDATE agent_autonomy_enrollment SET lease_expires_at = ?4,
+            updated_at = ?5, revision = revision + 1
+            WHERE agent_id = ?1 AND revision = ?2 AND status = 'running' AND lease_owner = ?3`,
+        [normalized, expectedRevision, leaseOwner, value.leaseExpiresAt!, now]);
+        if (result.changes !== 1) throw new Error('Agent autonomy lease ownership changed; refresh and reconcile');
+        return this.getAutonomyEnrollment(normalized)!;
+    }
+
+    releaseAutonomyLease(agentId: string, expectedRevision: number, leaseOwner: string,
+        nextWakeupAt: string | null, now = new Date().toISOString()): AgentAutonomyEnrollment {
+        const normalized = normalizeAgentId(agentId);
+        const current = this.getAutonomyEnrollment(normalized);
+        if (!current || current.revision !== expectedRevision || current.status !== 'running'
+            || current.leaseOwner !== leaseOwner) {
+            throw new Error('Agent autonomy lease ownership changed; refresh and reconcile');
+        }
+        const value = validateAutonomyEnrollment({ ...current, status: 'desired', nextWakeupAt,
+            leaseOwner: null, leaseExpiresAt: null });
+        if (Number.isNaN(Date.parse(now))) throw new Error('Autonomy release time must be an ISO timestamp');
+        const result = this.database.run(`UPDATE agent_autonomy_enrollment SET status = 'desired',
+            next_wakeup_at = ?4, lease_owner = NULL, lease_expires_at = NULL,
+            updated_at = ?5, revision = revision + 1
+            WHERE agent_id = ?1 AND revision = ?2 AND status = 'running' AND lease_owner = ?3`,
+        [normalized, expectedRevision, leaseOwner, value.nextWakeupAt ?? null, now]);
+        if (result.changes !== 1) throw new Error('Agent autonomy lease ownership changed; refresh and reconcile');
+        return this.getAutonomyEnrollment(normalized)!;
+    }
+
+    recoverExpiredAutonomyLeases(now = new Date().toISOString()): AgentAutonomyEnrollment[] {
+        if (Number.isNaN(Date.parse(now))) throw new Error('Autonomy recovery time must be an ISO timestamp');
+        const expiredRows = this.database.query(`SELECT * FROM agent_autonomy_enrollment
+            WHERE status = 'running' AND lease_expires_at <= ?1 ORDER BY agent_id`).all(now) as AutonomyEnrollmentRow[];
+        const expired = expiredRows.map(autonomyEnrollment);
+        if (expired.length === 0) return [];
+        const transaction = this.database.transaction(() => {
+            for (const enrollment of expired) {
+                this.database.run(`UPDATE agent_autonomy_enrollment SET status = 'desired',
+                    next_wakeup_at = ?3, lease_owner = NULL, lease_expires_at = NULL,
+                    updated_at = ?3, revision = revision + 1
+                    WHERE agent_id = ?1 AND revision = ?2 AND status = 'running' AND lease_expires_at <= ?3`,
+                [enrollment.agentId, enrollment.revision, now]);
+            }
+        });
+        transaction.immediate();
+        return expired.flatMap(enrollment => {
+            const recovered = this.getAutonomyEnrollment(enrollment.agentId);
+            return recovered?.status === 'desired' && recovered.revision === enrollment.revision + 1 ? [recovered] : [];
+        });
+    }
+
     setControlProfile(agentId: string, expectedRevision: number, input: SetAgentControlProfile,
         now = new Date().toISOString()): AgentControlProfile {
         const normalized = normalizeAgentId(agentId);
@@ -347,9 +612,13 @@ export class AgentStateStore {
         if (!['scheduled', 'event', 'admin'].includes(input.trigger)) throw new Error('Decision trigger is invalid');
         const llmCost = input.llmCostMicros ?? 0;
         const operationalBudget = input.operationalBudgetGp ?? 0;
+        const contextDigest = input.contextDigest ?? null;
         if (!Number.isSafeInteger(llmCost) || llmCost < 0) throw new Error('Decision LLM cost is invalid');
         if (!Number.isSafeInteger(operationalBudget) || operationalBudget < 0) {
             throw new Error('Decision operational budget is invalid');
+        }
+        if (contextDigest !== null && !/^[0-9a-f]{64}$/.test(contextDigest)) {
+            throw new Error('Decision context digest must be a lowercase SHA-256 digest');
         }
         const currentTime = Date.parse(now);
         if (Number.isNaN(currentTime)) throw new Error('Decision time must be an ISO timestamp');
@@ -375,16 +644,18 @@ export class AgentStateStore {
                 throw new Error('Agent daily operational budget exceeded');
             }
             this.database.run(`INSERT INTO agent_decision_ledger
-                (decision_id, agent_id, trigger, llm_cost_micros, operational_budget_gp, occurred_at, profile_revision)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
-            [decisionId, normalized, input.trigger, llmCost, operationalBudget, now, profile.revision]);
+                (decision_id, agent_id, trigger, llm_cost_micros, operational_budget_gp, occurred_at,
+                profile_revision, context_digest)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+            [decisionId, normalized, input.trigger, llmCost, operationalBudget, now, profile.revision, contextDigest]);
             const next = new Date(currentTime + profile.decisionIntervalMs).toISOString();
             const updated = this.database.run(`UPDATE agent_control_profile SET last_decision_at = ?3,
                 next_decision_at = ?4, updated_at = ?3, revision = revision + 1
                 WHERE agent_id = ?1 AND revision = ?2`, [normalized, profile.revision, now, next]);
             if (updated.changes !== 1) throw new Error('Agent control profile changed during decision admission');
             record = { decisionId, agentId: normalized, trigger: input.trigger, llmCostMicros: llmCost,
-                operationalBudgetGp: operationalBudget, occurredAt: now, profileRevision: profile.revision };
+                operationalBudgetGp: operationalBudget, occurredAt: now, profileRevision: profile.revision,
+                contextDigest };
         });
         transaction.immediate();
         return { profile: this.getControlProfile(normalized)!, decision: record! };
@@ -399,6 +670,35 @@ export class AgentStateStore {
             : this.database.query(`SELECT * FROM agent_decision_ledger WHERE agent_id = ?1
                 ORDER BY occurred_at DESC, decision_id`).all(normalized);
         return (rows as DecisionRecordRow[]).map(decisionRecord);
+    }
+
+    reserveDecisionOperationalBudget(decisionIdInput: string, amountGp: number, authorizationDailyLimitGp: number,
+        now = new Date().toISOString()): AgentDecisionRecord {
+        const decisionId = normalizeAgentId(decisionIdInput, 'decisionId');
+        if (!Number.isSafeInteger(amountGp) || amountGp < 0 || !Number.isSafeInteger(authorizationDailyLimitGp)
+            || authorizationDailyLimitGp < amountGp) throw new Error('Decision operational reservation is invalid');
+        const transaction = this.database.transaction(() => {
+            const row = this.database.query('SELECT * FROM agent_decision_ledger WHERE decision_id = ?1')
+                .get(decisionId) as DecisionRecordRow | null;
+            if (!row) throw new Error('Unknown decision for operational reservation');
+            if (row.operational_budget_gp === amountGp) return;
+            if (row.operational_budget_gp !== 0) throw new Error('Decision operational reservation cannot be changed');
+            const profile = this.getControlProfile(row.agent_id);
+            if (!profile) throw new Error('Decision agent has no control profile');
+            const totals = this.database.query(`SELECT COALESCE(SUM(operational_budget_gp), 0) AS total
+                FROM agent_decision_ledger WHERE agent_id = ?1 AND decision_id != ?2
+                AND substr(occurred_at, 1, 10) = ?3`).get(row.agent_id, decisionId, row.occurred_at.slice(0, 10)) as { total: number };
+            if (totals.total + amountGp > profile.dailyOperationalBudgetGp
+                || totals.total + amountGp > authorizationDailyLimitGp) {
+                throw new Error('Decision operational reservation exceeds a daily GP limit');
+            }
+            this.database.run(`UPDATE agent_decision_ledger SET operational_budget_gp = ?2
+                WHERE decision_id = ?1 AND operational_budget_gp = 0`, [decisionId, amountGp]);
+        });
+        transaction.immediate();
+        return this.listDecisions((this.database.query(`SELECT agent_id FROM agent_decision_ledger
+            WHERE decision_id = ?1`).get(decisionId) as { agent_id: string }).agent_id)
+            .find(item => item.decisionId === decisionId)!;
     }
 
     createPlayerActionRequest(requesterAgentId: string, input: CreateAgentPlayerActionRequest,
@@ -664,6 +964,17 @@ export class AgentStateStore {
                 skill_id, skill_version, occurred_at)
                 VALUES (?1, ?2, 'created', NULL, 'active', NULL, 1, ?3, ?4, ?5)`,
             [value.goalId, normalizedAgentId, value.skill?.id ?? null, value.skill?.version ?? null, now]);
+            if (value.execution) {
+                const binding = createSkillParameterBinding(value.execution.binding);
+                this.database.run(`INSERT INTO agent_goal_execution
+                    (goal_id, execution_policy, required_successful_runs, successful_runs, cooldown_ms,
+                    next_eligible_at, last_run_id, parameter_source_kind, parameter_source_id,
+                    parameters, parameter_digest, created_at, updated_at, revision)
+                    VALUES (?1, ?2, ?3, 0, ?4, NULL, NULL, ?5, ?6, ?7, ?8, ?9, ?9, 1)`,
+                [value.goalId, value.execution.policy, value.execution.requiredSuccessfulRuns ?? 1,
+                    value.execution.cooldownMs ?? 0, binding.sourceKind, binding.sourceId,
+                    JSON.stringify(binding.parameters), binding.digest, now]);
+            }
         });
         transaction.immediate();
         return this.requireGoal(value.goalId);
@@ -844,6 +1155,137 @@ export class AgentStateStore {
                 ORDER BY CASE horizon WHEN 'life' THEN 0 WHEN 'long-term' THEN 1 WHEN 'current' THEN 2 ELSE 3 END,
                 priority DESC, goal_id`).all(normalized);
         return (rows as GoalRow[]).map(goal);
+    }
+
+    getGoalExecution(goalId: string): AgentGoalExecution | null {
+        const normalized = normalizeAgentId(goalId, 'goalId');
+        const row = this.database.query('SELECT * FROM agent_goal_execution WHERE goal_id = ?1').get(normalized);
+        return row ? goalExecution(row as GoalExecutionRow) : null;
+    }
+
+    recordSkillDispatch(input: Omit<AgentSkillDispatch, 'createdAt'>,
+        now = new Date().toISOString()): AgentSkillDispatch {
+        const runId = input.runId.toLowerCase();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(runId)) {
+            throw new Error('Skill dispatch run ID is invalid');
+        }
+        const decisionId = normalizeAgentId(input.decisionId, 'decisionId');
+        const agentId = normalizeAgentId(input.agentId);
+        const goalId = normalizeAgentId(input.goalId, 'goalId');
+        const skill = normalizeSkillReference(input.skill);
+        const binding = createSkillParameterBinding(input.binding);
+        if (binding.digest !== input.binding.digest) throw new Error('Skill parameter digest does not match parameters');
+        const transaction = this.database.transaction(() => {
+            const enrollment = this.getAutonomyEnrollment(agentId);
+            const goalState = this.getGoal(goalId);
+            const execution = this.getGoalExecution(goalId);
+            if (!enrollment || enrollment.policyId !== input.policyId || enrollment.policyVersion !== input.policyVersion) {
+                throw new Error('Skill dispatch policy does not match durable enrollment');
+            }
+            if (!goalState || goalState.agentId !== agentId || goalState.status !== 'active'
+                || goalState.skill?.id !== skill.id || goalState.skill.version !== skill.version) {
+                throw new Error('Skill dispatch goal is inactive or does not match the exact skill');
+            }
+            if (!execution) throw new Error('Autonomous skill dispatch requires a persisted goal execution policy');
+            if (execution.nextEligibleAt && execution.nextEligibleAt > now) throw new Error('Goal execution cooldown is active');
+            const decision = this.database.query(`SELECT decision_id FROM agent_decision_ledger
+                WHERE decision_id = ?1 AND agent_id = ?2`).get(decisionId, agentId);
+            if (!decision) throw new Error('Skill dispatch requires an admitted decision record');
+            this.database.run(`INSERT INTO agent_skill_dispatch
+                (run_id, decision_id, agent_id, goal_id, skill_id, skill_version, parameter_source_kind,
+                parameter_source_id, parameters, parameter_digest, policy_id, policy_version, created_at)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
+            [runId, decisionId, agentId, goalId, skill.id, skill.version, binding.sourceKind, binding.sourceId,
+                JSON.stringify(binding.parameters), binding.digest, input.policyId, input.policyVersion, now]);
+        });
+        transaction.immediate();
+        return this.getSkillDispatch(runId)!;
+    }
+
+    getSkillDispatch(runId: string): AgentSkillDispatch | null {
+        const row = this.database.query('SELECT * FROM agent_skill_dispatch WHERE run_id = ?1').get(runId.toLowerCase());
+        return row ? skillDispatch(row as SkillDispatchRow) : null;
+    }
+
+    listSkillDispatches(agentId: string, limit = 500): AgentSkillDispatch[] {
+        const normalized = normalizeAgentId(agentId);
+        if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error('Skill dispatch limit is invalid');
+        return (this.database.query(`SELECT * FROM agent_skill_dispatch WHERE agent_id = ?1
+            ORDER BY created_at DESC, run_id DESC LIMIT ?2`).all(normalized, limit) as SkillDispatchRow[])
+            .map(skillDispatch);
+    }
+
+    getSkillRunOutcome(runId: string): AgentSkillRunOutcome | null {
+        const row = this.database.query('SELECT * FROM agent_skill_outcome WHERE run_id = ?1').get(runId.toLowerCase());
+        return row ? skillOutcome(row as SkillOutcomeRow) : null;
+    }
+
+    listFailedSkillReferencesForGoal(goalId: string, limit = 20): AgentSkillReference[] {
+        const normalized = normalizeAgentId(goalId, 'goalId');
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Failed skill history limit is invalid');
+        const rows = this.database.query(`SELECT d.skill_id, d.skill_version
+            FROM agent_skill_dispatch d JOIN agent_skill_outcome o ON o.run_id = d.run_id
+            WHERE d.goal_id = ?1 AND o.classification != 'completed'
+            ORDER BY o.occurred_at DESC, d.run_id DESC LIMIT ?2`).all(normalized, limit) as
+            Array<{ skill_id: string; skill_version: string }>;
+        const seen = new Set<string>();
+        return rows.flatMap(row => {
+            const key = `${row.skill_id}@${row.skill_version}`;
+            if (seen.has(key)) return [];
+            seen.add(key);
+            return [{ id: row.skill_id, version: row.skill_version }];
+        });
+    }
+
+    recordSkillRunOutcome(runIdInput: string, status: AgentSkillRunOutcome['status'],
+        classification: AgentSkillRunOutcomeClassification, detailInput: string,
+        now = new Date().toISOString()): { outcome: AgentSkillRunOutcome; goal: AgentGoal; created: boolean } {
+        const runId = runIdInput.toLowerCase();
+        const detail = detailInput.replace(/\s+/g, ' ').trim().slice(0, 1_000);
+        if (!['completed', 'failed', 'cancelled', 'limit-reached'].includes(status)) throw new Error('Invalid skill outcome status');
+        if (!['completed', 'acquire-input', 'retry', 'capability-gap', 'authorization'].includes(classification)) {
+            throw new Error('Invalid skill outcome classification');
+        }
+        if ((status === 'completed') !== (classification === 'completed')) {
+            throw new Error('Completed skill status and outcome classification must match');
+        }
+        let created = false;
+        let goalState: AgentGoal | null = null;
+        const transaction = this.database.transaction(() => {
+            const existing = this.getSkillRunOutcome(runId);
+            const dispatch = this.getSkillDispatch(runId);
+            if (!dispatch) throw new Error('Skill outcome has no durable dispatch record');
+            if (existing) { goalState = this.requireGoal(dispatch.goalId); return; }
+            this.database.run(`INSERT INTO agent_skill_outcome
+                (run_id, status, classification, detail, occurred_at) VALUES (?1, ?2, ?3, ?4, ?5)`,
+            [runId, status, classification, detail, now]);
+            created = true;
+            const execution = this.getGoalExecution(dispatch.goalId);
+            const current = this.requireGoal(dispatch.goalId);
+            if (!execution || current.status !== 'active') { goalState = current; return; }
+            const successfulRuns = execution.progress.successfulRuns + (status === 'completed' ? 1 : 0);
+            const completes = status === 'completed' && execution.policy === 'one-shot'
+                && successfulRuns >= execution.completion.required;
+            const nextEligibleAt = execution.policy === 'recurring'
+                ? new Date(Date.parse(now) + execution.cooldownMs).toISOString() : null;
+            this.database.run(`UPDATE agent_goal_execution SET successful_runs = ?2, next_eligible_at = ?3,
+                last_run_id = ?4, updated_at = ?5, revision = revision + 1 WHERE goal_id = ?1`,
+            [dispatch.goalId, successfulRuns, nextEligibleAt, runId, now]);
+            if (completes) {
+                this.database.run(`UPDATE agent_goal SET status = 'completed', updated_at = ?3,
+                    completed_at = ?3, revision = revision + 1 WHERE goal_id = ?1 AND revision = ?2`,
+                [current.goalId, current.revision, now]);
+                this.database.run(`INSERT INTO agent_goal_event
+                    (goal_id, agent_id, kind, previous_status, status, previous_revision, revision,
+                    skill_id, skill_version, occurred_at)
+                    VALUES (?1, ?2, 'status-changed', 'active', 'completed', ?3, ?4, ?5, ?6, ?7)`,
+                [current.goalId, current.agentId, current.revision, current.revision + 1,
+                    current.skill?.id ?? null, current.skill?.version ?? null, now]);
+            }
+            goalState = this.requireGoal(dispatch.goalId);
+        });
+        transaction.immediate();
+        return { outcome: this.getSkillRunOutcome(runId)!, goal: goalState!, created };
     }
 
     listGoalEvents(agentId: string, since?: string, until?: string): AgentGoalEvent[] {
@@ -1823,6 +2265,106 @@ export class AgentStateStore {
                     SELECT goal_id, agent_id, 'imported', NULL, status, NULL, revision,
                     skill_id, skill_version, updated_at FROM agent_goal`);
                 this.database.run('PRAGMA user_version = 15');
+            });
+            transaction.immediate();
+        }
+        if (version < 16) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_autonomy_enrollment (
+                    agent_id TEXT PRIMARY KEY REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    status TEXT NOT NULL CHECK (status IN ('desired', 'running', 'paused', 'quarantined')),
+                    policy_id TEXT NOT NULL, policy_version TEXT NOT NULL, next_wakeup_at TEXT,
+                    lease_owner TEXT, lease_expires_at TEXT,
+                    failure_count INTEGER NOT NULL CHECK (failure_count BETWEEN 0 AND 1000000),
+                    last_failure_fingerprint TEXT, quarantine_reason TEXT,
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    CHECK ((lease_owner IS NULL) = (lease_expires_at IS NULL)),
+                    CHECK ((failure_count = 0) = (last_failure_fingerprint IS NULL)),
+                    CHECK ((status = 'running') = (lease_owner IS NOT NULL)),
+                    CHECK ((status = 'quarantined') = (quarantine_reason IS NOT NULL)),
+                    CHECK (status NOT IN ('paused', 'quarantined') OR next_wakeup_at IS NULL))`);
+                this.database.run(`CREATE INDEX agent_autonomy_status_wakeup
+                    ON agent_autonomy_enrollment(status, next_wakeup_at, agent_id)`);
+                this.database.run('PRAGMA user_version = 16');
+            });
+            transaction.immediate();
+        }
+        if (version < 17) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_autonomy_control (
+                    control_key TEXT PRIMARY KEY CHECK (control_key = 'global'),
+                    emergency_stop INTEGER NOT NULL CHECK (emergency_stop IN (0, 1)),
+                    reason TEXT, activated_at TEXT, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    CHECK ((emergency_stop = 1) = (reason IS NOT NULL)),
+                    CHECK ((emergency_stop = 1) = (activated_at IS NOT NULL)))`);
+                this.database.run(`INSERT INTO agent_autonomy_control
+                    (control_key, emergency_stop, reason, activated_at, updated_at, revision)
+                    VALUES ('global', 0, NULL, NULL, '1970-01-01T00:00:00.000Z', 1)`);
+                this.database.run('PRAGMA user_version = 17');
+            });
+            transaction.immediate();
+        }
+        if (version < 18) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE agent_goal_execution (
+                    goal_id TEXT PRIMARY KEY REFERENCES agent_goal(goal_id) ON DELETE RESTRICT,
+                    execution_policy TEXT NOT NULL CHECK (execution_policy IN ('one-shot', 'recurring')),
+                    required_successful_runs INTEGER NOT NULL CHECK (required_successful_runs BETWEEN 1 AND 10000),
+                    successful_runs INTEGER NOT NULL CHECK (successful_runs BETWEEN 0 AND 1000000),
+                    cooldown_ms INTEGER NOT NULL CHECK (cooldown_ms BETWEEN 0 AND 86400000),
+                    next_eligible_at TEXT, last_run_id TEXT,
+                    parameter_source_kind TEXT NOT NULL CHECK (parameter_source_kind IN
+                        ('goal', 'work-order', 'contract-obligation', 'approved-policy', 'llm-suggestion')),
+                    parameter_source_id TEXT NOT NULL, parameters TEXT NOT NULL, parameter_digest TEXT NOT NULL,
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 1),
+                    CHECK (execution_policy = 'recurring' OR cooldown_ms = 0),
+                    CHECK (execution_policy = 'one-shot' OR cooldown_ms >= 1000))`);
+                this.database.run(`CREATE TABLE agent_skill_dispatch (
+                    run_id TEXT PRIMARY KEY, decision_id TEXT NOT NULL UNIQUE
+                        REFERENCES agent_decision_ledger(decision_id) ON DELETE RESTRICT,
+                    agent_id TEXT NOT NULL REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    goal_id TEXT NOT NULL REFERENCES agent_goal(goal_id) ON DELETE RESTRICT,
+                    skill_id TEXT NOT NULL, skill_version TEXT NOT NULL,
+                    parameter_source_kind TEXT NOT NULL CHECK (parameter_source_kind IN
+                        ('goal', 'work-order', 'contract-obligation', 'approved-policy', 'llm-suggestion')),
+                    parameter_source_id TEXT NOT NULL, parameters TEXT NOT NULL, parameter_digest TEXT NOT NULL,
+                    policy_id TEXT NOT NULL, policy_version TEXT NOT NULL, created_at TEXT NOT NULL)`);
+                this.database.run(`CREATE INDEX agent_skill_dispatch_agent_goal
+                    ON agent_skill_dispatch(agent_id, goal_id, created_at)`);
+                this.database.run(`CREATE TABLE agent_skill_outcome (
+                    run_id TEXT PRIMARY KEY REFERENCES agent_skill_dispatch(run_id) ON DELETE RESTRICT,
+                    status TEXT NOT NULL CHECK (status IN ('completed', 'failed', 'cancelled', 'limit-reached')),
+                    classification TEXT NOT NULL CHECK (classification IN
+                        ('completed', 'acquire-input', 'retry', 'capability-gap', 'authorization')),
+                    detail TEXT NOT NULL, occurred_at TEXT NOT NULL,
+                    CHECK ((status = 'completed') = (classification = 'completed')))`);
+                const hasGoalTable = this.database.query(`SELECT 1 AS found FROM sqlite_master
+                    WHERE type = 'table' AND name = 'agent_goal'`).get();
+                if (hasGoalTable) this.database.run(`INSERT INTO agent_goal_execution
+                        (goal_id, execution_policy, required_successful_runs, successful_runs, cooldown_ms,
+                        next_eligible_at, last_run_id, parameter_source_kind, parameter_source_id,
+                        parameters, parameter_digest, created_at, updated_at, revision)
+                        SELECT goal_id,
+                        CASE WHEN skill_id = 'shopping.lumbridge.buy-hammers' THEN 'one-shot' ELSE 'recurring' END,
+                        1, 0, CASE WHEN skill_id = 'shopping.lumbridge.buy-hammers' THEN 0 ELSE 60000 END,
+                        NULL, NULL, 'goal', goal_id,
+                        CASE WHEN skill_id = 'shopping.lumbridge.buy-hammers' THEN '{"target-items":1}' ELSE '{}' END,
+                        CASE WHEN skill_id = 'shopping.lumbridge.buy-hammers'
+                            THEN 'a70916884e578683191f5e411a344cabb58b1313b5fadcb5973923f57a23117f'
+                            ELSE '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a' END,
+                        created_at, updated_at, 1 FROM agent_goal
+                        WHERE horizon = 'immediate' AND skill_id IS NOT NULL`);
+                this.database.run('PRAGMA user_version = 18');
+            });
+            transaction.immediate();
+        }
+        if (version < 19) {
+            const transaction = this.database.transaction(() => {
+                this.database.run('ALTER TABLE agent_decision_ledger ADD COLUMN context_digest TEXT');
+                this.database.run('PRAGMA user_version = 19');
             });
             transaction.immediate();
         }

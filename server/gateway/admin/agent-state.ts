@@ -1,25 +1,31 @@
 import { dirname, join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
 import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
 import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
     retrieveSocialMemory, semanticQueryFromSnapshot, socialQueryFromSnapshot } from '../../../agent-state/retrieval.js';
-import type { AgentCommitmentStatus, AgentControlProfile, AgentPlayerActionManualStatus, AgentSkillKnowledgeStatus,
+import type { AgentCommitmentStatus, AgentControlProfile, AgentPlayerActionManualStatus, AgentPlayerActionRequest,
+    AgentSkillKnowledgeStatus,
     AgentSkillReference, CreateAgentCommitment,
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
     CreateAgentPlayerActionRequest, SetAgentControlProfile, SetAgentRelationship,
     UpdateAgentIdentity } from '../../../agent-state/types.js';
-import { agentStateDbPath, institutionTreasuryDbPath } from './paths.js';
+import { agentStateDbPath, economicContractsDbPath, institutionTreasuryDbPath } from './paths.js';
 import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { BotCatalogEntry } from './types.js';
 import type { AdminPropertyView } from './properties.js';
-import { readSkillRun } from './skill-history.js';
+import { readSkillRun, readSkillRunHistory, type AdminSkillRun } from './skill-history.js';
 import { requestEnginePlayerReward } from './player-rewards.js';
 import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
 import { BusinessManagerStore } from './business-manager.js';
 import { businessManagerPathFor, validateBusinessPlayerActionForAgent } from './business-agent-port.js';
 import { factionTreasuryActorForAgent, validateFactionPlayerActionForAgent } from './governance-agent-port.js';
+import { inspectGovernanceForAgent, governancePathFor } from './governance-agent-port.js';
+import { EconomicContractStore } from './economic-contracts.js';
+import { buildAdminDecisionContext } from './admin-decision-context.js';
+import type { GatewayBotSnapshot } from './types.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
     const store = new AgentStateStore(path);
@@ -54,16 +60,29 @@ export interface AdminAgentAssetSources {
     unavailableSources?: readonly string[];
     observedAt?: string;
     skillCatalog?: AdminAgentSkillCatalogOptions;
+    gatewayBots?: ReadonlyMap<string, GatewayBotSnapshot>;
+    skillRuns?: readonly AdminSkillRun[];
+    economicContractsPath?: string;
 }
 
 export async function listAdminAgents(path = agentStateDbPath, assetSources: AdminAgentAssetSources = {}) {
-    const skills = await listAdminSkills();
+    const [skills, skillRuns] = await Promise.all([listAdminSkills(), assetSources.skillRuns
+        ? Promise.resolve([...assetSources.skillRuns]) : readSkillRunHistory(500)]);
     const availableSkills = skills.map(skill => ({ id: skill.id, version: skill.version }));
     const generatedAt = new Date().toISOString();
     const treasuries = new Map(useTreasury(path, store => store.list())
         .map(item => [`${item.kind}:${item.id}`, item]));
     const businesses = new Map(useBusiness(path, store => store.list(500))
         .map(item => [item.businessId, item]));
+    const contractPath = assetSources.economicContractsPath ?? (path === agentStateDbPath
+        ? economicContractsDbPath : join(dirname(path), 'economic-contracts.sqlite'));
+    let offers: ReturnType<EconomicContractStore['listOffers']> = [];
+    let contracts: ReturnType<EconomicContractStore['listContracts']> = [];
+    if (existsSync(contractPath)) {
+        const economic = new EconomicContractStore(contractPath);
+        try { offers = economic.listOffers(500, generatedAt); contracts = economic.listContracts(500); }
+        finally { economic.close(); }
+    }
     const agents = useStore(path, store => store.listIdentities().map(identity => {
         const snapshot = store.getSnapshot(identity.agentId)!;
         const knownByReference = new Map(snapshot.knownSkills.map(item =>
@@ -91,6 +110,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             { ...socialQueryFromSnapshot(snapshot), now: generatedAt });
         const actorLinks = store.listEconomicActorLinks(identity.agentId);
         const controlProfile = store.getControlProfile(identity.agentId)!;
+        const autonomyEnrollment = store.getAutonomyEnrollment(identity.agentId);
         const treasury = controlProfile.role === 'institution'
             ? treasuries.get(`${controlProfile.subjectKind}:${controlProfile.subjectId}`) ?? null : null;
         const business = controlProfile.role === 'institution' && controlProfile.subjectKind === 'business'
@@ -103,13 +123,21 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             .filter(item => item.requesterAgentId === identity.agentId);
         const bot = controlProfile.avatarPlayerUsername
             ? assetSources.bots?.find(entry => entry.username === controlProfile.avatarPlayerUsername) : undefined;
+        const gateway = controlProfile.avatarPlayerUsername
+            ? [...(assetSources.gatewayBots?.entries() ?? [])].find(([username]) =>
+                username.toLowerCase() === controlProfile.avatarPlayerUsername)?.[1] ?? null : null;
+        const liveCoins = gateway?.state ? [...gateway.state.inventory,
+            ...(gateway.bankKnown ? gateway.state.bank.items : [])].filter(item => item.id === 995)
+            .reduce((total, item) => total + item.count, 0) : null;
         const assets = resolveAgentAssets(actorLinks, relationships.map(entry => entry.relationship),
             relationships.flatMap(entry => entry.commitments), {
                 observedAt: assetSources.observedAt,
-                money: bot ? [{ actor: { kind: 'player' as const, id: bot.username }, balanceGp: bot.coins,
-                    observedAt: bot.lastActivityAt ?? bot.saveSavedAt ?? assetSources.observedAt ?? new Date().toISOString(),
-                    source: bot.status === 'active' || bot.status === 'stale' ? 'live' : 'save',
-                    freshness: bot.status === 'active' ? 'fresh' : 'stale' }]
+                money: bot || liveCoins !== null ? [{ actor: { kind: 'player' as const,
+                    id: bot?.username ?? controlProfile.avatarPlayerUsername! }, balanceGp: bot?.coins ?? liveCoins!,
+                    observedAt: bot?.lastActivityAt ?? bot?.saveSavedAt ?? (gateway
+                        ? new Date(gateway.lastStateReceivedAt).toISOString() : assetSources.observedAt ?? new Date().toISOString()),
+                    source: gateway?.status === 'active' || bot?.status === 'active' || bot?.status === 'stale' ? 'live' : 'save',
+                    freshness: gateway?.status === 'active' || bot?.status === 'active' ? 'fresh' : 'stale' }]
                     : treasury ? [{ actor: { kind: treasury.kind, id: treasury.id }, balanceGp: treasury.balanceGp,
                         observedAt: treasury.updatedAt, source: 'treasury' as const, freshness: 'fresh' as const }] : [],
                 properties: (assetSources.properties ?? []).filter(property => property.state.owner).map(property => ({
@@ -117,11 +145,40 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
                     region: property.location.region, acquiredAt: property.state.acquiredAt,
                     stateVersion: property.state.version, owner: property.state.owner!
                 })),
-                unavailableSources: [...(assetSources.unavailableSources ?? []), ...(bot || treasury ? [] : ['money'])]
+                unavailableSources: [...(assetSources.unavailableSources ?? []), ...(bot || liveCoins !== null || treasury ? [] : ['money'])]
             });
+        const relevantOffers = offers.filter(item => item.creatorAgentId === identity.agentId
+            || item.counterpartyAgentId === identity.agentId);
+        const relevantContracts = contracts.filter(item => item.partyAAgentId === identity.agentId
+            || item.partyBAgentId === identity.agentId);
+        let governance = null;
+        const unavailable = [...(assetSources.unavailableSources ?? []), ...assets.unavailableSources];
+        if (controlProfile.role === 'institution' && controlProfile.subjectKind === 'faction') {
+            const governancePath = governancePathFor(path);
+            if (existsSync(governancePath)) {
+                try { governance = inspectGovernanceForAgent(identity.agentId, path, governancePath); }
+                catch { unavailable.push('governance-subject'); }
+            } else unavailable.push('governance-subject');
+        }
+        const baseContext = `${buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 6000,
+            controlProfile,
+            playerActionRequests,
+            episodicMemories: relevantEpisodes.map(result => result.episode),
+            semanticMemories: relevantKnowledge.map(result => result.knowledge),
+            socialMemories: relevantRelationships, assets })}${treasury
+                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}`;
+        const decision = buildAdminDecisionContext({ baseContext, profile: controlProfile, bot: bot ?? null,
+            gateway, business, governance, offers: relevantOffers, contracts: relevantContracts,
+            latestRun: identity.playerUsername
+                ? skillRuns.find(run => run.username === identity.playerUsername) ?? null : null,
+            unavailableSources: unavailable, generatedAt });
         return {
             ...snapshot,
             controlProfile,
+            autonomyEnrollment,
+            business,
+            economicOffers: relevantOffers,
+            economicContracts: relevantContracts,
             incomingPlayerActions,
             outgoingPlayerActions,
             goalProposals,
@@ -137,14 +194,10 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             relationships,
             relevantRelationships,
             assets,
-            decisionContext: `${buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 3800,
-                controlProfile,
-                playerActionRequests,
-                episodicMemories: relevantEpisodes.map(result => result.episode),
-                semanticMemories: relevantKnowledge.map(result => result.knowledge),
-                socialMemories: relevantRelationships, assets })}${treasury
-                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}${business
-                ? `\nBusiness: ${business.businessId}; ${business.status}; owner ${business.ownerAgentId}; property ${business.propertyId ?? 'none'}; ${business.employments.filter(item => item.status === 'active').length} active workers; policy ${business.activePolicy ? `${business.activePolicy.mode}/${business.activePolicy.maxRewardGp} gp` : 'none'}.` : ''}`,
+            decisionContext: decision.trustedContext,
+            decisionUntrustedText: decision.untrustedText,
+            decisionContextBlockers: decision.blockers,
+            decisionContextProvenance: decision.provenance,
             planner: planNextAction(snapshot, { availableSkills })
         };
     }));
@@ -171,7 +224,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
                 id: skill.id, version: skill.version
             })) }) };
     }));
-    return { agents: enrichedAgents, skills, generatedAt };
+    const autonomyControl = useStore(path, store => store.getAutonomyControl());
+    return { agents: enrichedAgents, skills, autonomyControl, generatedAt };
 }
 
 export function createAdminAgent(input: CreateAgentIdentity, path = agentStateDbPath) {
@@ -242,6 +296,63 @@ export function startAdminPlayerActionRequest(requestId: string, actorAgentId: s
         expectedRevision, approvalId, runId));
 }
 
+export interface DelegatedBusinessPlayerActionResult {
+    request: AgentPlayerActionRequest;
+    policyId: string;
+    employmentId: string;
+    approvalId: string;
+}
+
+/**
+ * Resumable accept/approve/start transition backed by a currently approved Business policy and employment.
+ * The derived approval can be consumed by exactly one run id.
+ */
+export function delegateBusinessPlayerAction(requestId: string, runId: string, path = agentStateDbPath,
+    now = new Date().toISOString()): DelegatedBusinessPlayerActionResult {
+    const initial = useStore(path, store => store.getPlayerActionRequest(requestId));
+    if (!initial) throw new Error('Delegated player-action work order does not exist');
+    const recordedAuthority = /^Delegated by approved policy ([a-z0-9._-]+) and employment ([a-z0-9-]+)\.$/i
+        .exec(initial.responseNote);
+    if (initial.status === 'running') {
+        if (initial.runId !== runId || !initial.approvalId?.startsWith('delegated-') || !recordedAuthority) {
+            throw new Error('Delegated player-action authorization is invalid or already used');
+        }
+        return { request: initial, policyId: recordedAuthority[1]!.toLowerCase(),
+            employmentId: recordedAuthority[2]!.toLowerCase(), approvalId: initial.approvalId };
+    }
+    const authority = validateBusinessPlayerActionForAgent(initial.requesterAgentId, initial, path);
+    if (initial.status === 'accepted' && recordedAuthority
+        && (recordedAuthority[1]!.toLowerCase() !== authority.policy.proposalId
+            || recordedAuthority[2]!.toLowerCase() !== authority.employment.employmentId)) {
+        throw new Error('Delegated player-action authority changed after acceptance');
+    }
+    const material = [initial.requestId, authority.policy.proposalId, authority.employment.employmentId,
+        initial.skill.id, initial.skill.version, runId].join('|');
+    const approvalId = `delegated-${new Bun.CryptoHasher('sha256').update(material).digest('hex').slice(0, 48)}`;
+    let request = initial;
+    if (request.status === 'pending') {
+        request = updateAdminPlayerActionRequest(request.requestId, request.assigneeAgentId, request.revision,
+            'accepted', `Delegated by approved policy ${authority.policy.proposalId} and employment ${authority.employment.employmentId}.`, path);
+    }
+    if (request.status === 'accepted') {
+        const expiresAt = new Date(Date.parse(now) + 3_600_000).toISOString();
+        request = approveAdminPlayerActionRequest(request.requestId, request.assigneeAgentId, request.revision,
+            approvalId, expiresAt, path);
+    }
+    if (request.status === 'approved') {
+        if (request.approvalId !== approvalId) {
+            throw new Error('Player-action has a different approval and cannot use delegated authorization');
+        }
+        request = startAdminPlayerActionRequest(request.requestId, request.assigneeAgentId, request.revision,
+            approvalId, runId, path);
+    }
+    if (request.status !== 'running' || request.runId !== runId) {
+        throw new Error('Delegated player-action authorization is invalid or already used');
+    }
+    return { request, policyId: authority.policy.proposalId,
+        employmentId: authority.employment.employmentId, approvalId };
+}
+
 export function finishAdminPlayerActionRun(runId: string, completed: boolean, responseNote: string,
     path = agentStateDbPath, settlementId: string | null = null) {
     const request = useStore(path, store => store.finishPlayerActionRun(runId, completed, responseNote,
@@ -303,6 +414,38 @@ export async function settleAdminPlayerActionReward(settlementId: string, path =
             `Jutalom függőben: ${message}`));
         throw error;
     }
+}
+
+export interface PlayerActionSettlementRecoveryResult {
+    attemptedSettlementIds: string[];
+    completedSettlementIds: string[];
+    errors: Array<{ settlementId: string; message: string }>;
+}
+
+/** Bounded restart/periodic recovery; the persisted settlement id is always reused. */
+export async function recoverAdminPlayerActionSettlements(path = agentStateDbPath,
+    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward):
+    Promise<PlayerActionSettlementRecoveryResult> {
+    const settlementIds = useStore(path, store => store.listIdentities()
+        .flatMap(identity => store.listPlayerActionRequests(identity.agentId, 'outgoing'))
+        .filter(request => request.status === 'settling' && request.settlementId)
+        .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt)
+            || left.requestId.localeCompare(right.requestId))
+        .slice(0, 100).map(request => request.settlementId!));
+    const result: PlayerActionSettlementRecoveryResult = {
+        attemptedSettlementIds: [], completedSettlementIds: [], errors: []
+    };
+    for (const settlementId of settlementIds) {
+        result.attemptedSettlementIds.push(settlementId);
+        try {
+            await settleAdminPlayerActionReward(settlementId, path, rewarder);
+            result.completedSettlementIds.push(settlementId);
+        } catch (error) {
+            result.errors.push({ settlementId,
+                message: (error instanceof Error ? error.message : String(error)).slice(0, 500) });
+        }
+    }
+    return result;
 }
 
 export function updateAdminInstitutionTreasury(agentId: string, expectedRevision: number,

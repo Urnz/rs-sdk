@@ -1,4 +1,5 @@
 import type { LlmProvider, LlmProviderRequest, LlmProviderResponse, LlmRuntimeConfig } from './types.js';
+import { InferenceQueueRateLimitError } from './queue.js';
 
 export type OpenAIFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -100,6 +101,16 @@ export class OpenAIResponsesProvider implements LlmProvider {
         if (!response.ok) {
             const error = raw.error && typeof raw.error === 'object' ? raw.error as Record<string, unknown> : null;
             const code = typeof error?.code === 'string' ? ` ${error.code}` : '';
+            if (response.status === 429) {
+                const header = response.headers.get('retry-after')?.trim();
+                let retryAfterMs: number | null = null;
+                if (header && /^\d+(?:\.\d+)?$/.test(header)) retryAfterMs = Math.ceil(Number(header) * 1_000);
+                else if (header) {
+                    const timestamp = Date.parse(header);
+                    if (!Number.isNaN(timestamp)) retryAfterMs = Math.max(0, timestamp - Date.now());
+                }
+                throw new InferenceQueueRateLimitError(`OpenAI request failed (HTTP 429${code})`, retryAfterMs);
+            }
             throw new Error(`OpenAI request failed (HTTP ${response.status}${code})`);
         }
         if (raw.status !== undefined && raw.status !== 'completed') {

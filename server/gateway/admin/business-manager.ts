@@ -300,7 +300,7 @@ export class BusinessManagerStore {
     }
 
     hire(businessIdInput: string, input: CreateEmployment, now = new Date().toISOString(),
-        employmentId = randomUUID()): BusinessEmployment {
+        employmentId: string = randomUUID()): BusinessEmployment {
         const businessId = stableId(businessIdInput, 'businessId');
         const current = this.get(businessId);
         if (!current || current.status !== 'active') throw new Error('Only an active business may hire');

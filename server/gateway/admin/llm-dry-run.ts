@@ -7,15 +7,27 @@ import { createOpenAIProvider, OpenAIResponsesProvider } from '../../../llm-runt
 import { LlmOrchestrator } from '../../../llm-runtime/orchestrator.js';
 import { buildLlmPlanningInput } from '../../../llm-runtime/planning.js';
 import { InferenceQueue } from '../../../llm-runtime/queue.js';
+import { SqliteInferenceQueueClaimStore } from '../../../llm-runtime/inference-queue-store.js';
+import { LlmDailyBudgetStore } from '../../../llm-runtime/budget.js';
 import type { LlmAuditSink, LlmProvider, LlmProviderRequest, LlmProviderResponse } from '../../../llm-runtime/types.js';
 import { CapabilityGapStore, resolveSkillForCapability, type SkillResolution } from '../../../agent-skills/capability-gaps.js';
 import type { listAdminAgents } from './agent-state.js';
 import type { AdminSkillSummary } from './skill-catalog.js';
-import { llmAuditLogPath } from './paths.js';
+import { inferenceQueueDbPath, llmAuditLogPath, llmBudgetDbPath } from './paths.js';
 import { loadLlmRuntimeConfig, resolveOpenAIApiKey } from './llm-settings.js';
 
 type AdminAgentView = Awaited<ReturnType<typeof listAdminAgents>>['agents'][number];
-const sharedAdminInferenceQueue = new InferenceQueue();
+const sharedAdminInferenceQueue = new InferenceQueue({ maxBacklog: 100,
+    claimStore: new SqliteInferenceQueueClaimStore(inferenceQueueDbPath) });
+const sharedAdminLlmBudget = new LlmDailyBudgetStore(llmBudgetDbPath);
+const activeAdminOrchestrators = new Set<LlmOrchestrator>();
+let adminLlmEmergencyStopped = false;
+
+/** Stops queued/in-flight admin planning and gates newly-created orchestrators. */
+export function setAdminLlmEmergencyStop(active: boolean): void {
+    adminLlmEmergencyStopped = active;
+    if (active) for (const orchestrator of activeAdminOrchestrators) orchestrator.emergencyStop();
+}
 
 export interface AdminLlmDryRunOptions {
     now?: string;
@@ -24,10 +36,12 @@ export interface AdminLlmDryRunOptions {
     audit?: LlmAuditSink;
     untrustedText?: readonly string[];
     queue?: InferenceQueue;
+    budget?: LlmDailyBudgetStore;
     provider?: LlmProvider;
     environment?: Record<string, string | undefined>;
     automatic?: boolean;
     capabilityGapStore?: CapabilityGapStore;
+    requireAuthoritativeContext?: boolean;
 }
 
 export type AdminCapabilityOutcome = {
@@ -127,6 +141,7 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
     const input = buildLlmPlanningInput(agent, {
         availableSkills: skills.map(skill => ({ id: skill.id, version: skill.version,
             name: skill.name, description: skill.description })),
+        trustedContext: agent.decisionContext,
         context: {
             now: options.now,
             maxCharacters: 4000,
@@ -135,7 +150,7 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
             socialMemories: agent.relevantRelationships,
             assets: agent.assets
         },
-        untrustedText: options.untrustedText,
+        untrustedText: [...agent.decisionUntrustedText, ...(options.untrustedText ?? [])],
         runId: options.runId
     });
     if (options.automatic && options.capabilityGapStore) {
@@ -153,6 +168,9 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
             };
         }
     }
+    if (options.requireAuthoritativeContext && agent.decisionContextBlockers.length) {
+        throw new Error(`Automatic planning requires fresh authoritative context: ${agent.decisionContextBlockers.join(', ')}`);
+    }
     const environment = { ...(options.environment ?? process.env) };
     if (configured.provider === 'openai') {
         environment.OPENAI_API_KEY = (await resolveOpenAIApiKey({}, environment)).value;
@@ -162,8 +180,13 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         : createOpenAIProvider(configured, environment));
     if (provider.id !== configured.provider) throw new Error('A beadott LLM provider nem egyezik a konfigurációval.');
     const orchestrator = new LlmOrchestrator(config, provider,
-        options.audit ?? new JsonlLlmAuditSink(llmAuditLogPath), options.queue ?? sharedAdminInferenceQueue);
-    const plan = await orchestrator.plan(input);
+        options.audit ?? new JsonlLlmAuditSink(llmAuditLogPath), options.queue ?? sharedAdminInferenceQueue,
+        options.budget ?? sharedAdminLlmBudget);
+    activeAdminOrchestrators.add(orchestrator);
+    if (adminLlmEmergencyStopped) orchestrator.emergencyStop();
+    let plan: Awaited<ReturnType<LlmOrchestrator['plan']>>;
+    try { plan = await orchestrator.plan(input); }
+    finally { activeAdminOrchestrators.delete(orchestrator); }
     let capability: AdminCapabilityOutcome = { kind: 'not-applicable', resolution: null, gap: null };
     const proposedImmediate = plan.decision?.kind === 'propose-goal-plan'
         ? plan.decision.goals.find(goal => goal.horizon === 'immediate') ?? null : null;

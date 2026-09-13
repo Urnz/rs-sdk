@@ -126,3 +126,49 @@ Schema v13 extends institution-to-player work with a durable settlement boundary
 `settling` with a unique settlement id; only an idempotent engine receipt may mark it completed. The player coin
 balance remains engine-owned and is never copied into AgentState. Failed work creates no settlement, and transient
 payment failures preserve the payable request for retry.
+
+## Autonomy enrollment
+
+Schema v16 adds an explicit, durable opt-in record for the process-level autonomy supervisor. Existing agents are not
+enrolled by migration. Each enrollment binds an exact policy id and semantic version, an optional next wakeup, failure
+state and one optimistic revision. A running enrollment must hold a time-bounded lease; paused and quarantined records
+cannot be scheduled, and quarantine requires a bounded human-readable reason. This table does not execute skills or
+grant new tool permissions by itself.
+
+The gateway owns a single due/idle supervisor above the existing replan coordinator and `BotSupervisor`; it does not
+introduce a second planner or executor. The supervisor atomically claims only due `desired` records, emits a high-level
+startup or idle event, and releases non-executing outcomes with a bounded retry time. Automatic non-manual replans now
+require a live durable lease, while explicit admin dry-runs remain available without enrollment. An executing verified
+skill retains the lease until its exit event is replanned or the lease expires; restart recovery turns expired leases
+back into due work without granting execution directly.
+
+Supervised skill processes refresh their active marker every five seconds. After a gateway restart, `BotSupervisor`
+adopts visibility of a surviving execution only when the marker schema, exact skill/run identity, heartbeat freshness
+and live PID all agree. A live PID with an invalid, legacy or stale heartbeat remains blocked but is never signalled or
+deleted automatically; only a marker whose PID is proven dead is removed. The due supervisor checks this reconciled
+view before claiming an avatar, preventing a second execution while the surviving process finishes.
+
+For an enrolled player agent, startup reconciliation also checks the gateway session and the locally managed bot
+process. A fresh controller-free session is adopted without spawning; an already starting process is left alone; an
+offline avatar is started through `BotSupervisor`, which reads only its existing local `bot.env`. Credentials are not
+copied into AgentState, enrollment records, events or logs. The enrollment remains `desired` with a persisted retry
+while the bot connects. Any existing controller makes the automatic path fail closed before a lease or skill starts.
+
+Controller admission also consults the exact persisted avatar enrollment. While its autonomy lease is live, the
+gateway rejects controller pre-emption instead of applying the normal manual last-controller-wins behavior. The skill
+supervisor reserves an in-process start slot before its first asynchronous operation, while active/adopted markers
+cover later and restart boundaries. After lease expiry, marker and session reconciliation runs before another claim,
+so loss of ownership never authorizes a blind replacement execution.
+
+Schema v17 adds a singleton, restart-stable global emergency stop. Activation aborts queued or in-flight admin LLM
+planning, blocks new automatic lease claims and non-manual replans, and asks the existing skill supervisor to stop
+visible managed/adopted executions. Per-agent pause/resume and quarantine release are optimistic and idempotent;
+quarantine release enters `paused`, so a separate reviewed resume is required before execution can continue.
+
+Migration is additive and preserves every v15/v16 table. Before production-like local migrations, stop the gateway and
+copy the SQLite database together with its WAL/SHM files. To roll back to v15, first pause the autonomy supervisor,
+export any enrollment records needed for investigation, restore that backup, and run the previous code. If no v16
+writes must be preserved, the additive table and index may instead be dropped and `user_version` reset to 15 while the
+gateway is stopped. To roll back only v17, keep the gateway stopped, export the emergency-stop audit/control state,
+drop `agent_autonomy_control`, and reset `user_version` to 16. No engine-owned balances, inventory or save data are
+part of this migration.

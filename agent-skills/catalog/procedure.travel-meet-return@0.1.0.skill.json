@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.travel-meet-return",
+  "version": "0.1.0",
+  "name": "Travel to a meeting point and return",
+  "description": "Walks to one bounded meeting coordinate, waits for a bounded interval, and returns to an exact coordinate.",
+  "status": "draft",
+  "tags": ["procedure", "travel", "meeting", "composition"],
+  "parameters": {
+    "meeting-x": { "type": "number", "description": "Meeting X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "meeting-z": { "type": "number", "description": "Meeting Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "return-x": { "type": "number", "description": "Return X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "return-z": { "type": "number", "description": "Return Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "tolerance": { "type": "number", "description": "Accepted coordinate distance.", "default": 3, "minimum": 0, "maximum": 20 },
+    "wait-ticks": { "type": "number", "description": "Bounded meeting wait.", "default": 2, "minimum": 1, "maximum": 100 }
+  },
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "phase15-skill-builder",
+    "createdAt": "2026-09-09T00:00:00.000Z",
+    "notes": "Reusable CapabilityGap candidate. It remains non-executable for autonomous agents until isolated and two-run live evidence plus human publish approval promote an exact parameter combination."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 360000, "maxOperations": 7 },
+  "preconditions": [],
+  "steps": [
+    { "kind": "operation", "id": "walk-to-meeting", "operation": "walk-to", "arguments": { "x": { "parameter": "meeting-x" }, "z": { "parameter": "meeting-z" }, "tolerance": { "parameter": "tolerance" } }, "maxAttempts": 2 },
+    { "kind": "operation", "id": "confirm-meeting-area", "operation": "wait-for-area", "arguments": { "x": { "parameter": "meeting-x" }, "z": { "parameter": "meeting-z" }, "tolerance": { "parameter": "tolerance" }, "timeoutMs": 30000 } },
+    { "kind": "operation", "id": "wait-at-meeting", "operation": "wait-ticks", "arguments": { "ticks": { "parameter": "wait-ticks" } } },
+    { "kind": "operation", "id": "walk-back", "operation": "walk-to", "arguments": { "x": { "parameter": "return-x" }, "z": { "parameter": "return-z" }, "tolerance": { "parameter": "tolerance" } }, "maxAttempts": 2 },
+    { "kind": "operation", "id": "confirm-return-area", "operation": "wait-for-area", "arguments": { "x": { "parameter": "return-x" }, "z": { "parameter": "return-z" }, "tolerance": { "parameter": "tolerance" }, "timeoutMs": 30000 } }
+  ]
+}

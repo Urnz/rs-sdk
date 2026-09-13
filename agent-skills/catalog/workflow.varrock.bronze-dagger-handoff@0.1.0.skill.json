@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "workflow.varrock.bronze-dagger-handoff",
+  "version": "0.1.0",
+  "name": "Varrock bronze dagger exact-partner handoff",
+  "description": "Produces an exact bronze-dagger batch in Varrock, travels through the reviewed Lumbridge handoff procedure, and transfers the complete output to one exact recipient.",
+  "status": "draft",
+  "tags": ["workflow", "production", "trade", "handoff", "composition"],
+  "parameters": {
+    "recipient": { "type": "string", "description": "Exact display name of the output recipient.", "required": true },
+    "target-items": { "type": "number", "description": "Exact number of bronze daggers to produce and transfer.", "default": 1, "minimum": 1, "maximum": 5 }
+  },
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "phase15-skill-builder",
+    "createdAt": "2026-09-10T18:20:00.000Z",
+    "notes": "High-level exact-version composition for crafted-output handoff. It introduces no primitive operation and requires two independent live runs plus explicit human publication approval."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 480000, "maxOperations": 32 },
+  "preconditions": [
+    { "condition": "inventory-contains", "arguments": { "name": "Hammer", "match": "exact" } },
+    { "condition": "inventory-contains", "arguments": { "name": "Bronze bar", "match": "exact", "amount": { "parameter": "target-items" } } },
+    { "condition": "inventory-free-slots-at-least", "arguments": { "slots": { "parameter": "target-items" } } },
+    { "condition": "skill-level-at-least", "arguments": { "skill": "Smithing", "level": 1 } }
+  ],
+  "steps": [
+    {
+      "kind": "call",
+      "id": "smith-bronze-daggers",
+      "skill": { "id": "production.varrock.bronze-daggers", "version": "1.0.0" },
+      "arguments": { "target-items": { "parameter": "target-items" } }
+    },
+    {
+      "kind": "call",
+      "id": "handoff-bronze-daggers",
+      "skill": { "id": "trade.lumbridge.give-item", "version": "1.0.0" },
+      "arguments": {
+        "recipient": { "parameter": "recipient" },
+        "item-name": "Bronze dagger",
+        "amount": { "parameter": "target-items" }
+      }
+    }
+  ]
+}

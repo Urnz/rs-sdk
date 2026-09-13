@@ -1,0 +1,782 @@
+# Projektfeladatok
+
+Ez a lista az indulástól egy helyben futó, módosítható privát szerveren át az
+LLM-integrációig vezeti a projektet. A jelölőnégyzetet csak az alatta megadott
+elfogadási feltételek teljesülése után pipáld ki.
+
+## 0. Fázis – keretek és döntések
+
+- [x] Rögzíteni, hogy a cél a LostCity/rs-sdk helyi emulátora, nem a hivatalos OSRS.
+- [x] Eldönteni a kezdeti operációs módot: minden komponens közvetlenül Windowson,
+  vagy részben WSL/Docker alatt fusson.
+- [x] Rögzíteni a támogatott Bun- és Node-verziót az upstream követelményei alapján.
+- [x] Létrehozni egy rövid döntési naplót minden nehezen visszafordítható választáshoz.
+
+Elfogadási feltétel: a környezet, a hatókör és a technikai alapok egyértelműek.
+
+## 1. Fázis – fork és verziókezelés
+
+- [x] A `MaxBittker/rs-sdk` GitHub-repozitóriumot saját fiókba forkolni.
+- [x] Az upstream projektet a munkatér üres `rs-sdk/` könyvtárába klónozni.
+- [x] A saját fork legyen az `origin`, az eredeti repo pedig az `upstream` remote.
+- [x] Ellenőrizni az alapértelmezett ágat és létrehozni egy külön fejlesztői ágat.
+- [x] Feljegyezni az induláskor használt upstream commit azonosítóját.
+- [x] Átolvasni az upstream `README.md`, `DEVELOPERS.md`, `AGENTS.md` és licenc fájljait.
+
+Elfogadási feltétel: `origin` és `upstream` helyesen mutat, a munkafa tiszta, az
+alap commit dokumentált.
+
+## 2. Fázis – helyi környezet és függőségek
+
+- [x] Telepíteni/ellenőrizni a Git és Bun aktuálisan támogatott verzióját.
+- [x] A gyökérfüggőségeket zárolt lockfile alapján telepíteni.
+- [x] A `server/webclient` függőségeit külön telepíteni.
+- [x] Létrehozni a szükséges helyi `.env` fájlokat kizárólag minta alapján.
+- [x] Titkokat, lokális adatbázist és generált fájlokat kizárni a verziókezelésből.
+- [x] Lefuttatni az upstream ellenőrzéseket (`bun run check`).
+
+Elfogadási feltétel: friss klónból reprodukálható telepítés és sikeres alapellenőrzés.
+
+## 3. Fázis – az rs-sdk helyi futtatása
+
+- [x] Elindítani a game engine-t a `server/engine` könyvtárból.
+- [x] Elkészíteni a webclient standard, bot és item-viewer buildjeit.
+- [x] Elindítani a gateway-t a `server/gateway` könyvtárból.
+- [x] Ellenőrizni, hogy a gateway a `ws://localhost:7780` címen elérhető.
+- [x] Létrehozni egy kizárólag lokális tesztbotot.
+- [x] A botot a helyi `localhost:8888` szerverhez és `localhost:7780` gatewayhez kötni.
+- [x] Végrehajtani egy minimális smoke tesztet: csatlakozás, állapotlekérés, mozgás,
+  egy egyszerű interakció és tiszta leállítás.
+- [x] Ellenőrizni az újraindítás utáni állapotot és adatmegőrzést.
+- [x] Külön manuális játékosfiókkal belépni, a tutorialt átugrani, és a futó botot
+  ugyanabban a világban vizuálisan ellenőrizni.
+
+Elfogadási feltétel: mindhárom szolgáltatás helyben fut, a bot csatlakozik, és a
+smoke teszt dokumentáltan megismételhető.
+
+## 4. Fázis – fejlesztői alapok
+
+- [x] Készíteni egyetlen, dokumentált fejlesztői indítási folyamatot.
+- [x] Egészségellenőrzést adni az engine, webclient és gateway komponensekhez.
+- [x] Egységes naplókönyvtárat és log-szinteket kialakítani.
+- [x] Meghatározni a gyors tesztek, integrációs tesztek és teljes smoke teszt parancsait.
+- [x] CI-folyamatot készíteni formázásra, típusellenőrzésre és tesztekre.
+- [x] Dokumentálni az upstream frissítések beolvasásának és konfliktuskezelésének módját.
+- [x] Biztonsági mentési és visszaállítási próbát végezni a szerverállapotra.
+
+Elfogadási feltétel: egy új fejlesztő a dokumentáció alapján el tud indulni, és a
+hibák reprodukálásához elegendő napló áll rendelkezésre.
+
+## 5. Fázis – saját agent skillek
+
+- [x] Összegyűjteni a gyakran ismételt műveleteket és skill-jelöltekké bontani őket.
+- [x] Feltérképezni az rs-sdk meglévő magas szintű API-ját, hogy ne építsük újra a
+  `walkTo`, bankolás, kereskedés, shop- és interakciós képességeket.
+- [x] Kialakítani az `Agent knows Skill[]` modellt, nem külön `MiningAgent` vagy
+  `SmithingAgent` osztályokat.
+- [x] Első stabil skillek: bányászat + bankolás egy konkrét útvonalon.
+- [x] Következő skillek: smithing/production, shop-vásárlás és player trade.
+- [x] 5–10 stabil, hosszabb ideig LLM nélkül futó skillt létrehozni.
+- [x] Minden skillhez egyértelmű bemenetet, kimenetet, korlátokat és hibakezelést írni.
+- [x] A skill-végeket és megszakítási okokat egységes eseményként jelenteni.
+- [x] Tiltani a titkok naplózását és a hivatalos OSRS szolgáltatáshoz való kapcsolódást.
+- [x] A skilleket kis, determinisztikus példákon és hibás bemeneteken is tesztelni.
+
+Elfogadási feltétel: legalább öt saját skill ismételhetően működik, dokumentált,
+és egyikhez sem kell tickenként külső döntéshozó.
+
+## 6. Fázis – botadminisztráció és gazdasági telemetria
+
+- [x] Egységes botkatalógust készíteni az online/offline állapottal, aktuális
+  skillel, pozícióval, futásazonosítóval és utolsó aktivitással.
+- [x] Read-only bot részletező API-t készíteni: skillek/XP, inventory, bank,
+  felszerelés, coins, pozíció, aktuális skill és legutóbbi hiba.
+- [x] A gateway élő állapotát, az offline player save-okat, a bankot és az
+  agent-skill futásjelzőket egy admin backend mögött egyesíteni.
+- [x] Auditált adminparancsokat készíteni bot spawnhoz, leállításhoz,
+  újraindításhoz és futó agent-skill megszakításához.
+- [x] Online bothoz verified agent-skill hozzárendelést és megszakítást készíteni.
+- [x] Online bothoz biztonságos, előre jóváhagyott célpontos teleportot készíteni.
+- [x] Offline játékoshoz a kanonikus mentéskódon át szint/XP, pénz, inventory és
+  bank módosítást készíteni; futó játékos mentésfájlját közvetlenül nem írjuk.
+- [x] Az offline editor coin-elhelyezési regresszióját javítani: ha a coin egy
+  része inventoryban, másik része bankban volt, egy változatlan mentéskör se
+  veszítse el az inventoryrészt; külön round-trip teszt védje.
+- [x] Minden elkészült állapotmódosításhoz jogosultságot, indoklást,
+  időpontot és visszakövethető auditbejegyzést követelni.
+- [x] Webes admin panelt készíteni kereshető, rendezhető és szűrhető botlistával,
+  részletes profillal, helyzettel, skill-futásokkal és kontrollált műveletekkel.
+- [x] A nagy bot-, tranzakció-, skilltörténet-, készlet- és backuplistákat belső,
+  billentyűzettel is fókuszálható görgetőpanelekbe rendezni.
+- [x] A befejezett agent-skill futásokat időrendben, eredménnyel, időtartammal,
+  műveletszámmal és részletes eseménylistával megjeleníteni.
+- [x] Élő világtérképet készíteni az online botokhoz.
+- [x] Idősoros gazdasági alapnézetet készíteni: pénzmennyiség, itemkészlet,
+  össz-XP, átlagos total level és online botszám.
+- [x] A gazdasági nézetet bővíteni XP/órával, termelés/fogyasztással, valamint
+  shop- és player-trade eseményekkel.
+- [x] Exportálható kísérleti snapshotot és összehasonlítható futásjelölést készíteni.
+- [x] Tesztelni az online/offline ütközést, jogosulatlan módosítást, auditot,
+  újraindítást és több bot párhuzamos frissítését.
+
+Elfogadási feltétel: az összes bot állapota egy helyen követhető, a gazdasági
+idősorok lekérdezhetők, és az adminmódosítások biztonságosak, jogosultságvédettek
+és teljesen auditálhatók.
+
+## 7. Fázis – modolási keretrendszer
+
+- [x] Feltérképezni az engine adatmodelljét, scriptjeit, perzisztenciáját és kliensprotokollját.
+- [x] Meghatározni, mi marad konfiguráció/adat és mi igényel engine-módosítást.
+- [x] Elkülöníteni a projekt saját módosításait az upstream kódtól, ahol ez ésszerű.
+- [x] Feature flaget és migrációs stratégiát kialakítani az új funkciókhoz.
+- [x] Szabványos, verziózott mod-manifestet és típusos konfigurációs sémát készíteni.
+- [x] Modfüggőségeket, ütközéseket, hookokat és aktiválási életciklust modellezni.
+- [x] A kért és az engine-ben ténylegesen aktív modállapotot külön kezelni, hogy a
+  restartot igénylő változtatás egyértelműen látható legyen.
+- [x] A lokális modkonfigurációt verziózottan, atomi fájlcserével és optimista
+  revízióvédelemmel perzisztálni.
+- [x] Jogosultságvédett, indoklást és auditot követelő World Admin API-t készíteni.
+- [x] World Admin felületet készíteni a telepített modok áttekintéséhez,
+  ki-/bekapcsolásához és séma alapján generált beállításaihoz.
+- [x] Biztonságos, auditált engine-újraindítást készíteni a World Admin felülethez,
+  kizárólag a fejlesztői indító által nyilvántartott helyi folyamathoz.
+- [x] Konfigurációs backupot és egykattintásos visszaállítást készíteni a World
+  Admin felülethez.
+- [x] Meghatározni és tesztelni a `hot-reload`, `restart-required`, migráció és
+  rollback állapotátmeneteket, hibánál fail-closed működéssel.
+- [x] Modonként állapot-, hiba- és domainmetrikákat adni az admin telemetriához.
+- [x] Mintamodult készíteni, amely egy kis, visszafordítható játékelemet módosít.
+- [x] Lefuttatni regressziós tesztet a fontos alapmechanikákra.
+- [x] Kötelező kikapcsolási lifecycle-szerződést és függőségi preflightot adni,
+  hogy a modkapcsoló ne törölhessen vagy árván hagyhasson domainállapotot.
+
+Elfogadási feltétel: a módosítások helye, életciklusa, migrációja és tesztelése
+tisztázott; a World Admin megmutatja a kért és aktív állapotot, a modok
+biztonságosan konfigurálhatók és visszaállíthatók, minden változás auditált.
+
+## 8. Fázis – economy rebalance és diminishing XP
+
+- [x] Megkeresni az XP-jutalmazás központi és content-specifikus pontjait.
+- [x] Meghatározni az activity kulcsot: tevékenység + nyersanyag/célpont + régió/hely.
+- [x] Konfigurálható csökkenési görbét készíteni, első hipotézisként
+  `1.00 / 0.90 / 0.70 / 0.40 / 0.15` szorzókkal.
+- [x] Időalapú regenerációt/felejtést kialakítani, hogy a korábbi tevékenységek
+  később ismét értékessé váljanak.
+- [x] A számlálókat játékosonként tartósan menteni és verziózni.
+- [x] A játékos/agent számára lekérdezhetővé tenni az aktuális várható XP-szorzót.
+- [x] Tesztelni a határértékeket, regenerációt, újraindítást és párhuzamos jutalmakat.
+- [x] A tényleges felfedezési és diverzifikációs hatás mérését a 12. fázis
+  kontrollcsoportos gazdasági kísérletébe áthelyezni, mert ehhez agentcélok,
+  elegendő skill- és helylefedettség, valamint több párhuzamos agent szükséges.
+- [x] A resource respawn, árak és késztermékek értékének közös kalibrációját a
+  12–14. fázis ismételhető benchmark- és paraméterhangolási feladatai közé sorolni.
+
+Elfogadási feltétel: az ismételt azonos tevékenység/hely kombináció jutalma
+konfigurálhatóan csökken, regenerálódik, és a tartós állapot tesztelt.
+
+## 9. Fázis – vásárolható ingatlanok (MVP)
+
+- [x] Véglegesíteni az ingatlan domain-modellt: azonosító, hely, ár, tulajdonos,
+  típus, állapot, belépési pontok, bevétel, karbantartás és jogosultságok.
+- [x] Kijelölni 1–3 tesztingatlant és hozzájuk szerveroldali konfigurációt készíteni.
+- [x] Atomi vásárlási tranzakciót megvalósítani: jogosultság, egyenleg, tulajdonjog,
+  pénzlevonás és naplózás együtt sikerüljön vagy együtt hiúsuljon meg.
+  - [x] Online játékos inventory-coin walletjét engine-tickre sorosítani,
+    kompenzációval, azonnali autosave-val és fail-closed `pending` kezeléssel.
+  - [x] Auditált gateway API-t és World Admin tesztvásárlási műveletet készíteni.
+  - [x] Élő játékossal sikeres és elégtelen egyenleges vásárlást ellenőrizni.
+  - [x] A binary save és a domainadat közötti crash-recovery egyeztető műveletet elkészíteni.
+- [x] Megakadályozni a dupla vásárlást, negatív egyenleget és párhuzamos versenyhelyzetet
+  a perzisztált foglalás, idempotenciakulcs és kompenzálható wallet-szerződés szintjén.
+- [x] Perzisztálni a tulajdonjogot, majd újranyitással ellenőrizni.
+- [x] Játékbeli vizsgálat, vásárlás, belépés és tulajdonosi visszajelzés készítése.
+  - [x] Dedikált Property sign objektumot, Inspect/Purchase műveletet és
+    tulajdonosi/nem tulajdonosi Enter visszajelzést készíteni, élőben ellenőrizve.
+  - [x] A Varrock táblát a bank falából a déli, használaton kívüli műhely utcai
+    bejáratához helyezni, és a banki notice boardokon görgethető, read-only
+    ingatlannyilvántartást adni.
+  - [x] A World Admin ingatlankártyáin koordinátát és az Élő világtérképre
+    fókuszáló `Térképen` gombot megjeleníteni.
+  - [x] A Varrock műhely tulajdonosi Enter engedélyét a tényleges ajtóhoz kötni,
+    rövid automatikus áthaladással és visszazárással.
+- [x] Adminisztrátori lekérdezést és fejlesztői resetet készíteni, naplózással.
+  - [x] Read-only katalógus- és tulajdonlekérdezést adni a World Adminhoz.
+  - [x] Biztonságos, indoklásköteles fejlesztői resetet és pending-egyeztetést készíteni.
+- [x] Unit- és integrációs teszteket írni sikeres és sikertelen vásárlásokra.
+- [x] Dokumentálni a gazdasági balansz későbbi kérdéseit: eladás, bérlet, adó,
+  fejlesztés, közös tulajdon és inaktív tulajdonos.
+- [x] A modellt úgy kialakítani, hogy később ház, farm, bánya, bolt, műhely,
+  fogadó, raktár, vár, banképület vagy kikötő is lehessen Property.
+- [x] Későbbi jogosultságok terve: belépődíj, bérleti díj, alkalmazottak,
+  hozzáférési területek, árképzés és készletkezelés.
+- [x] A Property, Business és Faction/Governance mod felelősségi határait,
+  stabil hivatkozásait és eseményalapú integrációját dokumentálni.
+
+Elfogadási feltétel: egy tesztjátékos meg tud venni egy ingatlant, a tulajdonjog
+újraindítás után is megmarad, és más nem tudja ugyanazt megvenni.
+
+## 10. Fázis – persistent agent state és memória
+
+- [x] Agent-identitás sémája: név, háttértörténet és személyiségjegyek.
+- [x] Célhierarchia: életcél, hosszú távú, aktuális és azonnali feladat.
+- [x] Working memory: kis méretű, mindig elérhető aktuális helyzet.
+- [x] Episodic memory: időzített, visszakereshető konkrét események.
+- [x] Semantic memory: megtanult világ-, gazdasági, útvonal- és eljárásismeretek.
+- [x] Social memory/relationships: bizalom, tartozás, ígéretek és fontos interakciók.
+- [x] Assets (pénz, ingatlan, vállalkozás, követelés) összekapcsolása az agent állapotával.
+  - [x] A player pénzét és az EconomicActorRef által birtokolt ingatlanokat az
+    eredeti domainforrásból, read-only portfólióként feloldani.
+  - [x] A kapcsolati tartozásokat és értékelt nyitott vállalásokat külön követelés-
+    és kötelezettségösszegként összesíteni.
+  - [x] Tartós, általános player/business/faction actor-linket készíteni, hogy a
+    későbbi Business és Governance mod állapota adatmásolás nélkül csatlakozhasson.
+- [x] Egzakt, verziózott ismert skillek összekapcsolása az agent állapotával.
+- [x] Relevancia-, frissesség- és célalapú context-visszakeresés minden tartós
+  memóriatípushoz.
+  - [x] Determinisztikus episodic retrieval cél-, szereplő-, címke-, szöveg-,
+    fontosság- és frissességi pontozással.
+  - [x] Determinisztikus semantic retrieval cél-, címke-, szöveg-, confidence-
+    és frissességi pontozással, érvényességi szűréssel.
+  - [x] Determinisztikus social retrieval szereplő-, címke-, cél-, szöveg-,
+    interakciófrissesség-, kapcsolat-, tartozás- és nyitottvállalás-pontozással.
+- [x] Rövid core identity előállítása, amely minden stratégiai döntéshez adható.
+- [x] Memóriakonszolidáció, duplikációkezelés, elévülés és törlési szabályok.
+  - [x] Az episodic események idempotens külső kulcsát, opcionális elévülését és
+    döntési contextből való automatikus kizárását elkészíteni.
+  - [x] A befejezett skill journalokat és strukturált gazdasági eseményeiket
+    automatikusan, idempotensen trusted episodic memóriává alakítani.
+  - [x] Az ismétlődő, teljes és strukturált termelési bizonyítékokat tartós
+    evidence ledgerrel, 3/5/10/20 megfigyelési küszöbökön semantic eljárástudássá
+    konszolidálni, verziómegőrző felülírással és kézi tudás védelmével.
+  - [x] A teljes player trade eseményekből automatikusan social kapcsolatot és
+    ismertséget építeni úgy, hogy a kézi bizalom-, rokonszenv-, tartozás- és
+    jegyzetértékek változatlanok maradjanak.
+  - [x] Előnézetes, explicit és auditált retention műveletet készíteni, amely
+    kizárólag elévült, semmilyen tartós bizonyítékként vagy külső forrásból nem
+    hivatkozott episodic emléket törölhet.
+- [x] Mindezt determinisztikus szabályalapú plannerrel, LLM nélkül is tesztelni.
+
+Elfogadási feltétel: egy agent újraindítás után megtartja identitását, céljait és
+fontos emlékeit, miközben egy döntéshez csak releváns, korlátozott context készül.
+
+## 11. Fázis – LLM-integráció (első biztonságos változat)
+
+- [x] Pontos use case-t választani: tanácsadó NPC, játékosügynök, operátori segéd
+  vagy többügynökös gazdasági kísérlet.
+- [x] Providerfüggetlen adaptert és konfigurációt kialakítani.
+- [x] Az LLM számára szűk, típusos eszközlistát adni; közvetlen engine- és fájlhozzáférést nem.
+- [x] Elkülöníteni a megfigyelést, tervezést, műveletjóváhagyást és végrehajtást.
+- [x] Bevezetni lépés-, idő-, költség- és műveleti limiteket.
+- [x] Eseményvezérelt újratervezést használni: skill vége, váratlan esemény,
+  ajánlat, cél teljesülése vagy jelentős gazdasági változás.
+  - [x] Típusos eseményszerződés, forráskulcsos deduplikálás és agentenkénti
+    cooldown elkészítése tickenkénti belépési pont nélkül.
+  - [x] A skill-, cél-, ajánlat- és gazdasági eseményforrásokat rákötni az
+    újratervezési kapura és a közös inference queue-ra.
+- [x] Elkerülni a tickenkénti/tile-onkénti LLM-hívást; a modell magas szintű skillt válasszon.
+- [x] Agentenként külön modell helyett támogatni a közös, sorba állított inference szolgáltatást.
+- [x] A játékbeli chatet és más külső szöveget nem megbízható bemenetként kezelni.
+- [x] Naplózni a modellverziót, kéréseket, eszközhívásokat, eredményeket és hibákat,
+  titkok vagy felesleges személyes adatok nélkül.
+- [x] Determinisztikus mock modellel integrációs teszteket írni.
+- [x] Vészleállítást, visszajátszható futásazonosítót és sikertelen lépések kezelését bevezetni.
+- [x] Adminpaneles mock LLM dry-runt készíteni, amely friss élő állapotból
+  megmutatja a trusted contextet, a nem megbízható szöveget, az engedélyezett
+  skilleket és a modell javaslatát, végrehajtás nélkül.
+- [x] Hierarchikus céltervezést készíteni: aktív immediate cél hiányában az
+  élet-, hosszú távú vagy aktuális célból egyetlen modellhívással szabályos,
+  immediate célig vezető cél-láncot és opcionális ellenőrzött skillt javasolni.
+- [x] Valódi provider adaptert és biztonságos, környezeti változós API-kulcs
+  konfigurációt készíteni kis jogosultságú lokális tesztkörnyezethez.
+- [x] A jelenlegi szerverhez tartozó adminpaneles LLM-beállításokat készíteni providerhez,
+  modellhez, szerepprompthoz, reasoninghez, költség- és futási limitekhez;
+  write-only helyi API-kulccsal és nem felülírható biztonsági prompt-réteggel.
+- [x] Admin jóváhagyással atomikusan létrehozni a javasolt cél-láncot, majd
+  egyszer használható approval azonosítóval elindítani a kiválasztott skillt.
+- [x] Korlátozott autonóm agent-életciklust készíteni: eseményre újratervezés,
+  veszélytelen ellenőrzött skillek policy szerinti futtatása és skill-gap jelzés.
+  - [x] Player-agentenként kézzel indítható, de ugyanazon event gate-en, döntési
+    ledgeren és végrehajtási policy-n áthaladó teljes cikluspróbát adni.
+  - [x] Az autonóm ciklus eredményét, indokát, validált döntését és skill-run
+    azonosítóját görgethető adminnaplóban megjeleníteni, a hibákkal együtt.
+  - [x] Izolált end-to-end tesztben bizonyítani az esemény admissiont, az egzakt
+    allowlistelt skill egyszeri indítását, a tartós auditot és a limit előtti leállást.
+- [x] A skill-gapből elkülönített, verziózott, tesztelt és publikálás előtt
+  jóváhagyandó skill-készítési folyamatot indítani; a futó agent ne kapjon
+  közvetlen tetszőleges kódfuttatást.
+  - [x] A `player`, `institution`, `service` és `world-director` agent-szerepeket
+    elkülöníteni; ne minden önálló rendszer kapjon avatárt vagy szabad LLM-loopot.
+  - [x] Az agent identitását általános subject bindinghoz kötni, amely player,
+    business, faction vagy rendszer-szolgáltatás lehet; a player controller továbbra
+    is kizárólag a hozzá rendelt avataron hajthasson végre műveletet.
+    - [x] Perzisztens, optimista revíziós control profile player/business/faction/
+      service/world subjecttel, opcionális avatárkötéssel, v8→v9 control-profile és
+      v9→v10 nullable player-binding migrációval.
+    - [x] A fizikai skillfuttatást fail-closed módon kizárólag exact player-avatar
+      kötésnél engedni; institution/service/world-director csak megbízást kérhessen.
+    - [x] Nem-player identitást közvetlenül, botkatalógus-bejegyzés nélkül is lehessen
+      létrehozni az adminpanelen; a legacy `playerUsername` többé ne legyen előfeltétel.
+  - [x] A player planner hiányzó képesség esetén ismételt modellhívás helyett
+    strukturált, tartós és deduplikált `CapabilityGap` munkajegyet hozzon létre.
+    - [x] Perzisztens szemantikus fingerprint, requester-lista, kérésszámláló,
+      lifecycle és konkurens írások mellett is atomi tárolás.
+    - [x] A feloldatlan kézi és automatikus LLM-tervezési eredmény bekötése a
+      registrybe, valamint megjelenítése az adminpanel AI-beállításainál.
+    - [x] Függő gap esetén az automatikus újratervezést már a modellhívás előtt
+      megállítani, majd verified skill létrejöttekor egyszer felébreszteni.
+  - [x] Külön, nem playerhez kötött Skill Builder workert készíteni, amely a gap
+    munkasorból, a meglévő skillekből és engedélyezett műveletekből deklaratív
+    draftot készít, de tetszőleges JavaScriptet, fájl- vagy shellműveletet nem futtat.
+    - [x] Providerfüggetlen worker-határ, atomikus gap-claim és kizárólag
+      allowlistelt deklaratív skill-törzs elfogadása.
+    - [x] A provenance, draft státusz és shared policy szolgáltatásoldali
+      rápecsételése; provider által küldött extra vagy jogosultsági mezők elutasítása.
+    - [x] OpenAI Skill Builder provider és felügyelt gateway scheduler bekötése.
+  - [x] A Skill Builder hívásait egyedi gapenként, költségkerettel és cooldownnal
+    korlátozni; ugyanarra a gapre több agent csak feliratkozzon, ne írja újra a skillt.
+    - [x] Per-gap tartós attempts, költség, utolsó hiba, cooldown és konkurens
+      workerek között kizárólagos attempt token.
+    - [x] Szerverenkénti összesített napi költségkeret és admin stop/resume policy.
+  - [x] A draftot elkülönített tesztboton, statikus validatorral és élő futási
+    bizonyítékkal ellenőrizni, majd csak verifier/human approval után publikálni.
+    - [x] Statikus schema- és biztonsági validálás után csak draftként menthető.
+    - [x] Tesztbot queue, egzakt draft/verzió/paraméter alapján gyűjtött élő evidence,
+      tartós verifier-jelentés és külön admin human approval bekötése.
+  - [x] A skill objektív létezését, az agent hozzáférését és az agent megtanult
+    tudását külön kezelni; a globális katalógus ne jelentsen automatikus ismeretet.
+  - [x] A megosztási policy-t `public/common`, `organization`, `teachable/licensed`
+    és `private` szintekre bővíteni, determinisztikus tanulási eseményekkel.
+    - [x] Fail-closed policy döntési motor a hat tanulási/hozzáférési módhoz,
+      szervezeti tagság-, oktató- és licencgrant explicit ellenőrzésével.
+    - [x] Policy-specifikus, elkülönített perzisztencia és grantből előre számított,
+      fail-closed katalógusbetöltés, korlátozott könyvtárak végigolvasása nélkül.
+    - [x] Tartós, idempotens tanulási események, időablakos organization/teacher/license
+      grantok, optimista visszavonás és az aktuális grantből képzett access subject.
+    - [x] Auditált admin API és kezelőfelület szervezeti tagságok, oktatói kapcsolatok
+      és licencek kiosztásához, időzítéséhez, listázásához és visszavonásához.
+    - [x] A verified public katalógusskill adminból indított, szerveroldali policyből
+      engedélyezett, idempotens tanulása és AgentState skillismeretté egyeztetése.
+    - [x] A policy-katalógust és a tanulási eseményeket az AgentState ismert skilljeivel,
+      a plannerrel és a futtatási engedélyezéssel egyetlen determinisztikus folyammá kötni.
+  - [x] Shared/public verified skillhez determinisztikus resolverrel, LLM-hívás
+    nélkül lehessen megfelelő találatot és tanulási módot választani.
+    - [x] Determinisztikus resolver ismert-skill prioritással, megosztási módokkal
+      és többértelmű találat esetén biztonságos visszautasítással.
+    - [x] A találatból explicit tanulási eseményt és LLM nélküli determinisztikus
+      végrehajtási döntést készíteni.
+  - [x] Az általánosítható skilleket paraméterezni és kisebb eljárásokból építeni,
+    hogy ne keletkezzen külön skill minden érc–lelőhely–bank kombinációra.
+  - [x] Business- és faction-agenteknek domain eszközöket, költségvetést, memóriát
+    és döntési ritmust adni; játékbeli fizikai műveletet képviselő/player végezzen.
+    - [x] Szerep- és subjectfüggő domain-tool allowlist, korlátozott intézményi
+      context, adminból szerkeszthető napi LLM-/GP-keret és döntési időköz.
+    - [x] Atomi döntési admission ledger napi darabszám-, LLM-költség-, GP-keret-
+      és scheduled cadence ellenőrzéssel; event/admin trigger sem lépheti át a keretet.
+    - [x] A `request-player-action` domain tool megbízását tartós player-agent
+      queue-val, exact avatár- és skillkötéssel végigvinni. A még nem létező
+      Business és Governance mod adapterei a saját későbbi fázisukba kerülnek.
+      - [x] v10→v11 migrációval tartós, optimista revíziós player-action queue:
+        exact assignee, ismert skillverzió, validált paraméterek, cél, díj és auditált
+        pending/accepted/resolved lifecycle az adminpanelen.
+      - [x] v11→v12 migrációval az elfogadott megbízást rövid életű, egyszer
+        használható approvalhoz, exact avatarhoz és exact skill-run ID-hoz kötni;
+        a journal eredményéből automatikusan completed/failed állapotot képezni.
+      - [x] v12→v13 migrációval a sikeres megbízás díját tartós `settling`
+        állapoton és engine-tickes, idempotens settlement ID-n keresztül a player
+        valódi coin inventoryjába fizetni; hiba vagy megszakítás ne duplázzon GP-t.
+      - [x] A napi operatív keretből finanszírozott kezdeti kifizetési portot közös,
+        tartós business/faction treasury-walletre cserélni: reserve/commit/release,
+        optimista admin-finanszírozás és külön döntési limit mellett.
+  - [x] A World Directort seedelt, determinisztikus eseményválasztóként kezelni;
+    az LLM legfeljebb validálandó eseménysablont javasoljon, ne írja át szabadon a világot.
+    - [x] Verziózott, allowlistelt és végrehajtható payload nélküli eseménysablon-
+      szerződés; provider által küldött extra mezők fail-closed elutasítása.
+    - [x] Seed + cikluskulcs + rendezett teljes sablonkészlet alapján súlyozott,
+      sorrendfüggetlen választás reprodukálhatósági digesttel.
+    - [x] Auditált admin-előnézet, amely megmutatja a kiválasztást, de nem írhatja
+      a játékvilág állapotát.
+    - [x] Atomi SQLite ciklusnapló és outbox, fix epochból számolt gateway-ütemező,
+      idempotens újrafuttatás, valamint lease-elt, retryzható trusted adapter port.
+    - [x] Első konkrét trusted adapter: minden allowlistelt sablonból idempotens,
+      legfeljebb 320 karakteres globális világjelzés; külön hot-reload mod és külön
+      World Director engedélyezés, tárgy-/pénz-/XP-/teleport-/tulajdonmódosítás nélkül.
+
+Elfogadási feltétel: az LLM egy korlátozott feladatot végrehajt, minden lépése
+auditálható, és hibánál vagy limitnél biztonságosan leáll.
+
+## 12. Fázis – multi-agent gazdaság
+
+A fázis jelenlegi lezárási feltétele (2026-09-05): a meglévő multi-agent,
+szerződéses és mérési infrastruktúrával egy kézi és legalább két előre kijelölt
+rácspont exact profiljának kontroll–kezelés futáspárja, azonos seed/kohorsz és
+visszaállított baseline mellett; megőrzött futásazonosítók és auditált összevetés.
+Ez minimum hat élő futás, nem hosszú távú gazdasági validáció. Új domain,
+automatikus optimalizáló és tanulásalapú keresés nem lezárási előfeltétel.
+Az adó- és banki integráció a saját későbbi fázisához tartozik.
+Valódi működési vagy mérési akadály indoklással bekerülhet a fázisba; egy későbbi
+fejlesztési lehetőség önmagában nem válik új lezárási előfeltétellé.
+
+- [x] Több agent párhuzamos futása elkülönített állapottal és közös világban.
+  - [x] Seedelt kohorsz-dispatchert és külön admin „Kísérletek” fület készíteni,
+    amely csak egyedi exact avatarhoz kötött, friss online player-agenteket enged.
+  - [x] A teljes kohorsz preflightját írás előtt elvégezni, majd az agentciklusokat
+    párhuzamosan indítani és agentenként külön event/run eredményt tartósítani.
+- [x] Kereskedelem, munkamegosztás, ajánlatok és egyszerű szerződések.
+  - [x] Két exact persistent agent közötti, lejáró trade/work/service ajánlatokat
+    és elfogadáskor változatlan feltételekkel képzett egyszerű szerződést tartósítani.
+  - [x] A feltételeket GP-, tárgy- és szolgáltatás-kötelezettségekre bontani,
+    digesttel védeni, optimista revízióval és exact fél-jogosultsággal módosítani.
+  - [x] Mindkét fél teljesítését külön, exact avatarhoz kötött, elfogadás utáni
+    completed skill-runnal igazolni; a GP-/tárgyátadást exact counterparty
+    player-trade eseményből, a szolgáltatást exact skillverzióból összesíteni.
+  - [x] Egy run globális újrafelhasználását és a megváltozott journal replayét
+    tiltani, a pontos replayt idempotensen kezelni, majd csak mindkét fél összes
+    kötelezettségének igazolása után `fulfilled` állapotot képezni.
+  - [x] A szerződésből induló tényleges játékbeli átadást és treasury/player
+    elszámolást előre foglalt fedezettel, idempotensen végrehajtani.
+    - [x] Institution→player GP-vállalást elfogadáskor exact treasuryben lefoglalni,
+      a másik fél bizonyított teljesítése után engine-ticken, stabil settlement ID-val
+      kifizetni, majd commitolni; hiba esetén auditáltan újrapróbálható maradjon.
+    - [x] Institution→institution átvezetéshez exact payer/payee treasuryket,
+      előzetes foglalást és stabil settlement ID-t használó atomi, idempotens
+      debit+credit főkönyvi primitívet készíteni, túlcsordulás és önutalás nélkül.
+    - [x] Az institution-főkönyvi primitívet hiteles szerződéses teljesítés után
+      meghívható settlement-orchestrátorhoz kötni.
+    - [x] Player GP- és item-vállalásokhoz engine-oldali inventory-escrowt készíteni.
+      - [x] GP-t és legfeljebb 28 normalizált itemtípust előellenőrző, tartós,
+        idempotens hold/release tárolót készíteni; részleges inventory-műveletet
+        kompenzálni, bizonytalan állapotot pedig `reconcile` státusszal lezárni.
+      - [x] Az exact payee részére történő idempotens escrow-commitot, kompenzációt
+        és a tokennel védett gateway → engine world-tick adaptert elkészíteni.
+      - [x] A player→player GP- és item-vállalást elfogadáskor stabil escrow ID-val
+        holdolni, majd csak a másik fél fedezett vagy hitelesen igazolt teljesítése
+        után exact payee-nek commitolni; acceptance-hibánál release-t kérni.
+      - [x] Szerződéses cancellation/default lifecycle-t és szabályait létrehozni,
+        majd a még nem commitolt player-escrowt és treasury-foglalást release-elni.
+- [x] Foglalkoztatás és vállalkozás kezdeti domain-modellje.
+  - [x] Stabil Business-identitást, külön tulajdonost, opcionális Property-hivatkozást,
+    optimista revíziót és vissza nem nyitható lezárt lifecycle-t tartósítani.
+  - [x] Exact persistent agenthez kötött manager/worker jogviszonyt, opcionális
+    exact skillkövetelményt és még nem automatikusan fizetett munkadíjat kezelni.
+  - [x] Auditált admin API-t és felületet adni létrehozáshoz, szüneteltetéshez,
+    lezáráshoz, felvételhez és a foglalkoztatás megszüntetéséhez.
+- [x] A Business manager read/write portját az institution-agent allowlistelt
+  domain tooljaihoz kötni, közvetlen player- vagy AgentState-pénzmásolás nélkül.
+  - [x] Az exact business subject állapotát és aktív policyjét a hozzá kötött
+    institution agent olvasási vetületébe és döntési contextjébe tenni.
+  - [x] A `propose-business-policy` toolt idempotens, keretkorlátozott, inert
+    javaslatíráshoz kötni; idegen subjectet és player agentet fail-closed tiltani.
+  - [x] A policyt csak auditált admin-döntéssel aktiválni vagy elutasítani, új
+    jóváhagyáskor a korábbi aktív policyt atomikusan superseded állapotba tenni.
+  - [x] Az aktív Business policyt és foglalkoztatást a player-megbízási queue elé
+    kötni: exact aktív dolgozó, munkaköri skill, rögzített bér és policyplafon;
+    csak ezután történhessen idempotens treasury reserve/commit/release.
+- [x] Gazdasági eseménynapló, aggregált metrikák és visszajátszható kísérletek.
+  - [x] A kísérlet definíció-digestjét, seedjét, determinisztikus résztvevősorrendjét,
+    közös baseline/dispatch gazdasági snapshotját és teljes döntési rekordjait menteni.
+  - [x] A dispatch után a résztvevőket `runId` alapján a hiteles skill-napló lezárásáig
+    követni, majd közös végső snapshotot, pénz-/XP-/online-/készletdeltát és
+    agentenkénti sikerességet tartósítani; ismételt exit eseménynél idempotensen.
+  - [x] A strukturált skill-run gazdasági eseményeit digestelt, változtathatatlan
+    SQLite ledgerbe ingestálni; exact replay ne duplikáljon, módosított run ID
+    fail-closed legyen, és az eredeti eseménysorrend visszajátszható maradjon.
+  - [x] A kísérlet hiteles runjaiból termelés-, felhasználás-, shop-, trade-,
+    skilldiverzitás- és Herfindahl-koncentráció metrikát tartósítani és megjeleníteni.
+- [x] A diminishing XP kísérlet előfeltételeként agentcélokat, legalább több
+  egymással helyettesíthető pénzkereső skillt/helyet és determinisztikus seedet biztosítani.
+  - [x] Azonos prioritású immediate célokat alternatívaként kezelni, és a
+    kísérleti seedet az eventtől a determinisztikus skillfeloldásig végigvezetve
+    reprodukálhatóan, de több seed között szétosztva választani közülük.
+  - [x] Réz- és vasércre két bounded kitermelés → Varrock General Store értékesítés
+    fejlesztési draftot, valamint explicit megerősítésű, auditált admin
+    próbafuttatót készíteni.
+  - [x] Mindkét bevételtermelő draftot két független élő futással ellenőrizni,
+    determinisztikusan validálni és forráskódos verified verzióvá promótálni.
+  - [x] Külön helyszínű pénzkereső alternatívával bővíteni, hogy a diminishing XP
+    valódi hely- és tevékenységváltást is kiválthasson.
+- [x] Kontrollcsoportos kísérletet futtatni azonos agentekkel és seeddel, a mod
+  kikapcsolt és bekapcsolt állapotát összehasonlítva.
+  - [x] Minden futáshoz az engine tényleges aktív world-mod állapotát exact,
+    digestelt környezeti snapshotként menteni, függő aktiválásnál fail-closed
+    leállni, és csak azonos seed/kohorsz mellett, kizárólag a diminishing XP
+    kapcsoló eltérését elfogadó auditált kontroll–kezelés összehasonlítást adni.
+  - [x] Agentenként kanonikus, digestelt induló avatárállapotot menteni pozícióval,
+    HP-val, run energyvel, inventoryval, equipmenttel, bankkal és skillekkel; a
+    kontroll–kezelés összevetést eltérő avatár-/goal-baseline vagy ismeretlen bank
+    esetén fail-closed elutasítani.
+  - [x] A kontroll és kezelés ritka perc-idősorait relatív percszám alapján
+    összeilleszteni, és bucketenként kezelés mínusz kontroll aktivitásdeltát adni.
+- [x] Mérni a bejárt régiókat, célpont- és skilldiverzitást, koncentrációt,
+  termelést, készletet, árakat, jövedelmet és agentenkénti célhaladást.
+  - [x] Exact skill-runokból skilldiverzitást, koncentrációt, termelést,
+    felhasználást, shop- és player-trade aktivitást mérni.
+  - [x] A verified skill-runok sikeres úticél- és gyűjtési evidence-éből régió- és
+    célpontdiverzitást, továbbá agentenként nettó GP-t, termelést és célhoz kötött
+    sikeres runokat tartósítani és az adminpanelen megjeleníteni.
+  - [x] Hiteles shop- és player-trade coin-deltákból agentenként és összesítve
+    bruttó bevételt/kiadást, a shop eseményekből pedig termékenként súlyozott
+    vételi/eladási egységárat képezni és a kísérleti nézetben megjeleníteni.
+  - [x] A dispatch előtti és minden résztvevő lezárása utáni goal-adattári
+    snapshotból a döntésben kiválasztott cél revision- és státuszváltozását,
+    valamint tényleges teljesülését agentenként tartósítani és megjeleníteni.
+  - [x] A futó kísérletek exact avatarjainak élő gateway-pozícióiból levelenként
+    64×64 tile-os, deduplikált régiónaplót vezetni; ezt a skill célkoordinátáiból
+    származó evidence-régióktól elkülönítve mérni és megjeleníteni.
+  - [x] A hiteles piaci és régióeseményeket a futás kezdetéhez igazított,
+    percenkénti időbucketekbe rendezni agentenként és kohorszszinten, bevétel-,
+    kiadás-, termelés-, felhasználás-, új régió- és evidence-agent mutatókkal.
+  - [x] Hiteles world/goal/piaci eseményekből régiót, célpontot, árat, egyéni
+    jövedelmet és agentenkénti célhaladást mérni.
+    - [x] Az AgentState-ben append-only, állapotírással atomi céltransition-ledgert
+      vezetni; a futási ablak céleseményeit percenként teljesült/elakadt/elhagyott
+      bontásban az agent- és kohorsz-idősorba, majd a kontroll–kezelés deltába kötni.
+- [x] A respawn-, XP-, ár- és késztermék-paramétereket verziózott kísérleti
+  konfigurációként kezelni; előbb kézi/kereséses, később automatizált vagy
+  tanulásalapú optimalizálással vizsgálni, egyetlen univerzális optimum ígérete nélkül.
+  - [x] Bounded, kanonikus, SHA-256 digestelt és `profileId@semver` szerint
+    változtathatatlan paraméterprofilt készíteni respawn-, XP-jutalom-, piaci ár-
+    és késztermékérték-listával, valamint manual/grid-search/automated/learning
+    provenance-szal.
+  - [x] Auditált admin API-t és felületet adni profil létrehozásához/listázásához,
+    az exact profilt minden új futásba bemásolni, és eltérő vagy sérült profildigest
+    esetén a kontroll–kezelés összehasonlítást fail-closed elutasítani.
+  - [x] Paraméterkategóriánként ellenőrzött engine-adaptert készíteni, amely az
+    alkalmazott értéket visszaolvassa; profil alapján kontroll–kezelés futáspárt
+    indítani, majd kézi és rácskereséses kalibrációt összehasonlítani.
+    - [x] Első kategóriaadapterként az exact profil XP-szorzóit külön hot-reload
+      world modba alkalmazni; az engine-ben selector-prioritással, saját metrikával
+      és a diminishing XP előtt futtatni, majd az aktív profil ID/verzió/digest és
+      konfiguráció exact visszaolvasását megkövetelni.
+    - [x] A loc-, obj- és NPC-respawnidőt külön hot-reload world moddal a központi
+      életciklusban felülírni; stabil base resource ID-t, exact mező/type prioritást,
+      saját runtime metrikát és exact aktív profil-visszaolvasást használni.
+    - [x] A profil itemenként független buy/sell GP-árait kizárólag a shop
+      árkijelzésébe és tranzakciójába kötni két célzott RuneScript opcode-pal;
+      null irány esetén vanilla fallbackkel, saját metrikával és exact aktív
+      profil-visszaolvasással.
+    - [x] A késztermékértéket külön, gameplay-áraktól független hot-reload
+      domainadapterként alkalmazni; exact aktív profil-visszaolvasással, valamint
+      létrejött, elfogyott és nettó termelőtőke-érték futásvégi metrikával.
+    - [x] Exact alkalmazott profilokkal kontroll–kezelés futáspárt indítani, majd
+      kézi és rácskereséses kalibráció eredményét összehasonlítani.
+
+      Lezárva (2026-09-05): hat sikeres élő kohorszfutás, tizenkét sikeres
+      agent-skill végrehajtás, mindhárom profilhoz hiteles kontroll–kezelés pár.
+      Az exact avatar-/goal-baseline és profilkapuk, valamint az auditált API-
+      és böngészős kalibrációs összevetés átmentek. Az eredeti konfigurációk
+      visszaállítva, a kísérleti avatárok offline állapotban maradtak.
+      [Eredmény és futásazonosítók](features/phase12-calibration-2026-09-05.md).
+
+Elfogadási eredmény: a 12. fázis technikai minimuma teljesült. Az automatizált
+vagy tanulásalapú optimalizálás és a hosszú távú társadalmi hatásvizsgálat későbbi
+kutatási irány; ez a rövid mérés nem választ univerzális optimumot.
+
+## 13. Fázis – bankrendszer, hitelek és vállalkozások
+
+- [x] Az institution-főkönyvi primitívet a banki és a 15. fázis adózási domainjében
+  kizárólag hiteles teljesítési esemény után meghívható orchestrátorhoz kötni
+  (a 12. fázisból áthelyezett jövőbeli integráció).
+  - [x] A banki és adózási eseménytípusokat külön allowlistelni, a hitelesítést
+    szűk, típusos verifier-port mögé tenni, és az exact event-/settlement-kötést
+    digestelt, változtathatatlan identitású SQLite rekordban tartósítani.
+  - [x] A foglalt institution-pénz átvezetését csak sikeres evidence-receipt után
+    engedni; exact retry ne fizessen kétszer, módosított request és cross-domain
+    esemény pedig fail-closed álljon meg.
+
+- [x] Pénzbetét, kamat, tartalék és könyvelési főkönyv modellje.
+  - [x] Verziózott bank- és institution-betéti számlát, bázispontos kamat- és
+    tartalékrátát, valamint treasury cash alapján számolt tartalékpozíciót adni.
+  - [x] Csak committed banki settlement receiptből, idempotensen könyvelni a
+    betétet, kivétet és kamatot kiegyenlített debit/credit számlapárral.
+- [x] Hitel, futamidő, kamat, törlesztés és késedelem.
+  - [x] Institution-hitelfelvevőre kötött, bázispontos kamatú, napokban korlátozott
+    futamidejű hitelt és `approved → active/overdue → repaid` lifecycle-t adni.
+  - [x] Folyósítást és törlesztést exact committed banki settlementhez kötni,
+    a napi egyszerű kamatot determinisztikusan képezni, és részfizetésnél előbb
+    a kamatot, majd a tőkét csökkenteni.
+- [x] Fedezet és nemteljesítés; például műhely lefoglalása.
+  - [x] Exact Property-t csak hiteles tulajdonosi receipt után fedezetként lekötni,
+    overdue hitelt optimista revízióval defaulted állapotba vinni, és a lefoglalást
+    idempotens, receipt-ellenőrzött Property-adapteren át végrehajtani.
+- [x] Atomi, kettős könyveléshez közelítő tranzakciók és auditálás.
+  - [x] Az egyenlegmódosítást, az azonos összegű debit/credit postingokat és a
+    SHA-256 auditlánc új elemét egyetlen immediate SQLite tranzakcióban írni,
+    valamint a teljes lánc újraellenőrzését biztosítani.
+- [x] Csőd, bankroham és pénzügyi fertőzés biztonságos szimulációs korlátai.
+  - [x] A kockázati forgatókönyvet treasury-/Property-write nélküli tiszta
+    függvényben, intézmény-, él-, mélység-, kitettség-, kivételi-, default- és
+    veszteségráta-plafonnal, determinisztikus digesttel értékelni.
+
+### 13. fázis MVP-zárás
+
+- [x] Hiteles, tartós banki event-store/verifier és azon át vezetett orchestrált
+  settlement szolgáltatás; a gateway ne fogadjon tetszőleges verifier implementációt.
+- [x] A collateral defaultját közvetlenül a hitelledgerből ellenőrizni, és valós,
+  receipt-ellenőrzött engine Property-átruházási adaptert használni.
+- [x] A hitelfolyósítás receiptjét változtathatatlanul tartósítani, és módosított
+  replay esetén fail-closed megállni.
+- [x] A törlesztési replayt kamatelszámolás előtt felismerni, hogy retry önmagában
+  ne módosíthassa a hitelállapotot.
+- [x] Az auditlánc mellett a journal-, posting- és auditrekordszámot, a pontos két
+  postingot és azok egyenlegét is ellenőrizni.
+- [x] Újranyitásos end-to-end tesztet adni a settlement → folyósítás → fedezet →
+  késedelem → default → Property receipt → lefoglalás teljes útjára.
+- [x] Az MVP szereplőkörét explicit rögzíteni; az első műhelyfinanszírozási use
+  case-t a támogatott actor- és Property-portokkal konzisztenssé tenni.
+
+Elfogadási eredmény: a fenti zárókapuk teljesültek; a 13. fázis technikai MVP-je
+lezárt. Adminfelület, player-banki integráció és hosszú távú gazdasági kalibráció
+későbbi kiadás.
+
+## 14. Fázis – factionök, államok és joghatóságok
+
+- [x] Általános Faction és Jurisdiction modell királyságokhoz, városokhoz,
+  uradalmakhoz, céhekhez és más hierarchikus egységekhez.
+- [x] Területi tagságot és egymásba ágyazott joghatóságot konfigurálni.
+- [x] Kincstárat és költségvetést a közös gazdasági főkönyvhöz kapcsolni.
+- [x] Adó-, vám-, illeték- és támogatási szabályokat verziózott policyként kezelni.
+- [x] Property- és Business-eseményekből idempotens kötelezettségeket képezni.
+- [x] A Governance read/write portját a faction-agent allowlistelt domain
+  tooljaihoz kötni, minden fizikai játékbeli műveletet player-megbízásként hagyva.
+- [x] Adóbeszedést, mentességet, hátralékot és auditálható adminbeavatkozást készíteni.
+- [x] Az uradalmat joghatósági egységként kezelni, amely több ingatlant birtokolhat,
+  és opcionálisan egy várat vagy más Propertyt használhat székhelyként.
+- [x] Biztonságos lifecycle: kikapcsolva új kötelezettség ne keletkezzen, de a
+  meglévő kincstár, tartozás és tulajdon read-only módon megmaradjon.
+
+Elfogadási feltétel: két egymásba ágyazott joghatóság szabályai determinisztikusan
+képeznek és könyvelnek adót ugyanabból a gazdasági eseményből, dupla terhelés nélkül.
+
+## 15. Fázis – új skillek és termelési láncok
+
+- [ ] A klasszikus játék-skillektől független, adatvezérelt `Skill[]` rendszer.
+- [ ] Lehetséges új skillek: engineering, machining, accounting, banking,
+  management, medicine, law, logistics és politics.
+- [ ] Hosszú termelési lánc prototípusa: érc → olvasztás → acél → öntés →
+  megmunkálás → alkatrész → gép → gyár.
+- [ ] A késztermékeknek termelőtőke-értéket adni, nem csak XP-veszteséget.
+- [ ] Ingatlanok fejlesztése, eladása/bérlése és gazdasági hatásvizsgálata.
+- [ ] Regressziós benchmark feladatok és ismételhető értékelés.
+- [ ] Mentések verziózása és automatizált migrációs tesztek.
+- [ ] Telemetriai dashboard a szerver, botok, gazdaság és LLM-költségek számára.
+- [ ] Dokumentált kiadási és visszaállítási folyamat.
+
+## 16. Fázis – több-szerveres admin vezérlőközpont
+
+- [ ] Az adminfelületet a játékszerver-folyamattól független control plane
+  szolgáltatásként futtatni, hogy leállított engine mellett is elérhető maradjon.
+- [ ] Bejelentkezést, felhasználói fiókot és tulajdonosi jogosultságokat készíteni.
+- [ ] Szerverregisztert és „Saját szervereim” kezdőoldalt létrehozni.
+- [ ] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,
+  újraindítás és archiválás felületről.
+- [ ] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,
+  botokat, modokat, LLM-konfigurációt, titkokat és auditnaplót biztosítani.
+- [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket
+  kötelező szerverkontextus alá helyezni.
+- [ ] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin
+  csak állapotot lásson, a kulcsok visszaolvasását ne engedje.
+- [ ] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,
+  migrációt, backupot és hibából visszaállást készíteni.
+- [ ] Későbbi távoli eléréshez TLS-t, CSRF-védelmet, rate limitet, session-kezelést
+  és szerepköralapú engedélyezést bevezetni.
+
+Elfogadási feltétel: egy bejelentkezett felhasználó két, egymástól teljesen
+elkülönített szervert létrehoz, külön beállít, elindít és leállít úgy, hogy az
+admin control plane mindkét engine leállítása közben is elérhető marad.
+
+## Aktuális következő lépések
+
+1. [x] Karamja lobster–bank útvonalhoz szükséges komp/dialog műveleteket szabványosan
+   hozzáadni az engedélyezett adapterhez.
+2. [x] Elkészíteni és élő bottal ellenőrizni az első fishing + banking skillt.
+3. [x] A Karamja fishing draftot második független élő futással ellenőrizni, majd a
+   verifier/promóciós folyamaton át új, változtathatatlan `verified` verzióvá tenni.
+4. [x] A bányászat után production, shop és trade skillekkel elérni az első
+   5–10 stabil, LLM nélkül futó skillt.
+5. [x] A 6. fázis első használható admin kiadását elkészíteni: botkatalógus,
+   profilok, szűrők, spawn/despawn, audit és gazdasági alapidősor.
+6. [x] A 6. fázis második kiadásából az auditált, paraméterezhető verified
+   agent-skill hozzárendelést és megszakítást elkészíteni.
+7. [x] A biztonságos, auditált online teleportot előre jóváhagyott célpontokkal
+   és engine-ticken végrehajtott paranccsal elkészíteni.
+8. [x] A 6. fázis offline szerkesztőjét szint/XP-, pénz-, inventory- és
+   bankmódosítással, automatikus backuppal és restore-ral elkészíteni.
+9. [x] A befejezett agent-skill futások adminpaneles történetét és részletes
+   eseménylistáját elkészíteni.
+10. [x] A valódi MapView-ra épülő élő világtérképet botlistával, fókuszálással
+   és Spectate-átjárással elkészíteni.
+11. [x] A 6. fázis következő részében részletes tranzakciós telemetriát készíteni.
+    - [x] Élő session XP-növekedés és XP/óra botonként, skillenként és összesítve.
+    - [x] Termelés/fogyasztás, shop- és player-trade események naplózása.
+12. [x] Agent által létrehozott draft automatikus verifierét és promóciós folyamatát megvalósítani.
+13. [x] A közös és izolált skill-felfedezési módhoz mérhető összehasonlító kísérletet készíteni.
+14. [x] A 7. fázis alapozását lezárni.
+    - [x] A modolási architektúrát feltérképezni és dokumentálni.
+    - [x] A mintamodot a World Admin felületről engedélyezve, játékbeli belépéssel
+      élőben ellenőrizni.
+15. [x] A 7. fázis lifecycle állapotgépét és regressziós kapuját elkészíteni.
+    - [x] Modonkénti runtime-, hookhiba- és domainmetrikákat megjeleníteni.
+    - [x] A `hot-reload`, `restart-required`, migráció és rollback átmeneteit
+      fail-closed tesztekkel lefedni.
+    - [x] A fontos alapmechanikák kikapcsolt mod melletti regressziós tesztjét
+      hozzáadni.
+16. [x] A 8. fázis első függőleges szeletét elkészíteni: központi XP-hook,
+    konfigurálható csökkenési görbe és World Admin megfigyelhetőség.
+    - [x] Az alapból kikapcsolt `economy.diminishing-xp` modot elkészíteni.
+    - [x] A konfigurációt és a játékosonkénti várható szorzót a World Adminban
+      szerkeszthetővé, illetve megfigyelhetővé tenni.
+    - [x] A tartós számlálókat, regenerációt és regressziós teszteket elkészíteni.
+    - [x] A `stateless`, `suspend`, `read-only` és `blocked` kikapcsolási policyt,
+      admin preflightot, valamint mentés/restore védelmet megvalósítani.
+17. [x] A 8. fázist technikailag lezárni, a hosszú távú diminishing XP
+    hatásvizsgálatot pedig a szükséges agentcélokkal és skilllefedettséggel együtt
+    a 12. fázis kontrollcsoportos kísérletébe átütemezni.
+18. [x] A 9. fázis ingatlan-domain modelljét, validátorát és három verziózott
+    tesztingatlanát elkészíteni, a katalógust a későbbi tulajdonállapottól elválasztva.
+19. [x] Atomi ingatlanvásárlást és külön perzisztált tulajdonállapotot készíteni.
+20. [x] A Varrock keleti műhelyhez játékbeli Property sign objektumot és
+    Inspect/Purchase/Enter jogosultsági visszajelzést készíteni, majd a sikeres,
+    elégtelen egyenleges és visszaállítási útvonalat élő botokkal ellenőrizni.
+21. [x] A Property sign saját világtérképi ikonját és Key-szűrőjét elkészíteni,
+    az admin egyszeri koordinátafókuszát pedig bezáráskor törölni.
+22. [x] A 9. fázist normál klienses vásárlással, belépés-ellenőrzéssel és a banki
+    ingatlannyilvántartással kézzel elfogadni.
+23. [x] A 10. fázis első tartós szeletét elkészíteni: verziózott agent-identitás,
+    négyszintű célhierarchia és korlátozott core identity context.
+24. [x] Tartós, frissességkorlátos working memoryt és korlátozott döntési
+    kontextust készíteni az aktuális helyzethez, tevékenységhez és pozícióhoz.
+25. [x] Az agent céljait egzakt, verziózott agent skillekhez kötni, az ismert
+    skilleket tartósítani, és fail-closed determinisztikus skillválasztót készíteni.
+26. [x] Az élő botállapotot working memoryvé alakító, egy planner-döntést végző
+    és csak explicit engedéllyel verified skillt futtató teljes ciklust elkészíteni.
+27. [x] Az Agentek adminfület elkészíteni identitás-, cél- és skillismeret-kezeléssel,
+    korlátozott döntési contexttel, planner dry-runnal és megerősített kézi
+    skillvégrehajtással.
+28. [x] Tartós episodic eseménytárat, determinisztikus relevancia-visszakeresést,
+    korlátozott context-integrációt és adminpaneles emlékrögzítést készíteni.
+29. [x] Bizonyítékhoz kapcsolható semantic tudástárat, verziómegőrző felülírást,
+    determinisztikus retrievalt és adminpaneles tudásrögzítést készíteni.
+30. [x] Tartós társas memóriát készíteni irányított kapcsolatokkal, kétirányú
+    pénztartozással, bizonyítékokkal, lezárható vállalásokkal, relevancia-
+    visszakereséssel és adminpaneles kezeléssel.
+31. [x] A tartós agentet gazdasági szereplőkhöz kapcsolni, majd az aktuális pénzt,
+    ingatlant, követelést és kötelezettséget read-only asset-portfólióként az
+    adminnézetbe és a korlátozott döntési contextbe illeszteni.
+32. [x] Háttérben futó, LLM nélküli episodic ingestiont készíteni a lezárt
+    agent-skill journalokból és azok termelési, fogyasztási, shop-, trade- és
+    banki eseményeiből, duplikáció- és journal-módosítás elleni védelemmel.
+33. [x] A megbízható termelési epizódokból tartós bizonyítékszámlálással,
+    lépcsőzetes confidence-szel és felülírási előzményekkel automatikus semantic
+    eljárástudást képezni úgy, hogy kézi tudást soha ne írjon felül.
+34. [x] A strukturált player trade-okból idempotens social kapcsolatot,
+    bizonyítéklistát, utolsó interakciót és fokozatos ismertséget képezni anélkül,
+    hogy az automatika bizalmat, rokonszenvet vagy tartozást találna ki.
+35. [x] Az elévült episodic emlékekhez védettségi előnézetet és explicit,
+    auditált admin törlést készíteni; minden semantic, social, commitment,
+    konszolidációs vagy külső forráshivatkozással rendelkező emléket megőrizni.
+36. [x] A semantic retrievalt korlátozott frissességi ponttal, a social retrievalt
+    interakciófrissességgel és az aktív cél szövegének külön súlyozásával bővíteni,
+    majd az admin context minden részét közös időpillanatból felépíteni.
+37. [x] Újraindítást szimuláló end-to-end tesztben skill journalból automatikus
+    episodic, semantic és social memóriát képezni, releváns korlátozott contextet
+    építeni, majd ugyanazt a verified skillt kétszer azonos döntéssel kiválasztani.

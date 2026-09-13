@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { appendFile, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { appendAudit, readAudit } from './audit';
+import { appendAudit, readAudit, verifyAuditChain } from './audit';
 import { deriveAdminStatus, economySnapshot, recordEconomy } from './catalog';
 import { handleAdminRequest } from './routes';
 import { BotSupervisor, type SpawnBotOptions } from './supervisor';
@@ -128,6 +128,21 @@ describe('audit durability', () => {
         expect(entries).toHaveLength(20);
         expect(new Set(entries.map(entry => entry.id)).size).toBe(20);
         expect(new Set(entries.map(entry => entry.username)).size).toBe(20);
+        expect(await verifyAuditChain(path)).toMatchObject({ valid: false,
+            error: 'Audit log contains a malformed record.' });
+    });
+
+    test('detects a modified chained entry and refuses to extend it', async () => {
+        const directory = await mkdtemp(join(tmpdir(), 'rs-admin-audit-chain-'));
+        temporaryDirectories.push(directory);
+        const path = join(directory, 'audit.jsonl');
+        await appendAudit({ operator: 'test', action: 'first', reason: 'chain test', success: true }, path);
+        await appendAudit({ operator: 'test', action: 'second', reason: 'chain test', success: true }, path);
+        const text = await readFile(path, 'utf8');
+        await writeFile(path, text.replace('"action":"first"', '"action":"changed"'), 'utf8');
+        expect(await verifyAuditChain(path)).toMatchObject({ valid: false, chainedEntries: 0 });
+        await expect(appendAudit({ operator: 'test', action: 'third', reason: 'must fail', success: true }, path))
+            .rejects.toThrow('Audit chain mismatch');
     });
 });
 

@@ -15,7 +15,7 @@ const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const OPERATION_NAMES = new Set<SkillOperationName>([
     'walk-to', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
     'gather-loc', 'gather-npc', 'smith-at-anvil', 'open-shop', 'buy-from-shop',
-    'sell-to-shop', 'close-shop', 'trade-give-item', 'open-bank', 'deposit-item',
+    'sell-to-shop', 'close-shop', 'trade-give-item', 'trade-receive-item', 'open-bank', 'deposit-item',
     'withdraw-item', 'close-bank', 'wait-ticks'
 ]);
 const CONDITION_NAMES = new Set<SkillConditionName>([
@@ -37,6 +37,10 @@ const OPERATION_ARGUMENTS: Record<SkillOperationName, { allowed: string[]; requi
     'sell-to-shop': { allowed: ['name', 'match', 'amount'], required: ['name', 'amount'] },
     'close-shop': { allowed: ['timeoutMs'], required: [] },
     'trade-give-item': {
+        allowed: ['player', 'match', 'item', 'itemMatch', 'amount', 'requestTimeoutMs', 'timeoutMs'],
+        required: ['player', 'item', 'amount']
+    },
+    'trade-receive-item': {
         allowed: ['player', 'match', 'item', 'itemMatch', 'amount', 'requestTimeoutMs', 'timeoutMs'],
         required: ['player', 'item', 'amount']
     },

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.shop.buy-item",
+  "version": "0.1.0",
+  "name": "Buy an exact item from a shop",
+  "description": "Walks to an exact shop coordinate and buys a bounded quantity under the separate runtime price and GP authorization envelope.",
+  "status": "draft",
+  "tags": ["procedure", "shopping", "input-acquisition", "composition"],
+  "parameters": {
+    "shop-x": { "type": "number", "description": "Shop X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "shop-z": { "type": "number", "description": "Shop Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "tolerance": { "type": "number", "description": "Accepted coordinate distance.", "default": 5, "minimum": 0, "maximum": 20 },
+    "shopkeeper": { "type": "string", "description": "Exact shopkeeper name.", "required": true },
+    "item": { "type": "string", "description": "Exact shop item name.", "required": true },
+    "amount": { "type": "number", "description": "Quantity to buy.", "default": 1, "minimum": 1, "maximum": 28 }
+  },
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "phase15-skill-builder",
+    "createdAt": "2026-09-09T00:00:00.000Z",
+    "notes": "Reusable CapabilityGap candidate. Autonomous execution additionally requires an exact-item shop-buy grant with live unit-price, run and daily GP limits."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 180000, "maxOperations": 6 },
+  "preconditions": [],
+  "steps": [
+    { "kind": "operation", "id": "walk-to-shop", "operation": "walk-to", "arguments": { "x": { "parameter": "shop-x" }, "z": { "parameter": "shop-z" }, "tolerance": { "parameter": "tolerance" } }, "maxAttempts": 2 },
+    { "kind": "operation", "id": "open-shop", "operation": "open-shop", "arguments": { "name": { "parameter": "shopkeeper" }, "match": "exact" }, "maxAttempts": 2 },
+    { "kind": "operation", "id": "buy-item", "operation": "buy-from-shop", "arguments": { "name": { "parameter": "item" }, "match": "exact", "amount": { "parameter": "amount" } } },
+    { "kind": "operation", "id": "close-shop", "operation": "close-shop", "arguments": {} }
+  ]
+}

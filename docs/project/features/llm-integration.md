@@ -116,6 +116,68 @@ jóváhagyás után kerülnek végrehajtási állapotba.
   a tesztben egy szigorúbb műveleti limit már a supervisor előtt leállítja a
   következő ciklust, miközben mindkét döntés és auditrekord tartós marad.
 
+## Tartós replan inbox migráció és visszaállítás
+
+A gateway a `.local/admin/replan-inbox.sqlite` külön, verziózott SQLite-
+adatbázisában őrzi az automatikus eseményeket. Az első indítás additívan létrehozza
+az 1-es sémát; nem módosít engine-save-ot vagy AgentState rekordot. A stable
+source key és payload digest ugyanazt az eseményt restart után sem engedi eltérő
+tartalommal újra felhasználni.
+
+Gateway-restartkor a terminális skill journalból csak a még `running` enrollment
+aktuális claimje után indult, exact avatarhoz kötött futások épülnek vissza. Az új
+gateway előbb saját autonomy lease-t szerez, és csak ezután claimeli az agent
+legrégebbi esedékes inboxrekordját. Egy még élő, másik gatewayhez tartozó lease
+átmeneti retry, nem végleges `skipped` eredmény.
+
+Az enrolled avatar első friss reconnect state-je és a verified CapabilityGap
+csak inert inboxrekordot hoz létre; közvetlen plannerhívást egyik sem végez. A
+valid markerrel rendelkező, bizonyítottan halott skill PID journal hiányában
+`skill-failed` wake-up lesz. Ha terminal journal létezik, mindig az a hiteles
+forrás, ezért külön orphan esemény nem készül.
+
+A cél-életciklus forrása az AgentState append-only `agent_goal_event` ledgere.
+Az enrollment után létrejött új immediate cél, illetve a completed, blocked vagy
+abandoned státusz stable sequence-kulccsal kerül az inboxba. A közvetlen admin
+útvonal gyorsan kézbesít, a gateway periodikus ledger-recoveryje pedig pótolja a
+céltranzakció commitja és az inbox-írás közötti esetleges restartot.
+
+Ugyanez a restartbiztos recovery lefedi az economic offer/contract,
+player-action, Business employment és approved-policy work order, releváns
+Property/Governance, valamint a kézbesített World Director eseményeket. A stable
+source key mindenhol domain ID + revision/version. Property csak exact actor- vagy
+Business-kötéshez, governance csak a vezérelt factionhöz, world event csak built-in
+approved exact template-verzióhoz és egyező régióhoz (vagy `global`) jut el. Az
+aggregate economy observer legfeljebb 25, aktív gazdasági céllal vagy nyitott
+commitmenttel rendelkező enrolled agentet választ. Tartós coordinator mellett a
+live observer is kizárólag inboxba ír; supervisor lease-en kívül nem fut planner.
+
+Visszaállításhoz leállított gateway mellett mentsd együtt az SQLite fájlt és az
+esetleges `-wal`/`-shm` társakat, majd használd az előző alkalmazásverziót; az a
+külön inboxot figyelmen kívül hagyja. A fájl csak az elvárt függő események
+exportja vagy tudatos elvetése után törölhető. Terminal outcome-ból rollbackkor
+sem szabad automatikus műveletet rekonstruálni.
+
+## Egységes decision context
+
+Az admin agent-view és az automatikus LLM-kérés ugyanazt az egyszer felépített,
+legfeljebb 10 000 karakteres trusted contextet használja. Player szerepnél ez az
+authoritative live gateway snapshotból — admin előnézetnél jelölt save fallbackból
+— adja az item-ID/count/slot inventoryt és equipmentet, ismert bankot, coint,
+XP-t, nyitott shopárakat, player-actionöket, érintett typed gazdasági termeket és
+a legutóbbi skill-runt.
+
+Business és Faction institution agent csak az exact control-profile subjecthez
+tartozó domain port vetületét kapja. Az authorization envelope minden contextben
+rögzíti a subject/avatar kötést, napi limiteket és azt, hogy institution fizikai
+műveletet csak player-action requesttel kérhet. Offer/contract cím és leírás,
+chat, modszöveg és modellkimenet nem trusted authority: a szabad szöveg bounded
+`untrustedText` mezőbe kerül, a trusted rész csak típusos termeket tartalmaz.
+
+Minden context forrás-, idő- és freshness-jelölést, továbbá explicit blockerlistát
+kap. Az automatikus replan hiányzó player/bank/domain forrás mellett nem kér
+modellt: refresh/wait/fail-closed eredményt ad, és nem talál ki hiányzó állapotot.
+
 ## OpenAI provider helyi beállítása
 
 Az OpenAI adapter a Responses API-t használja `store: false` és szigorú JSON

@@ -1,8 +1,13 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { MemoryLlmAuditSink } from '../audit.js';
+import { LlmDailyBudgetStore } from '../budget.js';
 import { validateLlmRuntimeConfig } from '../config.js';
 import { ScriptedMockProvider } from '../mock-provider.js';
 import { LlmOrchestrator } from '../orchestrator.js';
+import { InferenceQueue, InferenceQueueRateLimitError } from '../queue.js';
 import type { LlmPlanningInput, LlmProviderResponse } from '../types.js';
 
 const config = validateLlmRuntimeConfig({
@@ -73,6 +78,21 @@ describe('safe LLM orchestration', () => {
         expect(plan.approvalId).toBeNull();
         expect(plan.reason).toContain('unavailable skill');
         expect(audit.events.at(-1)?.type).toBe('decision.rejected');
+    });
+
+    test('accepts only bounded scalar LLM parameter suggestions in the typed decision', async () => {
+        const response = selection();
+        (response.output as any).tool.arguments.parameters = { 'mine-x': 3285, bank: true };
+        const plan = await new LlmOrchestrator(config, new ScriptedMockProvider([response]),
+            new MemoryLlmAuditSink()).plan(input);
+        expect(plan.decision).toMatchObject({ kind: 'execute-skill',
+            parameters: { 'mine-x': 3285, bank: true } });
+
+        const invalid = selection();
+        (invalid.output as any).tool.arguments.parameters = { nested: { unsafe: true } };
+        const rejected = await new LlmOrchestrator(config, new ScriptedMockProvider([invalid]),
+            new MemoryLlmAuditSink()).plan(input);
+        expect(rejected).toMatchObject({ status: 'rejected', reason: expect.stringContaining('invalid skill parameter') });
     });
 
     test('validates a complete proposed hierarchy without creating an execution approval', async () => {
@@ -163,5 +183,34 @@ describe('safe LLM orchestration', () => {
             runId: '22222222-2222-4222-8222-222222222222' })]);
         expect(peak).toBe(1);
         expect(provider.requests).toHaveLength(2);
+    });
+
+    test('retries a sanitized provider rate limit inside the shared queue backoff', async () => {
+        const provider = new ScriptedMockProvider([
+            new InferenceQueueRateLimitError('provider limited', 1), selection()
+        ]);
+        const queue = new InferenceQueue({ maxRateLimitRetries: 1, baseRateLimitBackoffMs: 1,
+            maxRateLimitBackoffMs: 10 });
+        const plan = await new LlmOrchestrator(config, provider, new MemoryLlmAuditSink(), queue).plan(input);
+        expect(plan.status).toBe('proposed');
+        expect(provider.requests).toHaveLength(2);
+    });
+
+    test('reserves global budget before provider work and reconciles actual usage', async () => {
+        const root = mkdtempSync(join(tmpdir(), 'orchestrator-budget-'));
+        const budget = new LlmDailyBudgetStore(join(root, 'budget.sqlite'));
+        const budgetedConfig = { ...config, dailyBudget: { scope: 'test', maxCostMicros: 100,
+            maxDecisions: 1, estimatedCostMicros: 100 } };
+        const provider = new ScriptedMockProvider([selection(40), selection(40)]);
+        const orchestrator = new LlmOrchestrator(budgetedConfig, provider, new MemoryLlmAuditSink(),
+            new InferenceQueue(), budget);
+        const first = await orchestrator.plan(input);
+        const second = await orchestrator.plan({ ...input, runId: '33333333-3333-4333-8333-333333333333' });
+        expect(first.status).toBe('proposed');
+        expect(second).toMatchObject({ status: 'limit-reached', reason: 'Global daily LLM decision limit reached' });
+        expect(provider.requests).toHaveLength(1);
+        expect(budget.get(input.runId!)).toMatchObject({ estimatedCostMicros: 100,
+            actualCostMicros: 40, status: 'reconciled' });
+        budget.close(); rmSync(root, { recursive: true, force: true });
     });
 });

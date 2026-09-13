@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createSaveData, Items, Locations } from '../../../sdk/test/utils/save-generator';
@@ -11,6 +11,8 @@ import { listAdminTeleportDestinations, resolveAdminTeleportDestination } from '
 import { validateOfflineSaveDraft } from './offline-editor';
 import { readSkillRun, readSkillRunHistory } from './skill-history';
 import type { BotCatalogEntry } from './types';
+import { FileSkillStore } from '../../../agent-skills/store';
+import { SKILL_VERIFIER_ID } from '../../../agent-skills/verifier';
 
 const temporaryDirectories: string[] = [];
 
@@ -128,7 +130,9 @@ describe('admin lifecycle status', () => {
 
 describe('admin agent skill catalog', () => {
     test('lists only the latest verified shared versions', async () => {
-        const skills = await listAdminSkills();
+        const localRoot = await mkdtemp(join(tmpdir(), 'rs-admin-skills-'));
+        temporaryDirectories.push(localRoot);
+        const skills = await listAdminSkills({ localRoot });
         expect(skills.length).toBeGreaterThanOrEqual(8);
         expect(new Set(skills.map(skill => skill.id)).size).toBe(skills.length);
         expect(skills).toContainEqual(expect.objectContaining({
@@ -146,9 +150,18 @@ describe('admin agent skill catalog', () => {
         }));
     });
 
-    test('hides source drafts after their exact verified successor is published', async () => {
-        const drafts = await listAdminDraftSkills();
-        expect(drafts).toHaveLength(0);
+    test('lists unresolved source drafts and hides each one after its exact verified successor is published', async () => {
+        const localRoot = await mkdtemp(join(tmpdir(), 'rs-admin-skills-'));
+        temporaryDirectories.push(localRoot);
+        const drafts = await listAdminDraftSkills({ localRoot });
+        expect(drafts.map(draft => draft.id)).toEqual([
+            'procedure.bank.withdraw-item',
+            'procedure.shop.buy-item',
+            'procedure.trade.receive-item',
+            'procedure.travel-meet-return',
+            'workflow.varrock.bronze-dagger-bank-cycle',
+            'workflow.varrock.bronze-dagger-handoff'
+        ]);
         await expect(resolveAdminDraftSkill('fishing.karamja.lobster-to-general-store@0.1.0'))
             .rejects.toThrow('draft');
         await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-general-store@0.1.0'))
@@ -157,15 +170,31 @@ describe('admin agent skill catalog', () => {
             .rejects.toThrow('id@verzió');
         await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-bank@1.0.0'))
             .rejects.toThrow('draft');
+
+        const source = JSON.parse(await readFile(join(import.meta.dir, '../../../agent-skills/catalog',
+            'procedure.shop.buy-item@0.1.0.skill.json'), 'utf8'));
+        const promoted = { ...source, version: '1.0.0', status: 'verified',
+            provenance: { authorKind: 'system', authorId: SKILL_VERIFIER_ID,
+                createdAt: '2026-09-10T18:00:00.000Z', derivedFrom: { id: source.id, version: source.version } } };
+        await new FileSkillStore(localRoot).save(promoted, { actorKind: 'system', actorId: SKILL_VERIFIER_ID });
+
+        await expect(resolveAdminSkill('procedure.shop.buy-item@1.0.0', { localRoot }))
+            .resolves.toMatchObject({ definition: { status: 'verified', sharing: { visibility: 'shared' } } });
+        expect((await listAdminSkills({ localRoot })).map(skill => skill.reference))
+            .toContain('procedure.shop.buy-item@1.0.0');
+        expect((await listAdminDraftSkills({ localRoot })).map(draft => draft.id))
+            .not.toContain('procedure.shop.buy-item');
     });
 
     test('applies defaults and rejects missing, unknown or out-of-range parameters', async () => {
-        const production = await resolveAdminSkill('production.varrock.bronze-daggers@1.0.0');
+        const localRoot = await mkdtemp(join(tmpdir(), 'rs-admin-skills-'));
+        temporaryDirectories.push(localRoot);
+        const production = await resolveAdminSkill('production.varrock.bronze-daggers@1.0.0', { localRoot });
         expect(validateAdminSkillParameters(production.definition, {})).toEqual({ 'target-items': 1 });
         expect(() => validateAdminSkillParameters(production.definition, { 'target-items': 6 })).toThrow('legfeljebb 5');
         expect(() => validateAdminSkillParameters(production.definition, { unexpected: 1 })).toThrow('Ismeretlen');
 
-        const trade = await resolveAdminSkill('trade.lumbridge.give-item@1.0.0');
+        const trade = await resolveAdminSkill('trade.lumbridge.give-item@1.0.0', { localRoot });
         expect(() => validateAdminSkillParameters(trade.definition, {})).toThrow('recipient');
     });
 });
@@ -205,6 +234,16 @@ describe('admin offline save draft', () => {
             expectedSavedAt: new Date().toISOString(), coins: 0,
             skills: [{ name: 'ATTACK', experience: 9_984_580 }], inventory: [], bank: []
         }).skills).toEqual([{ name: 'Attack', experience: 9_984_580 }]);
+    });
+
+    test('accepts exact fixture position and equipment slots without weakening the existing editor shape', () => {
+        expect(validateOfflineSaveDraft({ ...valid, position: { x: 3285, z: 3367, level: 0 },
+            equipment: [{ id: 1265, count: 1, slot: 3 }] })).toMatchObject({
+            position: { x: 3285, z: 3367, level: 0 }, equipment: [{ id: 1265, count: 1, slot: 3 }]
+        });
+        expect(() => validateOfflineSaveDraft({ ...valid,
+            equipment: [{ id: 1265, count: 1 }, { id: 1205, count: 1, slot: 3 }] }))
+            .toThrow('exact slot');
     });
 
     test('rejects invalid xp, coin duplication and unsafe quantities', () => {

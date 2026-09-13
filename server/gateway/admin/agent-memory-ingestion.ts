@@ -135,8 +135,11 @@ function consolidateProductionKnowledge(store: AgentStateStore, observations: Pr
         if (active && active.source !== 'consolidation') { result.blockedConsolidations++; continue; }
         const evidence = store.listConsolidationEvidence(sample.agentId, rule.ruleKey, tier.threshold);
         try {
+            // knowledge_id is globally unique in the store, while an identical
+            // production rule may legitimately be learned by several agents.
+            const agentRuleHash = digest(`${sample.agentId}|${rule.hash}`);
             store.createKnowledge(sample.agentId, {
-                knowledgeId: `consolidation.${rule.hash}.${tier.threshold}`,
+                knowledgeId: `consolidation.${agentRuleHash}.${tier.threshold}`,
                 kind: 'procedure', subject: rule.subject, predicate: rule.predicate,
                 object: bounded(sample.item.id === null ? sample.item.name : `item:${sample.item.id}:${sample.item.name}`, 500),
                 summary: bounded(`${sample.skillId}@${sample.skillVersion} repeatedly produced ${sample.item.name} in ${tier.threshold} trusted observations.`, 500),
@@ -216,8 +219,10 @@ export async function ingestAgentMemories(options: {
     runRoot?: string;
     limit?: number;
     now?: string;
+    loadRuns?: () => Promise<AdminSkillRun[]>;
 } = {}): Promise<AgentMemoryIngestionResult> {
-    const runs = await readSkillRunHistory(options.limit ?? 500, options.runRoot ?? skillRunsDir, 10_000);
+    const runs = await (options.loadRuns?.() ?? readSkillRunHistory(
+        options.limit ?? 500, options.runRoot ?? skillRunsDir, 10_000));
     const store = new AgentStateStore(options.databasePath ?? agentStateDbPath);
     const result: AgentMemoryIngestionResult = { scannedRuns: runs.length, matchedRuns: 0,
         createdEpisodes: 0, existingEpisodes: 0, createdKnowledge: 0, existingKnowledge: 0,

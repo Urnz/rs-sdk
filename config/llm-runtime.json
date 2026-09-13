@@ -22,6 +22,12 @@
     "maxDurationMs": 60000,
     "maxOutputTokens": 6000
   },
+  "dailyBudget": {
+    "scope": "lostcity-local",
+    "maxCostMicros": 0,
+    "maxDecisions": 1000,
+    "estimatedCostMicros": 0
+  },
   "limits": {
     "maxDurationMs": 10000,
     "maxModelRequests": 1,

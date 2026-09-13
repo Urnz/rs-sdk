@@ -26,11 +26,12 @@ async function fixture() {
     return { root, runRoot, databasePath };
 }
 
-function journal(message = 'Finished mining and trading.', id = runId, minute = 0) {
+function journal(message = 'Finished mining and trading.', id = runId, minute = 0,
+    username = 'Ferrye14') {
     const skill = { id: 'economy.test', version: '1.0.0' };
     const timestamp = (second: number) => `2026-08-29T10:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}.000Z`;
     return {
-        runId: id, username: 'Ferrye14', skill, status: 'completed', reason: 'completed', message,
+        runId: id, username, skill, status: 'completed', reason: 'completed', message,
         operations: 2, durationMs: 2_500,
         events: [
             { runId: id, type: 'skill.started', timestamp: timestamp(0), skill },
@@ -143,6 +144,31 @@ describe('automatic agent memory ingestion', () => {
 
         const third = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T13:00:00.000Z' });
         expect(third).toMatchObject({ createdKnowledge: 0, existingKnowledge: 1, errors: [] });
+    });
+
+    test('keeps identical consolidated production knowledge distinct across agents', async () => {
+        const { runRoot, databasePath } = await fixture();
+        const store = new AgentStateStore(databasePath);
+        store.createIdentity({ agentId: 'worker-two', playerUsername: 'WorkerTwo', displayName: 'Worker Two',
+            background: 'Second automatic memory test agent.', personalityTraits: ['patient'] });
+        store.close();
+        for (const [agentIndex, username] of ['Ferrye14', 'WorkerTwo'].entries()) {
+            for (let index = 0; index < 3; index++) {
+                const id = `${agentIndex + 4}${index}000000-0000-4000-8000-${String(agentIndex * 3 + index).padStart(12, '0')}`;
+                await writeFile(join(runRoot, `${id}.json`),
+                    JSON.stringify(journal('Done.', id, agentIndex * 3 + index, username)));
+            }
+        }
+
+        const result = await ingestAgentMemories({ databasePath, runRoot, now: '2026-08-29T12:00:00.000Z' });
+        expect(result).toMatchObject({ matchedRuns: 6, createdKnowledge: 2, errors: [] });
+        const reopened = new AgentStateStore(databasePath);
+        const first = reopened.listKnowledge('ferrye14', { status: 'active' })[0]!;
+        const second = reopened.listKnowledge('worker-two', { status: 'active' })[0]!;
+        expect(first.knowledgeId).not.toBe(second.knowledgeId);
+        expect(first).toMatchObject({ subject: second.subject, predicate: 'produces-item',
+            externalKey: second.externalKey });
+        reopened.close();
     });
 
     test('does not replace manually curated knowledge with automatic consolidation', async () => {

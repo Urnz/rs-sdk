@@ -157,6 +157,7 @@ export interface AdminTeleportResult {
 export interface AdminOfflineSaveItem {
     id: number;
     count: number;
+    slot?: number;
 }
 
 export interface AdminOfflineSaveSkill {
@@ -167,9 +168,12 @@ export interface AdminOfflineSaveSkill {
 export interface AdminOfflineSaveDraft {
     expectedSavedAt: string;
     coins: number;
+    coinPlacement?: 'preserve' | 'inventory' | 'bank';
     skills: AdminOfflineSaveSkill[];
     inventory: AdminOfflineSaveItem[];
     bank: AdminOfflineSaveItem[];
+    position?: { x: number; z: number; level: number };
+    equipment?: AdminOfflineSaveItem[];
 }
 
 export interface AdminOfflineSaveCommand {
@@ -188,6 +192,9 @@ export interface AdminOfflineSaveSummary {
     inventory: AdminOfflineSaveItem[];
     bank: AdminOfflineSaveItem[];
     coins: number;
+    coinPlacement: 'inventory' | 'bank';
+    position: { x: number; z: number; level: number };
+    equipment: AdminOfflineSaveItem[];
 }
 
 export interface AdminOfflineSaveResult {
@@ -1613,9 +1620,19 @@ class World {
         const currentInventoryCoins = player.getInventory(inventoryId)?.getItemCount(995) ?? 0;
         const inventory = this.buildAdminInventory(inventoryId, draft.inventory, false);
         const bank = this.buildAdminInventory(bankId, draft.bank, false);
-        const coinPlacement = preserveAdminCoinPlacement(draft.coins, currentInventoryCoins);
+        const worn = draft.equipment === undefined ? null
+            : this.buildAdminInventory(InvType.WORN, draft.equipment, false, true);
+        if (draft.coinPlacement !== undefined
+            && !['preserve', 'inventory', 'bank'].includes(draft.coinPlacement)) {
+            throw new Error('Coin placement must be preserve, inventory or bank.');
+        }
+        const coinPlacement = preserveAdminCoinPlacement(draft.coins, currentInventoryCoins,
+            draft.coinPlacement);
         let bankCoins = coinPlacement.bank;
         if (coinPlacement.inventory > 0 && inventory.add(995, coinPlacement.inventory) !== coinPlacement.inventory) {
+            if (draft.coinPlacement === 'inventory') {
+                throw new Error('The inventory has no room for the explicitly requested coin stack.');
+            }
             // A newly filled inventory may no longer have room for its previous coin stack.
             // The dedicated editor field promises the total, so retain it safely in the bank.
             bankCoins += coinPlacement.inventory;
@@ -1632,10 +1649,22 @@ class World {
         }
         player.invs.set(inventoryId, inventory);
         player.invs.set(bankId, bank);
+        if (worn) player.invs.set(InvType.WORN, worn);
+        if (draft.position) {
+            if (!Number.isInteger(draft.position.x) || !Number.isInteger(draft.position.z)
+                || !Number.isInteger(draft.position.level) || draft.position.x < 0 || draft.position.x > 0x3fff
+                || draft.position.z < 0 || draft.position.z > 0x3fff
+                || draft.position.level < 0 || draft.position.level > 3) throw new Error('Invalid offline position.');
+            player.teleport(draft.position.x, draft.position.z, draft.position.level);
+            if (player.x !== draft.position.x || player.z !== draft.position.z || player.level !== draft.position.level) {
+                throw new Error('Offline position is not allocated in this world.');
+            }
+        }
         player.combatLevel = player.getCombatLevel();
     }
 
-    private buildAdminInventory(typeId: number, items: AdminOfflineSaveItem[], allowCoins: boolean): Inventory {
+    private buildAdminInventory(typeId: number, items: AdminOfflineSaveItem[], allowCoins: boolean,
+        exactSlots = false): Inventory {
         if (!Array.isArray(items) || items.length > 2048) throw new Error('Invalid inventory item list.');
         const inventory = Inventory.fromType(typeId);
         for (const item of items) {
@@ -1648,7 +1677,13 @@ class World {
             }
             const itemType = ObjType.get(item.id);
             if (!Environment.node.members && itemType.members) throw new Error(`Members item ${item.id} is not allowed on this world.`);
-            if (inventory.add(item.id, item.count) !== item.count) throw new Error(`Inventory capacity exceeded while adding item ${item.id}.`);
+            if (exactSlots) {
+                if (!Number.isInteger(item.slot) || item.slot! < 0 || item.slot! >= inventory.capacity
+                    || inventory.get(item.slot!) !== null) throw new Error(`Invalid or duplicate slot for item ${item.id}.`);
+                inventory.set(item.slot!, { id: item.id, count: item.count });
+            } else if (inventory.add(item.id, item.count) !== item.count) {
+                throw new Error(`Inventory capacity exceeded while adding item ${item.id}.`);
+            }
         }
         return inventory;
     }
@@ -1661,7 +1696,10 @@ class World {
             : [];
         const inventory = items(player.getInventory(inventoryId));
         const bank = items(player.getInventory(bankId));
-        const coins = [...inventory, ...bank].filter(item => item.id === 995).reduce((sum, item) => sum + item.count, 0);
+        const equipment = player.getInventory(InvType.WORN)?.items
+            .flatMap((item, slot) => item ? [{ id: item.id, count: item.count, slot }] : []) ?? [];
+        const inventoryCoins = inventory.filter(item => item.id === 995).reduce((sum, item) => sum + item.count, 0);
+        const coins = inventoryCoins + bank.filter(item => item.id === 995).reduce((sum, item) => sum + item.count, 0);
         return {
             savedAt,
             skills: [...PlayerStatNameMap]
@@ -1669,7 +1707,10 @@ class World {
                 .map(([stat, name]) => ({ name, experience: player.stats[stat] })),
             inventory: inventory.filter(item => item.id !== 995),
             bank: bank.filter(item => item.id !== 995),
-            coins
+            coins,
+            coinPlacement: inventoryCoins > 0 ? 'inventory' : 'bank',
+            position: { x: player.x, z: player.z, level: player.level },
+            equipment
         };
     }
 

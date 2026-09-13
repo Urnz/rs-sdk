@@ -58,4 +58,16 @@ describe('gateway LLM replan coordinator', () => {
         await value.observeEconomy(economy('2026-08-30T10:00:20.000Z', 1200, 30));
         expect(planned).toEqual(['agent-14:significant-economic-change', 'agent-15:significant-economic-change']);
     });
+
+    test('uses the bounded relevance selector instead of waking every agent', async () => {
+        const planned: string[] = [];
+        const value = new AgentReplanCoordinator({ resolveAgentId: async () => null,
+            listAgentIds: async () => ['irrelevant-a', 'irrelevant-b'],
+            listEconomicAgentIds: async () => ['relevant'],
+            plan: async (agentId, event) => { planned.push(agentId); return { runId: event.eventId,
+                status: 'proposed', reason: 'planned' }; }, append: () => undefined }, undefined, 1, 1);
+        await value.observeEconomy(economy('2026-08-30T10:00:00.000Z', 0, 0));
+        await value.observeEconomy(economy('2026-08-30T10:00:10.000Z', 10, 10));
+        expect(planned).toEqual(['relevant']);
+    });
 });

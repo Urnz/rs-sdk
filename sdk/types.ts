@@ -786,7 +786,8 @@ export interface ShopResult {
     amountBought?: number;
     /** Some but not all of the requested amount was bought. */
     partial?: boolean;
-    reason?: 'invalid_amount' | 'shop_not_open' | 'item_not_found' | 'partial_fill' | 'timeout' | 'out_of_stock' | 'no_inventory_space';
+    reason?: 'invalid_amount' | 'shop_not_open' | 'item_not_found' | 'partial_fill' | 'timeout' | 'out_of_stock'
+        | 'no_inventory_space' | 'unit_price_limit';
 }
 
 export interface ShopSellResult {

@@ -6,7 +6,8 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import type { SkillEvent } from '../../../agent-skills/types.js';
 import { EconomicContractStore, type CreateEconomicOffer } from './economic-contracts.js';
 import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
-    resolveEconomicContract, settleReadyEconomicContract } from './economic-contract-settlement.js';
+    recoverReadyEconomicContractSettlements, resolveEconomicContract,
+    settleReadyEconomicContract } from './economic-contract-settlement.js';
 import { InstitutionTreasuryStore } from './institution-treasury.js';
 import type { EnginePlayerEscrowRequest, EnginePlayerEscrowResult } from './player-escrow.js';
 import type { AdminSkillRun } from './skill-history.js';
@@ -148,15 +149,22 @@ describe('funded economic contract settlement', () => {
         expect(treasury.get('business', 'varrock-forge')).toMatchObject({ balanceGp: 10_000, reservedGp: 2_000 });
         treasury.close();
 
-        const completed = await settleReadyEconomicContract(accepted.contract.contractId, { ...options,
+        const recovery = await recoverReadyEconomicContractSettlements({ ...options,
             now: '2026-09-02T10:05:00.000Z', rewarder: async (username, amount, settlementId) => {
                 attemptedIds.push(settlementId);
                 return { ok: true, commandId: '55555555-5555-4555-8555-555555555555', username, amount,
                     settlementId, reward: { status: 'committed' as const, coinsBefore: 0, coinsAfter: amount } };
             } });
-        expect(completed.status).toBe('fulfilled');
+        expect(recovery).toEqual({ attemptedContractIds: [accepted.contract.contractId],
+            completedContractIds: [accepted.contract.contractId], errors: [] });
         expect(attemptedIds).toHaveLength(2);
         expect(new Set(attemptedIds).size).toBe(1);
+        expect(await recoverReadyEconomicContractSettlements({ ...options,
+            now: '2026-09-02T10:06:00.000Z' })).toEqual({ attemptedContractIds: [],
+            completedContractIds: [], errors: [] });
+        const completedStore = new EconomicContractStore(options.contractsPath);
+        expect(completedStore.getContract(accepted.contract.contractId)?.status).toBe('fulfilled');
+        completedStore.close();
     });
 
     test('atomically transfers bilateral institution funding only through the secured contract gate', async () => {
@@ -306,11 +314,16 @@ describe('funded economic contract settlement', () => {
         const pending = new EconomicContractStore(options.contractsPath);
         expect(pending.getPlayerEscrow(firstEscrowId)).toMatchObject({ status: 'settling', error: 'Engine offline' });
         pending.close();
-        const fulfilled = await settleReadyEconomicContract(accepted.contract.contractId,
+        const recovery = await recoverReadyEconomicContractSettlements(
             { ...options, now: '2026-09-02T10:02:00.000Z', escrower: harness.escrower });
-        expect(fulfilled.status).toBe('fulfilled');
+        expect(recovery).toEqual({ attemptedContractIds: [accepted.contract.contractId],
+            completedContractIds: [accepted.contract.contractId], errors: [] });
         expect(harness.calls.filter(call => call.operation === 'commit').map(call => call.escrowId))
             .toEqual([firstEscrowId, accepted.contract.playerEscrows[1]!.escrowId]);
+        expect(await recoverReadyEconomicContractSettlements({ ...options,
+            now: '2026-09-02T10:03:00.000Z', escrower: harness.escrower }))
+            .toEqual({ attemptedContractIds: [], completedContractIds: [], errors: [] });
+        expect(harness.calls.filter(call => call.operation === 'commit')).toHaveLength(2);
     });
 
     test('releases a held player escrow when funded acceptance cannot be confirmed', async () => {

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.bank.withdraw-item",
+  "version": "0.1.0",
+  "name": "Walk to a bank and withdraw an item",
+  "description": "Reusable bounded procedure that walks to a bank and withdraws an exact item quantity.",
+  "status": "draft",
+  "tags": ["procedure", "banking", "input-acquisition", "composition"],
+  "parameters": {
+    "bank-x": { "type": "number", "description": "Bank X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "bank-z": { "type": "number", "description": "Bank Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "tolerance": { "type": "number", "description": "Accepted coordinate distance.", "default": 5, "minimum": 0, "maximum": 20 },
+    "item": { "type": "string", "description": "Exact item name to withdraw.", "required": true },
+    "amount": { "type": "number", "description": "Quantity to withdraw.", "default": 1, "minimum": 1, "maximum": 28 },
+    "as-note": { "type": "boolean", "description": "Withdraw as a banknote when supported.", "default": false }
+  },
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "phase15-skill-builder",
+    "createdAt": "2026-09-09T00:00:00.000Z",
+    "notes": "Reusable CapabilityGap candidate; exact bank/item parameters require isolated and two-run live evidence plus human publish approval."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 180000, "maxOperations": 6 },
+  "preconditions": [],
+  "steps": [
+    { "kind": "operation", "id": "walk-to-bank", "operation": "walk-to", "arguments": { "x": { "parameter": "bank-x" }, "z": { "parameter": "bank-z" }, "tolerance": { "parameter": "tolerance" } }, "maxAttempts": 2 },
+    { "kind": "operation", "id": "open-bank", "operation": "open-bank", "arguments": {}, "maxAttempts": 2 },
+    { "kind": "operation", "id": "withdraw-item", "operation": "withdraw-item", "arguments": { "name": { "parameter": "item" }, "match": "exact", "amount": { "parameter": "amount" }, "asNote": { "parameter": "as-note" } } },
+    { "kind": "operation", "id": "close-bank", "operation": "close-bank", "arguments": {} }
+  ]
+}

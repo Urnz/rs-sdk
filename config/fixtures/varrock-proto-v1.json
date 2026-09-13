@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "varrock-proto-v1",
+  "fixtureVersion": "1.5.0",
+  "seed": "varrock-proto-v1:2026-09",
+  "worldBuild": "lostcity-local-main",
+  "provenance": "fixture-bootstrap",
+  "baselineDigest": "883ac45cba0e84256e7b39882e33038df2aa6aae78c878a94342499c74c2f86c",
+  "autonomousSkillAllowlist": [
+    { "id": "fishing.karamja.lobster-to-draynor-bank", "version": "1.0.0" },
+    { "id": "fishing.karamja.lobster-to-general-store", "version": "1.0.0" },
+    { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" },
+    { "id": "mining.varrock-east.copper-to-general-store", "version": "1.0.0" },
+    { "id": "mining.varrock-east.iron-to-general-store", "version": "1.0.0" },
+    { "id": "procedure.bank.deposit-item", "version": "1.0.0" },
+    { "id": "procedure.gather-loc-until-full", "version": "1.0.0" },
+    { "id": "production.varrock.bronze-daggers", "version": "1.0.0" },
+    { "id": "shopping.lumbridge.buy-hammers", "version": "1.0.0" },
+    { "id": "trade.lumbridge.give-item", "version": "1.0.0" }
+  ],
+  "players": [
+    {
+      "username": "VRCopper1", "agentId": "vrcopper1", "displayName": "Varrock Copper One",
+      "background": "Independent copper miner who sells through the vanilla Varrock shop dependency.",
+      "personalityTraits": ["industrious", "prudent"],
+      "controlProfile": { "decisionIntervalMs": 60000, "maxDecisionsPerDay": 96, "dailyLlmBudgetMicros": 500000, "dailyOperationalBudgetGp": 200 },
+      "position": { "x": 3285, "z": 3367, "level": 0, "region": "Varrock East Mine" },
+      "skills": { "defaultExperience": 0, "overrides": [{ "name": "Hitpoints", "experience": 9800 }, { "name": "Mining", "experience": 18600 }] },
+      "inventory": [{ "id": 1265, "count": 1 }], "equipment": [], "bank": [], "coins": 250, "coinPlacement": "bank",
+      "goals": [
+        { "goalId": "vrcopper1.life", "parentGoalId": null, "horizon": "life", "title": "Build an independent livelihood", "description": "Accumulate durable personal wealth.", "priority": 100, "skill": null },
+        { "goalId": "vrcopper1.trade", "parentGoalId": "vrcopper1.life", "horizon": "long-term", "title": "Earn through mining", "description": "Use local ore opportunities.", "priority": 90, "skill": null },
+        { "goalId": "vrcopper1.copper", "parentGoalId": "vrcopper1.trade", "horizon": "current", "title": "Sell copper ore", "description": "Mine and sell bounded copper loads.", "priority": 80, "skill": null },
+        { "goalId": "vrcopper1.run", "parentGoalId": "vrcopper1.copper", "horizon": "immediate", "title": "Complete one copper shop cycle", "description": "Mine a load and sell it at the general store.", "priority": 70, "skill": { "id": "mining.varrock-east.copper-to-general-store", "version": "1.0.0" } }
+      ],
+      "memorySeeds": [{ "episodeId": "vrcopper1.fixture-start", "kind": "observation", "summary": "Started at Varrock East mine with a bronze pickaxe.", "details": "The vanilla general store is an external measured dependency.", "importance": 80, "tags": ["fixture", "mining", "npc-shop"] }],
+      "knownSkills": [{ "id": "mining.varrock-east.copper-to-general-store", "version": "1.0.0" }],
+      "autonomy": { "status": "desired", "policyId": "private-local-default", "policyVersion": "1.0.0" }, "provenance": "fixture-bootstrap"
+    },
+    {
+      "username": "VRCopper2", "agentId": "vrcopper2", "displayName": "Varrock Copper Two",
+      "background": "Copper stockpiler who banks output for later contracts.", "personalityTraits": ["patient", "reliable"],
+      "controlProfile": { "decisionIntervalMs": 60000, "maxDecisionsPerDay": 96, "dailyLlmBudgetMicros": 500000, "dailyOperationalBudgetGp": 200 },
+      "position": { "x": 3287, "z": 3367, "level": 0, "region": "Varrock East Mine" },
+      "skills": { "defaultExperience": 0, "overrides": [{ "name": "Hitpoints", "experience": 9800 }, { "name": "Mining", "experience": 18600 }] },
+      "inventory": [{ "id": 1265, "count": 1 }], "equipment": [], "bank": [], "coins": 120, "coinPlacement": "bank",
+      "goals": [
+        { "goalId": "vrcopper2.life", "parentGoalId": null, "horizon": "life", "title": "Become a dependable supplier", "description": "Build a useful ore reserve.", "priority": 100, "skill": null },
+        { "goalId": "vrcopper2.supply", "parentGoalId": "vrcopper2.life", "horizon": "long-term", "title": "Supply Varrock industry", "description": "Maintain copper inventory.", "priority": 90, "skill": null },
+        { "goalId": "vrcopper2.stock", "parentGoalId": "vrcopper2.supply", "horizon": "current", "title": "Bank copper", "description": "Accumulate banked copper ore.", "priority": 80, "skill": null },
+        { "goalId": "vrcopper2.run", "parentGoalId": "vrcopper2.stock", "horizon": "immediate", "title": "Bank one copper load", "description": "Mine until full and deposit copper.", "priority": 70, "skill": { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" } }
+      ],
+      "memorySeeds": [{ "episodeId": "vrcopper2.fixture-start", "kind": "observation", "summary": "Started as the fixture copper stockpiler.", "details": "Banked ore is intended for later agent contracts.", "importance": 80, "tags": ["fixture", "mining", "bank"] }],
+      "knownSkills": [{ "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" }, { "id": "procedure.bank.deposit-item", "version": "1.0.0" }],
+      "autonomy": { "status": "desired", "policyId": "private-local-default", "policyVersion": "1.0.0" }, "provenance": "fixture-bootstrap"
+    },
+    {
+      "username": "VRIron1", "agentId": "vriron1", "displayName": "Varrock Iron One",
+      "background": "Experienced iron miner using the vanilla shop as a measured outlet.", "personalityTraits": ["focused", "prudent"],
+      "controlProfile": { "decisionIntervalMs": 60000, "maxDecisionsPerDay": 96, "dailyLlmBudgetMicros": 500000, "dailyOperationalBudgetGp": 200 },
+      "position": { "x": 3289, "z": 3368, "level": 0, "region": "Varrock East Mine" },
+      "skills": { "defaultExperience": 0, "overrides": [{ "name": "Hitpoints", "experience": 9800 }, { "name": "Mining", "experience": 34100 }] },
+      "inventory": [{ "id": 1265, "count": 1 }], "equipment": [], "bank": [], "coins": 300, "coinPlacement": "bank",
+      "goals": [
+        { "goalId": "vriron1.life", "parentGoalId": null, "horizon": "life", "title": "Prosper as an iron miner", "description": "Build wealth through skilled mining.", "priority": 100, "skill": null },
+        { "goalId": "vriron1.trade", "parentGoalId": "vriron1.life", "horizon": "long-term", "title": "Serve Varrock iron demand", "description": "Produce and sell iron ore.", "priority": 90, "skill": null },
+        { "goalId": "vriron1.iron", "parentGoalId": "vriron1.trade", "horizon": "current", "title": "Sell iron ore", "description": "Use bounded iron shop cycles.", "priority": 80, "skill": null },
+        { "goalId": "vriron1.run", "parentGoalId": "vriron1.iron", "horizon": "immediate", "title": "Complete one iron shop cycle", "description": "Mine iron and sell one load.", "priority": 70, "skill": { "id": "mining.varrock-east.iron-to-general-store", "version": "1.0.0" } }
+      ],
+      "memorySeeds": [{ "episodeId": "vriron1.fixture-start", "kind": "economic", "summary": "Iron sales begin through a measured vanilla NPC shop.", "details": "This is not evidence of a closed or self-sustaining economy.", "importance": 90, "tags": ["fixture", "iron", "npc-shop"] }],
+      "knownSkills": [{ "id": "mining.varrock-east.iron-to-general-store", "version": "1.0.0" }],
+      "autonomy": { "status": "desired", "policyId": "private-local-default", "policyVersion": "1.0.0" }, "provenance": "fixture-bootstrap"
+    },
+    {
+      "username": "VRSmith1", "agentId": "vrsmith1", "displayName": "Varrock Smith One",
+      "background": "Forge employee producing bounded bronze dagger batches.", "personalityTraits": ["precise", "cooperative"],
+      "controlProfile": { "decisionIntervalMs": 60000, "maxDecisionsPerDay": 96, "dailyLlmBudgetMicros": 500000, "dailyOperationalBudgetGp": 200 },
+      "position": { "x": 3187, "z": 3425, "level": 0, "region": "Varrock West Anvils" },
+      "skills": { "defaultExperience": 0, "overrides": [{ "name": "Hitpoints", "experience": 9800 }, { "name": "Smithing", "experience": 18600 }] },
+      "inventory": [{ "id": 2347, "count": 1 }, { "id": 2349, "count": 8 }], "equipment": [], "bank": [], "coins": 200, "coinPlacement": "bank",
+      "goals": [
+        { "goalId": "vrsmith1.life", "parentGoalId": null, "horizon": "life", "title": "Become a respected smith", "description": "Create useful goods for Varrock.", "priority": 100, "skill": null },
+        { "goalId": "vrsmith1.forge", "parentGoalId": "vrsmith1.life", "horizon": "long-term", "title": "Support the Varrock Forge", "description": "Complete safe production work.", "priority": 90, "skill": null },
+        { "goalId": "vrsmith1.daggers", "parentGoalId": "vrsmith1.forge", "horizon": "current", "title": "Produce bronze daggers", "description": "Use the bounded starting bar stock.", "priority": 80, "skill": null },
+        { "goalId": "vrsmith1.run", "parentGoalId": "vrsmith1.daggers", "horizon": "immediate", "title": "Smith one bounded dagger batch", "description": "Turn available bronze bars into daggers.", "priority": 70, "skill": { "id": "production.varrock.bronze-daggers", "version": "1.0.0" } }
+      ],
+      "memorySeeds": [{ "episodeId": "vrsmith1.fixture-start", "kind": "observation", "summary": "Started with a hammer and eight bronze bars.", "details": "Production inputs are fixture-bootstrap assets.", "importance": 85, "tags": ["fixture", "smithing", "business"] }],
+      "knownSkills": [{ "id": "production.varrock.bronze-daggers", "version": "1.0.0" }],
+      "autonomy": { "status": "desired", "policyId": "private-local-default", "policyVersion": "1.0.0" }, "provenance": "fixture-bootstrap"
+    },
+    {
+      "username": "VRTrader1", "agentId": "vrtrader1", "displayName": "Varrock Trader One",
+      "background": "Bounded procurement and exchange agent with deliberately limited capital.", "personalityTraits": ["careful", "sociable"],
+      "controlProfile": { "decisionIntervalMs": 60000, "maxDecisionsPerDay": 96, "dailyLlmBudgetMicros": 500000, "dailyOperationalBudgetGp": 200 },
+      "position": { "x": 3210, "z": 3424, "level": 0, "region": "Varrock Centre" },
+      "skills": { "defaultExperience": 0, "overrides": [{ "name": "Hitpoints", "experience": 9800 }] },
+      "inventory": [], "equipment": [], "bank": [], "coins": 750, "coinPlacement": "inventory",
+      "goals": [
+        { "goalId": "vrtrader1.life", "parentGoalId": null, "horizon": "life", "title": "Build trusted trade relationships", "description": "Trade without exceeding bounded capital.", "priority": 100, "skill": null },
+        { "goalId": "vrtrader1.procure", "parentGoalId": "vrtrader1.life", "horizon": "long-term", "title": "Procure useful tools", "description": "Use approved low-value purchases.", "priority": 90, "skill": null },
+        { "goalId": "vrtrader1.hammers", "parentGoalId": "vrtrader1.procure", "horizon": "current", "title": "Acquire hammers", "description": "Test the explicit NPC shop dependency.", "priority": 80, "skill": null },
+        { "goalId": "vrtrader1.run", "parentGoalId": "vrtrader1.hammers", "horizon": "immediate", "title": "Buy one bounded hammer batch", "description": "Buy only the exact allowlisted quantity.", "priority": 70, "skill": { "id": "shopping.lumbridge.buy-hammers", "version": "1.0.0" } }
+      ],
+      "memorySeeds": [{ "episodeId": "vrtrader1.fixture-start", "kind": "economic", "summary": "Started with 750 gp procurement capital.", "details": "NPC purchases must be measured as external economy flow.", "importance": 90, "tags": ["fixture", "trade", "npc-shop"] }],
+      "knownSkills": [{ "id": "shopping.lumbridge.buy-hammers", "version": "1.0.0" }, { "id": "trade.lumbridge.give-item", "version": "1.0.0" }],
+      "autonomy": { "status": "desired", "policyId": "private-local-default", "policyVersion": "1.0.0" }, "provenance": "fixture-bootstrap"
+    },
+    {
+      "username": "VRWorker1", "agentId": "vrworker1", "displayName": "Varrock Worker One",
+      "background": "Flexible Varrock Forge employee available for exact work orders.", "personalityTraits": ["adaptable", "reliable"],
+      "controlProfile": { "decisionIntervalMs": 60000, "maxDecisionsPerDay": 96, "dailyLlmBudgetMicros": 500000, "dailyOperationalBudgetGp": 200 },
+      "position": { "x": 3247, "z": 3411, "level": 0, "region": "Varrock East Workshop" },
+      "skills": { "defaultExperience": 0, "overrides": [{ "name": "Hitpoints", "experience": 9800 }, { "name": "Mining", "experience": 18600 }, { "name": "Smithing", "experience": 18600 }] },
+      "inventory": [{ "id": 2347, "count": 1 }, { "id": 1265, "count": 1 }], "equipment": [], "bank": [], "coins": 250, "coinPlacement": "bank",
+      "goals": [
+        { "goalId": "vrworker1.life", "parentGoalId": null, "horizon": "life", "title": "Build a stable working life", "description": "Earn through trustworthy work.", "priority": 100, "skill": null },
+        { "goalId": "vrworker1.employment", "parentGoalId": "vrworker1.life", "horizon": "long-term", "title": "Work for Varrock Forge", "description": "Accept policy-compliant jobs.", "priority": 90, "skill": null },
+        { "goalId": "vrworker1.available", "parentGoalId": "vrworker1.employment", "horizon": "current", "title": "Remain ready for work orders", "description": "Keep tools and capacity available.", "priority": 80, "skill": null },
+        { "goalId": "vrworker1.run", "parentGoalId": "vrworker1.available", "horizon": "immediate", "title": "Bank one copper load", "description": "Demonstrate an exact known production input skill.", "priority": 70, "skill": { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" } }
+      ],
+      "memorySeeds": [{ "episodeId": "vrworker1.fixture-start", "kind": "observation", "summary": "Started as an active Varrock Forge employee.", "details": "Only exact approved work orders may be accepted.", "importance": 90, "tags": ["fixture", "employment", "work-order"] }],
+      "knownSkills": [{ "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" }, { "id": "production.varrock.bronze-daggers", "version": "1.0.0" }, { "id": "procedure.bank.deposit-item", "version": "1.0.0" }],
+      "autonomy": { "status": "desired", "policyId": "private-local-default", "policyVersion": "1.0.0" }, "provenance": "fixture-bootstrap"
+    }
+  ],
+  "business": {
+    "businessId": "varrock-forge", "institutionAgentId": "varrock-forge-mind", "name": "Varrock Forge",
+    "summary": "Bounded proto-society workshop for production and employment experiments.",
+    "property": { "propertyId": "varrock.east-workshop", "expectedState": "available", "provenance": "fixture-bootstrap" },
+    "treasury": { "balanceGp": 10000, "provenance": "fixture-bootstrap" },
+    "policy": { "proposalId": "9a17f2d8-6f6b-4b92-9d4d-150c68ec1a01", "objective": "Issue bounded work orders for copper and bronze production.", "mode": "balanced", "maxRewardGp": 1000, "preferredSkills": [{ "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" }, { "id": "production.varrock.bronze-daggers", "version": "1.0.0" }], "approvalNote": "Approved by fixture bootstrap within the 1000 gp work-order ceiling." },
+    "employments": [
+      { "employmentId": "251b96d5-b22b-467f-876a-551a1c91a001", "workerAgentId": "vrsmith1", "role": "worker", "title": "Bronze smith", "wageGp": 400, "requiredSkill": { "id": "production.varrock.bronze-daggers", "version": "1.0.0" } },
+      { "employmentId": "251b96d5-b22b-467f-876a-551a1c91a002", "workerAgentId": "vrworker1", "role": "worker", "title": "Flexible forge worker", "wageGp": 350, "requiredSkill": { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" } }
+    ],
+    "workOrders": [
+      { "requestId": "7b7cc898-458b-4dbd-8ca4-150c68ec1a01", "assigneeAgentId": "vrsmith1", "skill": { "id": "production.varrock.bronze-daggers", "version": "1.0.0" }, "parameters": { "target-items": 1 }, "objective": "Produce one bounded bronze dagger batch for Varrock Forge.", "rewardGp": 400 },
+      { "requestId": "7b7cc898-458b-4dbd-8ca4-150c68ec1a02", "assigneeAgentId": "vrworker1", "skill": { "id": "mining.varrock-east.copper-to-bank", "version": "1.0.0" }, "parameters": {}, "objective": "Bank one bounded copper load for Varrock Forge.", "rewardGp": 350 }
+    ]
+  },
+  "externalDependencies": [
+    { "dependencyId": "varrock-general-store-sales", "kind": "vanilla-npc-shop", "description": "Copper and iron output leaves the agent economy through the vanilla Varrock general store.", "measured": true, "metric": "npcShopSellGp" },
+    { "dependencyId": "lumbridge-general-store-purchases", "kind": "vanilla-npc-shop", "description": "Initial hammer procurement enters through the vanilla Lumbridge general store.", "measured": true, "metric": "npcShopBuyGp" }
+  ],
+  "selfSustaining": false,
+  "restorePlan": { "engineSaveBackups": "per-player-before-edit", "agentState": "sqlite-backup-before-apply", "domainDatabases": ["businesses.sqlite", "institution-treasury.sqlite", "properties.sqlite"], "rollbackRequiresStoppedStack": true }
+}

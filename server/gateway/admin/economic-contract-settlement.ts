@@ -23,6 +23,12 @@ export interface EconomicContractEvidenceOutcome {
     settlementError: string | null;
 }
 
+export interface EconomicContractSettlementRecoveryResult {
+    attemptedContractIds: string[];
+    completedContractIds: string[];
+    errors: Array<{ contractId: string; message: string }>;
+}
+
 function stableUuid(key: string): string {
     const bytes = Buffer.from(createHash('sha256').update(key).digest().subarray(0, 16));
     bytes[6] = (bytes[6]! & 0x0f) | 0x50;
@@ -250,6 +256,33 @@ export async function settleReadyEconomicContract(contractId: string,
         treasury.close();
         contracts.close();
     }
+}
+
+/** Bounded restart/periodic recovery; settlement and escrow IDs are never regenerated. */
+export async function recoverReadyEconomicContractSettlements(
+    options: EconomicContractSettlementOptions = {}): Promise<EconomicContractSettlementRecoveryResult> {
+    const contracts = new EconomicContractStore(options.contractsPath ?? economicContractsDbPath);
+    let contractIds: string[];
+    try {
+        contractIds = contracts.listContracts(500).filter(contract =>
+            contracts.listReadySettlements(contract.contractId).length > 0
+            || contracts.listReadyPlayerEscrows(contract.contractId).length > 0)
+            .slice(0, 100).map(contract => contract.contractId);
+    } finally { contracts.close(); }
+    const result: EconomicContractSettlementRecoveryResult = {
+        attemptedContractIds: [], completedContractIds: [], errors: []
+    };
+    for (const contractId of contractIds) {
+        result.attemptedContractIds.push(contractId);
+        try {
+            await settleReadyEconomicContract(contractId, options);
+            result.completedContractIds.push(contractId);
+        } catch (error) {
+            result.errors.push({ contractId,
+                message: (error instanceof Error ? error.message : String(error)).slice(0, 500) });
+        }
+    }
+    return result;
 }
 
 export async function resolveEconomicContract(contractId: string, resolution: 'cancelled' | 'defaulted',

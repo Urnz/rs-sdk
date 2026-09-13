@@ -31,5 +31,9 @@ jobs/
 # Local Windows runtime state
 server/engine/*.sqlite-shm
 server/engine/*.sqlite-wal
+# Project-specific mod stores are local runtime state, never source artifacts.
+server/engine/data/mods/*.sqlite
+server/engine/data/mods/*.sqlite-shm
+server/engine/data/mods/*.sqlite-wal
 # Legacy cache path created by older lite-client sessions when HOME was unset.
 server/webclient/undefined/

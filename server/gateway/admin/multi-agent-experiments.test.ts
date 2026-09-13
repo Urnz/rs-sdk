@@ -136,6 +136,9 @@ test('admin UI exposes a separate multi-agent experiment tab and bounded partici
     expect(script).toContain('/api/admin/multi-agent-experiments');
     expect(script).toContain('input[name="experimentAgentId"]:checked');
     expect(script).toContain('metrics.economicEventSummary.producedItems');
+    expect(script).toContain('metrics?.economyProvenance');
+    expect(script).toContain('külső NPC shop:');
+    expect(script).toContain('agent↔Business:');
     expect(script).toContain('metrics?.finishedProductValuation');
     expect(script).toContain('metrics.skillConcentration');
     expect(script).toContain('metrics?.participantResults');
@@ -229,6 +232,9 @@ describe('persistent multi-agent experiment runner', () => {
             completedParticipants: 2, unsuccessfulParticipants: 0, durationMs: 63_000,
             economicEvents: 3, economicEventSummary: { producedItems: 2, shopTransactions: 1, netCoins: 10 },
             grossIncomeGp: 10, grossSpendingGp: 0,
+            economyProvenance: { fixtureId: null, bootstrapWealth: null,
+                externalNpcShop: { buyTransactions: 0, sellTransactions: 1, receivedGp: 10 },
+                agentToAgent: { tradeEvents: 0 }, agentToBusiness: { contracts: 0 } },
             finishedProductValuation: { grossProducedValueGp: 48, grossConsumedValueGp: 0,
                 netValueDeltaGp: 48, products: [{ itemId: 1205, itemName: 'Bronze dagger',
                     unitValueGp: 16, countDelta: 3, valueDeltaGp: 48 }] },

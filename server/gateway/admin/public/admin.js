@@ -13,6 +13,8 @@ const state = {
     worldModBackups: [],
     properties: null,
     agents: [],
+    autonomyControl: null,
+    autonomyStatus: [],
     agentSkills: [],
     skillGrants: [],
     skillLearningEvents: [],
@@ -127,7 +129,7 @@ function renderLlmSettings(settings) {
     form.elements.automaticReplanning.checked = config.automaticReplanning;
     form.elements.autonomousExecutionEnabled.checked = config.autonomousExecution.enabled;
     form.elements.autonomousAllowedSkills.value = config.autonomousExecution.allowedSkills
-        .map(skill => `${skill.id}@${skill.version}`).join('\n');
+        .map(skill => JSON.stringify(skill)).join('\n');
     form.elements.autonomousMaxOperations.value = config.autonomousExecution.maxOperations;
     form.elements.autonomousMaxTimeoutMs.value = config.autonomousExecution.maxTimeoutMs;
     form.elements.plannerPrompt.value = config.plannerPrompt;
@@ -145,6 +147,10 @@ function renderLlmSettings(settings) {
     form.elements.maxToolCalls.value = config.limits.maxToolCalls;
     form.elements.maxOutputTokens.value = config.limits.maxOutputTokens;
     form.elements.maxCostMicros.value = config.limits.maxCostMicros;
+    form.elements.dailyBudgetScope.value = config.dailyBudget.scope;
+    form.elements.dailyBudgetMaxCostMicros.value = config.dailyBudget.maxCostMicros;
+    form.elements.dailyBudgetMaxDecisions.value = config.dailyBudget.maxDecisions;
+    form.elements.dailyBudgetEstimatedCostMicros.value = config.dailyBudget.estimatedCostMicros;
     form.elements.inputPrice.value = config.pricing?.inputMicrosPerMillionTokens ?? '';
     form.elements.outputPrice.value = config.pricing?.outputMicrosPerMillionTokens ?? '';
     form.elements.apiKey.value = '';
@@ -364,9 +370,22 @@ function showLlmDryRun(result) {
 
 function renderAgents() {
     $('#agent-count').textContent = `${state.agents.length} agent`;
+    const globalControl = state.autonomyControl;
+    $('#autonomy-control').innerHTML = globalControl ? `<div class="agent-section-heading">
+        <div><p class="eyebrow">AUTONOMY CONTROL</p><h3>${globalControl.emergencyStop ? 'Globális vészleállítás aktív' : 'Automatikus futás engedélyezett'}</h3>
+            <small>${globalControl.emergencyStop ? escapeHtml(globalControl.reason) : 'rev ' + globalControl.revision}</small></div>
+        <button class="button small ${globalControl.emergencyStop ? 'primary' : 'danger-outline'}"
+            data-action="autonomy-global-${globalControl.emergencyStop ? 'resume' : 'emergency-stop'}"
+            data-revision="${globalControl.revision}">${globalControl.emergencyStop ? 'Globális folytatás' : 'Vészleállítás'}</button></div>` : '';
     $('#agent-list').innerHTML = state.agents.length ? state.agents.map(agent => {
         const identity = agent.identity;
         const control = agent.controlProfile;
+        const autonomy = agent.autonomyEnrollment;
+        const autonomyAction = !autonomy ? '' : autonomy.status === 'paused'
+            ? `<button class="button small primary" data-action="agent-autonomy-resume" data-agent-id="${escapeHtml(identity.agentId)}" data-revision="${autonomy.revision}">Autonomy folytatása</button>`
+            : autonomy.status === 'quarantined'
+                ? `<button class="button small danger-outline" data-action="agent-autonomy-release-quarantine" data-agent-id="${escapeHtml(identity.agentId)}" data-revision="${autonomy.revision}">Quarantine feloldása</button>`
+                : `<button class="button small danger-outline" data-action="agent-autonomy-pause" data-agent-id="${escapeHtml(identity.agentId)}" data-revision="${autonomy.revision}">Autonomy szüneteltetése</button>`;
         const treasury = agent.treasury;
         const memory = agent.workingMemory;
         const goals = agent.goals.map(goal => `<div class="agent-goal">
@@ -475,6 +494,7 @@ function renderAgents() {
                     <button class="button small skill-button" data-action="agent-knowledge-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Tudás</button>
                     <button class="button small secondary" data-action="agent-relationship-add" data-agent-id="${escapeHtml(identity.agentId)}">+ Kapcsolat</button>
                     <button class="button small skill-button" data-action="agent-llm-dry-run" data-agent-id="${escapeHtml(identity.agentId)}">LLM dry-run</button>
+                    ${autonomyAction}
                     ${control.role === 'player' ? `<button class="button small primary" data-action="agent-autonomous-cycle" data-agent-id="${escapeHtml(identity.agentId)}">Autonóm ciklus indítása</button>` : ''}
                     <button class="button small ghost" data-action="agent-plan" data-agent-id="${escapeHtml(identity.agentId)}">Planner dry-run</button>
                     <button class="button small primary" data-action="agent-plan-execute" data-agent-id="${escapeHtml(identity.agentId)}">Döntés végrehajtása</button>
@@ -482,6 +502,7 @@ function renderAgents() {
             <div class="agent-meta"><span class="agent-chip">${escapeHtml(identity.agentId)}</span><span class="agent-chip">${escapeHtml(control.role)}</span>
                 <span class="agent-chip">subject: ${escapeHtml(control.subjectKind)}:${escapeHtml(control.subjectId)}</span>
                 <span class="agent-chip">avatar: ${escapeHtml(control.avatarPlayerUsername || 'nincs')}</span>
+                ${autonomy ? `<span class="agent-chip">autonomy: ${escapeHtml(autonomy.status)} · rev ${autonomy.revision}</span>` : '<span class="agent-chip">autonomy: nincs enrolled</span>'}
                 <span class="agent-chip">${control.maxDecisionsPerDay} döntés/nap · ${control.dailyOperationalBudgetGp} gp</span>
                 ${treasury ? `<span class="agent-chip">treasury: ${fmt.format(treasury.availableGp)} szabad / ${fmt.format(treasury.balanceGp)} gp</span>` : ''}
                 ${identity.personalityTraits.map(trait => `<span class="agent-chip">${escapeHtml(trait)}</span>`).join('')}
@@ -510,6 +531,22 @@ function renderAgents() {
     }).join('') : '<p class="empty">Még nincs persistent agent. Hozd létre az elsőt egy meglévő bothoz.</p>';
 }
 
+function renderAutonomyStatus() {
+    const labels = { enrolled: 'Enrolled', idle: 'Idle', planning: 'Tervez', executing: 'Végrehajt',
+        backoff: 'Backoff', quarantined: 'Karantén', offline: 'Offline', recovering: 'Helyreállítás', paused: 'Szünetel' };
+    const waits = { 'admin-approval': 'admin jóváhagyás', 'fresh-state': 'friss state', capability: 'capability',
+        'fail-closed-reconciliation': 'fail-closed reconciliation' };
+    const root = $('#autonomy-dashboard');
+    if (!root) return;
+    root.innerHTML = state.autonomyStatus.length ? state.autonomyStatus.map(item => `<article class="autonomy-status-card ${escapeHtml(item.status)}">
+        <div><strong>${escapeHtml(item.agentId)}</strong><span class="agent-chip">${escapeHtml(labels[item.status] || item.status)}</span></div>
+        <small>${item.waitingFor ? `Várakozik: ${escapeHtml(waits[item.waitingFor] || item.waitingFor)} · ` : ''}replan ${item.replanQueue.pending}/${item.replanQueue.claimed} · inference ${item.inferenceQueue.pending}/${item.inferenceQueue.claimed}</small>
+        <small>ma: ${item.costToday.decisions} döntés · ${fmt.format(item.costToday.llmMicros)} µ · ${fmt.format(item.costToday.operationalGp)} gp</small>
+        <small>lease: ${escapeHtml(item.lease.owner || 'nincs')}${item.lease.expiresAt ? ` · ${escapeHtml(relativeTime(item.lease.expiresAt))}` : ''}</small>
+        <small>utolsó hiteles progressz: ${item.lastVerifiedProgressAt ? escapeHtml(relativeTime(item.lastVerifiedProgressAt)) : 'nincs'} · következő wake-up: ${item.nextWakeupAt ? escapeHtml(relativeTime(item.nextWakeupAt)) : 'nincs'}</small>
+    </article>`).join('') : '<p class="empty">Nincs megfigyelhető autonomy enrollment.</p>';
+}
+
 function renderSkillLearning() {
     const active = state.skillGrants.filter(grant => grant.active).length;
     $('#skill-grant-count').textContent = `${active} aktív grant`;
@@ -529,11 +566,14 @@ function renderSkillLearning() {
 }
 
 async function refreshAgents() {
-    const [data, learning] = await Promise.all([api('/api/admin/agents'), api('/api/admin/skill-learning')]);
+    const [data, learning, observability] = await Promise.all([api('/api/admin/agents'),
+        api('/api/admin/skill-learning'), api('/api/admin/autonomy/status')]);
     state.agents = data.agents;
+    state.autonomyControl = data.autonomyControl;
+    state.autonomyStatus = observability.agents;
     state.agentSkills = data.skills;
     state.skillGrants = learning.grants; state.skillLearningEvents = learning.events;
-    renderAgents(); renderSkillLearning(); renderMultiAgentCandidates(); renderEconomicOfferAgentOptions();
+    renderAgents(); renderAutonomyStatus(); renderSkillLearning(); renderMultiAgentCandidates(); renderEconomicOfferAgentOptions();
     renderBusinessAgentOptions();
 }
 
@@ -644,19 +684,23 @@ function renderMultiAgentExperiments(experiments) {
                 <div class="capability-gap-meta"><span>létrejött: ${fmt.format(finishedProductValuation.grossProducedValueGp)} gp</span><span>elfogyott: ${fmt.format(finishedProductValuation.grossConsumedValueGp)} gp</span><span>nettó: ${signed(finishedProductValuation.netValueDeltaGp)} gp</span><span>profil: ${escapeHtml(finishedProductValuation.profileId)}@${escapeHtml(finishedProductValuation.profileVersion)} (${escapeHtml(finishedProductValuation.profileDigest.slice(0, 12))})</span></div>
                 ${finishedProductValuation.products.length ? `<ul>${finishedProductValuation.products.map(item =>
                     `<li>${escapeHtml(item.itemName)} (#${item.itemId}): ${signed(item.countDelta)} db × ${fmt.format(item.unitValueGp)} gp = ${signed(item.valueDeltaGp)} gp</li>`).join('')}</ul>` : '<p class="empty">Nem változott profilban értékelt késztermék készlete.</p>'}</details>` : '';
+        const provenance = metrics?.economyProvenance;
+        const provenanceMetrics = provenance
+            ? `<details><summary>Gazdasági eredet és függőségek</summary><div class="capability-gap-meta"><span>külső NPC shop: ${fmt.format(provenance.externalNpcShop.buyTransactions + provenance.externalNpcShop.sellTransactions)} tranzakció · ${fmt.format(provenance.externalNpcShop.spentGp)} gp ki / ${fmt.format(provenance.externalNpcShop.receivedGp)} gp be</span><span>agent↔agent: ${fmt.format(provenance.agentToAgent.tradeEvents)} trade · ${fmt.format(provenance.agentToAgent.contracts)} szerződés</span><span>agent↔Business: ${fmt.format(provenance.agentToBusiness.contracts)} szerződés · ${fmt.format(provenance.agentToBusiness.gpTransferred)} gp</span>${provenance.bootstrapWealth ? `<span>bootstrap-vagyon: ${fmt.format(provenance.bootstrapWealth.participantCoinsGp)} gp + ${fmt.format(provenance.bootstrapWealth.participantItemUnits)} tárgy · Business ${fmt.format(provenance.bootstrapWealth.businessTreasuryGp)} gp</span>` : '<span>bootstrap-vagyon: nem fixture cohort</span>'}</div></details>` : '';
         const activityTimeline = metrics?.activityTimeline?.length
             ? `<details><summary>Aktivitási idősor (${metrics.activityTimeline.length} perc-bucket)</summary><ol>${metrics.activityTimeline.map(bucket =>
                 `<li><strong>+${bucket.minute}. perc</strong> · ${fmt.format(bucket.evidenceAgentIds.length)} evidence-agent · ${fmt.format(bucket.economicEvents)} gazdasági esemény · ${fmt.format(bucket.goalEvents || 0)} célesemény (${fmt.format(bucket.goalsCompleted || 0)} teljesült, ${fmt.format(bucket.goalsBlocked || 0)} elakadt, ${fmt.format(bucket.goalsAbandoned || 0)} elhagyott) · ${fmt.format(bucket.grossIncomeGp)} gp bevétel · ${fmt.format(bucket.grossSpendingGp)} gp kiadás · ${fmt.format(bucket.producedItems)} termelt · ${fmt.format(bucket.consumedItems)} felhasznált · ${fmt.format(bucket.newRegions)} új agent-régió</li>`).join('')}</ol></details>` : '';
         return `<article class="capability-gap-card ${escapeHtml(run.status)}">
             <div><strong>${escapeHtml(run.label)}</strong><small>${new Date(run.startedAt).toLocaleString('hu-HU')} · ${escapeHtml(statusLabel)}</small></div>
             <div><p>${escapeHtml(run.summary)}</p><small>seed: ${escapeHtml(run.seed)} · definíció: ${escapeHtml(run.definitionDigest)} · world-mod: ${escapeHtml(run.environmentDigest || 'legacy')} · paraméterprofil: ${run.parameterProfile ? `${escapeHtml(run.parameterProfile.profileId)}@${escapeHtml(run.parameterProfile.version)} (${escapeHtml(run.parameterProfileDigest?.slice(0, 12) || '')})` : 'legacy/nincs'}</small></div>
-            <div class="capability-gap-meta"><span>${run.participants.length} agent</span><span>baseline: ${fmt.format(baseline.totalCoins)} gp / ${baseline.online} online</span>${dispatch ? `<span>dispatch után: ${fmt.format(dispatch.totalCoins)} gp / ${dispatch.online} online</span>` : '<span>dispatch folyamatban</span>'}</div>
+            <div class="capability-gap-meta"><span>${run.participants.length} agent</span><span>baseline: ${fmt.format(baseline.totalCoins)} gp / ${baseline.online} online</span>${dispatch ? `<span>dispatch után: ${fmt.format(dispatch.totalCoins)} gp / ${dispatch.online} online</span>` : '<span>dispatch folyamatban</span>'}${metrics ? `<button type="button" class="button small ghost" data-action="experiment-acceptance-export" data-experiment-id="${escapeHtml(run.experimentId)}">Acceptance bundle export</button>` : ''}</div>
             ${final && metrics ? `<div class="capability-gap-meta"><span>végeredmény: ${fmt.format(final.totalCoins)} gp</span><span>pénz: ${signed(metrics.totalCoinsDelta)} gp</span><span>XP: ${signed(metrics.totalXpDelta)}</span><span>${metrics.completedParticipants}/${run.participants.length} sikeres</span><span>${fmt.format(metrics.durationMs)} ms</span></div>` : ''}
             ${activityMetrics}
             <details><summary>Agentenkénti eredmények</summary><ol class="experiment-participants">${participants}</ol></details>
             ${skillRuns}
             ${marketPrices}
             ${finishedProductValues}
+            ${provenanceMetrics}
             ${activityTimeline}
             ${itemDeltas}
             ${run.error ? `<p class="capability-gap-error">${escapeHtml(run.error)}</p>` : ''}
@@ -1724,11 +1768,25 @@ async function saveWorldMod(button) {
     else toast(result.hotReloaded ? 'A mod mentve és hot reloaddal aktiválva.' : 'A mod beállítása frissült.');
 }
 
+function downloadJson(filename, value) {
+    const url = URL.createObjectURL(new Blob([`${JSON.stringify(value, null, 2)}\n`], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = filename; anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 document.addEventListener('click', async event => {
     const button = event.target.closest('[data-action]');
     if (!button) return;
     const name = button.dataset.name;
     try {
+        if (button.dataset.action === 'experiment-acceptance-export') {
+            const experimentId = button.dataset.experimentId;
+            if (!experimentId) throw new Error('A kísérlet azonosítója hiányzik.');
+            const bundle = await api(`/api/admin/multi-agent-experiments/${encodeURIComponent(experimentId)}/acceptance-bundle`);
+            downloadJson(`acceptance-${experimentId}.json`, bundle);
+            toast('Az acceptance bundle letöltése elkészült.');
+        }
         if (button.dataset.action === 'offline-add-item') addEditableItem(button.dataset.target);
         if (button.dataset.action === 'offline-remove-item') {
             const container = button.closest('.editable-items');
@@ -2126,6 +2184,33 @@ document.addEventListener('click', async event => {
             });
             toast('A skill-hozzáférési jogosultság visszavonva.'); await refreshAgents();
         }
+        if (button.dataset.action?.startsWith('agent-autonomy-')) {
+            const action = button.dataset.action.slice('agent-autonomy-'.length);
+            const labels = { pause: 'szüneteltetés', resume: 'folytatás',
+                'release-quarantine': 'quarantine feloldás és paused állapotba helyezés' };
+            const reason = prompt(`Az autonomy ${labels[action] || action} indoklása:`,
+                action === 'pause' ? 'Operátori szüneteltetés' : 'Operátori felülvizsgálat');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/autonomy/${action}`, {
+                method: 'POST', mutation: true, body: JSON.stringify({
+                    expectedRevision: Number(button.dataset.revision), reason: reason.trim()
+                })
+            });
+            toast(`Autonomy ${labels[action] || action} rögzítve.`); await refreshAgents();
+        }
+        if (button.dataset.action?.startsWith('autonomy-global-')) {
+            const action = button.dataset.action.slice('autonomy-global-'.length);
+            if (action === 'emergency-stop'
+                && !confirm('A globális vészleállítás megszakítja a látható autonóm LLM- és skill-futásokat. Folytatod?')) return;
+            const reason = prompt(action === 'emergency-stop'
+                ? 'A globális vészleállítás indoklása:' : 'A globális folytatás felülvizsgálati indoklása:',
+            action === 'emergency-stop' ? 'Operátori vészleállítás' : 'A vészhelyzet felülvizsgálva');
+            if (!reason?.trim()) return;
+            await api(`/api/admin/autonomy/${action}`, { method: 'POST', mutation: true,
+                body: JSON.stringify({ expectedRevision: Number(button.dataset.revision), reason: reason.trim() }) });
+            toast(action === 'emergency-stop' ? 'A globális autonomy vészleállítás aktív.' : 'A globális autonomy folytatható.');
+            await refreshAgents();
+        }
         if (button.dataset.action === 'agent-goal-status') {
             const label = goalStatusLabels[button.dataset.goalStatus] || button.dataset.goalStatus;
             const reason = prompt(`A cél „${label}” állapotba helyezésének indoklása:`, 'Agent cél állapotának frissítése');
@@ -2270,11 +2355,28 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'skill-trial-publish') {
             const trial = state.skillTrials.find(entry => entry.trialId === button.dataset.trialId);
             if (!trial) throw new Error('A próba már nem található.');
+            const { approval } = await api(`/api/admin/skill-trials/${trial.trialId}/publication-approval`);
+            const passedChecks = approval.verificationChecks.filter(check => check.passed);
             const reason = prompt('Az emberi publikálási jóváhagyás indoklása:', 'Verifier-jelentés kézi áttekintése és elfogadása');
             if (!reason?.trim()) return;
-            if (!confirm(`${trial.draft.id}@${trial.draft.version} verified ${trial.targetVersion} verzióként bekerül a megosztott skillkönyvtárba. Ez külön emberi jóváhagyás. Publikálod?`)) return;
+            const approvalSummary = [
+                'EMBERI PUBLISH APPROVAL',
+                `Draft: ${approval.draft.id}@${approval.draft.version}`,
+                `Létrejövő shared verzió: ${approval.promoted.id}@${approval.promoted.version}`,
+                `Tesztbot: ${approval.testBotUsername}`,
+                `Pontos paraméterek: ${JSON.stringify(approval.parameters)}`,
+                `Élő evidence runok (${approval.evidenceRunIds.length}): ${approval.evidenceRunIds.join(', ')}`,
+                `Verifier ellenőrzések: ${passedChecks.length}/${approval.verificationChecks.length} sikeres`,
+                `Approval digest: ${approval.digest}`,
+                '',
+                'Jóváhagyás után ez a változtathatatlan verzió bekerül a shared verified könyvtárba.',
+                'Ez önmagában NEM teszi autonóm allowlistessé és nem indít el botot.',
+                'Átnézted és publikálod pontosan ezt az összeállítást?'
+            ].join('\n');
+            if (!confirm(approvalSummary)) return;
             await api(`/api/admin/skill-trials/${trial.trialId}/publish`, { method: 'POST', mutation: true,
-                body: JSON.stringify({ reason: reason.trim(), confirmHumanApproval: true }) });
+                body: JSON.stringify({ reason: reason.trim(), confirmHumanApproval: true,
+                    approvalDigest: approval.digest }) });
             toast('A verified skill publikálva; a várakozó agentek újratervezhetnek.');
             await refreshCapabilityGaps();
         }
@@ -2895,11 +2997,14 @@ $('#llm-settings-form').addEventListener('submit', async event => {
     if (autonomousExecutionEnabled && !state.llmSettings?.config.autonomousExecution.enabled
         && !confirm('Az allowlistelt skillek jelentős események után admin kattintás nélkül ténylegesen elindulhatnak. Biztosan bekapcsolod?')) return;
     const autonomousAllowedSkills = String(values.get('autonomousAllowedSkills') || '')
-        .split(/[\s,]+/).map(value => value.trim()).filter(Boolean).map(reference => {
+        .split(/\r?\n/).map(value => value.trim()).filter(Boolean).map(reference => {
+            if (reference.startsWith('{')) return JSON.parse(reference);
             const separator = reference.lastIndexOf('@');
             if (separator < 1) throw new Error(`Érvénytelen autonóm skillhivatkozás: ${reference}`);
             return { id: reference.slice(0, separator), version: reference.slice(separator + 1) };
         });
+    if (JSON.stringify(autonomousAllowedSkills) !== JSON.stringify(state.llmSettings?.config.autonomousExecution.allowedSkills ?? [])
+        && !confirm('Az autonóm skill-authorizáció módosítása tényleges műveleti jogot szűkíthet vagy bővíthet. Jóváhagyod az új exact envelope mentését?')) return;
     const reasoningEffort = String(values.get('reasoningEffort') || '');
     const config = {
         schemaVersion: 1,
@@ -2936,6 +3041,12 @@ $('#llm-settings-form').addEventListener('submit', async event => {
             maxToolCalls: Number(values.get('maxToolCalls')),
             maxCostMicros: Number(values.get('maxCostMicros')),
             maxOutputTokens: Number(values.get('maxOutputTokens'))
+        },
+        dailyBudget: {
+            scope: String(values.get('dailyBudgetScope')),
+            maxCostMicros: Number(values.get('dailyBudgetMaxCostMicros')),
+            maxDecisions: Number(values.get('dailyBudgetMaxDecisions')),
+            estimatedCostMicros: Number(values.get('dailyBudgetEstimatedCostMicros'))
         }
     };
     const button = $('#save-llm-settings');

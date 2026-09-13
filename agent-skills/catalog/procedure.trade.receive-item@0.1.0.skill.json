@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.trade.receive-item",
+  "version": "0.1.0",
+  "name": "Receive an exact item from a player",
+  "description": "Completes the receiving side of a bounded two-player trade and refuses completion unless the exact partner offer contains the required item quantity.",
+  "status": "draft",
+  "tags": ["procedure", "trade", "receiving", "composition"],
+  "parameters": {
+    "partner": { "type": "string", "description": "Exact trading partner name.", "required": true },
+    "item": { "type": "string", "description": "Exact item name required from the partner.", "required": true },
+    "amount": { "type": "number", "description": "Required quantity.", "default": 1, "minimum": 1, "maximum": 28 }
+  },
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "phase15-skill-builder",
+    "createdAt": "2026-09-09T00:00:00.000Z",
+    "notes": "Reusable CapabilityGap candidate. The SDK re-verifies the offer on both trade screens; autonomous use still requires exact partner/item authorization and two independent live evidence runs."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 240000, "maxOperations": 2 },
+  "preconditions": [
+    { "condition": "inventory-free-slots-at-least", "arguments": { "slots": 1 } }
+  ],
+  "steps": [
+    { "kind": "operation", "id": "receive-item", "operation": "trade-receive-item", "arguments": { "player": { "parameter": "partner" }, "match": "exact", "item": { "parameter": "item" }, "itemMatch": "exact", "amount": { "parameter": "amount" }, "requestTimeoutMs": 60000, "timeoutMs": 90000 }, "maxAttempts": 2 }
+  ]
+}

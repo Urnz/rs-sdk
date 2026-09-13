@@ -12,6 +12,7 @@ export interface AdminSkillRun {
     message: string;
     operations: number;
     durationMs: number;
+    parameters?: Record<string, string | number | boolean> | null;
     startedAt: string;
     finishedAt: string;
     events: SkillEvent[];
@@ -32,6 +33,13 @@ function parseRun(value: unknown, eventLimit: number): AdminSkillRun | null {
         || typeof first !== 'string' || typeof last !== 'string') return null;
     const username = typeof raw.username === 'string' && /^[a-zA-Z0-9 _-]{1,12}$/.test(raw.username)
         ? raw.username.toLowerCase() : null;
+    const rawParameters = raw.parameters;
+    const parameterEntries = rawParameters && typeof rawParameters === 'object' && !Array.isArray(rawParameters)
+        ? Object.entries(rawParameters as Record<string, unknown>) : null;
+    const parameters = parameterEntries && parameterEntries.length <= 20
+        && parameterEntries.every(([name, value]) => /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(name)
+            && (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'))
+        ? Object.fromEntries(parameterEntries) as Record<string, string | number | boolean> : null;
     return {
         runId: raw.runId,
         username,
@@ -41,6 +49,7 @@ function parseRun(value: unknown, eventLimit: number): AdminSkillRun | null {
         message: typeof raw.message === 'string' ? raw.message : '',
         operations: Number.isInteger(raw.operations) ? Number(raw.operations) : 0,
         durationMs: Number.isFinite(raw.durationMs) ? Math.max(0, Number(raw.durationMs)) : 0,
+        parameters,
         startedAt: first,
         finishedAt: last,
         events: events.slice(-eventLimit)

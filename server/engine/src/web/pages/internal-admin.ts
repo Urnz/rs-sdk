@@ -68,6 +68,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/properties'
         || url.pathname === '/api/internal/admin/properties/purchase'
         || url.pathname === '/api/internal/admin/properties/reset'
+        || url.pathname === '/api/internal/admin/properties/transfer'
         || url.pathname === '/api/internal/admin/properties/reconcile'
         || url.pathname === '/api/internal/admin/world-mods'
         || url.pathname === '/api/internal/admin/world-mods/reload'

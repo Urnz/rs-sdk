@@ -1,4 +1,5 @@
 import type { AgentSkillReference, GoalHorizon } from '../agent-state/types.js';
+import type { SkillOperationName } from '../agent-skills/types.js';
 
 export const LLM_RUNTIME_SCHEMA_VERSION = 1 as const;
 
@@ -17,6 +18,13 @@ export interface LlmRuntimeLimits {
     maxOutputTokens: number;
 }
 
+export interface LlmDailyBudgetConfig {
+    scope: string;
+    maxCostMicros: number;
+    maxDecisions: number;
+    estimatedCostMicros: number;
+}
+
 export interface LlmSkillBuilderConfig {
     enabled: boolean;
     prompt: string;
@@ -31,9 +39,31 @@ export interface LlmSkillBuilderConfig {
 
 export interface LlmAutonomousExecutionConfig {
     enabled: boolean;
-    allowedSkills: AgentSkillReference[];
+    allowedSkills: AutonomousSkillAuthorization[];
     maxOperations: number;
     maxTimeoutMs: number;
+}
+
+export type AutonomousScalar = string | number | boolean;
+
+export interface AutonomousParameterLimit {
+    exact?: AutonomousScalar;
+    oneOf?: AutonomousScalar[];
+    minimum?: number;
+    maximum?: number;
+}
+
+/** Exact-version, human-authored authorization envelope for one autonomous skill. */
+export interface AutonomousSkillAuthorization extends AgentSkillReference {
+    risk?: 'routine' | 'shop-buy' | 'player-trade';
+    operations?: SkillOperationName[];
+    parameters?: Record<string, AutonomousParameterLimit>;
+    itemNames?: string[];
+    partners?: string[];
+    maxQuantity?: number;
+    maxUnitPriceGp?: number;
+    maxGpPerRun?: number;
+    maxGpPerDay?: number;
 }
 
 export interface LlmRuntimeConfig {
@@ -50,6 +80,7 @@ export interface LlmRuntimeConfig {
         outputMicrosPerMillionTokens: number;
     };
     skillBuilder: LlmSkillBuilderConfig;
+    dailyBudget: LlmDailyBudgetConfig;
     limits: LlmRuntimeLimits;
 }
 
@@ -125,6 +156,7 @@ export type LlmDecision = {
     kind: 'execute-skill';
     goalId: string;
     skill: AgentSkillReference;
+    parameters: Record<string, string | number | boolean>;
     reason: string;
 } | {
     kind: 'propose-goal-plan';

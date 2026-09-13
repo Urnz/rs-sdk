@@ -11,6 +11,15 @@ describe('event-driven LLM replan gate', () => {
         expect(gate.consider(event, '2026-08-29T12:00:10.000Z').reason).toBe('duplicate');
     });
 
+    test('releases only the exact accepted key for a bounded transient retry', () => {
+        const gate = new LlmReplanEventGate();
+        expect(gate.consider(event, '2026-08-29T12:00:01.000Z').accepted).toBeTrue();
+        expect(gate.releaseForRetry(event, '2026-08-29T12:00:00.000Z')).toBeFalse();
+        expect(gate.consider(event, '2026-08-29T12:00:02.000Z').reason).toBe('duplicate');
+        expect(gate.releaseForRetry(event, '2026-08-29T12:00:01.000Z')).toBeTrue();
+        expect(gate.consider(event, '2026-08-29T12:00:02.000Z').accepted).toBeTrue();
+    });
+
     test('coalesces bursts but lets explicit admin previews bypass the cooldown', () => {
         const gate = new LlmReplanEventGate(5000);
         gate.consider(event, '2026-08-29T12:00:01.000Z');

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "workflow.varrock.bronze-dagger-bank-cycle",
+  "version": "0.1.0",
+  "name": "Varrock bronze dagger bank cycle",
+  "description": "Withdraws an exact bronze-bar batch, uses the reviewed Varrock dagger production procedure, and banks the completed output through exact-versioned skill composition.",
+  "status": "draft",
+  "tags": ["workflow", "production", "banking", "composition", "smithing"],
+  "parameters": {
+    "bank-x": { "type": "number", "description": "Bank X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "bank-z": { "type": "number", "description": "Bank Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "tolerance": { "type": "number", "description": "Accepted bank coordinate distance.", "default": 5, "minimum": 0, "maximum": 20 },
+    "target-items": { "type": "number", "description": "Exact number of bronze bars to withdraw and daggers to produce.", "default": 1, "minimum": 1, "maximum": 5 }
+  },
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "phase15-skill-builder",
+    "createdAt": "2026-09-10T17:45:00.000Z",
+    "notes": "High-level capability candidate composed from exact verified procedures. It introduces no new primitive operation and requires two independent live runs plus explicit human publication approval."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 600000, "maxOperations": 30 },
+  "preconditions": [
+    { "condition": "inventory-contains", "arguments": { "name": "Hammer", "match": "exact" } },
+    { "condition": "inventory-free-slots-at-least", "arguments": { "slots": { "parameter": "target-items" } } },
+    { "condition": "skill-level-at-least", "arguments": { "skill": "Smithing", "level": 1 } }
+  ],
+  "steps": [
+    {
+      "kind": "call",
+      "id": "withdraw-bronze-bars",
+      "skill": { "id": "procedure.bank.withdraw-item", "version": "1.0.0" },
+      "arguments": {
+        "bank-x": { "parameter": "bank-x" },
+        "bank-z": { "parameter": "bank-z" },
+        "tolerance": { "parameter": "tolerance" },
+        "item": "Bronze bar",
+        "amount": { "parameter": "target-items" },
+        "as-note": false
+      }
+    },
+    {
+      "kind": "call",
+      "id": "smith-bronze-daggers",
+      "skill": { "id": "production.varrock.bronze-daggers", "version": "1.0.0" },
+      "arguments": { "target-items": { "parameter": "target-items" } }
+    },
+    {
+      "kind": "call",
+      "id": "bank-bronze-daggers",
+      "skill": { "id": "procedure.bank.deposit-item", "version": "1.0.0" },
+      "arguments": {
+        "bank-x": { "parameter": "bank-x" },
+        "bank-z": { "parameter": "bank-z" },
+        "tolerance": { "parameter": "tolerance" },
+        "item": "Bronze dagger",
+        "match": "exact"
+      }
+    }
+  ]
+}

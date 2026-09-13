@@ -1,6 +1,12 @@
 import type { BotActions } from '../sdk/actions';
 import type { BotSDK } from '../sdk';
-import type { SkillConditionName, SkillOperationName, SkillOperationResult, SkillRuntime } from './types';
+import type {
+    SkillConditionName,
+    SkillOperationName,
+    SkillOperationResult,
+    SkillRuntime,
+    SkillRuntimeAuthorization
+} from './types';
 
 function numberArg(args: Record<string, unknown>, key: string, fallback?: number, minimum = -Infinity, maximum = Infinity): number {
     const value = args[key] ?? fallback;
@@ -88,13 +94,18 @@ async function withAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T
 }
 
 export class RsSdkSkillRuntime implements SkillRuntime {
+    private spentGp = 0;
+
     constructor(
         private readonly bot: BotActions,
-        private readonly sdk: BotSDK
+        private readonly sdk: BotSDK,
+        private readonly authorization?: SkillRuntimeAuthorization
     ) {}
 
     async execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal): Promise<SkillOperationResult> {
         if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
+        const authorizationFailure = this.authorize(operation, args);
+        if (authorizationFailure) return authorizationFailure;
         switch (operation) {
             case 'walk-to': {
                 const x = numberArg(args, 'x', undefined, 0, 16_383);
@@ -279,17 +290,40 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                     ? undefined
                     : selector(stringArg(args, 'name'), args.match)));
             case 'buy-from-shop': {
+                const name = stringArg(args, 'name').trim().toLowerCase();
+                const amount = numberArg(args, 'amount', undefined, 1, 10_000);
+                if (this.authorization) {
+                    const shopItem = this.sdk.getState()?.shop.shopItems.find(item => item.name.trim().toLowerCase() === name);
+                    if (!shopItem) return { success: false, message: `Authorized shop item not found exactly: ${args.name}`,
+                        code: 'authorization-item-mismatch' };
+                    if (shopItem.buyPrice > this.authorization.maxUnitPriceGp) {
+                        return { success: false,
+                            message: `${shopItem.name} costs ${shopItem.buyPrice}gp, above the authorized unit price`,
+                            code: 'authorization-unit-price' };
+                    }
+                    const worstCaseSpend = amount * shopItem.buyPrice;
+                    if (this.spentGp + worstCaseSpend > this.authorization.maxGpPerRun) {
+                        return { success: false, message: 'Shop purchase exceeds the authorized run budget',
+                            code: 'authorization-run-budget' };
+                    }
+                }
                 const before = snapshotInventory(this.sdk);
                 const result = await this.bot.buyFromShop(
-                    selector(stringArg(args, 'name'), args.match),
-                    numberArg(args, 'amount', undefined, 1, 10_000)
+                    selector(stringArg(args, 'name'), args.match), amount,
+                    this.authorization ? { maxUnitPriceGp: this.authorization.maxUnitPriceGp } : undefined
                 );
+                const after = snapshotInventory(this.sdk);
+                if (this.authorization && result.amountBought) {
+                    const coinsBefore = before.find(item => item.id === 995)?.count ?? 0;
+                    const coinsAfter = after.find(item => item.id === 995)?.count ?? 0;
+                    this.spentGp += Math.max(0, coinsBefore - coinsAfter);
+                }
                 return normalized(result, {
                     item: args.name,
                     requestedAmount: result.requestedAmount,
                     amountBought: result.amountBought,
                     partial: result.partial,
-                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                    inventoryDelta: inventoryDelta(before, after)
                 });
             }
             case 'sell-to-shop': {
@@ -318,6 +352,29 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                             amount: numberArg(args, 'amount', undefined, 1, 2_147_483_647)
                         }],
                         want: [],
+                        requestTimeout: numberArg(args, 'requestTimeoutMs', 30_000, 1_000, 120_000),
+                        timeout: numberArg(args, 'timeoutMs', 60_000, 1_000, 180_000),
+                        retryOnBusy: true
+                    }
+                );
+                return normalized(result, {
+                    partner: result.partner ?? args.player,
+                    gave: result.gave,
+                    received: result.received,
+                    possiblyDropped: result.possiblyDropped,
+                    inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
+                });
+            }
+            case 'trade-receive-item': {
+                const before = snapshotInventory(this.sdk);
+                const result = await this.bot.trade(
+                    selector(stringArg(args, 'player'), args.match),
+                    {
+                        give: [],
+                        want: [{
+                            item: selector(stringArg(args, 'item'), args.itemMatch),
+                            amount: numberArg(args, 'amount', undefined, 1, 2_147_483_647)
+                        }],
                         requestTimeout: numberArg(args, 'requestTimeoutMs', 30_000, 1_000, 120_000),
                         timeout: numberArg(args, 'timeoutMs', 60_000, 1_000, 180_000),
                         retryOnBusy: true
@@ -368,6 +425,38 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 await this.sdk.waitForTicks(numberArg(args, 'ticks', undefined, 1, 100));
                 return { success: true, message: 'Wait complete' };
         }
+    }
+
+    private authorize(operation: SkillOperationName, args: Record<string, unknown>): SkillOperationResult | null {
+        const authorization = this.authorization;
+        if (!authorization) return null;
+        if (!authorization.operations.includes(operation)) {
+            return { success: false, message: `${operation} is outside the runtime authorization`,
+                code: 'authorization-operation' };
+        }
+        const rawAmount = args.amount;
+        const quantity = rawAmount === -1 ? 28 : rawAmount;
+        if (typeof quantity === 'number' && (!Number.isSafeInteger(quantity) || quantity < 0
+            || quantity > authorization.maxQuantity)) {
+            return { success: false, message: `${operation} exceeds the runtime quantity limit`,
+                code: 'authorization-quantity' };
+        }
+        const itemValue = operation === 'trade-give-item' || operation === 'trade-receive-item' ? args.item
+            : ['buy-from-shop', 'sell-to-shop', 'deposit-item', 'withdraw-item'].includes(operation) ? args.name : undefined;
+        if (itemValue !== undefined && (typeof itemValue !== 'string'
+            || (authorization.itemNames.length > 0
+                && !authorization.itemNames.includes(itemValue.trim().toLowerCase())))) {
+            return { success: false, message: `${String(itemValue)} is outside the runtime item authorization`,
+                code: 'authorization-item' };
+        }
+        if (operation === 'trade-give-item' || operation === 'trade-receive-item') {
+            const partner = typeof args.player === 'string' ? args.player.trim().toLowerCase() : '';
+            if (!partner || !authorization.partners.includes(partner)) {
+                return { success: false, message: `${String(args.player)} is outside the runtime partner authorization`,
+                    code: 'authorization-partner' };
+            }
+        }
+        return null;
     }
 
     async test(condition: SkillConditionName, args: Record<string, unknown>, signal: AbortSignal): Promise<boolean> {

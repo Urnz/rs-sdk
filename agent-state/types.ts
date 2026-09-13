@@ -1,4 +1,4 @@
-export const AGENT_STATE_SCHEMA_VERSION = 15 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 19 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -23,6 +23,12 @@ export type AgentPlayerActionStatus = 'pending' | 'accepted' | 'approved' | 'run
 export type AgentPlayerActionManualStatus = 'accepted' | 'rejected' | 'cancelled';
 export type AgentPlayerActionParameters = Record<string, string | number | boolean | null>;
 export type AgentGoalProposalStatus = 'pending' | 'approved' | 'running' | 'completed' | 'failed';
+export type AgentAutonomyStatus = 'desired' | 'running' | 'paused' | 'quarantined';
+export type AgentGoalExecutionPolicy = 'one-shot' | 'recurring';
+export type AgentSkillParameterSourceKind = 'goal' | 'work-order' | 'contract-obligation'
+    | 'approved-policy' | 'llm-suggestion';
+export type AgentSkillRunOutcomeClassification = 'completed' | 'acquire-input' | 'retry'
+    | 'capability-gap' | 'authorization';
 
 export interface AgentSkillReference {
     id: string;
@@ -98,6 +104,36 @@ export interface CreateAgentGoal {
     description?: string;
     priority?: number;
     skill?: AgentSkillReference | null;
+    execution?: CreateAgentGoalExecution | null;
+}
+
+export interface AgentSkillParameterBinding {
+    sourceKind: AgentSkillParameterSourceKind;
+    sourceId: string;
+    parameters: Record<string, string | number | boolean>;
+    digest: string;
+}
+
+export interface CreateAgentGoalExecution {
+    policy: AgentGoalExecutionPolicy;
+    requiredSuccessfulRuns?: number;
+    cooldownMs?: number;
+    binding: Omit<AgentSkillParameterBinding, 'digest'>;
+}
+
+/** Machine-checkable execution and progress state for an immediate skill goal. */
+export interface AgentGoalExecution {
+    goalId: string;
+    policy: AgentGoalExecutionPolicy;
+    completion: { kind: 'successful-skill-runs'; required: number };
+    progress: { successfulRuns: number };
+    cooldownMs: number;
+    nextEligibleAt: string | null;
+    lastRunId: string | null;
+    binding: AgentSkillParameterBinding;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
 }
 
 export interface AgentGoalProposal {
@@ -384,6 +420,44 @@ export interface SetAgentControlProfile {
     dailyOperationalBudgetGp: number;
 }
 
+/** Durable enrollment state consumed by the process-level autonomy supervisor. */
+export interface AgentAutonomyEnrollment {
+    agentId: string;
+    status: AgentAutonomyStatus;
+    policyId: string;
+    policyVersion: string;
+    nextWakeupAt: string | null;
+    leaseOwner: string | null;
+    leaseExpiresAt: string | null;
+    failureCount: number;
+    lastFailureFingerprint: string | null;
+    quarantineReason: string | null;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
+export interface SetAgentAutonomyEnrollment {
+    status: AgentAutonomyStatus;
+    policyId: string;
+    policyVersion: string;
+    nextWakeupAt?: string | null;
+    leaseOwner?: string | null;
+    leaseExpiresAt?: string | null;
+    failureCount?: number;
+    lastFailureFingerprint?: string | null;
+    quarantineReason?: string | null;
+}
+
+/** Singleton, restart-stable kill switch for every autonomous agent run. */
+export interface AgentAutonomyControl {
+    emergencyStop: boolean;
+    reason: string | null;
+    activatedAt: string | null;
+    updatedAt: string;
+    revision: number;
+}
+
 export interface AgentDecisionRecord {
     decisionId: string;
     agentId: string;
@@ -392,6 +466,27 @@ export interface AgentDecisionRecord {
     operationalBudgetGp: number;
     occurredAt: string;
     profileRevision: number;
+    contextDigest: string | null;
+}
+
+export interface AgentSkillDispatch {
+    runId: string;
+    decisionId: string;
+    agentId: string;
+    goalId: string;
+    skill: AgentSkillReference;
+    binding: AgentSkillParameterBinding;
+    policyId: string;
+    policyVersion: string;
+    createdAt: string;
+}
+
+export interface AgentSkillRunOutcome {
+    runId: string;
+    status: 'completed' | 'failed' | 'cancelled' | 'limit-reached';
+    classification: AgentSkillRunOutcomeClassification;
+    detail: string;
+    occurredAt: string;
 }
 
 export interface RecordAgentDecision {
@@ -399,6 +494,7 @@ export interface RecordAgentDecision {
     trigger: AgentDecisionTrigger;
     llmCostMicros?: number;
     operationalBudgetGp?: number;
+    contextDigest?: string | null;
 }
 
 export interface AgentPlayerActionRequest {

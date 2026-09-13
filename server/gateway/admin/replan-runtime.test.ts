@@ -4,8 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
 import { AgentReplanCoordinator } from './replan-coordinator.js';
+import { DurableAgentReplanCoordinator } from './durable-replan-coordinator.js';
+import { ReplanInboxStore } from './replan-inbox.js';
 import { appendReplanRecord, createGatewayAgentReplanCoordinator, dispatchVerifiedCapabilityWakeups,
-    evaluateAutonomousSkillPolicy, readReplanRecords } from './replan-runtime.js';
+    evaluateAutonomousSkillPolicy, readReplanRecords, terminalFailureFallback } from './replan-runtime.js';
 import type { SkillDefinition, SkillOperationName } from '../../../agent-skills/types.js';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { BotSupervisor } from './supervisor.js';
@@ -57,6 +59,32 @@ describe('verified capability wakeups', () => {
         expect(third).toHaveLength(0);
         expect(attempts).toBe(2);
     });
+
+    test('delivers a verified capability to the durable inbox without planning outside a lease', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'rs-capability-durable-wakeup-'));
+        directories.push(root);
+        const gapStore = new CapabilityGapStore(join(root, 'gaps.json'));
+        await verifiedGap(gapStore);
+        let plans = 0;
+        const inboxPath = join(root, 'inbox.sqlite');
+        const coordinator = new DurableAgentReplanCoordinator({ resolveAgentId: async () => null,
+            listAgentIds: async () => [], plan: async (_agentId, event) => { plans++; return {
+                runId: event.eventId, status: 'skipped', reason: 'Must not run.' }; }, append: () => undefined
+        }, { path: inboxPath });
+
+        expect(await dispatchVerifiedCapabilityWakeups(coordinator, gapStore,
+            '2026-09-08T13:00:00.000Z')).toEqual([expect.objectContaining({
+            outcome: expect.objectContaining({ status: 'queued' })
+        })]);
+        expect(await dispatchVerifiedCapabilityWakeups(coordinator, gapStore,
+            '2026-09-08T13:00:01.000Z')).toEqual([]);
+        expect(plans).toBe(0);
+        const inbox = new ReplanInboxStore(inboxPath);
+        expect(inbox.nextClaimableForAgent('agent-14', '2026-09-08T13:00:00.000Z')).toMatchObject({ event: {
+            type: 'capability-ready', sourceKey: expect.stringContaining('capability:')
+        } });
+        inbox.close();
+    });
 });
 
 function skill(operation: SkillOperationName = 'gather-loc'): SkillDefinition {
@@ -83,16 +111,78 @@ describe('autonomous skill execution policy', () => {
         expect(evaluateAutonomousSkillPolicy(config, skill('sell-to-shop')))
             .toMatchObject({ allowed: true });
         expect(evaluateAutonomousSkillPolicy(config, skill('buy-from-shop')))
-            .toMatchObject({ allowed: false, reason: expect.stringContaining('forbidden') });
+            .toMatchObject({ allowed: false, reason: expect.stringContaining('outside') });
         expect(evaluateAutonomousSkillPolicy(config, skill('trade-give-item')))
-            .toMatchObject({ allowed: false, reason: expect.stringContaining('forbidden') });
+            .toMatchObject({ allowed: false, reason: expect.stringContaining('outside') });
         expect(evaluateAutonomousSkillPolicy(config, { ...skill(), steps: [{ kind: 'call', id: 'nested',
             skill: { id: 'procedure.route', version: '1.0.0' }, arguments: {} }] }))
             .toMatchObject({ allowed: false, reason: expect.stringContaining('Composed') });
     });
+
+    test('turns a missing-input terminal into a bounded fallback instead of immediate redispatch', () => {
+        expect(terminalFailureFallback({ runId: '11111111-1111-4111-8111-111111111111', status: 'failed',
+            classification: 'acquire-input', detail: 'Missing item: Hammer',
+            occurredAt: '2026-09-09T10:00:00.000Z' })).toEqual({
+            runId: '11111111-1111-4111-8111-111111111111', status: 'input-required',
+            reason: 'Input acquisition or an explicit bounded wait is required before retrying: Missing item: Hammer'
+        });
+        expect(terminalFailureFallback({ runId: '22222222-2222-4222-8222-222222222222', status: 'failed',
+            classification: 'retry', detail: 'timeout', occurredAt: '2026-09-09T10:00:00.000Z' })).toEqual({
+            runId: '22222222-2222-4222-8222-222222222222', status: 'bounded-wait',
+            reason: 'The same failed skill is suppressed until the supervisor backoff expires: timeout'
+        });
+        expect(terminalFailureFallback({ runId: '33333333-3333-4333-8333-333333333333', status: 'failed',
+            classification: 'retry', detail: 'same route failed', occurredAt: '2026-09-09T10:00:00.000Z' },
+        { id: 'mining.alternative', version: '1.0.0' })).toMatchObject({ status: 'alternative-selected',
+            decision: { kind: 'alternative-skill', skill: { id: 'mining.alternative', version: '1.0.0' } } });
+        expect(terminalFailureFallback({ runId: '44444444-4444-4444-8444-444444444444', status: 'failed',
+            classification: 'authorization', detail: 'policy changed',
+            occurredAt: '2026-09-09T10:00:00.000Z' })).toMatchObject({ status: 'operator-warning' });
+    });
 });
 
 describe('bounded autonomous lifecycle acceptance', () => {
+    test('requires a live durable lease for every non-manual replan', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'rs-autonomy-admission-'));
+        directories.push(root);
+        const agentPath = join(root, 'agents.sqlite');
+        const store = new AgentStateStore(agentPath);
+        store.createIdentity({ agentId: 'ferrye14', playerUsername: 'Ferrye14', displayName: 'Ferrye',
+            background: 'A test miner.', personalityTraits: ['patient'] });
+        store.close();
+        const coordinator = createGatewayAgentReplanCoordinator(() => new Map(), {} as BotSupervisor,
+            async () => undefined, { agentPath });
+        const now = new Date().toISOString();
+        const record = await coordinator.submit({ eventId: 'automatic-without-lease', agentId: 'ferrye14',
+            type: 'goal-changed', sourceKey: 'goal:test:revision:1', occurredAt: now,
+            summary: 'An automatic event must not bypass enrollment.' }, now);
+        expect(record).toMatchObject({ gate: { accepted: true }, outcome: {
+            status: 'skipped', reason: 'Agent does not hold a live autonomy lease.' }, error: null });
+    });
+
+    test('requires the live lease to belong to the current gateway instance', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'rs-autonomy-owner-'));
+        directories.push(root);
+        const agentPath = join(root, 'agents.sqlite');
+        const store = new AgentStateStore(agentPath);
+        store.createIdentity({ agentId: 'ferrye14', playerUsername: 'Ferrye14', displayName: 'Ferrye',
+            background: 'A test miner.', personalityTraits: ['patient'] });
+        const enrollment = store.createAutonomyEnrollment('ferrye14', { status: 'desired',
+            policyId: 'private-local-default', policyVersion: '1.0.0' });
+        store.claimAutonomyEnrollment('ferrye14', enrollment.revision, 'gateway:old',
+            new Date(Date.now() + 60_000).toISOString());
+        store.close();
+        const coordinator = createGatewayAgentReplanCoordinator(() => new Map(), {} as BotSupervisor,
+            async () => undefined, { agentPath, requiredAutonomyLeaseOwner: 'gateway:new' });
+        const now = new Date().toISOString();
+        expect(await coordinator.submit({ eventId: 'automatic-wrong-owner', agentId: 'ferrye14',
+            type: 'skill-finished', sourceKey: 'skill:test:terminal', occurredAt: now,
+            summary: 'A recovered event must wait for current gateway ownership.' }, now)).toMatchObject({
+            outcome: { status: 'skipped',
+                reason: 'Agent autonomy lease belongs to another gateway instance.' }
+        });
+    });
+
     test('persists one admitted decision and starts only the exact policy-approved skill', async () => {
         const root = await mkdtemp(join(tmpdir(), 'rs-autonomous-lifecycle-'));
         directories.push(root);
@@ -110,7 +200,10 @@ describe('bounded autonomous lifecycle acceptance', () => {
         store.createGoal('ferrye14', { goalId: 'capital', parentGoalId: 'career', horizon: 'current',
             title: 'Build capital' });
         store.createGoal('ferrye14', { goalId: 'mine', parentGoalId: 'capital', horizon: 'immediate',
-            title: 'Mine copper', skill: reference });
+            title: 'Mine copper', skill: reference, execution: { policy: 'recurring', cooldownMs: 60_000,
+                binding: { sourceKind: 'goal', sourceId: 'mine', parameters: {} } } });
+        store.createAutonomyEnrollment('ferrye14', { status: 'desired', policyId: 'private-local-default',
+            policyVersion: '1.0.0' });
         store.setSkillKnowledge('ferrye14', reference, 'known', null);
         store.close();
         await writeFile(configPath, JSON.stringify({ schemaVersion: 1, enabled: false,
@@ -157,6 +250,10 @@ describe('bounded autonomous lifecycle acceptance', () => {
         expect(started[0]!.runId).toBe(record.outcome!.runId);
         const reopened = new AgentStateStore(agentPath);
         expect(reopened.listDecisions('ferrye14').map(item => item.decisionId)).toEqual(['manual-cycle-1']);
+        expect(reopened.getSkillDispatch(record.outcome!.runId)).toMatchObject({ decisionId: 'manual-cycle-1',
+            goalId: 'mine', binding: { sourceKind: 'goal', sourceId: 'mine', parameters: {
+                'mine-x': 3285, 'mine-z': 3365, 'bank-x': 3253, 'bank-z': 3420
+            } }, policyId: 'private-local-default', policyVersion: '1.0.0' });
         reopened.close();
         expect(await readReplanRecords(10, logPath)).toEqual([record]);
 

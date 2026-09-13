@@ -6,7 +6,7 @@ import type { RegisteredSkill, SkillDefinition } from '../../../agent-skills/typ
 import { PolicySkillStore } from '../../../agent-skills/policy-store.js';
 import { SkillLearningStore } from '../../../agent-skills/learning.js';
 import { legacySkillPolicy, type SkillSharingPolicy } from '../../../agent-skills/sharing-policy.js';
-import { policySkillsDir, repoRoot, skillLearningPath } from './paths';
+import { agentSkillsLocalDir, policySkillsDir, repoRoot, skillLearningPath } from './paths';
 
 export interface AdminSkillSummary {
     reference: string;
@@ -20,10 +20,16 @@ export interface AdminSkillSummary {
     policy: SkillSharingPolicy;
 }
 
-async function loadVerifiedRegistry(): Promise<SkillRegistry> {
+export interface AdminSkillCatalogSourceOptions {
+    catalogRoot?: string;
+    localRoot?: string;
+}
+
+async function loadVerifiedRegistry(options: AdminSkillCatalogSourceOptions = {}): Promise<SkillRegistry> {
     const registry = new SkillRegistry();
-    const library = new SkillLibrary(registry, new FileSkillStore(join(repoRoot, '.local', 'agent-skills')));
-    await library.loadReviewedCatalog(join(repoRoot, 'agent-skills', 'catalog'));
+    const library = new SkillLibrary(registry, new FileSkillStore(options.localRoot ?? agentSkillsLocalDir));
+    await library.loadReviewedCatalog(options.catalogRoot ?? join(repoRoot, 'agent-skills', 'catalog'));
+    await library.loadAgentDrafts('admin-skill-catalog');
     return registry;
 }
 
@@ -41,8 +47,8 @@ function summary(definition: SkillDefinition, policy: SkillSharingPolicy): Admin
     };
 }
 
-export async function listAdminSkills(): Promise<AdminSkillSummary[]> {
-    const registry = await loadVerifiedRegistry();
+export async function listAdminSkills(options: AdminSkillCatalogSourceOptions = {}): Promise<AdminSkillSummary[]> {
+    const registry = await loadVerifiedRegistry(options);
     const latest = new Map<string, RegisteredSkill>();
     for (const skill of registry.list({ status: 'verified' })) {
         if (skill.definition.sharing.visibility !== 'shared' || latest.has(skill.definition.id)) continue;
@@ -51,8 +57,8 @@ export async function listAdminSkills(): Promise<AdminSkillSummary[]> {
     return [...latest.values()].map(skill => summary(skill.definition, legacySkillPolicy(skill.definition.sharing)));
 }
 
-export async function listAdminDraftSkills(): Promise<AdminSkillSummary[]> {
-    const registry = await loadVerifiedRegistry();
+export async function listAdminDraftSkills(options: AdminSkillCatalogSourceOptions = {}): Promise<AdminSkillSummary[]> {
+    const registry = await loadVerifiedRegistry(options);
     const verifiedIds = new Set(registry.list({ status: 'verified' }).map(skill => skill.definition.id));
     return registry.list({ status: 'draft' })
         .filter(skill => skill.definition.sharing.visibility === 'shared'
@@ -61,12 +67,13 @@ export async function listAdminDraftSkills(): Promise<AdminSkillSummary[]> {
         .map(skill => summary(skill.definition, legacySkillPolicy(skill.definition.sharing)));
 }
 
-export async function resolveAdminDraftSkill(requested: string): Promise<RegisteredSkill> {
+export async function resolveAdminDraftSkill(requested: string,
+    options: AdminSkillCatalogSourceOptions = {}): Promise<RegisteredSkill> {
     const separator = requested.lastIndexOf('@');
     if (separator <= 0 || separator === requested.length - 1) {
         throw new Error('A draft skillt pontos id@verzió hivatkozással kell megadni.');
     }
-    const registry = await loadVerifiedRegistry();
+    const registry = await loadVerifiedRegistry(options);
     const skill = registry.get({ id: requested.slice(0, separator), version: requested.slice(separator + 1) });
     if (!skill || skill.definition.status !== 'draft' || skill.definition.sharing.visibility !== 'shared'
         || skill.definition.provenance.authorKind !== 'agent'
@@ -76,7 +83,7 @@ export async function resolveAdminDraftSkill(requested: string): Promise<Registe
     return skill;
 }
 
-export interface AdminAgentSkillCatalogOptions {
+export interface AdminAgentSkillCatalogOptions extends AdminSkillCatalogSourceOptions {
     learningPath?: string;
     policyRoot?: string;
     at?: string;
@@ -86,7 +93,7 @@ export async function listAdminSkillsForAgent(agentId: string, options: AdminAge
     const subject = await new SkillLearningStore(options.learningPath ?? skillLearningPath)
         .accessSubject(agentId, options.at);
     const [legacy, policyEnvelopes] = await Promise.all([
-        listAdminSkills(),
+        listAdminSkills(options),
         new PolicySkillStore(options.policyRoot ?? policySkillsDir).loadAccessibleTo(subject)
     ]);
     const byReference = new Map<string, AdminSkillSummary>();
@@ -115,12 +122,13 @@ export async function resolveAdminSkillForAgent(requested: string, agentId: stri
         && (separator <= 0 || envelope.definition.version === requested.slice(separator + 1)))
         .sort((left, right) => right.definition.version.localeCompare(left.definition.version, undefined, { numeric: true }));
     if (policyMatches[0]) return { definition: policyMatches[0].definition, policy: policyMatches[0].policy };
-    const legacy = await resolveAdminSkill(requested);
+    const legacy = await resolveAdminSkill(requested, options);
     return { definition: legacy.definition, policy: legacySkillPolicy(legacy.definition.sharing) };
 }
 
-export async function resolveAdminSkill(requested: string): Promise<RegisteredSkill> {
-    const registry = await loadVerifiedRegistry();
+export async function resolveAdminSkill(requested: string,
+    options: AdminSkillCatalogSourceOptions = {}): Promise<RegisteredSkill> {
+    const registry = await loadVerifiedRegistry(options);
     const separator = requested.lastIndexOf('@');
     const skill = separator > 0
         ? registry.get({ id: requested.slice(0, separator), version: requested.slice(separator + 1) })

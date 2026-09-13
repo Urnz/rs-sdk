@@ -7,6 +7,7 @@ export interface BuildLlmPlanningInputOptions {
     context?: DecisionContextOptions;
     untrustedText?: readonly string[];
     runId?: string;
+    trustedContext?: string;
 }
 
 export function buildLlmPlanningInput(snapshot: AgentSnapshot,
@@ -45,7 +46,10 @@ export function buildLlmPlanningInput(snapshot: AgentSnapshot,
             goalId: item.goalId, parentGoalId: item.parentGoalId, horizon: item.horizon,
             title: item.title, description: item.description, priority: item.priority
         })),
-        trustedContext: buildDecisionContext(snapshot, context),
+        trustedContext: options.trustedContext === undefined
+            ? buildDecisionContext(snapshot, context)
+            : options.trustedContext.length <= 12_000 ? options.trustedContext
+                : (() => { throw new Error('Trusted context exceeds 12000 characters'); })(),
         untrustedText: [...(options.untrustedText ?? []), ...untrustedEpisodes],
         allowedSkills,
         runId: options.runId

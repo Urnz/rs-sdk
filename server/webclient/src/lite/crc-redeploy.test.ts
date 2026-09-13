@@ -79,7 +79,7 @@ function startMockServer(servedChecksums: number[]): { port: number; state: Mock
             const url = new URL(req.url);
             if (url.pathname === '/crc') {
                 state.crcFetches++;
-                return new Response(crcPayload(servedChecksums));
+                return new Response(crcPayload(servedChecksums).buffer as ArrayBuffer);
             }
             if (srv.upgrade(req, { data: { buf: [], stage: 0 }, headers: { 'Sec-WebSocket-Protocol': 'binary' } })) {
                 return;

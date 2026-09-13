@@ -63,6 +63,7 @@ export type SkillOperationName =
     | 'sell-to-shop'
     | 'close-shop'
     | 'trade-give-item'
+    | 'trade-receive-item'
     | 'open-bank'
     | 'deposit-item'
     | 'withdraw-item'
@@ -192,6 +193,16 @@ export interface SkillExecutionOptions {
     signal?: AbortSignal;
     allowDraft?: boolean;
     onEvent?: (event: SkillEvent) => void;
+}
+
+/** Trusted, supervisor-issued limits applied again inside an autonomous skill process. */
+export interface SkillRuntimeAuthorization {
+    operations: SkillOperationName[];
+    itemNames: string[];
+    partners: string[];
+    maxQuantity: number;
+    maxUnitPriceGp: number;
+    maxGpPerRun: number;
 }
 
 /** Exact-version resolver used by composed skills. Visibility must be enforced by its caller. */

@@ -17,21 +17,41 @@ import { BotSupervisor } from './admin/supervisor';
 import { handleAdminRequest } from './admin/routes';
 import type { AdminItem, GatewayBotSnapshot } from './admin/types';
 import { AgentMemoryIngestionLoop } from './admin/agent-memory-ingestion';
-import { createGatewayAgentReplanCoordinator, dispatchVerifiedCapabilityWakeups } from './admin/replan-runtime';
+import { appendReplanRecord, createGatewayAgentReplanCoordinator,
+    dispatchVerifiedCapabilityWakeups } from './admin/replan-runtime';
 import type { AgentReplanCoordinator } from './admin/replan-coordinator';
+import { GatewayAgentAutonomySupervisor } from './admin/autonomy-supervisor';
+import { ensureAutonomyBotSession } from './admin/autonomy-bot-runtime';
+import { avatarHasLiveAutonomyLease, decideControllerAdmission } from './admin/autonomy-controller';
 import { buildBotCatalog, economySnapshot, recordEconomy } from './admin/catalog';
 import { GatewaySkillBuilderScheduler } from './admin/skill-builder-runtime';
 import { GatewayWorldDirectorScheduler, loadWorldDirectorConfig, WorldDirectorDispatcher,
     WorldDirectorStore } from './admin/world-director-runtime';
 import { EngineWorldDirectorAdapter } from './admin/world-director-engine-adapter';
-import { reconcileAdminGoalProposalRun, reconcileAdminPlayerActionRun } from './admin/agent-state';
+import { reconcileAdminGoalProposalRun, reconcileAdminPlayerActionRun,
+    recoverAdminPlayerActionSettlements } from './admin/agent-state';
 import { MultiAgentExperimentStore, readMultiAgentExperimentGoalEvents, readMultiAgentExperimentGoalSnapshots,
     reconcileMultiAgentExperimentSkillRun } from './admin/multi-agent-experiments';
-import { economyEventsDbPath, multiAgentExperimentsDbPath } from './admin/paths';
+import { agentStateDbPath, economyEventsDbPath, multiAgentExperimentsDbPath,
+    replanInboxDbPath } from './admin/paths';
 import { readSkillRun } from './admin/skill-history';
 import { EconomyEventStore } from './admin/transaction-telemetry';
+import { AgentStateStore } from '../../agent-state/store';
+import { setAdminLlmEmergencyStop } from './admin/llm-dry-run';
+import { ReplanInboxStore } from './admin/replan-inbox';
+import { recoverOrphanedSkillWakeups, recoverSkillTerminalWakeups } from './admin/skill-terminal-recovery';
+import { enqueueAutonomyReconnectWakeup } from './admin/autonomy-reconnect';
+import { recoverGoalEventWakeups } from './admin/goal-event-recovery';
+import { recoverDomainEventWakeups } from './admin/domain-event-recovery';
+import { listEngineProperties } from './admin/properties';
+import { runAutonomyReconciliation } from './admin/autonomy-reconciliation';
+import { recoverReadyEconomicContractSettlements } from './admin/economic-contract-settlement';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
+const AUTONOMY_STARTUP_GRACE_MS = Math.max(0, Math.min(120_000,
+    Number.parseInt(process.env.AUTONOMY_STARTUP_GRACE_MS || '5000', 10) || 0));
+const gatewayInstanceId = crypto.randomUUID();
+const autonomyLeaseOwner = `gateway:${gatewayInstanceId}`;
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
 const multiAgentExperimentWorldStore = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
 const lastExperimentWorldRegion = new Map<string, string>();
@@ -152,6 +172,8 @@ interface BotSession {
     pendingScreenshotId: string | null;
     // Session metadata for diagnostics
     connectedAt: number;              // When bot first connected (timestamp)
+    connectionId: string;             // Stable source identity for this connection
+    receivedStateThisConnection: boolean;
     lastHeartbeat: number;            // Last message received (any type)
     maxMessageLength?: number;        // Server-configured chat cap, relayed from the bot page to SDKs
 }
@@ -326,6 +348,8 @@ const SyncModule = {
             currentActionId: null,
             pendingScreenshotId: null,
             connectedAt: now,
+            connectionId: crypto.randomUUID(),
+            receivedStateThisConnection: false,
             lastHeartbeat: now,
             maxMessageLength: maxMessageLength ?? preservedState?.maxMessageLength
         };
@@ -430,6 +454,7 @@ const SyncModule = {
         }
 
         if (message.type === 'state' && message.state) {
+            const firstFreshState = !session.receivedStateThisConnection;
             const enabledSkills = message.state.skills?.filter(skill => !/^(?:stat|unused)\s*1[89]$/i.test(skill.name)) ?? [];
             const skillsAreLoaded = message.state.inGame && !!message.state.player
                 && enabledSkills.length >= 19 && enabledSkills.every(skill => skill.baseLevel > 0);
@@ -468,6 +493,7 @@ const SyncModule = {
             }
             session.lastState = message.state;
             session.lastStateReceivedAt = Date.now();
+            session.receivedStateThisConnection = true;
             if (message.state.player) {
                 const player = message.state.player;
                 const region = `${player.level}:${Math.floor(player.worldX / 64)},${Math.floor(player.worldZ / 64)}`;
@@ -483,6 +509,15 @@ const SyncModule = {
                 }
             }
             agentReplanCoordinator?.observeWorldState(session.username, message.state);
+            if (firstFreshState && agentReplanCoordinator) {
+                const occurredAt = new Date(session.lastStateReceivedAt).toISOString();
+                try {
+                    enqueueAutonomyReconnectWakeup(agentReplanCoordinator, session.username,
+                        session.connectionId, { now: occurredAt });
+                } catch (error) {
+                    console.error('[AgentAutonomy] Reconnect wakeup enqueue failed:', error);
+                }
+            }
             if (message.state.gameMessages?.length) {
                 chatHistoryFor(session.username).record(message.state.gameMessages);
             }
@@ -548,15 +583,34 @@ const SyncModule = {
                 return;
             }
 
+            const existingControllers = mode === 'control' ? this.getControllersForBot(targetUsername) : [];
+            if (mode === 'control') {
+                let admission;
+                try {
+                    admission = decideControllerAdmission(avatarHasLiveAutonomyLease(targetUsername),
+                        existingControllers.length);
+                } catch (error) {
+                    console.error(`[Gateway] Controller admission failed closed for ${targetUsername}:`, error);
+                    ws.send(JSON.stringify({ type: 'sdk_error', error: 'Controller admission check failed' }));
+                    ws.close();
+                    return;
+                }
+                if (!admission.allowed) {
+                    console.log(`[Gateway] Rejected controller ${sdkClientId} for ${targetUsername}: ${admission.reason}`);
+                    ws.send(JSON.stringify({ type: 'sdk_error', error: admission.reason }));
+                    ws.close();
+                    return;
+                }
+            }
+
             const sessionId = newSDKSessionId();
             const session: SDKSession = { ws, sessionId, sdkClientId, targetUsername, mode };
             sdkSessions.set(sessionId, session);
             wsToType.set(ws, { type: 'sdk', id: sessionId });
 
-            // Last controller wins: disconnect existing controllers for this bot
+            // Preserve last-controller-wins only outside a live autonomy lease.
             if (mode === 'control') {
-                const oldControllers = this.getControllersForBot(targetUsername)
-                    .filter(s => s.sessionId !== sessionId);
+                const oldControllers = existingControllers;
 
                 for (const old of oldControllers) {
                     console.log(`[Gateway] Pre-empting old controller ${old.sdkClientId} for ${targetUsername} (replaced by ${sdkClientId})`);
@@ -886,7 +940,23 @@ const botSupervisor = new BotSupervisor((username, reason) => {
     SyncModule.sendToBot(session, { type: 'save_and_disconnect', reason });
     return true;
 });
-agentReplanCoordinator = createGatewayAgentReplanCoordinator(adminGatewayBots, botSupervisor);
+{
+    const store = new AgentStateStore(agentStateDbPath);
+    try { setAdminLlmEmergencyStop(store.getAutonomyControl().emergencyStop); }
+    finally { store.close(); }
+}
+agentReplanCoordinator = createGatewayAgentReplanCoordinator(adminGatewayBots, botSupervisor,
+    appendReplanRecord, { requiredAutonomyLeaseOwner: autonomyLeaseOwner });
+const agentAutonomySupervisor = new GatewayAgentAutonomySupervisor(agentReplanCoordinator, {
+    leaseOwner: autonomyLeaseOwner,
+    activeSkill: username => botSupervisor.activeSkillSnapshot(username),
+    ensureAvatar: username => ensureAutonomyBotSession(username, adminGatewayBots, botSupervisor),
+    nextEvent: (agentId, now) => {
+        const store = new ReplanInboxStore(replanInboxDbPath);
+        try { return store.nextClaimableForAgent(agentId, now)?.event ?? null; }
+        finally { store.close(); }
+    }
+});
 botSupervisor.onSkillExit(event => {
     const occurredAt = new Date().toISOString();
     const failed = event.snapshot.exitCode !== 0;
@@ -920,11 +990,15 @@ botSupervisor.onSkillExit(event => {
             if (experiment?.finishedAt) console.log(`[MultiAgentExperiment] ${experiment.experimentId} finished as ${experiment.status}.`);
         } finally { store.close(); }
     })().catch(error => console.error('[MultiAgentExperiment] Skill run reconciliation failed:', error));
-    void agentReplanCoordinator?.submitForPlayer(event.username, { eventId: crypto.randomUUID(),
-        type: failed ? 'skill-failed' : 'skill-finished',
-        sourceKey: `skill:${event.snapshot.startedAt}:${event.snapshot.skill}`,
-        occurredAt, summary: `${event.snapshot.skill} ${failed ? 'failed' : 'finished'} with exit code ${event.snapshot.exitCode}.` },
-    occurredAt).catch(error => console.error('[AgentReplan] Skill event failed:', error));
+    void (async () => {
+        await recoverSkillTerminalWakeups(replanInboxDbPath);
+        const inbox = new ReplanInboxStore(replanInboxDbPath);
+        let terminal;
+        try { terminal = inbox.get(event.snapshot.runId)?.event ?? null; }
+        finally { inbox.close(); }
+        const record = terminal ? await agentReplanCoordinator?.submit(terminal, occurredAt) : null;
+        if (record) await agentAutonomySupervisor.settle(record, occurredAt);
+    })().catch(error => console.error('[AgentReplan] Skill event failed:', error));
 });
 const agentMemoryIngestion = new AgentMemoryIngestionLoop();
 const memoryIngestionTimer = setInterval(() => {
@@ -947,6 +1021,47 @@ const capabilityWakeupTimer = setInterval(() => {
 capabilityWakeupTimer.unref?.();
 if (agentReplanCoordinator) void dispatchVerifiedCapabilityWakeups(agentReplanCoordinator)
     .catch(error => console.error('[AgentReplan] Initial capability wakeup failed:', error));
+const runAgentAutonomySupervisor = async (startup = false) => {
+    let properties: Awaited<ReturnType<typeof listEngineProperties>> | undefined;
+    try { properties = await listEngineProperties(); }
+    catch (error) { console.error('[AgentAutonomy] Property wakeup scan skipped:', error); }
+    const now = new Date().toISOString();
+    const report = await runAutonomyReconciliation(startup, {
+        reconcileSkillMarkers: () => botSupervisor.reconcileSkillMarkers(now),
+        recoverSkillTerminals: () => recoverSkillTerminalWakeups(replanInboxDbPath),
+        recoverOrphanedSkills: markers => recoverOrphanedSkillWakeups(replanInboxDbPath, markers),
+        recoverPlayerActionSettlements: () => recoverAdminPlayerActionSettlements(),
+        recoverContractSettlements: () => recoverReadyEconomicContractSettlements(),
+        recoverGoalEvents: () => recoverGoalEventWakeups(replanInboxDbPath),
+        recoverDomainEvents: () => recoverDomainEventWakeups(replanInboxDbPath, {}, properties ?? []),
+        reconcileEnrollments: isStartup => agentAutonomySupervisor.tick(now, isStartup)
+    });
+    for (const result of report.markers) {
+        if (result.status === 'unverified' || result.status === 'stalled') {
+            console.error(`[AgentAutonomy] ${result.username}: ${result.reason}`);
+        }
+    }
+    for (const error of report.contractSettlements.errors) {
+        console.error(`[EconomicRecovery] ${error.contractId}: ${error.message}`);
+    }
+    for (const error of report.playerActionSettlements.errors) {
+        console.error(`[PlayerActionRecovery] ${error.settlementId}: ${error.message}`);
+    }
+    return report.enrollments;
+};
+const autonomySupervisorTimer = setInterval(() => {
+    void runAgentAutonomySupervisor().then(results => {
+        for (const result of results) {
+            if (result.status === 'failed') console.error(`[AgentAutonomy] ${result.agentId}: ${result.reason}`);
+        }
+    }).catch(error => console.error('[AgentAutonomy] Supervisor tick failed:', error));
+}, 30_000);
+autonomySupervisorTimer.unref?.();
+const autonomyStartupTimer = setTimeout(() => {
+    void runAgentAutonomySupervisor(true)
+        .catch(error => console.error('[AgentAutonomy] Startup reconciliation failed:', error));
+}, AUTONOMY_STARTUP_GRACE_MS);
+autonomyStartupTimer.unref?.();
 const skillBuilderScheduler = new GatewaySkillBuilderScheduler();
 const skillBuilderTimer = setInterval(() => {
     void skillBuilderScheduler.tick().then(result => {

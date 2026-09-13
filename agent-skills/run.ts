@@ -9,7 +9,7 @@ import { SkillLibrary } from './library';
 import { SkillExecutor } from './executor';
 import { RsSdkSkillRuntime } from './rs-sdk-runtime';
 import { FileSkillRunJournal } from './journal';
-import type { SkillRunResult } from './types';
+import type { SkillRunResult, SkillRuntimeAuthorization } from './types';
 
 const args = process.argv.slice(2);
 const positional = args.filter(arg => !arg.startsWith('--'));
@@ -17,6 +17,8 @@ const botName = positional[0];
 const requested = positional[1];
 const allowDraft = args.includes('--allow-draft');
 const runId = args.find(arg => arg.startsWith('--run-id='))?.slice('--run-id='.length);
+const authorizationArgument = args.find(arg => arg.startsWith('--runtime-authorization='))
+    ?.slice('--runtime-authorization='.length);
 
 if (runId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)) {
     throw new Error('Invalid run ID');
@@ -42,6 +44,24 @@ const parameters = Object.fromEntries(args.filter(arg => arg.startsWith('--param
         return [pair.slice(0, separator), parseValue(pair.slice(separator + 1))];
     }));
 
+function parseRuntimeAuthorization(value: string | undefined): SkillRuntimeAuthorization | undefined {
+    if (!value) return undefined;
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Partial<SkillRuntimeAuthorization>;
+    const validNames = (items: unknown): items is string[] => Array.isArray(items)
+        && items.length <= 100 && items.every(item => typeof item === 'string' && item.length > 0 && item.length <= 100);
+    if (!Array.isArray(parsed.operations) || parsed.operations.length === 0 || parsed.operations.length > 50
+        || parsed.operations.some(item => typeof item !== 'string')
+        || !validNames(parsed.itemNames) || !validNames(parsed.partners)
+        || !Number.isSafeInteger(parsed.maxQuantity) || parsed.maxQuantity! < 0 || parsed.maxQuantity! > 10_000
+        || !Number.isSafeInteger(parsed.maxUnitPriceGp) || parsed.maxUnitPriceGp! < 0
+        || !Number.isSafeInteger(parsed.maxGpPerRun) || parsed.maxGpPerRun! < 0) {
+        throw new Error('Invalid runtime authorization');
+    }
+    return parsed as SkillRuntimeAuthorization;
+}
+
+const runtimeAuthorization = parseRuntimeAuthorization(authorizationArgument);
+
 const run = await runScript(async ({ bot, sdk }) => {
     const registry = new SkillRegistry();
     const library = new SkillLibrary(
@@ -65,28 +85,44 @@ const run = await runScript(async ({ bot, sdk }) => {
         version: registered.definition.version,
         runId: runId ?? `pending-${crypto.randomUUID()}`,
         startedAt: new Date().toISOString(),
+        heartbeatAt: new Date().toISOString(),
+        progressAt: new Date().toISOString(),
+        progressSequence: 0,
         pid: process.pid
     };
     await mkdir(markerDirectory, { recursive: true });
-    await writeFile(markerPath, JSON.stringify(marker, null, 2), 'utf8');
+    let markerActive = true;
+    let markerWrite = Promise.resolve();
+    const persistMarker = () => {
+        marker.heartbeatAt = new Date().toISOString();
+        markerWrite = markerWrite.catch(() => undefined).then(() => markerActive
+            ? writeFile(markerPath, JSON.stringify(marker, null, 2), 'utf8') : undefined);
+        return markerWrite;
+    };
+    await persistMarker();
+    const markerHeartbeat = setInterval(() => { void persistMarker(); }, 5_000);
+    markerHeartbeat.unref?.();
 
     let result: SkillRunResult;
     try {
-        result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk), reference =>
+        result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk, runtimeAuthorization), reference =>
             registry.get(reference, botName)?.definition ?? null).execute(registered.definition, {
             runId,
             parameters,
             allowDraft,
             onEvent: event => {
-                if (marker.runId !== event.runId) {
-                    marker.runId = event.runId;
-                    void writeFile(markerPath, JSON.stringify(marker, null, 2), 'utf8');
-                }
+                marker.runId = event.runId;
+                marker.progressAt = event.timestamp;
+                marker.progressSequence++;
+                void persistMarker();
                 console.log(`[skill] ${event.type}${event.stepId ? ` ${event.stepId}` : ''}${event.message ? ` - ${event.message}` : ''}`);
             }
         });
         result.username = botName.toLowerCase();
     } finally {
+        markerActive = false;
+        clearInterval(markerHeartbeat);
+        await markerWrite.catch(() => undefined);
         await unlink(markerPath).catch(() => undefined);
     }
     const journalPath = await new FileSkillRunJournal(join(process.cwd(), '.local', 'agent-skills', 'runs')).save(result);

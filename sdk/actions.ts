@@ -1319,12 +1319,18 @@ export class BotActions {
      * fill (out of stock, out of coins, full inventory) returns
      * `success: false` with `partial: true` and the actual `amountBought`.
      */
-    async buyFromShop(target: ShopItem | string | RegExp, amount: number = 1): Promise<ShopResult> {
+    async buyFromShop(target: ShopItem | string | RegExp, amount: number = 1,
+        options: { maxUnitPriceGp?: number } = {}): Promise<ShopResult> {
         const validated = validateActionQuantity(amount, { max: MAX_SHOP_ACTION_QUANTITY });
         if (!validated.valid) {
             return { success: false, message: validated.message, reason: 'invalid_amount' };
         }
         const requestedAmount = validated.amount;
+        const maxUnitPriceGp = options.maxUnitPriceGp;
+        if (maxUnitPriceGp !== undefined && (!Number.isSafeInteger(maxUnitPriceGp) || maxUnitPriceGp < 0)) {
+            return { success: false, message: 'maxUnitPriceGp must be a non-negative safe integer',
+                reason: 'unit_price_limit', requestedAmount, amountBought: 0 };
+        }
 
         const shop = this.sdk.getState()?.shop;
         if (!shop?.isOpen) {
@@ -1378,7 +1384,18 @@ export class BotActions {
         let packetsSent = 0;
         const deadline = Date.now() + SHOP_ACTION_DEADLINE_MS;
         while (remaining > 0 && packetsSent < MAX_SHOP_ACTION_PACKETS && Date.now() < deadline) {
-            const stepAmount = nextShopStep(remaining);
+            const liveItem = this.sdk.getState()?.shop.shopItems.find(item => item.id === shopItem.id);
+            if (maxUnitPriceGp !== undefined && (!liveItem || liveItem.buyPrice > maxUnitPriceGp)) {
+                const limited = outcome();
+                limited.success = false;
+                limited.reason = 'unit_price_limit';
+                limited.message = liveItem
+                    ? `${liveItem.name} costs ${liveItem.buyPrice}gp, above the ${maxUnitPriceGp}gp unit-price limit`
+                    : `${shopItem.name} is no longer available for an authorized price check`;
+                return limited;
+            }
+            // A policy price ceiling must be checked between every unit because stock-driven prices can change.
+            const stepAmount = maxUnitPriceGp === undefined ? nextShopStep(remaining) : 1;
             const countBefore = countInvItems();
 
             const result = await this.sdk.sendShopBuy(shopItem.slot, stepAmount);

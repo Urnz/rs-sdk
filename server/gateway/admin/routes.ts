@@ -58,10 +58,14 @@ import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind,
     AgentKnowledgeKind, AgentPlayerActionManualStatus, AgentRole, AgentSkillKnowledgeStatus,
     AgentSubjectKind, GoalHorizon,
     GoalStatus } from '../../../agent-state/types.js';
-import { agentStateDbPath, capabilityGapsPath, worldDirectorDbPath } from './paths.js';
-import { runAdminLlmDryRun } from './llm-dry-run.js';
+import { agentStateDbPath, capabilityGapsPath, replanInboxDbPath, worldDirectorDbPath } from './paths.js';
+import { runAdminLlmDryRun, setAdminLlmEmergencyStop } from './llm-dry-run.js';
 import type { AgentReplanCoordinator } from './replan-coordinator.js';
 import { readReplanRecords } from './replan-runtime.js';
+import { readAgentTimeline } from './agent-timeline.js';
+import { readAutonomyObservability } from './autonomy-observability.js';
+import { buildAcceptanceBundle } from './acceptance-bundle.js';
+import { enqueueLatestGoalEventWakeup } from './goal-event-recovery.js';
 import { readAdminLlmSettings, removeOpenAIApiKey, replaceOpenAIApiKey,
     updateAdminLlmSettings, validateOpenAIApiKey } from './llm-settings.js';
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
@@ -74,6 +78,7 @@ import { FileSkillStore } from '../../../agent-skills/store.js';
 import { FileSkillVerificationJournal, SKILL_VERIFIER_ID, verifyAndPromoteSkill,
     type SkillVerificationReport } from '../../../agent-skills/verifier.js';
 import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/types.js';
+import { buildSkillPublicationApproval } from './skill-publication-approval.js';
 import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
 import type { SkillGrantKind } from '../../../agent-skills/learning.js';
 import { resolveLearnAndPlan } from './deterministic-learning.js';
@@ -106,6 +111,7 @@ export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
     supervisor: BotSupervisor;
     replanCoordinator?: AgentReplanCoordinator;
+    agentStatePath?: string;
 }
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN?.trim() || '';
@@ -185,6 +191,7 @@ function stringList(value: unknown, field: string): string[] {
 
 async function loadTrialDraft(trial: Pick<SkillTrial, 'draft'>): Promise<SkillDefinition> {
     const library = new SkillLibrary(new SkillRegistry(), new FileSkillStore(agentSkillsLocalDir));
+    await library.loadReviewedCatalog(join(repoRoot, 'agent-skills', 'catalog'));
     await library.loadAgentDrafts('admin-trial-runner');
     const registered = library.registry.get(trial.draft, 'admin-trial-runner');
     if (!registered || registered.definition.status !== 'draft'
@@ -193,6 +200,12 @@ async function loadTrialDraft(trial: Pick<SkillTrial, 'draft'>): Promise<SkillDe
         throw new Error('A megadott megosztott agent-draft nem található vagy már nem futtatható.');
     }
     return registered.definition;
+}
+
+async function loadTrialVerificationReport(trial: SkillTrial): Promise<SkillVerificationReport> {
+    if (!trial.verificationReportId) throw new Error('A próbához nem tartozik verifier-jelentés.');
+    return JSON.parse(await readFile(join(skillVerificationsDir,
+        `${trial.verificationReportId}.json`), 'utf8')) as SkillVerificationReport;
 }
 
 function sameTrialParameters(left: unknown, right: SkillTrial['parameters']): boolean {
@@ -313,6 +326,19 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             } finally { store.close(); }
         }
 
+        const acceptanceBundleMatch = url.pathname.match(
+            /^\/api\/admin\/multi-agent-experiments\/([0-9a-f-]{36})\/acceptance-bundle$/i);
+        if (req.method === 'GET' && acceptanceBundleMatch?.[1]) {
+            const bundle = await buildAcceptanceBundle(acceptanceBundleMatch[1], {
+                agentPath: context.agentStatePath ?? agentStateDbPath
+            });
+            return new Response(`${JSON.stringify(bundle, null, 2)}\n`, { status: 200, headers: {
+                'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store',
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Disposition': `attachment; filename="acceptance-${bundle.manifest.experimentId}.json"`
+            } });
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/admin/experiment-parameter-profiles') {
             const store = new ExperimentParameterStore(experimentParametersDbPath);
             try {
@@ -393,6 +419,15 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ trials: await new SkillTrialStore(skillTrialsPath).list() });
         }
 
+        const trialApprovalMatch = url.pathname.match(
+            /^\/api\/admin\/skill-trials\/([0-9a-f-]{36})\/publication-approval$/i);
+        if (req.method === 'GET' && trialApprovalMatch?.[1]) {
+            const trial = await new SkillTrialStore(skillTrialsPath).get(trialApprovalMatch[1]);
+            if (!trial) throw new Error('A próba nem található.');
+            return json({ approval: buildSkillPublicationApproval(trial,
+                await loadTrialVerificationReport(trial)) });
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/admin/experiments') {
             const files = await readdir(experimentsDir).catch(() => []);
             return json({ snapshots: files.filter(file => file.endsWith('.json')).sort().reverse() });
@@ -412,8 +447,29 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const unavailableSources: string[] = [];
             try { properties = (await listEngineProperties()).properties; }
             catch { unavailableSources.push('properties'); }
-            return json(await listAdminAgents(agentStateDbPath, {
-                bots, properties, unavailableSources, observedAt: new Date().toISOString()
+            return json(await listAdminAgents(context.agentStatePath ?? agentStateDbPath, {
+                bots, properties, unavailableSources, observedAt: new Date().toISOString(),
+                gatewayBots: context.gatewayBots()
+            }));
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/autonomy/status') {
+            const bots = await catalog();
+            const agents = await listAdminAgents(context.agentStatePath ?? agentStateDbPath, {
+                bots, observedAt: new Date().toISOString(), gatewayBots: context.gatewayBots()
+            });
+            return json(readAutonomyObservability(agents.agents, {
+                agentPath: context.agentStatePath ?? agentStateDbPath,
+                inboxPath: replanInboxDbPath
+            }));
+        }
+
+        const agentTimelineMatch = url.pathname.match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/timeline$/);
+        if (req.method === 'GET' && agentTimelineMatch?.[1]) {
+            return json(readAgentTimeline(agentTimelineMatch[1], {
+                agentPath: context.agentStatePath ?? agentStateDbPath, inboxPath: replanInboxDbPath,
+                economicContractsPath: economicContractsDbPath,
+                limit: Number(url.searchParams.get('limit') || 200)
             }));
         }
 
@@ -515,6 +571,78 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
 
         if (!authorized(req, url)) {
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/autonomy-control') {
+            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath);
+            try { return json({ control: store.getAutonomyControl() }); }
+            finally { store.close(); }
+        }
+
+        const autonomyActionMatch = url.pathname
+            .match(/^\/api\/admin\/agents\/([a-z0-9.-]+)\/autonomy\/(pause|resume|release-quarantine)$/);
+        if (req.method === 'POST' && autonomyActionMatch?.[1] && autonomyActionMatch[2]) {
+            const agentId = autonomyActionMatch[1];
+            const action = autonomyActionMatch[2] as 'pause' | 'resume' | 'release-quarantine';
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen autonomy enrollment revízió.');
+            }
+            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath);
+            const before = store.getAutonomyEnrollment(agentId);
+            try {
+                const enrollment = action === 'pause'
+                    ? store.pauseAutonomyEnrollment(agentId, expectedRevision)
+                    : action === 'resume'
+                        ? store.resumeAutonomyEnrollment(agentId, expectedRevision)
+                        : store.releaseAutonomyQuarantine(agentId, expectedRevision);
+                const avatar = store.getControlProfile(agentId)?.avatarPlayerUsername ?? null;
+                const stopped = action === 'pause' && avatar
+                    ? await context.supervisor.stopSkill(avatar) : false;
+                await appendAudit({ operator: 'local-admin', action: `agent.autonomy.${action}`, reason,
+                    success: true, username: agentId, before, after: { enrollment, stopped } });
+                return json({ ok: true, enrollment, stopped });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: `agent.autonomy.${action}`, reason,
+                    success: false, username: agentId, before, error: String(error) });
+                throw error;
+            } finally { store.close(); }
+        }
+
+        const globalAutonomyMatch = url.pathname.match(/^\/api\/admin\/autonomy\/(emergency-stop|resume)$/);
+        if (req.method === 'POST' && globalAutonomyMatch?.[1]) {
+            const active = globalAutonomyMatch[1] === 'emergency-stop';
+            const body = await requestBody(req);
+            const reason = text(body, 'reason', true);
+            const expectedRevision = Number(body.expectedRevision);
+            if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
+                throw new Error('Érvénytelen globális autonomy revízió.');
+            }
+            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath);
+            const before = store.getAutonomyControl();
+            try {
+                const profiles = active ? store.listAutonomyEnrollments().flatMap(enrollment => {
+                    const avatar = store.getControlProfile(enrollment.agentId)?.avatarPlayerUsername;
+                    return avatar ? [avatar] : [];
+                }) : [];
+                const control = store.setAutonomyEmergencyStop(expectedRevision, active, reason);
+                setAdminLlmEmergencyStop(active);
+                const stoppedAvatars = active
+                    ? (await Promise.all(profiles.map(async avatar => await context.supervisor.stopSkill(avatar)
+                        ? avatar : null))).filter((avatar): avatar is string => avatar !== null)
+                    : [];
+                await appendAudit({ operator: 'local-admin',
+                    action: active ? 'agent.autonomy.emergency-stop' : 'agent.autonomy.global-resume',
+                    reason, success: true, before, after: { control, stoppedAvatars } });
+                return json({ ok: true, control, stoppedAvatars });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin',
+                    action: active ? 'agent.autonomy.emergency-stop' : 'agent.autonomy.global-resume',
+                    reason, success: false, before, error: String(error) });
+                throw error;
+            } finally { store.close(); }
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/businesses') {
@@ -1071,23 +1199,26 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const trials = new SkillTrialStore(skillTrialsPath);
             const trial = await trials.get(trialPublishMatch[1]);
             if (!trial || trial.status !== 'verification-passed' || !trial.verificationReportId) throw new Error('Csak sikeresen ellenőrzött próba publikálható.');
-            const report = JSON.parse(await readFile(join(skillVerificationsDir,
-                `${trial.verificationReportId}.json`), 'utf8')) as SkillVerificationReport;
-            if (report.id !== trial.verificationReportId || !report.passed || !report.promoted
-                || report.draft.id !== trial.draft.id || report.draft.version !== trial.draft.version
-                || report.targetVersion !== trial.targetVersion) throw new Error('A verifier-jelentés nem használható publikálásra.');
-            const path = await new FileSkillStore(agentSkillsLocalDir).save(report.promoted, {
+            const report = await loadTrialVerificationReport(trial);
+            const approval = buildSkillPublicationApproval(trial, report);
+            if (text(body, 'approvalDigest', true) !== approval.digest) {
+                throw new Error('A publikálási adatok megváltoztak a jóváhagyási előnézet óta; tekintsd át újra.');
+            }
+            const promoted = report.promoted;
+            if (!promoted) throw new Error('A verifier-jelentésből hiányzik a publikálható skill.');
+            const path = await new FileSkillStore(agentSkillsLocalDir).save(promoted, {
                 actorKind: 'system', actorId: SKILL_VERIFIER_ID
             });
             const gaps = new CapabilityGapStore(capabilityGapsPath);
             const gap = (await gaps.list()).find(entry => entry.gapId === trial.gapId);
             if (!gap || gap.status !== 'live-trial') throw new Error('A capability gap nincs élő próba állapotban.');
             const verifiedGap = await gaps.transition(gap.gapId, gap.revision, 'verified', {
-                resolvedSkill: { id: report.promoted.id, version: report.promoted.version }
+                resolvedSkill: { id: promoted.id, version: promoted.version }
             });
             const updated = await trials.transition(trial.trialId, trial.revision, 'published');
             await appendAudit({ operator: 'local-admin', action: 'skill-trial.publish', username: trial.testBotUsername,
-                reason, success: true, before: trial, after: { trial: updated, gap: verifiedGap, path } });
+                reason, success: true, before: trial,
+                after: { trial: updated, gap: verifiedGap, path, approvalDigest: approval.digest } });
             return json({ ok: true, trial: updated, gap: verifiedGap, path }, 201);
         }
 
@@ -1445,11 +1576,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             await appendAudit({ operator: 'local-admin', action: 'agent.goal.create', reason, success: true,
                 username: agentId, after: goal });
             if (goal.horizon === 'immediate') {
-                const occurredAt = new Date().toISOString();
-                void context.replanCoordinator?.submit({ eventId: crypto.randomUUID(), agentId,
-                    type: 'goal-changed', sourceKey: `goal:${goal.goalId}:revision:${goal.revision}`,
-                    occurredAt, summary: `Immediate goal ${goal.goalId} was created or changed.` }, occurredAt)
-                    .catch(error => console.error('[AgentReplan] Goal event failed:', error));
+                try {
+                    if (context.replanCoordinator) enqueueLatestGoalEventWakeup(context.replanCoordinator,
+                        agentId, goal.goalId);
+                } catch (error) { console.error('[AgentReplan] Goal event enqueue failed:', error); }
             }
             return json({ ok: true, goal }, 201);
         }
@@ -1610,13 +1740,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 oneOf<GoalStatus>(body.status, ['active', 'completed', 'blocked', 'abandoned'], 'status'));
             await appendAudit({ operator: 'local-admin', action: 'agent.goal.status', reason, success: true,
                 username: agentId, after: goal });
-            if (goal.horizon === 'immediate') {
-                const occurredAt = new Date().toISOString();
-                void context.replanCoordinator?.submit({ eventId: crypto.randomUUID(), agentId: agentId!,
-                    type: 'goal-changed', sourceKey: `goal:${goal.goalId}:revision:${goal.revision}`,
-                    occurredAt, summary: `Immediate goal ${goal.goalId} changed to ${goal.status}.` }, occurredAt)
-                    .catch(error => console.error('[AgentReplan] Goal event failed:', error));
-            }
+            try {
+                if (context.replanCoordinator) enqueueLatestGoalEventWakeup(context.replanCoordinator,
+                    agentId!, goal.goalId);
+            } catch (error) { console.error('[AgentReplan] Goal event enqueue failed:', error); }
             return json({ ok: true, goal });
         }
 
@@ -1947,6 +2074,12 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 if (!requested) {
                     await appendAudit({ operator: 'local-admin', action: 'agent.goal-proposal.approve', reason,
                         username: avatar, success: true, before: proposal, after: approved });
+                    const immediate = approved.goals.find(goal => goal.horizon === 'immediate');
+                    if (immediate && context.replanCoordinator) {
+                        try { enqueueLatestGoalEventWakeup(context.replanCoordinator,
+                            owner.identity.agentId, immediate.goalId); }
+                        catch (error) { console.error('[AgentReplan] Goal proposal wakeup enqueue failed:', error); }
+                    }
                     return json({ ok: true, proposal: approved });
                 }
                 const running = startAdminGoalProposal(proposalId, approved.revision, approvalId, skillRunId);

@@ -7,13 +7,15 @@ import { OpenAIResponsesProvider } from '../../../llm-runtime/openai-provider.js
 import { ScriptedMockProvider } from '../../../llm-runtime/mock-provider.js';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import { createAdminAgent, createAdminAgentGoal, listAdminAgents, updateAdminAgentSkill } from './agent-state.js';
-import { runAdminLlmDryRun } from './llm-dry-run.js';
+import { runAdminLlmDryRun, setAdminLlmEmergencyStop } from './llm-dry-run.js';
 import { adminPublicDir } from './paths.js';
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
+import { LlmDailyBudgetStore } from '../../../llm-runtime/budget.js';
 
 const directories: string[] = [];
 
 afterEach(() => {
+    setAdminLlmEmergencyStop(false);
     for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 
@@ -46,8 +48,9 @@ test('admin LLM dry-run shows the bounded request and never executes the propose
         name: 'Varrock East mining', description: 'Mine iron ore and bank it.', tags: ['mining'], parameters: {},
         limits: { timeoutMs: 60_000, maxOperations: 100 }, policy: { kind: 'public' as const } };
     const audit = new MemoryLlmAuditSink();
+    const budget = new LlmDailyBudgetStore(join(root, 'llm-budget.sqlite'));
     const result = await runAdminLlmDryRun(catalog.agents[0]!, [skill], {
-        now: '2026-08-29T12:00:00.000Z', runId: '11111111-1111-4111-8111-111111111111', configPath, audit
+        now: '2026-08-29T12:00:00.000Z', runId: '11111111-1111-4111-8111-111111111111', configPath, audit, budget
     });
     expect(result.simulation).toBeTrue();
     expect(result.configuredEnabled).toBeFalse();
@@ -55,8 +58,21 @@ test('admin LLM dry-run shows the bounded request and never executes the propose
     expect(result.plan.decision).toMatchObject({ kind: 'execute-skill',
         skill: { id: 'varrock-east-mining', version: '1.0.0' } });
     expect(result.request?.trustedContext).toContain('Mine iron ore');
+    expect(result.request?.trustedContext).toBe(catalog.agents[0]!.decisionContext);
     expect(result.request?.tools[0].allowedSkills).toHaveLength(1);
     expect(audit.events.at(-1)?.type).toBe('decision.proposed');
+    await expect(runAdminLlmDryRun(catalog.agents[0]!, [skill], {
+        now: '2026-08-29T12:00:00.000Z', configPath, audit: new MemoryLlmAuditSink(),
+        requireAuthoritativeContext: true, budget
+    })).rejects.toThrow('fresh authoritative context');
+
+    setAdminLlmEmergencyStop(true);
+    const stopped = await runAdminLlmDryRun(catalog.agents[0]!, [skill], {
+        now: '2026-08-29T12:00:01.000Z', configPath, audit: new MemoryLlmAuditSink(), budget
+    });
+    expect(stopped.plan).toMatchObject({ status: 'stopped', reason: 'LLM runtime emergency stop is active' });
+    expect(stopped.request).toBeNull();
+    budget.close();
 });
 
 test('admin UI exposes persisted proposal approval separately from the LLM preview', () => {
@@ -106,6 +122,9 @@ test('admin UI exposes server LLM settings without an API-key readback field', (
     expect(script).toContain('/api/admin/llm-settings');
     expect(html).toContain('id="capability-gap-list"');
     expect(script).toContain('/api/admin/capability-gaps');
+    expect(script).toContain('/publication-approval`');
+    expect(script).toContain('approvalDigest: approval.digest');
+    expect(script).toContain('Ez önmagában NEM teszi autonóm allowlistessé');
     expect(script).toContain('gap.builderAttempts');
     expect(script).toContain('gap.builderCostMicros');
     expect(script).toContain('gap.lastBuilderError');

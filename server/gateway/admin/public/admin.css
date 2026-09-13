@@ -155,6 +155,13 @@ td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; }
 .agent-player-action > span:first-child { display: grid; min-width: 0; }
 .agent-player-action small { color: var(--muted); overflow-wrap: anywhere; }
 .agent-player-action.completed { border-left-color: var(--green); }.agent-player-action.rejected,.agent-player-action.failed { border-left-color: var(--red); opacity: .7; }
+.autonomy-dashboard { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 8px; margin-top: 10px; }
+.autonomy-status-card { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--border); border-left: 4px solid var(--muted); border-radius: 7px; background: #151a14; }
+.autonomy-status-card > div { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.autonomy-status-card.executing,.autonomy-status-card.idle { border-left-color: var(--green); }
+.autonomy-status-card.planning,.autonomy-status-card.recovering,.autonomy-status-card.enrolled { border-left-color: var(--blue); }
+.autonomy-status-card.backoff,.autonomy-status-card.paused { border-left-color: #b28a45; }
+.autonomy-status-card.quarantined,.autonomy-status-card.offline { border-left-color: var(--red); }
 .agent-player-action.approved,.agent-player-action.running,.agent-player-action.settling { border-left-color: var(--blue); }
 .agent-player-action.cancelled { border-left-color: var(--muted); opacity: .58; }
 .agent-assets { display: grid; gap: 6px; margin-top: 8px; max-height: 220px; overflow: auto; }

@@ -135,6 +135,13 @@
                     <button id="new-agent-button" class="button primary">+ Agent létrehozása</button></div>
             </div>
             <p class="agent-intro">Az identitás a botsessiontől független. A planner csak friss élő állapotból, ismert verified skillből és aktív azonnali célból indíthat műveletet.</p>
+            <section id="autonomy-control" class="skill-access-admin" aria-live="polite">
+                <div class="agent-section-heading"><div><p class="eyebrow">AUTONOMY CONTROL</p><h3>Betöltés…</h3></div></div>
+            </section>
+            <section class="skill-access-admin" aria-live="polite">
+                <div class="agent-section-heading"><div><p class="eyebrow">AUTONOMY STATUS</p><h3>Queue-k, lease-ek és progressz</h3></div></div>
+                <div id="autonomy-dashboard" class="autonomy-dashboard"><p class="empty">Betöltés…</p></div>
+            </section>
             <section class="skill-access-admin">
                 <div class="agent-section-heading">
                     <div><p class="eyebrow">SKILL HOZZÁFÉRÉS</p><h3>Tagságok, oktatók és licencek</h3></div>
@@ -317,8 +324,8 @@
                 <fieldset>
                     <legend>Korlátozott autonóm végrehajtás</legend>
                     <label class="check llm-toggle danger-check"><input name="autonomousExecutionEnabled" type="checkbox"> Allowlistelt verified skillek automatikus indítása eseményvezérelt tervezés után</label>
-                    <label>Engedélyezett egzakt skillek <span class="muted">(soronként egy `skill.id@1.0.0`)</span>
-                        <textarea name="autonomousAllowedSkills" rows="4" maxlength="8000" placeholder="mining.varrock-east.copper-to-bank@1.0.0"></textarea></label>
+                    <label>Egzakt authorization envelope <span class="muted">(soronként JSON; a `skill.id@1.0.0` rövid forma routine/default-only)</span>
+                        <textarea name="autonomousAllowedSkills" rows="7" maxlength="20000" placeholder='{"id":"shopping.lumbridge.buy-hammers","version":"1.0.0","risk":"shop-buy","operations":["walk-to","open-shop","buy-from-shop","close-shop"],"parameters":{"target-items":{"minimum":1,"maximum":2}},"itemNames":["hammer"],"maxQuantity":2,"maxUnitPriceGp":10,"maxGpPerRun":20,"maxGpPerDay":100}'></textarea></label>
                     <div class="llm-form-grid limits">
                         <label>Max. művelet / skill<input name="autonomousMaxOperations" type="number" min="1" max="1000" step="1" required></label>
                         <label>Max. skill-időlimit (ms)<input name="autonomousMaxTimeoutMs" type="number" min="1000" max="3600000" step="1000" required></label>
@@ -353,6 +360,10 @@
                         <label>Max. toolhívás<input name="maxToolCalls" type="number" min="0" max="20" step="1" required></label>
                         <label>Max. output token<input name="maxOutputTokens" type="number" min="100" max="100000" step="100" required></label>
                         <label>Max. költség / futás (mikro-USD)<input name="maxCostMicros" type="number" min="0" max="100000000" step="1" required></label>
+                        <label>Napi keret scope<input name="dailyBudgetScope" pattern="[a-z0-9]+([.-][a-z0-9]+)*" maxlength="100" required></label>
+                        <label>Napi költséglimit (mikro-USD)<input name="dailyBudgetMaxCostMicros" type="number" min="0" max="2000000000" step="1" required></label>
+                        <label>Napi döntéslimit<input name="dailyBudgetMaxDecisions" type="number" min="1" max="100000" step="1" required></label>
+                        <label>Becsült költség / admission<input name="dailyBudgetEstimatedCostMicros" type="number" min="0" max="100000000" step="1" required></label>
                         <label>Input ár / 1M token (mikro-USD)<input name="inputPrice" type="number" min="0" max="1000000000" step="1"></label>
                         <label>Output ár / 1M token (mikro-USD)<input name="outputPrice" type="number" min="0" max="1000000000" step="1"></label>
                     </div>

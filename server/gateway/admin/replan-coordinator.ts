@@ -20,9 +20,13 @@ export interface ReplanRecord {
 export interface AgentReplanCoordinatorDependencies {
     resolveAgentId(playerUsername: string): Promise<string | null>;
     listAgentIds(): Promise<string[]>;
+    listEconomicAgentIds?(snapshot: EconomySnapshot): Promise<string[]>;
     plan(agentId: string, event: LlmReplanEvent): Promise<ReplanOutcome>;
     append(record: ReplanRecord): Promise<void> | void;
 }
+
+export const AUTONOMY_LEASE_OWNER_MISMATCH_REASON =
+    'Agent autonomy lease belongs to another gateway instance.';
 
 type ReplanWorldState = Pick<BotWorldState, 'tick' | 'player' | 'gameMessages'>;
 
@@ -51,9 +55,14 @@ export class AgentReplanCoordinator {
         return agentId ? this.submit({ ...event, agentId }, now) : null;
     }
 
+    protected deliverObserved(event: LlmReplanEvent, now: string): Promise<ReplanRecord> {
+        return this.submit(event, now);
+    }
+
     private submitObserved(playerUsername: string, event: Omit<LlmReplanEvent, 'agentId'>,
         now: string): void {
-        void this.submitForPlayer(playerUsername, event, now)
+        void this.dependencies.resolveAgentId(playerUsername)
+            .then(agentId => agentId ? this.deliverObserved({ ...event, agentId }, now) : null)
             .catch(error => console.error('[AgentReplan] Observed event failed:', error));
     }
 
@@ -92,8 +101,9 @@ export class AgentReplanCoordinator {
         const currentItems = snapshot.itemStock.reduce((sum, item) => sum + item.count, 0);
         const itemsDelta = currentItems - previousItems;
         if (Math.abs(coinsDelta) < this.significantCoins && Math.abs(itemsDelta) < this.significantItems) return [];
-        const agentIds = await this.dependencies.listAgentIds();
-        return Promise.all(agentIds.map(agentId => this.submit({ eventId: crypto.randomUUID(), agentId,
+        const agentIds = await (this.dependencies.listEconomicAgentIds?.(snapshot)
+            ?? this.dependencies.listAgentIds());
+        return Promise.all(agentIds.map(agentId => this.deliverObserved({ eventId: crypto.randomUUID(), agentId,
             type: 'significant-economic-change', sourceKey: `economy:${snapshot.timestamp}:${coinsDelta}:${itemsDelta}`,
             occurredAt: snapshot.timestamp,
             summary: `Shared economy changed by ${coinsDelta} gp and ${itemsDelta} tracked item units.` }, now)));

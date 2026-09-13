@@ -3,6 +3,7 @@ import { SKILL_NAMES } from './save-reader';
 export interface OfflineSaveEditItem {
     id: number;
     count: number;
+    slot?: number;
 }
 
 export interface OfflineSaveEditSkill {
@@ -13,13 +14,18 @@ export interface OfflineSaveEditSkill {
 export interface OfflineSaveDraft {
     expectedSavedAt: string;
     coins: number;
+    coinPlacement?: 'preserve' | 'inventory' | 'bank';
     skills: OfflineSaveEditSkill[];
     inventory: OfflineSaveEditItem[];
     bank: OfflineSaveEditItem[];
+    position?: { x: number; z: number; level: number };
+    equipment?: OfflineSaveEditItem[];
 }
 
 export interface OfflineSaveSummary extends Omit<OfflineSaveDraft, 'expectedSavedAt'> {
     savedAt: string;
+    position: { x: number; z: number; level: number };
+    equipment: OfflineSaveEditItem[];
 }
 
 export interface OfflineSaveResult {
@@ -71,14 +77,18 @@ function integer(value: unknown, label: string, minimum: number, maximum: number
     return Number(value);
 }
 
-function items(value: unknown, label: string): OfflineSaveEditItem[] {
+function items(value: unknown, label: string, exactSlots = false): OfflineSaveEditItem[] {
     if (!Array.isArray(value) || value.length > 2048) throw new Error(`${label}: érvénytelen itemlista.`);
     return value.map((raw, index) => {
         if (!raw || typeof raw !== 'object') throw new Error(`${label} ${index + 1}. sora érvénytelen.`);
         const entry = raw as Record<string, unknown>;
         const id = integer(entry.id, `${label} ${index + 1}. item ID`, 0, 65_534);
         if (id === 995) throw new Error('A coinokat a külön Pénz mezőben kell megadni.');
-        return { id, count: integer(entry.count, `${label} ${index + 1}. mennyiség`, 1, 2_147_483_647) };
+        const result: OfflineSaveEditItem = { id,
+            count: integer(entry.count, `${label} ${index + 1}. mennyiség`, 1, 2_147_483_647) };
+        if (entry.slot !== undefined) result.slot = integer(entry.slot, `${label} ${index + 1}. slot`, 0, exactSlots ? 13 : 495);
+        if (exactSlots && result.slot === undefined) throw new Error(`${label}: minden itemhez exact slot szükséges.`);
+        return result;
     });
 }
 
@@ -98,13 +108,32 @@ export function validateOfflineSaveDraft(value: unknown): OfflineSaveDraft {
         seen.add(name);
         return { name, experience: integer(entry.experience, `${name} XP`, 0, 2_000_000_000) };
     });
-    return {
+    const result: OfflineSaveDraft = {
         expectedSavedAt,
         coins: integer(draft.coins, 'Pénz', 0, 2_147_483_647),
         skills,
         inventory: items(draft.inventory, 'Inventory'),
         bank: items(draft.bank, 'Bank')
     };
+    if (draft.coinPlacement !== undefined) {
+        if (!['preserve', 'inventory', 'bank'].includes(String(draft.coinPlacement))) {
+            throw new Error('A coin elhelyezése csak preserve, inventory vagy bank lehet.');
+        }
+        result.coinPlacement = draft.coinPlacement as OfflineSaveDraft['coinPlacement'];
+    }
+    if (draft.position !== undefined) {
+        const position = draft.position as Record<string, unknown>;
+        if (!position || typeof position !== 'object') throw new Error('A pozíció érvénytelen.');
+        result.position = { x: integer(position.x, 'Pozíció X', 0, 16_383),
+            z: integer(position.z, 'Pozíció Z', 0, 16_383), level: integer(position.level, 'Pozíció szint', 0, 3) };
+    }
+    if (draft.equipment !== undefined) {
+        result.equipment = items(draft.equipment, 'Equipment', true);
+        if (new Set(result.equipment.map(item => item.slot)).size !== result.equipment.length) {
+            throw new Error('Equipment: ismétlődő slot.');
+        }
+    }
+    return result;
 }
 
 function engineConfig(): { baseUrl: string; token: string } {

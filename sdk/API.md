@@ -70,7 +70,7 @@
 |---|---|
 | `async closeShop(timeout: number = 5000): Promise<ActionResult>` | Close the shop interface. |
 | `async openShop(target?: NearbyNpc \| string \| RegExp): Promise<ActionResult>` | Open a shop by trading with an NPC. Defaults to the nearest shopkeeper. |
-| `async buyFromShop(target: ShopItem \| string \| RegExp, amount: number = 1): Promise<ShopResult>` | Buy an item from an open shop. `success` is true only when the full requested amount arrived; a short fill (out of stock, out of coins, full inventory) returns `success: false` with `partial: true` and the actual `amountBought`. |
+| `async buyFromShop(target: ShopItem \| string \| RegExp, amount: number = 1, options: { maxUnitPriceGp?: number } = {}): Promise<ShopResult>` | Buy an item from an open shop. `success` is true only when the full requested amount arrived; a short fill (out of stock, out of coins, full inventory) returns `success: false` with `partial: true` and the actual `amountBought`. |
 | `async sellToShop(target: InventoryItem \| ShopItem \| string \| RegExp, amount: SellAmount = 1): Promise<ShopSellResult>` | Sell an item to an open shop. `success` is true only when the full requested amount was sold; a short fill returns `success: false` with `partial: true` and `amountSold`. |
 
 ### Banking
@@ -624,7 +624,7 @@ interface ShopResult {
   amountBought?: number;
   /** Some but not all of the requested amount was bought. */
   partial?: boolean;
-  reason?: 'invalid_amount' | 'shop_not_open' | 'item_not_found' | 'partial_fill' | 'timeout' | 'out_of_stock' | 'no_inventory_space';
+  reason?: 'invalid_amount' | 'shop_not_open' | 'item_not_found' | 'partial_fill' | 'timeout' | 'out_of_stock' | 'no_inventory_space' | 'unit_price_limit';
 }
 ```
 

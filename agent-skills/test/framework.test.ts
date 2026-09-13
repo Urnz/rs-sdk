@@ -470,14 +470,60 @@ describe('rs-sdk skill runtime', () => {
         expect((await runtime.execute('trade-give-item', {
             player: 'receiver1', match: 'exact', item: 'Bronze dagger', itemMatch: 'exact', amount: 1
         }, signal)).success).toBe(true);
+        expect((await runtime.execute('trade-receive-item', {
+            player: 'giver1', match: 'exact', item: 'Bronze dagger', itemMatch: 'exact', amount: 1
+        }, signal)).success).toBe(true);
 
         expect(calls.map(call => call.name)).toEqual([
-            'smithAtAnvil', 'openShop', 'buyFromShop', 'sellToShop', 'closeShop', 'trade'
+            'smithAtAnvil', 'openShop', 'buyFromShop', 'sellToShop', 'closeShop', 'trade', 'trade'
         ]);
         const tradeOptions = calls.at(-1)?.args[1] as any;
-        expect(tradeOptions.give).toHaveLength(1);
-        expect(tradeOptions.want).toEqual([]);
+        expect(tradeOptions.give).toEqual([]);
+        expect(tradeOptions.want).toHaveLength(1);
         expect(tradeOptions.retryOnBusy).toBe(true);
+    });
+
+    test('rechecks autonomous item, partner, quantity and live shop price limits at runtime', async () => {
+        const calls: string[] = [];
+        const bot = {
+            buyFromShop: async () => {
+                calls.push('buy');
+                return { success: true, message: 'bought', requestedAmount: 2, amountBought: 2 };
+            },
+            trade: async () => {
+                calls.push('trade');
+                return { success: true, message: 'traded' };
+            }
+        } as any;
+        const shopItem = { slot: 0, id: 1, name: 'Hammer', count: 10, baseCost: 10, buyPrice: 11, sellPrice: 5 };
+        const sdk = {
+            getInventory: () => [],
+            getState: () => ({ shop: { isOpen: true, shopItems: [shopItem] } })
+        } as any;
+        const authorization = {
+            operations: ['buy-from-shop', 'trade-give-item', 'trade-receive-item'] as SkillOperationName[],
+            itemNames: ['hammer'], partners: ['worker1'], maxQuantity: 2, maxUnitPriceGp: 10, maxGpPerRun: 20
+        };
+        const runtime = new RsSdkSkillRuntime(bot, sdk, authorization);
+        const signal = new AbortController().signal;
+
+        expect(await runtime.execute('buy-from-shop', {
+            name: 'Hammer', match: 'exact', amount: 2
+        }, signal)).toMatchObject({ success: false, code: 'authorization-unit-price' });
+        shopItem.buyPrice = 10;
+        expect((await runtime.execute('buy-from-shop', {
+            name: 'Hammer', match: 'exact', amount: 2
+        }, signal)).success).toBeTrue();
+        expect(await runtime.execute('trade-give-item', {
+            player: 'stranger', match: 'exact', item: 'Hammer', itemMatch: 'exact', amount: 1
+        }, signal)).toMatchObject({ success: false, code: 'authorization-partner' });
+        expect(await runtime.execute('trade-give-item', {
+            player: 'worker1', match: 'exact', item: 'Hammer', itemMatch: 'exact', amount: 3
+        }, signal)).toMatchObject({ success: false, code: 'authorization-quantity' });
+        expect(await runtime.execute('trade-receive-item', {
+            player: 'stranger', match: 'exact', item: 'Hammer', itemMatch: 'exact', amount: 1
+        }, signal)).toMatchObject({ success: false, code: 'authorization-partner' });
+        expect(calls).toEqual(['buy']);
     });
 });
 

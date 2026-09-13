@@ -1,10 +1,11 @@
 import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentPlayerActionParameters,
-    AgentSkillKnowledgeStatus,
+    AgentAutonomyStatus, AgentSkillKnowledgeStatus,
     AgentCommitmentDirection, AgentEconomicActorKind, AgentEconomicActorRole, AgentKnowledgeKind,
     AgentKnowledgeSource, AgentRole, AgentSkillReference, AgentSubjectKind,
     CreateAgentCommitment, CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge,
     CreateAgentPlayerActionRequest,
-    GoalHorizon, SetAgentControlProfile, SetAgentRelationship, SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
+    GoalHorizon, SetAgentAutonomyEnrollment, SetAgentControlProfile, SetAgentRelationship,
+    SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLAYER_PATTERN = /^[a-z0-9 _-]+$/;
@@ -21,6 +22,9 @@ const ECONOMIC_ACTOR_KINDS = new Set<AgentEconomicActorKind>(['player', 'busines
 const ECONOMIC_ACTOR_ROLES = new Set<AgentEconomicActorRole>(['self', 'owner', 'manager', 'member', 'beneficiary']);
 const AGENT_ROLES = new Set<AgentRole>(['player', 'institution', 'service', 'world-director']);
 const SUBJECT_KINDS = new Set<AgentSubjectKind>(['player', 'business', 'faction', 'service', 'world']);
+const AUTONOMY_STATUSES = new Set<AgentAutonomyStatus>(['desired', 'running', 'paused', 'quarantined']);
+const FAILURE_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/;
+const LEASE_OWNER_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/;
 
 export class AgentStateValidationError extends Error {
     constructor(public readonly issues: string[]) {
@@ -160,6 +164,60 @@ export function validateControlProfile(value: SetAgentControlProfile): SetAgentC
         dailyOperationalBudgetGp: value.dailyOperationalBudgetGp };
 }
 
+export function validateAutonomyEnrollment(value: SetAgentAutonomyEnrollment): SetAgentAutonomyEnrollment {
+    const issues: string[] = [];
+    if (!AUTONOMY_STATUSES.has(value.status)) issues.push('status is unsupported');
+    const policyId = id(value.policyId, 'policyId', issues);
+    const policyVersion = text(value.policyVersion, 'policyVersion', issues, 32);
+    if (policyVersion && !VERSION_PATTERN.test(policyVersion)) issues.push('policyVersion must be semantic version');
+    const nextWakeupAt = value.nextWakeupAt ?? null;
+    const leaseOwner = value.leaseOwner === null || value.leaseOwner === undefined
+        ? null : text(value.leaseOwner, 'leaseOwner', issues, 128);
+    const leaseExpiresAt = value.leaseExpiresAt ?? null;
+    const failureCount = value.failureCount ?? 0;
+    const lastFailureFingerprint = value.lastFailureFingerprint === null
+        || value.lastFailureFingerprint === undefined
+        ? null : text(value.lastFailureFingerprint, 'lastFailureFingerprint', issues, 64).toLowerCase();
+    const quarantineReason = value.quarantineReason === null || value.quarantineReason === undefined
+        ? null : text(value.quarantineReason, 'quarantineReason', issues, 500);
+
+    if (nextWakeupAt && (Number.isNaN(Date.parse(nextWakeupAt))
+        || new Date(Date.parse(nextWakeupAt)).toISOString() !== nextWakeupAt)) {
+        issues.push('nextWakeupAt must be a canonical ISO timestamp');
+    }
+    if (leaseExpiresAt && (Number.isNaN(Date.parse(leaseExpiresAt))
+        || new Date(Date.parse(leaseExpiresAt)).toISOString() !== leaseExpiresAt)) {
+        issues.push('leaseExpiresAt must be a canonical ISO timestamp');
+    }
+    if (leaseOwner && !LEASE_OWNER_PATTERN.test(leaseOwner)) issues.push('leaseOwner has an invalid format');
+    if (!Number.isSafeInteger(failureCount) || failureCount < 0 || failureCount > 1_000_000) {
+        issues.push('failureCount must be 0-1000000');
+    }
+    if (lastFailureFingerprint && !FAILURE_FINGERPRINT_PATTERN.test(lastFailureFingerprint)) {
+        issues.push('lastFailureFingerprint must be a lowercase SHA-256 digest');
+    }
+    if ((failureCount === 0) !== (lastFailureFingerprint === null)) {
+        issues.push('failureCount and lastFailureFingerprint must be recorded together');
+    }
+    if ((leaseOwner === null) !== (leaseExpiresAt === null)) {
+        issues.push('leaseOwner and leaseExpiresAt must be recorded together');
+    }
+    if (value.status === 'running' && leaseOwner === null) issues.push('running autonomy requires a lease');
+    if (value.status !== 'running' && leaseOwner !== null) issues.push('only running autonomy may hold a lease');
+    if ((value.status === 'paused' || value.status === 'quarantined') && nextWakeupAt !== null) {
+        issues.push(`${value.status} autonomy cannot have a next wakeup`);
+    }
+    if (value.status === 'quarantined' && quarantineReason === null) {
+        issues.push('quarantined autonomy requires a reason');
+    }
+    if (value.status !== 'quarantined' && quarantineReason !== null) {
+        issues.push('only quarantined autonomy may have a reason');
+    }
+    if (issues.length) throw new AgentStateValidationError(issues);
+    return { status: value.status, policyId, policyVersion, nextWakeupAt, leaseOwner, leaseExpiresAt,
+        failureCount, lastFailureFingerprint, quarantineReason };
+}
+
 export function validateCreateIdentity(value: CreateAgentIdentity): CreateAgentIdentity {
     const issues: string[] = [];
     const agentId = id(value.agentId, 'agentId', issues);
@@ -225,10 +283,28 @@ export function validateCreateGoal(value: CreateAgentGoal): Required<CreateAgent
         title: text(value.title, 'title', issues, 200),
         description: text(value.description ?? '', 'description', issues, 2000, true),
         priority,
-        skill: value.skill === null || value.skill === undefined ? null : validateSkillReference(value.skill, 'skill', issues)
+        skill: value.skill === null || value.skill === undefined ? null : validateSkillReference(value.skill, 'skill', issues),
+        execution: value.execution ?? null
     };
     if (horizon === 'life' && result.parentGoalId !== null) issues.push('a life goal cannot have a parent');
     if (horizon !== 'life' && result.parentGoalId === null) issues.push(`${horizon} goals require a parent`);
+    if (result.execution) {
+        if (horizon !== 'immediate' || !result.skill) issues.push('execution requires an immediate goal with a skill');
+        if (result.execution.policy !== 'one-shot' && result.execution.policy !== 'recurring') {
+            issues.push('execution.policy must be one-shot or recurring');
+        }
+        const required = result.execution.requiredSuccessfulRuns ?? 1;
+        if (!Number.isSafeInteger(required) || required < 1 || required > 10_000) {
+            issues.push('execution.requiredSuccessfulRuns must be 1-10000');
+        }
+        const cooldown = result.execution.cooldownMs ?? 0;
+        if (!Number.isSafeInteger(cooldown) || cooldown < 0 || cooldown > 86_400_000) {
+            issues.push('execution.cooldownMs must be 0-86400000');
+        }
+        if (result.execution.policy === 'recurring' && cooldown < 1_000) {
+            issues.push('recurring execution requires a cooldown of at least 1000ms');
+        }
+    }
     if (issues.length) throw new AgentStateValidationError(issues);
     return result;
 }
