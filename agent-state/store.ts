@@ -1,7 +1,11 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import { createHash } from 'node:crypto';
+import type { BoundSimulationEventStamp } from '../simulation-clock/types.js';
+import { SimulationClockStore } from '../simulation-clock/store.js';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalEvent, type AgentGoalProposal, type AgentIdentity, type AgentSnapshot,
+    type AgentCharacterLifecycle, type AgentCharacterLifecycleOrigin,
     type AgentAutonomyControl, type AgentAutonomyEnrollment, type AgentAutonomyStatus, type AgentControlProfile,
     type AgentDecisionRecord, type AgentDecisionTrigger, type AgentGoalExecution, type AgentSkillDispatch,
     type AgentSkillRunOutcome, type AgentSkillRunOutcomeClassification,
@@ -29,6 +33,12 @@ interface IdentityRow {
     agent_id: string; player_username: string | null; display_name: string; background: string;
     personality_traits: string; agent_values: string; created_at: string; updated_at: string; revision: number;
 }
+interface CharacterLifecycleRow {
+    agent_id: string; origin: AgentCharacterLifecycleOrigin; created_at_simulation_time: string;
+    birth_at_simulation_time: string | null; age_at_observation_ms: number;
+    age_observed_at_simulation_time: string; status: AgentCharacterLifecycle['status'];
+    status_changed_at_simulation_time: string; created_at: string; updated_at: string; revision: number;
+}
 interface GoalRow {
     goal_id: string; agent_id: string; parent_goal_id: string | null; horizon: AgentGoal['horizon'];
     title: string; description: string; status: GoalStatus; priority: number; created_at: string;
@@ -38,6 +48,17 @@ interface GoalEventRow {
     sequence: number; goal_id: string; agent_id: string; kind: AgentGoalEvent['kind'];
     previous_status: GoalStatus | null; status: GoalStatus; previous_revision: number | null;
     revision: number; skill_id: string | null; skill_version: string | null; occurred_at: string;
+    simulation_clock_id: string | null; simulation_sequence: number | null;
+    simulation_time: string | null; simulation_binding_wall_time: string | null;
+    simulation_engine_tick: number | null; simulation_profile_digest: string | null;
+    simulation_clock_status: 'running' | 'paused' | null; simulation_clock_revision: number | null;
+    simulation_source_digest: string | null;
+}
+
+export interface AgentStateSimulationClock {
+    store: SimulationClockStore;
+    clockId: string;
+    engineTick?: () => number | undefined;
 }
 interface GoalProposalRow {
     proposal_id: string; run_id: string; agent_id: string; anchor_goal_id: string; anchor_goal_revision: number;
@@ -141,6 +162,20 @@ function identity(row: IdentityRow): AgentIdentity {
         personalityTraits: JSON.parse(row.personality_traits) as string[], values: JSON.parse(row.agent_values) as string[],
         createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
 }
+function characterLifecycle(row: CharacterLifecycleRow, atSimulationTime: string): AgentCharacterLifecycle {
+    const elapsed = row.status === 'active'
+        ? Math.max(0, Date.parse(atSimulationTime) - Date.parse(row.age_observed_at_simulation_time)) : 0;
+    const currentAgeSimulationMilliseconds = row.age_at_observation_ms + elapsed;
+    if (!Number.isSafeInteger(currentAgeSimulationMilliseconds)) throw new Error('Character age exceeds the safe range');
+    return { agentId: row.agent_id, origin: row.origin,
+        createdAtSimulationTime: row.created_at_simulation_time,
+        birthAtSimulationTime: row.birth_at_simulation_time,
+        ageAtObservationMilliseconds: row.age_at_observation_ms,
+        ageObservedAtSimulationTime: row.age_observed_at_simulation_time,
+        currentAgeSimulationMilliseconds, status: row.status,
+        statusChangedAtSimulationTime: row.status_changed_at_simulation_time,
+        createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
+}
 function goal(row: GoalRow): AgentGoal {
     return { goalId: row.goal_id, agentId: row.agent_id, parentGoalId: row.parent_goal_id, horizon: row.horizon,
         title: row.title, description: row.description, status: row.status, priority: row.priority,
@@ -170,11 +205,26 @@ function skillOutcome(row: SkillOutcomeRow): AgentSkillRunOutcome {
         detail: row.detail, occurredAt: row.occurred_at };
 }
 function goalEvent(row: GoalEventRow): AgentGoalEvent {
+    const stampValues = [row.simulation_clock_id, row.simulation_sequence, row.simulation_time,
+        row.simulation_binding_wall_time, row.simulation_profile_digest, row.simulation_clock_status,
+        row.simulation_clock_revision, row.simulation_source_digest];
+    const hasStamp = stampValues.some(value => value !== null);
+    if (hasStamp && stampValues.some(value => value === null)) {
+        throw new Error(`Agent goal event simulation stamp is incomplete for sequence ${row.sequence}`);
+    }
+    const simulationStamp: BoundSimulationEventStamp | null = hasStamp ? {
+        clockId: row.simulation_clock_id!, domain: 'agent-goal-event',
+        sourceId: `${row.agent_id}:${row.goal_id}:${row.revision}:${row.kind}`,
+        sourceDigest: row.simulation_source_digest!, sequence: row.simulation_sequence!,
+        simulationTime: row.simulation_time!, wallTime: row.simulation_binding_wall_time!,
+        engineTick: row.simulation_engine_tick, profileDigest: row.simulation_profile_digest!,
+        status: row.simulation_clock_status!, revision: row.simulation_clock_revision!
+    } : null;
     return { sequence: row.sequence, goalId: row.goal_id, agentId: row.agent_id, kind: row.kind,
         previousStatus: row.previous_status, status: row.status, previousRevision: row.previous_revision,
         revision: row.revision,
         skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
-        occurredAt: row.occurred_at };
+        occurredAt: row.occurred_at, simulationStamp };
 }
 function goalProposal(row: GoalProposalRow): AgentGoalProposal {
     return { proposalId: row.proposal_id, runId: row.run_id, agentId: row.agent_id,
@@ -274,20 +324,104 @@ function consolidationEvidence(row: ConsolidationEvidenceRow): AgentConsolidatio
 export class AgentStateStore {
     private readonly database: Database;
 
-    constructor(path: string) {
+    constructor(path: string, private readonly simulationClock?: AgentStateSimulationClock) {
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
         try {
             this.database.run('PRAGMA foreign_keys = ON');
             this.database.run('PRAGMA journal_mode = WAL');
             this.migrate();
+            if (simulationClock) this.backfillGoalEventSimulationStamps();
+            if (simulationClock) this.backfillCharacterLifecycles();
         } catch (error) {
             this.database.close(true);
             throw error;
         }
     }
 
-    close(): void { this.database.close(true); }
+    close(): void { this.database.close(false); }
+
+    private bindGoalEventRow(row: GoalEventRow): void {
+        if (!this.simulationClock || row.simulation_clock_id !== null) return;
+        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+        if (!clock) throw new Error(`Simulation clock ${this.simulationClock.clockId} does not exist`);
+        const sourceId = `${row.agent_id}:${row.goal_id}:${row.revision}:${row.kind}`;
+        const sourceDigest = createHash('sha256').update(JSON.stringify({ schemaVersion: 1,
+            goalId: row.goal_id, agentId: row.agent_id, kind: row.kind,
+            previousStatus: row.previous_status, status: row.status,
+            previousRevision: row.previous_revision, revision: row.revision,
+            skill: row.skill_id && row.skill_version ? { id: row.skill_id, version: row.skill_version } : null,
+            occurredAt: row.occurred_at })).digest('hex');
+        const wallTime = row.occurred_at < clock.lastObservedWallTime
+            ? clock.lastObservedWallTime : row.occurred_at;
+        const stamp = this.simulationClock.store.bindEvent({ clockId: this.simulationClock.clockId,
+            domain: 'agent-goal-event', sourceId, sourceDigest, wallTime,
+            engineTick: this.simulationClock.engineTick?.() }).stamp;
+        this.database.run(`UPDATE agent_goal_event SET simulation_clock_id=?2,
+            simulation_sequence=?3,simulation_time=?4,simulation_binding_wall_time=?5,
+            simulation_engine_tick=?6,simulation_profile_digest=?7,simulation_clock_status=?8,
+            simulation_clock_revision=?9,simulation_source_digest=?10
+            WHERE sequence=?1 AND simulation_clock_id IS NULL`, [row.sequence, stamp.clockId,
+            stamp.sequence, stamp.simulationTime, stamp.wallTime, stamp.engineTick,
+            stamp.profileDigest, stamp.status, stamp.revision, stamp.sourceDigest]);
+    }
+
+    private bindGoalEvent(goalId: string, revision: number, kind: AgentGoalEvent['kind']): void {
+        if (!this.simulationClock) return;
+        const row = this.database.query(`SELECT * FROM agent_goal_event
+            WHERE goal_id=?1 AND revision=?2 AND kind=?3`).get(goalId, revision, kind) as GoalEventRow | null;
+        if (!row) throw new Error('Persisted goal event could not be rebound to simulation time');
+        this.bindGoalEventRow(row);
+    }
+
+    private backfillGoalEventSimulationStamps(): void {
+        const table = this.database.query(`SELECT 1 AS found FROM sqlite_master
+            WHERE type='table' AND name='agent_goal_event'`).get();
+        if (!table) return;
+        const rows = this.database.query(`SELECT * FROM agent_goal_event
+            WHERE simulation_clock_id IS NULL ORDER BY occurred_at,sequence`).all() as GoalEventRow[];
+        for (const row of rows) this.bindGoalEventRow(row);
+    }
+
+    private simulationTime(): string {
+        if (!this.simulationClock) throw new Error('Character lifecycle requires the shared simulation clock');
+        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+        if (!clock) throw new Error(`Simulation clock ${this.simulationClock.clockId} does not exist`);
+        return clock.lastSimulationTime;
+    }
+
+    private observeSimulationTime(wallTime: string): string {
+        if (!this.simulationClock) throw new Error('Character lifecycle requires the shared simulation clock');
+        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+        if (!clock) throw new Error(`Simulation clock ${this.simulationClock.clockId} does not exist`);
+        const canonical = new Date(wallTime).toISOString();
+        const bindingWallTime = canonical < clock.lastObservedWallTime ? clock.lastObservedWallTime : canonical;
+        return this.simulationClock.store.observe(this.simulationClock.clockId, bindingWallTime,
+            this.simulationClock.engineTick?.()).simulationTime;
+    }
+
+    private insertCharacterLifecycle(agentId: string, origin: AgentCharacterLifecycleOrigin,
+        simulationTime: string, now: string): void {
+        this.database.run(`INSERT OR IGNORE INTO agent_character_lifecycle
+            (agent_id,origin,created_at_simulation_time,birth_at_simulation_time,
+            age_at_observation_ms,age_observed_at_simulation_time,status,
+            status_changed_at_simulation_time,created_at,updated_at,revision)
+            VALUES(?1,?2,?3,NULL,0,?3,'active',?3,?4,?4,1)`,
+        [agentId, origin, simulationTime, now]);
+    }
+
+    private backfillCharacterLifecycles(): void {
+        const simulationTime = this.simulationTime();
+        const rows = this.database.query(`SELECT i.agent_id,i.created_at FROM agent_identity i
+            JOIN agent_control_profile p ON p.agent_id=i.agent_id
+            LEFT JOIN agent_character_lifecycle l ON l.agent_id=i.agent_id
+            WHERE p.role='player' AND l.agent_id IS NULL ORDER BY i.agent_id`)
+            .all() as Array<{ agent_id: string; created_at: string }>;
+        const transaction = this.database.transaction(() => {
+            for (const row of rows) this.insertCharacterLifecycle(row.agent_id, 'imported', simulationTime, row.created_at);
+        });
+        transaction.immediate();
+    }
 
     createIdentity(input: CreateAgentIdentity, now = new Date().toISOString()): AgentIdentity {
         const value = validateCreateIdentity(input);
@@ -316,6 +450,9 @@ export class AgentStateStore {
             [value.agentId, profile.role, profile.subjectKind, profile.subjectId,
                 profile.avatarPlayerUsername ?? null, profile.decisionIntervalMs, profile.maxDecisionsPerDay,
                 profile.dailyLlmBudgetMicros, profile.dailyOperationalBudgetGp, now]);
+            if (profile.role === 'player' && this.simulationClock) {
+                this.insertCharacterLifecycle(value.agentId, 'created', this.simulationTime(), now);
+            }
         });
         transaction.immediate();
         return this.requireIdentity(value.agentId);
@@ -358,6 +495,47 @@ export class AgentStateStore {
 
     listIdentities(): AgentIdentity[] {
         return (this.database.query('SELECT * FROM agent_identity ORDER BY agent_id').all() as IdentityRow[]).map(identity);
+    }
+
+    getCharacterLifecycle(agentId: string): AgentCharacterLifecycle | null {
+        const normalized = normalizeAgentId(agentId);
+        const row = this.database.query(`SELECT * FROM agent_character_lifecycle WHERE agent_id=?1`)
+            .get(normalized) as CharacterLifecycleRow | null;
+        return row ? characterLifecycle(row, this.simulationClock ? this.simulationTime()
+            : row.age_observed_at_simulation_time) : null;
+    }
+
+    setCharacterBirth(agentId: string, expectedRevision: number, birthAtSimulationTime: string,
+        origin: Extract<AgentCharacterLifecycleOrigin, 'born' | 'imported'> = 'born',
+        now = new Date().toISOString()): AgentCharacterLifecycle {
+        const normalized = normalizeAgentId(agentId), current = this.getCharacterLifecycle(normalized);
+        if (!current) throw new Error('Character lifecycle is not initialized for this player agent');
+        if (current.birthAtSimulationTime !== null) throw new Error('Character birth time is immutable once recorded');
+        const birth = new Date(birthAtSimulationTime).toISOString();
+        if (birth !== birthAtSimulationTime) throw new Error('Character birth time must be canonical UTC ISO');
+        const observed = this.observeSimulationTime(now), age = Date.parse(observed) - Date.parse(birth);
+        if (!Number.isSafeInteger(age) || age < 0) throw new Error('Character birth time cannot follow observation time');
+        const result = this.database.run(`UPDATE agent_character_lifecycle SET origin=?3,
+            birth_at_simulation_time=?4,age_at_observation_ms=?5,age_observed_at_simulation_time=?6,
+            updated_at=?7,revision=revision+1 WHERE agent_id=?1 AND revision=?2 AND birth_at_simulation_time IS NULL`,
+        [normalized, expectedRevision, origin, birth, age, observed, now]);
+        if (result.changes !== 1) throw new Error('Character lifecycle changed before birth registration');
+        return this.getCharacterLifecycle(normalized)!;
+    }
+
+    observeCharacterAge(agentId: string, expectedRevision: number,
+        now = new Date().toISOString()): AgentCharacterLifecycle {
+        const normalized = normalizeAgentId(agentId), current = this.getCharacterLifecycle(normalized);
+        if (!current) throw new Error('Character lifecycle is not initialized for this player agent');
+        const observed = this.observeSimulationTime(now);
+        const age = current.ageAtObservationMilliseconds
+            + (current.status === 'active' ? Date.parse(observed) - Date.parse(current.ageObservedAtSimulationTime) : 0);
+        if (!Number.isSafeInteger(age) || age < 0) throw new Error('Character age exceeds the safe range');
+        const result = this.database.run(`UPDATE agent_character_lifecycle SET age_at_observation_ms=?3,
+            age_observed_at_simulation_time=?4,updated_at=?5,revision=revision+1
+            WHERE agent_id=?1 AND revision=?2`, [normalized, expectedRevision, age, observed, now]);
+        if (result.changes !== 1) throw new Error('Character lifecycle changed before age observation');
+        return this.getCharacterLifecycle(normalized)!;
     }
 
     getControlProfile(agentId: string): AgentControlProfile | null {
@@ -964,6 +1142,7 @@ export class AgentStateStore {
                 skill_id, skill_version, occurred_at)
                 VALUES (?1, ?2, 'created', NULL, 'active', NULL, 1, ?3, ?4, ?5)`,
             [value.goalId, normalizedAgentId, value.skill?.id ?? null, value.skill?.version ?? null, now]);
+            this.bindGoalEvent(value.goalId, 1, 'created');
             if (value.execution) {
                 const binding = createSkillParameterBinding(value.execution.binding);
                 this.database.run(`INSERT INTO agent_goal_execution
@@ -1067,6 +1246,7 @@ export class AgentStateStore {
                     skill_id, skill_version, occurred_at)
                     VALUES (?1, ?2, 'created', NULL, 'active', NULL, 1, ?3, ?4, ?5)`,
                 [value.goalId, proposal.agentId, goalSkill?.id ?? null, goalSkill?.version ?? null, now]);
+                this.bindGoalEvent(value.goalId, 1, 'created');
             }
             const status = proposal.skill ? 'approved' : 'completed';
             const result = this.database.run(`UPDATE agent_goal_proposal SET status = ?3, approval_id = ?4,
@@ -1134,6 +1314,7 @@ export class AgentStateStore {
                 VALUES (?1, ?2, 'status-changed', ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
             [current.goalId, current.agentId, current.status, status, current.revision, current.revision + 1,
                 current.skill?.id ?? null, current.skill?.version ?? null, now]);
+            this.bindGoalEvent(current.goalId, current.revision + 1, 'status-changed');
         });
         transaction.immediate();
         return unchanged ?? this.requireGoal(normalizedGoalId);
@@ -1281,6 +1462,7 @@ export class AgentStateStore {
                     VALUES (?1, ?2, 'status-changed', 'active', 'completed', ?3, ?4, ?5, ?6, ?7)`,
                 [current.goalId, current.agentId, current.revision, current.revision + 1,
                     current.skill?.id ?? null, current.skill?.version ?? null, now]);
+                this.bindGoalEvent(current.goalId, current.revision + 1, 'status-changed');
             }
             goalState = this.requireGoal(dispatch.goalId);
         });
@@ -1322,6 +1504,7 @@ export class AgentStateStore {
                 VALUES (?1, ?2, 'skill-assigned', ?3, ?3, ?4, ?5, ?6, ?7, ?8)`,
             [current.goalId, current.agentId, current.status, current.revision, current.revision + 1,
                 normalizedSkill.id, normalizedSkill.version, now]);
+            this.bindGoalEvent(current.goalId, current.revision + 1, 'skill-assigned');
         });
         transaction.immediate();
         return this.getGoal(normalizedGoalId)!;
@@ -1870,7 +2053,8 @@ export class AgentStateStore {
 
     getSnapshot(agentId: string): AgentSnapshot | null {
         const found = this.getIdentity(agentId);
-        return found ? { identity: found, goals: this.listGoals(found.agentId),
+        return found ? { identity: found, characterLifecycle: this.getCharacterLifecycle(found.agentId),
+            goals: this.listGoals(found.agentId),
             workingMemory: this.getWorkingMemory(found.agentId), knownSkills: this.listSkillKnowledge(found.agentId) } : null;
     }
 
@@ -2365,6 +2549,50 @@ export class AgentStateStore {
             const transaction = this.database.transaction(() => {
                 this.database.run('ALTER TABLE agent_decision_ledger ADD COLUMN context_digest TEXT');
                 this.database.run('PRAGMA user_version = 19');
+            });
+            transaction.immediate();
+        }
+        if (version < 20) {
+            const transaction = this.database.transaction(() => {
+                const table = this.database.query(`SELECT 1 AS found FROM sqlite_master
+                    WHERE type='table' AND name='agent_goal_event'`).get();
+                if (!table) {
+                    this.database.run('PRAGMA user_version = 20');
+                    return;
+                }
+                const columns = this.database.query('PRAGMA table_info(agent_goal_event)').all() as Array<{ name: string }>;
+                const existing = new Set(columns.map(column => column.name));
+                const additions: Array<[string, string]> = [
+                    ['simulation_clock_id', 'TEXT'], ['simulation_sequence', 'INTEGER'],
+                    ['simulation_time', 'TEXT'], ['simulation_binding_wall_time', 'TEXT'],
+                    ['simulation_engine_tick', 'INTEGER'], ['simulation_profile_digest', 'TEXT'],
+                    ['simulation_clock_status', 'TEXT'], ['simulation_clock_revision', 'INTEGER'],
+                    ['simulation_source_digest', 'TEXT']
+                ];
+                for (const [name, type] of additions) {
+                    if (!existing.has(name)) this.database.run(`ALTER TABLE agent_goal_event ADD COLUMN ${name} ${type}`);
+                }
+                this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS agent_goal_event_simulation_sequence
+                    ON agent_goal_event(simulation_clock_id,simulation_sequence)
+                    WHERE simulation_clock_id IS NOT NULL`);
+                this.database.run('PRAGMA user_version = 20');
+            });
+            transaction.immediate();
+        }
+        if (version < 21) {
+            const transaction = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE IF NOT EXISTS agent_character_lifecycle (
+                    agent_id TEXT PRIMARY KEY REFERENCES agent_identity(agent_id) ON DELETE RESTRICT,
+                    origin TEXT NOT NULL CHECK(origin IN ('created','imported','born')),
+                    created_at_simulation_time TEXT NOT NULL,birth_at_simulation_time TEXT,
+                    age_at_observation_ms INTEGER NOT NULL CHECK(age_at_observation_ms>=0),
+                    age_observed_at_simulation_time TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('active','deceased')),
+                    status_changed_at_simulation_time TEXT NOT NULL,
+                    created_at TEXT NOT NULL,updated_at TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK(revision>=1),
+                    CHECK(birth_at_simulation_time IS NULL OR birth_at_simulation_time<=age_observed_at_simulation_time))`);
+                this.database.run('PRAGMA user_version = 21');
             });
             transaction.immediate();
         }

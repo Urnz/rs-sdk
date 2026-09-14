@@ -10,6 +10,7 @@ import World, {
     type AdminWorldDirectorEventResult,
     type AdminPropertyMaintenanceResult,
     type AdminPropertyTransferResult,
+    type AdminPropertyGenesisResult,
     type AdminPropertyPurchaseResult,
     type AdminTeleportResult
 } from '#/engine/World.js';
@@ -203,6 +204,33 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         try {
             const result: AdminPropertyTransferResult = World.adminTransferProperty(commandId, transferId,
                 propertyId, Number(expectedVersion), body.from, body.to);
+            return json(result);
+        } catch (error) {
+            return json({ error: error instanceof Error ? error.message : String(error) }, 409);
+        }
+    }
+
+    if (url.pathname === '/api/internal/admin/properties/genesis-assign') {
+        const allowedFields = new Set(['commandId', 'allocationId', 'propertyId', 'expectedVersion', 'owner']);
+        if (Object.keys(body).some(key => !allowedFields.has(key))) {
+            return json({ error: 'Property genesis request contains forbidden fields' }, 400);
+        }
+        const propertyId = typeof body.propertyId === 'string' ? body.propertyId.trim() : '';
+        const allocationId = typeof body.allocationId === 'string' ? body.allocationId.trim() : '';
+        const expectedVersion = body.expectedVersion;
+        const owner = body.owner as Record<string, unknown> | null;
+        if (!/^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/.test(propertyId)
+            || !/^[a-z0-9][a-z0-9._:-]{0,119}$/.test(allocationId)
+            || !Number.isInteger(expectedVersion) || Number(expectedVersion) < 1
+            || !owner || typeof owner !== 'object' || Array.isArray(owner)
+            || Object.keys(owner).sort().join(',') !== 'id,kind'
+            || !['player', 'business', 'faction'].includes(String(owner.kind))
+            || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(String(owner.id))) {
+            return json({ error: 'Invalid property genesis request' }, 400);
+        }
+        try {
+            const result: AdminPropertyGenesisResult = World.adminAssignGenesisProperty(commandId, allocationId,
+                propertyId, Number(expectedVersion), owner as { kind: 'player'|'business'|'faction'; id: string });
             return json(result);
         } catch (error) {
             return json({ error: error instanceof Error ? error.message : String(error) }, 409);

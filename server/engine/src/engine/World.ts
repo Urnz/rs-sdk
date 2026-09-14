@@ -110,7 +110,8 @@ import Midi from '#/cache/midi/Midi.js';
 import Koth from '#/engine/Koth.js';
 import { getPropertyRuntime, type PropertyView } from '#/mods/PropertyRuntime.js';
 import { formatPropertyRegisterLines } from '#/mods/PropertyRegister.js';
-import type { PropertyPendingResolution, PropertyPurchaseRecord, PropertyTransferReceipt } from '#/mods/PropertyStore.js';
+import type { PropertyGenesisReceipt, PropertyPendingResolution, PropertyPurchaseRecord,
+    PropertyTransferReceipt } from '#/mods/PropertyStore.js';
 import { formatWorldDirectorSignalMessage, isWorldModEnabled, onWorldModPlayerLogin,
     recordWorldModDomainEvent, applyWorldModRespawnDuration } from '#/mods/WorldMods.js';
 import { getPlayerRewardStore, type PlayerRewardRecord } from '#/mods/PlayerRewardStore.js';
@@ -267,6 +268,7 @@ export interface AdminPropertyMaintenanceResult {
     tick: number;
 }
 export interface AdminPropertyTransferResult { ok: true; commandId: string; transfer: PropertyTransferReceipt; tick: number }
+export interface AdminPropertyGenesisResult { ok: true; commandId: string; assignment: PropertyGenesisReceipt; tick: number }
 
 export interface AdminPlayerRewardCommand {
     commandId: string;
@@ -981,6 +983,14 @@ class World {
         const transfer = getPropertyRuntime().transferOwnership(transferId, propertyId, expectedVersion, from, to);
         recordWorldModDomainEvent('economy.properties', 'administratorTransfers');
         return { ok: true, commandId, transfer, tick: this.currentTick };
+    }
+
+    adminAssignGenesisProperty(commandId: string, allocationId: string, propertyId: string, expectedVersion: number,
+        owner: { kind: 'player'|'business'|'faction'; id: string }): AdminPropertyGenesisResult {
+        if (!isWorldModEnabled('economy.properties')) throw new Error('The property mod is read-only while disabled');
+        const assignment = getPropertyRuntime().assignGenesis(allocationId, propertyId, expectedVersion, owner);
+        recordWorldModDomainEvent('economy.properties', 'administratorTransfers');
+        return { ok: true, commandId, assignment, tick: this.currentTick };
     }
 
     adminReconcilePending(

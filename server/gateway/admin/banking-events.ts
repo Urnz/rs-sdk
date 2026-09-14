@@ -3,7 +3,8 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { InstitutionSettlementOrchestrator, bankingInstitutionSettlement,
     type InstitutionSettlementEvidenceRequest, type InstitutionSettlementEvidenceVerifier,
-    type InstitutionSettlementRequest, type VerifiedInstitutionSettlementEvidence } from './institution-settlement-orchestrator.js';
+    type InstitutionSettlementRequest, type InstitutionSettlementSimulationClock,
+    type VerifiedInstitutionSettlementEvidence } from './institution-settlement-orchestrator.js';
 
 export interface BankingCompletionSource {
     verify(request: Readonly<InstitutionSettlementEvidenceRequest>): Promise<VerifiedInstitutionSettlementEvidence>;
@@ -32,9 +33,10 @@ export class BankingVerifiedEventStore implements InstitutionSettlementEvidenceV
 }
 
 export class BankingSettlementService {
-    constructor(private readonly path:string,private readonly treasuryPath:string=path){}
+    constructor(private readonly path:string,private readonly treasuryPath:string=path,
+        private readonly simulationClock?:InstitutionSettlementSimulationClock){}
     async settle(request:Omit<InstitutionSettlementRequest,'domain'>,source:BankingCompletionSource,now?:string){
-        const events=new BankingVerifiedEventStore(this.path);const orchestrator=new InstitutionSettlementOrchestrator(this.path,this.treasuryPath);
+        const events=new BankingVerifiedEventStore(this.path);const orchestrator=new InstitutionSettlementOrchestrator(this.path,this.treasuryPath,this.simulationClock);
         try{const normalized={...request,eventId:request.eventId.trim().toLowerCase(),eventKind:request.eventKind.trim().toLowerCase(),
             sourceRef:request.sourceRef.trim().toLowerCase(),settlementId:request.settlementId.trim().toLowerCase(),reservationId:request.reservationId.trim().toLowerCase(),
             payerActorId:request.payerActorId.trim().toLowerCase(),payeeActorId:request.payeeActorId.trim().toLowerCase()};

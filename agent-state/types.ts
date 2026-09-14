@@ -1,4 +1,6 @@
-export const AGENT_STATE_SCHEMA_VERSION = 19 as const;
+import type { BoundSimulationEventStamp } from '../simulation-clock/types.js';
+
+export const AGENT_STATE_SCHEMA_VERSION = 21 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -29,6 +31,8 @@ export type AgentSkillParameterSourceKind = 'goal' | 'work-order' | 'contract-ob
     | 'approved-policy' | 'llm-suggestion';
 export type AgentSkillRunOutcomeClassification = 'completed' | 'acquire-input' | 'retry'
     | 'capability-gap' | 'authorization';
+export type AgentCharacterLifecycleStatus = 'active' | 'deceased';
+export type AgentCharacterLifecycleOrigin = 'created' | 'imported' | 'born';
 
 export interface AgentSkillReference {
     id: string;
@@ -43,6 +47,21 @@ export interface AgentIdentity {
     background: string;
     personalityTraits: string[];
     values: string[];
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
+export interface AgentCharacterLifecycle {
+    agentId: string;
+    origin: AgentCharacterLifecycleOrigin;
+    createdAtSimulationTime: string;
+    birthAtSimulationTime: string | null;
+    ageAtObservationMilliseconds: number;
+    ageObservedAtSimulationTime: string;
+    currentAgeSimulationMilliseconds: number;
+    status: AgentCharacterLifecycleStatus;
+    statusChangedAtSimulationTime: string;
     createdAt: string;
     updatedAt: string;
     revision: number;
@@ -94,6 +113,7 @@ export interface AgentGoalEvent {
     revision: number;
     skill: AgentSkillReference | null;
     occurredAt: string;
+    simulationStamp?: BoundSimulationEventStamp | null;
 }
 
 export interface CreateAgentGoal {
@@ -582,6 +602,7 @@ export interface CreateAgentConsolidationEvidence {
 
 export interface AgentSnapshot {
     identity: AgentIdentity;
+    characterLifecycle: AgentCharacterLifecycle | null;
     goals: AgentGoal[];
     workingMemory: AgentWorkingMemory | null;
     knownSkills: AgentSkillKnowledge[];

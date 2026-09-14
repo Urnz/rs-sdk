@@ -6,6 +6,7 @@ import { EconomicContractStore, type EconomicContract } from './economic-contrac
 import { GovernancePolicyStore } from './governance-policy.js';
 import { GovernanceStore } from './governance.js';
 import { ReplanInboxStore } from './replan-inbox.js';
+import type { ReplanInboxSimulationClock } from './replan-inbox.js';
 import { WorldDirectorStore } from './world-director-runtime.js';
 import { BUILTIN_WORLD_EVENT_TEMPLATES } from './world-director.js';
 import type { AdminPropertyList, AdminPropertyView } from './properties.js';
@@ -18,6 +19,7 @@ export interface DomainWakeupPaths {
     contractsPath?: string;
     governancePath?: string;
     worldDirectorPath?: string;
+    simulationClock?: ReplanInboxSimulationClock;
 }
 
 export interface DomainWakeupRecoveryResult { scanned: number; created: number; existing: number }
@@ -48,7 +50,7 @@ function actionSummary(action: AgentPlayerActionRequest): string {
 export function recoverDomainEventWakeups(inboxPath: string, paths: DomainWakeupPaths = {},
     propertyState: AdminPropertyList | readonly AdminPropertyView[] = []): DomainWakeupRecoveryResult {
     const agentPath = paths.agentPath ?? agentStateDbPath;
-    const agents = new AgentStateStore(agentPath);
+    const agents = new AgentStateStore(agentPath, paths.simulationClock);
     const enrollments = agents.listAutonomyEnrollments()
         .filter(item => item.status === 'desired' || item.status === 'running');
     const enrolled = new Map(enrollments.map(enrollment => [enrollment.agentId,
@@ -140,7 +142,7 @@ export function recoverDomainEventWakeups(inboxPath: string, paths: DomainWakeup
                 `Property purchase ${purchase.transactionId} is ${purchase.status}.`);
         }
 
-        const world = new WorldDirectorStore(paths.worldDirectorPath ?? worldDirectorDbPath);
+        const world = new WorldDirectorStore(paths.worldDirectorPath ?? worldDirectorDbPath, paths.simulationClock);
         try {
             const allowlist = new Set(BUILTIN_WORLD_EVENT_TEMPLATES.filter(item => item.status === 'approved')
                 .map(item => `${item.templateId}@${item.version}`));
@@ -158,7 +160,7 @@ export function recoverDomainEventWakeups(inboxPath: string, paths: DomainWakeup
     } finally { agents.close(); }
 
     if (events.length > 10_000) throw new Error('Domain wakeup recovery exceeds the bounded event limit');
-    const inbox = new ReplanInboxStore(inboxPath);
+    const inbox = new ReplanInboxStore(inboxPath, paths.simulationClock);
     const result = { scanned: events.length, created: 0, existing: 0 };
     try {
         for (const event of events) inbox.enqueue(event, event.occurredAt).created ? result.created++ : result.existing++;

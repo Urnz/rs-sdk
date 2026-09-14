@@ -3,9 +3,10 @@ import type { AgentEpisode, AgentSnapshot } from '../../agent-state/types.js';
 import { buildLlmPlanningInput } from '../planning.js';
 
 const snapshot = {
-        identity: { schemaVersion: 19, agentId: 'ferrye14', playerUsername: 'ferrye14', displayName: 'Ferrye',
+        identity: { schemaVersion: 21, agentId: 'ferrye14', playerUsername: 'ferrye14', displayName: 'Ferrye',
         background: 'A miner.', personalityTraits: ['patient'], values: ['independence'], createdAt: '2026-08-29T12:00:00.000Z',
         updatedAt: '2026-08-29T12:00:00.000Z', revision: 1 },
+    characterLifecycle: null,
     goals: [{ goalId: 'mine', agentId: 'ferrye14', parentGoalId: null, horizon: 'immediate', title: 'Mine ore',
         description: 'Bank iron ore.', status: 'active', priority: 90, skill: null, createdAt: '2026-08-29T12:00:00.000Z',
         updatedAt: '2026-08-29T12:00:00.000Z', completedAt: null, revision: 1 }],

@@ -27,13 +27,15 @@ import { buildBotCatalog, economySnapshot, recordEconomy } from './admin/catalog
 import { GatewaySkillBuilderScheduler } from './admin/skill-builder-runtime';
 import { GatewayWorldDirectorScheduler, loadWorldDirectorConfig, WorldDirectorDispatcher,
     WorldDirectorStore } from './admin/world-director-runtime';
+import { BUILTIN_WORLD_EVENT_TEMPLATES } from './admin/world-director';
 import { EngineWorldDirectorAdapter } from './admin/world-director-engine-adapter';
 import { reconcileAdminGoalProposalRun, reconcileAdminPlayerActionRun,
     recoverAdminPlayerActionSettlements } from './admin/agent-state';
 import { MultiAgentExperimentStore, readMultiAgentExperimentGoalEvents, readMultiAgentExperimentGoalSnapshots,
     reconcileMultiAgentExperimentSkillRun } from './admin/multi-agent-experiments';
 import { agentStateDbPath, economyEventsDbPath, multiAgentExperimentsDbPath,
-    replanInboxDbPath } from './admin/paths';
+    replanInboxDbPath, simulationClockConfigPath, simulationClockDbPath,
+    worldDirectorDbPath } from './admin/paths';
 import { readSkillRun } from './admin/skill-history';
 import { EconomyEventStore } from './admin/transaction-telemetry';
 import { AgentStateStore } from '../../agent-state/store';
@@ -46,12 +48,29 @@ import { recoverDomainEventWakeups } from './admin/domain-event-recovery';
 import { listEngineProperties } from './admin/properties';
 import { runAutonomyReconciliation } from './admin/autonomy-reconciliation';
 import { recoverReadyEconomicContractSettlements } from './admin/economic-contract-settlement';
+import { openSimulationClockRuntime } from '../../simulation-clock';
+import { playerTimeCapabilities } from '../../simulation-clock';
+import { LocalLostCityWorldGenesisAdapter } from './admin/local-world-genesis-adapter';
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 const AUTONOMY_STARTUP_GRACE_MS = Math.max(0, Math.min(120_000,
     Number.parseInt(process.env.AUTONOMY_STARTUP_GRACE_MS || '5000', 10) || 0));
 const gatewayInstanceId = crypto.randomUUID();
 const autonomyLeaseOwner = `gateway:${gatewayInstanceId}`;
+const simulationClockRuntime = openSimulationClockRuntime(simulationClockConfigPath, simulationClockDbPath);
+const replanSimulationClock = { store: simulationClockRuntime.store, clockId: simulationClockRuntime.clockId };
+const worldGenesisAdapter = new LocalLostCityWorldGenesisAdapter();
+function recordPlayerPresence(username: string, presence: 'online' | 'offline'): void {
+    try {
+        simulationClockRuntime.store.recordPlayerPresence(simulationClockRuntime.clockId,
+            username, presence, new Date().toISOString());
+    } catch (error) {
+        console.error(`[Gateway] Failed to persist ${presence} presence for ${username}:`, error);
+    }
+}
+for (const state of simulationClockRuntime.store.listPlayerTimeStates(simulationClockRuntime.clockId)) {
+    if (state.presence === 'online') recordPlayerPresence(state.playerId, 'offline');
+}
 let agentReplanCoordinator: AgentReplanCoordinator | null = null;
 const multiAgentExperimentWorldStore = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
 const lastExperimentWorldRegion = new Map<string, string>();
@@ -356,6 +375,7 @@ const SyncModule = {
 
         botSessions.set(username, session);
         wsToType.set(ws, { type: 'bot', id: username });
+        recordPlayerPresence(username, 'online');
 
         console.log(`[Gateway] Bot connected: ${clientId} (${username})`);
 
@@ -734,6 +754,7 @@ const SyncModule = {
                 console.log(`[Gateway] Bot disconnected: ${session.clientId} (${session.username})`);
                 const username = session.username;
                 session.ws = null;
+                recordPlayerPresence(username, 'offline');
 
                 // Check if there's a pending takeover waiting for this session to close
                 const pending = pendingTakeovers.get(username);
@@ -941,16 +962,21 @@ const botSupervisor = new BotSupervisor((username, reason) => {
     return true;
 });
 {
-    const store = new AgentStateStore(agentStateDbPath);
+    const store = new AgentStateStore(agentStateDbPath, replanSimulationClock);
     try { setAdminLlmEmergencyStop(store.getAutonomyControl().emergencyStop); }
     finally { store.close(); }
 }
 agentReplanCoordinator = createGatewayAgentReplanCoordinator(adminGatewayBots, botSupervisor,
-    appendReplanRecord, { requiredAutonomyLeaseOwner: autonomyLeaseOwner });
+    appendReplanRecord, { requiredAutonomyLeaseOwner: autonomyLeaseOwner,
+        simulationClock: replanSimulationClock });
 const agentAutonomySupervisor = new GatewayAgentAutonomySupervisor(agentReplanCoordinator, {
     leaseOwner: autonomyLeaseOwner,
     activeSkill: username => botSupervisor.activeSkillSnapshot(username),
     ensureAvatar: username => ensureAutonomyBotSession(username, adminGatewayBots, botSupervisor),
+    timeCapabilities: username => {
+        const state = simulationClockRuntime.store.getPlayerTimeState(simulationClockRuntime.clockId, username);
+        return state ? playerTimeCapabilities(state) : null;
+    },
     nextEvent: (agentId, now) => {
         const store = new ReplanInboxStore(replanInboxDbPath);
         try { return store.nextClaimableForAgent(agentId, now)?.event ?? null; }
@@ -972,7 +998,7 @@ botSupervisor.onSkillExit(event => {
         try {
             const skillRun = await readSkillRun(event.snapshot.runId);
             if (skillRun) {
-                const economyEvents = new EconomyEventStore(economyEventsDbPath);
+                const economyEvents = new EconomyEventStore(economyEventsDbPath, replanSimulationClock);
                 try {
                     economyEvents.ingest({ runId: skillRun.runId, username: skillRun.username,
                         skillId: skillRun.skill.id, events: skillRun.events }, occurredAt);
@@ -991,8 +1017,8 @@ botSupervisor.onSkillExit(event => {
         } finally { store.close(); }
     })().catch(error => console.error('[MultiAgentExperiment] Skill run reconciliation failed:', error));
     void (async () => {
-        await recoverSkillTerminalWakeups(replanInboxDbPath);
-        const inbox = new ReplanInboxStore(replanInboxDbPath);
+        await recoverSkillTerminalWakeups(replanInboxDbPath, { simulationClock: replanSimulationClock });
+        const inbox = new ReplanInboxStore(replanInboxDbPath, replanSimulationClock);
         let terminal;
         try { terminal = inbox.get(event.snapshot.runId)?.event ?? null; }
         finally { inbox.close(); }
@@ -1028,12 +1054,16 @@ const runAgentAutonomySupervisor = async (startup = false) => {
     const now = new Date().toISOString();
     const report = await runAutonomyReconciliation(startup, {
         reconcileSkillMarkers: () => botSupervisor.reconcileSkillMarkers(now),
-        recoverSkillTerminals: () => recoverSkillTerminalWakeups(replanInboxDbPath),
-        recoverOrphanedSkills: markers => recoverOrphanedSkillWakeups(replanInboxDbPath, markers),
+        recoverSkillTerminals: () => recoverSkillTerminalWakeups(replanInboxDbPath,
+            { simulationClock: replanSimulationClock }),
+        recoverOrphanedSkills: markers => recoverOrphanedSkillWakeups(replanInboxDbPath, markers,
+            { simulationClock: replanSimulationClock }),
         recoverPlayerActionSettlements: () => recoverAdminPlayerActionSettlements(),
         recoverContractSettlements: () => recoverReadyEconomicContractSettlements(),
-        recoverGoalEvents: () => recoverGoalEventWakeups(replanInboxDbPath),
-        recoverDomainEvents: () => recoverDomainEventWakeups(replanInboxDbPath, {}, properties ?? []),
+        recoverGoalEvents: () => recoverGoalEventWakeups(replanInboxDbPath, agentStateDbPath,
+            replanSimulationClock),
+        recoverDomainEvents: () => recoverDomainEventWakeups(replanInboxDbPath,
+            { simulationClock: replanSimulationClock }, properties ?? []),
         reconcileEnrollments: isStartup => agentAutonomySupervisor.tick(now, isStartup)
     });
     for (const result of report.markers) {
@@ -1070,7 +1100,10 @@ const skillBuilderTimer = setInterval(() => {
     }).catch(error => console.error('[SkillBuilder] Scheduler failed:', error));
 }, 10_000);
 skillBuilderTimer.unref?.();
-const worldDirectorScheduler = new GatewayWorldDirectorScheduler();
+const worldDirectorScheduler = new GatewayWorldDirectorScheduler({
+    loadConfig: () => loadWorldDirectorConfig(), templates: BUILTIN_WORLD_EVENT_TEMPLATES,
+    storePath: worldDirectorDbPath, simulationClock: replanSimulationClock
+});
 const runWorldDirectorScheduler = () => {
     try {
         const result = worldDirectorScheduler.tick();
@@ -1080,7 +1113,7 @@ const runWorldDirectorScheduler = () => {
 const worldDirectorTimer = setInterval(runWorldDirectorScheduler, 30_000);
 worldDirectorTimer.unref?.();
 runWorldDirectorScheduler();
-const worldDirectorDispatchStore = new WorldDirectorStore();
+const worldDirectorDispatchStore = new WorldDirectorStore(worldDirectorDbPath, replanSimulationClock);
 const worldDirectorDispatcher = new WorldDirectorDispatcher(worldDirectorDispatchStore,
     new EngineWorldDirectorAdapter());
 const runWorldDirectorDispatcher = () => {
@@ -1134,7 +1167,9 @@ const server = Bun.serve({
         const adminResponse = await handleAdminRequest(req, url, {
             gatewayBots: adminGatewayBots,
             supervisor: botSupervisor,
-            replanCoordinator: agentReplanCoordinator ?? undefined
+            replanCoordinator: agentReplanCoordinator ?? undefined,
+            simulationClock: replanSimulationClock,
+            worldGenesisAdapter
         });
         if (adminResponse) return adminResponse;
 

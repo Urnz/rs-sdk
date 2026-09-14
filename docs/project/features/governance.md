@@ -67,13 +67,15 @@ The SQLite database stores an explicit `governance_schema.version`. Version 1 cr
 territory tables. Version 2 added budgets and the immutable budget audit. Version 3 added fiscal policies,
 single-active-version indexes and policy audit. Version 4 added verified source events and immutable due
 obligations. Version 5 adds exemptions, obligation resolutions and their append-only audits. Version 6 adds the
-verified manor-property portfolio and its audit. Version 7 adds faction lifecycle state and audit. Each migration
+verified manor-property portfolio and its audit. Version 7 adds faction lifecycle state and audit. Version 8 adds
+nullable shared-simulation stamps and a per-clock sequence uniqueness constraint to verified source events. Each migration
 runs in one immediate transaction, and the full
 v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Future migrations must upgrade one
 known version at a time and preserve stable IDs. Unknown versions fail closed instead of being silently rewritten.
 
-Rollback for version 7 is operational: stop governance, collection and manor-property writers, then restore the
-pre-deployment v6 governance database backup. Before that restore, export lifecycle state and audit together with
+Rollback for version 8 is operational: stop governance, collection and manor-property writers, then restore the
+pre-deployment v7 governance database backup. The nullable stamp columns may instead remain in place when reverting
+only the application; destructive column removal is unsupported. Before an older restore, export lifecycle state and audit together with
 the manor-property links and audit for
 reconciliation with the authoritative Property state after rollback. Also reconcile any treasury transfer whose
 settlement ID has no matching obligation resolution before restoring an older governance backup. Never reverse a
@@ -85,6 +87,12 @@ base governance tables, budgets, policies, source events, obligations, links and
 and foreign keys after restore. Because treasury provisioning is idempotent and creates only a zero-balance account,
 a governance rollback may leave an
 unused faction treasury account; it must not be deleted automatically if it has ever received funds.
+
+Verified source-event binding preserves `occurredAt`, `verifiedAt` and `processedAt` as audit evidence. Legacy rows
+are backfilled deterministically by `(occurredAt,eventId)`; an event older than the clock's latest observation binds
+at that observation rather than regressing shared time. A clock commit that precedes a failed governance transaction
+leaves only an idempotently reusable source binding. Retrying cannot allocate a second sequence or duplicate an
+obligation, while the event row and all derived obligations remain one governance transaction.
 
 ## Faction-agent port
 

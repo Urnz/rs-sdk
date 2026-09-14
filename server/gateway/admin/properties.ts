@@ -58,6 +58,8 @@ export interface EnginePropertyMaintenanceResult {
 }
 export interface EnginePropertyTransferResult { ok:true;commandId:string;transfer:{transferId:string;propertyId:string;
     from:AdminPropertyOwner;to:AdminPropertyOwner;beforeVersion:number;version:number;createdAt:string};tick:number }
+export interface EnginePropertyGenesisResult { ok:true;commandId:string;assignment:{allocationId:string;
+    propertyId:string;owner:AdminPropertyOwner;beforeVersion:number;version:number;createdAt:string};tick:number }
 
 function engineConfig(): { baseUrl: string; token: string } {
     const token = process.env.ENGINE_ADMIN_TOKEN?.trim();
@@ -126,4 +128,10 @@ export function requestEnginePropertyReconciliation(
 export function requestEnginePropertyTransfer(request:{commandId:string;transferId:string;propertyId:string;
     expectedVersion:number;from:AdminPropertyOwner;to:AdminPropertyOwner}):Promise<EnginePropertyTransferResult>{
     return engineRequest('/api/internal/admin/properties/transfer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(request)})
+}
+
+export function requestEnginePropertyGenesisAssignment(request:{commandId:string;allocationId:string;propertyId:string;
+    expectedVersion:number;owner:AdminPropertyOwner}):Promise<EnginePropertyGenesisResult>{
+    return engineRequest('/api/internal/admin/properties/genesis-assign',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify(request)})
 }

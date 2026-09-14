@@ -3,12 +3,14 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import type { LlmReplanEvent, LlmReplanEventType } from '../../../llm-runtime/events.js';
+import type { BoundSimulationEventStamp, SimulationClockStore } from '../../../simulation-clock/index.js';
 
 export type ReplanInboxStatus = 'pending' | 'claimed' | 'completed' | 'discarded';
 
 export interface ReplanInboxRecord {
     event: LlmReplanEvent;
     payloadDigest: string;
+    simulationStamp: BoundSimulationEventStamp | null;
     status: ReplanInboxStatus;
     attempt: number;
     nextAttemptAt: string;
@@ -26,7 +28,16 @@ interface InboxRow {
     payload: string; payload_digest: string; status: ReplanInboxStatus; attempt: number;
     next_attempt_at: string; lease_owner: string | null; lease_expires_at: string | null;
     terminal_outcome: string | null; last_error: string | null; created_at: string;
-    updated_at: string; revision: number;
+    updated_at: string; revision: number; simulation_clock_id: string | null;
+    simulation_sequence: number | null; simulation_time: string | null;
+    simulation_engine_tick: number | null; simulation_profile_digest: string | null;
+    simulation_clock_status: 'running' | 'paused' | null; simulation_clock_revision: number | null;
+}
+
+export interface ReplanInboxSimulationClock {
+    store: SimulationClockStore;
+    clockId: string;
+    engineTick?: () => number | undefined;
 }
 
 const EVENT_TYPES = new Set<LlmReplanEventType>(['manual-request', 'skill-finished', 'skill-failed',
@@ -65,7 +76,21 @@ function payloadForDigest(event: LlmReplanEvent): string {
 }
 
 function record(row: InboxRow): ReplanInboxRecord {
+    const requiredStampValues = [row.simulation_clock_id, row.simulation_sequence, row.simulation_time,
+        row.simulation_profile_digest, row.simulation_clock_status, row.simulation_clock_revision];
+    const hasStamp = requiredStampValues.some(value => value !== null);
+    if (hasStamp && requiredStampValues.some(value => value === null)) {
+        throw new Error(`Replan inbox simulation stamp is incomplete for ${row.event_id}`);
+    }
+    const simulationStamp = row.simulation_clock_id === null ? null : {
+        clockId: row.simulation_clock_id, domain: 'replan-inbox', sourceId: row.payload_digest,
+        sourceDigest: row.payload_digest, sequence: row.simulation_sequence!, wallTime: row.created_at,
+        simulationTime: row.simulation_time!, engineTick: row.simulation_engine_tick,
+        status: row.simulation_clock_status!, profileDigest: row.simulation_profile_digest!,
+        revision: row.simulation_clock_revision!
+    };
     return { event: JSON.parse(row.payload) as LlmReplanEvent, payloadDigest: row.payload_digest,
+        simulationStamp,
         status: row.status, attempt: row.attempt, nextAttemptAt: row.next_attempt_at,
         leaseOwner: row.lease_owner, leaseExpiresAt: row.lease_expires_at,
         terminalOutcome: row.terminal_outcome, lastError: row.last_error,
@@ -75,12 +100,21 @@ function record(row: InboxRow): ReplanInboxRecord {
 export class ReplanInboxStore {
     private readonly database: Database;
 
-    constructor(path: string) {
+    constructor(path: string, private readonly simulationClock?: ReplanInboxSimulationClock) {
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
-        this.database.run('PRAGMA journal_mode = WAL');
+        try {
+            this.migrate();
+            this.database.run('PRAGMA journal_mode = WAL');
+        } catch (error) {
+            this.database.close(true);
+            throw error;
+        }
+    }
+
+    private migrate(): void {
         const version = Number((this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version);
-        if (version > 1) throw new Error(`Replan inbox schema ${version} is newer than supported version 1`);
+        if (version > 2) throw new Error(`Replan inbox schema ${version} is newer than supported version 2`);
         if (version < 1) {
             const transaction = this.database.transaction(() => {
                 this.database.run(`CREATE TABLE replan_inbox (
@@ -100,13 +134,47 @@ export class ReplanInboxStore {
             });
             transaction.immediate();
         }
+        if (version < 2) {
+            const transaction = this.database.transaction(() => {
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_clock_id TEXT');
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_sequence INTEGER');
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_time TEXT');
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_engine_tick INTEGER');
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_profile_digest TEXT');
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_clock_status TEXT');
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_clock_revision INTEGER');
+                this.database.run(`CREATE UNIQUE INDEX replan_inbox_simulation_sequence
+                    ON replan_inbox(simulation_clock_id,simulation_sequence)
+                    WHERE simulation_clock_id IS NOT NULL`);
+                this.database.run('PRAGMA user_version = 2');
+            });
+            transaction.immediate();
+        }
     }
 
     close(): void { this.database.close(true); }
 
     get(eventId: string): ReplanInboxRecord | null {
-        const row = this.database.query('SELECT * FROM replan_inbox WHERE event_id = ?1').get(eventId) as InboxRow | null;
+        const row = this.getRow(eventId);
         return row ? record(row) : null;
+    }
+
+    private getRow(eventId: string): InboxRow | null {
+        return this.database.query('SELECT * FROM replan_inbox WHERE event_id = ?1').get(eventId) as InboxRow | null;
+    }
+
+    private withSimulationStamp(row: InboxRow, digest: string, now: string): ReplanInboxRecord {
+        if (row.simulation_clock_id !== null || !this.simulationClock) return record(row);
+        const stamp = this.simulationClock.store.bindEvent({ clockId: this.simulationClock.clockId,
+            domain: 'replan-inbox', sourceId: digest, sourceDigest: digest, wallTime: now,
+            engineTick: this.simulationClock.engineTick?.() }).stamp;
+        this.database.run(`UPDATE replan_inbox SET simulation_clock_id=?2,simulation_sequence=?3,
+            simulation_time=?4,simulation_engine_tick=?5,simulation_profile_digest=?6,
+            simulation_clock_status=?7,simulation_clock_revision=?8
+            WHERE event_id=?1 AND simulation_clock_id IS NULL`,
+        [row.event_id, stamp.clockId, stamp.sequence, stamp.simulationTime, stamp.engineTick,
+            stamp.profileDigest, stamp.status, stamp.revision]);
+        return record(this.getRow(row.event_id)!);
     }
 
     listTerminal(limit = 10_000): ReplanInboxRecord[] {
@@ -137,6 +205,16 @@ export class ReplanInboxStore {
         const event = canonicalEvent(input);
         iso(now, 'Replan inbox enqueue time');
         const digest = createHash('sha256').update(payloadForDigest(event)).digest('hex');
+        const prior = this.database.query(`SELECT * FROM replan_inbox
+            WHERE agent_id = ?1 AND event_type = ?2 AND source_key = ?3`)
+            .get(event.agentId, event.type, event.sourceKey) as InboxRow | null;
+        if (prior) {
+            if (prior.payload_digest !== digest) throw new Error('Replan source key was reused with a different payload');
+            return { created: false, record: this.withSimulationStamp(prior, digest, now) };
+        }
+        const stamp = this.simulationClock?.store.bindEvent({ clockId: this.simulationClock.clockId,
+            domain: 'replan-inbox', sourceId: digest, sourceDigest: digest, wallTime: now,
+            engineTick: this.simulationClock.engineTick?.() }).stamp ?? null;
         let outcome: { created: boolean; record: ReplanInboxRecord } | null = null;
         const transaction = this.database.transaction(() => {
             const existing = this.database.query(`SELECT * FROM replan_inbox
@@ -146,14 +224,19 @@ export class ReplanInboxStore {
                 if (existing.payload_digest !== digest) {
                     throw new Error('Replan source key was reused with a different payload');
                 }
-                outcome = { created: false, record: record(existing) };
+                outcome = { created: false, record: this.withSimulationStamp(existing, digest, now) };
                 return;
             }
             this.database.run(`INSERT INTO replan_inbox
                 (event_id, agent_id, event_type, source_key, payload, payload_digest, status, attempt,
-                next_attempt_at, lease_owner, lease_expires_at, terminal_outcome, last_error, created_at, updated_at, revision)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'pending', 0, ?7, NULL, NULL, NULL, NULL, ?7, ?7, 1)`,
-            [event.eventId, event.agentId, event.type, event.sourceKey, JSON.stringify(event), digest, now]);
+                next_attempt_at, lease_owner, lease_expires_at, terminal_outcome, last_error, created_at, updated_at, revision,
+                simulation_clock_id,simulation_sequence,simulation_time,simulation_engine_tick,
+                simulation_profile_digest,simulation_clock_status,simulation_clock_revision)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'pending', 0, ?7, NULL, NULL, NULL, NULL, ?7, ?7, 1,
+                    ?8,?9,?10,?11,?12,?13,?14)`,
+            [event.eventId, event.agentId, event.type, event.sourceKey, JSON.stringify(event), digest, now,
+                stamp?.clockId ?? null, stamp?.sequence ?? null, stamp?.simulationTime ?? null,
+                stamp?.engineTick ?? null, stamp?.profileDigest ?? null, stamp?.status ?? null, stamp?.revision ?? null]);
             outcome = { created: true, record: this.get(event.eventId)! };
         });
         transaction.immediate();

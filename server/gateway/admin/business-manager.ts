@@ -63,6 +63,11 @@ export interface CreateBusiness {
     propertyId?: string | null;
 }
 
+export interface BusinessGenesisReceipt { allocationId: string; businessId: string; ownerAgentId: string;
+    propertyId: string | null; status: 'active' | 'reset'; createdAt: string; resetAt: string | null }
+export interface BusinessInventoryEntry { businessId: string; itemId: number; count: number; revision: number;
+    updatedAt: string }
+
 export interface UpdateBusiness {
     name: string;
     summary: string;
@@ -234,6 +239,17 @@ export class BusinessManagerStore {
             created_at TEXT NOT NULL, resolved_at TEXT, updated_at TEXT NOT NULL)`);
         this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS business_active_policy
             ON business_policy_proposal(business_id) WHERE status = 'approved'`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS business_genesis_creation (
+            allocation_id TEXT PRIMARY KEY,business_id TEXT NOT NULL UNIQUE,owner_agent_id TEXT NOT NULL,
+            property_id TEXT,status TEXT NOT NULL CHECK(status IN ('active','reset')),
+            created_at TEXT NOT NULL,reset_at TEXT)`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS business_inventory (
+            business_id TEXT NOT NULL REFERENCES business(business_id),item_id INTEGER NOT NULL,
+            count INTEGER NOT NULL CHECK(count>=0),revision INTEGER NOT NULL CHECK(revision>=1),
+            updated_at TEXT NOT NULL,PRIMARY KEY(business_id,item_id))`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS business_genesis_inventory (
+            allocation_id TEXT PRIMARY KEY,business_id TEXT NOT NULL,item_id INTEGER NOT NULL,count INTEGER NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('active','reset')),created_at TEXT NOT NULL,reset_at TEXT)`);
     }
 
     close(): void { this.database.close(true); }
@@ -268,6 +284,104 @@ export class BusinessManagerStore {
             throw error;
         }
         return this.get(businessId)!;
+    }
+
+    createGenesis(allocationIdInput: string, input: CreateBusiness,
+        now = new Date().toISOString()): BusinessGenesisReceipt {
+        const allocationId = stableId(allocationIdInput, 'allocationId'), businessId = stableId(input.businessId, 'businessId');
+        const ownerAgentId = stableId(input.ownerAgentId, 'ownerAgentId');
+        const propertyId = input.propertyId ? stableId(input.propertyId, 'propertyId') : null;
+        const existing = this.database.query('SELECT * FROM business_genesis_creation WHERE allocation_id=?1')
+            .get(allocationId) as { allocation_id:string;business_id:string;owner_agent_id:string;property_id:string|null;
+                status:'active'|'reset';created_at:string;reset_at:string|null } | null;
+        if (existing) {
+            if (existing.business_id !== businessId || existing.owner_agent_id !== ownerAgentId
+                || existing.property_id !== propertyId) throw new Error('Genesis business allocation id was reused');
+            return { allocationId, businessId, ownerAgentId, propertyId, status: existing.status,
+                createdAt: existing.created_at, resetAt: existing.reset_at };
+        }
+        const name = boundedText(input.name, 'name', 120), summary = boundedText(input.summary, 'summary', 320);
+        const transaction = this.database.transaction(() => {
+            this.database.run(`INSERT INTO business (business_id,name,summary,owner_agent_id,property_id,status,
+                revision,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,'active',1,?6,?6)`,
+            [businessId, name, summary, ownerAgentId, propertyId, now]);
+            this.database.run(`INSERT INTO business_genesis_creation
+                VALUES(?1,?2,?3,?4,'active',?5,NULL)`, [allocationId,businessId,ownerAgentId,propertyId,now]);
+        });
+        transaction.immediate();
+        return { allocationId,businessId,ownerAgentId,propertyId,status:'active',createdAt:now,resetAt:null };
+    }
+
+    resetGenesisBusiness(allocationIdInput: string, now = new Date().toISOString()): BusinessGenesisReceipt | null {
+        const allocationId = stableId(allocationIdInput, 'allocationId');
+        const row = this.database.query('SELECT * FROM business_genesis_creation WHERE allocation_id=?1')
+            .get(allocationId) as { allocation_id:string;business_id:string;owner_agent_id:string;property_id:string|null;
+                status:'active'|'reset';created_at:string;reset_at:string|null } | null;
+        if (!row) return null;
+        if (row.status === 'reset') return { allocationId,businessId:row.business_id,ownerAgentId:row.owner_agent_id,
+            propertyId:row.property_id,status:'reset',createdAt:row.created_at,resetAt:row.reset_at };
+        const business = this.get(row.business_id);
+        if (!business || business.revision !== 1 || business.employments.length || business.policyProposals.length) {
+            throw new Error('Genesis business changed after creation and cannot be reset automatically');
+        }
+        const inventory = this.listInventory(row.business_id);
+        if (inventory.some(item => item.count > 0)) throw new Error('Genesis business inventory must be reset first');
+        const transaction = this.database.transaction(() => {
+            this.database.run('DELETE FROM business_inventory WHERE business_id=?1', [row.business_id]);
+            const removed = this.database.run('DELETE FROM business WHERE business_id=?1 AND revision=1', [row.business_id]);
+            if (removed.changes !== 1) throw new Error('Genesis business changed before reset');
+            this.database.run(`UPDATE business_genesis_creation SET status='reset',reset_at=?2
+                WHERE allocation_id=?1 AND status='active'`, [allocationId,now]);
+        }); transaction.immediate();
+        return { allocationId,businessId:row.business_id,ownerAgentId:row.owner_agent_id,propertyId:row.property_id,
+            status:'reset',createdAt:row.created_at,resetAt:now };
+    }
+
+    listInventory(businessIdInput: string): BusinessInventoryEntry[] {
+        const businessId = stableId(businessIdInput, 'businessId');
+        return (this.database.query(`SELECT * FROM business_inventory WHERE business_id=?1 ORDER BY item_id`)
+            .all(businessId) as Array<{business_id:string;item_id:number;count:number;revision:number;updated_at:string}>)
+            .map(row => ({ businessId:row.business_id,itemId:row.item_id,count:row.count,
+                revision:row.revision,updatedAt:row.updated_at }));
+    }
+
+    creditGenesisInventory(allocationIdInput:string,businessIdInput:string,itemId:number,count:number,
+        now=new Date().toISOString()):BusinessInventoryEntry {
+        const allocationId=stableId(allocationIdInput,'allocationId'),businessId=stableId(businessIdInput,'businessId');
+        if(!this.get(businessId))throw new Error('Genesis inventory business does not exist');
+        if(!Number.isSafeInteger(itemId)||itemId<0||itemId>65534||!Number.isSafeInteger(count)||count<1||count>2147483647)
+            throw new Error('Genesis business inventory amount is invalid');
+        const existing=this.database.query('SELECT * FROM business_genesis_inventory WHERE allocation_id=?1').get(allocationId) as
+            {business_id:string;item_id:number;count:number;status:'active'|'reset'}|null;
+        if(existing){if(existing.business_id!==businessId||existing.item_id!==itemId||existing.count!==count)
+            throw new Error('Genesis inventory allocation id was reused');
+            const current=this.listInventory(businessId).find(item=>item.itemId===itemId);
+            if(existing.status==='active'&&current)return current;throw new Error('Genesis inventory allocation was already reset')}
+        const transaction=this.database.transaction(()=>{
+            this.database.run(`INSERT INTO business_inventory VALUES(?1,?2,?3,1,?4)
+                ON CONFLICT(business_id,item_id) DO UPDATE SET count=count+excluded.count,
+                revision=revision+1,updated_at=excluded.updated_at`,[businessId,itemId,count,now]);
+            this.database.run(`INSERT INTO business_genesis_inventory VALUES(?1,?2,?3,?4,'active',?5,NULL)`,
+                [allocationId,businessId,itemId,count,now]);
+        });transaction.immediate();
+        return this.listInventory(businessId).find(item=>item.itemId===itemId)!;
+    }
+
+    resetGenesisInventory(allocationIdInput:string,now=new Date().toISOString()):BusinessInventoryEntry|null {
+        const allocationId=stableId(allocationIdInput,'allocationId');
+        const row=this.database.query('SELECT * FROM business_genesis_inventory WHERE allocation_id=?1').get(allocationId) as
+            {business_id:string;item_id:number;count:number;status:'active'|'reset'}|null;
+        if(!row)return null;
+        const current=this.listInventory(row.business_id).find(item=>item.itemId===row.item_id)??null;
+        if(row.status==='reset')return current;
+        if(!current||current.count<row.count)throw new Error('Genesis business inventory was consumed and cannot be reset');
+        const transaction=this.database.transaction(()=>{
+            this.database.run(`UPDATE business_inventory SET count=count-?3,revision=revision+1,updated_at=?4
+                WHERE business_id=?1 AND item_id=?2 AND count>=?3`,[row.business_id,row.item_id,row.count,now]);
+            this.database.run(`UPDATE business_genesis_inventory SET status='reset',reset_at=?2
+                WHERE allocation_id=?1 AND status='active'`,[allocationId,now]);
+        });transaction.immediate();
+        return this.listInventory(row.business_id).find(item=>item.itemId===row.item_id)??null;
     }
 
     update(businessIdInput: string, expectedRevision: number, input: UpdateBusiness,

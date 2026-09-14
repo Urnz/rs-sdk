@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import type { SkillEvent, SkillOperationName } from '../../../agent-skills/types';
 import { economyEventsDbPath, skillRunsDir } from './paths';
+import type { BoundSimulationEventStamp, SimulationClockStore } from '../../../simulation-clock';
 
 export type EconomyEventKind = 'production' | 'consumption' | 'shop-buy' | 'shop-sell' | 'player-trade' | 'bank-transfer';
 
@@ -27,6 +28,8 @@ export interface EconomyEvent {
     coinsDelta: number;
     counterparty: string | null;
     partial: boolean;
+    /** Present on persisted v2 events; absent inputs remain valid for pure telemetry helpers. */
+    simulationStamp?: BoundSimulationEventStamp | null;
 }
 
 export interface EconomyEventSummary {
@@ -79,6 +82,21 @@ interface EconomyEventRow {
     counterparty: string | null;
     partial: number;
     sequence: number;
+    simulation_clock_id: string | null;
+    simulation_sequence: number | null;
+    simulation_time: string | null;
+    simulation_binding_wall_time: string | null;
+    simulation_engine_tick: number | null;
+    simulation_profile_digest: string | null;
+    simulation_clock_status: 'running' | 'paused' | null;
+    simulation_clock_revision: number | null;
+    simulation_source_digest: string | null;
+}
+
+export interface EconomyEventSimulationClock {
+    store: SimulationClockStore;
+    clockId: string;
+    engineTick?: () => number | undefined;
 }
 
 const economicOperations = new Set<SkillOperationName>([
@@ -142,7 +160,8 @@ function eventFor(
         itemsOut,
         coinsDelta,
         counterparty,
-        partial
+        partial,
+        simulationStamp: null
     };
 }
 
@@ -208,11 +227,25 @@ export function parseEconomyJournalRun(value: unknown): EconomyJournalRun | null
 }
 
 function eventFromRow(row: EconomyEventRow): EconomyEvent {
+    const required = [row.simulation_clock_id, row.simulation_sequence, row.simulation_time,
+        row.simulation_binding_wall_time, row.simulation_profile_digest, row.simulation_clock_status,
+        row.simulation_clock_revision, row.simulation_source_digest];
+    const hasStamp = required.some(value => value !== null);
+    if (hasStamp && required.some(value => value === null)) {
+        throw new Error(`Economy event simulation stamp is incomplete for ${row.event_id}`);
+    }
+    const simulationStamp = row.simulation_clock_id === null ? null : {
+        clockId: row.simulation_clock_id, domain: 'economy-event', sourceId: row.event_id,
+        sourceDigest: row.simulation_source_digest!, sequence: row.simulation_sequence!,
+        wallTime: row.simulation_binding_wall_time!, simulationTime: row.simulation_time!,
+        engineTick: row.simulation_engine_tick, status: row.simulation_clock_status!,
+        profileDigest: row.simulation_profile_digest!, revision: row.simulation_clock_revision!
+    };
     return { id: row.event_id, timestamp: row.timestamp, runId: row.run_id,
         username: row.username, skillId: row.skill_id, stepId: row.step_id, kind: row.kind,
         itemsIn: JSON.parse(row.items_in_json) as EconomyEventItem[],
         itemsOut: JSON.parse(row.items_out_json) as EconomyEventItem[], coinsDelta: row.coins_delta,
-        counterparty: row.counterparty, partial: row.partial === 1 };
+        counterparty: row.counterparty, partial: row.partial === 1, simulationStamp };
 }
 
 function digestRun(run: EconomyJournalRun): string {
@@ -222,27 +255,65 @@ function digestRun(run: EconomyJournalRun): string {
 export class EconomyEventStore {
     private readonly database: Database;
 
-    constructor(path = economyEventsDbPath) {
+    constructor(path = economyEventsDbPath, private readonly simulationClock?: EconomyEventSimulationClock) {
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
-        this.database.run('PRAGMA foreign_keys = ON');
-        this.database.run(`CREATE TABLE IF NOT EXISTS economy_run_ingestion (
+        try {
+            this.migrate();
+            this.database.run('PRAGMA journal_mode = WAL');
+            this.database.run('PRAGMA foreign_keys = ON');
+        } catch (error) {
+            this.database.close(true);
+            throw error;
+        }
+    }
+
+    private migrate(): void {
+        const version = Number((this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version);
+        if (version > 2) throw new Error(`Economy event schema ${version} is newer than supported version 2`);
+        if (version < 1) {
+            const migration = this.database.transaction(() => {
+                this.database.run(`CREATE TABLE IF NOT EXISTS economy_run_ingestion (
             run_id TEXT PRIMARY KEY, digest TEXT NOT NULL, username TEXT, skill_id TEXT NOT NULL,
             event_count INTEGER NOT NULL CHECK (event_count >= 0), ingested_at TEXT NOT NULL)`);
-        this.database.run(`CREATE TABLE IF NOT EXISTS economy_event (
+                this.database.run(`CREATE TABLE IF NOT EXISTS economy_event (
             event_id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES economy_run_ingestion(run_id),
             timestamp TEXT NOT NULL, username TEXT, skill_id TEXT NOT NULL, step_id TEXT,
             kind TEXT NOT NULL CHECK (kind IN ('production', 'consumption', 'shop-buy', 'shop-sell',
                 'player-trade', 'bank-transfer')), items_in_json TEXT NOT NULL, items_out_json TEXT NOT NULL,
             coins_delta INTEGER NOT NULL, counterparty TEXT, partial INTEGER NOT NULL CHECK (partial IN (0, 1)),
             sequence INTEGER NOT NULL)`);
-        const columns = this.database.query('PRAGMA table_info(economy_event)').all() as Array<{ name: string }>;
-        if (!columns.some(column => column.name === 'sequence')) {
-            this.database.run('ALTER TABLE economy_event ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0');
+                const columns = this.database.query('PRAGMA table_info(economy_event)').all() as Array<{ name: string }>;
+                if (!columns.some(column => column.name === 'sequence')) {
+                    this.database.run('ALTER TABLE economy_event ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0');
+                }
+                this.database.run('CREATE INDEX IF NOT EXISTS economy_event_time ON economy_event(timestamp DESC, event_id)');
+                this.database.run('CREATE INDEX IF NOT EXISTS economy_event_actor ON economy_event(username, timestamp DESC)');
+                this.database.run('CREATE INDEX IF NOT EXISTS economy_event_kind ON economy_event(kind, timestamp DESC)');
+                this.database.run('PRAGMA user_version = 1');
+            });
+            migration.immediate();
         }
-        this.database.run('CREATE INDEX IF NOT EXISTS economy_event_time ON economy_event(timestamp DESC, event_id)');
-        this.database.run('CREATE INDEX IF NOT EXISTS economy_event_actor ON economy_event(username, timestamp DESC)');
-        this.database.run('CREATE INDEX IF NOT EXISTS economy_event_kind ON economy_event(kind, timestamp DESC)');
+        if (version < 2) {
+            const migration = this.database.transaction(() => {
+                const columns = this.database.query('PRAGMA table_info(economy_event)').all() as Array<{ name: string }>;
+                const existing = new Set(columns.map(column => column.name));
+                const additions: Array<[string, string]> = [
+                    ['simulation_clock_id', 'TEXT'], ['simulation_sequence', 'INTEGER'],
+                    ['simulation_time', 'TEXT'], ['simulation_binding_wall_time', 'TEXT'],
+                    ['simulation_engine_tick', 'INTEGER'], ['simulation_profile_digest', 'TEXT'],
+                    ['simulation_clock_status', 'TEXT'], ['simulation_clock_revision', 'INTEGER'],
+                    ['simulation_source_digest', 'TEXT']
+                ];
+                for (const [name, type] of additions) {
+                    if (!existing.has(name)) this.database.run(`ALTER TABLE economy_event ADD COLUMN ${name} ${type}`);
+                }
+                this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS economy_event_simulation_sequence
+                    ON economy_event(simulation_clock_id,simulation_sequence) WHERE simulation_clock_id IS NOT NULL`);
+                this.database.run('PRAGMA user_version = 2');
+            });
+            migration.immediate();
+        }
     }
 
     close(): void { this.database.close(true); }
@@ -257,9 +328,11 @@ export class EconomyEventStore {
             .get(normalized.runId) as { digest: string; event_count: number } | null;
         if (existing) {
             if (existing.digest !== digest) throw new Error('Economy journal run changed after ingestion');
+            if (this.simulationClock) this.backfillSimulationStamps(normalized.runId, now);
             return { created: false, eventCount: existing.event_count };
         }
         const events = extractEconomyEvents(normalized);
+        const stamps = events.map(event => this.bindSimulationStamp(event, now));
         const transaction = this.database.transaction(() => {
             this.database.run(`INSERT INTO economy_run_ingestion
                 (run_id, digest, username, skill_id, event_count, ingested_at)
@@ -267,11 +340,17 @@ export class EconomyEventStore {
                 normalized.skillId, events.length, new Date(now).toISOString()]);
             events.forEach((event, sequence) => this.database.run(`INSERT INTO economy_event
                 (event_id, run_id, timestamp, username, skill_id, step_id, kind, items_in_json,
-                    items_out_json, coins_delta, counterparty, partial, sequence)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`, [event.id,
+                    items_out_json, coins_delta, counterparty, partial, sequence,simulation_clock_id,
+                    simulation_sequence,simulation_time,simulation_binding_wall_time,simulation_engine_tick,
+                    simulation_profile_digest,simulation_clock_status,simulation_clock_revision,simulation_source_digest)
+                VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22)`, [event.id,
                 event.runId, event.timestamp, event.username, event.skillId, event.stepId, event.kind,
                 JSON.stringify(event.itemsIn), JSON.stringify(event.itemsOut), event.coinsDelta,
-                event.counterparty, event.partial ? 1 : 0, sequence]));
+                event.counterparty, event.partial ? 1 : 0, sequence, stamps[sequence]?.clockId ?? null,
+                stamps[sequence]?.sequence ?? null, stamps[sequence]?.simulationTime ?? null,
+                stamps[sequence]?.wallTime ?? null, stamps[sequence]?.engineTick ?? null,
+                stamps[sequence]?.profileDigest ?? null, stamps[sequence]?.status ?? null,
+                stamps[sequence]?.revision ?? null, stamps[sequence]?.sourceDigest ?? null]));
         });
         try {
             transaction.immediate();
@@ -283,6 +362,30 @@ export class EconomyEventStore {
             throw error;
         }
         return { created: true, eventCount: events.length };
+    }
+
+    private bindSimulationStamp(event: EconomyEvent, wallTime: string): BoundSimulationEventStamp | null {
+        if (!this.simulationClock) return null;
+        const sourceDigest = createHash('sha256').update(JSON.stringify({ schemaVersion: 1, ...event,
+            simulationStamp: undefined })).digest('hex');
+        return this.simulationClock.store.bindEvent({ clockId: this.simulationClock.clockId,
+            domain: 'economy-event', sourceId: event.id, sourceDigest, wallTime,
+            engineTick: this.simulationClock.engineTick?.() }).stamp;
+    }
+
+    private backfillSimulationStamps(runId: string, wallTime: string): void {
+        const rows = this.database.query('SELECT * FROM economy_event WHERE run_id=?1 ORDER BY sequence,event_id')
+            .all(runId) as EconomyEventRow[];
+        for (const row of rows) {
+            if (row.simulation_clock_id !== null) continue;
+            const stamp = this.bindSimulationStamp(eventFromRow(row), wallTime)!;
+            this.database.run(`UPDATE economy_event SET simulation_clock_id=?2,simulation_sequence=?3,
+                simulation_time=?4,simulation_binding_wall_time=?5,simulation_engine_tick=?6,
+                simulation_profile_digest=?7,simulation_clock_status=?8,simulation_clock_revision=?9,
+                simulation_source_digest=?10 WHERE event_id=?1 AND simulation_clock_id IS NULL`,
+            [row.event_id, stamp.clockId, stamp.sequence, stamp.simulationTime, stamp.wallTime, stamp.engineTick,
+                stamp.profileDigest, stamp.status, stamp.revision, stamp.sourceDigest]);
+        }
     }
 
     query(options: { limit?: number; username?: string; kind?: EconomyEventKind } = {}):
@@ -356,6 +459,7 @@ export async function readEconomyEvents(options: {
     kind?: EconomyEventKind;
     root?: string;
     ledgerPath?: string;
+    simulationClock?: EconomyEventSimulationClock;
 } = {}): Promise<{ events: EconomyEvent[]; summary: EconomyEventSummary;
     ingestion: { createdRuns: number; replayedRuns: number; rejectedRuns: number } }> {
     const root = options.root ?? skillRunsDir;
@@ -372,7 +476,7 @@ export async function readEconomyEvents(options: {
             return null;
         }
     }));
-    const ledger = new EconomyEventStore(ledgerPath);
+    const ledger = new EconomyEventStore(ledgerPath, options.simulationClock);
     let createdRuns = 0, replayedRuns = 0, rejectedRuns = 0;
     try {
         for (const run of runs) {

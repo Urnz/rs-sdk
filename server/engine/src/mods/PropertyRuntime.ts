@@ -3,6 +3,7 @@ import { loadPropertyCatalog, type PropertyCatalog, type PropertyDefinition, typ
 import {
     PropertyStore,
     type PropertyPendingResolution,
+    type PropertyGenesisReceipt,
     type PropertyPurchaseRecord,
     type PropertyTransferReceipt,
     type PropertyWallet
@@ -82,6 +83,12 @@ export class PropertyRuntime {
         from: { kind: 'player'|'business'|'faction'; id: string },
         to: { kind: 'player'|'business'|'faction'; id: string }, now = new Date().toISOString()): PropertyTransferReceipt {
         return this.store.transferOwnership(transferId, propertyId, expectedVersion, from, to, now);
+    }
+
+    assignGenesis(allocationId: string, propertyId: string, expectedVersion: number,
+        owner: { kind: 'player'|'business'|'faction'; id: string },
+        now = new Date().toISOString()): PropertyGenesisReceipt {
+        return this.store.assignGenesis(allocationId, propertyId, expectedVersion, owner, now);
     }
 
     reconcilePending(

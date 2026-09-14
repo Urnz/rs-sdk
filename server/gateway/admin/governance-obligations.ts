@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import type { BoundSimulationEventStamp, SimulationClockStatus } from '../../../simulation-clock/types.js';
+import type { SimulationClockStore } from '../../../simulation-clock/store.js';
 import type { EconomyEvent } from './transaction-telemetry.js';
 import { GovernanceStore } from './governance.js';
 import { calculateGovernancePolicyAmount, GovernancePolicyStore,
@@ -44,6 +46,7 @@ export interface GovernanceSourceEvent {
     location: GovernanceWorldLocation;
     basisGp: number;
     occurredAt: string;
+    simulationStamp?: BoundSimulationEventStamp | null;
 }
 
 export interface GovernanceSourceEventEvidence {
@@ -76,6 +79,17 @@ interface EventRow {
     source_ref: string; event_digest: string; subject_kind: GovernanceEconomicActorRef['kind']; subject_id: string;
     level: number; x: number; z: number; basis_gp: number; occurred_at: string;
     verified_at: string; processed_at: string;
+    simulation_clock_id: string | null; simulation_sequence: number | null;
+    simulation_time: string | null; simulation_binding_wall_time: string | null;
+    simulation_engine_tick: number | null; simulation_profile_digest: string | null;
+    simulation_clock_status: SimulationClockStatus | null; simulation_clock_revision: number | null;
+    simulation_source_digest: string | null;
+}
+
+export interface GovernanceSimulationClock {
+    store: SimulationClockStore;
+    clockId: string;
+    engineTick?: () => number | undefined;
 }
 
 interface ObligationRow {
@@ -140,10 +154,24 @@ export function digestGovernanceSourceEvent(value: GovernanceSourceEvent): strin
 }
 
 function sourceEvent(row: EventRow): GovernanceSourceEvent {
+    const stampValues = [row.simulation_clock_id, row.simulation_sequence, row.simulation_time,
+        row.simulation_binding_wall_time, row.simulation_profile_digest, row.simulation_clock_status,
+        row.simulation_clock_revision, row.simulation_source_digest];
+    const hasStamp = stampValues.some(value => value !== null);
+    if (hasStamp && stampValues.some(value => value === null)) {
+        throw new Error(`Governance source event simulation stamp is incomplete for ${row.event_id}`);
+    }
+    const simulationStamp: BoundSimulationEventStamp | null = hasStamp ? {
+        clockId: row.simulation_clock_id!, domain: 'governance-source-event', sourceId: row.event_id,
+        sourceDigest: row.simulation_source_digest!, sequence: row.simulation_sequence!,
+        simulationTime: row.simulation_time!, wallTime: row.simulation_binding_wall_time!,
+        engineTick: row.simulation_engine_tick, profileDigest: row.simulation_profile_digest!,
+        status: row.simulation_clock_status!, revision: row.simulation_clock_revision!
+    } : null;
     return { eventId: row.event_id, sourceDomain: row.source_domain, trigger: row.trigger_kind,
         sourceRef: row.source_ref, subject: { kind: row.subject_kind, id: row.subject_id },
         location: { level: row.level, x: row.x, z: row.z }, basisGp: row.basis_gp,
-        occurredAt: row.occurred_at };
+        occurredAt: row.occurred_at, simulationStamp };
 }
 
 function obligation(row: ObligationRow): GovernanceObligation {
@@ -182,12 +210,13 @@ export class GovernanceObligationStore {
     private readonly governance: GovernanceStore;
     private readonly policies: GovernancePolicyStore;
 
-    constructor(path: string) {
+    constructor(path: string, private readonly simulationClock?: GovernanceSimulationClock) {
         mkdirSync(dirname(path), { recursive: true });
         this.governance = new GovernanceStore(path);
         this.policies = new GovernancePolicyStore(path);
         this.database = new Database(path, { create: true, strict: true });
         this.database.run('PRAGMA foreign_keys = ON');
+        if (simulationClock) this.backfillSimulationStamps();
     }
 
     close(): void {
@@ -242,17 +271,23 @@ export class GovernanceObligationStore {
             .get(event.eventId) as EventRow | null;
         if (existing) {
             this.assertReplay(existing, event, evidence.eventDigest);
+            if (existing.simulation_clock_id === null) {
+                const stamp = this.bindSimulationStamp(event.eventId, evidence.eventDigest, processedAt);
+                if (stamp) this.writeSimulationStamp(event.eventId, stamp);
+            }
             return this.listForEvent(event.eventId);
         }
         const claimedSource = this.database.query(`SELECT * FROM governance_source_event
             WHERE source_domain = ?1 AND source_ref = ?2`).get(event.sourceDomain, event.sourceRef) as EventRow | null;
         if (claimedSource) throw new Error('Governance source event was already processed under another id');
+        const stamp = this.bindSimulationStamp(event.eventId, evidence.eventDigest, processedAt);
 
         const transaction = this.database.transaction(() => {
             const raced = this.database.query('SELECT * FROM governance_source_event WHERE event_id = ?1')
                 .get(event.eventId) as EventRow | null;
             if (raced) {
                 this.assertReplay(raced, event, evidence.eventDigest);
+                if (stamp && raced.simulation_clock_id === null) this.writeSimulationStamp(event.eventId, stamp);
                 return;
             }
             const racedSource = this.database.query(`SELECT event_id FROM governance_source_event
@@ -260,12 +295,19 @@ export class GovernanceObligationStore {
             if (racedSource) throw new Error('Governance source event was already processed under another id');
             this.database.run(`INSERT INTO governance_source_event
                 (event_id, source_domain, trigger_kind, source_ref, event_digest, subject_kind, subject_id,
-                    level, x, z, basis_gp, occurred_at, verified_at, processed_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
+                    level, x, z, basis_gp, occurred_at, verified_at, processed_at,
+                    simulation_clock_id, simulation_sequence, simulation_time, simulation_binding_wall_time,
+                    simulation_engine_tick, simulation_profile_digest, simulation_clock_status,
+                    simulation_clock_revision, simulation_source_digest)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+                    ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)`,
             [event.eventId, event.sourceDomain, event.trigger, event.sourceRef, evidence.eventDigest,
                 event.subject.kind, event.subject.id, event.location.level, event.location.x, event.location.z,
                 event.basisGp, event.occurredAt,
-                timestamp(evidence.verifiedAt, 'Governance evidence timestamp'), processedAt]);
+                timestamp(evidence.verifiedAt, 'Governance evidence timestamp'), processedAt,
+                stamp?.clockId ?? null, stamp?.sequence ?? null, stamp?.simulationTime ?? null,
+                stamp?.wallTime ?? null, stamp?.engineTick ?? null, stamp?.profileDigest ?? null,
+                stamp?.status ?? null, stamp?.revision ?? null, stamp?.sourceDigest ?? null]);
             const scopes = this.governance.resolveAt(event.location.x, event.location.z, event.location.level);
             let sequence = 0;
             for (const scope of scopes) {
@@ -305,6 +347,37 @@ export class GovernanceObligationStore {
         });
         transaction.immediate();
         return this.listForEvent(event.eventId);
+    }
+
+    private bindSimulationStamp(eventId: string, sourceDigest: string,
+        requestedWallTime: string): BoundSimulationEventStamp | null {
+        if (!this.simulationClock) return null;
+        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+        if (!clock) throw new Error(`Simulation clock ${this.simulationClock.clockId} does not exist`);
+        const wallTime = requestedWallTime < clock.lastObservedWallTime
+            ? clock.lastObservedWallTime : requestedWallTime;
+        return this.simulationClock.store.bindEvent({ clockId: this.simulationClock.clockId,
+            domain: 'governance-source-event', sourceId: eventId, sourceDigest, wallTime,
+            engineTick: this.simulationClock.engineTick?.() }).stamp;
+    }
+
+    private writeSimulationStamp(eventId: string, stamp: BoundSimulationEventStamp): void {
+        this.database.run(`UPDATE governance_source_event SET simulation_clock_id=?2,
+            simulation_sequence=?3,simulation_time=?4,simulation_binding_wall_time=?5,
+            simulation_engine_tick=?6,simulation_profile_digest=?7,simulation_clock_status=?8,
+            simulation_clock_revision=?9,simulation_source_digest=?10
+            WHERE event_id=?1 AND simulation_clock_id IS NULL`, [eventId, stamp.clockId, stamp.sequence,
+            stamp.simulationTime, stamp.wallTime, stamp.engineTick, stamp.profileDigest, stamp.status,
+            stamp.revision, stamp.sourceDigest]);
+    }
+
+    private backfillSimulationStamps(): void {
+        const rows = this.database.query(`SELECT * FROM governance_source_event
+            WHERE simulation_clock_id IS NULL ORDER BY occurred_at,event_id`).all() as EventRow[];
+        for (const row of rows) {
+            const stamp = this.bindSimulationStamp(row.event_id, row.event_digest, row.occurred_at)!;
+            this.writeSimulationStamp(row.event_id, stamp);
+        }
     }
 
     private assertReplay(row: EventRow, event: GovernanceSourceEvent, eventDigest: string): void {

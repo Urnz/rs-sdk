@@ -231,7 +231,7 @@ export class GovernanceStore {
         this.database.run('INSERT OR IGNORE INTO governance_schema (singleton, version) VALUES (1, 1)');
         const schema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number } | null;
-        if (!schema || schema.version < 1 || schema.version > 7) {
+        if (!schema || schema.version < 1 || schema.version > 8) {
             throw new Error(`Unsupported governance schema version: ${schema?.version ?? 'missing'}`);
         }
         this.database.run(`CREATE TABLE IF NOT EXISTS governance_faction (
@@ -275,6 +275,9 @@ export class GovernanceStore {
         const manorSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number };
         if (manorSchema.version === 6) this.migrateVersionSixToSeven();
+        const simulationSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+            .get() as { version: number };
+        if (simulationSchema.version === 7) this.migrateVersionSevenToEight();
     }
 
     close(): void { this.database.close(true); }
@@ -823,6 +826,39 @@ export class GovernanceStore {
                 action TEXT NOT NULL CHECK (action IN ('disabled', 'enabled')),
                 actor_agent_id TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL)`);
             this.database.run('UPDATE governance_schema SET version = 7 WHERE singleton = 1 AND version = 6');
+        });
+        transaction.immediate();
+    }
+
+    private migrateVersionSevenToEight(): void {
+        const transaction = this.database.transaction(() => {
+            const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+                .get() as { version: number } | null;
+            if (current?.version === 8) return;
+            if (current?.version !== 7) throw new Error('Governance schema changed during migration');
+            const table = this.database.query(`SELECT 1 AS found FROM sqlite_master
+                WHERE type='table' AND name='governance_source_event'`).get();
+            if (table) {
+                const columns = this.database.query('PRAGMA table_info(governance_source_event)')
+                    .all() as Array<{ name: string }>;
+                const existing = new Set(columns.map(column => column.name));
+                const additions: Array<[string, string]> = [
+                    ['simulation_clock_id', 'TEXT'], ['simulation_sequence', 'INTEGER'],
+                    ['simulation_time', 'TEXT'], ['simulation_binding_wall_time', 'TEXT'],
+                    ['simulation_engine_tick', 'INTEGER'], ['simulation_profile_digest', 'TEXT'],
+                    ['simulation_clock_status', 'TEXT'], ['simulation_clock_revision', 'INTEGER'],
+                    ['simulation_source_digest', 'TEXT']
+                ];
+                for (const [name, type] of additions) {
+                    if (!existing.has(name)) {
+                        this.database.run(`ALTER TABLE governance_source_event ADD COLUMN ${name} ${type}`);
+                    }
+                }
+                this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS governance_source_event_simulation_sequence
+                    ON governance_source_event(simulation_clock_id,simulation_sequence)
+                    WHERE simulation_clock_id IS NOT NULL`);
+            }
+            this.database.run('UPDATE governance_schema SET version = 8 WHERE singleton = 1 AND version = 7');
         });
         transaction.immediate();
     }

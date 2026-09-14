@@ -1,5 +1,5 @@
 import { resolveSkillForCapability, type SkillResolution } from '../../../agent-skills/capability-gaps.js';
-import { AgentStateStore } from '../../../agent-state/store.js';
+import { AgentStateStore, type AgentStateSimulationClock } from '../../../agent-state/store.js';
 import { planNextAction, type PlannerDecision } from '../../../agent-state/planner.js';
 import type { AgentGoal, AgentSkillKnowledge } from '../../../agent-state/types.js';
 import { agentStateDbPath } from './paths.js';
@@ -24,6 +24,7 @@ export async function resolveLearnAndPlan(agentId: string, goal: AgentGoal,
         catalog?: AdminAgentSkillCatalogOptions;
         now?: string;
         selectionSeed?: string;
+        simulationClock?: AgentStateSimulationClock;
     } = {}): Promise<DeterministicLearningResult | null> {
     if (goal.horizon !== 'immediate' || goal.status !== 'active') return null;
     const knownByReference = new Map(knownSkills.map(item => [reference(item.skill), item]));
@@ -65,7 +66,7 @@ export async function resolveLearnAndPlan(agentId: string, goal: AgentGoal,
     }
 
     const path = options.agentPath ?? agentStateDbPath;
-    const store = new AgentStateStore(path);
+    const store = new AgentStateStore(path, options.simulationClock);
     try {
         let currentGoal = store.getGoal(goal.goalId);
         if (!currentGoal || currentGoal.agentId !== agentId.toLocaleLowerCase('en-US')) return null;

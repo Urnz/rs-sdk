@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "profiles": [
+    {
+      "schemaVersion": 1,
+      "profileId": "blank-slate",
+      "version": "1.0.0",
+      "label": "Blank slate",
+      "description": "Existing world buildings with minimal economic ownership and no generated operating economy.",
+      "population": { "minimumAgents": 0, "maximumAgents": 10000, "assignProfessions": false },
+      "assets": {
+        "wealthDistribution": "minimal",
+        "ownership": "unowned",
+        "inventory": "empty",
+        "starterFood": false,
+        "starterTools": false,
+        "starterHousing": false
+      },
+      "economy": {
+        "createBusinesses": false,
+        "createContracts": false,
+        "createLeases": false,
+        "createInstitutions": false,
+        "seedBusinessInventory": false
+      },
+      "burnIn": null
+    },
+    {
+      "schemaVersion": 1,
+      "profileId": "frontier",
+      "version": "1.0.0",
+      "label": "Frontier",
+      "description": "Agents receive basic tools, food, shelter and a small stake, but no prebuilt economic network.",
+      "population": { "minimumAgents": 1, "maximumAgents": 10000, "assignProfessions": false },
+      "assets": {
+        "wealthDistribution": "small-stake",
+        "ownership": "shelter-only",
+        "inventory": "survival-kit",
+        "starterFood": true,
+        "starterTools": true,
+        "starterHousing": true
+      },
+      "economy": {
+        "createBusinesses": false,
+        "createContracts": false,
+        "createLeases": false,
+        "createInstitutions": false,
+        "seedBusinessInventory": false
+      },
+      "burnIn": null
+    },
+    {
+      "schemaVersion": 1,
+      "profileId": "seeded-economy",
+      "version": "1.0.0",
+      "label": "Seeded economy",
+      "description": "Deterministically generated ownership, wealth, professions, businesses and productive inventories.",
+      "population": { "minimumAgents": 2, "maximumAgents": 10000, "assignProfessions": true },
+      "assets": {
+        "wealthDistribution": "generated",
+        "ownership": "generated",
+        "inventory": "profession-kit",
+        "starterFood": true,
+        "starterTools": true,
+        "starterHousing": true
+      },
+      "economy": {
+        "createBusinesses": true,
+        "createContracts": false,
+        "createLeases": false,
+        "createInstitutions": false,
+        "seedBusinessInventory": true
+      },
+      "burnIn": null
+    },
+    {
+      "schemaVersion": 1,
+      "profileId": "mature-society",
+      "version": "1.0.0",
+      "label": "Mature society",
+      "description": "A stratified society with institutions, businesses, leases, contracts and established economic relationships.",
+      "population": { "minimumAgents": 4, "maximumAgents": 10000, "assignProfessions": true },
+      "assets": {
+        "wealthDistribution": "stratified",
+        "ownership": "stratified",
+        "inventory": "mature-stock",
+        "starterFood": true,
+        "starterTools": true,
+        "starterHousing": true
+      },
+      "economy": {
+        "createBusinesses": true,
+        "createContracts": true,
+        "createLeases": true,
+        "createInstitutions": true,
+        "seedBusinessInventory": true
+      },
+      "burnIn": null
+    },
+    {
+      "schemaVersion": 1,
+      "profileId": "historical-burn-in",
+      "version": "1.0.0",
+      "label": "Historical burn-in",
+      "description": "A seeded economy evolves in agent-only mode for ninety simulation days before player access opens.",
+      "population": { "minimumAgents": 2, "maximumAgents": 10000, "assignProfessions": true },
+      "assets": {
+        "wealthDistribution": "generated",
+        "ownership": "generated",
+        "inventory": "profession-kit",
+        "starterFood": true,
+        "starterTools": true,
+        "starterHousing": true
+      },
+      "economy": {
+        "createBusinesses": true,
+        "createContracts": false,
+        "createLeases": false,
+        "createInstitutions": false,
+        "seedBusinessInventory": true
+      },
+      "burnIn": {
+        "sourceProfileId": "seeded-economy",
+        "durationSimulationMilliseconds": 7776000000,
+        "access": "agent-only"
+      }
+    }
+  ]
+}

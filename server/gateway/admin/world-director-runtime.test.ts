@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { Database } from 'bun:sqlite';
+import { SimulationClockStore } from '../../../simulation-clock/index.js';
 import { selectWorldEvent } from './world-director.js';
 import { GatewayWorldDirectorScheduler, WorldDirectorDispatcher, WorldDirectorStore,
     loadWorldDirectorConfig, updateWorldDirectorConfig, validateWorldDirectorConfig,
@@ -42,6 +44,53 @@ describe('World Director durable cycle ledger', () => {
         store.enqueue(selectWorldEvent('experiment-a', 'cycle-7'));
         expect(() => store.enqueue(selectWorldEvent('experiment-b', 'cycle-7'))).toThrow('already bound');
         store.close();
+    });
+
+    test('binds one immutable simulation stamp and backfills an unstamped legacy signal', () => {
+        const path = databasePath();
+        let store = new WorldDirectorStore(path);
+        const selection = selectWorldEvent('simulation-seed', 'cycle-simulation');
+        const original = store.enqueue(selection, '2026-08-31T10:01:00.000Z').outbox;
+        expect(original.simulationStamp).toBeNull();
+        store.close();
+
+        const clock = new SimulationClockStore(join(dirname(path), 'simulation.sqlite'));
+        clock.create({ clockId: 'world', profile: { schemaVersion: 1, profileId: 'normal', version: '1.0.0',
+            seed: 'world-director-test', rate: { simulationMilliseconds: 2, wallMilliseconds: 1 } },
+        wallTime: '2026-08-31T11:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z' });
+        store = new WorldDirectorStore(path, { store: clock, clockId: 'world', engineTick: () => 80 });
+        const backfilled = store.getOutbox(original.signal.eventId)!;
+        expect(backfilled.signal.queuedAt).toBe(original.signal.queuedAt);
+        expect(backfilled.simulationStamp).toMatchObject({ sequence: 1, engineTick: 80,
+            wallTime: '2026-08-31T11:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z',
+            sourceDigest: selection.digest });
+        expect(store.enqueue(selection, '2026-08-31T11:00:00.000Z').outbox.simulationStamp)
+            .toEqual(backfilled.simulationStamp);
+        expect(clock.get('world')?.nextEventSequence).toBe(2);
+        store.close();
+        clock.close();
+    });
+
+    test('migrates the original unversioned outbox schema in place', () => {
+        const path = databasePath();
+        const legacy = new Database(path, { create: true, strict: true });
+        legacy.run(`CREATE TABLE world_director_cycle (
+            cycle_key TEXT PRIMARY KEY, seed TEXT NOT NULL, selection_digest TEXT NOT NULL,
+            template_id TEXT NOT NULL, template_version TEXT NOT NULL, event_id TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL, queued_at TEXT NOT NULL, delivered_at TEXT, revision INTEGER NOT NULL)`);
+        legacy.run(`CREATE TABLE world_director_outbox (
+            event_id TEXT PRIMARY KEY REFERENCES world_director_cycle(event_id), payload_json TEXT NOT NULL,
+            status TEXT NOT NULL, attempts INTEGER NOT NULL, adapter_id TEXT, lease_token TEXT UNIQUE,
+            lease_expires_at TEXT, last_error TEXT, updated_at TEXT NOT NULL, revision INTEGER NOT NULL)`);
+        legacy.close(true);
+        const migrated = new WorldDirectorStore(path);
+        migrated.close();
+        const verification = new Database(path, { readonly: true, strict: true });
+        const version = verification.query('PRAGMA user_version').get() as { user_version: number };
+        const columns = verification.query('PRAGMA table_info(world_director_outbox)').all() as Array<{ name: string }>;
+        expect(version.user_version).toBe(1);
+        expect(columns.map(column => column.name)).toContain('simulation_source_digest');
+        verification.close(true);
     });
 });
 

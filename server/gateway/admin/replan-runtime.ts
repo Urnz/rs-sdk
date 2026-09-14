@@ -30,6 +30,7 @@ import { selectAllowedGoalTemplate } from './goal-templates.js';
 import { evaluateAuthorizationEnvelope } from './authorization-envelope.js';
 import type { EconomicContract } from './economic-contracts.js';
 import type { AgentSkillRunOutcome } from '../../../agent-state/types.js';
+import type { ReplanInboxSimulationClock } from './replan-inbox.js';
 
 let appendTail: Promise<void> = Promise.resolve();
 
@@ -58,8 +59,9 @@ export async function readReplanRecords(limit = 100, path = llmReplanLogPath): P
     } catch { return []; }
 }
 
-function useStore<T>(callback: (store: AgentStateStore) => T, path = agentStateDbPath): T {
-    const store = new AgentStateStore(path);
+function useStore<T>(callback: (store: AgentStateStore) => T, path = agentStateDbPath,
+    simulationClock?: ReplanInboxSimulationClock): T {
+    const store = new AgentStateStore(path, simulationClock);
     try { return callback(store); }
     finally { store.close(); }
 }
@@ -85,6 +87,7 @@ export interface GatewayAgentReplanOptions {
     skillCatalog?: AdminAgentSkillCatalogOptions;
     replanInboxPath?: string | null;
     requiredAutonomyLeaseOwner?: string;
+    simulationClock?: ReplanInboxSimulationClock;
 }
 
 export function evaluateAutonomousSkillPolicy(config: LlmAutonomousExecutionConfig,
@@ -208,7 +211,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                     ? selectAllowedGoalTemplate(current.goals, durableEnrollment) : null;
                 if (template) {
                     useStore(store => store.createGoal(agentId, { ...template.goal,
-                        parentGoalId: template.parentGoalId }, now), agentPath);
+                        parentGoalId: template.parentGoalId }, now), agentPath, options.simulationClock);
                     const templated = await listAgents();
                     current = templated.agents.find(entry => entry.identity.agentId === agentId);
                     if (!current) throw new Error('Agent state disappeared after goal template materialization');
@@ -246,7 +249,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                                 candidate.definition, binding.parameters) : { allowed: false };
                             if (policy.allowed && envelope.allowed) {
                                 useStore(store => store.setGoalSkill(agentId, immediate.goalId, immediate.revision,
-                                    resolution.skill, now), agentPath);
+                                    resolution.skill, now), agentPath, options.simulationClock);
                                 alternative = { id: resolution.skill.id, version: resolution.skill.version };
                             }
                         } catch {
@@ -316,7 +319,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                     } catch (error) {
                         const detail = error instanceof Error ? error.message : String(error);
                         useStore(store => store.recordSkillRunOutcome(runId, 'failed',
-                            classifySkillFailure(undefined, detail), detail), agentPath);
+                            classifySkillFailure(undefined, detail), detail), agentPath, options.simulationClock);
                         if (workOrder?.runId === runId) finishAdminPlayerActionRun(runId, false,
                             `Skill start failed: ${detail}`, agentPath);
                         throw error;
@@ -325,7 +328,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 if (immediate) {
                     const deterministic = await resolveLearnAndPlan(agentId, immediate, current.catalogSkills,
                         current.knownSkills, { now, agentPath, catalog: options.skillCatalog,
-                            selectionSeed: event.selectionSeed });
+                            selectionSeed: event.selectionSeed, simulationClock: options.simulationClock });
                     if (deterministic?.decision.kind === 'execute-skill') {
                         const requested = `${deterministic.resolution.skill.id}@${deterministic.resolution.skill.version}`;
                         const candidate = await resolveAdminSkillForAgent(requested, agentId, options.skillCatalog);
@@ -393,7 +396,8 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
     };
     const inboxPath = options.replanInboxPath === undefined
         ? (options.agentPath === undefined ? replanInboxDbPath : null) : options.replanInboxPath;
-    return inboxPath ? new DurableAgentReplanCoordinator(dependencies, { path: inboxPath })
+    return inboxPath ? new DurableAgentReplanCoordinator(dependencies,
+        { path: inboxPath, simulationClock: options.simulationClock })
         : new AgentReplanCoordinator(dependencies);
 }
 

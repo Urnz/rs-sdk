@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Database } from 'bun:sqlite';
+import { SimulationClockStore } from '../../../simulation-clock/store.js';
 import { InstitutionTreasuryStore } from './institution-treasury.js';
 import { InstitutionSettlementOrchestrator, bankingInstitutionSettlement,
     taxationInstitutionSettlement, type InstitutionSettlementEvidenceVerifier } from './institution-settlement-orchestrator.js';
@@ -87,5 +89,32 @@ describe('institution domain settlement orchestrator', () => {
         }, verified.value);
         expect(outcome.settlement).toMatchObject({ domain: 'taxation', status: 'committed' });
         orchestrator.close();
+    });
+
+    test('backfills committed settlements and preserves one replay-safe shared simulation stamp', async () => {
+        const { path, orchestrator: legacy } = setup(); const verified = verifier();
+        await bankingInstitutionSettlement(legacy, bankRequest, verified.value, '2026-09-06T08:00:00.000Z');
+        expect(legacy.get(bankRequest.settlementId)?.simulationStamp).toBeNull(); legacy.close();
+        const clock = new SimulationClockStore(join(path, '..', 'clock.sqlite'));
+        clock.create({clockId:'world',profile:{schemaVersion:1,profileId:'settlement-test',version:'1.0.0',
+            seed:'settlement-test',rate:{simulationMilliseconds:3,wallMilliseconds:1}},
+        wallTime:'2026-09-06T09:00:00.000Z',simulationTime:'2030-01-01T00:00:00.000Z'});
+        const orchestrator = new InstitutionSettlementOrchestrator(path,path,
+            {store:clock,clockId:'world',engineTick:()=>140});
+        const imported=orchestrator.get(bankRequest.settlementId)!;
+        expect(imported.createdAt).toBe('2026-09-06T08:00:00.000Z');
+        expect(imported.simulationStamp).toMatchObject({sequence:1,engineTick:140,
+            wallTime:'2026-09-06T09:00:00.000Z',simulationTime:'2030-01-01T00:00:00.000Z'});
+        const replay=await bankingInstitutionSettlement(orchestrator,bankRequest,verified.value,'2026-09-06T10:00:00.000Z');
+        expect(replay.settlement.simulationStamp??null).toEqual(imported.simulationStamp??null);
+        await taxationInstitutionSettlement(orchestrator,{
+            eventId:'refund.forge.2026-09',eventKind:'tax-refund-approved',sourceRef:'tax-ledger:19',
+            settlementId:'22222222-2222-4222-8222-222222222222',reservationId:'tax.refund.forge.001',
+            payerKind:'business',payerActorId:'bank-of-varrock',payeeKind:'business',
+            payeeActorId:'varrock-forge',amountGp:100},verified.value,'2026-09-06T09:00:10.000Z');
+        expect(orchestrator.list().map(item=>item.simulationStamp?.sequence).sort()).toEqual([1,2]);
+        expect(clock.get('world')?.nextEventSequence).toBe(3);orchestrator.close();clock.close();
+        const migrated=new Database(path);expect(migrated.query(`SELECT version FROM institution_settlement_schema WHERE singleton=1`).get())
+            .toEqual({version:1});migrated.close();
     });
 });

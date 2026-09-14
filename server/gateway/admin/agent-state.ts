@@ -1,6 +1,6 @@
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { AgentStateStore } from '../../../agent-state/store.js';
+import { AgentStateStore, type AgentStateSimulationClock } from '../../../agent-state/store.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
 import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
@@ -27,8 +27,9 @@ import { EconomicContractStore } from './economic-contracts.js';
 import { buildAdminDecisionContext } from './admin-decision-context.js';
 import type { GatewayBotSnapshot } from './types.js';
 
-function useStore<T>(path: string, callback: (store: AgentStateStore) => T): T {
-    const store = new AgentStateStore(path);
+function useStore<T>(path: string, callback: (store: AgentStateStore) => T,
+    simulationClock?: AgentStateSimulationClock): T {
+    const store = new AgentStateStore(path, simulationClock);
     try { return callback(store); }
     finally { store.close(); }
 }
@@ -456,8 +457,9 @@ export function updateAdminInstitutionTreasury(agentId: string, expectedRevision
         treasuryActorIdForAgent(agentId, profile, path), expectedRevision, balanceGp));
 }
 
-export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath) {
-    return useStore(path, store => store.createGoal(agentId, input));
+export function createAdminAgentGoal(agentId: string, input: CreateAgentGoal, path = agentStateDbPath,
+    simulationClock?: AgentStateSimulationClock) {
+    return useStore(path, store => store.createGoal(agentId, input), simulationClock);
 }
 
 export function createAdminGoalProposal(agentId: string,
@@ -466,8 +468,10 @@ export function createAdminGoalProposal(agentId: string,
 }
 
 export function approveAdminGoalProposal(proposalId: string, expectedRevision: number,
-    approvalId: string, expiresAt: string, path = agentStateDbPath) {
-    return useStore(path, store => store.approveGoalProposal(proposalId, expectedRevision, approvalId, expiresAt));
+    approvalId: string, expiresAt: string, path = agentStateDbPath,
+    simulationClock?: AgentStateSimulationClock) {
+    return useStore(path, store => store.approveGoalProposal(proposalId, expectedRevision, approvalId, expiresAt),
+        simulationClock);
 }
 
 export function startAdminGoalProposal(proposalId: string, expectedRevision: number,
@@ -485,12 +489,12 @@ export function reconcileAdminGoalProposalRun(skillRunId: string, completed: boo
 }
 
 export function updateAdminAgentGoalStatus(agentId: string, goalId: string, expectedRevision: number,
-    status: GoalStatus, path = agentStateDbPath) {
+    status: GoalStatus, path = agentStateDbPath, simulationClock?: AgentStateSimulationClock) {
     return useStore(path, store => {
         const goal = store.getGoal(goalId);
         if (!goal || goal.agentId !== agentId.toLowerCase()) throw new Error('A cél nem ehhez az agenthez tartozik.');
         return store.setGoalStatus(goalId, expectedRevision, status);
-    });
+    }, simulationClock);
 }
 
 export function updateAdminAgentSkill(agentId: string, skill: AgentSkillReference,

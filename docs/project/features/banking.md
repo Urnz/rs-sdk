@@ -65,6 +65,16 @@ rollback szükséges, kizárólag mentés után törölhető az
 sémarollback nem fordít vissza; azt külön, új és auditált kompenzáló tranzakcióval
 lehet rendezni.
 
+Az institution settlement saját `institution_settlement_schema` v1 jelzőt használ,
+mert ugyanazt az SQLite fájlt más gazdasági store-ok is megoszthatják. A banking és
+taxation settlement sorok nullable, monoton közös-szimulációs bélyeget kapnak az
+immutable settlement payload digestjéből. A `settling → committed` átmenet nem
+oszt új sorrendet; retry és crash-recovery ugyanazt a bélyeget tartja meg. Legacy
+sorok `(createdAt,settlementId)` sorrendben tölthetők vissza az eredeti idő és a
+treasury-transzfer módosítása nélkül. Rollbackkor az új oszlopok helyben maradhatnak;
+a már commitolt treasury-mozgást továbbra is csak forward reconciliation vagy új,
+auditált kompenzáló settlement rendezheti.
+
 ## Betéti főkönyv és tartalék
 
 A `banking-ledger.ts` tartós bankdefiníciót és institution-betéti számlát ad.
@@ -78,9 +88,14 @@ treasuryjéhez és a számlatulajdonoshoz. Minden tranzakció egyenlő összegű
 credit számlapárt ír; a journal settlement/event azonosítói egyediek, az exact
 replay idempotens, az eltérő replay és az overdraft elutasított.
 
-Az additív migráció az `economic_bank`, `bank_deposit_account` és `bank_journal`
-táblákat `CREATE TABLE IF NOT EXISTS` módon hozza létre. Rollbackkor a callereket
-előbb le kell állítani és az adatbázist menteni. A journal auditcélból megőrzendő;
+Az additív, külön `banking_ledger_schema` v1 migráció az `economic_bank`, `bank_deposit_account` és `bank_journal`
+táblákat `CREATE TABLE IF NOT EXISTS` módon hozza létre, majd nullable közös-szimulációs
+bélyeget és óránként egyedi eseménysorrendet ad a journalhoz. A meglévő sorok
+`(createdAt,transactionId)` sorrendben, a változatlan tranzakciódigestből kapnak bélyeget;
+a régi `createdAt` és az auditlánc hash-e nem változik. Az exact settlement replay ugyanazt
+a bélyeget adja vissza. Rollbackkor a callereket
+előbb le kell állítani és az adatbázist menteni. A nullable oszlopok alkalmazás-visszaállításkor
+helyben maradhatnak; destruktív eltávolításuk nem támogatott. A journal auditcélból megőrzendő;
 teljes séma-visszaállításkor függőségi sorrendben journal → account → bank törölhető.
 Commitolt pénzmozgást csak új, auditált kompenzáló settlement rendezhet.
 

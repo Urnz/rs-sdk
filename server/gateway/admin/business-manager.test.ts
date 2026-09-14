@@ -170,4 +170,23 @@ describe('business manager domain', () => {
         expect(closed.policyProposals[0]).toMatchObject({ status: 'rejected', revision: 2 });
         businesses.close();
     });
+
+    test('creates and removes genesis business assets through allocation receipts', () => {
+        const businesses = store();
+        const receipt = businesses.createGenesis('genesis-forge', { businessId: 'varrock-forge',
+            name: 'Varrock Forge', summary: 'Genesis forge.', ownerAgentId: 'alice' },
+        '2001-01-01T00:00:00.000Z');
+        expect(receipt).toMatchObject({ status: 'active', businessId: 'varrock-forge' });
+        expect(businesses.createGenesis('genesis-forge', { businessId: 'varrock-forge',
+            name: 'Ignored on retry', summary: 'Ignored.', ownerAgentId: 'alice' })).toEqual(receipt);
+        expect(businesses.creditGenesisInventory('forge-iron', 'varrock-forge', 440, 12))
+            .toMatchObject({ itemId: 440, count: 12 });
+        expect(businesses.creditGenesisInventory('forge-iron', 'varrock-forge', 440, 12))
+            .toMatchObject({ count: 12 });
+        expect(() => businesses.resetGenesisBusiness('genesis-forge')).toThrow('inventory must be reset');
+        expect(businesses.resetGenesisInventory('forge-iron')).toMatchObject({ count: 0 });
+        expect(businesses.resetGenesisBusiness('genesis-forge')).toMatchObject({ status: 'reset' });
+        expect(businesses.get('varrock-forge')).toBeNull();
+        businesses.close();
+    });
 });

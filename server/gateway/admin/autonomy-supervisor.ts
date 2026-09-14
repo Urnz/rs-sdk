@@ -3,6 +3,7 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import type { AgentAutonomyEnrollment } from '../../../agent-state/types.js';
 import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.js';
 import type { LlmReplanEvent } from '../../../llm-runtime/events.js';
+import type { PlayerTimeCapabilities } from '../../../simulation-clock/types.js';
 import { agentStateDbPath } from './paths.js';
 
 export interface GatewayAgentAutonomySupervisorOptions {
@@ -17,6 +18,7 @@ export interface GatewayAgentAutonomySupervisorOptions {
     ensureAvatar?: (username: string) => Promise<{ ready: boolean; reason: string;
         status?: 'adopted' | 'starting' | 'spawned' | 'controller-conflict' | 'failed' }>;
     nextEvent?: (agentId: string, now: string) => LlmReplanEvent | null;
+    timeCapabilities?: (username: string) => PlayerTimeCapabilities | null;
 }
 
 export interface AutonomySupervisorResult {
@@ -78,6 +80,7 @@ export class GatewayAgentAutonomySupervisor {
     private readonly ensureAvatar: ((username: string) => Promise<{ ready: boolean; reason: string;
         status?: 'adopted' | 'starting' | 'spawned' | 'controller-conflict' | 'failed' }>) | null;
     private readonly nextEvent: ((agentId: string, now: string) => LlmReplanEvent | null) | null;
+    private readonly timeCapabilities: ((username: string) => PlayerTimeCapabilities | null) | null;
     private ticking = false;
 
     constructor(private readonly coordinator: AgentReplanCoordinator,
@@ -92,6 +95,7 @@ export class GatewayAgentAutonomySupervisor {
         this.activeSkill = options.activeSkill ?? (() => null);
         this.ensureAvatar = options.ensureAvatar ?? null;
         this.nextEvent = options.nextEvent ?? null;
+        this.timeCapabilities = options.timeCapabilities ?? null;
         if (!Number.isInteger(this.leaseMs) || this.leaseMs < 5_000 || this.leaseMs > 60 * 60_000) {
             throw new Error('Autonomy lease duration must be between 5 seconds and 60 minutes');
         }
@@ -203,6 +207,15 @@ export class GatewayAgentAutonomySupervisor {
             if (enrollment.lastFailureFingerprint === avatarFingerprint) {
                 claimable = useStore(this.agentPath, store => store.setAutonomyEnrollment(enrollment.agentId,
                     enrollment.revision, { ...enrollment, failureCount: 0, lastFailureFingerprint: null }, now));
+            }
+        }
+        if (avatar) {
+            const time = this.timeCapabilities?.(avatar);
+            if (time && !time.physicalExecutionAllowed) {
+                const nextWakeupAt = new Date(Date.parse(now) + this.retryMs).toISOString();
+                useStore(this.agentPath, store => store.setAutonomyEnrollment(claimable.agentId,
+                    claimable.revision, { ...claimable, nextWakeupAt }, now));
+                return { agentId: claimable.agentId, status: 'skipped', reason: time.reason };
             }
         }
         try {

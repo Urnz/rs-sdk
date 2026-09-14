@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import type { BoundSimulationEventStamp, SimulationClockStatus } from '../../../simulation-clock/types.js';
+import type { SimulationClockStore } from '../../../simulation-clock/store.js';
 import type { InstitutionKind } from './institution-treasury.js';
 import type { InstitutionSettlementRecord } from './institution-settlement-orchestrator.js';
 
@@ -14,7 +16,8 @@ export interface BankReservePosition { depositsGp: number; cashGp: number; requi
 export type BankJournalKind = 'deposit' | 'withdrawal' | 'interest';
 export interface BankJournalEntry { transactionId: string; settlementId: string; eventId: string;
     eventDigest: string; bankId: string; accountId: string; kind: BankJournalKind; amountGp: number;
-    debitAccount: string; creditAccount: string; createdAt: string }
+    debitAccount: string; creditAccount: string; createdAt: string;
+    simulationStamp?: BoundSimulationEventStamp | null }
 export interface BankPosting { postingId: string; transactionId: string; side: 'debit'|'credit'; account: string; amountGp: number }
 
 interface BankRow { bank_id: string; treasury_actor_id: string; reserve_ratio_bps: number;
@@ -23,7 +26,14 @@ interface AccountRow { account_id: string; bank_id: string; owner_kind: Institut
     balance_gp: number; revision: number; created_at: string; updated_at: string }
 interface JournalRow { transaction_id: string; settlement_id: string; event_id: string; event_digest: string;
     bank_id: string; account_id: string; kind: BankJournalKind; amount_gp: number;
-    debit_account: string; credit_account: string; created_at: string }
+    debit_account: string; credit_account: string; created_at: string;
+    simulation_clock_id: string | null; simulation_sequence: number | null; simulation_time: string | null;
+    simulation_binding_wall_time: string | null; simulation_engine_tick: number | null;
+    simulation_profile_digest: string | null; simulation_clock_status: SimulationClockStatus | null;
+    simulation_clock_revision: number | null; simulation_source_digest: string | null }
+
+export interface BankingSimulationClock { store: SimulationClockStore; clockId: string;
+    engineTick?: () => number | undefined }
 
 const MAX_GP = 2_147_483_647;
 function id(value: string, label: string): string { const normalized = value.trim().toLowerCase();
@@ -34,16 +44,42 @@ function bank(row: BankRow): BankDefinition { return { bankId: row.bank_id, trea
 function account(row: AccountRow): BankDepositAccount { return { accountId: row.account_id, bankId: row.bank_id,
     ownerKind: row.owner_kind, ownerActorId: row.owner_actor_id, balanceGp: row.balance_gp,
     revision: row.revision, createdAt: row.created_at, updatedAt: row.updated_at } }
-function entry(row: JournalRow): BankJournalEntry { return { transactionId: row.transaction_id,
+function entry(row: JournalRow): BankJournalEntry { const stampValues = [row.simulation_clock_id,
+    row.simulation_sequence, row.simulation_time, row.simulation_binding_wall_time,
+    row.simulation_profile_digest, row.simulation_clock_status, row.simulation_clock_revision,
+    row.simulation_source_digest]; const hasStamp = stampValues.some(value => value !== null);
+    if (hasStamp && stampValues.some(value => value === null)) throw new Error(`Bank simulation stamp is incomplete for ${row.transaction_id}`);
+    const simulationStamp: BoundSimulationEventStamp | null = hasStamp ? { clockId: row.simulation_clock_id!,
+        domain: 'bank-journal', sourceId: row.transaction_id, sourceDigest: row.simulation_source_digest!,
+        sequence: row.simulation_sequence!, simulationTime: row.simulation_time!, wallTime: row.simulation_binding_wall_time!,
+        engineTick: row.simulation_engine_tick, profileDigest: row.simulation_profile_digest!,
+        status: row.simulation_clock_status!, revision: row.simulation_clock_revision! } : null;
+    return { transactionId: row.transaction_id,
     settlementId: row.settlement_id, eventId: row.event_id, eventDigest: row.event_digest,
     bankId: row.bank_id, accountId: row.account_id, kind: row.kind, amountGp: row.amount_gp,
-    debitAccount: row.debit_account, creditAccount: row.credit_account, createdAt: row.created_at } }
+    debitAccount: row.debit_account, creditAccount: row.credit_account, createdAt: row.created_at,
+    simulationStamp } }
+function auditEntry(value: BankJournalEntry): Omit<BankJournalEntry, 'simulationStamp'> {
+    const { simulationStamp: _simulationStamp, ...core } = value; return core
+}
 function txDigest(value: object): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex') }
 
 export class BankingLedgerStore {
     private readonly database: Database;
-    constructor(path: string) { mkdirSync(dirname(path), { recursive: true }); this.database = new Database(path, { create: true, strict: true });
-        this.database.run('PRAGMA foreign_keys = ON');
+    constructor(path: string, private readonly simulationClock?: BankingSimulationClock) {
+        mkdirSync(dirname(path), { recursive: true }); this.database = new Database(path, { create: true, strict: true });
+        try { this.database.run('PRAGMA foreign_keys = ON'); this.migrate();
+            if (simulationClock) this.backfillSimulationStamps();
+        } catch (error) { this.database.close(true); throw error }
+    }
+    private migrate(): void { const schemaTable=this.database.query(`SELECT 1 AS found FROM sqlite_master
+            WHERE type='table' AND name='banking_ledger_schema'`).get();
+        if(schemaTable){const schema=this.database.query(`SELECT version FROM banking_ledger_schema WHERE singleton=1`).get() as {version:number}|null;
+            if(!schema||schema.version!==1)throw new Error(`Unsupported banking ledger schema version: ${schema?.version??'missing'}`)}
+        const migration = this.database.transaction(() => {
+        this.database.run(`CREATE TABLE IF NOT EXISTS banking_ledger_schema (
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),version INTEGER NOT NULL CHECK(version>=1))`);
+        this.database.run(`INSERT OR IGNORE INTO banking_ledger_schema(singleton,version) VALUES(1,1)`);
         this.database.run(`CREATE TABLE IF NOT EXISTS economic_bank (bank_id TEXT PRIMARY KEY,
             treasury_actor_id TEXT NOT NULL UNIQUE, reserve_ratio_bps INTEGER NOT NULL CHECK (reserve_ratio_bps BETWEEN 0 AND 10000),
             deposit_interest_bps INTEGER NOT NULL CHECK (deposit_interest_bps BETWEEN 0 AND 10000), revision INTEGER NOT NULL,
@@ -66,6 +102,16 @@ export class BankingLedgerStore {
         this.database.run(`CREATE TABLE IF NOT EXISTS bank_audit_chain (sequence INTEGER PRIMARY KEY AUTOINCREMENT,
             transaction_id TEXT NOT NULL UNIQUE, previous_hash TEXT NOT NULL, entry_hash TEXT NOT NULL UNIQUE,
             FOREIGN KEY(transaction_id) REFERENCES bank_journal(transaction_id))`);
+        const columns = this.database.query('PRAGMA table_info(bank_journal)').all() as Array<{name:string}>;
+        const existing = new Set(columns.map(column => column.name));
+        const additions: Array<[string,string]> = [['simulation_clock_id','TEXT'],['simulation_sequence','INTEGER'],
+            ['simulation_time','TEXT'],['simulation_binding_wall_time','TEXT'],['simulation_engine_tick','INTEGER'],
+            ['simulation_profile_digest','TEXT'],['simulation_clock_status','TEXT'],['simulation_clock_revision','INTEGER'],
+            ['simulation_source_digest','TEXT']];
+        for (const [name,type] of additions) if (!existing.has(name)) this.database.run(`ALTER TABLE bank_journal ADD COLUMN ${name} ${type}`);
+        this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS bank_journal_simulation_sequence
+            ON bank_journal(simulation_clock_id,simulation_sequence) WHERE simulation_clock_id IS NOT NULL`);
+        }); migration.immediate();
     }
     close(): void { this.database.close(true) }
     createBank(bankIdInput: string, treasuryActorIdInput: string, reserveRatioBps: number,
@@ -98,7 +144,7 @@ export class BankingLedgerStore {
         if(counts.journals!==counts.audits||counts.postings!==counts.journals*2)return{valid:false,entries:rows.length,headHash:'0'.repeat(64)};
         let previous='0'.repeat(64);for(const row of rows){const e=entry(row);const postings=this.listPostings(e.transactionId);
             if(postings.length!==2||postings[0]?.side!=='credit'||postings[1]?.side!=='debit'||postings[0].amountGp!==postings[1].amountGp||postings[0].amountGp!==e.amountGp)return{valid:false,entries:rows.length,headHash:previous};
-            const expected=txDigest({previousHash:previous,entry:e,postings});if(row.previousHash!==previous||row.entryHash!==expected)return{valid:false,entries:rows.length,headHash:previous};previous=row.entryHash}
+            const expected=txDigest({previousHash:previous,entry:auditEntry(e),postings});if(row.previousHash!==previous||row.entryHash!==expected)return{valid:false,entries:rows.length,headHash:previous};previous=row.entryHash}
         return{valid:true,entries:rows.length,headHash:previous} }
     reservePosition(bankIdInput: string, cashGp: number): BankReservePosition { const definition = this.getBank(bankIdInput);
         if (!definition) throw new Error('Bank does not exist'); if (!Number.isSafeInteger(cashGp) || cashGp < 0 || cashGp > MAX_GP) throw new Error('Bank cash is invalid');
@@ -127,20 +173,53 @@ export class BankingLedgerStore {
             kind, amountGp: settlement.amountGp, debitAccount, creditAccount };
         const transactionId = txDigest(payload); const existing = this.database.query(`SELECT * FROM bank_journal WHERE settlement_id=?1`)
             .get(settlement.settlementId) as JournalRow | null;
-        if (existing) { if (existing.transaction_id !== transactionId) throw new Error('Bank settlement changed after posting'); return entry(existing) }
+        if (existing) { if (existing.transaction_id !== transactionId) throw new Error('Bank settlement changed after posting');
+            if (existing.simulation_clock_id === null) { const stamp=this.bindSimulationStamp(transactionId,existing.created_at);
+                if(stamp)this.writeSimulationStamp(transactionId,stamp) }
+            return entry(this.database.query(`SELECT * FROM bank_journal WHERE transaction_id=?1`).get(transactionId) as JournalRow) }
+        const stamp=this.bindSimulationStamp(transactionId,now);
         const delta = kind === 'withdrawal' ? -settlement.amountGp : settlement.amountGp;
         const transaction = this.database.transaction(() => { const updated = this.database.run(`UPDATE bank_deposit_account SET balance_gp=balance_gp+?2,
                 revision=revision+1, updated_at=?3 WHERE account_id=?1 AND balance_gp+?2 BETWEEN 0 AND 2147483647`, [target.accountId, delta, now]);
             if (updated.changes !== 1) throw new Error('Bank account has insufficient funds or would overflow');
-            this.database.run(`INSERT INTO bank_journal VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)`,
+            this.database.run(`INSERT INTO bank_journal (transaction_id,settlement_id,event_id,event_digest,bank_id,
+                account_id,kind,amount_gp,debit_account,credit_account,created_at,simulation_clock_id,
+                simulation_sequence,simulation_time,simulation_binding_wall_time,simulation_engine_tick,
+                simulation_profile_digest,simulation_clock_status,simulation_clock_revision,simulation_source_digest)
+                VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)`,
                 [transactionId, settlement.settlementId, settlement.eventId, settlement.eventDigest, target.bankId,
-                    target.accountId, kind, settlement.amountGp, debitAccount, creditAccount, now]);
+                    target.accountId, kind, settlement.amountGp, debitAccount, creditAccount, now,
+                    stamp?.clockId??null,stamp?.sequence??null,stamp?.simulationTime??null,stamp?.wallTime??null,
+                    stamp?.engineTick??null,stamp?.profileDigest??null,stamp?.status??null,stamp?.revision??null,
+                    stamp?.sourceDigest??null]);
             const postings:BankPosting[]=[{postingId:`${transactionId}:credit`,transactionId,side:'credit',account:creditAccount,amountGp:settlement.amountGp},
                 {postingId:`${transactionId}:debit`,transactionId,side:'debit',account:debitAccount,amountGp:settlement.amountGp}];
             for(const p of postings)this.database.run(`INSERT INTO bank_posting VALUES(?1,?2,?3,?4,?5)`,[p.postingId,p.transactionId,p.side,p.account,p.amountGp]);
             const prior=this.database.query(`SELECT entry_hash entryHash FROM bank_audit_chain ORDER BY sequence DESC LIMIT 1`).get() as {entryHash:string}|null;
-            const previousHash=prior?.entryHash??'0'.repeat(64);const journalEntry:BankJournalEntry={transactionId,...payload,createdAt:now};
+            const previousHash=prior?.entryHash??'0'.repeat(64);const journalEntry:Omit<BankJournalEntry,'simulationStamp'>={transactionId,...payload,createdAt:now};
             const entryHash=txDigest({previousHash,entry:journalEntry,postings});this.database.run(`INSERT INTO bank_audit_chain(transaction_id,previous_hash,entry_hash) VALUES(?1,?2,?3)`,[transactionId,previousHash,entryHash]); }); transaction.immediate();
         return entry(this.database.query(`SELECT * FROM bank_journal WHERE transaction_id=?1`).get(transactionId) as JournalRow)
     }
+
+    private bindSimulationStamp(transactionId: string, requestedWallTime: string): BoundSimulationEventStamp | null {
+        if (!this.simulationClock) return null; const clock=this.simulationClock.store.get(this.simulationClock.clockId);
+        if(!clock)throw new Error(`Simulation clock ${this.simulationClock.clockId} does not exist`);
+        const normalized=new Date(requestedWallTime).toISOString(); const wallTime=normalized<clock.lastObservedWallTime
+            ?clock.lastObservedWallTime:normalized;
+        return this.simulationClock.store.bindEvent({clockId:this.simulationClock.clockId,domain:'bank-journal',
+            sourceId:transactionId,sourceDigest:transactionId,wallTime,
+            engineTick:this.simulationClock.engineTick?.()}).stamp
+    }
+    private writeSimulationStamp(transactionId:string,stamp:BoundSimulationEventStamp):void {
+        this.database.run(`UPDATE bank_journal SET simulation_clock_id=?2,simulation_sequence=?3,
+            simulation_time=?4,simulation_binding_wall_time=?5,simulation_engine_tick=?6,
+            simulation_profile_digest=?7,simulation_clock_status=?8,simulation_clock_revision=?9,
+            simulation_source_digest=?10 WHERE transaction_id=?1 AND simulation_clock_id IS NULL`,
+        [transactionId,stamp.clockId,stamp.sequence,stamp.simulationTime,stamp.wallTime,stamp.engineTick,
+            stamp.profileDigest,stamp.status,stamp.revision,stamp.sourceDigest])
+    }
+    private backfillSimulationStamps():void { const rows=this.database.query(`SELECT * FROM bank_journal
+        WHERE simulation_clock_id IS NULL ORDER BY created_at,transaction_id`).all() as JournalRow[];
+        for(const row of rows){const stamp=this.bindSimulationStamp(row.transaction_id,row.created_at)!;
+            this.writeSimulationStamp(row.transaction_id,stamp)} }
 }

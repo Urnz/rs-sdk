@@ -373,35 +373,35 @@ teljesen zárt gazdaság és hosszú új production chain nem lezárási előfel
 
 ## 16. Fázis – szimulációs idő és világkezdet
 
-- [ ] Külön, verziózott `SimulationClock` modellt készíteni, amely elválasztja a
+- [x] Külön, verziózott `SimulationClock` modellt készíteni, amely elválasztja a
   szimulációs időt a wall clocktól és az engine ticktől.
-- [ ] Konfigurálható időarányt adni normál játékhoz és gyorsított kísérletekhez;
+- [x] Konfigurálható időarányt adni normál játékhoz és gyorsított kísérletekhez;
   ugyanabból a seedből és időprofilból reprodukálható időbeli lefutást biztosítani.
-- [ ] A tartós domain-eseményekhez közös szimulációs időbélyeget és monoton
+- [x] A tartós domain-eseményekhez közös szimulációs időbélyeget és monoton
   eseménysorrendet adni anélkül, hogy a meglévő audit-időbélyegeket felülírnánk.
-- [ ] Meghatározni az online, offline, alvó és későbbi delegált player állapot
+- [x] Meghatározni az online, offline, alvó és későbbi delegált player állapot
   időkezelési szerződését; a kijelentkezés önmagában ne legyen alvás és ne állítsa
   meg a világot.
-- [ ] A karakteridentitást már most életciklus-kompatibilissé tenni: születési/
+- [x] A karakteridentitást már most életciklus-kompatibilissé tenni: születési/
   létrejöttkori szimulációs idő, aktuális életkor és lifecycle státusz tárolható
   legyen, még akkor is, ha az öregedés hatásai csak későbbi fázisban aktiválódnak.
-- [ ] Verziózott `WorldGenesisProfile` modellt készíteni legalább az alábbi
+- [x] Verziózott `WorldGenesisProfile` modellt készíteni legalább az alábbi
   kezdeti profilokra:
-  - [ ] `blank-slate`: meglévő világépületek, de minimális gazdasági tulajdon és
+  - [x] `blank-slate`: meglévő világépületek, de minimális gazdasági tulajdon és
     vállalkozási állapot;
-  - [ ] `frontier`: alapvető eszközök, élelmiszer, lakhatás és kis kezdővagyon;
-  - [ ] `seeded-economy`: generált tulajdon, vagyon, szakmák, vállalkozások és
+  - [x] `frontier`: alapvető eszközök, élelmiszer, lakhatás és kis kezdővagyon;
+  - [x] `seeded-economy`: generált tulajdon, vagyon, szakmák, vállalkozások és
     készletek;
-  - [ ] `mature-society`: eltérő vagyoni rétegek, szerződések, bérletek,
+  - [x] `mature-society`: eltérő vagyoni rétegek, szerződések, bérletek,
     intézmények és működő gazdasági kapcsolatok;
-  - [ ] `historical-burn-in`: más genesis profilból induló, meghatározott ideig
+  - [x] `historical-burn-in`: más genesis profilból induló, meghatározott ideig
     agent-only módon lefuttatott világ, amely csak ezután nyílik meg játékosnak.
-- [ ] A genesis eredményét seedhez, konfigurációhoz és digesthez kötni, hogy ugyanaz
+- [x] A genesis eredményét seedhez, konfigurációhoz és digesthez kötni, hogy ugyanaz
   a világkezdet reprodukálható legyen.
-- [ ] A bootstrapként létrehozott pénzt, tárgyat, ingatlant és vállalkozási vagyont
+- [x] A bootstrapként létrehozott pénzt, tárgyat, ingatlant és vállalkozási vagyont
   külön genesis eredetként megjelölni, hogy később ne keveredjen a gazdaság által
   ténylegesen előállított értékkel.
-- [ ] A world genesishez dry-run előnézetet, admin indítást, resetet és tesztet adni.
+- [x] A world genesishez dry-run előnézetet, admin indítást, resetet és tesztet adni.
 
 Elfogadási feltétel: ugyanabból a seedből és genesis profilból reprodukálható
 világ indul, a szimulációs idő az engine/wall clocktól külön kezelhető, és minden

@@ -29,6 +29,8 @@ export interface PropertyWallet {
 }
 export interface PropertyTransferReceipt { transferId: string; propertyId: string; from: EconomicActorRef;
     to: EconomicActorRef; beforeVersion: number; version: number; createdAt: string }
+export interface PropertyGenesisReceipt { allocationId: string; propertyId: string; owner: EconomicActorRef;
+    beforeVersion: number; version: number; createdAt: string }
 
 interface PropertyRow {
     property_id: string;
@@ -54,6 +56,8 @@ interface PurchaseRow {
 interface PropertyTransferRow { transfer_id: string; property_id: string; from_kind: EconomicActorRef['kind'];
     from_id: string; to_kind: EconomicActorRef['kind']; to_id: string; before_version: number;
     version: number; created_at: string }
+interface PropertyGenesisRow { allocation_id: string; property_id: string; owner_kind: EconomicActorRef['kind'];
+    owner_id: string; before_version: number; version: number; created_at: string }
 
 function purchaseRecord(row: PurchaseRow): PropertyPurchaseRecord {
     return {
@@ -121,6 +125,11 @@ export class PropertyStore {
             from_kind TEXT NOT NULL, from_id TEXT NOT NULL, to_kind TEXT NOT NULL, to_id TEXT NOT NULL,
             before_version INTEGER NOT NULL, version INTEGER NOT NULL, created_at TEXT NOT NULL
             )`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS property_genesis_assignment (
+            allocation_id TEXT PRIMARY KEY, property_id TEXT NOT NULL REFERENCES property_state(property_id),
+            owner_kind TEXT NOT NULL CHECK(owner_kind IN ('player','business','faction')),owner_id TEXT NOT NULL,
+            before_version INTEGER NOT NULL,version INTEGER NOT NULL,created_at TEXT NOT NULL
+            )`);
             this.synchronizeCatalog(now);
         } catch (error) {
             this.database.clearQueryCache();
@@ -176,6 +185,37 @@ export class PropertyStore {
                 [transferId, propertyId, from.kind, from.id, to.kind, to.id, expectedVersion, expectedVersion + 1, now]);
         }); transaction.immediate();
         return { transferId, propertyId, from, to, beforeVersion: expectedVersion, version: expectedVersion + 1, createdAt: now };
+    }
+
+    assignGenesis(allocationId: string, propertyId: string, expectedVersion: number,
+        ownerInput: EconomicActorRef, now = new Date().toISOString()): PropertyGenesisReceipt {
+        if (!/^[a-z0-9][a-z0-9._:-]{0,119}$/.test(allocationId)) throw new Error('Genesis allocation id is invalid');
+        const owner = validateEconomicActorRef(ownerInput, 'genesis property owner');
+        if (!this.definitions.has(propertyId)) throw new Error(`Unknown property: ${propertyId}`);
+        const existing = this.database.query('SELECT * FROM property_genesis_assignment WHERE allocation_id=?1')
+            .get(allocationId) as PropertyGenesisRow | null;
+        if (existing) {
+            if (existing.property_id !== propertyId || existing.owner_kind !== owner.kind
+                || existing.owner_id !== owner.id || existing.before_version !== expectedVersion) {
+                throw new Error('Genesis allocation id was reused for another property assignment');
+            }
+            return { allocationId, propertyId, owner, beforeVersion: existing.before_version,
+                version: existing.version, createdAt: existing.created_at };
+        }
+        const transaction = this.database.transaction(() => {
+            const changed = this.database.run(`UPDATE property_state SET status='owned',owner_kind=?3,owner_id=?4,
+                acquired_at=?5,updated_at=?5,version=version+1
+                WHERE property_id=?1 AND version=?2 AND status='available' AND owner_id IS NULL`,
+            [propertyId, expectedVersion, owner.kind, owner.id, now]);
+            if (changed.changes !== 1) throw new Error('Property is not available for genesis assignment');
+            this.database.run(`INSERT INTO property_genesis_assignment
+                (allocation_id,property_id,owner_kind,owner_id,before_version,version,created_at)
+                VALUES(?1,?2,?3,?4,?5,?6,?7)`,
+            [allocationId, propertyId, owner.kind, owner.id, expectedVersion, expectedVersion + 1, now]);
+        });
+        transaction.immediate();
+        return { allocationId, propertyId, owner, beforeVersion: expectedVersion,
+            version: expectedVersion + 1, createdAt: now };
     }
 
     resetProperty(propertyId: string, expectedVersion: number, now = new Date().toISOString()): PropertyStateEntry {

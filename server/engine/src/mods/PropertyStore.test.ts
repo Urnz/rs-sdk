@@ -204,4 +204,23 @@ describe('property purchase store', () => {
             owned.version, buyer, { kind: 'business', id: 'other-bank' })).toThrow('reused');
         reopened.close();
     });
+
+    test('assigns an available property to genesis without pretending it was purchased', () => {
+        const path = databasePath(), store = new PropertyStore(catalog, path);
+        const initial = store.listProperties()[0]!;
+        const forge = { kind: 'business' as const, id: 'varrock-forge' };
+        const receipt = store.assignGenesis('forge-property', property.propertyId, initial.version, forge,
+            '2001-01-01T00:00:00.000Z');
+        expect(receipt).toMatchObject({ allocationId: 'forge-property', propertyId: property.propertyId,
+            owner: forge, beforeVersion: initial.version, version: initial.version + 1 });
+        expect(store.listProperties()[0]).toMatchObject({ status: 'owned', owner: forge,
+            acquiredAt: '2001-01-01T00:00:00.000Z' });
+        expect(store.listPurchases()).toEqual([]);
+        expect(store.assignGenesis('forge-property', property.propertyId, initial.version, forge,
+            '2001-01-02T00:00:00.000Z')).toEqual(receipt);
+        expect(() => store.assignGenesis('forge-property', property.propertyId, initial.version,
+            { kind: 'business', id: 'other-forge' })).toThrow('reused');
+        expect(store.resetProperty(property.propertyId, receipt.version)).toMatchObject({ status: 'available', owner: null });
+        store.close();
+    });
 });

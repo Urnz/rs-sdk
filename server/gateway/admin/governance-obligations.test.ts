@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { SimulationClockStore } from '../../../simulation-clock/store.js';
 import { GovernanceStore } from './governance.js';
 import { GovernancePolicyStore } from './governance-policy.js';
 import { businessRevenueGovernanceEvent, digestGovernanceSourceEvent,
@@ -80,6 +81,39 @@ describe('governance obligations', () => {
         expect(await obligations.process(revenueEvent(), verifier, '2026-09-07T16:00:00.000Z')).toEqual(first);
         expect(obligations.listForEvent(revenueEvent().eventId)).toHaveLength(2);
         obligations.close();
+    });
+
+    test('backfills and replays verified source events on the shared simulation timeline', async () => {
+        const path = databasePath();
+        configureNestedRevenuePolicies(path);
+        const legacy = new GovernanceObligationStore(path);
+        await legacy.process(revenueEvent(), verifier, '2026-09-06T16:00:00.000Z');
+        expect(legacy.getEvent(revenueEvent().eventId)?.simulationStamp).toBeNull();
+        legacy.close();
+
+        const clock = new SimulationClockStore(join(path, '..', 'simulation-clock.sqlite'));
+        clock.create({ clockId: 'world', profile: { schemaVersion: 1, profileId: 'governance-test',
+            version: '1.0.0', seed: 'governance-test',
+            rate: { simulationMilliseconds: 2, wallMilliseconds: 1 } },
+        wallTime: '2026-09-06T16:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z' });
+        const obligations = new GovernanceObligationStore(path,
+            { store: clock, clockId: 'world', engineTick: () => 90 });
+        const imported = obligations.getEvent(revenueEvent().eventId)!;
+        expect(imported.occurredAt).toBe(revenueEvent().occurredAt);
+        expect(imported.simulationStamp).toMatchObject({ sequence: 1, engineTick: 90,
+            wallTime: '2026-09-06T16:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z' });
+
+        await obligations.process(revenueEvent(), verifier, '2026-09-07T16:00:00.000Z');
+        expect(obligations.getEvent(revenueEvent().eventId)?.simulationStamp ?? null)
+            .toEqual(imported.simulationStamp ?? null);
+        const later = { ...revenueEvent(), eventId: 'business:run-002:0:shop-sell',
+            sourceRef: 'economy-run:22222222-2222-4222-8222-222222222222' };
+        await obligations.process(later, verifier, '2026-09-06T16:00:10.000Z');
+        expect(obligations.getEvent(later.eventId)?.simulationStamp).toMatchObject({
+            sequence: 2, simulationTime: '2030-01-01T00:00:20.000Z' });
+        expect(clock.get('world')?.nextEventSequence).toBe(3);
+        obligations.close();
+        clock.close();
     });
 
     test('rejects changed reuse of a verified source event id', async () => {

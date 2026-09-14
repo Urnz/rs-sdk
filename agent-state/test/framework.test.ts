@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Database } from 'bun:sqlite';
 import { AgentStateStore, AgentStateValidationError, buildCoreIdentity, buildDecisionContext,
     planNextAction } from '../index.js';
+import { SimulationClockStore } from '../../simulation-clock/index.js';
 
 const directories: string[] = [];
 
@@ -101,6 +102,79 @@ describe('persistent agent identity and goals', () => {
         expect(store.listGoalEvents('ferrye14', '2026-09-05T10:01:30.000Z',
             '2026-09-05T10:02:30.000Z')).toHaveLength(1);
         store.close();
+    });
+
+    test('backfills and persists goal events on the shared simulation timeline', () => {
+        const path = databasePath();
+        let store = new AgentStateStore(path);
+        addIdentity(store);
+        const goal = store.createGoal('ferrye14', { goalId: 'timeline.life', horizon: 'life',
+            title: 'Build a durable life' }, '2026-09-05T10:01:00.000Z');
+        expect(store.listGoalEvents('ferrye14')[0]?.simulationStamp).toBeNull();
+        store.close();
+
+        const clock = new SimulationClockStore(join(dirname(path), 'simulation.sqlite'));
+        clock.create({ clockId: 'world', profile: { schemaVersion: 1, profileId: 'normal', version: '1.0.0',
+            seed: 'agent-goal-test', rate: { simulationMilliseconds: 1, wallMilliseconds: 1 } },
+        wallTime: '2026-09-05T11:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z' });
+        store = new AgentStateStore(path, { store: clock, clockId: 'world', engineTick: () => 90 });
+        const imported = store.listGoalEvents('ferrye14')[0]!;
+        expect(imported.occurredAt).toBe('2026-09-05T10:01:00.000Z');
+        expect(imported.simulationStamp).toMatchObject({ sequence: 1, engineTick: 90,
+            wallTime: '2026-09-05T11:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z' });
+        store.setGoalStatus(goal.goalId, goal.revision, 'completed', '2026-09-05T11:01:00.000Z');
+        const events = store.listGoalEvents('ferrye14');
+        expect(events.map(event => event.simulationStamp?.sequence)).toEqual([1, 2]);
+        expect(events[1]?.simulationStamp?.simulationTime).toBe('2030-01-01T00:01:00.000Z');
+        store.close();
+
+        store = new AgentStateStore(path, { store: clock, clockId: 'world' });
+        expect(store.listGoalEvents('ferrye14')).toEqual(events);
+        expect(clock.get('world')?.nextEventSequence).toBe(3);
+        store.close();
+        clock.close();
+    });
+
+    test('backfills player-only lifecycle and derives age from simulation time', () => {
+        const path = databasePath(); let store = new AgentStateStore(path);
+        addIdentity(store);
+        store.createIdentity({ agentId: 'varrock-forge', displayName: 'Varrock Forge',
+            background: 'Institution without a biological lifecycle.', personalityTraits: ['prudent'],
+            controlProfile: { role: 'institution', subjectKind: 'business', subjectId: 'varrock-forge',
+                decisionIntervalMs: 300_000, maxDecisionsPerDay: 48,
+                dailyLlmBudgetMicros: 0, dailyOperationalBudgetGp: 1_000 } });
+        expect(store.getCharacterLifecycle('ferrye14')).toBeNull(); store.close();
+
+        const clock = new SimulationClockStore(join(dirname(path), 'lifecycle-clock.sqlite'));
+        clock.create({ clockId: 'world', profile: { schemaVersion: 1, profileId: 'lifecycle-test',
+            version: '1.0.0', seed: 'lifecycle-test',
+            rate: { simulationMilliseconds: 2, wallMilliseconds: 1 } },
+        wallTime: '2026-09-05T11:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z' });
+        store = new AgentStateStore(path, { store: clock, clockId: 'world' });
+        const imported = store.getCharacterLifecycle('ferrye14')!;
+        expect(imported).toMatchObject({ origin: 'imported', birthAtSimulationTime: null,
+            createdAtSimulationTime: '2030-01-01T00:00:00.000Z', currentAgeSimulationMilliseconds: 0,
+            status: 'active', revision: 1 });
+        expect(store.getCharacterLifecycle('varrock-forge')).toBeNull();
+        store.createIdentity({ agentId: 'new-player', playerUsername: 'Newplayer', displayName: 'New Player',
+            background: 'Created after the simulation clock was available.', personalityTraits: ['new'] });
+        expect(store.getCharacterLifecycle('new-player')).toMatchObject({ origin: 'created',
+            createdAtSimulationTime: '2030-01-01T00:00:00.000Z', status: 'active' });
+        const born = store.setCharacterBirth('ferrye14', imported.revision,
+            '2020-01-01T00:00:00.000Z', 'born', '2026-09-05T11:00:10.000Z');
+        expect(born).toMatchObject({ origin: 'born', birthAtSimulationTime: '2020-01-01T00:00:00.000Z',
+            ageObservedAtSimulationTime: '2030-01-01T00:00:20.000Z', revision: 2 });
+        const ageBefore = born.currentAgeSimulationMilliseconds;
+        clock.observe('world', '2026-09-05T11:00:20.000Z');
+        expect(store.getCharacterLifecycle('ferrye14')?.currentAgeSimulationMilliseconds)
+            .toBe(ageBefore + 20_000);
+        const observed = store.observeCharacterAge('ferrye14', born.revision,
+            '2026-09-05T11:00:20.000Z');
+        expect(observed).toMatchObject({ ageObservedAtSimulationTime: '2030-01-01T00:00:40.000Z',
+            currentAgeSimulationMilliseconds: ageBefore + 20_000, revision: 3 });
+        expect(() => store.setCharacterBirth('ferrye14', observed.revision,
+            '2019-01-01T00:00:00.000Z')).toThrow('immutable');
+        store.close(); clock.close();
     });
 
     test('persists an immutable LLM proposal and atomically consumes its one-use skill approval', () => {

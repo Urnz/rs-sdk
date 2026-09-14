@@ -5,6 +5,7 @@ import type { AgentReplanCoordinator } from './replan-coordinator.js';
 import { enqueueDurableReplan } from './durable-replan-coordinator.js';
 import { agentStateDbPath } from './paths.js';
 import { ReplanInboxStore } from './replan-inbox.js';
+import type { ReplanInboxSimulationClock } from './replan-inbox.js';
 
 export interface GoalWakeupRecoveryResult {
     scannedEvents: number;
@@ -26,8 +27,9 @@ function replanEvent(event: AgentGoalEvent, goal: AgentGoal): LlmReplanEvent | n
         selectionSeed: `goal-event:${event.goalId}:${event.sequence}` };
 }
 
-function enrolledGoalEvents(path: string): Array<{ event: AgentGoalEvent; goal: AgentGoal }> {
-    const store = new AgentStateStore(path);
+function enrolledGoalEvents(path: string, simulationClock?: ReplanInboxSimulationClock):
+    Array<{ event: AgentGoalEvent; goal: AgentGoal }> {
+    const store = new AgentStateStore(path, simulationClock);
     try {
         const output: Array<{ event: AgentGoalEvent; goal: AgentGoal }> = [];
         for (const enrollment of store.listAutonomyEnrollments()
@@ -44,9 +46,10 @@ function enrolledGoalEvents(path: string): Array<{ event: AgentGoalEvent; goal: 
 }
 
 /** Rebuilds durable wakeups from the AgentState goal-event ledger after commits or restart. */
-export function recoverGoalEventWakeups(inboxPath: string, agentPath = agentStateDbPath): GoalWakeupRecoveryResult {
-    const source = enrolledGoalEvents(agentPath);
-    const inbox = new ReplanInboxStore(inboxPath);
+export function recoverGoalEventWakeups(inboxPath: string, agentPath = agentStateDbPath,
+    simulationClock?: ReplanInboxSimulationClock): GoalWakeupRecoveryResult {
+    const source = enrolledGoalEvents(agentPath, simulationClock);
+    const inbox = new ReplanInboxStore(inboxPath, simulationClock);
     const result: GoalWakeupRecoveryResult = { scannedEvents: source.length,
         createdEventIds: [], existingEventIds: [] };
     try {

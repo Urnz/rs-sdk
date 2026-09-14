@@ -1,7 +1,7 @@
 import { LlmReplanEventGate, type LlmReplanEvent } from '../../../llm-runtime/events.js';
 import { AgentReplanCoordinator, type AgentReplanCoordinatorDependencies,
     AUTONOMY_LEASE_OWNER_MISMATCH_REASON, type ReplanRecord } from './replan-coordinator.js';
-import { ReplanInboxStore, type ReplanInboxRecord } from './replan-inbox.js';
+import { ReplanInboxStore, type ReplanInboxRecord, type ReplanInboxSimulationClock } from './replan-inbox.js';
 
 export interface DurableReplanCoordinatorOptions {
     path: string;
@@ -9,10 +9,12 @@ export interface DurableReplanCoordinatorOptions {
     leaseMs?: number;
     retryMs?: number;
     replayLimit?: number;
+    simulationClock?: ReplanInboxSimulationClock;
 }
 
-function withStore<T>(path: string, callback: (store: ReplanInboxStore) => T): T {
-    const store = new ReplanInboxStore(path);
+function withStore<T>(path: string, callback: (store: ReplanInboxStore) => T,
+    simulationClock?: ReplanInboxSimulationClock): T {
+    const store = new ReplanInboxStore(path, simulationClock);
     try { return callback(store); }
     finally { store.close(); }
 }
@@ -38,6 +40,7 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
     private readonly retryMs: number;
     private readonly replayLimit: number;
     private readonly retryGate: LlmReplanEventGate;
+    private readonly simulationClock?: ReplanInboxSimulationClock;
     private replaying = false;
 
     constructor(dependencies: AgentReplanCoordinatorDependencies, options: DurableReplanCoordinatorOptions,
@@ -48,6 +51,7 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
         this.leaseMs = options.leaseMs ?? 60_000;
         this.retryMs = options.retryMs ?? 30_000;
         this.replayLimit = options.replayLimit ?? 25;
+        this.simulationClock = options.simulationClock;
         this.retryGate = gate;
         if (!Number.isInteger(this.leaseMs) || this.leaseMs < 5_000 || this.leaseMs > 15 * 60_000) {
             throw new Error('Durable replan lease duration is invalid');
@@ -58,7 +62,7 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
         if (!Number.isInteger(this.replayLimit) || this.replayLimit < 1 || this.replayLimit > 100) {
             throw new Error('Durable replan replay limit is invalid');
         }
-        for (const item of withStore(this.path, store => store.listTerminal())) {
+        for (const item of withStore(this.path, store => store.listTerminal(), this.simulationClock)) {
             try {
                 const persisted = terminalRecord(item);
                 if (persisted.gate.accepted) gate.restoreAccepted(persisted.event.agentId, persisted.timestamp);
@@ -75,7 +79,7 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
         }
         const leaseExpiresAt = new Date(Date.parse(now) + this.leaseMs).toISOString();
         const claimed = withStore(this.path,
-            store => store.claim(queued.record.event.eventId, this.leaseOwner, leaseExpiresAt, now));
+            store => store.claim(queued.record.event.eventId, this.leaseOwner, leaseExpiresAt, now), this.simulationClock);
         if (!claimed) return { timestamp: now, event: queued.record.event,
             gate: { accepted: false, reason: queued.record.status === 'pending' ? 'cooldown' : 'duplicate',
                 nextAllowedAt: queued.record.nextAttemptAt }, outcome: null, error: null };
@@ -83,7 +87,7 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
     }
 
     enqueue(event: LlmReplanEvent, now = new Date().toISOString()) {
-        return withStore(this.path, store => store.enqueue(event, now));
+        return withStore(this.path, store => store.enqueue(event, now), this.simulationClock);
     }
 
     protected override async deliverObserved(event: LlmReplanEvent, now: string): Promise<ReplanRecord> {
@@ -100,7 +104,7 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
         try {
             const leaseExpiresAt = new Date(Date.parse(now) + this.leaseMs).toISOString();
             const claimed = withStore(this.path, store => store.claimDue(this.leaseOwner,
-                leaseExpiresAt, this.replayLimit, now));
+                leaseExpiresAt, this.replayLimit, now), this.simulationClock);
             const results: ReplanRecord[] = [];
             for (const item of claimed) results.push(await this.processClaimed(item, now));
             return results;
@@ -117,11 +121,11 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
                 }
                 const nextAttemptAt = new Date(Date.parse(now) + this.retryMs).toISOString();
                 withStore(this.path, store => store.retry(item.event.eventId, item.revision,
-                    this.leaseOwner, result.outcome!.reason, nextAttemptAt, now));
+                    this.leaseOwner, result.outcome!.reason, nextAttemptAt, now), this.simulationClock);
                 return result;
             }
             withStore(this.path, store => store.resolve(item.event.eventId, item.revision,
-                this.leaseOwner, JSON.stringify(result), 'completed', new Date().toISOString()));
+                this.leaseOwner, JSON.stringify(result), 'completed', new Date().toISOString()), this.simulationClock);
             return result;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -129,7 +133,7 @@ export class DurableAgentReplanCoordinator extends AgentReplanCoordinator {
             const failed: ReplanRecord = { timestamp: now, event: item.event,
                 gate: { accepted: false, reason: 'duplicate', nextAllowedAt: now }, outcome: null, error: message };
             withStore(this.path, store => store.resolve(item.event.eventId, item.revision,
-                this.leaseOwner, JSON.stringify(failed), 'discarded', new Date().toISOString()));
+                this.leaseOwner, JSON.stringify(failed), 'discarded', new Date().toISOString()), this.simulationClock);
             throw error;
         }
     }

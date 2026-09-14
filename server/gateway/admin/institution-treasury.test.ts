@@ -83,4 +83,18 @@ describe('institution treasury', () => {
         expect(treasury.getTransfer(settlementId)).toBeNull();
         treasury.close();
     });
+
+    test('credits and subtracts only the exact genesis treasury lot', () => {
+        const treasury = store();
+        const receipt = treasury.creditGenesis('business', 'forge', 'genesis-capital', 1_000,
+            '2001-01-01T00:00:00.000Z');
+        expect(receipt).toMatchObject({ status: 'active', amountGp: 1_000 });
+        expect(treasury.get('business', 'forge')).toMatchObject({ balanceGp: 1_000 });
+        expect(treasury.creditGenesis('business', 'forge', 'genesis-capital', 1_000)).toEqual(receipt);
+        treasury.setBalance('business', 'forge', treasury.get('business', 'forge')!.revision, 1_250);
+        expect(treasury.resetGenesis('genesis-capital')).toMatchObject({ status: 'reset' });
+        expect(treasury.get('business', 'forge')).toMatchObject({ balanceGp: 250 });
+        expect(treasury.resetGenesis('genesis-capital')).toMatchObject({ status: 'reset' });
+        treasury.close();
+    });
 });

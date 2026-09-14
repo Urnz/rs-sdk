@@ -193,6 +193,24 @@ describe('gateway autonomy supervisor', () => {
         reopened.close();
     });
 
+    test('does not execute an explicitly sleeping avatar even when its session is online', async () => {
+        const path = setup(); let plans = 0;
+        const supervisor = new GatewayAgentAutonomySupervisor(coordinator(async event => {
+            plans++; throw new Error(event.eventId);
+        }), { agentPath: path, retryMs: 30_000,
+            ensureAvatar: async () => ({ ready: true, status: 'adopted', reason: 'Avatar online.' }),
+            timeCapabilities: () => ({ worldClockAdvances: true, physicalExecutionAllowed: false,
+                offlineDelegationAllowed: false, reason: 'Sleeping is an explicit physical state.' }) });
+        expect(await supervisor.tick('2026-09-08T08:00:00.000Z')).toEqual([
+            expect.objectContaining({ status: 'skipped', reason: 'Sleeping is an explicit physical state.' })
+        ]);
+        expect(plans).toBe(0);
+        const reopened = new AgentStateStore(path);
+        expect(reopened.getAutonomyEnrollment('ferrye14')).toMatchObject({ status: 'desired',
+            nextWakeupAt: '2026-09-08T08:00:30.000Z', revision: 2 });
+        reopened.close();
+    });
+
     test('bounds repeated avatar respawns with exponential backoff and requires fresh state before planning', async () => {
         const path = setup();
         let plans = 0;

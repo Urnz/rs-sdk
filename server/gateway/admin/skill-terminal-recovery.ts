@@ -2,6 +2,7 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import type { LlmReplanEvent } from '../../../llm-runtime/events.js';
 import { agentStateDbPath, skillRunsDir } from './paths.js';
 import { ReplanInboxStore } from './replan-inbox.js';
+import type { ReplanInboxSimulationClock } from './replan-inbox.js';
 import { readSkillRun, readSkillRunHistory, type AdminSkillRun } from './skill-history.js';
 import type { SkillMarkerReconciliation } from './supervisor.js';
 import { skillParameterDigest } from '../../../agent-state/skill-binding.js';
@@ -23,6 +24,7 @@ export interface SkillTerminalRecoveryOptions {
     loadRun?: (runId: string) => Promise<AdminSkillRun | null>;
     capabilityGapPath?: string;
     economicContractsPath?: string;
+    simulationClock?: ReplanInboxSimulationClock;
 }
 
 export interface OrphanedSkillRecoveryResult {
@@ -68,7 +70,7 @@ export async function recoverSkillTerminalWakeups(inboxPath: string,
     const running = loadRunningEnrollments(options.agentPath ?? agentStateDbPath);
     const runs = await (options.loadRuns ?? (() => readSkillRunHistory(500,
         options.skillRunRoot ?? skillRunsDir, 1)))();
-    const store = new ReplanInboxStore(inboxPath);
+    const store = new ReplanInboxStore(inboxPath, options.simulationClock);
     const result: SkillTerminalRecoveryResult = { scannedRuns: runs.length,
         matchedEnrollments: 0, reconciledWorkOrderRunIds: [], createdEventIds: [], existingEventIds: [] };
     try {
@@ -80,7 +82,7 @@ export async function recoverSkillTerminalWakeups(inboxPath: string,
             result.matchedEnrollments++;
             for (const run of candidates) {
                 let effectiveRun = run;
-                const agentStore = new AgentStateStore(options.agentPath ?? agentStateDbPath);
+                const agentStore = new AgentStateStore(options.agentPath ?? agentStateDbPath, options.simulationClock);
                 try {
                     const dispatch = agentStore.getSkillDispatch(run.runId);
                     if (dispatch) {
@@ -136,7 +138,7 @@ export async function recoverSkillTerminalWakeups(inboxPath: string,
     } finally { store.close(); }
     // Goal completion is committed first; its append-only event is then translated
     // by the same restart-safe path used for every other goal transition.
-    recoverGoalEventWakeups(inboxPath, options.agentPath ?? agentStateDbPath);
+    recoverGoalEventWakeups(inboxPath, options.agentPath ?? agentStateDbPath, options.simulationClock);
     return result;
 }
 
@@ -147,7 +149,7 @@ export async function recoverOrphanedSkillWakeups(inboxPath: string,
     const orphaned = markers.filter(item => item.status === 'stale-removed' && item.snapshot);
     const result: OrphanedSkillRecoveryResult = { examinedMarkers: orphaned.length,
         createdEventIds: [], existingEventIds: [], journaledRunIds: [] };
-    const store = new ReplanInboxStore(inboxPath);
+    const store = new ReplanInboxStore(inboxPath, options.simulationClock);
     try {
         for (const marker of orphaned) {
             const snapshot = marker.snapshot!;

@@ -37,6 +37,8 @@ export interface InstitutionTreasuryTransfer {
     amountGp: number;
     createdAt: string;
 }
+export interface TreasuryGenesisReceipt { allocationId:string;kind:InstitutionKind;actorId:string;amountGp:number;
+    status:'active'|'reset';createdAt:string;resetAt:string|null }
 
 interface AccountRow {
     actor_kind: InstitutionKind; actor_id: string; balance_gp: number; reserved_gp: number;
@@ -100,6 +102,10 @@ export class InstitutionTreasuryStore {
             FOREIGN KEY (reservation_id) REFERENCES institution_treasury_reservation(reservation_id),
             FOREIGN KEY (payer_kind, payer_actor_id) REFERENCES institution_treasury(actor_kind, actor_id),
             FOREIGN KEY (payee_kind, payee_actor_id) REFERENCES institution_treasury(actor_kind, actor_id))`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS institution_treasury_genesis (
+            allocation_id TEXT PRIMARY KEY,actor_kind TEXT NOT NULL CHECK(actor_kind IN ('business','faction')),
+            actor_id TEXT NOT NULL,amount_gp INTEGER NOT NULL CHECK(amount_gp>0),
+            status TEXT NOT NULL CHECK(status IN ('active','reset')),created_at TEXT NOT NULL,reset_at TEXT)`);
     }
 
     close(): void { this.database.close(true); }
@@ -135,6 +141,50 @@ export class InstitutionTreasuryStore {
         [kind, current.id, expectedRevision, balanceGp, now]);
         if (result.changes !== 1) throw new Error('Treasury changed before update; refresh and try again');
         return this.get(kind, current.id)!;
+    }
+
+    creditGenesis(kind:InstitutionKind,idInput:string,allocationId:string,amountGp:number,
+        now=new Date().toISOString()):TreasuryGenesisReceipt {
+        const id=actorId(idInput);
+        if(!/^[a-z0-9][a-z0-9._:-]{1,119}$/.test(allocationId))throw new Error('Genesis treasury allocation id is invalid');
+        if(!Number.isSafeInteger(amountGp)||amountGp<1||amountGp>2147483647)throw new Error('Genesis treasury amount is invalid');
+        const existing=this.database.query('SELECT * FROM institution_treasury_genesis WHERE allocation_id=?1')
+            .get(allocationId) as {actor_kind:InstitutionKind;actor_id:string;amount_gp:number;
+                status:'active'|'reset';created_at:string;reset_at:string|null}|null;
+        if(existing){if(existing.actor_kind!==kind||existing.actor_id!==id||existing.amount_gp!==amountGp)
+            throw new Error('Genesis treasury allocation id was reused');
+            return{allocationId,kind,actorId:id,amountGp,status:existing.status,createdAt:existing.created_at,resetAt:existing.reset_at}}
+        const transaction=this.database.transaction(()=>{
+            this.database.run(`INSERT OR IGNORE INTO institution_treasury
+                (actor_kind,actor_id,balance_gp,reserved_gp,revision,created_at,updated_at)
+                VALUES(?1,?2,0,0,1,?3,?3)`,[kind,id,now]);
+            const changed=this.database.run(`UPDATE institution_treasury SET balance_gp=balance_gp+?3,
+                revision=revision+1,updated_at=?4 WHERE actor_kind=?1 AND actor_id=?2 AND balance_gp<=2147483647-?3`,
+            [kind,id,amountGp,now]);
+            if(changed.changes!==1)throw new Error('Genesis treasury credit would overflow');
+            this.database.run(`INSERT INTO institution_treasury_genesis VALUES(?1,?2,?3,?4,'active',?5,NULL)`,
+                [allocationId,kind,id,amountGp,now]);
+        });transaction.immediate();
+        return{allocationId,kind,actorId:id,amountGp,status:'active',createdAt:now,resetAt:null};
+    }
+
+    resetGenesis(allocationId:string,now=new Date().toISOString()):TreasuryGenesisReceipt|null {
+        if(!/^[a-z0-9][a-z0-9._:-]{1,119}$/.test(allocationId))throw new Error('Genesis treasury allocation id is invalid');
+        const row=this.database.query('SELECT * FROM institution_treasury_genesis WHERE allocation_id=?1').get(allocationId) as
+            {actor_kind:InstitutionKind;actor_id:string;amount_gp:number;status:'active'|'reset';created_at:string;reset_at:string|null}|null;
+        if(!row)return null;
+        if(row.status==='reset')return{allocationId,kind:row.actor_kind,actorId:row.actor_id,amountGp:row.amount_gp,
+            status:'reset',createdAt:row.created_at,resetAt:row.reset_at};
+        const transaction=this.database.transaction(()=>{
+            const changed=this.database.run(`UPDATE institution_treasury SET balance_gp=balance_gp-?3,
+                revision=revision+1,updated_at=?4 WHERE actor_kind=?1 AND actor_id=?2
+                AND balance_gp-reserved_gp>=?3`,[row.actor_kind,row.actor_id,row.amount_gp,now]);
+            if(changed.changes!==1)throw new Error('Genesis treasury funds are reserved or spent and cannot be reset');
+            this.database.run(`UPDATE institution_treasury_genesis SET status='reset',reset_at=?2
+                WHERE allocation_id=?1 AND status='active'`,[allocationId,now]);
+        });transaction.immediate();
+        return{allocationId,kind:row.actor_kind,actorId:row.actor_id,amountGp:row.amount_gp,
+            status:'reset',createdAt:row.created_at,resetAt:now};
     }
 
     getReservation(reservationId: string): TreasuryReservation | null {

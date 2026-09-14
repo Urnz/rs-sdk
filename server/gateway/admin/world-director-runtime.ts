@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import type { BoundSimulationEventStamp } from '../../../simulation-clock/types.js';
+import { SimulationClockStore } from '../../../simulation-clock/store.js';
 import { BUILTIN_WORLD_EVENT_TEMPLATES, selectWorldEvent, type WorldEventKind,
     type WorldEventSelection, type WorldEventTemplate } from './world-director.js';
 import { worldDirectorConfigPath, worldDirectorDbPath, worldDirectorOverridePath } from './paths.js';
@@ -54,6 +56,13 @@ export interface WorldDirectorOutboxEntry {
     lastError: string | null;
     updatedAt: string;
     revision: number;
+    simulationStamp: BoundSimulationEventStamp | null;
+}
+
+export interface WorldDirectorSimulationClock {
+    store: SimulationClockStore;
+    clockId: string;
+    engineTick?: () => number | undefined;
 }
 
 interface CycleRow {
@@ -64,6 +73,11 @@ interface SignalRow {
     event_id: string; payload_json: string; status: WorldDirectorSignalStatus; attempts: number;
     adapter_id: string | null; lease_token: string | null; lease_expires_at: string | null;
     last_error: string | null; updated_at: string; revision: number;
+    simulation_clock_id: string | null; simulation_sequence: number | null;
+    simulation_time: string | null; simulation_binding_wall_time: string | null;
+    simulation_engine_tick: number | null; simulation_profile_digest: string | null;
+    simulation_clock_status: 'running' | 'paused' | null; simulation_clock_revision: number | null;
+    simulation_source_digest: string | null;
 }
 
 function isoTime(value: string, field: string): string {
@@ -78,10 +92,24 @@ function cycle(row: CycleRow): WorldDirectorCycle {
 }
 
 function outbox(row: SignalRow): WorldDirectorOutboxEntry {
+    const stampValues = [row.simulation_clock_id, row.simulation_sequence, row.simulation_time,
+        row.simulation_binding_wall_time, row.simulation_profile_digest, row.simulation_clock_status,
+        row.simulation_clock_revision, row.simulation_source_digest];
+    const hasStamp = stampValues.some(value => value !== null);
+    if (hasStamp && stampValues.some(value => value === null)) {
+        throw new Error(`World Director simulation stamp is incomplete for ${row.event_id}`);
+    }
+    const simulationStamp: BoundSimulationEventStamp | null = hasStamp ? {
+        clockId: row.simulation_clock_id!, domain: 'world-director', sourceId: row.event_id,
+        sourceDigest: row.simulation_source_digest!, sequence: row.simulation_sequence!,
+        simulationTime: row.simulation_time!, wallTime: row.simulation_binding_wall_time!,
+        engineTick: row.simulation_engine_tick, profileDigest: row.simulation_profile_digest!,
+        status: row.simulation_clock_status!, revision: row.simulation_clock_revision!
+    } : null;
     return { signal: JSON.parse(row.payload_json) as WorldDirectorSignal, status: row.status,
         attempts: row.attempts, adapterId: row.adapter_id, leaseToken: row.lease_token,
         leaseExpiresAt: row.lease_expires_at, lastError: row.last_error, updatedAt: row.updated_at,
-        revision: row.revision };
+        revision: row.revision, simulationStamp };
 }
 
 function signalFor(selection: WorldEventSelection, queuedAt: string): WorldDirectorSignal {
@@ -136,21 +164,86 @@ export function worldDirectorCycleKey(config: WorldDirectorConfig, now: string):
 export class WorldDirectorStore {
     private readonly database: Database;
 
-    constructor(path = worldDirectorDbPath) {
+    constructor(path = worldDirectorDbPath, private readonly simulationClock?: WorldDirectorSimulationClock) {
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
-        this.database.run('PRAGMA foreign_keys = ON');
-        this.database.run(`CREATE TABLE IF NOT EXISTS world_director_cycle (
+        try {
+            this.migrate();
+            this.database.run('PRAGMA journal_mode = WAL');
+            this.database.run('PRAGMA foreign_keys = ON');
+            if (simulationClock) this.backfillSimulationStamps();
+        } catch (error) {
+            this.database.close(true);
+            throw error;
+        }
+    }
+
+    private migrate(): void {
+        const version = Number((this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version);
+        if (version > 1) throw new Error(`World Director schema ${version} is newer than supported version 1`);
+        const migration = this.database.transaction(() => {
+            this.database.run(`CREATE TABLE IF NOT EXISTS world_director_cycle (
             cycle_key TEXT PRIMARY KEY, seed TEXT NOT NULL, selection_digest TEXT NOT NULL,
             template_id TEXT NOT NULL, template_version TEXT NOT NULL, event_id TEXT NOT NULL UNIQUE,
             status TEXT NOT NULL CHECK (status IN ('queued', 'delivered')), queued_at TEXT NOT NULL,
             delivered_at TEXT, revision INTEGER NOT NULL CHECK (revision >= 1))`);
-        this.database.run(`CREATE TABLE IF NOT EXISTS world_director_outbox (
+            this.database.run(`CREATE TABLE IF NOT EXISTS world_director_outbox (
             event_id TEXT PRIMARY KEY REFERENCES world_director_cycle(event_id) ON DELETE RESTRICT,
             payload_json TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending', 'delivering', 'delivered', 'failed')),
             attempts INTEGER NOT NULL CHECK (attempts >= 0), adapter_id TEXT, lease_token TEXT UNIQUE,
             lease_expires_at TEXT, last_error TEXT, updated_at TEXT NOT NULL,
             revision INTEGER NOT NULL CHECK (revision >= 1))`);
+            const columns = this.database.query('PRAGMA table_info(world_director_outbox)').all() as Array<{ name: string }>;
+            const existing = new Set(columns.map(column => column.name));
+            const additions: Array<[string, string]> = [
+                ['simulation_clock_id', 'TEXT'], ['simulation_sequence', 'INTEGER'],
+                ['simulation_time', 'TEXT'], ['simulation_binding_wall_time', 'TEXT'],
+                ['simulation_engine_tick', 'INTEGER'], ['simulation_profile_digest', 'TEXT'],
+                ['simulation_clock_status', 'TEXT'], ['simulation_clock_revision', 'INTEGER'],
+                ['simulation_source_digest', 'TEXT']
+            ];
+            for (const [name, type] of additions) {
+                if (!existing.has(name)) this.database.run(`ALTER TABLE world_director_outbox ADD COLUMN ${name} ${type}`);
+            }
+            this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS world_director_simulation_sequence
+                ON world_director_outbox(simulation_clock_id,simulation_sequence)
+                WHERE simulation_clock_id IS NOT NULL`);
+            this.database.run('PRAGMA user_version = 1');
+        });
+        migration.immediate();
+    }
+
+    private bindSimulationStamp(eventId: string, selectionDigest: string,
+        wallTime: string): BoundSimulationEventStamp | null {
+        if (!this.simulationClock) return null;
+        return this.simulationClock.store.bindEvent({ clockId: this.simulationClock.clockId,
+            domain: 'world-director', sourceId: eventId, sourceDigest: selectionDigest,
+            wallTime, engineTick: this.simulationClock.engineTick?.() }).stamp;
+    }
+
+    private writeSimulationStamp(eventId: string, stamp: BoundSimulationEventStamp): void {
+        this.database.run(`UPDATE world_director_outbox SET simulation_clock_id=?2,
+            simulation_sequence=?3,simulation_time=?4,simulation_binding_wall_time=?5,
+            simulation_engine_tick=?6,simulation_profile_digest=?7,simulation_clock_status=?8,
+            simulation_clock_revision=?9,simulation_source_digest=?10
+            WHERE event_id=?1 AND simulation_clock_id IS NULL`, [eventId, stamp.clockId, stamp.sequence,
+            stamp.simulationTime, stamp.wallTime, stamp.engineTick, stamp.profileDigest, stamp.status,
+            stamp.revision, stamp.sourceDigest]);
+    }
+
+    private backfillSimulationStamps(): void {
+        const rows = this.database.query(`SELECT * FROM world_director_outbox
+            WHERE simulation_clock_id IS NULL
+            ORDER BY json_extract(payload_json,'$.queuedAt'),event_id`).all() as SignalRow[];
+        for (const row of rows) {
+            const signal = JSON.parse(row.payload_json) as WorldDirectorSignal;
+            const clock = this.simulationClock!.store.get(this.simulationClock!.clockId);
+            if (!clock) throw new Error(`Simulation clock ${this.simulationClock!.clockId} does not exist`);
+            const lastWallTime = clock.lastObservedWallTime;
+            const bindingWallTime = signal.queuedAt < lastWallTime ? lastWallTime : signal.queuedAt;
+            const stamp = this.bindSimulationStamp(row.event_id, signal.selectionDigest, bindingWallTime)!;
+            this.writeSimulationStamp(row.event_id, stamp);
+        }
     }
 
     close(): void { this.database.close(true); }
@@ -183,6 +276,7 @@ export class WorldDirectorStore {
         { cycle: WorldDirectorCycle; outbox: WorldDirectorOutboxEntry; created: boolean } {
         const queuedAt = isoTime(now, 'now');
         const signal = signalFor(selection, queuedAt);
+        const stamp = this.bindSimulationStamp(signal.eventId, selection.digest, queuedAt);
         let created = false;
         const transaction = this.database.transaction(() => {
             const existing = this.getCycle(selection.cycleKey);
@@ -191,6 +285,7 @@ export class WorldDirectorStore {
                     || existing.eventId !== signal.eventId) {
                     throw new Error('World Director cycle key is already bound to another deterministic selection');
                 }
+                if (stamp) this.writeSimulationStamp(signal.eventId, stamp);
                 return;
             }
             this.database.run(`INSERT INTO world_director_cycle
@@ -201,9 +296,15 @@ export class WorldDirectorStore {
                 selection.template.version, signal.eventId, queuedAt]);
             this.database.run(`INSERT INTO world_director_outbox
                 (event_id, payload_json, status, attempts, adapter_id, lease_token, lease_expires_at,
-                    last_error, updated_at, revision)
-                VALUES (?1, ?2, 'pending', 0, NULL, NULL, NULL, NULL, ?3, 1)`,
-            [signal.eventId, JSON.stringify(signal), queuedAt]);
+                    last_error, updated_at, revision,simulation_clock_id,simulation_sequence,
+                    simulation_time,simulation_binding_wall_time,simulation_engine_tick,
+                    simulation_profile_digest,simulation_clock_status,simulation_clock_revision,
+                    simulation_source_digest)
+                VALUES (?1, ?2, 'pending', 0, NULL, NULL, NULL, NULL, ?3, 1, ?4, ?5, ?6, ?7, ?8,
+                    ?9, ?10, ?11, ?12)`, [signal.eventId, JSON.stringify(signal), queuedAt,
+                stamp?.clockId ?? null, stamp?.sequence ?? null, stamp?.simulationTime ?? null,
+                stamp?.wallTime ?? null, stamp?.engineTick ?? null, stamp?.profileDigest ?? null,
+                stamp?.status ?? null, stamp?.revision ?? null, stamp?.sourceDigest ?? null]);
             created = true;
         });
         transaction.immediate();
@@ -299,6 +400,7 @@ export interface WorldDirectorSchedulerDependencies {
     loadConfig(): WorldDirectorConfig;
     templates: readonly WorldEventTemplate[];
     storePath: string;
+    simulationClock?: WorldDirectorSimulationClock;
 }
 
 export class GatewayWorldDirectorScheduler {
@@ -313,7 +415,7 @@ export class GatewayWorldDirectorScheduler {
         const cycleKey = worldDirectorCycleKey(config, now);
         if (!cycleKey) return { status: 'waiting', reason: 'World Director epoch has not started.', cycle: null };
         const selection = selectWorldEvent(config.seed, cycleKey, this.dependencies.templates);
-        const store = new WorldDirectorStore(this.dependencies.storePath);
+        const store = new WorldDirectorStore(this.dependencies.storePath, this.dependencies.simulationClock);
         try {
             const result = store.enqueue(selection, now);
             return { status: result.created ? 'queued' : 'already-queued',

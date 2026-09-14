@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "clockId": "world",
+  "initialSimulationTime": "2001-01-01T00:00:00.000Z",
+  "profile": {
+    "schemaVersion": 1,
+    "profileId": "normal-game",
+    "version": "1.0.0",
+    "seed": "lostcity-local-main",
+    "rate": {
+      "simulationMilliseconds": 1,
+      "wallMilliseconds": 1
+    }
+  }
+}

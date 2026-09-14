@@ -9,7 +9,7 @@ import { listAdminDraftSkills, listAdminSkills, resolveAdminDraftSkill, resolveA
     resolveAdminSkillForAgent, validateAdminSkillParameters } from './skill-catalog';
 import { listAdminTeleportDestinations, requestEngineTeleport, resolveAdminTeleportDestination } from './teleport';
 import { readSkillRun, readSkillRunHistory } from './skill-history';
-import { readEconomyEvents, type EconomyEventKind } from './transaction-telemetry';
+import { readEconomyEvents, type EconomyEventKind, type EconomyEventSimulationClock } from './transaction-telemetry';
 import {
     listEngineOfflineBackups,
     requestEngineOfflineEdit,
@@ -106,12 +106,19 @@ import { BusinessManagerStore, type BusinessPolicyMode, type BusinessStatus,
     type EmploymentRole } from './business-manager.js';
 import { proposeBusinessPolicyForAgent } from './business-agent-port.js';
 import { businessManagerDbPath, economicContractsDbPath } from './paths.js';
+import { loadWorldGenesisProfileCatalog, type WorldGenesisResult } from '../../../world-genesis/index.js';
+import { listAdminWorldGenesis, previewAdminWorldGenesis, resetAdminWorldGenesis, startAdminWorldGenesis,
+    type WorldGenesisAdminAdapter, type WorldGenesisAdminPaths } from './world-genesis.js';
+import { worldGenesisProfileCatalogPath } from './paths.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
     supervisor: BotSupervisor;
     replanCoordinator?: AgentReplanCoordinator;
     agentStatePath?: string;
+    simulationClock?: EconomyEventSimulationClock;
+    worldGenesisAdapter?: WorldGenesisAdminAdapter;
+    worldGenesisPaths?: WorldGenesisAdminPaths;
 }
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN?.trim() || '';
@@ -482,13 +489,28 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ runs: await readSkillRunHistory(limit) });
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/simulation-clock') {
+            if (!context.simulationClock) return json({ error: 'A szimulációs óra nem érhető el.' }, 503);
+            const afterSequence = Number(url.searchParams.get('afterSequence') || 0);
+            const limit = Number(url.searchParams.get('limit') || 100);
+            if (!Number.isSafeInteger(afterSequence) || afterSequence < 0
+                || !Number.isSafeInteger(limit) || limit < 1 || limit > 1_000) {
+                return json({ error: 'Érvénytelen szimulációs eseménykurzor vagy limit.' }, 400);
+            }
+            return json({ clock: context.simulationClock.store.get(context.simulationClock.clockId),
+                events: context.simulationClock.store.listBoundEvents(
+                    context.simulationClock.clockId, afterSequence, limit),
+                players: context.simulationClock.store.listPlayerTimeStates(context.simulationClock.clockId) });
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/admin/economy-events') {
             const limit = Number(url.searchParams.get('limit') || 100);
             const username = url.searchParams.get('username')?.trim() || undefined;
             const rawKind = url.searchParams.get('kind')?.trim() || undefined;
             const allowedKinds = new Set<EconomyEventKind>(['production', 'consumption', 'shop-buy', 'shop-sell', 'player-trade', 'bank-transfer']);
             if (rawKind && !allowedKinds.has(rawKind as EconomyEventKind)) return json({ error: 'Ismeretlen gazdasági eseménytípus.' }, 400);
-            return json(await readEconomyEvents({ limit, username, kind: rawKind as EconomyEventKind | undefined }));
+            return json(await readEconomyEvents({ limit, username, kind: rawKind as EconomyEventKind | undefined,
+                simulationClock: context.simulationClock }));
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/teleport-destinations') {
@@ -573,8 +595,72 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/world-genesis/profiles') {
+            return json(loadWorldGenesisProfileCatalog(worldGenesisProfileCatalogPath));
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/world-genesis/runs') {
+            return json({ runs: listAdminWorldGenesis(context.worldGenesisPaths,
+                Number(url.searchParams.get('limit') || 50)) });
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/world-genesis/preview') {
+            const body = await requestBody(req), reason = text(body, 'reason', true);
+            if (!context.worldGenesisAdapter) throw new Error('A world genesis végrehajtó adapter nincs konfigurálva.');
+            try {
+                const preview = await previewAdminWorldGenesis(body.result as WorldGenesisResult,
+                    context.worldGenesisAdapter);
+                await appendAudit({ operator: 'local-admin', action: 'world-genesis.preview', reason,
+                    success: true, after: { resultId: preview.result.resultId,
+                        resultDigest: preview.result.resultDigest, preview: preview.preview } });
+                return json({ ok: true, ...preview });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'world-genesis.preview', reason,
+                    success: false, error: String(error) });
+                throw error;
+            }
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/admin/world-genesis/start') {
+            const body = await requestBody(req), reason = text(body, 'reason', true);
+            if (!context.worldGenesisAdapter) throw new Error('A world genesis végrehajtó adapter nincs konfigurálva.');
+            try {
+                const application = await startAdminWorldGenesis(body.result as WorldGenesisResult,
+                    text(body, 'confirmationDigest', true), context.worldGenesisAdapter,
+                    context.worldGenesisPaths);
+                await appendAudit({ operator: 'local-admin', action: 'world-genesis.start', reason,
+                    success: true, after: { resultId: application.resultId, resultDigest: application.resultDigest,
+                        status: application.status, revision: application.revision } });
+                return json({ ok: true, application }, application.revision === 2 ? 201 : 200);
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'world-genesis.start', reason,
+                    success: false, error: String(error) });
+                throw error;
+            }
+        }
+
+        const worldGenesisResetMatch = url.pathname.match(/^\/api\/admin\/world-genesis\/([^/]+)\/reset$/);
+        if (req.method === 'POST' && worldGenesisResetMatch?.[1]) {
+            const body = await requestBody(req), reason = text(body, 'reason', true);
+            if (!context.worldGenesisAdapter) throw new Error('A world genesis végrehajtó adapter nincs konfigurálva.');
+            try {
+                const result = await resetAdminWorldGenesis(decodeURIComponent(worldGenesisResetMatch[1]),
+                    Number(body.expectedRevision), text(body, 'confirmationDigest', true),
+                    context.worldGenesisAdapter, context.worldGenesisPaths);
+                await appendAudit({ operator: 'local-admin', action: 'world-genesis.reset', reason,
+                    success: true, after: { resultId: result.application.resultId,
+                        resultDigest: result.application.resultDigest, status: result.application.status,
+                        revision: result.application.revision } });
+                return json({ ok: true, ...result });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: 'world-genesis.reset', reason,
+                    success: false, error: String(error) });
+                throw error;
+            }
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/admin/autonomy-control') {
-            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath);
+            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath, context.simulationClock);
             try { return json({ control: store.getAutonomyControl() }); }
             finally { store.close(); }
         }
@@ -590,7 +676,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
                 throw new Error('Érvénytelen autonomy enrollment revízió.');
             }
-            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath);
+            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath, context.simulationClock);
             const before = store.getAutonomyEnrollment(agentId);
             try {
                 const enrollment = action === 'pause'
@@ -620,7 +706,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!Number.isInteger(expectedRevision) || expectedRevision < 1) {
                 throw new Error('Érvénytelen globális autonomy revízió.');
             }
-            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath);
+            const store = new AgentStateStore(context.agentStatePath ?? agentStateDbPath, context.simulationClock);
             const before = store.getAutonomyControl();
             try {
                 const profiles = active ? store.listAutonomyEnrollments().flatMap(enrollment => {
@@ -1572,7 +1658,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 title: text(body, 'title', true), description: text(body, 'description'),
                 priority: Number(body.priority),
                 skill: body.skill && typeof body.skill === 'object' ? body.skill as { id: string; version: string } : null
-            });
+            }, context.agentStatePath ?? agentStateDbPath, context.simulationClock);
             await appendAudit({ operator: 'local-admin', action: 'agent.goal.create', reason, success: true,
                 username: agentId, after: goal });
             if (goal.horizon === 'immediate') {
@@ -1737,7 +1823,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
             const goal = updateAdminAgentGoalStatus(agentId!, goalId!, Number(body.expectedRevision),
-                oneOf<GoalStatus>(body.status, ['active', 'completed', 'blocked', 'abandoned'], 'status'));
+                oneOf<GoalStatus>(body.status, ['active', 'completed', 'blocked', 'abandoned'], 'status'),
+                context.agentStatePath ?? agentStateDbPath, context.simulationClock);
             await appendAudit({ operator: 'local-admin', action: 'agent.goal.status', reason, success: true,
                 username: agentId, after: goal });
             try {
@@ -1796,7 +1883,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 .find(([name]) => name.toLowerCase() === avatar)?.[1];
             if (!gatewayEntry?.state?.player || gatewayEntry.status !== 'active'
                 || Date.now() - gatewayEntry.lastStateReceivedAt > 5_000) throw new Error('A kapcsolt botnak friss online állapotban kell lennie.');
-            const store = new AgentStateStore(agentStateDbPath);
+            const store = new AgentStateStore(agentStateDbPath, context.simulationClock);
             try {
                 if (execute) {
                     const immediate = agent.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
@@ -2003,7 +2090,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 throw new Error('Az LLM dry-runhoz a kapcsolt botnak friss online állapotban kell lennie.');
             }
             const now = new Date().toISOString();
-            const store = new AgentStateStore(agentStateDbPath);
+            const store = new AgentStateStore(agentStateDbPath, context.simulationClock);
             try {
                 const previous = store.getWorkingMemory(agentId);
                 store.setWorkingMemory(agentId, previous?.revision ?? null,
@@ -2070,7 +2157,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const approvalId = crypto.randomUUID(), skillRunId = crypto.randomUUID();
             const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
             try {
-                const approved = approveAdminGoalProposal(proposalId, expectedRevision, approvalId, expiresAt);
+                const approved = approveAdminGoalProposal(proposalId, expectedRevision, approvalId, expiresAt,
+                    context.agentStatePath ?? agentStateDbPath, context.simulationClock);
                 if (!requested) {
                     await appendAudit({ operator: 'local-admin', action: 'agent.goal-proposal.approve', reason,
                         username: avatar, success: true, before: proposal, after: approved });
