@@ -409,7 +409,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
 
 ## 17. Fázis – adottságok, potenciál és személyes kompetencia
 
-- [ ] A RuneScape skillektől külön `AttributeProfile` modellt készíteni 5–6
+- [x] A RuneScape skillektől külön `AttributeProfile` modellt készíteni 5–6
   alapadottsággal; kezdeti jelöltek: `intellect`, `dexterity`, `vigor`,
   `endurance/vitality`, `perception`, `social/will`.
 - [ ] Az NPC-k teljes induló attribute-pontkeretét ne fixen, hanem konfigurálható,
