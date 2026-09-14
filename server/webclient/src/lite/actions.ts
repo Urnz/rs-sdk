@@ -18,6 +18,7 @@ import ObjType from '#/config/ObjType.js';
 import VarBitType from '#/config/VarBitType.js';
 import { ClientCode } from '#/client/ClientCode.js';
 import Skill from '#/client/Skill.js';
+import { displayedSearchItem, visibleSearchComponent, SEARCH_FIELD } from '#/client/MarketSearchInput.js';
 
 import JString from '#/datastruct/JString.js';
 import { ClientProt } from '#/io/ClientProt.js';
@@ -378,9 +379,26 @@ export function spellOnItem(c: LiteClient, slot: number, spellComponent: number,
 
 // ============================================================= interfaces
 
+export function searchGE(c: LiteClient, query: string): boolean {
+    if (!c.isInGame() || c.dialogInputOpen || !/^[a-zA-Z0-9 '()*-]{0,48}$/.test(query) || !visibleSearchComponent(IfType.list, c.mainModalId, SEARCH_FIELD)) return false;
+    c.writeOpcode(ClientProt.MARKET_SEARCH);
+    c.out.p1(query.length + 3);
+    c.out.pjstr(query);
+    c.out.p2(0);
+    return true;
+}
+
 export function clickComponent(c: LiteClient, componentId: number): boolean {
     if (!c.isInGame()) {
         return false;
+    }
+    const selected = displayedSearchItem(IfType.list, c.mainModalId, componentId);
+    if (selected) {
+        c.writeOpcode(ClientProt.MARKET_SEARCH);
+        c.out.p1(selected.query.length + 3);
+        c.out.pjstr(selected.query);
+        c.out.p2(selected.item);
+        return true;
     }
     c.writeOpcode(ClientProt.IF_BUTTON);
     c.out.p2(componentId);
@@ -569,10 +587,10 @@ export function getInterfaceOptions(c: LiteClient): Array<{ index: number; text:
     const scan = (comId: number, depth = 0): void => {
         if (depth > 10) return;
         const com = IfType.list[comId];
-        if (!com) return;
+        if (!com || (com.type === 0 && com.hide)) return;
 
         const clickable = com.buttonType === ButtonType.BUTTON_OK || com.buttonType === ButtonType.BUTTON_TARGET || com.buttonType === ButtonType.BUTTON_SELECT;
-        if (clickable && (com.buttonText || com.text)) {
+        if (clickable && !(com.width <= 0 || com.height <= 0) && (com.buttonText || com.text)) {
             const text = normaliseComponentText(com.text) || normaliseComponentText(com.buttonText);
             if (text) {
                 options.push({ index: options.length + 1, text, componentId: comId });
@@ -887,13 +905,27 @@ export function acceptCharacterDesign(c: LiteClient): boolean {
         c.out.p1(c.designColours[i]);
     }
 
+    // Several interfaces carry a CC_ACCEPT_DESIGN button (tutorial player_kit,
+    // the Falador hairdresser and Varrock tailor kits). Only the one inside the
+    // open modal has a live [if_button] trigger; a first-match scan over the
+    // whole list can hit another interface's button and the server answers
+    // 'No trigger for ...' while the design screen stays open.
+    const modal = c.mainModalId;
+    let fallback = -1;
     for (let i = 0; i < IfType.list.length; i++) {
         const com = IfType.list[i];
-        if (com && com.clientCode === ClientCode.CC_ACCEPT_DESIGN) {
+        if (!com || com.clientCode !== ClientCode.CC_ACCEPT_DESIGN) continue;
+        if (modal !== -1 && (com.layerId === modal || i === modal)) {
             c.writeOpcode(ClientProt.IF_BUTTON);
             c.out.p2(i);
             return true;
         }
+        if (fallback === -1) fallback = i;
+    }
+    if (fallback !== -1) {
+        c.writeOpcode(ClientProt.IF_BUTTON);
+        c.out.p2(fallback);
+        return true;
     }
     return false;
 }

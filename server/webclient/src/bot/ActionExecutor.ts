@@ -139,6 +139,9 @@ export class ActionExecutor {
                         'Failed to click dialog option'
                     );
 
+                case 'searchGE':
+                    return this.wrapBool(this.client.searchGE(action.query), 'GE search dispatched', 'Open the GE catalogue before searching');
+
                 case 'clickComponent':
                     // IF_BUTTON packet - for simple buttons, spellcasting, etc.
                     return this.wrapBool(

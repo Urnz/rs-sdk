@@ -211,6 +211,8 @@ export default class FileStream {
             sector = nextSector;
         }
 
+        // Version-list CRCs and ondemand.zip are read in this same pack pass.
+        // Do not let them reuse the old bytes cached by write's comparison read.
         this.packed[archive][file] = data;
         return true;
     }

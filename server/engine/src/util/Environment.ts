@@ -34,6 +34,9 @@ export default {
     NODE_DEBUG: config.node.debug,
     NODE_HOP_TIME: config.node.hopTime,
 
+    // Restart the engine after changing this flag; no cache rebuild is required.
+    GE_ENABLED: tryParseBoolean(process.env.GE_ENABLED, true),
+
     // rs-sdk-only keys (not part of upstream WorldConfig)
     WEB_SOCKET_TOKEN_PROTECTION: tryParseBoolean(process.env.WEB_SOCKET_TOKEN_PROTECTION, false),
     NODE_DEBUG_SOCKET: tryParseBoolean(process.env.NODE_DEBUG_SOCKET, false),

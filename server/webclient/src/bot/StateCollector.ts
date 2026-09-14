@@ -6,6 +6,7 @@ import type ClientNpc from '#/dash3d/ClientNpc.js';
 import type ClientPlayer from '#/dash3d/ClientPlayer.js';
 import type ClientObj from '#/dash3d/ClientObj.js';
 import IfType from '#/config/IfType.js';
+import { collectGEState } from './ge-state.js';
 import ObjType from '#/config/ObjType.js';
 import NpcType from '#/config/NpcType.js';
 import LocType from '#/config/LocType.js';
@@ -178,6 +179,7 @@ export class BotStateCollector implements ScanProvider {
             shop: this.collectShopState(),
             bank: this.collectBankState(),
             trade: this.collectTradeState(),
+            ge: collectGEState(IfType.list, c.mainModalId ?? -1),
             inGame: c.ingame || false,
             combatEvents: [...this.combatEvents], // Return copy of events
             dialog: this.collectDialogState(),

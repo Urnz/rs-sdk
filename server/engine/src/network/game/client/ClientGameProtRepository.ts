@@ -1,3 +1,5 @@
+import MarketSearchDecoder from '#/network/game/client/codec/MarketSearchDecoder.js';
+import MarketSearchHandler from '#/network/game/client/handler/MarketSearchHandler.js';
 import ClientGameProt from '#/network/game/client/ClientGameProt.js';
 import ClientGameMessageDecoder from '#/network/game/client/ClientGameMessageDecoder.js';
 import ClientGameMessageHandler from '#/network/game/client/ClientGameMessageHandler.js';
@@ -113,6 +115,7 @@ class ClientGameProtRepository {
         this.bind(new IfButtonDecoder(), new IfButtonHandler());
         this.bind(new IdkSaveDesignDecoder(), new IdkSaveDesignHandler());
         this.bind(new IgnoreListAddDecoder(), new IgnoreListAddHandler());
+        this.bind(new MarketSearchDecoder(), new MarketSearchHandler());
         this.bind(new IgnoreListDelDecoder(), new IgnoreListDelHandler());
         this.bind(new InvButtonDecoder(ClientGameProt.INV_BUTTON1, 1), new InvButtonHandler());
         this.bind(new InvButtonDecoder(ClientGameProt.INV_BUTTON2, 2), new InvButtonHandler());

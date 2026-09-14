@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Grand Exchange · Market overview</title>
+        <meta name="description" content="Grand Exchange prices, market rankings and trade history." />
+        <style>
+            :root {
+                color-scheme: dark;
+                --gold: #dfc080;
+                --green: #bbd779;
+                --up: #49651e;
+                --down: #a23d30;
+                --ink: #352a1b;
+                --muted: #756449;
+                --line: #a68c58;
+                --paper: #d3bd85;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 14px;
+                color: #eee5cb;
+                background: #0c0d09;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                background: radial-gradient(ellipse at top, #33312488, transparent 65%);
+            }
+            a {
+                color: inherit;
+                text-decoration: none;
+            }
+            button,
+            input {
+                font: inherit;
+            }
+            button,
+            a,
+            input {
+                -webkit-tap-highlight-color: transparent;
+            }
+            button {
+                cursor: pointer;
+            }
+            button:disabled {
+                opacity: 0.4;
+                cursor: default;
+            }
+            button:focus-visible,
+            a:focus-visible,
+            input:focus-visible,
+            [tabindex]:focus-visible {
+                outline: 3px solid #599cc9;
+                outline-offset: 4px;
+            }
+            [hidden] {
+                display: none !important;
+            }
+            .world {
+                max-width: 1280px;
+                margin: auto;
+                min-height: 100vh;
+                padding: 0 48px 26px;
+                background: #171810 url('/img/background2.jpg') center top/100% auto repeat-y;
+                border-inline: 1px solid #24261a;
+            }
+            .topbar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #68563866;
+                height: 57px;
+                font-size: 12px;
+                color: #c5b99a;
+            }
+            .brand {
+                display: flex;
+                align-items: center;
+                gap: 9px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                font-size: 11px;
+                color: var(--gold);
+            }
+            .brand img {
+                width: 23px;
+                height: 23px;
+                image-rendering: pixelated;
+            }
+            .toplinks {
+                display: flex;
+                gap: 24px;
+            }
+            .toplinks a:hover {
+                color: var(--green);
+            }
+            h1 {
+                font: normal 48px/1.15 Georgia, serif;
+                letter-spacing: -1px;
+                color: #f0dba4;
+                margin: 10px 0;
+                text-shadow: 0 2px 2px #000;
+            }
+            .layout {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 232px;
+                gap: 22px;
+            }
+            .parchment {
+                min-width: 0;
+                position: relative;
+                background: radial-gradient(ellipse at 25% 10%, #f5e3ab66, transparent 65%), linear-gradient(95deg, #bda46c77, transparent 5%, transparent 95%, #a7895177), var(--paper);
+                color: var(--ink);
+                border: 1px solid #c2a262;
+                box-shadow: 0 4px 15px #0007, inset 0 0 38px #8d6e3355;
+                padding: 25px 24px 20px;
+            }
+            .parchment:before,
+            .parchment:after {
+                content: '';
+                position: absolute;
+                left: -5px;
+                right: -5px;
+                height: 8px;
+                background: linear-gradient(#ba9f60, #deca8e, #aa8b4e);
+                box-shadow: 0 2px 3px #0003;
+            }
+            .parchment:before {
+                top: -5px;
+            }
+            .parchment:after {
+                bottom: -5px;
+            }
+            .panel-heading {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 17px;
+            }
+            .panel-heading h2 {
+                font: normal 27px Georgia, serif;
+                margin: 0;
+            }
+            .searchbox {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 0;
+                background: #eee0b180;
+                border: 1px solid #a28a58;
+                padding: 0 11px;
+                color: #6b5837;
+            }
+            .searchbox svg {
+                width: 16px;
+                flex-shrink: 0;
+            }
+            .searchbox input {
+                min-width: 0;
+                width: 100%;
+                border: 0;
+                background: transparent;
+                color: var(--ink);
+                padding: 11px 0;
+                outline-offset: 0;
+            }
+            .searchbox input::placeholder {
+                color: #80704e;
+            }
+            .tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+                margin: 18px 0;
+            }
+            .tabs button {
+                flex: 1;
+                white-space: nowrap;
+                border: 1px solid #8b7346;
+                background: #b39a6440;
+                color: #4f422a;
+                font-size: 11px;
+                padding: 10px 8px;
+                box-shadow: inset 0 1px #f5e6b64d;
+            }
+            .tabs button:hover {
+                background: #b09a68;
+            }
+            .tabs button.active {
+                color: #f5e4b9;
+                background: #514126;
+                border-color: #514126;
+                box-shadow: inset 0 0 0 2px #695335;
+            }
+            .filters {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                border-block: 1px solid #a38a5466;
+                padding: 12px 0;
+                margin-bottom: 6px;
+            }
+            .periods {
+                display: flex;
+                gap: 3px;
+            }
+            .periods button {
+                background: none;
+                border: 1px solid transparent;
+                padding: 6px 9px;
+                color: #6e5c3a;
+                font-size: 11px;
+            }
+            .periods button.active {
+                border-color: #9b824c;
+                background: #f3e2af70;
+                color: #43351d;
+            }
+            .periods button:hover {
+                background: #f3e2af70;
+            }
+            .period-label {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: #6e5c3a;
+            }
+            .tablewrap {
+                overflow: auto;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                white-space: nowrap;
+            }
+            th {
+                text-align: right;
+                font-size: 9px;
+                font-weight: normal;
+                text-transform: uppercase;
+                letter-spacing: 0.65px;
+                color: #715d37;
+                padding: 16px 8px 12px;
+            }
+            td {
+                text-align: right;
+                font-size: 12px;
+                padding: 10px 8px;
+                border-top: 1px solid #9c814632;
+                font-variant-numeric: tabular-nums;
+            }
+            th:first-child,
+            td:first-child {
+                text-align: left;
+                padding-left: 7px;
+            }
+            tbody tr:nth-child(odd) {
+                background: #70562b09;
+            }
+            tbody tr:hover {
+                background: #faf0c436;
+            }
+            #items tr[data-item] {
+                cursor: pointer;
+            }
+            #items tr:focus-within {
+                background: #faf0c466;
+            }
+            .itemlink {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-width: 165px;
+                color: #40551f;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            .itemlink:hover span {
+                text-decoration: underline;
+            }
+            .spritebox {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                width: 37px;
+                height: 37px;
+            }
+            .spritebox img {
+                width: 32px;
+                height: 32px;
+                image-rendering: pixelated;
+                object-fit: contain;
+            }
+            .spritebox.failed:after {
+                content: '◇';
+                color: #8b7549;
+                font-size: 25px;
+            }
+            .up {
+                color: var(--up);
+            }
+            .down {
+                color: var(--down);
+            }
+            .quiet {
+                color: var(--muted);
+            }
+            .change {
+                white-space: nowrap;
+                font-size: 11px;
+            }
+            .recent {
+                font-size: 11px;
+                color: #7b6845;
+            }
+            .pager {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 8px;
+                margin-top: 17px;
+                border-top: 1px solid #a38a5466;
+                padding-top: 15px;
+                font-size: 11px;
+                color: #796443;
+            }
+            .pager button,
+            .back {
+                padding: 7px 12px;
+                background: transparent;
+                border: 1px solid #998150;
+                color: #5c492a;
+                font-size: 11px;
+            }
+            .pager button:hover:not(:disabled) {
+                background: #e9d6a1;
+            }
+            .status {
+                font-size: 12px;
+                line-height: 1.7;
+                color: #765126;
+                margin: 10px 0 0;
+            }
+            .empty {
+                padding: 48px 14px;
+                text-align: center;
+                color: #76613c;
+                white-space: normal;
+            }
+            .empty strong {
+                display: block;
+                font: normal 23px Georgia;
+                margin-bottom: 8px;
+            }
+            .asidecard {
+                border: 1px solid #6d644c;
+                padding: 20px 18px;
+                margin-bottom: 18px;
+                background: linear-gradient(#26251ada, #242319e8), url('/img/stoneback.gif');
+                box-shadow: inset 0 0 0 3px #151710, inset 0 0 0 4px #72664b55, 0 3px 9px #0004;
+            }
+            .asidecard h3 {
+                font: normal 18px Georgia;
+                color: #e7d3a3;
+                margin: 0 0 13px;
+            }
+            .asidecard .eyebrow {
+                font-size: 9px;
+                letter-spacing: 1.3px;
+            }
+            .aside-divider {
+                border: 0;
+                border-top: 1px solid #71624766;
+                margin: 18px 0;
+            }
+            .detailbar {
+                margin-bottom: 23px;
+            }
+            .detailbar .back {
+                color: #ccb987;
+                border-color: #79643f;
+                background: #292519;
+            }
+            .detail-head {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                border-bottom: 1px solid #a28a5666;
+                padding: 7px 0 23px;
+            }
+            .detail-head .spritebox {
+                width: 76px;
+                height: 76px;
+                border: 1px solid #aa8f58;
+                background: #e8d8a255;
+                box-shadow: inset 0 0 20px #9b783622;
+            }
+            .detail-head .spritebox img {
+                width: 58px;
+                height: 58px;
+            }
+            .detail-head h2 {
+                font: normal 34px Georgia;
+                margin: 0 0 7px;
+            }
+            .detail-head p {
+                font-size: 12px;
+                color: #7d6943;
+                margin: 0;
+                line-height: 1.5;
+            }
+            .detailstats {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 18px;
+                margin: 23px 0 28px;
+            }
+            .detailstats small {
+                display: block;
+                font-size: 10px;
+                color: #7a6742;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.7px;
+            }
+            .detailstats strong {
+                font: normal 25px Georgia;
+            }
+            .detailstats strong small {
+                display: inline;
+                font: 11px Arial;
+            }
+            .chartpanel {
+                border: 1px solid #a9905a;
+                padding: 18px 18px 10px;
+                background: #eddca42b;
+                margin-top: 18px;
+            }
+            .chart-title {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+            }
+            .chart-title h3 {
+                font: normal 20px Georgia;
+                margin: 0;
+            }
+            .legend {
+                font-size: 10px;
+                color: #806d48;
+            }
+            .legend:before {
+                content: '';
+                display: inline-block;
+                width: 15px;
+                height: 2px;
+                background: #567997;
+                margin: 0 7px 3px 0;
+            }
+            .chart {
+                width: 100%;
+                height: auto;
+                display: block;
+                overflow: visible;
+            }
+            .chart text {
+                font-family: Arial;
+                font-size: 10px;
+                fill: #7b6948;
+            }
+            .chart-cursor {
+                stroke: #527996;
+                stroke-width: 1;
+                stroke-dasharray: 3 4;
+                opacity: 0.6;
+                pointer-events: none;
+            }
+            .chart {
+                touch-action: pan-y;
+            }
+            .chart .grid {
+                stroke: #9e865036;
+                stroke-width: 1;
+            }
+            .chart circle:focus {
+                outline: none;
+                stroke: #273f52;
+                stroke-width: 3;
+            }
+            .chart-readout {
+                min-height: 23px;
+                font-size: 11px;
+                color: #74613f;
+                margin: 6px 0 0;
+            }
+            .chart-empty {
+                text-align: center;
+                padding: 55px 15px;
+                color: #806b43;
+                font-size: 13px;
+            }
+            .quote-row {
+                display: flex;
+                justify-content: space-between;
+                gap: 8px;
+                font-size: 12px;
+                color: #b8ad8e;
+                margin: 15px 0;
+            }
+            .quote-row strong {
+                font-weight: normal;
+                color: #eddbac;
+            }
+            .table-caption {
+                font: normal 20px Georgia;
+                margin: 26px 0 5px;
+            }
+            @media (min-width: 1100px) {
+                .searchbox {
+                    width: 230px;
+                }
+            }
+            @media (max-width: 1100px) {
+                .world {
+                    padding-inline: 30px;
+                }
+                .layout {
+                    grid-template-columns: minmax(0, 1fr) 200px;
+                    gap: 16px;
+                }
+                .parchment {
+                    min-width: 0;
+                    padding-inline: 18px;
+                }
+                .panel-heading {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+                .searchbox {
+                    width: 100%;
+                }
+                .tabs button {
+                    flex: 1 0 28%;
+                }
+                .detailstats strong {
+                    font-size: 20px;
+                }
+            }
+            @media (max-width: 800px) {
+                .world {
+                    padding-inline: 22px;
+                }
+                .layout {
+                    grid-template-columns: minmax(0, 1fr);
+                }
+                .sidebar {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 16px;
+                }
+                .asidecard {
+                    margin-bottom: 0;
+                }
+                h1 {
+                    font-size: 42px;
+                }
+                .detailstats {
+                    gap: 12px;
+                }
+                .panel-heading {
+                    flex-direction: row;
+                    align-items: center;
+                }
+                .searchbox {
+                    max-width: 230px;
+                }
+                .detail-head h2 {
+                    font-size: 29px;
+                }
+            }
+            @media (max-width: 520px) {
+                .chart text {
+                    font-size: 10px;
+                }
+                .world {
+                    padding-inline: 16px;
+                    background-size: auto 400px;
+                }
+                .topbar {
+                    height: 48px;
+                }
+                .toplinks {
+                    gap: 15px;
+                }
+                .brand {
+                    font-size: 9px;
+                    letter-spacing: 1px;
+                }
+                h1 {
+                    font-size: 37px;
+                }
+                .parchment {
+                    min-width: 0;
+                    padding: 23px 14px 17px;
+                }
+                .panel-heading {
+                    display: block;
+                }
+                .panel-heading h2 {
+                    font-size: 26px;
+                }
+                .searchbox {
+                    max-width: none;
+                    margin-top: 17px;
+                }
+                .tabs {
+                    gap: 4px;
+                }
+                .tabs button {
+                    font-size: 10px;
+                }
+                .filters {
+                    gap: 7px;
+                }
+                .periods button {
+                    padding: 6px 8px;
+                }
+                .period-label {
+                    font-size: 9px;
+                }
+                .sidebar {
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                }
+                .asidecard {
+                    padding: 20px 13px;
+                }
+                .asidecard h3 {
+                    font-size: 17px;
+                }
+                .detail-head {
+                    gap: 13px;
+                }
+                .detail-head h2 {
+                    font-size: 27px;
+                }
+                .detail-head .spritebox {
+                    width: 60px;
+                    height: 60px;
+                }
+                .detail-head .spritebox img {
+                    width: 45px;
+                    height: 45px;
+                }
+                .detailstats {
+                    grid-template-columns: 1fr 1fr;
+                    gap: 22px;
+                }
+                .chartpanel {
+                    padding: 14px 9px 8px;
+                }
+                .chart-title {
+                    align-items: flex-start;
+                    flex-wrap: wrap;
+                }
+                .chart-title h3 {
+                    font-size: 19px;
+                }
+                .legend {
+                    font-size: 9px;
+                }
+                .detail-head p {
+                    font-size: 11px;
+                }
+            }
+
+            .topbar {
+                height: auto;
+                min-height: 60px;
+                gap: 18px;
+                margin-bottom: 16px;
+                flex-wrap: wrap;
+                padding-block: 10px;
+            }
+            .topbar h1 {
+                margin: 0;
+                font: inherit;
+                letter-spacing: normal;
+            }
+            .topbar .brand {
+                font-size: 13px;
+                letter-spacing: 1px;
+            }
+            .toplinks {
+                align-items: center;
+                gap: 18px;
+            }
+            #home .layout {
+                grid-template-columns: minmax(0, 1fr);
+            }
+            .detailstats strong {
+                font: 500 21px ui-monospace, SFMono-Regular, Consolas, monospace;
+            }
+            .parchment {
+                padding: 16px 18px;
+            }
+            .panel-heading {
+                margin-bottom: 10px;
+            }
+            .panel-heading h2 {
+                font-size: 23px;
+            }
+            .searchbox input {
+                padding-block: 8px;
+            }
+            .tabs {
+                margin: 10px 0;
+            }
+            .tabs button {
+                padding-block: 8px;
+            }
+            .filters {
+                justify-content: flex-end;
+                padding-block: 7px;
+            }
+            th {
+                padding-block: 10px;
+            }
+            td {
+                padding-block: 4px;
+            }
+            td:not(:first-child) {
+                font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            }
+            .itemlink {
+                gap: 9px;
+            }
+            .spritebox {
+                width: 32px;
+                height: 32px;
+            }
+            .pager {
+                margin-top: 10px;
+                padding-top: 10px;
+            }
+            .status:empty {
+                display: none;
+            }
+            .detailbar {
+                margin-bottom: 14px;
+            }
+            .detail-head {
+                padding-block: 0 14px;
+                gap: 14px;
+            }
+            .detail-head h2 {
+                font-size: 28px;
+            }
+            .detail-head .spritebox {
+                width: 56px;
+                height: 56px;
+            }
+            .detail-head .spritebox img {
+                width: 42px;
+                height: 42px;
+            }
+            .detailstats {
+                margin: 16px 0;
+            }
+            .chartpanel {
+                margin-top: 12px;
+                padding: 12px 14px 8px;
+            }
+            .chart-readout {
+                min-height: 16px;
+                margin-top: 0;
+                font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            }
+            .table-caption {
+                margin-top: 18px;
+            }
+            @media (max-width: 800px) {
+                .topbar {
+                    gap: 10px;
+                }
+                .topbar .toplinks {
+                    margin-left: auto;
+                }
+                #item-view .sidebar {
+                    grid-template-columns: 1fr;
+                }
+            }
+            @media (max-width: 520px) {
+                .topbar .brand {
+                    font-size: 11px;
+                }
+                .topbar .toplinks {
+                    width: 100%;
+                    justify-content: flex-end;
+                    font-size: 10px;
+                }
+                .parchment {
+                    padding: 14px 12px;
+                }
+                .detailstats strong {
+                    font-size: 18px;
+                }
+                .detailstats {
+                    gap: 14px;
+                }
+                .searchbox {
+                    margin-top: 10px;
+                }
+            }
+
+            #sort-tabs {
+                align-items: stretch;
+            }
+            #sort-tabs button {
+                min-height: 58px;
+            }
+            #sort-tabs .metric-tab {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 9px;
+                text-align: left;
+            }
+            .metric-tab img {
+                width: 26px;
+                height: 26px;
+                image-rendering: pixelated;
+                flex-shrink: 0;
+            }
+            .metric-tab .tab-label {
+                display: block;
+                font-size: 10px;
+                margin-bottom: 5px;
+            }
+            .metric-tab strong {
+                font: 500 18px ui-monospace, SFMono-Regular, Consolas, monospace;
+            }
+            .metric-tab .tab-unit {
+                font-size: 10px;
+            }
+            @media (max-width: 520px) {
+                #sort-tabs .metric-tab {
+                    gap: 0;
+                    justify-content: center;
+                }
+                .metric-tab img {
+                    display: none;
+                }
+                .metric-tab .tab-label {
+                    font-size: 9px;
+                }
+                .metric-tab strong {
+                    font-size: 16px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="world">
+            <header class="topbar">
+                <h1>
+                    <a class="brand" href="/market"><img src="/sprite/item/995-10000.png" alt="" />Grand Exchange</a>
+                </h1>
+                <div class="toplinks"><a href="/hiscores">Hiscores</a><a href="/">Game ↗</a></div>
+            </header>
+            <main>
+                <section id="home">
+                    <div class="layout">
+                        <section class="parchment" aria-label="Market rankings">
+                            <div class="panel-heading">
+                                <div>
+                                    <h2 id="list-title">Recent trades</h2>
+                                </div>
+                                <label class="searchbox"
+                                    ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                                        <circle cx="10" cy="10" r="6.5" />
+                                        <path d="m15 15 5 5" /></svg
+                                    ><input id="search" type="search" maxlength="80" placeholder="Search" aria-label="Search items" autocomplete="off"
+                                /></label>
+                            </div>
+                            <div class="tabs" id="sort-tabs" role="group" aria-label="Market views">
+                                <button data-sort="recent" class="active" aria-pressed="true">Recent trades</button>
+                                <button data-sort="buyValue" aria-pressed="false">Buy orders</button>
+                                <button data-sort="value" class="metric-tab" aria-pressed="false">
+                                    <img src="/sprite/item/995-10000.png" alt="" />
+                                    <span
+                                        ><span class="tab-label">Trade value · <span class="window-label">24h</span></span
+                                        ><strong id="total-gold">—</strong> <span class="tab-unit">gp</span></span
+                                    >
+                                </button>
+                                <button data-sort="price" aria-pressed="false">Biggest items</button>
+                                <button data-sort="volume" class="metric-tab" aria-pressed="false">
+                                    <img src="/sprite/item/1511.png" alt="" />
+                                    <span
+                                        ><span class="tab-label">Most traded · <span class="window-label">24h</span></span
+                                        ><strong id="total-volume">—</strong></span
+                                    >
+                                </button>
+                            </div>
+                            <div class="filters">
+                                <div class="periods" id="list-periods" role="group" aria-label="Market time period">
+                                    <button data-days="1" class="active" aria-pressed="true">24H</button><button data-days="7" aria-pressed="false">7D</button><button data-days="30" aria-pressed="false">30D</button
+                                    ><button data-days="90" aria-pressed="false">90D</button>
+                                </div>
+                            </div>
+                            <div class="tablewrap">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Item</th>
+                                            <th scope="col" id="price-column">Price · gp</th>
+                                            <th scope="col" id="change-column">Change</th>
+                                            <th scope="col" id="metric-column">Volume</th>
+                                            <th scope="col">Last traded</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items">
+                                        <tr>
+                                            <td colspan="5" class="empty">Loading…</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="pager">
+                                <span id="page">Loading…</span>
+                                <div><button id="prev" disabled aria-label="Previous page">← Prev</button> <button id="next" disabled aria-label="Next page">Next →</button></div>
+                            </div>
+                            <p id="list-status" class="status" role="status" aria-live="polite"></p>
+                        </section>
+                    </div>
+                </section>
+                <section id="item-view" hidden aria-label="Item price history">
+                    <div class="detailbar"><button class="back" id="back">← Market</button></div>
+                    <div class="layout">
+                        <section class="parchment">
+                            <div class="detail-head">
+                                <div id="detail-sprite"></div>
+                                <div>
+                                    <h2 id="item-name">Loading…</h2>
+                                    <p id="item-meta"></p>
+                                </div>
+                            </div>
+                            <p id="detail-status" class="status" role="status" aria-live="polite"></p>
+                            <div id="detail-content" hidden>
+                                <div class="detailstats">
+                                    <div><small>Last price</small><strong id="last">—</strong></div>
+                                    <div>
+                                        <small>Change · <span class="detail-window">30d</span></small
+                                        ><strong id="change">—</strong>
+                                    </div>
+                                    <div>
+                                        <small>Volume · <span class="detail-window">30d</span></small
+                                        ><strong id="volume">—</strong>
+                                    </div>
+                                    <div>
+                                        <small>Trade value · <span class="detail-window">30d</span></small
+                                        ><strong id="trade-value">—</strong>
+                                    </div>
+                                </div>
+                                <div class="filters">
+                                    <div class="periods" id="detail-periods" role="group" aria-label="Chart time period">
+                                        <button data-days="1" aria-pressed="false">24H</button><button data-days="7" aria-pressed="false">7D</button><button data-days="30" class="active" aria-pressed="true">30D</button
+                                        ><button data-days="90" aria-pressed="false">90D</button>
+                                    </div>
+                                </div>
+                                <div class="chartpanel">
+                                    <div class="chart-title">
+                                        <h3>Price</h3>
+                                        <span class="legend" id="price-legend">Daily VWAP · gp</span>
+                                    </div>
+                                    <svg class="chart" id="price-chart" viewBox="0 0 720 290" role="img" aria-label="Average trade price over time"></svg>
+                                    <div class="chart-empty" id="chart-empty" hidden>No trades</div>
+                                    <p class="chart-readout" id="chart-readout" aria-live="polite"></p>
+                                </div>
+                                <div class="chartpanel">
+                                    <div class="chart-title">
+                                        <h3>Volume</h3>
+                                        <span class="legend">Units</span>
+                                    </div>
+                                    <svg class="chart" id="volume-chart" viewBox="0 0 720 170" role="img" aria-label="Item trade volume over time"></svg>
+                                </div>
+                                <h3 class="table-caption">History</h3>
+                                <div class="tablewrap">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Date · UTC</th>
+                                                <th>Average · gp</th>
+                                                <th>Low · gp</th>
+                                                <th>High · gp</th>
+                                                <th>Volume</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="history"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+                        <aside class="sidebar">
+                            <section class="asidecard">
+                                <h3>Quotes</h3>
+                                <div class="quote-row"><span>Bid</span><strong id="bid">—</strong></div>
+                                <div class="quote-row"><span>Ask</span><strong id="ask">—</strong></div>
+                                <hr class="aside-divider" />
+                                <div class="quote-row"><span>Buy qty</span><strong id="buy-quantity">—</strong></div>
+                                <div class="quote-row"><span>Buy value</span><strong id="buy-value">—</strong></div>
+                                <div class="quote-row"><span>Sell qty</span><strong id="sell-quantity">—</strong></div>
+                            </section>
+                        </aside>
+                    </div>
+                </section>
+            </main>
+        </div>
+        <script type="module">
+            const $ = id => document.getElementById(id);
+            const number = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
+            const compact = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+            const fmt = n => (n == null ? '—' : number.format(n));
+            const short = n => (n == null ? '—' : compact.format(n));
+            const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            const sprite = (id, name = '') => `<span class="spritebox"><img src="/sprite/item/${Number(id)}.png" alt="${escape(name)}" loading="lazy"></span>`;
+            const titles = {
+                recent: 'Recent trades',
+                buyValue: 'Buy orders',
+                value: 'Trade value',
+                price: 'Biggest items',
+                volume: 'Most traded',
+                name: 'All items'
+            };
+            let offset = 0,
+                total = 0,
+                sort = 'recent',
+                days = 1,
+                detailDays = 30,
+                selected = null,
+                listSequence = 0,
+                detailSequence = 0,
+                debounce,
+                returningHash = '';
+            const limit = 12;
+            function bindImages(root) {
+                root.querySelectorAll('.spritebox img').forEach(img => {
+                    img.onerror = () => {
+                        img.hidden = true;
+                        img.parentElement.classList.add('failed');
+                    };
+                });
+            }
+            function relative(time) {
+                if (time == null) return 'Never';
+                const seconds = Math.max(0, (Date.now() - time) / 1000);
+                return seconds < 60 ? 'Just now' : seconds < 3600 ? `${Math.floor(seconds / 60)}m ago` : seconds < 86400 ? `${Math.floor(seconds / 3600)}h ago` : `${Math.floor(seconds / 86400)}d ago`;
+            }
+            function changeText(n) {
+                return n == null ? '—' : `${n > 0 ? '↗ +' : n < 0 ? '↘ −' : ''}${fmt(Math.abs(n))}%`;
+            }
+            function tone(n) {
+                return n == null || n === 0 ? 'quiet' : n > 0 ? 'up' : 'down';
+            }
+            function activate(root, dataKey, value) {
+                $(root)
+                    .querySelectorAll('button')
+                    .forEach(b => {
+                        const active = b.dataset[dataKey] === String(value);
+                        b.classList.toggle('active', active);
+                        b.setAttribute('aria-pressed', String(active));
+                    });
+            }
+            async function api(path) {
+                const response = await fetch('/api/market/items' + path, { signal: AbortSignal.timeout(15000) });
+                const data = await response.json();
+                if (!response.ok) throw Error(data.error || 'Unable to load market data.');
+                return data;
+            }
+            function listHash() {
+                const params = new URLSearchParams({ sort, days: String(days) });
+                if ($('search').value) params.set('q', $('search').value);
+                if (offset) params.set('offset', String(offset));
+                return '#' + params;
+            }
+            function saveListRoute() {
+                history.replaceState(null, '', listHash());
+            }
+            function itemHash(id) {
+                const params = new URLSearchParams(listHash().slice(1));
+                params.set('item', id);
+                params.set('range', days);
+                return '#' + params;
+            }
+            async function list() {
+                const seq = ++listSequence;
+                $('list-status').textContent = 'Loading…';
+                $('prev').disabled = $('next').disabled = true;
+                $('list-title').textContent = titles[sort];
+                activate('sort-tabs', 'sort', sort);
+                activate('list-periods', 'days', days);
+                const buyOrders = sort === 'buyValue';
+                $('list-periods').parentElement.hidden = buyOrders;
+                $('price-column').textContent = buyOrders ? 'Bid · gp' : 'Price · gp';
+                $('change-column').textContent = buyOrders ? 'Buy qty' : 'Change';
+                $('metric-column').textContent = buyOrders ? 'Buy value · gp' : sort === 'value' ? 'Trade value · gp' : 'Volume';
+                try {
+                    const d = await api('?' + new URLSearchParams({ q: $('search').value, limit, offset, sort, days }));
+                    if (seq !== listSequence) return;
+                    total = d.total;
+                    if (offset >= total && offset > 0) {
+                        offset = Math.max(0, Math.floor((total - 1) / limit) * limit);
+                        saveListRoute();
+                        return list();
+                    }
+                    $('items').innerHTML = d.items.length
+                        ? d.items
+                              .map(
+                                  item =>
+                                      `<tr data-item="${item.id}"><td><a class="itemlink" href="${escape(itemHash(item.id))}">${sprite(item.id)}<span>${escape(item.name)}</span></a></td>
+                                      <td title="${fmt(buyOrders ? item.bid : item.lastPrice)} gp">${short(buyOrders ? item.bid : item.lastPrice)}</td>
+                                      <td class="${buyOrders ? '' : 'change ' + tone(item.changePercent)}" title="${buyOrders ? fmt(item.buyQuantity) : ''}">${buyOrders ? short(item.buyQuantity) : changeText(item.changePercent)}</td>
+                                      <td title="${fmt(buyOrders ? item.buyValue : sort === 'value' ? item.gross : item.volume)}">${short(buyOrders ? item.buyValue : sort === 'value' ? item.gross : item.volume)}</td>
+                                      <td class="recent" title="${item.lastTradeAt ? new Date(item.lastTradeAt).toLocaleString() : 'No completed trades'}">${relative(item.lastTradeAt)}</td></tr>`
+                              )
+                              .join('')
+                        : '<tr><td colspan="5" class="empty">No results</td></tr>';
+                    bindImages($('items'));
+                    $('page').textContent = total ? `${offset + 1}–${Math.min(offset + limit, total)} of ${fmt(total)} items` : '0 items';
+                    $('prev').disabled = offset === 0;
+                    $('next').disabled = offset + limit >= total;
+                    $('total-gold').textContent = short(d.summary.gross);
+                    $('total-volume').textContent = short(d.summary.volume);
+                    document.querySelectorAll('.window-label').forEach(el => (el.textContent = days === 1 ? '24h' : `${days}d`));
+                    $('list-status').textContent = '';
+                } catch (e) {
+                    if (seq !== listSequence) return;
+                    $('list-status').textContent = e.message;
+                    $('items').innerHTML = '<tr><td colspan="5" class="empty">Unavailable</td></tr>';
+                    $('prev').disabled = offset === 0;
+                    $('next').disabled = offset + limit >= total;
+                }
+            }
+            const ns = 'http://www.w3.org/2000/svg';
+            function svgEl(type, attrs, text) {
+                const el = document.createElementNS(ns, type);
+                Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, String(v)));
+                if (text != null) el.textContent = text;
+                return el;
+            }
+            let chartData = null,
+                chartWidth = 0;
+            function chart(data, from, to, interval) {
+                chartData = { data, from, to, interval };
+                const price = $('price-chart'),
+                    volume = $('volume-chart');
+                chartWidth = Math.max(200, price.parentElement.clientWidth - 28);
+                price.setAttribute('viewBox', `0 0 ${chartWidth} 290`);
+                volume.setAttribute('viewBox', `0 0 ${chartWidth} 170`);
+                price.replaceChildren();
+                volume.replaceChildren();
+                $('chart-empty').hidden = data.length > 0;
+                price.hidden = volume.hidden = !data.length;
+                // SVG elements do not implement the HTML hidden property consistently.
+                price.style.display = volume.style.display = data.length ? 'block' : 'none';
+                $('chart-readout').textContent = '';
+                if (!data.length) return;
+                const values = data.map(p => p.vwap),
+                    min = Math.min(...values),
+                    max = Math.max(...values),
+                    pad = Math.max((max - min) * 0.15, max * 0.015, 1),
+                    low = Math.max(0, min - pad),
+                    high = max + pad;
+                const left = 54,
+                    right = chartWidth - 14,
+                    top = 25,
+                    bottom = 250;
+                const x = p => left + ((right - left) * (Math.max(from, p.time) - from)) / (to - from);
+                const y = p => bottom - ((bottom - top) * (p.vwap - low)) / (high - low);
+                const maxVolume = Math.max(...data.map(p => p.volume), 1);
+                for (let i = 0; i <= 4; i++) {
+                    const yPos = top + ((bottom - top) * i) / 4;
+                    price.append(svgEl('line', { x1: left, y1: yPos, x2: right, y2: yPos, class: 'grid' }), svgEl('text', { x: left - 10, y: yPos + 3, 'text-anchor': 'end' }, short(high - ((high - low) * i) / 4)));
+                }
+                for (let i = 0; i <= 2; i++) {
+                    const yPos = 20 + (110 * i) / 2;
+                    volume.append(svgEl('line', { x1: left, y1: yPos, x2: right, y2: yPos, class: 'grid' }), svgEl('text', { x: left - 10, y: yPos + 3, 'text-anchor': 'end' }, short(maxVolume * (1 - i / 2))));
+                }
+                const timeTicks = chartWidth < 480 ? 2 : 4;
+                for (let i = 0; i <= timeTicks; i++) {
+                    const pos = left + ((right - left) * i) / timeTicks,
+                        date = new Date(from + ((to - from) * i) / timeTicks),
+                        label = detailDays === 1 ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    for (const [el, baseline] of [
+                        [price, 276],
+                        [volume, 155]
+                    ])
+                        el.append(svgEl('text', { x: pos, y: baseline, 'text-anchor': i === 0 ? 'start' : i === timeTicks ? 'end' : 'middle' }, label));
+                }
+                const points = data.map(p => `${x(p)},${y(p)}`).join(' ');
+                price.append(svgEl('polygon', { points: `${x(data[0])},${bottom} ${points} ${x(data[data.length - 1])},${bottom}`, fill: '#718c9d', opacity: '.10' }));
+                price.append(svgEl('polyline', { points, fill: 'none', stroke: '#527996', 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+                const priceCursor = svgEl('line', { y1: top, y2: bottom, class: 'chart-cursor' });
+                const volumeCursor = svgEl('line', { y1: 20, y2: 130, class: 'chart-cursor' });
+                const selectedPoint = svgEl('circle', { r: 4, fill: '#273f52', 'pointer-events': 'none' });
+                const labelFor = p => `${new Date(p.time).toLocaleString()} · VWAP ${fmt(p.vwap)} gp · VOL ${fmt(p.volume)}`;
+                function inspect(p) {
+                    $('chart-readout').textContent = labelFor(p);
+                    for (const line of [priceCursor, volumeCursor]) {
+                        line.setAttribute('x1', x(p));
+                        line.setAttribute('x2', x(p));
+                    }
+                    selectedPoint.setAttribute('cx', x(p));
+                    selectedPoint.setAttribute('cy', y(p));
+                }
+                const barWidth = Math.max(1, Math.min(25, (((right - left) * interval) / (to - from)) * 0.7));
+                for (const p of data) {
+                    const label = labelFor(p);
+                    const dot = svgEl('circle', { cx: x(p), cy: y(p), r: data.length > 100 ? 2 : 3.5, fill: '#527996', tabindex: 0, 'aria-label': label });
+                    dot.append(svgEl('title', {}, label));
+                    dot.onfocus = () => inspect(p);
+                    price.append(dot);
+                    const h = (p.volume / maxVolume) * 110,
+                        bar = svgEl('rect', { x: Math.min(right - barWidth, Math.max(left, x(p) - barWidth / 2)), y: 130 - h, width: barWidth, height: h, fill: '#688aa1', opacity: '.8' });
+                    bar.append(svgEl('title', {}, label));
+                    volume.append(bar);
+                }
+                price.append(priceCursor, selectedPoint);
+                volume.append(volumeCursor);
+                for (const svg of [price, volume]) {
+                    svg.onpointermove = svg.onpointerdown = event => {
+                        const bounds = svg.getBoundingClientRect();
+                        const targetX = ((event.clientX - bounds.left) / bounds.width) * chartWidth;
+                        const nearest = data.reduce((best, p) => (Math.abs(x(p) - targetX) < Math.abs(x(best) - targetX) ? p : best));
+                        inspect(nearest);
+                    };
+                }
+                inspect(data[data.length - 1]);
+            }
+            new ResizeObserver(() => {
+                const width = $('price-chart').parentElement.clientWidth;
+                if (width && chartData && Math.max(200, width - 28) !== chartWidth) {
+                    const { data, from, to, interval } = chartData;
+                    chart(data, from, to, interval);
+                }
+            }).observe($('price-chart').parentElement);
+            async function details(id, fresh = false) {
+                const seq = ++detailSequence;
+                chartData = null;
+                activate('detail-periods', 'days', detailDays);
+                if (fresh) {
+                    $('detail-content').hidden = true;
+                    $('item-name').textContent = 'Loading…';
+                    $('item-meta').textContent = '';
+                    $('detail-sprite').replaceChildren();
+                    for (const key of ['bid', 'ask', 'sell-quantity', 'buy-quantity', 'buy-value']) $(key).textContent = '—';
+                }
+                $('detail-status').textContent = 'Loading…';
+                try {
+                    const to = Date.now(),
+                        from = to - detailDays * 86400000,
+                        interval = detailDays <= 7 ? 3600000 : 86400000;
+                    const [item, data] = await Promise.all([api('/' + id + '?days=' + detailDays), api('/' + id + '/history?' + new URLSearchParams({ from, to, interval }))]);
+                    if (seq !== detailSequence || selected !== id) return;
+                    document.title = item.name + ' · Grand Exchange';
+                    $('item-name').textContent = item.name;
+                    $('item-meta').textContent = `#${item.id} · ` + (item.lastTradeAt ? new Date(item.lastTradeAt).toLocaleString() : 'No trades');
+                    $('detail-sprite').innerHTML = sprite(item.id);
+                    bindImages($('detail-sprite'));
+                    $('last').textContent = short(item.lastPrice) + ' gp';
+                    $('change').textContent = changeText(item.changePercent);
+                    $('change').className = tone(item.changePercent);
+                    $('volume').textContent = short(item.volume);
+                    $('trade-value').textContent = short(item.gross) + ' gp';
+                    $('bid').textContent = fmt(item.bid) + ' gp';
+                    $('ask').textContent = fmt(item.ask) + ' gp';
+                    $('sell-quantity').textContent = fmt(item.sellQuantity);
+                    $('buy-quantity').textContent = fmt(item.buyQuantity);
+                    $('buy-value').textContent = short(item.buyValue) + ' gp';
+                    document.querySelectorAll('.detail-window').forEach(el => (el.textContent = detailDays === 1 ? '24h' : `${detailDays}d`));
+                    $('price-legend').textContent = (detailDays <= 7 ? 'Hourly' : 'Daily') + ' VWAP · gp';
+                    $('detail-content').hidden = false;
+                    chart(data.history, from, to, interval);
+                    $('history').innerHTML =
+                        data.history
+                            .slice(-8)
+                            .reverse()
+                            .map(
+                                p =>
+                                    `<tr>${[
+                                        new Date(p.time)
+                                            .toISOString()
+                                            .slice(0, interval === 3600000 ? 16 : 10)
+                                            .replace('T', ' '),
+                                        fmt(p.vwap),
+                                        fmt(p.low),
+                                        fmt(p.high),
+                                        fmt(p.volume)
+                                    ]
+                                        .map(v => `<td>${v}</td>`)
+                                        .join('')}</tr>`
+                            )
+                            .join('') || '<tr><td colspan="5" class="empty">No trades</td></tr>';
+                    $('detail-content').hidden = false;
+                    $('detail-status').textContent = '';
+                } catch (e) {
+                    if (seq === detailSequence) {
+                        $('detail-content').hidden = true;
+                        $('detail-status').textContent = e.message;
+                    }
+                }
+            }
+            function route() {
+                const params = new URLSearchParams(location.hash.slice(1)),
+                    raw = params.get('item');
+                if (raw && /^\d+$/.test(raw) && Number(raw) > 0) {
+                    selected = Number(raw);
+                    detailDays = [1, 7, 30, 90].includes(Number(params.get('range'))) ? Number(params.get('range')) : 30;
+                    const backParams = new URLSearchParams(params);
+                    backParams.delete('item');
+                    backParams.delete('range');
+                    returningHash = backParams.size ? '#' + backParams : '';
+                    ++listSequence;
+                    $('home').hidden = true;
+                    $('item-view').hidden = false;
+                    details(selected, true);
+                    window.scrollTo(0, 0);
+                    return;
+                }
+                selected = null;
+                ++detailSequence;
+                $('home').hidden = false;
+                $('item-view').hidden = true;
+                document.title = 'Grand Exchange · Market overview';
+                if (['rises', 'falls'].includes(params.get('sort'))) {
+                    params.set('sort', 'buyValue');
+                    history.replaceState(null, '', '#' + params);
+                }
+                if (params.get('sort') === 'marketCap') {
+                    params.set('sort', 'value');
+                    history.replaceState(null, '', '#' + params);
+                }
+                sort = location.hash === '#browse' ? 'name' : Object.hasOwn(titles, params.get('sort')) ? params.get('sort') : 'recent';
+                days = [1, 7, 30, 90].includes(Number(params.get('days'))) ? Number(params.get('days')) : 1;
+                const requestedOffset = Number(params.get('offset'));
+                offset = Number.isFinite(requestedOffset) ? Math.floor(Math.min(100000, Math.max(0, requestedOffset)) / limit) * limit : 0;
+                $('search').value = (params.get('q') || '').slice(0, 80);
+                returningHash = location.hash;
+                list();
+            }
+            $('items').addEventListener('click', e => {
+                const row = e.target.closest('tr[data-item]');
+                if (!row || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || window.getSelection()?.toString()) return;
+                returningHash = listHash();
+                if (!e.target.closest('a')) location.hash = row.querySelector('a').getAttribute('href');
+            });
+            $('back').onclick = () => {
+                location.hash = returningHash || '#';
+            };
+            $('sort-tabs').onclick = e => {
+                const b = e.target.closest('button');
+                if (!b) return;
+                sort = b.dataset.sort;
+                offset = 0;
+                saveListRoute();
+                route();
+            };
+            $('list-periods').onclick = e => {
+                const b = e.target.closest('button');
+                if (!b) return;
+                days = Number(b.dataset.days);
+                offset = 0;
+                saveListRoute();
+                list();
+            };
+            $('detail-periods').onclick = e => {
+                const b = e.target.closest('button');
+                if (!b) return;
+                detailDays = Number(b.dataset.days);
+                const params = new URLSearchParams(location.hash.slice(1));
+                params.set('range', detailDays);
+                history.replaceState(null, '', '#' + params);
+                details(selected);
+            };
+            $('search').oninput = () => {
+                clearTimeout(debounce);
+                debounce = setTimeout(() => {
+                    if (selected !== null) return;
+                    offset = 0;
+                    saveListRoute();
+                    list();
+                }, 200);
+            };
+            $('prev').onclick = () => {
+                offset = Math.max(0, offset - limit);
+                saveListRoute();
+                list();
+            };
+            $('next').onclick = () => {
+                offset += limit;
+                saveListRoute();
+                list();
+            };
+            window.addEventListener('hashchange', route);
+            route();
+            setInterval(() => {
+                const interacting = ['items', 'price-chart', 'volume-chart'].some(id => $(id).contains(document.activeElement) || $(id).matches(':hover'));
+                if (!document.hidden && !interacting) {
+                    if (selected === null) list();
+                    else details(selected);
+                }
+            }, 30000);
+        </script>
+    </body>
+</html>

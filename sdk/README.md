@@ -227,3 +227,17 @@ bot with `bun bots/create-bot.ts <username>` and run its generated script:
 ```bash
 bun bots/<username>/script.ts
 ```
+
+## Grand Exchange
+
+GE can be disabled by the server (`GE_ENABLED=false`). Check
+`await sdk.getGEAvailability()`; GE actions return `reason: "ge_unavailable"`
+with a clear message when disabled, and public market reads throw `GEUnavailableError`.
+
+Use `sdk.getMarketItems`, `sdk.getMarketItem`, and `sdk.getMarketHistory` for public
+prices and volume. See [MARKET.md](MARKET.md) for the HTTP API, standalone
+`MarketClient`, and in-game trading instructions. All trading and collection
+happen at Varrock west bank. Use `bot.openGE()`, `bot.placeGEOffer()`,
+`bot.cancelGEOffer()`, `bot.collectGEOffer()` and `bot.collectGE()` for verified
+trading, and `sdk.getGEState()` for your offers and collectible balances.
+MCP agents can read prices with `get_market` without connecting a character.

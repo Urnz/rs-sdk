@@ -1,0 +1,8 @@
+[oploc1,grand_exchange_booth]
+ge_open(loc_coord);
+
+[opnpc1,grand_exchange_teller]
+ge_open(npc_coord);
+
+[opnpc2,grand_exchange_teller]
+ge_open(npc_coord);

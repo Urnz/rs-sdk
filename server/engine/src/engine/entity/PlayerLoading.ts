@@ -1,3 +1,4 @@
+import { playerSaveStore } from '#/engine/market/MarketStore.js';
 import InvType from '#/cache/config/InvType.js';
 import { NetworkPlayer } from '#/engine/entity/NetworkPlayer.js';
 import Player, { getExpByLevel, getLevelByExp } from '#/engine/entity/Player.js';
@@ -9,7 +10,7 @@ import { fromBase37, toBase37 } from '#/util/JString.js';
 
 export class PlayerLoading {
     public static readonly SAV_MAGIC: number = 0x2004;
-    public static readonly SAV_VERSION: number = 7;
+    public static readonly SAV_VERSION: number = 8;
 
     static verify(sav: Packet) {
         if (sav.g2() !== PlayerLoading.SAV_MAGIC) {
@@ -30,6 +31,9 @@ export class PlayerLoading {
         const hash64 = toBase37(name); // username or email.
         const name37 = toBase37(name); // always username.
         const safeName = fromBase37(name37); // always safe username.
+        // Exchange participants use the atomic ledger checkpoint, including after a crash.
+        const checkpoint = playerSaveStore()?.saved(safeName);
+        if (checkpoint) sav = new Packet(checkpoint);
 
         const player = client ? new NetworkPlayer(safeName, name37, hash64, client) : new Player(safeName, name37, hash64);
 
@@ -156,6 +160,14 @@ export class PlayerLoading {
         // last login info
         if (version >= 6) {
             player.lastLoginTime = sav.g8();
+        }
+
+        if (version >= 8) {
+            const count = sav.g2();
+            for (let i = 0; i < count; i++) {
+                player.recoveryItems.push({ id: sav.g2(), count: sav.g4s() });
+            }
+            player.recoverItems();
         }
 
         player.combatLevel = player.getCombatLevel();

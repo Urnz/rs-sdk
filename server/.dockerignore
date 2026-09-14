@@ -37,6 +37,7 @@ sdk/test/
 # rebuilt from server/content, same reasoning as server/webclient/out above).
 server/engine/data/players/
 server/engine/db.sqlite
+server/engine/data/market.sqlite*
 server/engine/data/pack/
 
 # Config files at parent level

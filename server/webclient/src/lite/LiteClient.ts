@@ -803,6 +803,10 @@ export class LiteClient {
     closeBotModal(): boolean {
         return A.closeBotModal(this);
     }
+    searchGE(query: string): boolean {
+        return A.searchGE(this, query);
+    }
+
     submitCountDialog(value: number): boolean {
         return A.submitCountDialog(this, value);
     }

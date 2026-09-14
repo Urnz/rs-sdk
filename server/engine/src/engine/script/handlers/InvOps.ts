@@ -6,6 +6,7 @@ import { ObjDelayedRequest } from '#/engine/entity/ObjDelayedRequest.js';
 import { EntityLifeCycle } from '#/engine/entity/EntityLifeCycle.js';
 import Obj from '#/engine/entity/Obj.js';
 import Player from '#/engine/entity/Player.js';
+import { recordTrade } from '#/engine/entity/tracking/TradeLedger.js';
 import { WealthEventItem } from '#/engine/entity/tracking/WealthEvent.js';
 import { Inventory } from '#/engine/Inventory.js';
 import { ScriptOpcode } from '#/engine/script/ScriptOpcode.js';
@@ -486,6 +487,15 @@ const InvOps: CommandHandlers = {
                     recipient_session: toPlayer.session,
                     recipient_items: toItems,
                     recipient_value: toTotal
+                });
+                recordTrade({
+                    tick: World.currentTick,
+                    from: fromPlayer.username,
+                    to: toPlayer.username,
+                    fromItems,
+                    toItems,
+                    fromValue: fromTotal,
+                    toValue: toTotal
                 });
             }
         }

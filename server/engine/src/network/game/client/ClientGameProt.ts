@@ -1,6 +1,8 @@
 export default class ClientGameProt {
     static byId: ClientGameProt[] = [];
 
+    static readonly MARKET_SEARCH = new ClientGameProt(243, -1); // rs-sdk: bounded GE text/select
+
     static readonly NO_TIMEOUT = new ClientGameProt(120, 0);
 
     static readonly IDLE_TIMER = new ClientGameProt(209, 0);

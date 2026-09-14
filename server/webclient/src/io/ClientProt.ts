@@ -1,4 +1,5 @@
 export const enum ClientProt {
+    MARKET_SEARCH = 243, // rs-sdk: query string + displayed item ID (0 = filter)
     NO_TIMEOUT = 120, // index: 6 - NXT naming
 
     IDLE_TIMER = 209, // index: 30

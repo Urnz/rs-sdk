@@ -223,7 +223,7 @@ export function formatWorldState(
     }
 
     // Interface state (crafting menus, etc.)
-    if (state.interface && state.interface.isOpen) {
+    if (state.interface && state.interface.isOpen && !state.ge?.isOpen) {
         lines.push('');
         lines.push(`## Interface (id: ${state.interface.interfaceId})`);
         if (state.interface.options.length > 0) {
@@ -234,9 +234,20 @@ export function formatWorldState(
         }
         if (state.trade?.isOpen) {
             lines.push('(This is the player-trade window - see the Trade section below. Drive it with bot.trade()/offerTradeItems()/acceptTrade(); closing it would DECLINE the trade.)');
-        } else if (!state.shop?.isOpen && !state.bank?.isOpen) {
+        } else if (!state.shop?.isOpen && !state.bank?.isOpen && !state.ge?.isOpen) {
             lines.push('(This modal blocks most actions - close it with bot.closeInterface() or sdk.sendCloseModal())');
         }
+    }
+
+    if (state.ge?.isOpen && state.modalOpen) {
+        const ge = state.ge;
+        lines.push('', `## Grand Exchange: ${ge.screen} (revision ${ge.revision})`);
+        for (const offer of ge.offers) lines.push(`Offer #${offer.id}, slot ${offer.slot}: ${offer.side} ${offer.quantity} ${offer.name} @ ${offer.price} gp; ${offer.filled} filled, ${offer.state}; collect ${offer.items} items / ${offer.coins} gp`);
+        if (ge.draft) lines.push(`Draft: ${ge.draft.side} ${ge.draft.quantity} ${ge.draft.name} @ ${ge.draft.price} gp (item ${ge.draft.item})`);
+        if (ge.search) lines.push(`Search "${ge.search.query}": ${ge.search.total} matches, page ${ge.search.page + 1}`, ...ge.search.results.map(i => `  ${i.item}: ${i.name}`));
+        if (ge.input) lines.push(`Waiting for numeric ${ge.input} input.`);
+        if (ge.error || ge.notice) lines.push(ge.error ? `GE error: ${ge.error}` : ge.notice);
+        lines.push('Use bot.placeGEOffer / cancelGEOffer / collectGEOffer / collectGE; sdk.getGEState() has full private state. Trading requires this physical exchange session.');
     }
 
     // Shop state

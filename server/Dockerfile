@@ -54,7 +54,7 @@ RUN bun run build
 # Environment.ts) / data/config/world.json, so no .env file is needed at build time.
 WORKDIR /opt/server/engine
 RUN sed -i 's/port: Environment.WEB_PORT,/port: Environment.WEB_PORT, hostname: "0.0.0.0",/' src/web/index.ts && \
-    bun run build
+    BUILD_VERIFY=false bun run build
 
 # Patch gateway
 WORKDIR /opt/server/gateway

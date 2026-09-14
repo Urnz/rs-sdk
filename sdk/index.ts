@@ -1,3 +1,8 @@
+import type { GEState } from './ge-types';
+export type { GEState, GEOffer, GEOfferRequest, GEActionResult } from './ge-types';
+import { MarketClient, type GEAvailability, type MarketItems, type MarketQuote, type MarketHistory, type MarketItemsOptions, type MarketItemOptions, type MarketHistoryOptions } from './market';
+export { MarketClient, GEUnavailableError } from './market';
+export type { GEAvailability, MarketItems, MarketQuote, MarketHistory, MarketSort, MarketDays, MarketItemsOptions, MarketItemOptions, MarketHistoryOptions } from './market';
 // Bot SDK - Standalone client for remote bot control
 // Low-level WebSocket API that maps 1:1 to the action protocol
 // Raw actions resolve when the browser validates/routes and dispatches them.
@@ -104,7 +109,11 @@ interface PendingAction {
 class ActionDispatchError extends Error {
     constructor(message: string, readonly reason: 'timeout' | 'disconnected' | 'error') {
         super(message);
-        this.name = 'ActionDispatchError';
+        // Own-property define rather than assignment: hosts that freeze
+        // Error.prototype make the inherited `name` non-writable and a plain
+        // assignment throws in strict mode (from ws.onclose, taking the process
+        // exit code with it).
+        Object.defineProperty(this, 'name', { value: 'ActionDispatchError', writable: true, configurable: true });
     }
 }
 
@@ -166,7 +175,7 @@ export class BotSDK {
             autoLaunchBrowser: config.autoLaunchBrowser ?? 'auto',
             freshDataThreshold: config.freshDataThreshold ?? 3000,
             browserLaunchUrl: config.browserLaunchUrl || '',
-            browserLaunchTimeout: config.browserLaunchTimeout || 10000,
+            browserLaunchTimeout: config.browserLaunchTimeout || 30000,
             readyTimeout: config.readyTimeout ?? 15000,
             connectTimeout: config.connectTimeout ?? 30000,
             actionTimeout: config.actionTimeout || 60000,
@@ -554,6 +563,42 @@ export class BotSDK {
         }
 
         throw new Error(`Bot did not fully load within ${timeoutMs}ms`);
+    }
+
+    /** Check whether this server enables GE. No connected bot or physical access needed. */
+    getGEAvailability(): Promise<GEAvailability> {
+        return new MarketClient(this.buildClientUrl()).status();
+    }
+
+    /** Read public Grand Exchange prices. Uses the game origin; no login or physical access needed. */
+    getMarketItems(query = '', options: MarketItemsOptions = {}): Promise<MarketItems> {
+        return new MarketClient(this.buildClientUrl()).items(query, options);
+    }
+
+    /** Read current offers, latest trade and selected-period volume for a canonical item ID. */
+    getMarketItem(itemId: number, options: MarketItemOptions = {}): Promise<MarketQuote> {
+        return new MarketClient(this.buildClientUrl()).item(itemId, options);
+    }
+
+    /** Read historical trade prices and volumes in hour/day UTC buckets (milliseconds). */
+    getMarketHistory(itemId: number, options: MarketHistoryOptions = {}): Promise<MarketHistory> {
+        return new MarketClient(this.buildClientUrl()).history(itemId, options);
+    }
+
+    /** Private GE state while at an open physical exchange. Null when closed or unsupported. */
+    getGEState(): GEState | null {
+        return this.state?.modalOpen ? this.state.ge ?? null : null;
+    }
+
+    /** Filter the open in-game GE catalogue. Success means dispatch; wait for the acknowledged query. */
+    async sendGESearch(query: string): Promise<ActionResult> {
+        if (!/^[a-zA-Z0-9 '()*-]{0,48}$/.test(query)) return {success: false, message: 'GE search accepts up to 48 letters, digits, spaces and apostrophes/parentheses/*/hyphens.', reason: 'invalid_argument'};
+        if (!this.getGEState()) {
+            const availability = await this.getGEAvailability();
+            if (!availability.enabled) return { success: false, message: availability.message ?? 'Grand Exchange is not available on this server.', reason: 'ge_unavailable' };
+        }
+        if (this.getGEState()?.screen !== 'catalog') return {success: false, message: 'Open the GE catalogue at the exchange first.', reason: 'no_interface'};
+        return this.sendAction({type: 'searchGE', query, reason: 'SDK'});
     }
 
     private getStatusUrl(): string {
@@ -1561,6 +1606,8 @@ export class BotSDK {
 
     /** Deposit item to bank by slot. */
     async sendBankDeposit(slot: number, amount: number = 1): Promise<ActionResult> {
+        // Amounts other than 1/5/10/All dispatch the "X" option; the client
+        // executor waits for the server's count dialog and submits `amount`.
         return this.sendAction({ type: 'bankDeposit', slot, amount, reason: 'SDK' });
     }
 

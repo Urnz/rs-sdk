@@ -3,6 +3,8 @@
 // Actions resolve when the EFFECT is complete (not just acknowledged)
 
 import { BotSDK } from './index';
+import { GEActions } from './ge-actions';
+import type { GEOfferRequest, GEActionResult } from './ge-types';
 import { ActionHelpers, ALREADY_FIGHTING_REFUSALS, NO_RUNES_REFUSALS } from './actions-helpers';
 import { findDoorsAlongPath, isTileWalkable } from './pathfinding';
 import type {
@@ -86,6 +88,7 @@ import {
 // completed, not closed). Everything else is informational or re-openable.
 // Ids from server/content/pack/interface.pack.
 const NEVER_AUTO_CLOSE = new Set([
+    10984, // grand_exchange - deliberate offer/draft session
     3323, // trademain - auto-close would silently decline a player trade
     3443, // tradeconfirm - second trade screen, same risk
     6412, // duel_confirm - same risk for duels
@@ -103,10 +106,30 @@ const PICKPOCKET_ACK_TICKS = 3;
 
 export class BotActions {
     private helpers: ActionHelpers;
+    private ge: GEActions;
 
     constructor(private sdk: BotSDK) {
         this.helpers = new ActionHelpers(sdk);
+        this.ge = new GEActions(sdk, this);
     }
+
+    /** Walk to the physical exchange and open it. Requires updated client/server GE state support. */
+    async openGE(timeout: number = 15_000): Promise<GEActionResult> { return this.ge.open(timeout); }
+
+    /** Search the in-game catalogue in a free slot; returns acknowledged results in state.search. */
+    async searchGE(query: string, side: 'buy' | 'sell' = 'buy', timeout: number = 15_000): Promise<GEActionResult> { return this.ge.search(query, side, timeout); }
+
+    /** Place an inventory-funded offer at an already open exchange and verify the server receipt. Never retries confirmation. */
+    async placeGEOffer(request: GEOfferRequest, timeout: number = 30_000): Promise<GEActionResult> { return this.ge.place(request, timeout); }
+
+    /** Cancel your offer's unfilled remainder; returned assets remain in collection. Uses offer ID, not slot. */
+    async cancelGEOffer(offerId: number, timeout: number = 15_000): Promise<GEActionResult> { return this.ge.cancel(offerId, timeout); }
+
+    /** Collect one offer, optionally as notes. Reports actual backpack additions; overflow stays in collection. */
+    async collectGEOffer(offerId: number, notes: boolean = true, timeout: number = 15_000): Promise<GEActionResult> { return this.ge.collect(offerId, notes, timeout); }
+
+    /** Collect every available claim as notes and coins; requires an open physical exchange. */
+    async collectGE(timeout: number = 15_000): Promise<GEActionResult> { return this.ge.collect(undefined, true, timeout); }
 
     // ============ Porcelain: UI Helpers ============
 
@@ -268,7 +291,7 @@ export class BotActions {
             // input. Skip deliberate sessions (shop/bank have their own close
             // actions) and modals where auto-close is destructive — see
             // NEVER_AUTO_CLOSE. Anything else is informational or re-openable.
-            if (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen
+            if (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen && !state.ge?.isOpen
                 && !NEVER_AUTO_CLOSE.has(state.interface.interfaceId)) {
                 await this.sdk.sendCloseModal();
                 await this.sdk.waitForStateChange(2000).catch(() => {});
@@ -293,7 +316,7 @@ export class BotActions {
         // "safe" to dismiss - see dismissBlockingUI.
         const hasSafeBlockingUI = (state: NonNullable<ReturnType<BotSDK['getState']>>) =>
             (state.dialog.isOpen && state.dialog.options.length <= 1) ||
-            (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen
+            (state.interface?.isOpen && !state.shop?.isOpen && !state.bank?.isOpen && !state.ge?.isOpen
                 && !NEVER_AUTO_CLOSE.has(state.interface.interfaceId));
 
         while (Date.now() < deadline) {
@@ -578,9 +601,9 @@ export class BotActions {
             }
         }
 
-        // Re-find the NPC after walking (it may have moved)
-        const npcPattern = typeof npc === 'object' && 'index' in npc ? new RegExp(resolvedNpc.name, 'i') : npc;
-        const npcNow = this.helpers.resolveNpc(npcPattern);
+        // Re-find the NPC after walking (it may have moved). An entity target
+        // re-finds by server index so a same-named neighbour cannot win.
+        const npcNow = this.helpers.refindNpcTarget(npc, resolvedNpc);
         if (!npcNow) {
             return { success: false, message: `${resolvedNpc.name} no longer visible`, reason: 'npc_not_found' };
         }
@@ -937,9 +960,9 @@ export class BotActions {
             }
         }
 
-        // Re-find the NPC after walking (it may have moved)
-        const npcPattern = typeof target === 'object' ? new RegExp(npc.name, 'i') : target;
-        const npcNow = this.helpers.resolveNpc(npcPattern);
+        // Re-find the NPC after walking (it may have moved). An entity target
+        // re-finds by server index so a same-named neighbour cannot win.
+        const npcNow = this.helpers.refindNpcTarget(target, npc);
         if (!npcNow) {
             return { success: false, message: `${npc.name} no longer visible` };
         }
@@ -1652,11 +1675,22 @@ export class BotActions {
 
     // ============ Porcelain: Bank Actions ============
 
+    /**
+     * Nearest bank booth/chest that can actually open the bank. 'Closed bank
+     * booth' (Fishing Guild, wedged between open booths) matches the name and
+     * may publish options but no bank op; if it wins on distance every click
+     * times out silently.
+     */
+    private findUsableBankBooth(): NearbyLoc | null {
+        const booths = this.sdk.getNearbyLocs()
+            .filter(l => /bank booth|bank chest/i.test(l.name) && !/^closed/i.test(l.name) && l.optionsWithIndex.length > 0)
+            .sort((a, b) => a.distance - b.distance);
+        return booths.find(l => l.optionsWithIndex.some(o => /bank|use/i.test(o.text))) ?? booths[0] ?? null;
+    }
+
     /** Open a bank booth or talk to a banker. */
     async openBank(timeout: number = 10000): Promise<OpenBankResult> {
-        const bankBooth = this.sdk.getNearbyLocs()
-            .filter(l => /bank booth|bank chest/i.test(l.name) && l.optionsWithIndex.length > 0)
-            .sort((a, b) => a.distance - b.distance)[0] || null;
+        const bankBooth = this.findUsableBankBooth();
 
         return this.helpers.withDoorRetry(
             () => this._openBankOnce(timeout),
@@ -1676,9 +1710,7 @@ export class BotActions {
 
         const banker = this.sdk.findNearbyNpc(/banker/i);
         // Filter bank booths/chests to only those with usable options (excludes "Closed bank booth" etc.)
-        const bankBooth = this.sdk.getNearbyLocs()
-            .filter(l => /bank booth|bank chest/i.test(l.name) && l.optionsWithIndex.length > 0)
-            .sort((a, b) => a.distance - b.distance)[0] || null;
+        const bankBooth = this.findUsableBankBooth();
 
         if (!banker && !bankBooth) {
             return { success: false, message: 'No banker NPC or bank booth found nearby', reason: 'no_bank_found' };
@@ -1695,9 +1727,7 @@ export class BotActions {
         }
 
         // Re-find targets after walking (they may have changed)
-        const bankBoothNow = this.sdk.getNearbyLocs()
-            .filter(l => /bank booth|bank chest/i.test(l.name) && l.optionsWithIndex.length > 0)
-            .sort((a, b) => a.distance - b.distance)[0] || null;
+        const bankBoothNow = this.findUsableBankBooth();
         const bankerNow = this.sdk.findNearbyNpc(/banker/i);
 
         let interactSuccess = false;
@@ -1806,6 +1836,11 @@ export class BotActions {
      * whichever matched first.
      */
     async depositItem(target: InventoryItem | string | RegExp, amount: number = -1): Promise<BankDepositResult> {
+        if (typeof target !== 'string' && !(target instanceof RegExp) && !(typeof target === 'object' && target !== null && 'slot' in target)) {
+            // A bare slot number lands here from untyped callers and used to
+            // crash inside the name matcher with a readonly-property TypeError.
+            return { success: false, message: `depositItem target must be an item, name or pattern (got ${typeof target}); pass sdk.getInventory()[slot] for a slot`, reason: 'item_not_found' };
+        }
         const validated = validateActionQuantity(amount, { allowAll: true, max: MAX_BANK_ACTION_QUANTITY });
         if (!validated.valid) {
             return { success: false, message: validated.message, reason: 'invalid_amount' };
@@ -2711,9 +2746,11 @@ export class BotActions {
             return { success: false, hpGained: 0, message: `Food not found: ${target}` };
         }
 
-        const eatOpt = food.optionsWithIndex.find(o => /eat/i.test(o.text));
+        // Drinkable healing items (Beer, wine, potions) publish 'Drink', not 'Eat'.
+        const eatOpt = food.optionsWithIndex.find(o => /^(eat|drink)$/i.test(o.text))
+            ?? food.optionsWithIndex.find(o => /eat|drink/i.test(o.text));
         if (!eatOpt) {
-            return { success: false, hpGained: 0, message: `No eat option on ${food.name}` };
+            return { success: false, hpGained: 0, message: `No eat/drink option on ${food.name}` };
         }
 
         const hpBefore = this.sdk.getSkill('Hitpoints')?.level ?? 10;
@@ -4081,9 +4118,10 @@ export class BotActions {
             }
         }
 
-        // Re-find the NPC after walking (it may have moved)
-        const npcPattern = typeof target === 'object' ? new RegExp(npc.name, 'i') : target;
-        const npcNow = this.helpers.resolveNpc(npcPattern);
+        // Re-find the NPC after walking (it may have moved). An entity target
+        // re-finds by server index so a same-named neighbour (the other kind of
+        // "Fishing spot") cannot win on distance.
+        const npcNow = this.helpers.refindNpcTarget(target, npc);
         if (!npcNow) {
             return { success: false, message: `${npc.name} no longer visible`, reason: 'npc_not_found' };
         }

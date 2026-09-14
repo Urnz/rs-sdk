@@ -13,6 +13,7 @@ import { NpcIteratorType } from '#/engine/entity/NpcIteratorType.js';
 import { NpcMode } from '#/engine/entity/NpcMode.js';
 import { NpcStat } from '#/engine/entity/NpcStat.js';
 import Obj from '#/engine/entity/Obj.js';
+import { recordKill } from '#/engine/entity/tracking/KillLedger.js';
 import { NpcHuntAllCommandIterator, NpcIterator } from '#/engine/script/ScriptIterators.js';
 import { ScriptOpcode } from '#/engine/script/ScriptOpcode.js';
 import ScriptPointer, { ActiveNpc, ActivePlayer, checkedHandler } from '#/engine/script/ScriptPointer.js';
@@ -91,7 +92,29 @@ const NpcOps: CommandHandlers = {
     }),
 
     [ScriptOpcode.NPC_DEL]: checkedHandler(ActiveNpc, state => {
-        World.removeNpc(state.activeNpc, check(state.activeNpc.type, NpcTypeValid).respawnrate);
+        const npc = state.activeNpc;
+        const type = check(npc.type, NpcTypeValid);
+        // Kill ledger (KILL_LEDGER_FILE): npc_del at 0 hp is a death, not a
+        // scripted despawn. heroPoints is still intact here — it's only
+        // cleared on respawn — so the loot-credit rule (findHero) and the
+        // full damage split are recordable at this chokepoint.
+        if (npc.levels[NpcStat.HITPOINTS] === 0) {
+            const contributors = [...npc.heroPoints]
+                .filter(h => h && h.hash64 !== -1n && h.points > 0)
+                .sort((a, b) => b.points - a.points)
+                .map(h => ({ username: World.getPlayerByHash64(h.hash64)?.username ?? null, damage: h.points }));
+            recordKill({
+                tick: World.currentTick,
+                npcId: type.id,
+                npcName: type.debugname ?? type.name,
+                killer: contributors[0]?.username ?? null,
+                contributors,
+                x: npc.x,
+                z: npc.z,
+                level: npc.level
+            });
+        }
+        World.removeNpc(npc, type.respawnrate);
     }),
 
     [ScriptOpcode.NPC_DELAY]: checkedHandler(ActiveNpc, state => {

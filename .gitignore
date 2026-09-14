@@ -37,3 +37,19 @@ server/engine/data/mods/*.sqlite-shm
 server/engine/data/mods/*.sqlite-wal
 # Legacy cache path created by older lite-client sessions when HOME was unset.
 server/webclient/undefined/
+
+# Remote 25-account Lite fleet tooling (lives on the exedev host, not tracked here)
+bots/FLEET_MANDATE.md
+bots/camp_trainer.ts
+bots/fleet_*.ts
+bots/*_fleet.sh
+bots/*_fleet_monitor.sh
+bots/run_*_combat.sh
+bots/combat_status.sh
+bots/rs-sdk-remote.cron
+
+# Durable Grand Exchange ledger and SQLite WAL files
+server/engine/data/market.sqlite*
+
+# Generated when engine utilities are invoked from the repository root
+/data/

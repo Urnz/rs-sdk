@@ -1,3 +1,5 @@
+import { tickExchange } from '#/engine/market/GrandExchange.js';
+import { playerSaveStore } from '#/engine/market/MarketStore.js';
 // stdlib
 import fs from 'fs';
 import { randomUUID } from 'node:crypto';
@@ -1908,6 +1910,8 @@ class World {
                 // - interactions
                 // - movement
                 player.processInteraction();
+                if (!player.busy() && !player.delayed && !player.loggingOut) player.recoverItems();
+                if (Environment.GE_ENABLED) tickExchange(player);
 
                 // - run energy
                 player.updateEnergy();
@@ -2081,6 +2085,15 @@ class World {
                     player.addSessionLog(LoggerEventType.ENGINE, 'Kicking existing session to allow new login');
                 }
                 other.addSessionLog(LoggerEventType.ENGINE, 'Kicked due to login from another session');
+
+                // Close any open modal BEFORE snapshotting. save() only serializes
+                // scope=perm invs, so anything parked in a temp inv behind an open
+                // interface (tradeoffer, dueloffer, duelwinnings, partyroom_tempinv,
+                // trawler_rewardinv) is deleted unless the interface's [if_close]
+                // return-to-inventory script runs first. The logout and reconnect
+                // paths both already do this; the takeover path did not, so logging
+                // in from a second client mid-trade silently destroyed the offer.
+                other.closeModal();
 
                 // Save the existing player's in-memory state before removing them
                 // This prevents losing progress when the new login was loaded from stale disk save
@@ -2505,13 +2518,32 @@ class World {
             return;
         }
 
+        const saves = this.checkpointPlayers();
         for (const player of this.playerLoop.all()) {
             this.loginThread.postMessage({
                 type: 'player_autosave',
                 username: player.username,
-                save: player.save()
+                save: saves.get(player.username)!
             });
         }
+    }
+
+    /** A single recovery boundary includes online players and pending logout saves.
+     * Used by autosaves, reconnects, logouts and GE so subsequent ordinary trades
+     * cannot advance only one side of a previously checkpointed transfer.
+     */
+    checkpointPlayers(extra?: Player, extraSave?: Uint8Array): Map<string, Uint8Array> {
+        const saves = new Map<string, Uint8Array>();
+        for (const [owner, request] of this.logoutRequests) saves.set(owner, request.save);
+        for (const player of this.playerLoop.all()) {
+            saves.set(player.username, player === extra && extraSave ? extraSave : player.save(false));
+        }
+        if (extra) saves.set(extra.username, extraSave ?? extra.save(false));
+        const store = playerSaveStore();
+        if (store) store.db.transaction(() => {
+            for (const [owner, save] of saves) store.checkpoint(owner, save, true);
+        }).immediate();
+        return saves;
     }
 
     enqueueScript(script: ScriptState, delay: number = 0): void {
@@ -3848,12 +3880,14 @@ class World {
     }
 
     flushPlayer(player: Player) {
-        const save = player.save();
-
+        const save = player.save(false);
         this.logoutRequests.set(player.username, {
             save,
             lastAttempt: -1
         });
+        // Enroll first-time players before the async login-service acknowledgement.
+        // Keep the pending save available even if a bystander's serialization fails.
+        this.checkpointPlayers(player, save);
     }
 }
 

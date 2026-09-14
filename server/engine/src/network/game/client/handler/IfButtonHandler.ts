@@ -1,3 +1,4 @@
+import { exchangeButton } from '#/engine/market/GrandExchange.js';
 import Component from '#/cache/config/Component.js';
 import Player from '#/engine/entity/Player.js';
 import ScriptProvider from '#/engine/script/ScriptProvider.js';
@@ -20,6 +21,8 @@ export default class IfButtonHandler extends ClientGameMessageHandler<IfButton> 
             // bad client or lag: component is not visible
             return false;
         }
+
+        if (exchangeButton(player, comId)) return true;
 
         player.lastCom = comId;
 
