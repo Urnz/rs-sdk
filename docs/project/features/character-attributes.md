@@ -7,8 +7,15 @@ for persistent player characters. Version 1 uses six axes: `intellect`,
 An `AttributeProfile` is bound to the character agent and the creation time of its
 current lifecycle. It records the exact creation policy, optional seeded genesis
 evidence, declared score scale, derived total point count and a canonical SHA-256
-digest. Generated scores are not implemented by this slice; the next phase 17
-slice will own the bounded seeded distribution policy.
+digest.
+
+NPC total point budgets use a versioned `bounded-discrete` policy. Every integer
+in the configured interval must have one positive weight, the interval must fit
+the six-attribute scale, and total weight is bounded. Generation derives an
+unbiased weighted ticket with SHA-256 rejection sampling from the world seed,
+policy digest, character identity and lifecycle creation time. The raw seed is
+not retained; results contain its digest, the exact policy reference and entropy
+evidence. The individual-attribute allocation remains a separate phase 17 slice.
 
 The profile deliberately contains none of the following:
 

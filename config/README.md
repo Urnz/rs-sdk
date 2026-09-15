@@ -6,6 +6,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `world-mods.json`: a modok manifestje és szerkeszthető alapbeállításai.
 - `properties.json`: a verziózott ingatlankatalógus; tulajdonosi állapot soha nem
   kerül ebbe a fájlba.
+- `attribute-budget-policies.json`: a nem játékos karakterek seedelt, korlátozott
+  induló adottság-pontkeretének verziózott és titokmentes eloszlása.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

@@ -412,7 +412,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
 - [x] A RuneScape skillektől külön `AttributeProfile` modellt készíteni 5–6
   alapadottsággal; kezdeti jelöltek: `intellect`, `dexterity`, `vigor`,
   `endurance/vitality`, `perception`, `social/will`.
-- [ ] Az NPC-k teljes induló attribute-pontkeretét ne fixen, hanem konfigurálható,
+- [x] Az NPC-k teljes induló attribute-pontkeretét ne fixen, hanem konfigurálható,
   seedelt és korlátozott statisztikai eloszlásból generálni, hogy létezzenek
   veleszületetten kedvezőbb és kedvezőtlenebb adottságú karakterek.
 - [ ] A generált teljes pontkereten belül seedelt elosztást készíteni úgy, hogy ne

@@ -42,3 +42,57 @@ export interface AttributeProfile extends AttributeProfileDefinition {
     totalPoints: number;
     digest: string;
 }
+
+export const ATTRIBUTE_BUDGET_POLICY_SCHEMA_VERSION = 1 as const;
+
+export interface AttributeBudgetWeight {
+    points: number;
+    weight: number;
+}
+
+export interface AttributeBudgetPolicyDefinition {
+    schemaVersion: typeof ATTRIBUTE_BUDGET_POLICY_SCHEMA_VERSION;
+    policyId: string;
+    version: string;
+    characterKind: 'npc';
+    scale: AttributeScale;
+    distribution: {
+        kind: 'bounded-discrete';
+        minimumTotalPoints: number;
+        maximumTotalPoints: number;
+        weights: AttributeBudgetWeight[];
+    };
+    entropy: {
+        algorithm: 'sha256-rejection-v1';
+        namespace: string;
+    };
+}
+
+export interface AttributeBudgetPolicy extends AttributeBudgetPolicyDefinition {
+    digest: string;
+}
+
+export interface AttributeBudgetPolicyCatalog {
+    schemaVersion: typeof ATTRIBUTE_BUDGET_POLICY_SCHEMA_VERSION;
+    policies: AttributeBudgetPolicy[];
+}
+
+export interface GenerateAttributeBudgetInput {
+    seed: string;
+    characterAgentId: string;
+    lifecycleCreatedAtSimulationTime: string;
+}
+
+export interface GeneratedAttributeBudgetDefinition {
+    schemaVersion: typeof ATTRIBUTE_BUDGET_POLICY_SCHEMA_VERSION;
+    characterAgentId: string;
+    lifecycleCreatedAtSimulationTime: string;
+    policy: { policyId: string; version: string; digest: string };
+    source: AttributeProfileSource;
+    totalPoints: number;
+    entropyDigest: string;
+}
+
+export interface GeneratedAttributeBudget extends GeneratedAttributeBudgetDefinition {
+    digest: string;
+}
