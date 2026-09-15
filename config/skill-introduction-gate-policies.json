@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "default-new-personal-skill-gate",
+      "version": "1.0.0",
+      "minimumIndependentEvidencePerGap": 2,
+      "requireExperimentEvidence": true
+    }
+  ]
+}

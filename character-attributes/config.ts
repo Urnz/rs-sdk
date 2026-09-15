@@ -4,10 +4,14 @@ import { validateAttributeBudgetPolicy } from './budget-policy.js';
 import { validateHumanAttributeCreationPolicy } from './human-policy.js';
 import { validateSkillPotentialPolicy } from './skill-potential.js';
 import { validateSkillCapPolicy } from './skill-cap-policy.js';
+import { validateSkillIntroductionGatePolicy } from './skill-introduction-gate.js';
 import { ATTRIBUTE_ALLOCATION_POLICY_SCHEMA_VERSION, ATTRIBUTE_BUDGET_POLICY_SCHEMA_VERSION,
-    HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION, type AttributeAllocationPolicyCatalog,
+    HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION, SKILL_INTRODUCTION_GATE_SCHEMA_VERSION,
+    type AttributeAllocationPolicyCatalog,
     SKILL_CAP_POLICY_SCHEMA_VERSION, SKILL_POTENTIAL_POLICY_SCHEMA_VERSION, type AttributeBudgetPolicyCatalog,
-    type HumanAttributeCreationPolicyCatalog, type SkillCapPolicyCatalog, type SkillPotentialPolicyCatalog } from './types.js';
+    type HumanAttributeCreationPolicyCatalog, type SkillCapPolicyCatalog,
+    type SkillIntroductionGatePolicyCatalog, type SkillIntroductionGatePolicyDefinition,
+    type SkillPotentialPolicyCatalog } from './types.js';
 
 function record(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -97,4 +101,23 @@ export function validateSkillCapPolicyCatalog(value: unknown): SkillCapPolicyCat
 
 export function loadSkillCapPolicyCatalog(path: string): SkillCapPolicyCatalog {
     return validateSkillCapPolicyCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown);
+}
+
+export function validateSkillIntroductionGatePolicyCatalog(value: unknown): SkillIntroductionGatePolicyCatalog {
+    if (!record(value) || value.schemaVersion !== SKILL_INTRODUCTION_GATE_SCHEMA_VERSION
+        || Object.keys(value).sort().join(',') !== 'policies,schemaVersion' || !Array.isArray(value.policies)) {
+        throw new Error('Skill introduction gate policy catalog is invalid');
+    }
+    const policies = value.policies.map(item =>
+        validateSkillIntroductionGatePolicy(item as SkillIntroductionGatePolicyDefinition));
+    if (policies.length < 1 || policies.length > 100) {
+        throw new Error('Skill introduction gate policy catalog requires 1-100 policies');
+    }
+    const identities = new Set(policies.map(policy => `${policy.policyId}@${policy.version}`));
+    if (identities.size !== policies.length) throw new Error('Skill introduction gate policy identities must be unique');
+    return { schemaVersion: SKILL_INTRODUCTION_GATE_SCHEMA_VERSION, policies };
+}
+
+export function loadSkillIntroductionGatePolicyCatalog(path: string): SkillIntroductionGatePolicyCatalog {
+    return validateSkillIntroductionGatePolicyCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown);
 }

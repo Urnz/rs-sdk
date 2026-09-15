@@ -418,3 +418,54 @@ export interface SkillPotentialExperimentReportDefinition {
 export interface SkillPotentialExperimentReport extends SkillPotentialExperimentReportDefinition {
     digest: string;
 }
+
+export const SKILL_INTRODUCTION_GATE_SCHEMA_VERSION = 1 as const;
+
+export interface SkillIntroductionGatePolicyDefinition {
+    schemaVersion: typeof SKILL_INTRODUCTION_GATE_SCHEMA_VERSION;
+    policyId: string;
+    version: string;
+    minimumIndependentEvidencePerGap: number;
+    requireExperimentEvidence: boolean;
+}
+
+export interface SkillIntroductionGatePolicy extends SkillIntroductionGatePolicyDefinition {
+    digest: string;
+}
+
+export interface SkillIntroductionGatePolicyCatalog {
+    schemaVersion: typeof SKILL_INTRODUCTION_GATE_SCHEMA_VERSION;
+    policies: SkillIntroductionGatePolicy[];
+}
+
+export interface NewPersonalSkillProposal {
+    schemaVersion: typeof SKILL_INTRODUCTION_GATE_SCHEMA_VERSION;
+    proposalId: string;
+    proposedSkillId: string;
+    version: string;
+    requirements: Array<{ requirementId: string; description: string }>;
+    alternatives: {
+        personalSkills: Array<{ skillId: string; minimumLevel: number; covers: string[] }>;
+        verifiedProcedures: Array<{ skill: { id: string; version: string; checksum: string }; covers: string[] }>;
+        providedCapabilities: Array<{ capabilityId: string; providerKind: 'facility' | 'organization'; covers: string[] }>;
+    };
+    gapEvidence: Array<{ evidenceId: string; requirementId: string; source: 'experiment' | 'domain-analysis';
+        sourceDigest: string; finding: string }>;
+}
+
+export type SkillIntroductionGateOutcome = 'use-existing-composition' | 'evidence-required' | 'candidate-justified';
+
+export interface SkillIntroductionGateDecisionDefinition {
+    schemaVersion: typeof SKILL_INTRODUCTION_GATE_SCHEMA_VERSION;
+    proposal: { proposalId: string; proposedSkillId: string; version: string; digest: string };
+    policy: { policyId: string; version: string; digest: string };
+    coveredRequirementIds: string[];
+    uncoveredRequirementIds: string[];
+    outcome: SkillIntroductionGateOutcome;
+    mayIntroducePersonalSkill: boolean;
+    reasons: string[];
+}
+
+export interface SkillIntroductionGateDecision extends SkillIntroductionGateDecisionDefinition {
+    digest: string;
+}

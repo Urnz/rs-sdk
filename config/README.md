@@ -16,6 +16,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   tanulási szorzó és személyes potenciál korlátai; titkot nem tartalmaz.
 - `skill-cap-policies.json`: klasszikus, attribute-függő kemény és puha, valamint
   facility-központú személyes skillplafon-policyk.
+- `skill-introduction-gate-policies.json`: az új személyes skillekhez megkövetelt
+  független hiánybizonyíték és kísérleti bizonyíték szabályai.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

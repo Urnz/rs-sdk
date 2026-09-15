@@ -85,6 +85,15 @@ policy digests, making repeated runs directly comparable and reproducible. It is
 an exported report only, not persistent state; rollback therefore removes the
 adapter before a future telemetry store introduces its own migration plan.
 
+The new-personal-skill gate decomposes a proposed domain into explicit
+requirements. It first unions coverage from existing 1–99 skills, exact verified
+procedures and facility or organization capabilities. Complete coverage rejects
+the new skill in favour of composition. Each remaining gap needs the configured
+number of independent evidence digests and, by default, at least one experiment
+before it becomes a justified candidate. The gate emits only an immutable
+decision; it never creates a skill automatically or delegates the choice to an
+LLM.
+
 Those domains may read a profile through a typed adapter later. They must not
 rewrite base aptitude values to represent experience, equipment, membership or
 temporary effects. A future legitimate change to an aptitude requires a separate,

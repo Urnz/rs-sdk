@@ -9,3 +9,4 @@ export * from './skill-potential.js';
 export * from './skill-cap-policy.js';
 export * from './progression.js';
 export * from './experiment.js';
+export * from './skill-introduction-gate.js';

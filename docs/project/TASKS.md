@@ -437,7 +437,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
   vanilla viselkedésű, amíg külön nem validáltuk.
 - [x] A tanulási és plafonhatásokat verziózott profilként, telemetriával és
   kontroll–kezelés kísérlettel mérhetővé tenni.
-- [ ] Új személyes skill bevezetését külön döntési kapuhoz kötni: csak akkor
+- [x] Új személyes skill bevezetését külön döntési kapuhoz kötni: csak akkor
   kerüljön be például engineering vagy machining, ha a kívánt képesség nem
   modellezhető ésszerűen meglévő RuneScape skill + verified procedure + facility
   capability kombinációval.
