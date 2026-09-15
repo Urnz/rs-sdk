@@ -69,6 +69,13 @@ personal progression to the lower of potential and its configured ceiling, and
 names the separately required provided capability. Facility access never raises
 or rewrites a personal RuneScape level.
 
+The first bounded progression adapter applies these decisions only to Fishing,
+Cooking, Mining and Smithing XP awards. It adjusts XP by the resolved learning
+multiplier or returns zero after a hard personal cap. Every other existing skill
+uses an explicit vanilla pass-through that does not even require a potential
+profile. This keeps the rollout narrow and makes later engine integration use a
+single typed, testable boundary rather than duplicating formulas in scripts.
+
 Those domains may read a profile through a typed adapter later. They must not
 rewrite base aptitude values to represent experience, equipment, membership or
 temporary effects. A future legitimate change to an aptitude requires a separate,

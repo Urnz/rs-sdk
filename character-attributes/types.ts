@@ -350,3 +350,20 @@ export interface SkillCapDecisionDefinition {
 export interface SkillCapDecision extends SkillCapDecisionDefinition {
     digest: string;
 }
+
+export const POTENTIAL_ENABLED_SKILLS = ['fishing', 'cooking', 'mining', 'smithing'] as const;
+export type PotentialEnabledSkill = typeof POTENTIAL_ENABLED_SKILLS[number];
+
+export interface SkillProgressionAwardDefinition {
+    schemaVersion: typeof SKILL_CAP_POLICY_SCHEMA_VERSION;
+    skillId: string;
+    baseXp: number;
+    grantedXp: number;
+    applied: boolean;
+    reason: 'vanilla-skill' | 'potential-adjusted' | 'personal-cap-reached';
+    capDecision: SkillCapDecision | null;
+}
+
+export interface SkillProgressionAward extends SkillProgressionAwardDefinition {
+    digest: string;
+}
