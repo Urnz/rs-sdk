@@ -248,3 +248,65 @@ export type CompetenceRequirement =
     | { kind: 'verified-agent-skill'; skill: { id: string; version: string; checksum: string } }
     | { kind: 'provided-capability'; capabilityId: string;
         provider: { kind: 'facility' | 'organization'; providerId: string } | null };
+
+export const SKILL_POTENTIAL_POLICY_SCHEMA_VERSION = 1 as const;
+
+export interface SkillPotentialWeightDefinition {
+    skillId: string;
+    weights: Record<AttributeKey, number>;
+}
+
+export interface SkillPotentialPolicyDefinition {
+    schemaVersion: typeof SKILL_POTENTIAL_POLICY_SCHEMA_VERSION;
+    policyId: string;
+    version: string;
+    skillWeights: SkillPotentialWeightDefinition[];
+    learning: {
+        baseMultiplierBps: number;
+        attributeInfluenceBps: number;
+        talentInfluenceBps: number;
+        minimumMultiplierBps: number;
+        maximumMultiplierBps: number;
+    };
+    potential: {
+        minimumLevel: number;
+        maximumLevel: number;
+        talentMaximumLevelAdjustment: number;
+    };
+}
+
+export interface SkillPotentialPolicy extends SkillPotentialPolicyDefinition {
+    digest: string;
+}
+
+export interface SkillPotentialPolicyCatalog {
+    schemaVersion: typeof SKILL_POTENTIAL_POLICY_SCHEMA_VERSION;
+    policies: SkillPotentialPolicy[];
+}
+
+export interface SkillTalentComponent {
+    skillId: string;
+    talentBps: number;
+}
+
+export interface SkillPotentialEntry {
+    skillId: string;
+    weightedAttributeScoreBps: number;
+    talentBps: number | null;
+    learningMultiplierBps: number;
+    personalPotentialLevel: number;
+}
+
+export interface SkillPotentialProfileDefinition {
+    schemaVersion: typeof SKILL_POTENTIAL_POLICY_SCHEMA_VERSION;
+    profileId: string;
+    version: string;
+    characterAgentId: string;
+    sourceAttributeProfile: { profileId: string; version: string; digest: string };
+    policy: { policyId: string; version: string; digest: string };
+    skills: SkillPotentialEntry[];
+}
+
+export interface SkillPotentialProfile extends SkillPotentialProfileDefinition {
+    digest: string;
+}

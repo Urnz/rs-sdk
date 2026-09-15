@@ -426,7 +426,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
   - [x] verified agent skill = végrehajtható, megtanult eljárás;
   - [x] facility/organizational capability = infrastruktúra vagy szervezet által
     biztosított effektív képesség.
-- [ ] `SkillPotentialProfile` modellt készíteni, amely az attribute-okból,
+- [x] `SkillPotentialProfile` modellt készíteni, amely az attribute-okból,
   konfigurálható skill-specifikus súlyokból és opcionális egyéni talent
   komponensből képez tanulási szorzót és személyes potenciált/plafont.
 - [ ] A személyes skillplafon legalább négy policyját támogatni: klasszikus 99,

@@ -54,6 +54,13 @@ migration is required. Rollback removes the schema and validator before any
 consumer stores it; a future persistent integration must introduce its own
 versioned migration and rollback plan.
 
+`SkillPotentialProfile` derives per-skill learning multipliers and personal
+potential levels from an immutable attribute profile. Each configured skill has
+six non-negative weights totalling exactly 10,000 basis points. An optional,
+bounded per-character talent component may adjust both results, while policy
+minimums and maximums remain authoritative. The result binds the exact source
+profile and policy digests and never changes the underlying aptitudes.
+
 Those domains may read a profile through a typed adapter later. They must not
 rewrite base aptitude values to represent experience, equipment, membership or
 temporary effects. A future legitimate change to an aptitude requires a separate,

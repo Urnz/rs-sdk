@@ -12,6 +12,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   nem optimalizált karakterprofilokra osztó seedelt policy.
 - `human-attribute-creation-policies.json`: a játékos által kiosztható normál és
   az NPC-kkel azonos genetikai lottót használó hardcore karakteralkotási módok.
+- `skill-potential-policies.json`: skillenkénti attribute-súlyok, valamint a
+  tanulási szorzó és személyes potenciál korlátai; titkot nem tartalmaz.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

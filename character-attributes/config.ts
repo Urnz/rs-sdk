@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs';
 import { validateAttributeAllocationPolicy } from './allocation-policy.js';
 import { validateAttributeBudgetPolicy } from './budget-policy.js';
 import { validateHumanAttributeCreationPolicy } from './human-policy.js';
+import { validateSkillPotentialPolicy } from './skill-potential.js';
 import { ATTRIBUTE_ALLOCATION_POLICY_SCHEMA_VERSION, ATTRIBUTE_BUDGET_POLICY_SCHEMA_VERSION,
     HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION, type AttributeAllocationPolicyCatalog,
-    type AttributeBudgetPolicyCatalog, type HumanAttributeCreationPolicyCatalog } from './types.js';
+    SKILL_POTENTIAL_POLICY_SCHEMA_VERSION, type AttributeBudgetPolicyCatalog,
+    type HumanAttributeCreationPolicyCatalog, type SkillPotentialPolicyCatalog } from './types.js';
 
 function record(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -60,4 +62,22 @@ export function validateHumanAttributeCreationPolicyCatalog(value: unknown): Hum
 
 export function loadHumanAttributeCreationPolicyCatalog(path: string): HumanAttributeCreationPolicyCatalog {
     return validateHumanAttributeCreationPolicyCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown);
+}
+
+export function validateSkillPotentialPolicyCatalog(value: unknown): SkillPotentialPolicyCatalog {
+    if (!record(value) || value.schemaVersion !== SKILL_POTENTIAL_POLICY_SCHEMA_VERSION
+        || Object.keys(value).sort().join(',') !== 'policies,schemaVersion' || !Array.isArray(value.policies)) {
+        throw new Error('Skill potential policy catalog is invalid');
+    }
+    const policies = value.policies.map(validateSkillPotentialPolicy);
+    if (policies.length < 1 || policies.length > 100) {
+        throw new Error('Skill potential catalog requires 1-100 policies');
+    }
+    const identities = new Set(policies.map(policy => `${policy.policyId}@${policy.version}`));
+    if (identities.size !== policies.length) throw new Error('Skill potential policy identities must be unique');
+    return { schemaVersion: SKILL_POTENTIAL_POLICY_SCHEMA_VERSION, policies };
+}
+
+export function loadSkillPotentialPolicyCatalog(path: string): SkillPotentialPolicyCatalog {
+    return validateSkillPotentialPolicyCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown);
 }

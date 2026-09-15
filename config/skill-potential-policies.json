@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "default-skill-potential",
+      "version": "1.0.0",
+      "skillWeights": [
+        {
+          "skillId": "fishing",
+          "weights": { "intellect": 1000, "dexterity": 2500, "vigor": 500, "endurance": 1500, "perception": 3500, "will": 1000 }
+        },
+        {
+          "skillId": "cooking",
+          "weights": { "intellect": 3000, "dexterity": 3000, "vigor": 500, "endurance": 500, "perception": 1500, "will": 1500 }
+        },
+        {
+          "skillId": "mining",
+          "weights": { "intellect": 500, "dexterity": 1000, "vigor": 3000, "endurance": 3000, "perception": 1500, "will": 1000 }
+        },
+        {
+          "skillId": "smithing",
+          "weights": { "intellect": 2500, "dexterity": 2000, "vigor": 1500, "endurance": 1500, "perception": 1000, "will": 1500 }
+        }
+      ],
+      "learning": {
+        "baseMultiplierBps": 10000,
+        "attributeInfluenceBps": 5000,
+        "talentInfluenceBps": 2000,
+        "minimumMultiplierBps": 5000,
+        "maximumMultiplierBps": 15000
+      },
+      "potential": {
+        "minimumLevel": 40,
+        "maximumLevel": 99,
+        "talentMaximumLevelAdjustment": 10
+      }
+    }
+  ]
+}
