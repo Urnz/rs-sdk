@@ -421,10 +421,10 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
 - [x] Human player karakteralkotáshoz külön world policyt adni: a kiosztható
   pontkeretet és az elosztást a játékos maga választhassa, vagy opcionálisan ugyanaz
   a genetikai lottó vonatkozhasson rá, mint az NPC-kre.
-- [ ] Külön kezelni a három eltérő fogalmat:
-  - [ ] RuneScape skill = személyes, 1–99 jellegű kompetencia;
-  - [ ] verified agent skill = végrehajtható, megtanult eljárás;
-  - [ ] facility/organizational capability = infrastruktúra vagy szervezet által
+- [x] Külön kezelni a három eltérő fogalmat:
+  - [x] RuneScape skill = személyes, 1–99 jellegű kompetencia;
+  - [x] verified agent skill = végrehajtható, megtanult eljárás;
+  - [x] facility/organizational capability = infrastruktúra vagy szervezet által
     biztosított effektív képesség.
 - [ ] `SkillPotentialProfile` modellt készíteni, amely az attribute-okból,
   konfigurálható skill-specifikus súlyokból és opcionális egyéni talent

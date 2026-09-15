@@ -199,3 +199,52 @@ export interface HumanAttributeCreationResultDefinition {
 export interface HumanAttributeCreationResult extends HumanAttributeCreationResultDefinition {
     digest: string;
 }
+
+export const COMPETENCE_SNAPSHOT_SCHEMA_VERSION = 1 as const;
+
+/** A personal RuneScape competence. It is never an executable agent procedure. */
+export interface PersonalRuneScapeSkill {
+    kind: 'personal-rs-skill';
+    characterAgentId: string;
+    skillId: string;
+    level: number;
+}
+
+/** One exact verified procedure learned by the character's agent. */
+export interface LearnedVerifiedAgentSkill {
+    kind: 'verified-agent-skill';
+    characterAgentId: string;
+    skill: { id: string; version: string; checksum: string };
+    learnedAtSimulationTime: string;
+    status: 'verified';
+    executable: true;
+}
+
+/** Effective access supplied by infrastructure or an organization, not owned aptitude. */
+export interface ProvidedCapability {
+    kind: 'provided-capability';
+    characterAgentId: string;
+    capabilityId: string;
+    provider: { kind: 'facility' | 'organization'; providerId: string };
+    grantId: string;
+}
+
+export interface CompetenceSnapshotDefinition {
+    schemaVersion: typeof COMPETENCE_SNAPSHOT_SCHEMA_VERSION;
+    snapshotId: string;
+    characterAgentId: string;
+    observedAtSimulationTime: string;
+    personalSkills: PersonalRuneScapeSkill[];
+    learnedProcedures: LearnedVerifiedAgentSkill[];
+    providedCapabilities: ProvidedCapability[];
+}
+
+export interface CompetenceSnapshot extends CompetenceSnapshotDefinition {
+    digest: string;
+}
+
+export type CompetenceRequirement =
+    | { kind: 'personal-rs-skill'; skillId: string; minimumLevel: number }
+    | { kind: 'verified-agent-skill'; skill: { id: string; version: string; checksum: string } }
+    | { kind: 'provided-capability'; capabilityId: string;
+        provider: { kind: 'facility' | 'organization'; providerId: string } | null };

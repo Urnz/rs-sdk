@@ -40,6 +40,20 @@ The profile deliberately contains none of the following:
 - verified agent skills (executable procedures);
 - facility or organizational capabilities (effective access and infrastructure).
 
+The versioned `CompetenceSnapshot` keeps those three concepts in separate typed
+collections and namespaces. Personal RuneScape skills are bounded to levels 1–99.
+An agent procedure is present only as an exact-version, checksum-bound, learned
+and verified executable skill reference. A provided capability always retains
+its facility or organization provider plus the access grant. Type-specific
+requirements query only their own collection, so a workshop cannot impersonate
+a personal Smithing level and a high skill level cannot invent a learned
+procedure.
+
+This is an additive in-memory schema and is not yet persisted, so no data
+migration is required. Rollback removes the schema and validator before any
+consumer stores it; a future persistent integration must introduce its own
+versioned migration and rollback plan.
+
 Those domains may read a profile through a typed adapter later. They must not
 rewrite base aptitude values to represent experience, equipment, membership or
 temporary effects. A future legitimate change to an aptitude requires a separate,
