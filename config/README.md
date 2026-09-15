@@ -8,6 +8,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   kerül ebbe a fájlba.
 - `attribute-budget-policies.json`: a nem játékos karakterek seedelt, korlátozott
   induló adottság-pontkeretének verziózott és titokmentes eloszlása.
+- `attribute-allocation-policies.json`: a pontkeretet generalista, specialista és
+  nem optimalizált karakterprofilokra osztó seedelt policy.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

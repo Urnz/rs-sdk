@@ -415,7 +415,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
 - [x] Az NPC-k teljes induló attribute-pontkeretét ne fixen, hanem konfigurálható,
   seedelt és korlátozott statisztikai eloszlásból generálni, hogy létezzenek
   veleszületetten kedvezőbb és kedvezőtlenebb adottságú karakterek.
-- [ ] A generált teljes pontkereten belül seedelt elosztást készíteni úgy, hogy ne
+- [x] A generált teljes pontkereten belül seedelt elosztást készíteni úgy, hogy ne
   minden karakter optimalizált buildet kapjon; generalista és erősen specialista
   profilok egyaránt létrejöhessenek.
 - [ ] Human player karakteralkotáshoz külön world policyt adni: a kiosztható

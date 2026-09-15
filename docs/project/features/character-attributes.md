@@ -15,7 +15,16 @@ the six-attribute scale, and total weight is bounded. Generation derives an
 unbiased weighted ticket with SHA-256 rejection sampling from the world seed,
 policy digest, character identity and lifecycle creation time. The raw seed is
 not retained; results contain its digest, the exact policy reference and entropy
-evidence. The individual-attribute allocation remains a separate phase 17 slice.
+evidence.
+
+The second deterministic draw selects one of three explicitly weighted allocation
+strategies. `generalist` keeps scores within one point where the scale permits;
+`specialist` fills a seeded subset of focus attributes before spending elsewhere;
+`unoptimized` assigns each point independently without looking ahead to future
+skill weights. Every strategy spends the exact generated budget, stays inside the
+declared scale and emits allocation evidence plus a complete validated
+`AttributeProfile`. This makes balanced, strongly specialized and awkward random
+combinations possible without an LLM choosing a build.
 
 The profile deliberately contains none of the following:
 

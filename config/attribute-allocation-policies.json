@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "default-npc-allocation",
+      "version": "1.0.0",
+      "characterKind": "npc",
+      "budgetPolicy": {
+        "policyId": "default-npc-attributes",
+        "version": "1.0.0"
+      },
+      "strategies": [
+        { "strategy": "generalist", "weight": 40 },
+        { "strategy": "specialist", "weight": 35 },
+        { "strategy": "unoptimized", "weight": 25 }
+      ],
+      "specialistFocusCount": 2,
+      "entropy": {
+        "algorithm": "sha256-rejection-v1",
+        "namespace": "agent-society.attribute-allocation"
+      }
+    }
+  ]
+}

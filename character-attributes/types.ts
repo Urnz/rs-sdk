@@ -96,3 +96,56 @@ export interface GeneratedAttributeBudgetDefinition {
 export interface GeneratedAttributeBudget extends GeneratedAttributeBudgetDefinition {
     digest: string;
 }
+
+export const ATTRIBUTE_ALLOCATION_POLICY_SCHEMA_VERSION = 1 as const;
+
+export type AttributeAllocationStrategy = 'generalist' | 'specialist' | 'unoptimized';
+
+export interface AttributeAllocationStrategyWeight {
+    strategy: AttributeAllocationStrategy;
+    weight: number;
+}
+
+export interface AttributeAllocationPolicyDefinition {
+    schemaVersion: typeof ATTRIBUTE_ALLOCATION_POLICY_SCHEMA_VERSION;
+    policyId: string;
+    version: string;
+    characterKind: 'npc';
+    budgetPolicy: { policyId: string; version: string };
+    strategies: AttributeAllocationStrategyWeight[];
+    specialistFocusCount: number;
+    entropy: {
+        algorithm: 'sha256-rejection-v1';
+        namespace: string;
+    };
+}
+
+export interface AttributeAllocationPolicy extends AttributeAllocationPolicyDefinition {
+    digest: string;
+}
+
+export interface AttributeAllocationPolicyCatalog {
+    schemaVersion: typeof ATTRIBUTE_ALLOCATION_POLICY_SCHEMA_VERSION;
+    policies: AttributeAllocationPolicy[];
+}
+
+export interface GeneratedAttributeAllocationDefinition {
+    schemaVersion: typeof ATTRIBUTE_ALLOCATION_POLICY_SCHEMA_VERSION;
+    characterAgentId: string;
+    lifecycleCreatedAtSimulationTime: string;
+    budget: GeneratedAttributeBudget;
+    policy: { policyId: string; version: string; digest: string };
+    strategy: AttributeAllocationStrategy;
+    values: AttributeValues;
+    entropyDigest: string;
+}
+
+export interface GeneratedAttributeAllocation extends GeneratedAttributeAllocationDefinition {
+    digest: string;
+}
+
+export interface GeneratedNpcAttributeProfile {
+    budget: GeneratedAttributeBudget;
+    allocation: GeneratedAttributeAllocation;
+    profile: AttributeProfile;
+}
