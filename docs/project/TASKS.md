@@ -435,7 +435,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
 - [x] Első vertikális szeletként csak néhány meglévő skillre – például Fishing,
   Cooking, Mining és Smithing – bekötni a potenciált; a többi skill maradjon
   vanilla viselkedésű, amíg külön nem validáltuk.
-- [ ] A tanulási és plafonhatásokat verziózott profilként, telemetriával és
+- [x] A tanulási és plafonhatásokat verziózott profilként, telemetriával és
   kontroll–kezelés kísérlettel mérhetővé tenni.
 - [ ] Új személyes skill bevezetését külön döntési kapuhoz kötni: csak akkor
   kerüljön be például engineering vagy machining, ha a kívánt képesség nem

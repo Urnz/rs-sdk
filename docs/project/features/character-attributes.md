@@ -76,6 +76,15 @@ uses an explicit vanilla pass-through that does not even require a potential
 profile. This keeps the rollout narrow and makes later engine integration use a
 single typed, testable boundary rather than duplicating formulas in scripts.
 
+The versioned paired experiment replays the same bounded XP event list for each
+participant in a vanilla control arm and a potential-policy treatment arm.
+Telemetry retains every input event and exact treatment award, then aggregates
+base XP, granted and adjusted XP, hard-cap blocks and soft-cap exposure per arm.
+The immutable report binds experiment, workload, participant profile and cap
+policy digests, making repeated runs directly comparable and reproducible. It is
+an exported report only, not persistent state; rollback therefore removes the
+adapter before a future telemetry store introduces its own migration plan.
+
 Those domains may read a profile through a typed adapter later. They must not
 rewrite base aptitude values to represent experience, equipment, membership or
 temporary effects. A future legitimate change to an aptitude requires a separate,

@@ -367,3 +367,54 @@ export interface SkillProgressionAwardDefinition {
 export interface SkillProgressionAward extends SkillProgressionAwardDefinition {
     digest: string;
 }
+
+export const SKILL_POTENTIAL_EXPERIMENT_SCHEMA_VERSION = 1 as const;
+export type SkillPotentialExperimentArm = 'control-vanilla' | 'treatment-potential';
+
+export interface SkillPotentialExperimentEvent {
+    eventId: string;
+    skillId: PotentialEnabledSkill;
+    baseXp: number;
+    currentLevel: number;
+}
+
+export interface SkillPotentialExperimentDefinition {
+    schemaVersion: typeof SKILL_POTENTIAL_EXPERIMENT_SCHEMA_VERSION;
+    experimentId: string;
+    version: string;
+    treatmentPolicy: { policyId: string; version: string; digest: string };
+    events: SkillPotentialExperimentEvent[];
+}
+
+export interface SkillPotentialTelemetrySummary {
+    participantId: string;
+    arm: SkillPotentialExperimentArm;
+    awards: number;
+    baseXp: number;
+    grantedXp: number;
+    adjustedXp: number;
+    blockedAwards: number;
+    softCappedAwards: number;
+}
+
+export interface SkillPotentialTelemetryEvent {
+    participantId: string;
+    arm: SkillPotentialExperimentArm;
+    event: SkillPotentialExperimentEvent;
+    award: SkillProgressionAward | null;
+    grantedXp: number;
+}
+
+export interface SkillPotentialExperimentReportDefinition {
+    schemaVersion: typeof SKILL_POTENTIAL_EXPERIMENT_SCHEMA_VERSION;
+    experiment: { experimentId: string; version: string; digest: string };
+    treatmentPolicy: { policyId: string; version: string; digest: string };
+    workloadFingerprint: string;
+    participants: Array<{ participantId: string; potentialProfileDigest: string }>;
+    telemetry: SkillPotentialTelemetryEvent[];
+    summaries: SkillPotentialTelemetrySummary[];
+}
+
+export interface SkillPotentialExperimentReport extends SkillPotentialExperimentReportDefinition {
+    digest: string;
+}
