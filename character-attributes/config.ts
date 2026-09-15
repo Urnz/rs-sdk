@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { validateAttributeAllocationPolicy } from './allocation-policy.js';
 import { validateAttributeBudgetPolicy } from './budget-policy.js';
+import { validateHumanAttributeCreationPolicy } from './human-policy.js';
 import { ATTRIBUTE_ALLOCATION_POLICY_SCHEMA_VERSION, ATTRIBUTE_BUDGET_POLICY_SCHEMA_VERSION,
-    type AttributeAllocationPolicyCatalog, type AttributeBudgetPolicyCatalog } from './types.js';
+    HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION, type AttributeAllocationPolicyCatalog,
+    type AttributeBudgetPolicyCatalog, type HumanAttributeCreationPolicyCatalog } from './types.js';
 
 function record(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -40,4 +42,22 @@ export function validateAttributeAllocationPolicyCatalog(value: unknown): Attrib
 
 export function loadAttributeAllocationPolicyCatalog(path: string): AttributeAllocationPolicyCatalog {
     return validateAttributeAllocationPolicyCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown);
+}
+
+export function validateHumanAttributeCreationPolicyCatalog(value: unknown): HumanAttributeCreationPolicyCatalog {
+    if (!record(value) || value.schemaVersion !== HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION
+        || Object.keys(value).sort().join(',') !== 'policies,schemaVersion' || !Array.isArray(value.policies)) {
+        throw new Error('Human attribute creation policy catalog is invalid');
+    }
+    const policies = value.policies.map(validateHumanAttributeCreationPolicy);
+    if (policies.length < 1 || policies.length > 100) {
+        throw new Error('Human attribute creation catalog requires 1-100 policies');
+    }
+    const identities = new Set(policies.map(policy => `${policy.policyId}@${policy.version}`));
+    if (identities.size !== policies.length) throw new Error('Human attribute policy identities must be unique');
+    return { schemaVersion: HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION, policies };
+}
+
+export function loadHumanAttributeCreationPolicyCatalog(path: string): HumanAttributeCreationPolicyCatalog {
+    return validateHumanAttributeCreationPolicyCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown);
 }

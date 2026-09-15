@@ -418,7 +418,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
 - [x] A generált teljes pontkereten belül seedelt elosztást készíteni úgy, hogy ne
   minden karakter optimalizált buildet kapjon; generalista és erősen specialista
   profilok egyaránt létrejöhessenek.
-- [ ] Human player karakteralkotáshoz külön world policyt adni: a kiosztható
+- [x] Human player karakteralkotáshoz külön world policyt adni: a kiosztható
   pontkeretet és az elosztást a játékos maga választhassa, vagy opcionálisan ugyanaz
   a genetikai lottó vonatkozhasson rá, mint az NPC-kre.
 - [ ] Külön kezelni a három eltérő fogalmat:

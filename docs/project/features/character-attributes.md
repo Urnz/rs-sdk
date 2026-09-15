@@ -26,6 +26,14 @@ declared scale and emits allocation evidence plus a complete validated
 `AttributeProfile`. This makes balanced, strongly specialized and awkward random
 combinations possible without an LLM choosing a build.
 
+Human character creation is a separate world policy. `standard-human-choice`
+requires the player to spend an exact fixed budget across all six bounded values;
+no seed is accepted or invented. `hardcore-human-lottery` references and reuses
+the exact NPC budget and allocation policy versions, while wrapping their
+evidence in a human-policy-owned profile. A mode mismatch, partial allocation,
+wrong point total, changed policy digest or mismatched lottery reference fails
+before a profile is created.
+
 The profile deliberately contains none of the following:
 
 - RuneScape skill levels (personal learned competence);

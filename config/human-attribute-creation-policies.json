@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "standard-human-choice",
+      "version": "1.0.0",
+      "characterKind": "human-player",
+      "mode": "player-choice",
+      "scale": { "minimum": 0, "maximum": 5 },
+      "manualAllocation": { "totalPoints": 10 },
+      "lottery": null
+    },
+    {
+      "schemaVersion": 1,
+      "policyId": "hardcore-human-lottery",
+      "version": "1.0.0",
+      "characterKind": "human-player",
+      "mode": "genetic-lottery",
+      "scale": { "minimum": 0, "maximum": 5 },
+      "manualAllocation": null,
+      "lottery": {
+        "budgetPolicy": { "policyId": "default-npc-attributes", "version": "1.0.0" },
+        "allocationPolicy": { "policyId": "default-npc-allocation", "version": "1.0.0" }
+      }
+    }
+  ]
+}

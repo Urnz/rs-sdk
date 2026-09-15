@@ -149,3 +149,53 @@ export interface GeneratedNpcAttributeProfile {
     allocation: GeneratedAttributeAllocation;
     profile: AttributeProfile;
 }
+
+export const HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION = 1 as const;
+export type HumanAttributeCreationMode = 'player-choice' | 'genetic-lottery';
+
+export interface HumanAttributeCreationPolicyDefinition {
+    schemaVersion: typeof HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION;
+    policyId: string;
+    version: string;
+    characterKind: 'human-player';
+    mode: HumanAttributeCreationMode;
+    scale: AttributeScale;
+    manualAllocation: { totalPoints: number } | null;
+    lottery: {
+        budgetPolicy: { policyId: string; version: string };
+        allocationPolicy: { policyId: string; version: string };
+    } | null;
+}
+
+export interface HumanAttributeCreationPolicy extends HumanAttributeCreationPolicyDefinition {
+    digest: string;
+}
+
+export interface HumanAttributeCreationPolicyCatalog {
+    schemaVersion: typeof HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION;
+    policies: HumanAttributeCreationPolicy[];
+}
+
+export type CreateHumanAttributeProfileInput = {
+    mode: 'player-choice';
+    characterAgentId: string;
+    lifecycleCreatedAtSimulationTime: string;
+    values: AttributeValues;
+} | {
+    mode: 'genetic-lottery';
+    characterAgentId: string;
+    lifecycleCreatedAtSimulationTime: string;
+    seed: string;
+};
+
+export interface HumanAttributeCreationResultDefinition {
+    schemaVersion: typeof HUMAN_ATTRIBUTE_POLICY_SCHEMA_VERSION;
+    policy: { policyId: string; version: string; digest: string };
+    mode: HumanAttributeCreationMode;
+    profile: AttributeProfile;
+    lotteryEvidence: GeneratedAttributeAllocation | null;
+}
+
+export interface HumanAttributeCreationResult extends HumanAttributeCreationResultDefinition {
+    digest: string;
+}
