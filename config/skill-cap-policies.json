@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "classic-level-99",
+      "version": "1.0.0",
+      "kind": "classic-99",
+      "maximumLevel": 99,
+      "softCapLearningMultiplierBps": null,
+      "facilityCapabilityId": null
+    },
+    {
+      "schemaVersion": 1,
+      "policyId": "attribute-hard-cap",
+      "version": "1.0.0",
+      "kind": "attribute-hard-cap",
+      "maximumLevel": 99,
+      "softCapLearningMultiplierBps": null,
+      "facilityCapabilityId": null
+    },
+    {
+      "schemaVersion": 1,
+      "policyId": "attribute-soft-cap",
+      "version": "1.0.0",
+      "kind": "attribute-soft-cap",
+      "maximumLevel": 99,
+      "softCapLearningMultiplierBps": 2500,
+      "facilityCapabilityId": null
+    },
+    {
+      "schemaVersion": 1,
+      "policyId": "facility-centered-personal-cap",
+      "version": "1.0.0",
+      "kind": "facility-centered-cap",
+      "maximumLevel": 60,
+      "softCapLearningMultiplierBps": null,
+      "facilityCapabilityId": "advanced-production-facility"
+    }
+  ]
+}

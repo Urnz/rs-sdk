@@ -429,7 +429,7 @@ későbbi időfüggő domain ugyanarra a kanonikus időforrásra tud épülni.
 - [x] `SkillPotentialProfile` modellt készíteni, amely az attribute-okból,
   konfigurálható skill-specifikus súlyokból és opcionális egyéni talent
   komponensből képez tanulási szorzót és személyes potenciált/plafont.
-- [ ] A személyes skillplafon legalább négy policyját támogatni: klasszikus 99,
+- [x] A személyes skillplafon legalább négy policyját támogatni: klasszikus 99,
   adottságfüggő kemény plafon, adottságfüggő puha plafon és facility-központú
   alacsonyabb személyes plafon.
 - [ ] Első vertikális szeletként csak néhány meglévő skillre – például Fishing,

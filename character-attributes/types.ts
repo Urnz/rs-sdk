@@ -310,3 +310,43 @@ export interface SkillPotentialProfileDefinition {
 export interface SkillPotentialProfile extends SkillPotentialProfileDefinition {
     digest: string;
 }
+
+export const SKILL_CAP_POLICY_SCHEMA_VERSION = 1 as const;
+export type SkillCapPolicyKind = 'classic-99' | 'attribute-hard-cap' | 'attribute-soft-cap'
+    | 'facility-centered-cap';
+
+export interface SkillCapPolicyDefinition {
+    schemaVersion: typeof SKILL_CAP_POLICY_SCHEMA_VERSION;
+    policyId: string;
+    version: string;
+    kind: SkillCapPolicyKind;
+    maximumLevel: number;
+    softCapLearningMultiplierBps: number | null;
+    facilityCapabilityId: string | null;
+}
+
+export interface SkillCapPolicy extends SkillCapPolicyDefinition {
+    digest: string;
+}
+
+export interface SkillCapPolicyCatalog {
+    schemaVersion: typeof SKILL_CAP_POLICY_SCHEMA_VERSION;
+    policies: SkillCapPolicy[];
+}
+
+export interface SkillCapDecisionDefinition {
+    schemaVersion: typeof SKILL_CAP_POLICY_SCHEMA_VERSION;
+    skillId: string;
+    currentLevel: number;
+    sourcePotentialProfile: { profileId: string; version: string; digest: string };
+    policy: { policyId: string; version: string; digest: string; kind: SkillCapPolicyKind };
+    personalHardCapLevel: number;
+    personalSoftCapLevel: number | null;
+    learningMultiplierBps: number;
+    canGainPersonalLevel: boolean;
+    providedCapabilityRequired: string | null;
+}
+
+export interface SkillCapDecision extends SkillCapDecisionDefinition {
+    digest: string;
+}

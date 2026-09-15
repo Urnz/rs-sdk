@@ -61,6 +61,14 @@ bounded per-character talent component may adjust both results, while policy
 minimums and maximums remain authoritative. The result binds the exact source
 profile and policy digests and never changes the underlying aptitudes.
 
+Personal level progression has four separate cap policies. `classic-99` retains
+the vanilla level ceiling. `attribute-hard-cap` stops personal progression at the
+derived potential; `attribute-soft-cap` keeps level 99 reachable but applies a
+bounded learning penalty above that potential. `facility-centered-cap` limits
+personal progression to the lower of potential and its configured ceiling, and
+names the separately required provided capability. Facility access never raises
+or rewrites a personal RuneScape level.
+
 Those domains may read a profile through a typed adapter later. They must not
 rewrite base aptitude values to represent experience, equipment, membership or
 temporary effects. A future legitimate change to an aptitude requires a separate,

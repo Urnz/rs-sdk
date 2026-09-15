@@ -6,3 +6,4 @@ export * from './allocation-policy.js';
 export * from './human-policy.js';
 export * from './competence.js';
 export * from './skill-potential.js';
+export * from './skill-cap-policy.js';
