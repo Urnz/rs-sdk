@@ -61,3 +61,14 @@ The furnishing ledger uses an additive schema-v1 database. Catalog changes affec
 new placements only because active placements retain their capability snapshot.
 For rollback, stop furnishing writers and restore or archive the SQLite database
 together with its WAL/SHM sidecars; deleting it loses placement and audit history.
+
+Future land purchase and new construction remain an isolated extension boundary.
+`config/land-construction.json` declares disabled land parcels, bounded world
+rectangles and versioned blueprints/stages. The planning function accepts a
+parcel only after configuration enables it and a trusted ownership-evidence
+digest is supplied, then reserves a future Property id that must not already
+exist. It returns an inert `planned` reference: no coins, map data or Property
+state are changed. A later implementation must add its own atomic purchase and
+construction ledgers, migration/rollback plan, map-content validation and trusted
+completion adapter before any candidate becomes a real Property. Therefore this
+preparation adds no persistent state and needs no data migration or rollback.

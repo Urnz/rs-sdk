@@ -476,7 +476,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
   asztal vagy más engedélyezett bútor Propertyn belül elhelyezhető és domain-
   capabilityt ad; ne legyen kötelező a későbbi RuneScape Construction mechanika
   közvetlen lemásolása.
-- [ ] A későbbi földvásárlás → építkezés → új épület útját külön extensionként
+- [x] A későbbi földvásárlás → építkezés → új épület útját külön extensionként
   előkészíteni Property/land parcel hivatkozásokkal, de az első lakhatási MVP-t
   meglévő épületekkel lezárni.
 

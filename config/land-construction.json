@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "parcels": [
+    {
+      "landParcelId": "falador.future-residential-1",
+      "label": "Falador jövőbeli lakótelek 1",
+      "region": "Falador South",
+      "enabled": false,
+      "purchasePriceGp": 30000,
+      "bounds": { "minX": 2972, "maxX": 2977, "minZ": 3324, "maxZ": 3329, "level": 0 }
+    }
+  ],
+  "blueprints": [
+    {
+      "blueprintId": "small-house",
+      "label": "Kis lakóház",
+      "resultPropertyType": "house",
+      "constructionCostGp": 75000,
+      "stages": [
+        { "stageId": "foundation", "label": "Alapozás" },
+        { "stageId": "structure", "label": "Szerkezet" },
+        { "stageId": "completion", "label": "Befejezés" }
+      ]
+    }
+  ]
+}

@@ -33,6 +33,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `housing-furnishings.json`: az engedélyezett bútorfajták capabilityit és a
   meglévő Propertyk szobánkénti elhelyezési slotjait adja meg. Új ház vagy
   bútor kódmódosítás nélkül, érvényes Property-hivatkozással vehető fel.
+- `land-construction.json`: alapból letiltott, verziózott előkészítő katalógus a
+  későbbi megvásárolható földparcellákhoz és építési terv/stage definíciókhoz.
+  Nem hoz létre épületet és nem módosítja a világot.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges
