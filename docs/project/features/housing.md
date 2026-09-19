@@ -27,12 +27,21 @@ digest, are idempotent, and update tenancy plus a hash-chained audit entry in on
 transaction. The resulting bed entitlement can be passed directly to the sleep
 admission boundary; connectivity never creates tenancy or access.
 
+Housing placement is data-driven in `config/housing-units.json`; no building id,
+city or coordinate is compiled into the housing domain. Each entry references an
+existing Property and can be enabled or disabled by configuration. Adding a later
+built house means adding its Property definition and then a housing-unit entry.
+Startup validation rejects unknown Property ids, duplicate beds and capacity
+mismatches. Existing tenancies retain their snapshotted rent period and terms if
+the editable catalog later changes; only new tenancies use the new configuration.
+
 These slices are configuration-only and create no persistent state, so no data
 migration is required. Rollback removes the housing policy and module before a
 consumer persists tier references. A future persistent reference must store the
 exact policy identity and provide its own migration and rollback plan.
 
-The tenancy database starts at schema v1 in new additive tables. Migration is
-transactional and rejects newer schemas. Rollback requires stopping tenancy
+The tenancy database starts with additive tables; schema v2 snapshots the rent
+period into every tenancy so later catalog edits cannot reinterpret it. Migration
+is transactional and rejects missing referenced units or newer schemas. Rollback requires stopping tenancy
 writers and restoring the database together with WAL/SHM sidecars; dropping the
 ledger without archiving would destroy rent and entitlement audit history.

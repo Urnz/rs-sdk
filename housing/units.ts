@@ -32,7 +32,8 @@ function canonical(value: unknown): unknown {
 export function housingUnitCatalogDigest(value: Omit<HousingUnitCatalog, 'digest'>): string {
     return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 }
-export function validateHousingUnitCatalog(value: unknown, hierarchy: HousingTierPolicy): HousingUnitCatalog {
+export function validateHousingUnitCatalog(value: unknown, hierarchy: HousingTierPolicy,
+    knownPropertyIds?: ReadonlySet<string>): HousingUnitCatalog {
     const input = rec(value, 'Housing unit catalog');
     exact(input, ['schemaVersion', 'units'], 'Housing unit catalog');
     if (input.schemaVersion !== 1 || !Array.isArray(input.units) || input.units.length > 1_000) {
@@ -40,8 +41,9 @@ export function validateHousingUnitCatalog(value: unknown, hierarchy: HousingTie
     }
     const units: HousingUnitDefinition[] = input.units.map((entry, index) => {
         const field = `units[${index}]`, unit = rec(entry, field);
-        exact(unit, ['housingUnitId', 'propertyId', 'tierId', 'capacity', 'rentGpPerPeriod',
+        exact(unit, ['housingUnitId', 'propertyId', 'tierId', 'enabled', 'capacity', 'rentGpPerPeriod',
             'rentPeriodSimulationMinutes', 'bedSlots'], field);
+        if (typeof unit.enabled !== 'boolean') throw new Error(`${field}.enabled must be boolean`);
         if (!Array.isArray(unit.bedSlots)) throw new Error(`${field}.bedSlots must be an array`);
         const bedSlots = unit.bedSlots.map((bed, bedIndex) => {
             const item = rec(bed, `${field}.bedSlots[${bedIndex}]`);
@@ -57,8 +59,12 @@ export function validateHousingUnitCatalog(value: unknown, hierarchy: HousingTie
             throw new Error(`${field} capacity must equal its unique bed slots`);
         }
         const tierId = resolveHousingTier(hierarchy, id(unit.tierId, `${field}.tierId`)).tierId;
+        const propertyId = id(unit.propertyId, `${field}.propertyId`);
+        if (knownPropertyIds && !knownPropertyIds.has(propertyId)) {
+            throw new Error(`${field}.propertyId references an unknown Property`);
+        }
         return { housingUnitId: id(unit.housingUnitId, `${field}.housingUnitId`),
-            propertyId: id(unit.propertyId, `${field}.propertyId`), tierId, capacity,
+            propertyId, tierId, enabled: unit.enabled, capacity,
             rentGpPerPeriod: int(unit.rentGpPerPeriod, `${field}.rentGpPerPeriod`, 0, 2_147_483_647),
             rentPeriodSimulationMinutes: int(unit.rentPeriodSimulationMinutes,
                 `${field}.rentPeriodSimulationMinutes`, 1, 525_600), bedSlots };

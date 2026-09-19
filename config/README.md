@@ -26,6 +26,10 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   hierarchiája az utcától a megerősített ingatlanig.
 - `housing-effect-policies.json`: a lakhatási szintek fatigue-regenerációs,
   privát storage- és lopásvédelmi hatásai.
+- `housing-units.json`: felhasználó által szerkeszthető housing modul. Meglévő
+  `propertyId`-khez rendel lakóegységet, ágyakat, kapacitást és bérleti feltételeket;
+  az `enabled` mezővel kódmódosítás nélkül kapcsolható. Új épület előbb a
+  `properties.json` katalógusba, majd ide vehető fel.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

@@ -10,7 +10,8 @@ const ID = /^[a-z0-9][a-z0-9._:-]{0,127}$/i;
 const ZERO = '0'.repeat(64);
 type Row = { tenancy_id: string; housing_unit_id: string; bed_slot_id: string; tenant_agent_id: string;
     status: HousingTenancyStatus; starts_at: string; ends_at: string; next_rent_due_at: string;
-    rent_gp_per_period: number; arrears_gp: number; unit_catalog_digest: string; revision: number };
+    rent_gp_per_period: number; rent_period_minutes: number; arrears_gp: number;
+    unit_catalog_digest: string; revision: number };
 
 function id(value: string, field: string): string {
     const normalized = value.trim().toLowerCase();
@@ -26,7 +27,8 @@ function tenancy(row: Row): HousingTenancy {
     return { tenancyId: row.tenancy_id, housingUnitId: row.housing_unit_id, bedSlotId: row.bed_slot_id,
         tenantAgentId: row.tenant_agent_id, status: row.status, startsAtSimulationTime: row.starts_at,
         endsAtSimulationTime: row.ends_at, nextRentDueAtSimulationTime: row.next_rent_due_at,
-        rentGpPerPeriod: row.rent_gp_per_period, arrearsGp: row.arrears_gp,
+        rentGpPerPeriod: row.rent_gp_per_period, rentPeriodSimulationMinutes: row.rent_period_minutes,
+        arrearsGp: row.arrears_gp,
         unitCatalogDigest: row.unit_catalog_digest, revision: row.revision };
 }
 function digest(value: unknown): string {
@@ -44,10 +46,8 @@ export class HousingTenancyStore {
         this.migrate();
         const persisted = this.database.query('SELECT catalog_digest FROM housing_tenancy_meta WHERE singleton=1')
             .get() as { catalog_digest: string };
-        if (persisted.catalog_digest !== catalog.digest) {
-            this.database.close(true);
-            throw new Error('Persisted tenancy catalog differs from the configured housing units');
-        }
+        if (persisted.catalog_digest !== catalog.digest) this.database.run(
+            'UPDATE housing_tenancy_meta SET catalog_digest=?1 WHERE singleton=1', [catalog.digest]);
     }
     close(): void { this.database.close(true); }
     get(tenancyId: string): HousingTenancy | null {
@@ -67,7 +67,9 @@ export class HousingTenancyStore {
             throw new Error('Tenancy period count must be between 1 and 3650');
         }
         const unit = this.catalog.units.find(item => item.housingUnitId === unitId);
-        if (!unit || !unit.bedSlots.some(bed => bed.bedSlotId === bedId)) throw new Error('Unknown housing unit or bed slot');
+        if (!unit || !unit.enabled || !unit.bedSlots.some(bed => bed.bedSlotId === bedId)) {
+            throw new Error('Unknown, disabled or invalid housing unit or bed slot');
+        }
         const periodMs = unit.rentPeriodSimulationMinutes * 60_000;
         const end = new Date(start.milliseconds + periodMs * input.periodCount).toISOString();
         const nextDue = new Date(start.milliseconds + periodMs).toISOString();
@@ -85,10 +87,10 @@ export class HousingTenancyStore {
             if (occupied) throw new Error('Bed slot or tenant already has an active tenancy');
             this.database.run(`INSERT INTO housing_tenancy
                 (tenancy_id,housing_unit_id,bed_slot_id,tenant_agent_id,status,starts_at,ends_at,
-                next_rent_due_at,rent_gp_per_period,arrears_gp,unit_catalog_digest,revision)
-                VALUES(?1,?2,?3,?4,'active',?5,?6,?7,?8,0,?9,1)`,
+                next_rent_due_at,rent_gp_per_period,rent_period_minutes,arrears_gp,unit_catalog_digest,revision)
+                VALUES(?1,?2,?3,?4,'active',?5,?6,?7,?8,?9,0,?10,1)`,
             [tenancyId, unitId, bedId, tenantId, start.iso, end, nextDue,
-                unit.rentGpPerPeriod, this.catalog.digest]);
+                unit.rentGpPerPeriod, unit.rentPeriodSimulationMinutes, this.catalog.digest]);
             this.audit('tenancy-created', tenancyId, start.iso, { unitId, bedId, tenantId, end });
         });
         transaction.immediate();
@@ -98,7 +100,7 @@ export class HousingTenancyStore {
         const current = this.require(tenancyIdInput), through = time(throughSimulationTime, 'Rent assessment time');
         if (through.milliseconds < Date.parse(current.startsAtSimulationTime)) throw new Error('Rent assessment predates tenancy');
         if (current.status === 'ended') return current;
-        const unit = this.requireUnit(current), periodMs = unit.rentPeriodSimulationMinutes * 60_000;
+        const periodMs = current.rentPeriodSimulationMinutes * 60_000;
         let due = Date.parse(current.nextRentDueAtSimulationTime), charges = 0;
         const end = Date.parse(current.endsAtSimulationTime), limit = Math.min(through.milliseconds, end);
         while (due <= limit) { charges++; due += periodMs; }
@@ -184,11 +186,6 @@ export class HousingTenancyStore {
     private require(input: string): HousingTenancy {
         const found = this.get(input); if (!found) throw new Error('Unknown tenancy'); return found;
     }
-    private requireUnit(value: HousingTenancy) {
-        if (value.unitCatalogDigest !== this.catalog.digest) throw new Error('Tenancy unit catalog digest mismatch');
-        const unit = this.catalog.units.find(item => item.housingUnitId === value.housingUnitId);
-        if (!unit) throw new Error('Tenancy housing unit disappeared'); return unit;
-    }
     private audit(action: string, tenancyId: string, at: string, detail: unknown): void {
         const last = this.database.query(`SELECT entry_hash FROM housing_tenancy_audit
             ORDER BY sequence DESC LIMIT 1`).get() as { entry_hash: string } | null;
@@ -201,9 +198,8 @@ export class HousingTenancyStore {
     }
     private migrate(): void {
         const version = Number((this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version);
-        if (version > 1) throw new Error(`Housing tenancy schema ${version} is newer than supported version 1`);
-        if (version === 1) return;
-        const transaction = this.database.transaction(() => {
+        if (version > 2) throw new Error(`Housing tenancy schema ${version} is newer than supported version 2`);
+        if (version < 1) { const transaction = this.database.transaction(() => {
             this.database.run(`CREATE TABLE housing_tenancy_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1),
                 catalog_digest TEXT NOT NULL)`);
             this.database.run('INSERT INTO housing_tenancy_meta VALUES(1,?1)', [this.catalog.digest]);
@@ -211,7 +207,8 @@ export class HousingTenancyStore {
                 bed_slot_id TEXT NOT NULL,tenant_agent_id TEXT NOT NULL,status TEXT NOT NULL
                 CHECK(status IN ('active','arrears','expired','ended')),
                 starts_at TEXT NOT NULL,ends_at TEXT NOT NULL,next_rent_due_at TEXT NOT NULL,
-                rent_gp_per_period INTEGER NOT NULL,arrears_gp INTEGER NOT NULL,unit_catalog_digest TEXT NOT NULL,
+                rent_gp_per_period INTEGER NOT NULL,rent_period_minutes INTEGER NOT NULL,
+                arrears_gp INTEGER NOT NULL,unit_catalog_digest TEXT NOT NULL,
                 revision INTEGER NOT NULL)`);
             this.database.run(`CREATE TABLE housing_rent_payment (payment_id TEXT PRIMARY KEY,
                 tenancy_id TEXT NOT NULL REFERENCES housing_tenancy(tenancy_id),amount_gp INTEGER NOT NULL,
@@ -223,8 +220,23 @@ export class HousingTenancyStore {
                 WHERE status IN ('active','arrears')`);
             this.database.run(`CREATE UNIQUE INDEX housing_active_tenant ON housing_tenancy(tenant_agent_id)
                 WHERE status IN ('active','arrears')`);
-            this.database.run('PRAGMA user_version = 1');
+            this.database.run('PRAGMA user_version = 2');
         });
-        transaction.immediate();
+        transaction.immediate(); return; }
+        if (version < 2) {
+            const migration = this.database.transaction(() => {
+                this.database.run('ALTER TABLE housing_tenancy ADD COLUMN rent_period_minutes INTEGER');
+                const rows = this.database.query('SELECT tenancy_id,housing_unit_id FROM housing_tenancy').all() as
+                    Array<{ tenancy_id: string; housing_unit_id: string }>;
+                for (const row of rows) {
+                    const unit = this.catalog.units.find(item => item.housingUnitId === row.housing_unit_id);
+                    if (!unit) throw new Error(`Cannot migrate tenancy for missing unit: ${row.housing_unit_id}`);
+                    this.database.run('UPDATE housing_tenancy SET rent_period_minutes=?2 WHERE tenancy_id=?1',
+                        [row.tenancy_id, unit.rentPeriodSimulationMinutes]);
+                }
+                this.database.run('PRAGMA user_version = 2');
+            });
+            migration.immediate();
+        }
     }
 }

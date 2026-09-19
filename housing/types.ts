@@ -83,6 +83,7 @@ export interface HousingUnitDefinition {
     housingUnitId: string;
     propertyId: string;
     tierId: string;
+    enabled: boolean;
     capacity: number;
     rentGpPerPeriod: number;
     rentPeriodSimulationMinutes: number;
@@ -107,6 +108,7 @@ export interface HousingTenancy {
     endsAtSimulationTime: string;
     nextRentDueAtSimulationTime: string;
     rentGpPerPeriod: number;
+    rentPeriodSimulationMinutes: number;
     arrearsGp: number;
     unitCatalogDigest: string;
     revision: number;

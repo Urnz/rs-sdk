@@ -469,7 +469,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
 - [x] A meglévő Property domainre külön `HousingUnit`/`BedSlot` és tenancy
   réteget építeni kapacitással, bérleti díjjal, időtartammal, hátralékkal és
   lejáró belépési entitlementtel.
-- [ ] Elsőként meglévő, használható vagy üres világépületeket kijelölni Varrockban,
+- [x] Elsőként meglévő, használható vagy üres világépületeket kijelölni Varrockban,
   Lumbridge-ben és/vagy Faladorban, és azokba konfigurált ágy-/férőhely-kapacitást
   tenni; új épület létrehozása ne legyen MVP-feltétel.
 - [ ] Egyszerű berendezési rendszert tervezni, amelyben megvásárolt ágy, chest,

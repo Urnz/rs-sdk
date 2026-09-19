@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { HousingTenancyStore, housingUnitCatalogDigest, loadHousingTierPolicyCatalog,
+import { HousingTenancyStore, housingUnitCatalogDigest, loadHousingTierPolicyCatalog, loadHousingUnitCatalog,
     validateHousingUnitCatalog } from '../index.js';
 
 const directories: string[] = [];
@@ -13,7 +13,7 @@ function catalog() {
     const hierarchy = loadHousingTierPolicyCatalog(join(import.meta.dir, '..', '..', 'config',
         'housing-tier-policies.json')).policies[0]!;
     return validateHousingUnitCatalog({ schemaVersion: 1, units: [{ housingUnitId: 'varrock.dorm-1',
-        propertyId: 'varrock.east-workshop', tierId: 'shared-dormitory', capacity: 2,
+        propertyId: 'varrock.east-workshop', tierId: 'shared-dormitory', enabled: true, capacity: 2,
         rentGpPerPeriod: 100, rentPeriodSimulationMinutes: 60,
         bedSlots: [{ bedSlotId: 'varrock.dorm-1.bed-1', label: 'Bed 1' },
             { bedSlotId: 'varrock.dorm-1.bed-2', label: 'Bed 2' }] }] }, hierarchy);
@@ -25,6 +25,19 @@ function create(store: HousingTenancyStore, tenancyId = 'tenancy-1', bedSlotId =
 }
 
 describe('housing units and tenancy ledger', () => {
+    test('loads user-configured units only for existing Properties', () => {
+        const hierarchy = loadHousingTierPolicyCatalog(join(import.meta.dir, '..', '..', 'config',
+            'housing-tier-policies.json')).policies[0]!;
+        const properties = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'config',
+            'properties.json'), 'utf8')) as { properties: Array<{ propertyId: string }> };
+        const known = new Set(properties.properties.map(property => property.propertyId));
+        const configured = loadHousingUnitCatalog(join(import.meta.dir, '..', '..', 'config',
+            'housing-units.json'), hierarchy, known);
+        expect(configured.units[0]).toMatchObject({ propertyId: 'falador.south-house', enabled: true, capacity: 2 });
+        expect(() => validateHousingUnitCatalog({ schemaVersion: 1, units: [{ ...configured.units[0],
+            propertyId: 'lumbridge.not-a-property' }] }, hierarchy, known)).toThrow('unknown Property');
+    });
+
     test('validates capacity against unique bed slots and exact hierarchy tiers', () => {
         const value = catalog();
         expect(value.units[0]).toMatchObject({ propertyId: 'varrock.east-workshop', capacity: 2,
@@ -86,7 +99,7 @@ describe('housing units and tenancy ledger', () => {
         store.close();
     });
 
-    test('binds persisted tenancies to the exact immutable unit catalog', () => {
+    test('snapshots tenancy terms across later unit catalog changes', () => {
         const databasePath = path(), original = catalog();
         const store = new HousingTenancyStore(databasePath, original);
         create(store);
@@ -95,6 +108,21 @@ describe('housing units and tenancy ledger', () => {
             .toThrow('catalog digest does not match');
         const changed = { ...original, units: original.units.map(unit => ({ ...unit, rentGpPerPeriod: 101 })) };
         changed.digest = housingUnitCatalogDigest({ schemaVersion: changed.schemaVersion, units: changed.units });
-        expect(() => new HousingTenancyStore(databasePath, changed)).toThrow('differs from the configured');
+        const reopened = new HousingTenancyStore(databasePath, changed);
+        expect(reopened.get('tenancy-1')?.rentGpPerPeriod).toBe(100);
+        reopened.close();
+    });
+
+    test('lets configuration disable a unit for new tenancy without invalidating history', () => {
+        const original = catalog(), databasePath = path();
+        const store = new HousingTenancyStore(databasePath, original);
+        create(store);
+        store.close();
+        const disabled = { ...original, units: original.units.map(unit => ({ ...unit, enabled: false })) };
+        disabled.digest = housingUnitCatalogDigest({ schemaVersion: disabled.schemaVersion, units: disabled.units });
+        const reopened = new HousingTenancyStore(databasePath, disabled);
+        expect(reopened.get('tenancy-1')?.status).toBe('active');
+        expect(() => create(reopened, 'tenancy-2', 'varrock.dorm-1.bed-2', 'bob')).toThrow('disabled');
+        reopened.close();
     });
 });

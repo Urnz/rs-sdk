@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "units": [
+    {
+      "housingUnitId": "falador.south-house.main",
+      "propertyId": "falador.south-house",
+      "tierId": "rented-room",
+      "enabled": true,
+      "capacity": 2,
+      "rentGpPerPeriod": 500,
+      "rentPeriodSimulationMinutes": 1440,
+      "bedSlots": [
+        { "bedSlotId": "falador.south-house.bed-1", "label": "Ground-floor bed" },
+        { "bedSlotId": "falador.south-house.bed-2", "label": "Upper-floor bed" }
+      ]
+    }
+  ]
+}
