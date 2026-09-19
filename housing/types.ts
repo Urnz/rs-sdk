@@ -73,3 +73,56 @@ export interface HousingTheftOutcome {
     protectionBasisPoints: number;
     residualRiskBasisPoints: number;
 }
+
+export interface BedSlotDefinition {
+    bedSlotId: string;
+    label: string;
+}
+
+export interface HousingUnitDefinition {
+    housingUnitId: string;
+    propertyId: string;
+    tierId: string;
+    capacity: number;
+    rentGpPerPeriod: number;
+    rentPeriodSimulationMinutes: number;
+    bedSlots: BedSlotDefinition[];
+}
+
+export interface HousingUnitCatalog {
+    schemaVersion: 1;
+    units: HousingUnitDefinition[];
+    digest: string;
+}
+
+export type HousingTenancyStatus = 'active' | 'arrears' | 'expired' | 'ended';
+
+export interface HousingTenancy {
+    tenancyId: string;
+    housingUnitId: string;
+    bedSlotId: string;
+    tenantAgentId: string;
+    status: HousingTenancyStatus;
+    startsAtSimulationTime: string;
+    endsAtSimulationTime: string;
+    nextRentDueAtSimulationTime: string;
+    rentGpPerPeriod: number;
+    arrearsGp: number;
+    unitCatalogDigest: string;
+    revision: number;
+}
+
+export interface RentPaymentEvidence {
+    paymentId: string;
+    amountGp: number;
+    sourceDigest: string;
+    occurredAtSimulationTime: string;
+}
+
+export interface BedAccessEntitlement {
+    kind: 'bed-entitlement';
+    evidenceId: string;
+    sourceDigest: string;
+    sleepPlaceId: string;
+    validUntilSimulationTime: string;
+}

@@ -466,7 +466,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
   erősen védett ingatlan.
 - [x] A lakhatási szint befolyásolja legalább a fatigue-regenerációt, a privát
   storage lehetőségét és a lopással szembeni védelmet.
-- [ ] A meglévő Property domainre külön `HousingUnit`/`BedSlot` és tenancy
+- [x] A meglévő Property domainre külön `HousingUnit`/`BedSlot` és tenancy
   réteget építeni kapacitással, bérleti díjjal, időtartammal, hátralékkal és
   lejáró belépési entitlementtel.
 - [ ] Elsőként meglévő, használható vagy üres világépületeket kijelölni Varrockban,
