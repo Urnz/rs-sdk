@@ -472,7 +472,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
 - [x] Elsőként meglévő, használható vagy üres világépületeket kijelölni Varrockban,
   Lumbridge-ben és/vagy Faladorban, és azokba konfigurált ágy-/férőhely-kapacitást
   tenni; új épület létrehozása ne legyen MVP-feltétel.
-- [ ] Egyszerű berendezési rendszert tervezni, amelyben megvásárolt ágy, chest,
+- [x] Egyszerű berendezési rendszert tervezni, amelyben megvásárolt ágy, chest,
   asztal vagy más engedélyezett bútor Propertyn belül elhelyezhető és domain-
   capabilityt ad; ne legyen kötelező a későbbi RuneScape Construction mechanika
   közvetlen lemásolása.

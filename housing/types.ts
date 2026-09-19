@@ -128,3 +128,59 @@ export interface BedAccessEntitlement {
     sleepPlaceId: string;
     validUntilSimulationTime: string;
 }
+
+export type FurnishingKind = 'bed' | 'chest' | 'table' | 'other';
+
+export interface FurnishingCapabilities {
+    sleepPlaces: number;
+    privateStorageSlots: number;
+    workSurfaces: number;
+}
+
+export interface FurnishingDefinition {
+    furnishingTypeId: string;
+    kind: FurnishingKind;
+    label: string;
+    capabilities: FurnishingCapabilities;
+}
+
+export interface FurnishingPlacementSlotDefinition {
+    placementSlotId: string;
+    propertyId: string;
+    roomId: string;
+    allowedKinds: FurnishingKind[];
+}
+
+export interface FurnishingCatalog {
+    schemaVersion: 1;
+    furnishings: FurnishingDefinition[];
+    placementSlots: FurnishingPlacementSlotDefinition[];
+    digest: string;
+}
+
+export interface FurnishingPurchaseEvidence {
+    assetId: string;
+    ownerAgentId: string;
+    furnishingTypeId: string;
+    sourceDigest: string;
+}
+
+export interface FurnishingPlacement {
+    placementId: string;
+    propertyId: string;
+    placementSlotId: string;
+    furnishingTypeId: string;
+    assetId: string;
+    ownerAgentId: string;
+    purchaseEvidenceDigest: string;
+    propertyAuthorityDigest: string;
+    status: 'placed' | 'removed';
+    placedAtSimulationTime: string;
+    removedAtSimulationTime: string | null;
+    revision: number;
+}
+
+export interface PropertyFurnishingCapabilities extends FurnishingCapabilities {
+    propertyId: string;
+    placementIds: string[];
+}

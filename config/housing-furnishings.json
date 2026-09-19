@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "furnishings": [
+    {
+      "furnishingTypeId": "simple-bed",
+      "kind": "bed",
+      "label": "Egyszerű ágy",
+      "capabilities": { "sleepPlaces": 1, "privateStorageSlots": 0, "workSurfaces": 0 }
+    },
+    {
+      "furnishingTypeId": "wooden-chest",
+      "kind": "chest",
+      "label": "Faláda",
+      "capabilities": { "sleepPlaces": 0, "privateStorageSlots": 28, "workSurfaces": 0 }
+    },
+    {
+      "furnishingTypeId": "wooden-table",
+      "kind": "table",
+      "label": "Fa asztal",
+      "capabilities": { "sleepPlaces": 0, "privateStorageSlots": 0, "workSurfaces": 1 }
+    }
+  ],
+  "placementSlots": [
+    {
+      "placementSlotId": "falador.south-house.bed-1",
+      "propertyId": "falador.south-house",
+      "roomId": "ground-floor",
+      "allowedKinds": ["bed"]
+    },
+    {
+      "placementSlotId": "falador.south-house.bed-2",
+      "propertyId": "falador.south-house",
+      "roomId": "upper-floor",
+      "allowedKinds": ["bed"]
+    },
+    {
+      "placementSlotId": "falador.south-house.storage-1",
+      "propertyId": "falador.south-house",
+      "roomId": "ground-floor",
+      "allowedKinds": ["chest"]
+    },
+    {
+      "placementSlotId": "falador.south-house.table-1",
+      "propertyId": "falador.south-house",
+      "roomId": "ground-floor",
+      "allowedKinds": ["table", "other"]
+    }
+  ]
+}

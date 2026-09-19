@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { validateHousingEffectPolicy } from './effects.js';
+import { validateFurnishingCatalog } from './furnishings.js';
 import { validateHousingTierPolicy } from './hierarchy.js';
 import { validateHousingUnitCatalog } from './units.js';
 import { HOUSING_EFFECT_SCHEMA_VERSION, HOUSING_SCHEMA_VERSION, type HousingEffectPolicyCatalog,
-    type HousingTierPolicy, type HousingTierPolicyCatalog, type HousingUnitCatalog } from './types.js';
+    type FurnishingCatalog, type HousingTierPolicy, type HousingTierPolicyCatalog,
+    type HousingUnitCatalog } from './types.js';
 
 export function validateHousingTierPolicyCatalog(value: unknown): HousingTierPolicyCatalog {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -55,4 +57,9 @@ export function loadHousingUnitCatalog(path: string, hierarchy: HousingTierPolic
     knownPropertyIds: ReadonlySet<string>): HousingUnitCatalog {
     return validateHousingUnitCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown,
         hierarchy, knownPropertyIds);
+}
+
+export function loadFurnishingCatalog(path: string,
+    knownPropertyIds: ReadonlySet<string>): FurnishingCatalog {
+    return validateFurnishingCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown, knownPropertyIds);
 }

@@ -30,6 +30,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   `propertyId`-khez rendel lakóegységet, ágyakat, kapacitást és bérleti feltételeket;
   az `enabled` mezővel kódmódosítás nélkül kapcsolható. Új épület előbb a
   `properties.json` katalógusba, majd ide vehető fel.
+- `housing-furnishings.json`: az engedélyezett bútorfajták capabilityit és a
+  meglévő Propertyk szobánkénti elhelyezési slotjait adja meg. Új ház vagy
+  bútor kódmódosítás nélkül, érvényes Property-hivatkozással vehető fel.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

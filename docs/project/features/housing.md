@@ -35,6 +35,17 @@ Startup validation rejects unknown Property ids, duplicate beds and capacity
 mismatches. Existing tenancies retain their snapshotted rent period and terms if
 the editable catalog later changes; only new tenancies use the new configuration.
 
+Furnishings are a separate data-driven extension in
+`config/housing-furnishings.json`. The catalog defines the allowed bed, chest,
+table or other furnishing types, their domain capabilities, and typed placement
+slots inside known Properties. Placement requires immutable purchase evidence
+for the concrete asset plus a digest from the Property authorization boundary;
+neither untrusted chat nor an LLM can mint either proof. A SQLite ledger prevents
+one active asset or slot from being used twice, snapshots capabilities at
+placement time, and records placement/removal in a hash-chained audit trail.
+This intentionally provides a small housing capability layer instead of copying
+RuneScape Construction mechanics.
+
 These slices are configuration-only and create no persistent state, so no data
 migration is required. Rollback removes the housing policy and module before a
 consumer persists tier references. A future persistent reference must store the
@@ -45,3 +56,8 @@ period into every tenancy so later catalog edits cannot reinterpret it. Migratio
 is transactional and rejects missing referenced units or newer schemas. Rollback requires stopping tenancy
 writers and restoring the database together with WAL/SHM sidecars; dropping the
 ledger without archiving would destroy rent and entitlement audit history.
+
+The furnishing ledger uses an additive schema-v1 database. Catalog changes affect
+new placements only because active placements retain their capability snapshot.
+For rollback, stop furnishing writers and restore or archive the SQLite database
+together with its WAL/SHM sidecars; deleting it loses placement and audit history.
