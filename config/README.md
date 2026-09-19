@@ -20,6 +20,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   független hiánybizonyíték és kísérleti bizonyíték szabályai.
 - `needs-policies.json`: a karakter szükségleteinek verziózott, bővíthető
   definíciói; elsőként a hunger és fatigue skálája és kritikus küszöbe.
+- `needs-dynamics-policies.json`: a szükségletek SimulationClock-alapú online,
+  offline, ébrenléti és alvási óránkénti változásai.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

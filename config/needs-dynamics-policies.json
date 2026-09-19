@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "default-needs-dynamics",
+      "version": "1.0.0",
+      "needsPolicy": {
+        "policyId": "default-character-needs",
+        "version": "1.0.0"
+      },
+      "rules": [
+        {
+          "needId": "hunger",
+          "onlineAwakePerHour": 300,
+          "offlineAwakePerHour": 200,
+          "onlineSleepingPerHour": 100,
+          "offlineSleepingPerHour": 100
+        },
+        {
+          "needId": "fatigue",
+          "onlineAwakePerHour": 400,
+          "offlineAwakePerHour": 250,
+          "onlineSleepingPerHour": -1000,
+          "offlineSleepingPerHour": -1000
+        }
+      ]
+    }
+  ]
+}

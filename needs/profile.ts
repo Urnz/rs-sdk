@@ -109,7 +109,7 @@ export function createInitialNeedsState(policyValue: NeedsPolicyDefinition | Nee
         version: policy.version, characterAgentId, clockId: identifier(input.clockId, 'clockId'),
         observedAtSimulationTime: timestamp(input.observedAtSimulationTime, 'observedAtSimulationTime'),
         policy: { policyId: policy.policyId, version: policy.version, digest: policy.digest },
-        values: policy.needs.map(need => ({ needId: need.needId, value: need.initialValue }))
+        values: policy.needs.map(need => ({ needId: need.needId, value: need.initialValue, remainderNumerator: 0 }))
     };
     return { ...definition, digest: needsStateDigest(definition) };
 }
@@ -128,11 +128,13 @@ export function validateNeedsState(value: unknown, policyValue: NeedsPolicyDefin
     }
     const values = input.values.map((value, index) => {
         const item = record(value, `values[${index}]`);
-        exact(item, ['needId', 'value'], `values[${index}]`);
+        exact(item, ['needId', 'value', 'remainderNumerator'], `values[${index}]`);
         const needId = identifier(item.needId, `values[${index}].needId`);
         const definition = policy.needs.find(need => need.needId === needId);
         if (!definition) throw new Error(`Unknown need value: ${needId}`);
-        return { needId, value: integer(item.value, `values[${index}].value`, 0, definition.maximumValue) };
+        return { needId, value: integer(item.value, `values[${index}].value`, 0, definition.maximumValue),
+            remainderNumerator: integer(item.remainderNumerator, `values[${index}].remainderNumerator`,
+                -3_599_999, 3_599_999) };
     });
     if (values.length !== policy.needs.length || new Set(values.map(item => item.needId)).size !== values.length
         || policy.needs.some(need => !values.some(item => item.needId === need.needId))) {

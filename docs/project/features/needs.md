@@ -12,7 +12,15 @@ exact policy digest and a canonical simulation-time observation. It must contain
 every configured need exactly once and rejects unknown, duplicate or out-of-range
 values.
 
-This first slice is an additive in-memory model and creates no persistent store,
-so no migration is required. Rollback removes the module and policy before any
-consumer persists a state. The next slice will add clock-based transitions;
-future persistence must introduce an explicit schema migration and rollback.
+Need changes use elapsed `SimulationClock` time only. A versioned dynamics policy
+provides separate hourly rates for online/offline and awake/sleeping states. The
+calculation carries fractional results with a fixed integer denominator, so many
+small observations produce the same result as one large observation without
+floating-point or wall-clock drift. Values are clamped to their declared bounds.
+The transition records the previous state digest, exact elapsed simulation time,
+selected rates and resulting state digest for deterministic replay and audit.
+
+This remains an additive in-memory model and creates no persistent store, so no
+migration is required. Rollback removes the module and both policies before any
+consumer persists a state. Future persistence must introduce an explicit schema
+migration and rollback.

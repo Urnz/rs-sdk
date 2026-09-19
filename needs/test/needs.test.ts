@@ -20,7 +20,10 @@ describe('character needs domain', () => {
         const first = createInitialNeedsState(policy, input);
         const second = createInitialNeedsState(policy, input);
         expect(first).toEqual(second);
-        expect(first.values).toEqual([{ needId: 'hunger', value: 0 }, { needId: 'fatigue', value: 0 }]);
+        expect(first.values).toEqual([
+            { needId: 'hunger', value: 0, remainderNumerator: 0 },
+            { needId: 'fatigue', value: 0, remainderNumerator: 0 }
+        ]);
         const { digest: _digest, ...definition } = first;
         expect(validateNeedsState(definition, policy)).toEqual(first);
     });
@@ -33,7 +36,7 @@ describe('character needs domain', () => {
         const extended = validateNeedsPolicy(definition);
         const state = createInitialNeedsState(extended, { characterAgentId: 'ada', clockId: 'local-world',
             observedAtSimulationTime: '2026-09-19T00:00:00.000Z' });
-        expect(state.values.at(-1)).toEqual({ needId: 'thirst', value: 500 });
+        expect(state.values.at(-1)).toEqual({ needId: 'thirst', value: 500, remainderNumerator: 0 });
     });
 
     test('rejects missing core needs, duplicates and impossible thresholds', () => {
@@ -55,10 +58,11 @@ describe('character needs domain', () => {
         expect(() => validateNeedsState({ ...definition, values: definition.values.slice(0, 1) }, policy))
             .toThrow('every configured need exactly once');
         expect(() => validateNeedsState({ ...definition, values: [
-            { needId: 'hunger', value: 0 }, { needId: 'stress', value: 0 }
+            { needId: 'hunger', value: 0, remainderNumerator: 0 },
+            { needId: 'stress', value: 0, remainderNumerator: 0 }
         ] }, policy)).toThrow('Unknown need value');
         expect(() => validateNeedsState({ ...definition, values: [
-            { needId: 'hunger', value: 10001 }, definition.values[1]!
+            { needId: 'hunger', value: 10001, remainderNumerator: 0 }, definition.values[1]!
         ] }, policy)).toThrow('between 0 and 10000');
     });
 });
