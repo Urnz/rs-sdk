@@ -36,3 +36,40 @@ export interface HousingTierPolicyCatalog {
     schemaVersion: typeof HOUSING_SCHEMA_VERSION;
     policies: HousingTierPolicy[];
 }
+
+export const HOUSING_EFFECT_SCHEMA_VERSION = 1 as const;
+
+export interface HousingTierEffects {
+    tierId: string;
+    fatigueRecoveryMultiplierBasisPoints: number;
+    privateStorageSlots: number;
+    theftProtectionBasisPoints: number;
+}
+
+export interface HousingEffectPolicyDefinition {
+    schemaVersion: typeof HOUSING_EFFECT_SCHEMA_VERSION;
+    policyId: string;
+    version: string;
+    hierarchyPolicy: { policyId: string; version: string; digest: string };
+    effects: HousingTierEffects[];
+}
+
+export interface HousingEffectPolicy extends HousingEffectPolicyDefinition {
+    digest: string;
+}
+
+export interface HousingEffectPolicyCatalog {
+    schemaVersion: typeof HOUSING_EFFECT_SCHEMA_VERSION;
+    policies: HousingEffectPolicy[];
+}
+
+export interface HousingStorageCapability {
+    privateStorageAllowed: boolean;
+    privateStorageSlots: number;
+}
+
+export interface HousingTheftOutcome {
+    prevented: boolean;
+    protectionBasisPoints: number;
+    residualRiskBasisPoints: number;
+}

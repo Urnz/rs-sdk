@@ -24,6 +24,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   offline, ébrenléti és alvási óránkénti változásai.
 - `housing-tier-policies.json`: a lakhatási biztonság és komfort verziózott
   hierarchiája az utcától a megerősített ingatlanig.
+- `housing-effect-policies.json`: a lakhatási szintek fatigue-regenerációs,
+  privát storage- és lopásvédelmi hatásai.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

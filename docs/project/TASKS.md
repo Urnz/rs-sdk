@@ -464,7 +464,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
 - [x] A lakhatást biztonsági és komfort-hierarchiaként modellezni, például:
   utca → ideiglenes menedék → közös hálóterem → bérelt szoba → saját lakás/ház →
   erősen védett ingatlan.
-- [ ] A lakhatási szint befolyásolja legalább a fatigue-regenerációt, a privát
+- [x] A lakhatási szint befolyásolja legalább a fatigue-regenerációt, a privát
   storage lehetőségét és a lopással szembeni védelmet.
 - [ ] A meglévő Property domainre külön `HousingUnit`/`BedSlot` és tenancy
   réteget építeni kapacitással, bérleti díjjal, időtartammal, hátralékkal és

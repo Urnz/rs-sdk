@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "default-housing-effects",
+      "version": "1.0.0",
+      "hierarchyPolicy": {
+        "policyId": "default-housing-hierarchy",
+        "version": "1.0.0"
+      },
+      "effects": [
+        { "tierId": "street", "fatigueRecoveryMultiplierBasisPoints": 2500, "privateStorageSlots": 0, "theftProtectionBasisPoints": 0 },
+        { "tierId": "temporary-shelter", "fatigueRecoveryMultiplierBasisPoints": 5000, "privateStorageSlots": 0, "theftProtectionBasisPoints": 1000 },
+        { "tierId": "shared-dormitory", "fatigueRecoveryMultiplierBasisPoints": 7500, "privateStorageSlots": 8, "theftProtectionBasisPoints": 2500 },
+        { "tierId": "rented-room", "fatigueRecoveryMultiplierBasisPoints": 10000, "privateStorageSlots": 28, "theftProtectionBasisPoints": 5000 },
+        { "tierId": "owned-home", "fatigueRecoveryMultiplierBasisPoints": 12500, "privateStorageSlots": 100, "theftProtectionBasisPoints": 7500 },
+        { "tierId": "fortified-property", "fatigueRecoveryMultiplierBasisPoints": 15000, "privateStorageSlots": 500, "theftProtectionBasisPoints": 9500 }
+      ]
+    }
+  ]
+}
