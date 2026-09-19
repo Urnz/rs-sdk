@@ -5,7 +5,9 @@ import { foodLoopCatalogDigest } from './catalog.js';
 import type { ClosedFoodLoop, FoodInventoryReceipt, FoodLoopCatalog } from './types.js';
 
 const ID = /^[a-z0-9][a-z0-9._:-]{0,127}$/i;
-function digest(value: unknown): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
+export function foodLoopClosureDigest(value: Omit<ClosedFoodLoop, 'digest'>): string {
+    return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
 function time(value: string, field: string): number { const parsed = Date.parse(value);
     if (Number.isNaN(parsed) || new Date(parsed).toISOString() !== value) throw new Error(`${field} must be canonical UTC ISO`);
     return parsed; }
@@ -76,5 +78,5 @@ catalog: FoodLoopCatalog, policy: NeedsPolicy): ClosedFoodLoop {
             [string, string, string],
         hungerBefore: hunger.value, hungerRelief: hunger.value - hungerAfter, hungerAfter,
         occurredAtSimulationTime: consumed.occurredAtSimulationTime, state };
-    return { ...definition, digest: digest(definition) };
+    return { ...definition, digest: foodLoopClosureDigest(definition) };
 }

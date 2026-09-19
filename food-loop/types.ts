@@ -41,3 +41,22 @@ export interface ClosedFoodLoop {
     state: NeedsState;
     digest: string;
 }
+
+export interface FoodConsumptionEconomicEvent {
+    eventId: string;
+    closureId: string;
+    closureDigest: string;
+    actorAgentId: string;
+    kind: 'food-consumption';
+    itemId: number;
+    itemName: string;
+    quantity: 1;
+    hungerRelief: number;
+    occurredAtSimulationTime: string;
+}
+
+export interface FoodConsumptionSummary {
+    events: number;
+    foodUnitsConsumed: number;
+    hungerRelief: number;
+}

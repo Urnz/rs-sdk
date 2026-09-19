@@ -488,7 +488,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
 
 - [x] A Fishing/Farming → Cooking → Food → hunger csökkentés láncból elkészíteni az
   első valódi nyersanyag → feldolgozás → végső fogyasztás gazdasági kört.
-- [ ] Az élelmiszer-fogyasztást hiteles gazdasági eseményként naplózni, hogy a
+- [x] Az élelmiszer-fogyasztást hiteles gazdasági eseményként naplózni, hogy a
   termelés és a végső felhasználás külön mérhető legyen.
 - [ ] `item-lifecycle` modot készíteni tartósságra, használati kopásra, javításra,
   törésre és későbbi minőség/eredet támogatására.
