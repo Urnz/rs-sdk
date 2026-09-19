@@ -492,7 +492,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
   termelés és a végső felhasználás külön mérhető legyen.
 - [x] `item-lifecycle` modot készíteni tartósságra, használati kopásra, javításra,
   törésre és későbbi minőség/eredet támogatására.
-- [ ] Eldönteni és dokumentálni, mely tárgyak igényelnek itempéldány-szintű
+- [x] Eldönteni és dokumentálni, mely tárgyak igényelnek itempéldány-szintű
   állapotot és melyek kezelhetők továbbra is stackként vagy gyártási tételként.
 - [ ] Első vertikális szeletként egyetlen termelőeszköz-típuson végigvinni a
   használat → kopás → javítás vagy csere teljes ciklust.

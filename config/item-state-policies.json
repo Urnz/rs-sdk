@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "itemId": 995,
+      "itemName": "Coins",
+      "mode": "stack",
+      "lifecycleTypeId": null,
+      "batchPolicyId": null,
+      "rationale": "Fungible currency has no meaningful per-unit wear or origin state."
+    },
+    {
+      "itemId": 2349,
+      "itemName": "Bronze bar",
+      "mode": "stack",
+      "lifecycleTypeId": null,
+      "batchPolicyId": null,
+      "rationale": "Interchangeable production input remains quantity-based until consumed by a recipe."
+    },
+    {
+      "itemId": 377,
+      "itemName": "Raw lobster",
+      "mode": "batch",
+      "lifecycleTypeId": null,
+      "batchPolicyId": "perishable-food-v1",
+      "rationale": "Food needs shared production-lot origin and future expiry, not one durable instance per fish."
+    },
+    {
+      "itemId": 379,
+      "itemName": "Lobster",
+      "mode": "batch",
+      "lifecycleTypeId": null,
+      "batchPolicyId": "perishable-food-v1",
+      "rationale": "Cooked food remains fungible inside a provenance and future expiry batch."
+    },
+    {
+      "itemId": 1265,
+      "itemName": "Bronze pickaxe",
+      "mode": "instance",
+      "lifecycleTypeId": "bronze-pickaxe",
+      "batchPolicyId": null,
+      "rationale": "A reusable production tool needs independent wear, repair, breakage, quality and origin."
+    }
+  ]
+}

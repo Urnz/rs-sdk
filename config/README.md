@@ -40,6 +40,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   hunger-csökkentést egyetlen verziózott, bizonyíték-alapú láncba köti.
 - `item-lifecycle.json`: a példányszintű tárgyak maximális tartósságát,
   használatonkénti kopását és javíthatóságát definiálja.
+- `item-state-policies.json`: konkrét item ID-nként választ a példányszintű,
+  stack- és batch-kezelés között; ismeretlen tárgyhoz nincs implicit fallback.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges
