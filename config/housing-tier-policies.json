@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "default-housing-hierarchy",
+      "version": "1.0.0",
+      "tiers": [
+        { "tierId": "street", "rank": 0, "label": "Street", "tenure": "none", "comfortRating": 0, "securityRating": 0 },
+        { "tierId": "temporary-shelter", "rank": 1, "label": "Temporary shelter", "tenure": "informal", "comfortRating": 15, "securityRating": 10 },
+        { "tierId": "shared-dormitory", "rank": 2, "label": "Shared dormitory", "tenure": "shared", "comfortRating": 35, "securityRating": 30 },
+        { "tierId": "rented-room", "rank": 3, "label": "Rented room", "tenure": "rented", "comfortRating": 55, "securityRating": 50 },
+        { "tierId": "owned-home", "rank": 4, "label": "Owned home", "tenure": "owned", "comfortRating": 75, "securityRating": 70 },
+        { "tierId": "fortified-property", "rank": 5, "label": "Fortified property", "tenure": "owned", "comfortRating": 90, "securityRating": 95 }
+      ]
+    }
+  ]
+}

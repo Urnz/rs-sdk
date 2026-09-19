@@ -461,7 +461,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
   - [x] a teljes világ ideje ne ugorjon előre attól, hogy egy vagy több játékos alszik;
   - [x] későbbi opcionális `offline-delegated` mód számára előkészíteni a policyhatárt,
     de az offline avatárt alapból ne vegye át szabad LLM-agent.
-- [ ] A lakhatást biztonsági és komfort-hierarchiaként modellezni, például:
+- [x] A lakhatást biztonsági és komfort-hierarchiaként modellezni, például:
   utca → ideiglenes menedék → közös hálóterem → bérelt szoba → saját lakás/ház →
   erősen védett ingatlan.
 - [ ] A lakhatási szint befolyásolja legalább a fatigue-regenerációt, a privát

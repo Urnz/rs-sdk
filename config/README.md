@@ -22,6 +22,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   definíciói; elsőként a hunger és fatigue skálája és kritikus küszöbe.
 - `needs-dynamics-policies.json`: a szükségletek SimulationClock-alapú online,
   offline, ébrenléti és alvási óránkénti változásai.
+- `housing-tier-policies.json`: a lakhatási biztonság és komfort verziózott
+  hierarchiája az utcától a megerősített ingatlanig.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges
