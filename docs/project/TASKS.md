@@ -486,7 +486,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
 
 ## 19. Fázis – fogyasztás, tárgyélettartam és első zárt gazdasági körök
 
-- [ ] A Fishing/Farming → Cooking → Food → hunger csökkentés láncból elkészíteni az
+- [x] A Fishing/Farming → Cooking → Food → hunger csökkentés láncból elkészíteni az
   első valódi nyersanyag → feldolgozás → végső fogyasztás gazdasági kört.
 - [ ] Az élelmiszer-fogyasztást hiteles gazdasági eseményként naplózni, hogy a
   termelés és a végső felhasználás külön mérhető legyen.

@@ -36,6 +36,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `land-construction.json`: alapból letiltott, verziózott előkészítő katalógus a
   későbbi megvásárolható földparcellákhoz és építési terv/stage definíciókhoz.
   Nem hoz létre épületet és nem módosítja a világot.
+- `food-loops.json`: a nyersanyagforrást, Cooking átalakítást, kész ételt és
+  hunger-csökkentést egyetlen verziózott, bizonyíték-alapú láncba köti.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges
