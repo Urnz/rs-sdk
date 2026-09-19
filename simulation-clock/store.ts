@@ -6,7 +6,8 @@ import { SIMULATION_CLOCK_SCHEMA_VERSION, SIMULATION_CLOCK_STORE_SCHEMA_VERSION,
     type BindSimulationEventInput, type BoundSimulationEventStamp, type CreateSimulationClockInput,
     type SimulationClockObservation, type SimulationClockProfile, type SimulationClockState,
     type SimulationClockStatus, type SimulationEventStamp, type PlayerPresence,
-    type PlayerRestState, type PlayerTimeCapabilities, type PlayerTimeState } from './types.js';
+    type PlayerRestState, type PlayerSleepContext, type PlayerTimeCapabilities,
+    type PlayerTimeState, type StartPlayerSleepInput } from './types.js';
 
 type ClockRow = { clock_id: string; profile_json: string; profile_digest: string; status: SimulationClockStatus;
     anchor_wall_ms: number; anchor_simulation_ms: number; last_observed_wall_ms: number;
@@ -16,7 +17,9 @@ type EventStampRow = { clock_id: string; domain: string; source_id: string; sour
     profile_digest: string; clock_status: SimulationClockStatus; clock_revision: number; created_at: string };
 type PlayerTimeRow = { clock_id: string; player_id: string; presence: PlayerPresence; rest: PlayerRestState;
     offline_delegation: 'disabled'; presence_changed_at: string; rest_changed_at: string;
-    updated_at: string; updated_wall_time: string; revision: number };
+    updated_at: string; updated_wall_time: string; revision: number; sleeper_kind: string | null;
+    sleep_place_id: string | null; sleep_access_kind: string | null; sleep_access_evidence_id: string | null;
+    sleep_access_source_digest: string | null; sleep_access_valid_until: string | null };
 
 function clockId(value: string): string {
     const normalized = value.trim().toLowerCase();
@@ -56,6 +59,38 @@ function playerId(value: string): string {
     const normalized = value.trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9 _-]{0,63}$/.test(normalized)) throw new Error('Simulation player id is invalid');
     return normalized;
+}
+
+function sleepKey(value: string, label: string): string {
+    const normalized = value.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9._:-]{0,127}$/.test(normalized)) throw new Error(`${label} is invalid`);
+    return normalized;
+}
+
+function sleepInput(value: StartPlayerSleepInput, simulationTime: string): StartPlayerSleepInput {
+    if (!value || typeof value !== 'object' || (value.sleeperKind !== 'npc-agent'
+        && value.sleeperKind !== 'human-player')) throw new Error('Sleeper kind is invalid');
+    if (Object.keys(value).sort().join(',') !== 'access,sleepPlaceId,sleeperKind') {
+        throw new Error('Sleep admission fields are invalid');
+    }
+    if (!value.access || (value.access.kind !== 'physical-presence'
+        && value.access.kind !== 'bed-entitlement')) throw new Error('Sleep access kind is invalid');
+    if (Object.keys(value.access).sort().join(',')
+        !== 'evidenceId,kind,sourceDigest,validUntilSimulationTime') {
+        throw new Error('Sleep access evidence fields are invalid');
+    }
+    if (value.sleeperKind === 'human-player' && value.access.kind !== 'bed-entitlement') {
+        throw new Error('Human player sleep requires a bed entitlement');
+    }
+    const sourceDigest = eventDigest(value.access.sourceDigest);
+    const validUntilSimulationTime = value.access.validUntilSimulationTime === null ? null
+        : timestamp(value.access.validUntilSimulationTime, 'Sleep access expiry').iso;
+    if (validUntilSimulationTime !== null && validUntilSimulationTime < simulationTime) {
+        throw new Error('Sleep access evidence has expired');
+    }
+    return { sleeperKind: value.sleeperKind, sleepPlaceId: sleepKey(value.sleepPlaceId, 'Sleep place id'),
+        access: { kind: value.access.kind, evidenceId: sleepKey(value.access.evidenceId, 'Sleep access evidence id'),
+            sourceDigest, validUntilSimulationTime } };
 }
 
 function safeMilliseconds(value: bigint): number {
@@ -112,8 +147,18 @@ function boundStamp(row: EventStampRow): BoundSimulationEventStamp {
 }
 
 function playerTimeState(row: PlayerTimeRow): PlayerTimeState {
+    const sleepContext: PlayerSleepContext | null = row.rest === 'sleeping' && row.sleeper_kind
+        && row.sleep_place_id && row.sleep_access_kind && row.sleep_access_evidence_id
+        && row.sleep_access_source_digest ? {
+            sleeperKind: row.sleeper_kind as PlayerSleepContext['sleeperKind'],
+            sleepPlaceId: row.sleep_place_id,
+            access: { kind: row.sleep_access_kind as PlayerSleepContext['access']['kind'],
+                evidenceId: row.sleep_access_evidence_id, sourceDigest: row.sleep_access_source_digest,
+                validUntilSimulationTime: row.sleep_access_valid_until },
+            startedAtSimulationTime: row.rest_changed_at
+        } : null;
     return { clockId: row.clock_id, playerId: row.player_id, presence: row.presence, rest: row.rest,
-        offlineDelegation: row.offline_delegation, presenceChangedAt: row.presence_changed_at,
+        sleepContext, offlineDelegation: row.offline_delegation, presenceChangedAt: row.presence_changed_at,
         restChangedAt: row.rest_changed_at, updatedAt: row.updated_at,
         updatedWallTime: row.updated_wall_time, revision: row.revision };
 }
@@ -287,12 +332,19 @@ export class SimulationClockStore {
     recordPlayerRest(inputClockId: string, inputPlayerId: string,
         rest: PlayerRestState, wallTime: string, inputEngineTick?: number): PlayerTimeState {
         if (rest !== 'awake' && rest !== 'sleeping') throw new Error('Player rest state is invalid');
+        if (rest === 'sleeping') throw new Error('Starting sleep requires verified sleep-place access');
         return this.transitionPlayerTime(inputClockId, inputPlayerId, 'rest', rest, wallTime, inputEngineTick);
+    }
+
+    startPlayerSleep(inputClockId: string, inputPlayerId: string, input: StartPlayerSleepInput,
+        wallTime: string, inputEngineTick?: number): PlayerTimeState {
+        return this.transitionPlayerTime(inputClockId, inputPlayerId, 'rest', 'sleeping', wallTime,
+            inputEngineTick, input);
     }
 
     private transitionPlayerTime(inputClockId: string, inputPlayerId: string,
         field: 'presence' | 'rest', value: PlayerPresence | PlayerRestState,
-        wallTime: string, inputEngineTick?: number): PlayerTimeState {
+        wallTime: string, inputEngineTick?: number, sleepAdmission?: StartPlayerSleepInput): PlayerTimeState {
         const id = clockId(inputClockId), player = playerId(inputPlayerId);
         const wall = timestamp(wallTime, 'Player time transition wall time');
         engineTick(inputEngineTick);
@@ -300,6 +352,7 @@ export class SimulationClockStore {
             const clock = this.requireRow(id); const simulationMs = projected(clock, wall.milliseconds);
             const simulationTime = new Date(simulationMs).toISOString();
             const current = this.getPlayerTimeState(id, player);
+            const admission = sleepAdmission ? sleepInput(sleepAdmission, simulationTime) : null;
             this.database.run(`UPDATE simulation_clock SET last_observed_wall_ms=?2,last_simulation_ms=?3,
                 updated_at=?4 WHERE clock_id=?1`, [id, wall.milliseconds, simulationMs, wall.iso]);
             if (!current) {
@@ -310,11 +363,37 @@ export class SimulationClockStore {
                     rest_changed_at,updated_at,updated_wall_time,revision)
                     VALUES(?1,?2,?3,?4,'disabled',?5,?5,?5,?6,1)`,
                 [id, player, presence, rest, simulationTime, wall.iso]);
+                if (admission) this.database.run(`UPDATE simulation_player_time_state SET
+                    sleeper_kind=?3,sleep_place_id=?4,sleep_access_kind=?5,sleep_access_evidence_id=?6,
+                    sleep_access_source_digest=?7,sleep_access_valid_until=?8 WHERE clock_id=?1 AND player_id=?2`,
+                [id, player, admission.sleeperKind, admission.sleepPlaceId, admission.access.kind,
+                    admission.access.evidenceId, admission.access.sourceDigest,
+                    admission.access.validUntilSimulationTime]);
             } else if (current[field] !== value) {
                 const changedColumn = field === 'presence' ? 'presence_changed_at' : 'rest_changed_at';
+                const clearSleep = field === 'rest' && value === 'awake';
                 this.database.run(`UPDATE simulation_player_time_state SET ${field}=?3,${changedColumn}=?4,
-                    updated_at=?4,updated_wall_time=?5,revision=revision+1 WHERE clock_id=?1 AND player_id=?2`,
-                [id, player, value, simulationTime, wall.iso]);
+                    updated_at=?4,updated_wall_time=?5,revision=revision+1,
+                    sleeper_kind=?6,sleep_place_id=?7,sleep_access_kind=?8,sleep_access_evidence_id=?9,
+                    sleep_access_source_digest=?10,sleep_access_valid_until=?11
+                    WHERE clock_id=?1 AND player_id=?2`, [id, player, value, simulationTime, wall.iso,
+                    admission?.sleeperKind ?? (clearSleep ? null : current.sleepContext?.sleeperKind ?? null),
+                    admission?.sleepPlaceId ?? (clearSleep ? null : current.sleepContext?.sleepPlaceId ?? null),
+                    admission?.access.kind ?? (clearSleep ? null : current.sleepContext?.access.kind ?? null),
+                    admission?.access.evidenceId ?? (clearSleep ? null : current.sleepContext?.access.evidenceId ?? null),
+                    admission?.access.sourceDigest ?? (clearSleep ? null : current.sleepContext?.access.sourceDigest ?? null),
+                    admission?.access.validUntilSimulationTime
+                        ?? (clearSleep ? null : current.sleepContext?.access.validUntilSimulationTime ?? null)]);
+            } else if (admission) {
+                const existing = current.sleepContext;
+                if (!existing || existing.sleeperKind !== admission.sleeperKind
+                    || existing.sleepPlaceId !== admission.sleepPlaceId
+                    || existing.access.kind !== admission.access.kind
+                    || existing.access.evidenceId !== admission.access.evidenceId
+                    || existing.access.sourceDigest !== admission.access.sourceDigest
+                    || existing.access.validUntilSimulationTime !== admission.access.validUntilSimulationTime) {
+                    throw new Error('Sleeping state already has different access evidence; wake before changing beds');
+                }
             }
         });
         transaction.immediate();
@@ -442,6 +521,18 @@ export class SimulationClockStore {
                     updated_at TEXT NOT NULL,updated_wall_time TEXT NOT NULL,
                     revision INTEGER NOT NULL CHECK(revision>=1),PRIMARY KEY(clock_id,player_id))`);
                 this.database.run('PRAGMA user_version = 3');
+            });
+            migration.immediate();
+        }
+        if (version < 4) {
+            const migration = this.database.transaction(() => {
+                this.database.run('ALTER TABLE simulation_player_time_state ADD COLUMN sleeper_kind TEXT');
+                this.database.run('ALTER TABLE simulation_player_time_state ADD COLUMN sleep_place_id TEXT');
+                this.database.run('ALTER TABLE simulation_player_time_state ADD COLUMN sleep_access_kind TEXT');
+                this.database.run('ALTER TABLE simulation_player_time_state ADD COLUMN sleep_access_evidence_id TEXT');
+                this.database.run('ALTER TABLE simulation_player_time_state ADD COLUMN sleep_access_source_digest TEXT');
+                this.database.run('ALTER TABLE simulation_player_time_state ADD COLUMN sleep_access_valid_until TEXT');
+                this.database.run('PRAGMA user_version = 4');
             });
             migration.immediate();
         }

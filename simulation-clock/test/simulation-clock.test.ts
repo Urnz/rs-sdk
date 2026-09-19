@@ -169,8 +169,13 @@ describe('persistent simulation clock', () => {
         expect(playerTimeCapabilities(online)).toEqual({ worldClockAdvances: true,
             physicalExecutionAllowed: true, offlineDelegationAllowed: false,
             reason: 'The online, awake avatar may execute bounded physical actions.' });
-        const sleeping = store.recordPlayerRest('world', 'ferrye14', 'sleeping',
-            '2026-09-13T08:00:02.000Z');
+        const sleeping = store.startPlayerSleep('world', 'ferrye14', {
+            sleeperKind: 'npc-agent', sleepPlaceId: 'varrock-dorm-bed-1',
+            access: { kind: 'physical-presence', evidenceId: 'arrival-1', sourceDigest: 'a'.repeat(64),
+                validUntilSimulationTime: null }
+        }, '2026-09-13T08:00:02.000Z');
+        expect(sleeping.sleepContext).toMatchObject({ sleeperKind: 'npc-agent',
+            sleepPlaceId: 'varrock-dorm-bed-1', startedAtSimulationTime: '2030-01-01T00:00:02.000Z' });
         const offline = store.recordPlayerPresence('world', 'ferrye14', 'offline',
             '2026-09-13T08:00:03.000Z');
         expect(offline).toMatchObject({ presence: 'offline', rest: 'sleeping', revision: 3,
@@ -184,12 +189,41 @@ describe('persistent simulation clock', () => {
         store.close();
     });
 
+    test('requires a valid bed entitlement for human sleep independently from logout', () => {
+        const store = new SimulationClockStore(databasePath());
+        store.create({ clockId: 'world', profile: profile(), wallTime: '2026-09-13T08:00:00.000Z',
+            simulationTime: '2030-01-01T00:00:00.000Z' });
+        store.recordPlayerPresence('world', 'human', 'online', '2026-09-13T08:00:01.000Z');
+        expect(() => store.recordPlayerRest('world', 'human', 'sleeping',
+            '2026-09-13T08:00:02.000Z')).toThrow('verified sleep-place access');
+        expect(() => store.startPlayerSleep('world', 'human', { sleeperKind: 'human-player',
+            sleepPlaceId: 'inn-bed-1', access: { kind: 'physical-presence', evidenceId: 'arrival-2',
+                sourceDigest: 'b'.repeat(64), validUntilSimulationTime: null } },
+        '2026-09-13T08:00:02.000Z')).toThrow('requires a bed entitlement');
+        const sleeping = store.startPlayerSleep('world', 'human', { sleeperKind: 'human-player',
+            sleepPlaceId: 'inn-bed-1', access: { kind: 'bed-entitlement', evidenceId: 'tenancy-1',
+                sourceDigest: 'c'.repeat(64), validUntilSimulationTime: '2030-01-01T01:00:00.000Z' } },
+        '2026-09-13T08:00:02.000Z');
+        expect(sleeping).toMatchObject({ presence: 'online', rest: 'sleeping',
+            offlineDelegation: 'disabled', sleepContext: { sleeperKind: 'human-player',
+                sleepPlaceId: 'inn-bed-1' } });
+        const loggedOut = store.recordPlayerPresence('world', 'human', 'offline',
+            '2026-09-13T08:00:03.000Z');
+        expect(loggedOut).toMatchObject({ presence: 'offline', rest: 'sleeping',
+            sleepContext: { sleepPlaceId: 'inn-bed-1' } });
+        expect(() => store.startPlayerSleep('world', 'expired', { sleeperKind: 'human-player',
+            sleepPlaceId: 'inn-bed-2', access: { kind: 'bed-entitlement', evidenceId: 'tenancy-old',
+                sourceDigest: 'd'.repeat(64), validUntilSimulationTime: '2030-01-01T00:00:01.000Z' } },
+        '2026-09-13T08:00:04.000Z')).toThrow('expired');
+        store.close();
+    });
+
     test('migrates an empty database and rejects a newer schema', () => {
         const path = databasePath();
         const migrated = new SimulationClockStore(path);
         migrated.close();
         let inspected = new Database(path);
-        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(3);
+        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(4);
         inspected.run('DROP TABLE simulation_player_time_state');
         inspected.run('PRAGMA user_version = 2');
         inspected.close();
@@ -197,8 +231,8 @@ describe('persistent simulation clock', () => {
         expect(upgraded.listPlayerTimeStates('world')).toEqual([]);
         upgraded.close();
         inspected = new Database(path);
-        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(3);
-        inspected.run('PRAGMA user_version = 4');
+        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(4);
+        inspected.run('PRAGMA user_version = 5');
         inspected.close();
         expect(() => new SimulationClockStore(path)).toThrow('newer than supported');
     });

@@ -455,11 +455,11 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
 - [x] Az alapvető önfenntartást determinisztikus rutin kezelje: kritikus éhségnél
   rendelkezésre álló étel fogyasztása, kritikus fáradtságnál megfelelő alvóhely
   keresése; ehhez normál esetben ne kelljen LLM-hívás.
-- [ ] Az alvást külön domainállapotként kezelni a logouttól:
-  - [ ] NPC-agent fizikailag alvó állapotba kerül és a világ tovább fut;
-  - [ ] human player engedélyezett alvóhelyen alvást indíthat és kijelentkezhet;
-  - [ ] a teljes világ ideje ne ugorjon előre attól, hogy egy vagy több játékos alszik;
-  - [ ] későbbi opcionális `offline-delegated` mód számára előkészíteni a policyhatárt,
+- [x] Az alvást külön domainállapotként kezelni a logouttól:
+  - [x] NPC-agent fizikailag alvó állapotba kerül és a világ tovább fut;
+  - [x] human player engedélyezett alvóhelyen alvást indíthat és kijelentkezhet;
+  - [x] a teljes világ ideje ne ugorjon előre attól, hogy egy vagy több játékos alszik;
+  - [x] későbbi opcionális `offline-delegated` mód számára előkészíteni a policyhatárt,
     de az offline avatárt alapból ne vegye át szabad LLM-agent.
 - [ ] A lakhatást biztonsági és komfort-hierarchiaként modellezni, például:
   utca → ideiglenes menedék → közös hálóterem → bérelt szoba → saját lakás/ház →

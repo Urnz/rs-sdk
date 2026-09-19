@@ -1,5 +1,5 @@
 export const SIMULATION_CLOCK_SCHEMA_VERSION = 1 as const;
-export const SIMULATION_CLOCK_STORE_SCHEMA_VERSION = 3 as const;
+export const SIMULATION_CLOCK_STORE_SCHEMA_VERSION = 4 as const;
 
 export type SimulationClockStatus = 'running' | 'paused';
 
@@ -71,12 +71,32 @@ export interface CreateSimulationClockInput {
 
 export type PlayerPresence = 'online' | 'offline';
 export type PlayerRestState = 'awake' | 'sleeping';
+export type SleeperKind = 'npc-agent' | 'human-player';
+export type SleepAccessKind = 'physical-presence' | 'bed-entitlement';
+
+export interface SleepAccessEvidence {
+    kind: SleepAccessKind;
+    evidenceId: string;
+    sourceDigest: string;
+    validUntilSimulationTime: string | null;
+}
+
+export interface StartPlayerSleepInput {
+    sleeperKind: SleeperKind;
+    sleepPlaceId: string;
+    access: SleepAccessEvidence;
+}
+
+export interface PlayerSleepContext extends StartPlayerSleepInput {
+    startedAtSimulationTime: string;
+}
 
 export interface PlayerTimeState {
     clockId: string;
     playerId: string;
     presence: PlayerPresence;
     rest: PlayerRestState;
+    sleepContext: PlayerSleepContext | null;
     offlineDelegation: 'disabled';
     presenceChangedAt: string;
     restChangedAt: string;

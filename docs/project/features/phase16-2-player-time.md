@@ -16,6 +16,15 @@ true while the avatar goes offline, and an offline character may be awake. Every
 transition records canonical simulation time separately from its wall-clock
 evidence. Repeating the same state is idempotent and does not increment revision.
 
+Starting sleep is stricter than changing presence. Schema v4 requires a bounded
+sleep-place id and immutable access evidence. NPC agents may use verified physical
+presence or a bed entitlement; human players require a non-expired bed entitlement.
+The sleep context remains attached when the player logs out and is cleared only
+by an explicit wake transition. A different bed or entitlement cannot replace an
+active sleep session without waking first. Legacy pre-v4 sleeping rows remain
+sleeping but have no invented access context and must wake before starting a new
+verified session.
+
 `playerTimeCapabilities()` is the fail-closed execution policy. Physical skills
 require both `online` and `awake`. `worldClockAdvances` is always true, including
 while every player is offline or sleeping. Offline delegation is persisted as
@@ -45,6 +54,11 @@ restored, archive v3 first and restore a complete v2 backup. Presence is
 reconciled from live authenticated sessions after restart. Rest is domain state
 and must never be guessed from connectivity or silently rewritten during
 rollback. Offline delegation remains disabled in either direction.
+
+Schema v4 additively appends nullable sleep admission columns. It does not rewrite
+existing presence/rest values. Rollback to v3 may leave these columns untouched;
+after restoring an older full backup, active sleep admission evidence must be
+re-established rather than inferred from connectivity.
 
 ## Verification
 
