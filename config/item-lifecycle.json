@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "lifecycleTypeId": "bronze-pickaxe",
+      "itemId": 1265,
+      "itemName": "Bronze pickaxe",
+      "maxDurability": 100,
+      "wearPerUse": 1,
+      "repairable": true
+    }
+  ]
+}

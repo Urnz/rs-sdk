@@ -38,6 +38,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   Nem hoz létre épületet és nem módosítja a világot.
 - `food-loops.json`: a nyersanyagforrást, Cooking átalakítást, kész ételt és
   hunger-csökkentést egyetlen verziózott, bizonyíték-alapú láncba köti.
+- `item-lifecycle.json`: a példányszintű tárgyak maximális tartósságát,
+  használatonkénti kopását és javíthatóságát definiálja.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

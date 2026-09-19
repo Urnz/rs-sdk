@@ -490,7 +490,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
   első valódi nyersanyag → feldolgozás → végső fogyasztás gazdasági kört.
 - [x] Az élelmiszer-fogyasztást hiteles gazdasági eseményként naplózni, hogy a
   termelés és a végső felhasználás külön mérhető legyen.
-- [ ] `item-lifecycle` modot készíteni tartósságra, használati kopásra, javításra,
+- [x] `item-lifecycle` modot készíteni tartósságra, használati kopásra, javításra,
   törésre és későbbi minőség/eredet támogatására.
 - [ ] Eldönteni és dokumentálni, mely tárgyak igényelnek itempéldány-szintű
   állapotot és melyek kezelhetők továbbra is stackként vagy gyártási tételként.
