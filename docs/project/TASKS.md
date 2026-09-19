@@ -452,7 +452,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
   állapottal; thirst, stress és további szükségletek későbbi bővítésként jöhessenek.
 - [x] A szükségletek romlását a `SimulationClock` alapján számolni, konfigurálható
   offline és alvási szabályokkal.
-- [ ] Az alapvető önfenntartást determinisztikus rutin kezelje: kritikus éhségnél
+- [x] Az alapvető önfenntartást determinisztikus rutin kezelje: kritikus éhségnél
   rendelkezésre álló étel fogyasztása, kritikus fáradtságnál megfelelő alvóhely
   keresése; ehhez normál esetben ne kelljen LLM-hívás.
 - [ ] Az alvást külön domainállapotként kezelni a logouttól:

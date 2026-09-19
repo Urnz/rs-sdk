@@ -20,6 +20,14 @@ floating-point or wall-clock drift. Values are clamped to their declared bounds.
 The transition records the previous state digest, exact elapsed simulation time,
 selected rates and resulting state digest for deterministic replay and audit.
 
+Critical self-maintenance is a deterministic high-level decision boundary, not
+an LLM prompt. Hunger takes precedence over fatigue when both are critical. The
+routine selects the strongest available inventory food, or the accessible sleep
+place with the best recovery and safety tie-breaker. Inputs are bounded, exact
+and digest-bound; unavailable resources produce a typed blocked decision instead
+of inventing an action or automatically calling a model. Execution remains behind
+the typed `consume-food` and `seek-sleep-place` action intents.
+
 This remains an additive in-memory model and creates no persistent store, so no
 migration is required. Rollback removes the module and both policies before any
 consumer persists a state. Future persistence must introduce an explicit schema

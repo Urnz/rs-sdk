@@ -101,3 +101,43 @@ export interface NeedsTransitionDefinition {
 export interface NeedsTransition extends NeedsTransitionDefinition {
     digest: string;
 }
+
+export interface AvailableFoodCandidate {
+    itemId: number;
+    inventorySlot: number;
+    quantity: number;
+    hungerRelief: number;
+}
+
+export interface AvailableSleepPlaceCandidate {
+    sleepPlaceId: string;
+    available: boolean;
+    accessAllowed: boolean;
+    fatigueRecoveryPerHour: number;
+    safetyLevel: number;
+}
+
+export interface SelfMaintenanceObservation {
+    foods: AvailableFoodCandidate[];
+    sleepPlaces: AvailableSleepPlaceCandidate[];
+}
+
+export type SelfMaintenanceAction =
+    | { operation: 'consume-food'; itemId: number; inventorySlot: number; quantity: 1; hungerRelief: number }
+    | { operation: 'seek-sleep-place'; sleepPlaceId: string; fatigueRecoveryPerHour: number };
+
+export type SelfMaintenanceDecisionKind = 'consume-food' | 'seek-sleep-place' | 'blocked' | 'none';
+
+export interface SelfMaintenanceDecisionDefinition {
+    kind: SelfMaintenanceDecisionKind;
+    decisionSource: 'deterministic-needs-routine';
+    llmCallRequired: false;
+    stateDigest: string;
+    criticalNeedId: 'hunger' | 'fatigue' | null;
+    reasonCode: 'food-selected' | 'sleep-place-selected' | 'critical-resource-unavailable' | 'no-critical-need';
+    action: SelfMaintenanceAction | null;
+}
+
+export interface SelfMaintenanceDecision extends SelfMaintenanceDecisionDefinition {
+    digest: string;
+}
