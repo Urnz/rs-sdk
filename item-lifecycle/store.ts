@@ -3,6 +3,8 @@ import { Database } from 'bun:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { itemLifecycleCatalogDigest } from './catalog.js';
+import { assertVerifiedRepairAuthorization } from './repair-authorization.js';
+import type { VerifiedRepairAuthorization } from './repair-authorization.js';
 import type { ItemInstanceState, ItemLifecycleCatalog, ItemReplacementRecord } from './types.js';
 
 const ID = /^[a-z0-9][a-z0-9._:-]{0,127}$/i, ZERO = '0'.repeat(64), DIGEST = /^[0-9a-f]{64}$/;
@@ -33,6 +35,8 @@ export class ItemLifecycleStore {
     get(itemInstanceId: string): ItemInstanceState | null { const row = this.database.query(
         'SELECT * FROM item_instance WHERE item_instance_id=?1').get(id(itemInstanceId, 'Item instance id')) as Row|null;
         return row ? state(row) : null; }
+    hasOperation(operationId:string):boolean{return this.database.query(`SELECT 1 AS found FROM item_lifecycle_operation
+        WHERE operation_id=?1`).get(id(operationId,'Operation id'))!==null;}
     getReplacement(itemInstanceId:string):ItemReplacementRecord|null{const row=this.database.query(`SELECT * FROM item_replacement
         WHERE replaced_item_instance_id=?1`).get(id(itemInstanceId,'Item instance id')) as ReplacementRow|null;
         return row?{operationId:row.operation_id,replacedItemInstanceId:row.replaced_item_instance_id,
@@ -60,10 +64,11 @@ export class ItemLifecycleStore {
         return this.mutate('used', operationId, itemInstanceId, expectedRevision, useCount, evidenceDigest,
             atSimulationTime, false);
     }
-    repair(operationId: string, itemInstanceId: string, expectedRevision: number, restoredDurability: number,
-        repairEvidenceDigest: string, atSimulationTime: string): ItemInstanceState {
-        return this.mutate('repaired', operationId, itemInstanceId, expectedRevision, restoredDurability,
-            repairEvidenceDigest, atSimulationTime, true);
+    applyVerifiedRepair(authorization:VerifiedRepairAuthorization):ItemInstanceState{
+        assertVerifiedRepairAuthorization(authorization);
+        return this.mutate('repaired',authorization.operationId,authorization.itemInstanceId,
+            authorization.expectedRevision,authorization.restoredDurability,authorization.authorizationDigest,
+            authorization.atSimulationTime,true,authorization.evidence);
     }
     replace(input:{operationId:string;replacedItemInstanceId:string;replacementItemInstanceId:string;
         expectedRevision:number;ownerActorId:string;qualityBasisPoints:number;provenanceDigest:string;
@@ -105,7 +110,8 @@ export class ItemLifecycleStore {
         let head=ZERO; for(const row of rows){if(row.previous_hash!==head
             ||hash({previousHash:head,payload:JSON.parse(row.payload_json)})!==row.entry_hash)return false;head=row.entry_hash;}return true; }
     private mutate(kind: 'used'|'repaired', operationId: string, instanceId: string, expectedRevision: number,
-        amount: number, evidenceDigest: string, atInput: string, repair: boolean): ItemInstanceState {
+        amount: number, evidenceDigest: string, atInput: string, repair: boolean,
+        evidenceDetail?:Record<string,unknown>): ItemInstanceState {
         id(operationId, 'Operation id'); if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1_000_000
             || !DIGEST.test(evidenceDigest)) throw new Error('Lifecycle operation evidence is invalid');
         const current = this.get(instanceId); if (!current) throw new Error('Unknown item instance');
@@ -116,6 +122,10 @@ export class ItemLifecycleStore {
             const detail=JSON.parse(existing.detail_json) as {after:number};return {...current,durability:detail.after,
                 status:detail.after===0?'broken':'usable',updatedAtSimulationTime:existing.occurred_at,
                 revision:expectedRevision+1};}
+        if(repair&&evidenceDetail){const materialReceiptId=id(String(evidenceDetail.materialReceiptId),'Material receipt id');
+            const consumed=this.database.query(`SELECT operation_id FROM item_repair_evidence WHERE material_receipt_id=?1`)
+                .get(materialReceiptId) as{operation_id:string}|null;
+            if(consumed)throw new Error('Repair material receipt was already consumed');}
         const definition=this.catalog.items.find(item=>item.lifecycleTypeId===current.lifecycleTypeId)!;
         if(this.getReplacement(instanceId))throw new Error('Replaced item cannot be used or repaired');
         if(repair&&!definition.repairable)throw new Error('Item type is not repairable');
@@ -129,7 +139,11 @@ export class ItemLifecycleStore {
             const changed=this.database.run(`UPDATE item_instance SET durability=?3,status=?4,updated_at=?5,revision=revision+1
                 WHERE item_instance_id=?1 AND revision=?2`,[current.itemInstanceId,expectedRevision,next,status,at]);
             if(changed.changes!==1)throw new Error('Item instance changed before lifecycle operation');
-            this.operation(kind,operationId,current.itemInstanceId,at,{amount,evidenceDigest,before:current.durability,after:next,requestDigest});});
+            this.operation(kind,operationId,current.itemInstanceId,at,{amount,evidenceDigest,evidenceDetail,
+                before:current.durability,after:next,requestDigest});
+            if(repair&&evidenceDetail)this.database.run(`INSERT INTO item_repair_evidence
+                (material_receipt_id,operation_id,receipt_digest) VALUES(?1,?2,?3)`,
+            [String(evidenceDetail.materialReceiptId),operationId,String(evidenceDetail.inputReceiptDigest)]);});
         transaction.immediate();return this.get(current.itemInstanceId)!;
     }
     private operation(kind:string,operationId:string,instanceId:string,at:string,detail:Record<string,unknown>):void{
@@ -142,7 +156,7 @@ export class ItemLifecycleStore {
             (operation_id,payload_json,previous_hash,entry_hash) VALUES(?1,?2,?3,?4)`,
         [operationId,JSON.stringify(payload),previousHash,hash({previousHash,payload})]); }
     private migrate():void{let version=Number((this.database.query('PRAGMA user_version').get() as{user_version:number}).user_version);
-        if(version>2)throw new Error(`Item lifecycle schema ${version} is newer than supported version 2`);
+        if(version>3)throw new Error(`Item lifecycle schema ${version} is newer than supported version 3`);
         if(version===0){const transaction=this.database.transaction(()=>{this.database.run(`CREATE TABLE item_instance (
             item_instance_id TEXT PRIMARY KEY,lifecycle_type_id TEXT NOT NULL,item_id INTEGER NOT NULL,owner_actor_id TEXT NOT NULL,
             durability INTEGER NOT NULL,max_durability INTEGER NOT NULL,status TEXT NOT NULL CHECK(status IN ('usable','broken')),
@@ -157,5 +171,8 @@ export class ItemLifecycleStore {
             replaced_item_instance_id TEXT NOT NULL UNIQUE REFERENCES item_instance(item_instance_id),
             replacement_item_instance_id TEXT NOT NULL UNIQUE REFERENCES item_instance(item_instance_id),
             owner_actor_id TEXT NOT NULL,evidence_digest TEXT NOT NULL,occurred_at TEXT NOT NULL)`);
-            this.database.run('PRAGMA user_version = 2');});transaction.immediate();}}
+            this.database.run('PRAGMA user_version = 2');});transaction.immediate();version=2;}
+        if(version===2){const transaction=this.database.transaction(()=>{this.database.run(`CREATE TABLE item_repair_evidence (
+            material_receipt_id TEXT PRIMARY KEY,operation_id TEXT NOT NULL UNIQUE REFERENCES item_lifecycle_operation(operation_id),
+            receipt_digest TEXT NOT NULL)`);this.database.run('PRAGMA user_version = 3');});transaction.immediate();}}
 }

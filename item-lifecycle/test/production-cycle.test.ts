@@ -36,8 +36,6 @@ describe('production tool lifecycle vertical slice',()=>{
             lifecycleTypeId:'bronze-pickaxe',durability:100,status:'usable',qualityBasisPoints:9_500,revision:1});
         expect(store.getReplacement('pickaxe-1')).toMatchObject({operationId:'replacement-1',
             replacementItemInstanceId:'pickaxe-2',ownerActorId:'ada'});
-        expect(()=>store.repair('late-repair','pickaxe-1',3,10,'e'.repeat(64),'2030-01-01T03:00:00.000Z'))
-            .toThrow('Replaced item');
         expect(store.verifyAuditChain()).toBeTrue();store.close();});
     test('rejects unrelated production, foreign ownership and invented replacement assets',()=>{const store=new ItemLifecycleStore(databasePath(),lifecycle());
         create(store);const service=new ProductionToolCycleService(store,cycles());
@@ -55,12 +53,14 @@ describe('production tool lifecycle vertical slice',()=>{
         store=new ItemLifecycleStore(path,lifecycle());service=new ProductionToolCycleService(store,cycles());
         expect(store.getReplacement('pickaxe-1')?.replacementItemInstanceId).toBe('pickaxe-2');
         expect(service.replace(replacementReceipt())).toEqual(replaced);expect(store.verifyAuditChain()).toBeTrue();store.close();});
-    test('migrates the additive replacement ledger from schema v1',()=>{const path=databasePath();
+    test('migrates additive replacement and repair ledgers from schema v1',()=>{const path=databasePath();
         let store=new ItemLifecycleStore(path,lifecycle());store.close();
-        let database=new Database(path,{strict:true});database.run('DROP TABLE item_replacement');database.run('PRAGMA user_version = 1');
+        let database=new Database(path,{strict:true});database.run('DROP TABLE item_repair_evidence');
+        database.run('DROP TABLE item_replacement');database.run('PRAGMA user_version = 1');
         database.close(true);store=new ItemLifecycleStore(path,lifecycle());expect(store.getReplacement('pickaxe-1')).toBeNull();store.close();
-        database=new Database(path,{strict:true});expect((database.query('PRAGMA user_version').get() as{user_version:number}).user_version).toBe(2);
+        database=new Database(path,{strict:true});expect((database.query('PRAGMA user_version').get() as{user_version:number}).user_version).toBe(3);
         expect(database.query("SELECT name FROM sqlite_master WHERE type='table' AND name='item_replacement'").get()).not.toBeNull();
+        expect(database.query("SELECT name FROM sqlite_master WHERE type='table' AND name='item_repair_evidence'").get()).not.toBeNull();
         database.close(true);});
     test('rejects ambiguous cycle configuration',()=>{const configured=cycles();expect(()=>validateProductionToolCycleCatalog({schemaVersion:1,
         cycles:[configured.cycles[0]!,{...configured.cycles[0]!,cycleId:'duplicate-binding'}]},lifecycle()))

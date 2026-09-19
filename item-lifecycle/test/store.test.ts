@@ -26,16 +26,15 @@ describe('persistent item lifecycle',()=>{
         expect(used).toMatchObject({durability:75,status:'usable',revision:2});
         expect(store.verifyAuditChain()).toBeTrue();store.close();
     });
-    test('breaks at zero, blocks further use and repairs only with evidence',()=>{
+    test('breaks at zero and exposes no unrestricted repair operation',()=>{
         const store=new ItemLifecycleStore(path(),catalog());create(store);
         expect(store.use('use-break','pickaxe-1',1,100,'b'.repeat(64),'2030-01-01T01:00:00.000Z'))
             .toMatchObject({durability:0,status:'broken',revision:2});
         expect(()=>store.use('use-after-break','pickaxe-1',2,1,'c'.repeat(64),'2030-01-01T02:00:00.000Z'))
             .toThrow('Broken item');
-        expect(()=>store.repair('repair-bad','pickaxe-1',2,20,'bad','2030-01-01T02:00:00.000Z'))
-            .toThrow('evidence');
-        expect(store.repair('repair-1','pickaxe-1',2,20,'d'.repeat(64),'2030-01-01T02:00:00.000Z'))
-            .toMatchObject({durability:20,status:'usable',revision:3});store.close();
+        expect((store as unknown as{repair?:unknown}).repair).toBeUndefined();
+        expect(()=>store.applyVerifiedRepair({} as Parameters<ItemLifecycleStore['applyVerifiedRepair']>[0]))
+            .toThrow('authorization');store.close();
     });
     test('makes mutation replay exact and rejects stale or changed operation ids',()=>{
         const store=new ItemLifecycleStore(path(),catalog());create(store);
