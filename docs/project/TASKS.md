@@ -494,7 +494,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
   törésre és későbbi minőség/eredet támogatására.
 - [x] Eldönteni és dokumentálni, mely tárgyak igényelnek itempéldány-szintű
   állapotot és melyek kezelhetők továbbra is stackként vagy gyártási tételként.
-- [ ] Első vertikális szeletként egyetlen termelőeszköz-típuson végigvinni a
+- [x] Első vertikális szeletként egyetlen termelőeszköz-típuson végigvinni a
   használat → kopás → javítás vagy csere teljes ciklust.
 - [ ] A javítás valódi inputot, időt, személyes kompetenciát és szükség esetén
   facility-hozzáférést igényeljen; ne legyen ingyenes durability-reset.

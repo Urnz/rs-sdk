@@ -31,3 +31,49 @@ export interface ItemInstanceState {
     updatedAtSimulationTime: string;
     revision: number;
 }
+export interface ItemReplacementRecord {
+    operationId: string;
+    replacedItemInstanceId: string;
+    replacementItemInstanceId: string;
+    ownerActorId: string;
+    evidenceDigest: string;
+    occurredAtSimulationTime: string;
+}
+export interface ProductionToolCycleDefinition {
+    cycleId: string;
+    lifecycleTypeId: string;
+    skillName: string;
+    outputItemIds: number[];
+}
+export interface ProductionToolCycleCatalog {
+    schemaVersion: 1;
+    cycles: ProductionToolCycleDefinition[];
+    digest: string;
+}
+export interface ProductionToolUseReceipt {
+    receiptId: string;
+    cycleId: string;
+    itemInstanceId: string;
+    actorId: string;
+    expectedRevision: number;
+    skillName: string;
+    successfulActions: number;
+    outputItemId: number;
+    outputQuantity: number;
+    sourceEvidenceDigest: string;
+    atSimulationTime: string;
+}
+export interface ProductionToolReplacementReceipt {
+    receiptId: string;
+    cycleId: string;
+    replacedItemInstanceId: string;
+    replacementItemInstanceId: string;
+    actorId: string;
+    expectedRevision: number;
+    acquiredItemId: number;
+    acquiredQuantity: 1;
+    replacementQualityBasisPoints: number;
+    replacementProvenanceDigest: string;
+    acquisitionEvidenceDigest: string;
+    atSimulationTime: string;
+}

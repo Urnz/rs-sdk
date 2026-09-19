@@ -23,6 +23,21 @@ cannot exceed the snapshotted maximum. The next repair task must define and
 verify the actual material, time, competence and facility receipt behind that
 digest; this module never treats free-form model output as repair evidence.
 
-Schema v1 is additive. Rollback requires stopping lifecycle writers and restoring
-or archiving the SQLite database with WAL/SHM sidecars. Deleting it would lose
-instance identity, wear, breakage and audit history; newer schemas fail closed.
+The first complete production-tool slice is configured in
+`config/production-tool-cycles.json`. A bronze pickaxe accepts only a typed,
+evidence-bound Mining receipt for configured ore outputs. Every successful
+action applies the catalogued wear; one hundred verified actions therefore
+break the initial tool. Replacement requires a separate receipt proving the
+acquisition of exactly one matching item. The broken instance and its successor
+are linked atomically, the old instance becomes ineligible for later use or
+repair, and an exact retry returns the original successor. This closes the
+use → wear → break → replacement path without treating replacement as a free
+durability reset. Repair remains available only through the lower-level store
+until the next task adds its real resource, time, competence and facility gate.
+
+Schema v2 adds only the `item_replacement` relation; opening a v1 database creates
+it transactionally without rewriting existing instances or audit history. To
+roll back the code, stop lifecycle writers and restore the pre-migration database
+backup with its WAL/SHM sidecars; a v1 binary intentionally rejects the v2 file.
+Deleting the database would lose instance identity, wear, breakage, replacement
+links and audit history; newer schemas fail closed.

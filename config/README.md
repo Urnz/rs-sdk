@@ -42,6 +42,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   használatonkénti kopását és javíthatóságát definiálja.
 - `item-state-policies.json`: konkrét item ID-nként választ a példányszintű,
   stack- és batch-kezelés között; ismeretlen tárgyhoz nincs implicit fallback.
+- `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
+  és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges
