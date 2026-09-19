@@ -18,6 +18,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   facility-központú személyes skillplafon-policyk.
 - `skill-introduction-gate-policies.json`: az új személyes skillekhez megkövetelt
   független hiánybizonyíték és kísérleti bizonyíték szabályai.
+- `needs-policies.json`: a karakter szükségleteinek verziózott, bővíthető
+  definíciói; elsőként a hunger és fatigue skálája és kritikus küszöbe.
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

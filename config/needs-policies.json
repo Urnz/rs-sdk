@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "default-character-needs",
+      "version": "1.0.0",
+      "needs": [
+        {
+          "needId": "hunger",
+          "label": "Hunger",
+          "minimumValue": 0,
+          "maximumValue": 10000,
+          "initialValue": 0,
+          "criticalThreshold": 8000
+        },
+        {
+          "needId": "fatigue",
+          "label": "Fatigue",
+          "minimumValue": 0,
+          "maximumValue": 10000,
+          "initialValue": 0,
+          "criticalThreshold": 8000
+        }
+      ]
+    }
+  ]
+}

@@ -448,7 +448,7 @@ eljárások és a facility-képességek továbbra is külön fogalmak maradnak.
 
 ## 18. Fázis – szükségletek, alvás és lakhatás
 
-- [ ] Külön `needs` modot készíteni, elsőként legalább `hunger` és `fatigue`
+- [x] Külön `needs` modot készíteni, elsőként legalább `hunger` és `fatigue`
   állapottal; thirst, stress és további szükségletek későbbi bővítésként jöhessenek.
 - [ ] A szükségletek romlását a `SimulationClock` alapján számolni, konfigurálható
   offline és alvási szabályokkal.
