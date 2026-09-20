@@ -59,7 +59,9 @@ copy the old shared inventory or recreate treasury funds.
 
 `ShopEconomyPolicy.test.ts` covers the compatibility default, closed-mode denial,
 restock denial, persistent configuration, environment override and invalid-mode
-rejection. The content build compiles the policy command and all three RuneScript
-guards. A live smoke test can additionally attempt to open any `_shop_keeper`
-while the closed setting is active and confirm that no shop interface or
-inventory/coin delta appears.
+rejection. It also reads the shop content source and requires policy guards at
+both entry procedures and the final transaction label, while the content build
+compiles the policy command and those RuneScript guards. The 2026-09-20 live
+agent-shop acceptance run used `closed-society`; its sale, procurement and wage
+flow completed entirely through player/avatar evidence and finite Business
+inventory and treasury, without a legacy restock or NPC payout.

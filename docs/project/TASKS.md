@@ -537,7 +537,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
 - [x] Elsőként legalább egy teljesen agentek által működtetett üzletet vagy
   vendéglátóhelyet élőben működtetni: beszerzés → készletezés → értékesítés → bér/
   profit → újrarendelés.
-- [ ] A statikus NPC shop fallbacket külön world policyként megtartani fejlesztői
+- [x] A statikus NPC shop fallbacket külön world policyként megtartani fejlesztői
   vagy klasszikus játékmódhoz, de a társadalomszimulációs profilban kikapcsolhatónak
   kell lennie.
 

@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
     automaticShopRestockAllowed,
@@ -37,5 +39,18 @@ describe('ShopEconomyPolicy', () => {
         const config = migrateFromLegacyEnv(createDefaultWorldConfig(), { NODE_SHOP_ECONOMY_MODE: 'closed-society' });
 
         expect(config.node.shopEconomyMode).toBe('closed-society');
+    });
+
+    test('guards both shop entry procedures and the final transaction request', () => {
+        const source = readFileSync(join(import.meta.dir, '../../../content/scripts/shop/scripts/shop.rs2'), 'utf8');
+        const guardedProcedures = ['[proc,openshop]', '[proc,openshop_activenpc]', '[label,shop_request]'];
+
+        for (const procedure of guardedProcedures) {
+            const start = source.indexOf(procedure);
+            expect(start).toBeGreaterThanOrEqual(0);
+            expect(source.slice(start, start + 300)).toContain('if (shop_legacy_allowed() = false)');
+        }
+
+        expect(source.match(/if \(shop_legacy_allowed\(\) = false\)/g)).toHaveLength(3);
     });
 });
