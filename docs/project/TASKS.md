@@ -532,7 +532,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
 - [x] Beszerzési, készletminimum-, árképzési és értékesítési policyt adni úgy, hogy
   az institution agent magas szintű döntést hozzon, a konkrét árumozgatást pedig
   player/avatar verified skill vagy hiteles settlement végezze.
-- [ ] Fizetett munkát, műszakot, munkaidőt, work ordert és facility-/Property-
+- [x] Fizetett munkát, műszakot, munkaidőt, work ordert és facility-/Property-
   entitlementet a role-hoz kötni.
 - [ ] Elsőként legalább egy teljesen agentek által működtetett üzletet vagy
   vendéglátóhelyet élőben működtetni: beszerzés → készletezés → értékesítés → bér/

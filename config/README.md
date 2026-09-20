@@ -63,6 +63,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `business-stock-policies.json`: Business- és item-specifikus véges készletminimum,
   cél- és maximumkészlet, beszerzési árplafon, eladási ár/reserve és settlement-
   korlát. Fizikai teljesítéshez csak pontos, review-zott verified skill engedhető.
+- `business-work-policies.json`: szerephez és verified skillhez kötött műszak- és
+  work-order korlátok, szükséges Property/facility entitlement és kizárólag
+  hiteles teljesítés után kiérdemelhető bér feltétele.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó
