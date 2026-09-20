@@ -450,7 +450,8 @@ export const enum ScriptOpcode {
     MAP_RANDOM_EVENTS,
     GETTIMESPENT, // custom: used to profile script execution (current duration)
     TIMESPENT, // custom: used to profile script execution (record start time)
-    GE_OPEN = 10010 // rs-sdk: native physical Grand Exchange
+    GE_OPEN = 10010, // rs-sdk: native physical Grand Exchange
+    SHOP_LEGACY_ALLOWED // rs-sdk: closed-society compatibility gate
 }
 
 export const ScriptOpcodeMap: Map<string, number> = new Map([
@@ -874,6 +875,7 @@ export const ScriptOpcodeMap: Map<string, number> = new Map([
     ['ERROR', ScriptOpcode.ERROR],
     ['MAP_RANDOM_EVENTS', ScriptOpcode.MAP_RANDOM_EVENTS],
     ['GE_OPEN', ScriptOpcode.GE_OPEN],
+    ['SHOP_LEGACY_ALLOWED', ScriptOpcode.SHOP_LEGACY_ALLOWED],
     ['GETTIMESPENT', ScriptOpcode.GETTIMESPENT],
     ['TIMESPENT', ScriptOpcode.TIMESPENT]
 ]);

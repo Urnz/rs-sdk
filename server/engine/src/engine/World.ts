@@ -119,6 +119,7 @@ import { formatWorldDirectorSignalMessage, isWorldModEnabled, onWorldModPlayerLo
 import { getPlayerRewardStore, type PlayerRewardRecord } from '#/mods/PlayerRewardStore.js';
 import { getPlayerInventoryEscrowStore, type PlayerEscrowAssets,
     type PlayerInventoryEscrowRecord } from '#/mods/PlayerInventoryEscrowStore.js';
+import { automaticShopRestockAllowed } from '#/mods/ShopEconomyPolicy.js';
 import { getWorldDirectorEventStore, type EngineWorldDirectorEvent,
     type EngineWorldDirectorEventRecord } from '#/mods/WorldDirectorEventStore.js';
 
@@ -2446,7 +2447,7 @@ class World {
             // Increase or Decrease shop stock
             const invType = InvType.get(inv.type);
 
-            if (!invType.restock || !invType.stockcount || !invType.stockrate) {
+            if (!automaticShopRestockAllowed(Environment.node.shopEconomyMode) || !invType.restock || !invType.stockcount || !invType.stockrate) {
                 continue;
             }
 

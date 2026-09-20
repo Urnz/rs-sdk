@@ -2,6 +2,7 @@ import { CoordGrid } from '#/engine/CoordGrid.js';
 import { openExchange } from '#/engine/market/GrandExchange.js';
 import { ScriptOpcode } from '#/engine/script/ScriptOpcode.js';
 import { CommandHandlers } from '#/engine/script/ScriptRunner.js';
+import { legacyShopAllowed } from '#/mods/ShopEconomyPolicy.js';
 import Environment from '#/util/Environment.js';
 
 const DebugOps: CommandHandlers = {
@@ -19,6 +20,10 @@ const DebugOps: CommandHandlers = {
 
     [ScriptOpcode.MAP_RANDOM_EVENTS]: state => {
         state.pushInt(Environment.NODE_RANDOM_EVENTS ? 1 : 0);
+    },
+
+    [ScriptOpcode.SHOP_LEGACY_ALLOWED]: state => {
+        state.pushInt(legacyShopAllowed(Environment.node.shopEconomyMode) ? 1 : 0);
     },
 
     [ScriptOpcode.TIMESPENT]: state => {

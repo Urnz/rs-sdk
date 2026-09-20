@@ -1,6 +1,10 @@
 [opnpc3,_shop_keeper] ~openshop_activenpc;
 
 [proc,openshop](inv $shop, int $shop_buy, int $shop_sell, int $shop_haggle, string $title)
+if (shop_legacy_allowed() = false) {
+    mes("This legacy shop is unavailable in the closed society profile.");
+    return;
+}
 %shop = $shop;
 %shop_buy = $shop_buy;
 %shop_sell = $shop_sell;
@@ -11,6 +15,10 @@ inv_transmit($shop, shop_template:inv);
 if_openmain_side(shop_template, shop_template_side);
 
 [proc,openshop_activenpc]
+if (shop_legacy_allowed() = false) {
+    mes("This legacy shop is unavailable in the closed society profile.");
+    return;
+}
 %shop = npc_param(owned_shop);
 %shop_buy = npc_param(shop_buy_multiplier);
 %shop_sell = npc_param(shop_sell_multiplier);
@@ -179,6 +187,11 @@ return ($sell_amount);
 
 // verify a request to buy or sell from a shop, and then perform the transaction if all passed
 [label,shop_request](inv $shop_inv, int $slot, int $amount)
+if (shop_legacy_allowed() = false) {
+    mes("This legacy shop is unavailable in the closed society profile.");
+    if_close();
+    return;
+}
 // Check if the slot was empty.
 def_obj $item = inv_getobj($shop_inv, $slot);
 if($shop_inv = %shop) {

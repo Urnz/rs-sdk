@@ -518,7 +518,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
 - [x] Az ambient `Man`/`Woman` jellegű járókelőket, állatokat és mobokat ne kelljen
   automatikusan tartós gazdasági agentté alakítani; csak az kapjon teljes actor-
   identitást, akinek a szimulációban gazdasági vagy társadalmi állapota van.
-- [ ] Zárt társadalmi profilban megszüntetni a végtelen készletű és végtelen pénzű
+- [x] Zárt társadalmi profilban megszüntetni a végtelen készletű és végtelen pénzű
   NPC shopot; minden eladható készletnek és minden kifizetésnek valódi actor-
   inventory/treasury forrása legyen.
 - [ ] A genesis alatt seedelt boltot, készletet vagy vagyont külön bootstrap
