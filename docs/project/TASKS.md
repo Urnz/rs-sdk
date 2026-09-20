@@ -566,10 +566,10 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
   közvetlenül a gameplay árat.
 - [x] Business storage-, inputfoglalás- és work-in-progress állapotot adni, hogy
   több lépcsős workflow közben ne lehessen ugyanazt az inputot kétszer felhasználni.
-- [ ] Logisztikai domain-MVP-t készíteni kapacitással, útvonallal, szállítási
+- [x] Logisztikai domain-MVP-t készíteni kapacitással, útvonallal, szállítási
   idővel és költséggel; elsőként gyalogos/futár és egy nagyobb kapacitású
   szállítóeszköz vagy konténer modelljével.
-- [ ] A szekér, hajó vagy más szállítóeszköz használatát Business-role és
+- [x] A szekér, hajó vagy más szállítóeszköz használatát Business-role és
   Property/storage entitlementhez kötni.
 - [ ] Első hosszabb termelési prototípust a meglévő RuneScape skillekre építeni;
   például érc → fém → szerszám/facility-upgrade. Engineering/machining csak akkor

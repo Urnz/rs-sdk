@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 export type LegacyEmploymentRole = "manager" | "worker";
 export type BusinessPermissionDomain =
-  "inventory" | "storage" | "treasury" | "pricing" | "contracts";
+  "inventory" | "storage" | "treasury" | "pricing" | "contracts" | "logistics";
 export type BusinessPermission =
   | "inspect"
   | "receive"
@@ -18,7 +18,9 @@ export type BusinessPermission =
   | "propose"
   | "approve"
   | "accept"
-  | "settle";
+  | "settle"
+  | "dispatch"
+  | "operate";
 
 export interface BusinessRoleSkillReference {
   id: string;
@@ -56,6 +58,7 @@ const DOMAINS: BusinessPermissionDomain[] = [
   "treasury",
   "pricing",
   "contracts",
+  "logistics",
 ];
 const PERMISSIONS: Record<BusinessPermissionDomain, Set<BusinessPermission>> = {
   inventory: new Set(["inspect", "receive", "issue"]),
@@ -63,6 +66,7 @@ const PERMISSIONS: Record<BusinessPermissionDomain, Set<BusinessPermission>> = {
   treasury: new Set(["inspect", "reserve", "pay", "fund"]),
   pricing: new Set(["inspect", "propose", "approve"]),
   contracts: new Set(["inspect", "propose", "accept", "settle"]),
+  logistics: new Set(["inspect", "dispatch", "operate"]),
 };
 
 function canonical(value: unknown): unknown {

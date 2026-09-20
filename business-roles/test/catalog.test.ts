@@ -32,6 +32,8 @@ describe("data-driven Business role definitions", () => {
     );
     expect(businessRoleHasPermission(manager, "treasury", "pay")).toBeTrue();
     expect(businessRoleHasPermission(worker, "treasury", "pay")).toBeFalse();
+    expect(businessRoleHasPermission(worker, "logistics", "operate")).toBeTrue();
+    expect(businessRoleHasPermission(clerk, "logistics", "operate")).toBeFalse();
     expect(
       businessRoleMayAssignRole(manager, clerk.roleDefinitionId),
     ).toBeTrue();

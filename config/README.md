@@ -75,6 +75,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `production-capital.json`: item-lifecyclehoz és telepítési facility-
   capabilityhez kötött termelőtőke; mechanikai throughput-, minőség-, hibaarány-,
   kapacitás- és capability-hatást, batchenkénti kopást és javítási policyt ad.
+- `logistics.json`: Property/storage végpontok közötti verziózott útvonalak és
+  gyalogos vagy járműves szállítási módok kapacitással, sebességgel, költséggel
+  és a járműhöz szükséges facility-capabilityvel.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

@@ -14,7 +14,8 @@
         "storage": ["inspect", "deposit", "withdraw", "assign"],
         "treasury": ["inspect", "reserve", "pay"],
         "pricing": ["inspect", "propose", "approve"],
-        "contracts": ["inspect", "propose", "accept", "settle"]
+        "contracts": ["inspect", "propose", "accept", "settle"],
+        "logistics": ["inspect", "dispatch", "operate"]
       },
       "hiringPolicy": {
         "mayHire": true,
@@ -39,7 +40,8 @@
         "storage": ["inspect", "deposit", "withdraw"],
         "treasury": [],
         "pricing": ["inspect"],
-        "contracts": ["inspect"]
+        "contracts": ["inspect"],
+        "logistics": ["inspect", "operate"]
       },
       "hiringPolicy": {
         "mayHire": false,
@@ -64,7 +66,8 @@
         "storage": ["inspect", "deposit", "withdraw"],
         "treasury": [],
         "pricing": ["inspect", "propose"],
-        "contracts": ["inspect"]
+        "contracts": ["inspect"],
+        "logistics": ["inspect"]
       },
       "hiringPolicy": {
         "mayHire": false,
