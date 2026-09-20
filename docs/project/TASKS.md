@@ -547,10 +547,10 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
 
 ## 21. Fázis – adatvezérelt termelés, facilityk, logisztika és tőke
 
-- [ ] Általános, verziózott `ProductionRecipe` és több lépcsős `ProductionWorkflow`
+- [x] Általános, verziózott `ProductionRecipe` és több lépcsős `ProductionWorkflow`
   modellt készíteni inputtal, outputtal, idővel, személyes skillkövetelménnyel,
   facility-, tool-, knowledge- és jogosultsági követelménnyel.
-- [ ] A recept ugyanazzal a keretrendszerrel tudjon egyszerű és hosszabb láncot
+- [x] A recept ugyanazzal a keretrendszerrel tudjon egyszerű és hosszabb láncot
   kezelni, például food, ore → bar, bar → tool és később alkatrész → gép.
 - [ ] `FacilityCapability` modellt készíteni Propertyhez vagy Businesshez kötött
   képességekkel, például `smithing.basic-forging`, `storage.secure`,

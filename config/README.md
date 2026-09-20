@@ -66,6 +66,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `business-work-policies.json`: szerephez és verified skillhez kötött műszak- és
   work-order korlátok, szükséges Property/facility entitlement és kizárólag
   hiteles teljesítés után kiérdemelhető bér feltétele.
+- `production-workflows.json`: pontosan verziózott, adatvezérelt receptek és
+  függőségi gráfok item-inputtal/-outputtal, idővel, személyes skill-, facility-,
+  tool-, tudás- és entitlement-követelménnyel; önmagában nem mozgat készletet.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

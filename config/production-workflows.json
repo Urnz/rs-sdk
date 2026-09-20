@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "recipes": [
+    {
+      "recipeId": "food.cook-shrimp",
+      "version": "1.0.0",
+      "name": "Cook shrimp",
+      "inputs": [{ "itemId": 317, "quantity": 1 }],
+      "outputs": [{ "itemId": 315, "quantity": 1 }],
+      "durationSimulationMinutes": 1,
+      "executionSkill": { "id": "production.cook-item", "version": "1.0.0" },
+      "requirements": {
+        "personalSkills": [{ "skillName": "Cooking", "minimumLevel": 1 }],
+        "facilityCapabilities": ["cooking.heat-source"],
+        "tools": [],
+        "knowledge": [],
+        "entitlements": [{ "kind": "explicit", "scopeId": "cooking.heat-source" }]
+      }
+    },
+    {
+      "recipeId": "metallurgy.smelt-bronze-bar",
+      "version": "1.0.0",
+      "name": "Smelt bronze bar",
+      "inputs": [{ "itemId": 436, "quantity": 1 }, { "itemId": 438, "quantity": 1 }],
+      "outputs": [{ "itemId": 2349, "quantity": 1 }],
+      "durationSimulationMinutes": 2,
+      "executionSkill": { "id": "production.smelt-bronze", "version": "1.0.0" },
+      "requirements": {
+        "personalSkills": [{ "skillName": "Smithing", "minimumLevel": 1 }],
+        "facilityCapabilities": ["smithing.basic-furnace"],
+        "tools": [],
+        "knowledge": [{ "kind": "verified-procedure", "id": "metallurgy.bronze-smelting", "version": "1.0.0" }],
+        "entitlements": [{ "kind": "employment", "scopeId": "smithing.basic-furnace" }]
+      }
+    },
+    {
+      "recipeId": "smithing.forge-bronze-pickaxe",
+      "version": "1.0.0",
+      "name": "Forge bronze pickaxe",
+      "inputs": [{ "itemId": 2349, "quantity": 3 }],
+      "outputs": [{ "itemId": 1265, "quantity": 1 }],
+      "durationSimulationMinutes": 3,
+      "executionSkill": { "id": "production.forge-bronze-pickaxe", "version": "1.0.0" },
+      "requirements": {
+        "personalSkills": [{ "skillName": "Smithing", "minimumLevel": 1 }],
+        "facilityCapabilities": ["smithing.basic-forging"],
+        "tools": [{ "itemId": 2347, "quantity": 1, "capabilityId": "tool.hammering" }],
+        "knowledge": [{ "kind": "organization-license", "id": "smithing.bronze-tools", "version": "1.0.0" }],
+        "entitlements": [{ "kind": "employment", "scopeId": "smithing.basic-forging" }]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "food.cooked-shrimp",
+      "version": "1.0.0",
+      "name": "Single-step cooked shrimp",
+      "steps": [{ "stepId": "cook", "recipe": { "id": "food.cook-shrimp", "version": "1.0.0" }, "batches": 1, "dependsOn": [] }]
+    },
+    {
+      "workflowId": "tools.bronze-pickaxe",
+      "version": "1.0.0",
+      "name": "Ore to bronze pickaxe",
+      "steps": [
+        { "stepId": "smelt", "recipe": { "id": "metallurgy.smelt-bronze-bar", "version": "1.0.0" }, "batches": 3, "dependsOn": [] },
+        { "stepId": "forge", "recipe": { "id": "smithing.forge-bronze-pickaxe", "version": "1.0.0" }, "batches": 1, "dependsOn": ["smelt"] }
+      ]
+    }
+  ]
+}
