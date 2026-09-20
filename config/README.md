@@ -60,6 +60,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   verified skill-korlátok, domainenkénti készlet-/storage-/treasury-/ár-/szerződés-
   jogosultságok és felvételi/delegálási policy. Draft skillre hivatkozva a gateway
   fail-closed módon nem indul el.
+- `business-stock-policies.json`: Business- és item-specifikus véges készletminimum,
+  cél- és maximumkészlet, beszerzési árplafon, eladási ár/reserve és settlement-
+  korlát. Fizikai teljesítéshez csak pontos, review-zott verified skill engedhető.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

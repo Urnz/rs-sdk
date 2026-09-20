@@ -529,7 +529,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
   jogosultságokkal és delegálási/felvételi policyval.
 - [x] Business inventory- és storage-modellt adni, amely elválik a tulajdonos vagy
   manager személyes inventoryjától.
-- [ ] Beszerzési, készletminimum-, árképzési és értékesítési policyt adni úgy, hogy
+- [x] Beszerzési, készletminimum-, árképzési és értékesítési policyt adni úgy, hogy
   az institution agent magas szintű döntést hozzon, a konkrét árumozgatást pedig
   player/avatar verified skill vagy hiteles settlement végezze.
 - [ ] Fizetett munkát, műszakot, munkaidőt, work ordert és facility-/Property-

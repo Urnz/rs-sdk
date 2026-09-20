@@ -2,7 +2,7 @@
   "name": "server",
   "private": true,
   "scripts": {
-    "check": "bun run format:check && bun run typecheck && bun run typecheck:webclient && bun run test && bun run test:business-assets",
+    "check": "bun run format:check && bun run typecheck && bun run typecheck:webclient && bun run test && bun run test:business-assets && bun run test:business-stock-policy",
     "docs:api": "bun sdk/generate-api-docs.ts",
     "docs:api:check": "bun sdk/generate-api-docs.ts --check",
     "fetch-collision-data": "bun sdk/fetch-collision-data.ts",
@@ -25,6 +25,7 @@
     "test:skills": "bun test agent-skills/test",
     "test:agent-state": "bun test agent-state/test",
     "test:business-assets": "bun test business-assets/test",
+    "test:business-stock-policy": "bun test business-stock-policy/test",
     "test:llm-runtime": "bun test llm-runtime/test",
     "test:smoke": "pwsh -NoProfile -File scripts/smoke-local.ps1",
     "typecheck": "tsc --noEmit",
