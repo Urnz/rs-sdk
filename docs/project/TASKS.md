@@ -564,7 +564,7 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
 - [x] A késztermék tőkeértékét elsősorban ebből a hasznosságból és a piaci
   eredményekből mérni; külön telemetriai értékelés lehet, de ne ez diktálja
   közvetlenül a gameplay árat.
-- [ ] Business storage-, inputfoglalás- és work-in-progress állapotot adni, hogy
+- [x] Business storage-, inputfoglalás- és work-in-progress állapotot adni, hogy
   több lépcsős workflow közben ne lehessen ugyanazt az inputot kétszer felhasználni.
 - [ ] Logisztikai domain-MVP-t készíteni kapacitással, útvonallal, szállítási
   idővel és költséggel; elsőként gyalogos/futár és egy nagyobb kapacitású
