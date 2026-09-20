@@ -137,4 +137,13 @@ describe('player inventory escrow', () => {
             .toEqual({ coins: 450, copper: 6 });
         store.close();
     });
+
+    test('consumes held assets into an institution settlement without a player payee',()=>{
+        const {store,path,wallet,inventory}=fixture({995:100});const id='88888888-8888-4888-8888-888888888888';
+        store.hold(id,'buyer',{gp:25,items:[]},wallet);const consumed=store.consume(id,'buyer');
+        expect(consumed).toMatchObject({status:'committed',payeeUsername:null,committedAt:expect.any(String)});
+        expect(inventory.get(995)).toBe(75);expect(store.consume(id,'buyer')).toEqual(consumed);
+        expect(()=>store.release(id,'buyer',wallet)).toThrow('Only held');store.close();
+        const reopened=new PlayerInventoryEscrowStore(path);expect(reopened.get(id)).toEqual(consumed);reopened.close()
+    });
 });

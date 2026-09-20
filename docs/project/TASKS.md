@@ -534,7 +534,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
   player/avatar verified skill vagy hiteles settlement végezze.
 - [x] Fizetett munkát, műszakot, munkaidőt, work ordert és facility-/Property-
   entitlementet a role-hoz kötni.
-- [ ] Elsőként legalább egy teljesen agentek által működtetett üzletet vagy
+- [x] Elsőként legalább egy teljesen agentek által működtetett üzletet vagy
   vendéglátóhelyet élőben működtetni: beszerzés → készletezés → értékesítés → bér/
   profit → újrarendelés.
 - [ ] A statikus NPC shop fallbacket külön world policyként megtartani fejlesztői

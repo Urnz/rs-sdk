@@ -8,7 +8,7 @@ export interface EnginePlayerEscrowAssets {
     items: EnginePlayerEscrowItem[];
 }
 
-export type EnginePlayerEscrowOperation = 'hold' | 'release' | 'commit';
+export type EnginePlayerEscrowOperation = 'hold' | 'release' | 'commit' | 'consume';
 
 export interface EnginePlayerEscrowRequest {
     escrowId: string;

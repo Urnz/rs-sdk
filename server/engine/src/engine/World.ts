@@ -296,7 +296,7 @@ export interface AdminPlayerRewardResult {
 export interface AdminPlayerEscrowCommand {
     commandId: string;
     escrowId: string;
-    operation: 'hold' | 'release' | 'commit';
+    operation: 'hold' | 'release' | 'commit' | 'consume';
     username: string;
     payeeUsername?: string;
     assets?: PlayerEscrowAssets;
@@ -307,7 +307,7 @@ export interface AdminPlayerEscrowResult {
     ok: boolean;
     commandId: string;
     escrowId: string;
-    operation: 'hold' | 'release' | 'commit';
+    operation: 'hold' | 'release' | 'commit' | 'consume';
     username: string;
     payeeUsername?: string;
     escrow?: PlayerInventoryEscrowRecord;
@@ -1288,12 +1288,15 @@ class World {
                     ? store.hold(command.escrowId, command.username, command.assets!, wallet)
                     : command.operation === 'release'
                         ? store.release(command.escrowId, command.username, wallet)
-                        : store.commit(command.escrowId, command.username, command.payeeUsername!, wallet);
+                        : command.operation === 'commit'
+                            ? store.commit(command.escrowId, command.username, command.payeeUsername!, wallet)
+                            : store.consume(command.escrowId,command.username);
                 player.addSessionLog(LoggerEventType.MODERATOR,
                     `Player inventory escrow ${command.operation}: ${command.escrowId}`, command.commandId);
                 player.messageGame(command.operation === 'hold' ? 'A szerződéses fedezet escrowba került.'
                     : command.operation === 'release' ? 'Az escrowban foglalt eszközök visszakerültek.'
-                        : 'A szerződéses escrow kifizetése megérkezett.');
+                        : command.operation === 'commit' ? 'A szerződéses escrow kifizetése megérkezett.'
+                            : 'Az escrow fedezete az intézményi elszámolásba került.');
                 this.loginThread.postMessage({ type: 'player_autosave', username: player.username, save: player.save() });
                 command.resolve({ ok: true, commandId: command.commandId, escrowId: command.escrowId,
                     operation: command.operation, username: command.username,

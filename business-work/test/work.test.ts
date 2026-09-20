@@ -44,4 +44,15 @@ describe('role-bound Business shifts and work orders',()=>{
     test('validates bounded role policy and stable catalog evidence',()=>{const catalog=loadDefaultBusinessWorkPolicyCatalog(),policy=catalog.policies[0]!;
         expect(catalog.digest).toHaveLength(64);expect(()=>validateBusinessWorkPolicyCatalog({schemaVersion:1,policies:[{...policy,
             minimumMinutes:500,maximumMinutes:100}]})).toThrow()});
+    test('expires an abandoned order and accepts real elapsed time that is not millisecond-aligned',()=>{
+        const {employment,work}=fixture();try{grant(work);work.createWorkOrder('expired-order',
+            'lumbridge-general-store.shop-clerk.v1',employment.employmentId,'2026-09-20T09:00:00.000Z',
+            '2026-09-20T10:00:00.000Z');work.start('expired-order','2026-09-20T09:00:00.000Z');
+        expect(()=>work.expire('expired-order','2026-09-20T09:30:00.000Z')).toThrow('expired');
+        expect(work.expire('expired-order','2026-09-20T10:01:00.000Z')).toMatchObject({status:'cancelled',wageStatus:'unearned'});
+        work.createWorkOrder('real-time-order','lumbridge-general-store.shop-clerk.v1',employment.employmentId,
+            '2026-09-20T09:00:00.000Z','2026-09-20T10:00:00.000Z');work.start('real-time-order','2026-09-20T09:00:00.000Z');
+        expect(work.complete('real-time-order',{...evidence(),evidenceId:'real-time-proof',workOrderId:'real-time-order',
+            completedAt:'2026-09-20T09:15:17.250Z'},()=>true)).toMatchObject({status:'completed',actualMinutes:15})
+        }finally{work.close()}});
 });

@@ -276,7 +276,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
                 && Number.isSafeInteger((item as Record<string, unknown>).id)
                 && Number.isSafeInteger((item as Record<string, unknown>).count));
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(escrowId)
-            || !['hold', 'release', 'commit'].includes(String(operation))
+            || !['hold', 'release', 'commit', 'consume'].includes(String(operation))
             || (operation === 'hold' ? !validAssets || payeeUsername !== undefined
                 : assets !== undefined || (operation === 'commit'
                     ? !payeeUsername || !/^[a-zA-Z0-9]{1,12}$/.test(payeeUsername)
@@ -284,7 +284,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
             return json({ error: 'Invalid player escrow request' }, 400);
         }
         const result: AdminPlayerEscrowResult = await World.enqueueAdminPlayerEscrow({ commandId,
-            escrowId, operation: operation as 'hold' | 'release' | 'commit', username,
+            escrowId, operation: operation as 'hold' | 'release' | 'commit' | 'consume', username,
             payeeUsername, assets: operation === 'hold' ? assets as { gp: number; items: Array<{ id: number; count: number }> } : undefined,
             expiresAt: Date.now() + 2_000 });
         return json(result, result.ok ? 200 : 409);

@@ -103,13 +103,17 @@ export class BusinessWorkStore{private readonly database:Database;constructor(pa
         if(order.status!=='scheduled'||now<order.scheduledStart||now>order.scheduledEnd)throw new Error('Work order is outside its scheduled shift');
         this.database.run(`UPDATE business_work_order SET status='running',updated_at=?2 WHERE work_order_id=?1 AND status='scheduled'`,[workOrderId,now]);
         return this.get(workOrderId)!}
+    expire(workOrderId:string,now=new Date().toISOString()):BusinessWorkOrder{const order=this.required(workOrderId);
+        if(order.status==='cancelled')return order;if(order.status!=='running'||now<=order.scheduledEnd)
+            throw new Error('Only an expired running work order can be cancelled');this.database.run(`UPDATE business_work_order
+            SET status='cancelled',updated_at=?2 WHERE work_order_id=?1 AND status='running'`,[workOrderId,now]);return this.get(workOrderId)!}
     complete(workOrderId:string,evidence:WorkCompletionEvidence,verify?:WorkEvidenceVerifier):BusinessWorkOrder{const order=this.required(workOrderId);
         if(order.status==='completed'){if(order.evidenceId!==evidence.evidenceId)throw new Error('Completed work order evidence differs');return order}
         if(!verify||!verify(evidence))throw new Error('Work completion evidence is not trusted');if(order.status!=='running'||evidence.workOrderId!==order.workOrderId
             ||evidence.businessId!==order.businessId||evidence.workerAgentId!==order.workerAgentId||evidence.skill.id!==order.skill.id
             ||evidence.skill.version!==order.skill.version||evidence.status!=='completed')throw new Error('Work completion evidence does not match work order');
-        const minutes=(Date.parse(evidence.completedAt)-Date.parse(evidence.startedAt))/60000,policy=this.policy(order.policyId);
-        if(!Number.isInteger(minutes)||minutes<policy.minimumMinutes||minutes>policy.maximumMinutes||evidence.startedAt<order.scheduledStart
+        const elapsedMs=Date.parse(evidence.completedAt)-Date.parse(evidence.startedAt),minutes=Math.floor(elapsedMs/60000),policy=this.policy(order.policyId);
+        if(!Number.isSafeInteger(elapsedMs)||elapsedMs<0||minutes<policy.minimumMinutes||minutes>policy.maximumMinutes||evidence.startedAt<order.scheduledStart
             ||evidence.completedAt>order.scheduledEnd)throw new Error('Verified work time is outside the scheduled shift');
         this.database.run(`UPDATE business_work_order SET status='completed',actual_minutes=?2,evidence_id=?3,wage_status='earned',updated_at=?4
             WHERE work_order_id=?1 AND status='running'`,[order.workOrderId,minutes,evidence.evidenceId,evidence.completedAt]);return this.get(workOrderId)!}

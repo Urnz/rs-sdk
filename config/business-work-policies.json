@@ -8,7 +8,7 @@
       "requiredSkill": { "id": "trade.lumbridge.give-item", "version": "1.0.0" },
       "propertyId": "lumbridge-general-store",
       "facilityCapability": "retail.counter",
-      "minimumMinutes": 15,
+      "minimumMinutes": 1,
       "maximumMinutes": 480,
       "paymentCondition": "verified-completion"
     }

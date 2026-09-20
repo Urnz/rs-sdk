@@ -278,6 +278,20 @@ export class PlayerInventoryEscrowStore {
         }
         return this.get(escrowId)!;
     }
+
+    consume(escrowIdInput:string,payerUsernameInput:string,
+        now=new Date().toISOString()):PlayerInventoryEscrowRecord {
+        const escrowId=exactUuid(escrowIdInput),payerUsername=exactUsername(payerUsernameInput),timestamp=isoTimestamp(now);
+        const current=this.get(escrowId);if(!current||current.username!==payerUsername)
+            throw new Error('Player escrow does not belong to this payer');
+        if(current.status==='committed'){if(current.payeeUsername!==null)
+            throw new Error('Player escrow was committed to a payee');return current}
+        if(current.status!=='held')throw new Error('Only held player escrow can be consumed');
+        const changed=this.database.run(`UPDATE player_inventory_escrow SET commit_started_at=?2,committed_at=?2,
+            updated_at=?2,error=NULL WHERE escrow_id=?1 AND status='held' AND payee_username IS NULL
+            AND commit_started_at IS NULL AND committed_at IS NULL`,[escrowId,timestamp]);
+        if(changed.changes!==1)throw new Error('Player escrow changed before consumption');return this.get(escrowId)!
+    }
 }
 
 let defaultStore: PlayerInventoryEscrowStore | null = null;

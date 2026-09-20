@@ -24,6 +24,26 @@ The first configured candidate is the Lumbridge General Store and hammer policy:
 6. gross revenue, procurement cost, wage cost and operating profit are derived
    from the immutable operation journal.
 
+## Live acceptance run
+
+The first end-to-end pilot completed on 2026-09-20 in the `closed-society`
+world profile with `VRTrader1` as the employed clerk and `VRWorker1` as the
+customer and supplier avatar. The Business started with five hammers and
+1,000 GP. It sold three hammers for 15 GP, issued the exact six-hammer reorder,
+paid 60 GP for verified procurement, moved those goods through the Business
+stockroom, and paid 20 GP for a separately verified one-minute counter shift.
+The final snapshot contained eight hammers, 935 GP, no outstanding reorder and
+an operating result of -65 GP. Three lifecycle operations and both storage
+movements were committed exactly once.
+
+The immutable local acceptance report is written to
+`.local/economy/agent-shop-live/acceptance-report.json`; the directory is
+intentionally ignored because it contains local world evidence rather than
+source. Its accepted evidence digest was
+`447ceae4f641edc94a512bb907b85382a46ed8c8f4fe091cf2bc63018ecb2427`.
+The pilot used the existing persistent owner agent `ferrye14`; it does not claim
+that the separately documented production NPC cutover gates have been approved.
+
 ## Migration and rollback
 
 The migration is additive. `agent_shop_schema` and `agent_shop_operation` are
