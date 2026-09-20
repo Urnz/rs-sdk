@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "activation": "genesis-only",
+  "bootstraps": [
+    {
+      "bootstrapId": "lumbridge-general-store-seed-v1",
+      "migrationId": "lumbridge-general-store-v1",
+      "allowedProfileIds": [
+        "seeded-economy",
+        "mature-society",
+        "historical-burn-in"
+      ],
+      "businessAllocationId": "lumbridge-general-store-business-v1",
+      "openingCapitalGp": 1000,
+      "stock": [
+        {
+          "allocationId": "lumbridge-general-store-pot-v1",
+          "itemId": 1931,
+          "expectedSymbol": "pot_empty",
+          "count": 3
+        },
+        {
+          "allocationId": "lumbridge-general-store-jug-v1",
+          "itemId": 1935,
+          "expectedSymbol": "jug_empty",
+          "count": 2
+        },
+        {
+          "allocationId": "lumbridge-general-store-shears-v1",
+          "itemId": 1735,
+          "expectedSymbol": "shears",
+          "count": 2
+        },
+        {
+          "allocationId": "lumbridge-general-store-bucket-v1",
+          "itemId": 1925,
+          "expectedSymbol": "bucket_empty",
+          "count": 2
+        },
+        {
+          "allocationId": "lumbridge-general-store-tinderbox-v1",
+          "itemId": 590,
+          "expectedSymbol": "tinderbox",
+          "count": 2
+        },
+        {
+          "allocationId": "lumbridge-general-store-chisel-v1",
+          "itemId": 1755,
+          "expectedSymbol": "chisel",
+          "count": 2
+        },
+        {
+          "allocationId": "lumbridge-general-store-hammer-v1",
+          "itemId": 2347,
+          "expectedSymbol": "hammer",
+          "count": 5
+        },
+        {
+          "allocationId": "lumbridge-general-store-map-v1",
+          "itemId": 550,
+          "expectedSymbol": "newcomer_map",
+          "count": 5
+        }
+      ]
+    }
+  ]
+}

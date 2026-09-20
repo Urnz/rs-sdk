@@ -521,7 +521,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
 - [x] Zárt társadalmi profilban megszüntetni a végtelen készletű és végtelen pénzű
   NPC shopot; minden eladható készletnek és minden kifizetésnek valódi actor-
   inventory/treasury forrása legyen.
-- [ ] A genesis alatt seedelt boltot, készletet vagy vagyont külön bootstrap
+- [x] A genesis alatt seedelt boltot, készletet vagy vagyont külön bootstrap
   eredettel létrehozni, de a futó világban ne töltődjön újra indoklás nélkül.
 - [ ] A jelenlegi `manager | worker` MVP fölé adatvezérelt
   `BusinessRoleDefinition` modellt készíteni stabil szerepazonosítóval, névvel,

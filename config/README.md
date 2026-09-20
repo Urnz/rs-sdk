@@ -50,6 +50,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `economic-npc-migrations.json`: csak tervezési állapotú, verziózott migrációs
   katalógus a statikus gazdasági NPC-szolgáltatások Business-, Property-, agent-,
   inventory- és treasury-alapú kiváltásához; önmagában nem kapcsol át élő shopot.
+- `shop-genesis-bootstraps.json`: genesis-only, adatvezérelt shop-nyitókészlet és
+  Business-nyitótőke; csak egyszer használható world-genesis allokációkat fordít,
+  futás közbeni restock vagy közvetlen tárgy-/pénzjuttatás nincs benne.
 - `actor-identity-boundary.json`: az ambient világentitások tartós actorrá
   emelésének fail-closed policyja; vizuális NPC/állat/mob típus önmagában nem
   jogosít agent-identitásra, csak domainadapterrel igazolt perzisztens állapot.
