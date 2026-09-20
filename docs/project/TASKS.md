@@ -527,7 +527,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
   `BusinessRoleDefinition` modellt készíteni stabil szerepazonosítóval, névvel,
   engedélyezett verified skillekkel, készlet-/storage-/treasury-/ár-/szerződés-
   jogosultságokkal és delegálási/felvételi policyval.
-- [ ] Business inventory- és storage-modellt adni, amely elválik a tulajdonos vagy
+- [x] Business inventory- és storage-modellt adni, amely elválik a tulajdonos vagy
   manager személyes inventoryjától.
 - [ ] Beszerzési, készletminimum-, árképzési és értékesítési policyt adni úgy, hogy
   az institution agent magas szintű döntést hozzon, a konkrét árumozgatást pedig
