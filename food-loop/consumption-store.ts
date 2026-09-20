@@ -78,6 +78,14 @@ export class FoodConsumptionStore {
         return { events: events.length, foodUnitsConsumed: events.reduce((sum, item) => sum + item.quantity, 0),
             hungerRelief: events.reduce((sum, item) => sum + item.hungerRelief, 0) };
     }
+    summaryWindow(fromSimulationTime:string,toSimulationTime:string,actorAgentId?:string):FoodConsumptionSummary{
+        const from=Date.parse(fromSimulationTime),to=Date.parse(toSimulationTime);
+        if(Number.isNaN(from)||new Date(from).toISOString()!==fromSimulationTime||Number.isNaN(to)
+            ||new Date(to).toISOString()!==toSimulationTime||from>to)throw new Error('Consumption metric window is invalid');
+        const events=this.list(actorAgentId).filter(item=>{const at=Date.parse(item.occurredAtSimulationTime);return at>=from&&at<=to;});
+        return{events:events.length,foodUnitsConsumed:events.reduce((sum,item)=>sum+item.quantity,0),
+            hungerRelief:events.reduce((sum,item)=>sum+item.hungerRelief,0)};
+    }
     verifyAuditChain(): boolean {
         const rows = this.database.query(`SELECT previous_hash,entry_hash,payload_json FROM food_consumption_audit
             ORDER BY sequence`).all() as Array<{ previous_hash: string; entry_hash: string; payload_json: string }>;

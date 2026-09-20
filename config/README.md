@@ -45,6 +45,8 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `batch-expiry-policies.json`: alapból csak `prepared` állapotú, szimulációs
   időre épülő szerződés a romlandó gyártási tételek eltarthatóságához és
   capabilityhez kötött tárolási minőségéhez; önmagában nem aktivál romlást.
+- `loop-metric-policies.json`: a zárt food- és tool-loopok készletminimumait és
+  hiányszámítását köti a verziózott chain-, illetve production-cycle azonosítókhoz.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

@@ -5,7 +5,7 @@ import { dirname } from 'node:path';
 import { itemLifecycleCatalogDigest } from './catalog.js';
 import { assertVerifiedRepairAuthorization } from './repair-authorization.js';
 import type { VerifiedRepairAuthorization } from './repair-authorization.js';
-import type { ItemInstanceState, ItemLifecycleCatalog, ItemReplacementRecord } from './types.js';
+import type { ItemInstanceState, ItemLifecycleCatalog, ItemLifecycleLoopMetrics, ItemReplacementRecord } from './types.js';
 
 const ID = /^[a-z0-9][a-z0-9._:-]{0,127}$/i, ZERO = '0'.repeat(64), DIGEST = /^[0-9a-f]{64}$/;
 type Row = { item_instance_id: string; lifecycle_type_id: string; item_id: number; owner_actor_id: string;
@@ -46,6 +46,25 @@ export class ItemLifecycleStore {
         return row?{operationId:row.operation_id,replacedItemInstanceId:row.replaced_item_instance_id,
             replacementItemInstanceId:row.replacement_item_instance_id,ownerActorId:row.owner_actor_id,
             evidenceDigest:row.evidence_digest,occurredAtSimulationTime:row.occurred_at}:null;}
+    loopMetrics(lifecycleTypeId:string,ownerActorId?:string):ItemLifecycleLoopMetrics{
+        const type=id(lifecycleTypeId,'Lifecycle type id'),owner=ownerActorId===undefined?null:id(ownerActorId,'Owner actor id');
+        if(!this.catalog.items.some(item=>item.lifecycleTypeId===type))throw new Error('Unknown lifecycle item type');
+        const instances=this.database.query(`SELECT item_instance_id,status FROM item_instance
+            WHERE lifecycle_type_id=?1 AND (?2 IS NULL OR owner_actor_id=?2)`).all(type,owner) as
+            Array<{item_instance_id:string;status:'usable'|'broken'}>;
+        const instanceIds=new Set(instances.map(item=>item.item_instance_id)),operations=this.database.query(
+            `SELECT item_instance_id,kind,detail_json FROM item_lifecycle_operation WHERE kind IN ('used','replaced')`).all() as
+            Array<{item_instance_id:string;kind:string;detail_json:string}>;
+        let successfulUses=0,breakages=0,replacements=0;
+        for(const operation of operations){if(!instanceIds.has(operation.item_instance_id))continue;
+            if(operation.kind==='replaced'){replacements++;continue;}const detail=JSON.parse(operation.detail_json) as{amount?:unknown;after?:unknown};
+            if(Number.isSafeInteger(detail.amount))successfulUses+=Number(detail.amount);if(detail.after===0)breakages++;}
+        const brokenAwaitingReplacement=instances.filter(item=>item.status==='broken'&&!this.getReplacement(item.item_instance_id)).length;
+        return{lifecycleTypeId:type,ownerActorId:owner,usableStock:instances.filter(item=>item.status==='usable').length,
+            brokenAwaitingReplacement,successfulUses,breakages,replacements,
+            replacementCoverageBasisPoints:breakages===0?null:Math.floor(replacements*10_000/breakages),
+            replacementsPerThousandUses:successfulUses===0?null:Math.floor(replacements*1_000/successfulUses)};
+    }
     create(input: { itemInstanceId: string; lifecycleTypeId: string; ownerActorId: string;
         qualityBasisPoints: number; provenanceDigest: string; atSimulationTime: string }): ItemInstanceState {
         const instanceId = id(input.itemInstanceId, 'Item instance id'), owner = id(input.ownerActorId, 'Owner actor id');

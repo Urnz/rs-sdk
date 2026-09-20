@@ -67,6 +67,17 @@ export interface ItemReplacementRecord {
     evidenceDigest: string;
     occurredAtSimulationTime: string;
 }
+export interface ItemLifecycleLoopMetrics {
+    lifecycleTypeId: string;
+    ownerActorId: string | null;
+    usableStock: number;
+    brokenAwaitingReplacement: number;
+    successfulUses: number;
+    breakages: number;
+    replacements: number;
+    replacementCoverageBasisPoints: number | null;
+    replacementsPerThousandUses: number | null;
+}
 export interface ProductionToolCycleDefinition {
     cycleId: string;
     lifecycleTypeId: string;

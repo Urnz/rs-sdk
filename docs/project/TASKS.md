@@ -504,7 +504,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
 - [x] Későbbi romlandó élelmiszer és tárolási minőség számára batch/expiry
   szerződést előkészíteni, de csak az első zárt food + tool loop stabilitása után
   aktiválni.
-- [ ] A loopokhoz készlet-, hiány-, fogyasztási és replacement-rate metrikát adni.
+- [x] A loopokhoz készlet-, hiány-, fogyasztási és replacement-rate metrikát adni.
 
 Elfogadási feltétel: legalább egy élelmiszer és egy termelőeszköz olyan zárt
 keresleti körben működik, ahol a készterméknek tényleges fogyasztója vagy
