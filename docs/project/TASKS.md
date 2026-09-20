@@ -574,7 +574,7 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
 - [x] Első hosszabb termelési prototípust a meglévő RuneScape skillekre építeni;
   például érc → fém → szerszám/facility-upgrade. Engineering/machining csak akkor
   legyen új személyes skill, ha ezt a fázis tapasztalata ténylegesen indokolja.
-- [ ] Legalább egy olyan tőkeberuházást megvalósítani, amely mérhetően javít egy
+- [x] Legalább egy olyan tőkeberuházást megvalósítani, amely mérhetően javít egy
   Business későbbi termelékenységén és így valódi beruházási döntést teremt.
 
 Elfogadási feltétel: egy Business több lépcsős, adatvezérelt workflowban képes
