@@ -561,7 +561,7 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
 - [x] Gépet és más termelőtőkét olyan tárgyként/facility-komponensként modellezni,
   amely tényleges throughput-, minőség-, hibaarány-, kapacitás- vagy capability-
   hatást ad, és maga is kopik/karbantartást igényelhet.
-- [ ] A késztermék tőkeértékét elsősorban ebből a hasznosságból és a piaci
+- [x] A késztermék tőkeértékét elsősorban ebből a hasznosságból és a piaci
   eredményekből mérni; külön telemetriai értékelés lehet, de ne ez diktálja
   közvetlenül a gameplay árat.
 - [ ] Business storage-, inputfoglalás- és work-in-progress állapotot adni, hogy

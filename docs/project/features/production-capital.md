@@ -13,6 +13,13 @@ of failure reduction and one capacity unit. These values change actual workflow
 duration and production bounds. The projection intentionally has no GP value or
 gameplay price field.
 
+`measureProductionCapitalValue` is a read-only telemetry boundary. It compares
+trusted baseline and actual good-unit and duration outcomes, values only the
+observed unit delta at a verified market price, subtracts observed maintenance
+cost and reports recovery against an observed acquisition cost. Negative
+performance remains negative evidence. The report is explicitly
+`telemetryOnly` and exposes neither a gameplay price nor a suggested price.
+
 Each verified production batch consumes configured uses through the existing
 audited `ItemLifecycleStore`. The bellows has finite durability, stops providing
 utility when broken and points to the evidence-gated
