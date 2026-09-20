@@ -19,7 +19,9 @@ const trusted=()=>true;
 describe('Business stock policy and evidence-gated settlement',()=>{
     test('makes a high-level replenishment decision without changing stock',()=>{const catalog=loadDefaultBusinessStockPolicyCatalog(),policy=catalog.policies[0]!;
         const decision=decideBusinessStock(policy,catalog,0);expect(decision).toMatchObject({procurement:{quantity:8,maxUnitPriceGp:10},
-            sale:{unitPriceGp:5,availableUnits:0,maxUnitsPerSettlement:5}})});
+            sale:{unitPriceGp:5,availableUnits:0,maxUnitsPerSettlement:5}});
+        expect(decideBusinessStock(policy,catalog,policy.minimumStock).procurement)
+            .toEqual({quantity:policy.targetStock-policy.minimumStock,maxUnitPriceGp:10})});
     test('credits and sells finite Business stock only after exact verified evidence',()=>{const catalog=loadDefaultBusinessStockPolicyCatalog(),
         policy=catalog.policies[0]!,{path,store}=fixture();try{const buyDecision=decideBusinessStock(policy,catalog,0),
             buy=authorizeStockMovement(policy,buyDecision,evidence('procurement',8),trusted);

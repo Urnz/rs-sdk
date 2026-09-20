@@ -97,4 +97,19 @@ describe('institution treasury', () => {
         expect(treasury.resetGenesis('genesis-capital')).toMatchObject({ status: 'reset' });
         treasury.close();
     });
+
+    test('credits a verified external settlement once with an immutable audit receipt', () => {
+        const treasury = store(), evidence = { settlementId:'55555555-5555-4555-8555-555555555555',
+            kind:'business' as const,actorId:'forge',amountGp:75,sourceRef:'shop.sale.order-1',
+            status:'committed' as const,occurredAt:'2026-09-20T10:00:00.000Z' };
+        expect(() => treasury.creditExternalSettlement(evidence)).toThrow('not trusted');
+        const first=treasury.creditExternalSettlement(evidence,()=>true,'2026-09-20T10:00:01.000Z');
+        expect(first).toMatchObject({actorId:'forge',amountGp:75,sourceRef:'shop.sale.order-1'});
+        expect(treasury.creditExternalSettlement(evidence,()=>true)).toEqual(first);
+        expect(treasury.get('business','forge')).toMatchObject({balanceGp:75});
+        expect(() => treasury.creditExternalSettlement({...evidence,amountGp:76},()=>true))
+            .toThrow('settlement id was reused');
+        expect(treasury.get('business','forge')).toMatchObject({balanceGp:75});
+        treasury.close();
+    });
 });

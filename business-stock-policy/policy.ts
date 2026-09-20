@@ -75,7 +75,7 @@ export function loadDefaultBusinessStockPolicyCatalog():BusinessStockPolicyCatal
 export function decideBusinessStock(policy:BusinessStockPolicy,catalog:BusinessStockPolicyCatalog,observedStock:number):BusinessStockDecision{
     integer(observedStock,'observedStock');if(!catalog.policies.some(value=>value.policyId===policy.policyId)||catalog.digest!==hash({schemaVersion:catalog.schemaVersion,policies:catalog.policies}))
         throw new Error('Business stock policy evidence mismatch');const base={policyId:policy.policyId,businessId:policy.businessId,
-        itemId:policy.itemId,observedStock,procurement:observedStock<policy.minimumStock?{quantity:policy.targetStock-observedStock,
+        itemId:policy.itemId,observedStock,procurement:observedStock<=policy.minimumStock?{quantity:policy.targetStock-observedStock,
             maxUnitPriceGp:policy.procurement.maxUnitPriceGp}:null,sale:{unitPriceGp:policy.pricing.saleUnitPriceGp,
             availableUnits:Math.max(0,observedStock-policy.sales.minimumReserve),maxUnitsPerSettlement:policy.sales.maxUnitsPerSettlement},
         policyDigest:catalog.digest};return {...base,decisionDigest:hash(base)}}

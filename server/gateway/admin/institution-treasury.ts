@@ -39,6 +39,10 @@ export interface InstitutionTreasuryTransfer {
 }
 export interface TreasuryGenesisReceipt { allocationId:string;kind:InstitutionKind;actorId:string;amountGp:number;
     status:'active'|'reset';createdAt:string;resetAt:string|null }
+export interface TreasuryExternalCreditEvidence { settlementId:string;kind:InstitutionKind;actorId:string;
+    amountGp:number;sourceRef:string;status:'committed';occurredAt:string }
+export interface TreasuryExternalCredit { settlementId:string;kind:InstitutionKind;actorId:string;
+    amountGp:number;sourceRef:string;createdAt:string }
 
 interface AccountRow {
     actor_kind: InstitutionKind; actor_id: string; balance_gp: number; reserved_gp: number;
@@ -106,6 +110,11 @@ export class InstitutionTreasuryStore {
             allocation_id TEXT PRIMARY KEY,actor_kind TEXT NOT NULL CHECK(actor_kind IN ('business','faction')),
             actor_id TEXT NOT NULL,amount_gp INTEGER NOT NULL CHECK(amount_gp>0),
             status TEXT NOT NULL CHECK(status IN ('active','reset')),created_at TEXT NOT NULL,reset_at TEXT)`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS institution_treasury_external_credit (
+            settlement_id TEXT PRIMARY KEY,actor_kind TEXT NOT NULL CHECK(actor_kind IN ('business','faction')),
+            actor_id TEXT NOT NULL,amount_gp INTEGER NOT NULL CHECK(amount_gp>0),source_ref TEXT NOT NULL,
+            created_at TEXT NOT NULL,FOREIGN KEY(actor_kind,actor_id)
+            REFERENCES institution_treasury(actor_kind,actor_id))`);
     }
 
     close(): void { this.database.close(true); }
@@ -166,6 +175,34 @@ export class InstitutionTreasuryStore {
                 [allocationId,kind,id,amountGp,now]);
         });transaction.immediate();
         return{allocationId,kind,actorId:id,amountGp,status:'active',createdAt:now,resetAt:null};
+    }
+
+    creditExternalSettlement(evidence:TreasuryExternalCreditEvidence,
+        verify?:(evidence:Readonly<TreasuryExternalCreditEvidence>)=>boolean,
+        now=new Date().toISOString()):TreasuryExternalCredit {
+        const id=actorId(evidence.actorId),settlementId=evidence.settlementId.trim().toLowerCase();
+        const sourceRef=evidence.sourceRef.trim().toLowerCase();
+        if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(settlementId)
+            ||!Number.isSafeInteger(evidence.amountGp)||evidence.amountGp<1||evidence.amountGp>2_147_483_647
+            ||!/^[a-z0-9][a-z0-9._:-]{1,159}$/.test(sourceRef)||evidence.status!=='committed'
+            ||Number.isNaN(Date.parse(evidence.occurredAt))||!verify||!verify(Object.freeze({...evidence,settlementId,actorId:id,sourceRef}))) {
+            throw new Error('External treasury credit evidence is not trusted');
+        }
+        const existing=this.database.query(`SELECT * FROM institution_treasury_external_credit
+            WHERE settlement_id=?1`).get(settlementId) as {actor_kind:InstitutionKind;actor_id:string;
+                amount_gp:number;source_ref:string;created_at:string}|null;
+        if(existing){if(existing.actor_kind!==evidence.kind||existing.actor_id!==id||existing.amount_gp!==evidence.amountGp
+            ||existing.source_ref!==sourceRef)throw new Error('External treasury settlement id was reused');
+            return{settlementId,kind:existing.actor_kind,actorId:existing.actor_id,amountGp:existing.amount_gp,
+                sourceRef:existing.source_ref,createdAt:existing.created_at}}
+        const transaction=this.database.transaction(()=>{this.ensure(evidence.kind,id,now);
+            const credited=this.database.run(`UPDATE institution_treasury SET balance_gp=balance_gp+?3,
+                revision=revision+1,updated_at=?4 WHERE actor_kind=?1 AND actor_id=?2 AND balance_gp<=?5`,
+            [evidence.kind,id,evidence.amountGp,now,2_147_483_647-evidence.amountGp]);
+            if(credited.changes!==1)throw new Error('External treasury credit would overflow');
+            this.database.run(`INSERT INTO institution_treasury_external_credit VALUES(?1,?2,?3,?4,?5,?6)`,
+                [settlementId,evidence.kind,id,evidence.amountGp,sourceRef,now])});transaction.immediate();
+        return{settlementId,kind:evidence.kind,actorId:id,amountGp:evidence.amountGp,sourceRef,createdAt:now}
     }
 
     resetGenesis(allocationId:string,now=new Date().toISOString()):TreasuryGenesisReceipt|null {
