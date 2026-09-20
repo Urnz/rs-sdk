@@ -17,6 +17,34 @@ export interface ItemStateRule {
     rationale: string;
 }
 export interface ItemStatePolicyCatalog { schemaVersion: 1; rules: ItemStateRule[]; digest: string }
+export interface BatchExpiryItemDefinition {
+    itemId: number;
+    shelfLifeSimulationMinutes: number;
+}
+export interface BatchStorageProfileDefinition {
+    storageProfileId: string;
+    label: string;
+    shelfLifeMultiplierBasisPoints: number;
+    requiredCapabilityId: string | null;
+}
+export interface BatchExpiryPolicyDefinition {
+    policyId: string;
+    expiryClock: 'simulation-time';
+    defaultStorageProfileId: string;
+    items: BatchExpiryItemDefinition[];
+    storageProfiles: BatchStorageProfileDefinition[];
+}
+export interface BatchExpiryPolicyCatalog {
+    schemaVersion: 1;
+    activation: 'prepared';
+    policies: BatchExpiryPolicyDefinition[];
+    digest: string;
+}
+export interface PreparedBatchExpiryContract {
+    activation: 'prepared';
+    policy: BatchExpiryPolicyDefinition;
+    item: BatchExpiryItemDefinition;
+}
 export interface ItemInstanceState {
     itemInstanceId: string;
     lifecycleTypeId: string;

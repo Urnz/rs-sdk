@@ -42,6 +42,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   használatonkénti kopását és javíthatóságát definiálja.
 - `item-state-policies.json`: konkrét item ID-nként választ a példányszintű,
   stack- és batch-kezelés között; ismeretlen tárgyhoz nincs implicit fallback.
+- `batch-expiry-policies.json`: alapból csak `prepared` állapotú, szimulációs
+  időre épülő szerződés a romlandó gyártási tételek eltarthatóságához és
+  capabilityhez kötött tárolási minőségéhez; önmagában nem aktivál romlást.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

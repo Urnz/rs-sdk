@@ -501,7 +501,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
 - [x] A késztermékek gazdasági hasznát tényleges mechanikai hatásból képezni:
   termelékenység, hozzáférhető capability, minőség, kapacitás vagy élettartam;
   ne pusztán mesterséges statikus „capital value” mező tegye őket értékessé.
-- [ ] Későbbi romlandó élelmiszer és tárolási minőség számára batch/expiry
+- [x] Későbbi romlandó élelmiszer és tárolási minőség számára batch/expiry
   szerződést előkészíteni, de csak az első zárt food + tool loop stabilitása után
   aktiválni.
 - [ ] A loopokhoz készlet-, hiány-, fogyasztási és replacement-rate metrikát adni.
