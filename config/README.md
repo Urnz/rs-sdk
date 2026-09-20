@@ -47,6 +47,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
   capabilityhez kötött tárolási minőségéhez; önmagában nem aktivál romlást.
 - `loop-metric-policies.json`: a zárt food- és tool-loopok készletminimumait és
   hiányszámítását köti a verziózott chain-, illetve production-cycle azonosítókhoz.
+- `economic-npc-migrations.json`: csak tervezési állapotú, verziózott migrációs
+  katalógus a statikus gazdasági NPC-szolgáltatások Business-, Property-, agent-,
+  inventory- és treasury-alapú kiváltásához; önmagában nem kapcsol át élő shopot.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

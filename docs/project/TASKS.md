@@ -512,7 +512,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
 
 ## 20. Fázis – agentizált gazdaság és Business 2.0
 
-- [ ] A gazdaságilag jelentős statikus NPC-k – különösen shopkeeper-ek és más
+- [x] A gazdaságilag jelentős statikus NPC-k – különösen shopkeeper-ek és más
   szolgáltatók – kiváltásához migrációs stratégiát készíteni agent + Business +
   Property + inventory + treasury modellre.
 - [ ] Az ambient `Man`/`Woman` jellegű járókelőket, állatokat és mobokat ne kelljen

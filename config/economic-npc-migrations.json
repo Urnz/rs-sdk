@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "activation": "planning-only",
+  "candidates": [
+    {
+      "migrationId": "lumbridge-general-store-v1",
+      "serviceKind": "shop",
+      "status": "planned",
+      "legacy": {
+        "npcTypeIds": ["generalshopkeeper1", "generalassistant1"],
+        "sharedInventoryId": "generalshop1",
+        "sourcePaths": [
+          "server/content/scripts/areas/area_lumbridge/configs/lumbridge.inv",
+          "server/content/scripts/areas/area_lumbridge/configs/lumbridge.npc",
+          "server/content/scripts/shop/scripts/generalshop.rs2"
+        ]
+      },
+      "target": {
+        "businessId": "lumbridge-general-store",
+        "institutionAgentId": "lumbridge-general-store-mind",
+        "ownerAgentId": "lumbridge-shopkeeper-owner",
+        "propertyId": "lumbridge.general-store",
+        "treasuryActorId": "lumbridge-general-store"
+      },
+      "stages": ["audit", "shadow-accounting", "finite-pilot", "cutover"],
+      "readinessGates": [
+        { "gateId": "legacy-stock-price-audit", "status": "pending", "requiredEvidence": "Exact legacy stock, restock, buy and sell behavior captured with source digest." },
+        { "gateId": "persistent-identities", "status": "pending", "requiredEvidence": "Business, owner agent and exact Business institution agent exist and are mutually bound." },
+        { "gateId": "property-entitlement", "status": "pending", "requiredEvidence": "The Business has verified access to the configured shop Property and storage facilities." },
+        { "gateId": "finite-bootstrap-assets", "status": "pending", "requiredEvidence": "Opening inventory and treasury are created once with immutable genesis provenance." },
+        { "gateId": "atomic-sale-settlement", "status": "pending", "requiredEvidence": "Item and GP exchange commits atomically from Business inventory and treasury with audit." },
+        { "gateId": "procurement-replenishment", "status": "pending", "requiredEvidence": "Verified procurement can replenish stock without legacy restock or direct item grants." },
+        { "gateId": "shadow-reconciliation", "status": "pending", "requiredEvidence": "Shadow accounting reconciles every observed legacy sale without becoming a second writer." },
+        { "gateId": "rollback-drill", "status": "pending", "requiredEvidence": "Cutover rollback is rehearsed without duplicating committed items, GP or bootstrap assets." }
+      ]
+    }
+  ]
+}
