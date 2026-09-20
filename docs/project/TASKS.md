@@ -515,7 +515,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
 - [x] A gazdaságilag jelentős statikus NPC-k – különösen shopkeeper-ek és más
   szolgáltatók – kiváltásához migrációs stratégiát készíteni agent + Business +
   Property + inventory + treasury modellre.
-- [ ] Az ambient `Man`/`Woman` jellegű járókelőket, állatokat és mobokat ne kelljen
+- [x] Az ambient `Man`/`Woman` jellegű járókelőket, állatokat és mobokat ne kelljen
   automatikusan tartós gazdasági agentté alakítani; csak az kapjon teljes actor-
   identitást, akinek a szimulációban gazdasági vagy társadalmi állapota van.
 - [ ] Zárt társadalmi profilban megszüntetni a végtelen készletű és végtelen pénzű
