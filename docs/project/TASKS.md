@@ -523,7 +523,7 @@ termelési funkciója van, nem pusztán XP-ért gyártják.
   inventory/treasury forrása legyen.
 - [x] A genesis alatt seedelt boltot, készletet vagy vagyont külön bootstrap
   eredettel létrehozni, de a futó világban ne töltődjön újra indoklás nélkül.
-- [ ] A jelenlegi `manager | worker` MVP fölé adatvezérelt
+- [x] A jelenlegi `manager | worker` MVP fölé adatvezérelt
   `BusinessRoleDefinition` modellt készíteni stabil szerepazonosítóval, névvel,
   engedélyezett verified skillekkel, készlet-/storage-/treasury-/ár-/szerződés-
   jogosultságokkal és delegálási/felvételi policyval.

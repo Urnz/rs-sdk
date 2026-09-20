@@ -56,6 +56,10 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `actor-identity-boundary.json`: az ambient világentitások tartós actorrá
   emelésének fail-closed policyja; vizuális NPC/állat/mob típus önmagában nem
   jogosít agent-identitásra, csak domainadapterrel igazolt perzisztens állapot.
+- `business-role-definitions.json`: stabil Business-szerepek, pontosan verziózott
+  verified skill-korlátok, domainenkénti készlet-/storage-/treasury-/ár-/szerződés-
+  jogosultságok és felvételi/delegálási policy. Draft skillre hivatkozva a gateway
+  fail-closed módon nem indul el.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

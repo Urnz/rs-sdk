@@ -738,6 +738,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             } finally { store.close(); }
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/business-role-definitions') {
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                return json({ roleDefinitions: store.listRoleDefinitions() });
+            } finally { store.close(); }
+        }
+
         if (req.method === 'POST' && url.pathname === '/api/admin/experiment-parameter-profiles') {
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
@@ -940,8 +947,11 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!knownAgents.has(workerAgentId)) throw new Error('A dolgozónak létező persistent agentnek kell lennie.');
             const store = new BusinessManagerStore(businessManagerDbPath);
             try {
+                const role = body.role === undefined ? undefined
+                    : oneOf<EmploymentRole>(body.role, ['manager', 'worker'], 'role');
                 const employment = store.hire(businessEmploymentMatch[1], { workerAgentId,
-                    role: oneOf<EmploymentRole>(body.role, ['manager', 'worker'], 'role'),
+                    role,
+                    roleDefinitionId: text(body, 'roleDefinitionId') || undefined,
                     title: text(body, 'title', true), wageGp: Number(body.wageGp),
                     requiredSkill: body.requiredSkill as { id: string; version: string } | null });
                 await appendAudit({ operator: 'local-admin', action: 'business.employment.create', reason,
