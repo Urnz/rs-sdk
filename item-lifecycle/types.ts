@@ -42,13 +42,28 @@ export interface ItemReplacementRecord {
 export interface ProductionToolCycleDefinition {
     cycleId: string;
     lifecycleTypeId: string;
+    capabilityId: string;
     skillName: string;
     outputItemIds: number[];
+    outputQuantityPerAction: number;
 }
 export interface ProductionToolCycleCatalog {
-    schemaVersion: 1;
+    schemaVersion: 2;
     cycles: ProductionToolCycleDefinition[];
     digest: string;
+}
+export interface ProductionToolUtility {
+    cycleId: string;
+    itemInstanceId: string;
+    ownerActorId: string;
+    capabilityId: string;
+    capabilityAvailable: boolean;
+    skillName: string;
+    outputItemIds: number[];
+    outputQuantityPerAction: number;
+    remainingSuccessfulActions: number;
+    remainingOutputCapacity: number;
+    status: 'available' | 'broken' | 'replaced';
 }
 export interface ProductionToolUseReceipt {
     receiptId: string;

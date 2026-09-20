@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { validateCompetenceSnapshot } from '../../character-attributes/index.js';
 import { ItemLifecycleStore,ItemRepairService,loadItemLifecycleCatalog,loadItemRepairPolicyCatalog,
-    validateItemRepairPolicyCatalog } from '../index.js';
+    loadProductionToolCycleCatalog,ProductionToolCycleService,validateItemRepairPolicyCatalog } from '../index.js';
 import type { CompetenceSnapshot } from '../../character-attributes/index.js';
 import type { ItemRepairRequest,RepairFacilityReceipt,RepairMaterialReceipt } from '../index.js';
 
@@ -14,6 +14,7 @@ function path(){const directory=mkdtempSync(join(tmpdir(),'item-repair-'));direc
 const root=join(import.meta.dir,'..','..','config');
 const lifecycle=()=>loadItemLifecycleCatalog(join(root,'item-lifecycle.json'));
 const policies=()=>loadItemRepairPolicyCatalog(join(root,'item-repair-policies.json'),lifecycle());
+const cycles=()=>loadProductionToolCycleCatalog(join(root,'production-tool-cycles.json'),lifecycle());
 function broken(store:ItemLifecycleStore){store.create({itemInstanceId:'pickaxe-1',lifecycleTypeId:'bronze-pickaxe',
     ownerActorId:'ada',qualityBasisPoints:10_000,provenanceDigest:'a'.repeat(64),atSimulationTime:'2030-01-01T00:00:00.000Z'});
     return store.use('mining-1','pickaxe-1',1,100,'b'.repeat(64),'2030-01-01T01:00:00.000Z');}
@@ -41,6 +42,8 @@ describe('evidence-gated item repair',()=>{
     test('repairs a broken pickaxe only after every exact requirement is evidenced',()=>{const store=new ItemLifecycleStore(path(),lifecycle());
         broken(store);const service=new ItemRepairService(store,policies());
         expect(service.repair(request())).toMatchObject({durability:50,status:'usable',revision:3});
+        expect(new ProductionToolCycleService(store,cycles()).utility('bronze-pickaxe-mining','pickaxe-1','ada'))
+            .toMatchObject({capabilityAvailable:true,remainingSuccessfulActions:50,remainingOutputCapacity:50,status:'available'});
         expect(store.verifyAuditChain()).toBeTrue();store.close();});
     test('rejects free, short, unskilled and facility-less repair attempts without mutation',()=>{const store=new ItemLifecycleStore(path(),lifecycle());
         broken(store);const service=new ItemRepairService(store,policies());

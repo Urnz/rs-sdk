@@ -1,11 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "cycles": [
     {
       "cycleId": "bronze-pickaxe-mining",
       "lifecycleTypeId": "bronze-pickaxe",
+      "capabilityId": "mining.copper-tin",
       "skillName": "Mining",
-      "outputItemIds": [436, 438]
+      "outputItemIds": [436, 438],
+      "outputQuantityPerAction": 1
     }
   ]
 }

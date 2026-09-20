@@ -37,6 +37,10 @@ export class ItemLifecycleStore {
         return row ? state(row) : null; }
     hasOperation(operationId:string):boolean{return this.database.query(`SELECT 1 AS found FROM item_lifecycle_operation
         WHERE operation_id=?1`).get(id(operationId,'Operation id'))!==null;}
+    remainingUses(itemInstanceId:string):number{const item=this.get(itemInstanceId);if(!item)throw new Error('Unknown item instance');
+        if(item.status==='broken'||this.getReplacement(itemInstanceId))return 0;
+        const definition=this.catalog.items.find(candidate=>candidate.lifecycleTypeId===item.lifecycleTypeId);
+        if(!definition)throw new Error('Unknown lifecycle item type');return Math.floor(item.durability/definition.wearPerUse);}
     getReplacement(itemInstanceId:string):ItemReplacementRecord|null{const row=this.database.query(`SELECT * FROM item_replacement
         WHERE replaced_item_instance_id=?1`).get(id(itemInstanceId,'Item instance id')) as ReplacementRow|null;
         return row?{operationId:row.operation_id,replacedItemInstanceId:row.replaced_item_instance_id,

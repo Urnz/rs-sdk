@@ -498,7 +498,7 @@ ad, a human player alvása pedig nem állítja meg vagy gyorsítja globálisan a
   használat → kopás → javítás vagy csere teljes ciklust.
 - [x] A javítás valódi inputot, időt, személyes kompetenciát és szükség esetén
   facility-hozzáférést igényeljen; ne legyen ingyenes durability-reset.
-- [ ] A késztermékek gazdasági hasznát tényleges mechanikai hatásból képezni:
+- [x] A késztermékek gazdasági hasznát tényleges mechanikai hatásból képezni:
   termelékenység, hozzáférhető capability, minőség, kapacitás vagy élettartam;
   ne pusztán mesterséges statikus „capital value” mező tegye őket értékessé.
 - [ ] Későbbi romlandó élelmiszer és tárolási minőség számára batch/expiry

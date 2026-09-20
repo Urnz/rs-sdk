@@ -23,14 +23,22 @@ operation and never treats free-form model output as repair evidence.
 
 The first complete production-tool slice is configured in
 `config/production-tool-cycles.json`. A bronze pickaxe accepts only a typed,
-evidence-bound Mining receipt for configured ore outputs. Every successful
-action applies the catalogued wear; one hundred verified actions therefore
-break the initial tool. Replacement requires a separate receipt proving the
+evidence-bound Mining receipt for configured ore outputs. Its mechanical utility
+is the `mining.copper-tin` capability, one configured ore per successful action,
+and a remaining production capacity derived from live durability. A use receipt
+cannot claim more output or successful actions than the current tool can still
+support. Every successful action applies the catalogued wear; one hundred
+verified actions therefore break the initial tool and remove both the capability
+and its remaining output capacity. Replacement requires a separate receipt proving the
 acquisition of exactly one matching item. The broken instance and its successor
 are linked atomically, the old instance becomes ineligible for later use or
 repair, and an exact retry returns the original successor. This closes the
 use → wear → break → replacement path without treating replacement as a free
 durability reset.
+
+This utility contains no GP or synthetic capital-value field. The legacy
+experiment finished-product valuation remains measurement-only calibration and
+does not grant gameplay capability, output, quality, capacity or lifetime.
 
 Repair is exposed only through the evidence-gated service configured by
 `config/item-repair-policies.json`. The initial bronze-pickaxe policy consumes

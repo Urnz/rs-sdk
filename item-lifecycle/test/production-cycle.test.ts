@@ -27,8 +27,25 @@ function replacementReceipt(overrides:Partial<ProductionToolReplacementReceipt>=
         atSimulationTime:'2030-01-01T02:00:00.000Z',...overrides};}
 
 describe('production tool lifecycle vertical slice',()=>{
-    test('loads one configurable bronze pickaxe mining cycle',()=>{expect(cycles().cycles[0]).toEqual({
-        cycleId:'bronze-pickaxe-mining',lifecycleTypeId:'bronze-pickaxe',skillName:'Mining',outputItemIds:[436,438]});});
+    test('loads one configurable bronze pickaxe mining capability',()=>{expect(cycles().cycles[0]).toEqual({
+        cycleId:'bronze-pickaxe-mining',lifecycleTypeId:'bronze-pickaxe',capabilityId:'mining.copper-tin',
+        skillName:'Mining',outputItemIds:[436,438],outputQuantityPerAction:1});});
+    test('derives real production capacity from the usable tool lifetime',()=>{const store=new ItemLifecycleStore(databasePath(),lifecycle());
+        create(store);const service=new ProductionToolCycleService(store,cycles());
+        const utility=service.utility('bronze-pickaxe-mining','pickaxe-1','ada');expect(utility).toEqual({cycleId:'bronze-pickaxe-mining',
+            itemInstanceId:'pickaxe-1',ownerActorId:'ada',capabilityId:'mining.copper-tin',capabilityAvailable:true,skillName:'Mining',
+            outputItemIds:[436,438],outputQuantityPerAction:1,remainingSuccessfulActions:100,
+            remainingOutputCapacity:100,status:'available'});
+        expect('valueGp' in utility).toBeFalse();
+        service.recordUse(useReceipt({successfulActions:60,outputQuantity:60}));
+        expect(service.utility('bronze-pickaxe-mining','pickaxe-1','ada')).toMatchObject({remainingSuccessfulActions:40,
+            remainingOutputCapacity:40,status:'available'});
+        expect(()=>service.recordUse(useReceipt({receiptId:'mining-over-capacity',expectedRevision:2,
+            successfulActions:41,outputQuantity:41}))).toThrow('use receipt');
+        service.recordUse(useReceipt({receiptId:'mining-final',expectedRevision:2,successfulActions:40,outputQuantity:40,
+            atSimulationTime:'2030-01-01T02:00:00.000Z'}));
+        expect(service.utility('bronze-pickaxe-mining','pickaxe-1','ada')).toMatchObject({remainingSuccessfulActions:0,
+            remainingOutputCapacity:0,capabilityAvailable:false,status:'broken'});store.close();});
     test('runs verified mining through wear, breakage and audited replacement',()=>{const store=new ItemLifecycleStore(databasePath(),lifecycle());
         create(store);const service=new ProductionToolCycleService(store,cycles());
         expect(service.recordUse(useReceipt())).toMatchObject({durability:0,status:'broken',revision:2});
@@ -36,6 +53,10 @@ describe('production tool lifecycle vertical slice',()=>{
             lifecycleTypeId:'bronze-pickaxe',durability:100,status:'usable',qualityBasisPoints:9_500,revision:1});
         expect(store.getReplacement('pickaxe-1')).toMatchObject({operationId:'replacement-1',
             replacementItemInstanceId:'pickaxe-2',ownerActorId:'ada'});
+        expect(service.utility('bronze-pickaxe-mining','pickaxe-1','ada')).toMatchObject({capabilityAvailable:false,
+            remainingOutputCapacity:0,status:'replaced'});
+        expect(service.utility('bronze-pickaxe-mining','pickaxe-2','ada')).toMatchObject({capabilityAvailable:true,
+            remainingOutputCapacity:100,status:'available'});
         expect(store.verifyAuditChain()).toBeTrue();store.close();});
     test('rejects unrelated production, foreign ownership and invented replacement assets',()=>{const store=new ItemLifecycleStore(databasePath(),lifecycle());
         create(store);const service=new ProductionToolCycleService(store,cycles());
@@ -62,7 +83,7 @@ describe('production tool lifecycle vertical slice',()=>{
         expect(database.query("SELECT name FROM sqlite_master WHERE type='table' AND name='item_replacement'").get()).not.toBeNull();
         expect(database.query("SELECT name FROM sqlite_master WHERE type='table' AND name='item_repair_evidence'").get()).not.toBeNull();
         database.close(true);});
-    test('rejects ambiguous cycle configuration',()=>{const configured=cycles();expect(()=>validateProductionToolCycleCatalog({schemaVersion:1,
+    test('rejects ambiguous cycle configuration',()=>{const configured=cycles();expect(()=>validateProductionToolCycleCatalog({schemaVersion:2,
         cycles:[configured.cycles[0]!,{...configured.cycles[0]!,cycleId:'duplicate-binding'}]},lifecycle()))
         .toThrow('unique ids');
         const runtime=cycles(),store=new ItemLifecycleStore(databasePath(),lifecycle());
