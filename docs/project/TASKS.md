@@ -552,10 +552,10 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
   facility-, tool-, knowledge- és jogosultsági követelménnyel.
 - [x] A recept ugyanazzal a keretrendszerrel tudjon egyszerű és hosszabb láncot
   kezelni, például food, ore → bar, bar → tool és később alkatrész → gép.
-- [ ] `FacilityCapability` modellt készíteni Propertyhez vagy Businesshez kötött
+- [x] `FacilityCapability` modellt készíteni Propertyhez vagy Businesshez kötött
   képességekkel, például `smithing.basic-forging`, `storage.secure`,
   `cooking.commercial-kitchen` vagy később `machining.precision-1`.
-- [ ] A facility-hozzáférést munkaviszonyhoz, bérlethez, szerződéshez vagy explicit
+- [x] A facility-hozzáférést munkaviszonyhoz, bérlethez, szerződéshez vagy explicit
   entitlementhez kötni; a magas személyes skill önmagában ne helyettesítse a
   szükséges infrastruktúrát.
 - [ ] Gépet és más termelőtőkét olyan tárgyként/facility-komponensként modellezni,

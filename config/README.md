@@ -69,6 +69,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `production-workflows.json`: pontosan verziózott, adatvezérelt receptek és
   függőségi gráfok item-inputtal/-outputtal, idővel, személyes skill-, facility-,
   tool-, tudás- és entitlement-követelménnyel; önmagában nem mozgat készletet.
+- `facility-capabilities.json`: Propertyhez és opcionálisan exact Businesshez
+  kötött termelési, tárolási és más facility-képességek, kapacitással és az
+  elfogadható employment/lease/contract/explicit hozzáférési jogcímekkel.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó
