@@ -13,11 +13,21 @@ may supply an intermediate, so unrelated parallel branches cannot silently
 share material. Unknown versions, duplicate identities, dangling dependencies
 and cycles fail closed.
 
-The first catalog demonstrates that the same model covers both a one-step raw
-shrimp to cooked shrimp process and a longer copper ore + tin ore → three bronze
-bars → bronze pickaxe chain. The latter compiles to three copper ore, three tin
-ore, one pickaxe and nine simulation minutes; its intermediate bronze bars are
-not misclassified as externally purchased inputs.
+The first catalog demonstrates that the same model covers a one-step raw shrimp
+to cooked shrimp process, a copper ore + tin ore → bronze pickaxe chain, and a
+longer production prototype. The prototype smelts six bronze bars, forges one
+bronze pickaxe, then combines the remaining bars with leather into the existing
+workshop-bellows capital asset. It compiles to six copper ore, six tin ore and
+two leather as external inputs, one pickaxe and one bellows as final outputs,
+and 23 simulation minutes. Intermediate bars are never misclassified as
+externally purchased inputs.
+
+The prototype intentionally reuses the vanilla personal `Smithing` and
+`Crafting` skills. It introduces no `Engineering` or `Machining` personal skill:
+the specialist distinction remains in a verified procedure, the facility
+capability and the typed execution skill. Producing the bellows is not the same
+as installing it; activation and mechanical benefit still require the separate
+capital installation boundary.
 
 This slice is configuration and planning only. It creates no inventory, work in
 progress, entitlement or settlement rows. Later execution must reserve Business

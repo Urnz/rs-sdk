@@ -26,6 +26,19 @@ function fixture() { const directory = mkdtempSync(join(tmpdir(), 'production-wi
     assets.move({ operationId: 'store-tin', businessId: 'varrock-smiths', actorAgentId: 'owner', itemId: 438,
         count: 3, sourceStorageId: null, targetStorageId: 'ore-bin' }); assets.close();
     return { path, work: new ProductionWorkInProgressStore(path, loadDefaultProductionWorkflowCatalog()) }; }
+function upgradeFixture() { const directory = mkdtempSync(join(tmpdir(), 'production-upgrade-')); directories.push(directory);
+    const path = join(directory, 'business.sqlite'), manager = new BusinessManagerStore(path);
+    manager.create({ businessId: 'varrock-smiths', name: 'Varrock Smiths', summary: 'Upgrade prototype.',
+        ownerAgentId: 'owner', propertyId: 'varrock.east-workshop' });
+    manager.creditGenesisInventory('upgrade-copper', 'varrock-smiths', 436, 6);
+    manager.creditGenesisInventory('upgrade-tin', 'varrock-smiths', 438, 6);
+    manager.creditGenesisInventory('upgrade-leather', 'varrock-smiths', 1741, 2); manager.close();
+    const assets = new BusinessAssetStore(path); assets.createStorage({ storageId: 'prototype-inputs', businessId: 'varrock-smiths',
+        actorAgentId: 'owner', name: 'Prototype inputs', propertyId: 'varrock.east-workshop', capacityUnits: 20 });
+    for (const [operationId, itemId, count] of [['store-upgrade-copper', 436, 6], ['store-upgrade-tin', 438, 6],
+        ['store-upgrade-leather', 1741, 2]] as const) assets.move({ operationId, businessId: 'varrock-smiths',
+        actorAgentId: 'owner', itemId, count, sourceStorageId: null, targetStorageId: 'prototype-inputs' });
+    assets.close(); return { path, work: new ProductionWorkInProgressStore(path, loadDefaultProductionWorkflowCatalog()) }; }
 const reserve = { operationId: 'reserve-run-1', runId: 'bronze-run-1', businessId: 'varrock-smiths', actorAgentId: 'owner',
     workflowId: 'tools.bronze-pickaxe', workflowVersion: '1.0.0', inputs: [
         { itemId: 436, count: 3, storageId: 'ore-bin' }, { itemId: 438, count: 3, storageId: 'ore-bin' }] };
@@ -67,6 +80,31 @@ describe('atomic Business input reservation and work in progress', () => {
             const assets = new BusinessAssetStore(path); try {
                 expect(assets.listAssets('varrock-smiths', 'ore-bin').filter(item => item.count > 0))
                     .toEqual([expect.objectContaining({ itemId: 436, count: 3 }), expect.objectContaining({ itemId: 438, count: 3 })]);
+            } finally { assets.close(); }
+        } finally { work.close(); }
+    });
+
+    test('runs the longer ore-to-tool-and-facility-upgrade prototype through Business WIP', () => {
+        const { path, work } = upgradeFixture(), runId = 'facility-upgrade-run-1'; try {
+            work.reserve({ operationId: 'reserve-upgrade-run-1', runId, businessId: 'varrock-smiths', actorAgentId: 'owner',
+                workflowId: 'facility.bronze-bellows-upgrade', workflowVersion: '1.0.0', inputs: [
+                    { itemId: 436, count: 6, storageId: 'prototype-inputs' },
+                    { itemId: 438, count: 6, storageId: 'prototype-inputs' },
+                    { itemId: 1741, count: 2, storageId: 'prototype-inputs' }
+                ] }, '2030-01-01T00:00:00.000Z');
+            const proof = (stepId: string, inputs: ProductionStepEvidence['inputs'], outputs: ProductionStepEvidence['outputs'], hour: number) =>
+                ({ operationId: `${stepId}-proof`, runId, stepId, status: 'completed' as const, inputs, outputs,
+                    sourceEvidenceDigest: String(hour).repeat(64), occurredAt: `2030-01-01T0${hour}:00:00.000Z` });
+            work.completeStep(runId, 'smelt', proof('smelt', [{ itemId: 436, quantity: 6 }, { itemId: 438, quantity: 6 }],
+                [{ itemId: 2349, quantity: 6 }], 1), () => true);
+            work.completeStep(runId, 'forge-tool', proof('forge-tool', [{ itemId: 2349, quantity: 3 }],
+                [{ itemId: 1265, quantity: 1 }], 2), () => true);
+            work.completeStep(runId, 'assemble-upgrade', proof('assemble-upgrade', [{ itemId: 1741, quantity: 2 },
+                { itemId: 2349, quantity: 3 }], [{ itemId: 65000, quantity: 1 }], 3), () => true);
+            expect(work.completeRun(runId, null, '2030-01-01T04:00:00.000Z').status).toBe('completed');
+            const assets = new BusinessAssetStore(path); try { expect(assets.listAssets('varrock-smiths', null))
+                .toEqual(expect.arrayContaining([expect.objectContaining({ itemId: 1265, count: 1 }),
+                    expect.objectContaining({ itemId: 65000, count: 1 })]));
             } finally { assets.close(); }
         } finally { work.close(); }
     });

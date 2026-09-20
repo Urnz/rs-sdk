@@ -48,6 +48,22 @@
         "knowledge": [{ "kind": "organization-license", "id": "smithing.bronze-tools", "version": "1.0.0" }],
         "entitlements": [{ "kind": "employment", "scopeId": "smithing.basic-forging" }]
       }
+    },
+    {
+      "recipeId": "facility.assemble-bronze-bellows",
+      "version": "1.0.0",
+      "name": "Assemble bronze-framed workshop bellows",
+      "inputs": [{ "itemId": 1741, "quantity": 2 }, { "itemId": 2349, "quantity": 3 }],
+      "outputs": [{ "itemId": 65000, "quantity": 1 }],
+      "durationSimulationMinutes": 8,
+      "executionSkill": { "id": "production.assemble-workshop-bellows", "version": "1.0.0" },
+      "requirements": {
+        "personalSkills": [{ "skillName": "Crafting", "minimumLevel": 5 }, { "skillName": "Smithing", "minimumLevel": 5 }],
+        "facilityCapabilities": ["smithing.basic-forging"],
+        "tools": [{ "itemId": 2347, "quantity": 1, "capabilityId": "tool.hammering" }],
+        "knowledge": [{ "kind": "verified-procedure", "id": "facility.workshop-bellows", "version": "1.0.0" }],
+        "entitlements": [{ "kind": "employment", "scopeId": "smithing.basic-forging" }]
+      }
     }
   ],
   "workflows": [
@@ -64,6 +80,16 @@
       "steps": [
         { "stepId": "smelt", "recipe": { "id": "metallurgy.smelt-bronze-bar", "version": "1.0.0" }, "batches": 3, "dependsOn": [] },
         { "stepId": "forge", "recipe": { "id": "smithing.forge-bronze-pickaxe", "version": "1.0.0" }, "batches": 1, "dependsOn": ["smelt"] }
+      ]
+    },
+    {
+      "workflowId": "facility.bronze-bellows-upgrade",
+      "version": "1.0.0",
+      "name": "Ore to tool and workshop bellows upgrade",
+      "steps": [
+        { "stepId": "smelt", "recipe": { "id": "metallurgy.smelt-bronze-bar", "version": "1.0.0" }, "batches": 6, "dependsOn": [] },
+        { "stepId": "forge-tool", "recipe": { "id": "smithing.forge-bronze-pickaxe", "version": "1.0.0" }, "batches": 1, "dependsOn": ["smelt"] },
+        { "stepId": "assemble-upgrade", "recipe": { "id": "facility.assemble-bronze-bellows", "version": "1.0.0" }, "batches": 1, "dependsOn": ["forge-tool"] }
       ]
     }
   ]

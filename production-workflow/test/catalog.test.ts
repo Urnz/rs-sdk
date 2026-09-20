@@ -41,6 +41,20 @@ describe('versioned production recipes and workflows', () => {
         });
     });
 
+    test('uses existing RuneScape skills for the ore-to-tool-and-facility prototype', () => {
+        const catalog = loadDefaultProductionWorkflowCatalog();
+        expect(compileProductionWorkflow(catalog, 'facility.bronze-bellows-upgrade', '1.0.0')).toMatchObject({
+            externalInputs: [{ itemId: 436, quantity: 6 }, { itemId: 438, quantity: 6 }, { itemId: 1741, quantity: 2 }],
+            finalOutputs: [{ itemId: 1265, quantity: 1 }, { itemId: 65000, quantity: 1 }],
+            totalDurationSimulationMinutes: 23
+        });
+        const skills = catalog.recipes.filter(recipe => ['metallurgy.smelt-bronze-bar', 'smithing.forge-bronze-pickaxe',
+            'facility.assemble-bronze-bellows'].includes(recipe.recipeId))
+            .flatMap(recipe => recipe.requirements.personalSkills.map(skill => skill.skillName));
+        expect(new Set(skills)).toEqual(new Set(['Smithing', 'Crafting']));
+        expect(skills).not.toContain('Engineering'); expect(skills).not.toContain('Machining');
+    });
+
     test('rejects unknown recipe versions and cyclic workflow dependencies', () => {
         const catalog = loadDefaultProductionWorkflowCatalog();
         const raw = { schemaVersion: catalog.schemaVersion, recipes: catalog.recipes, workflows: catalog.workflows };

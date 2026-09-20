@@ -571,7 +571,7 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
   szállítóeszköz vagy konténer modelljével.
 - [x] A szekér, hajó vagy más szállítóeszköz használatát Business-role és
   Property/storage entitlementhez kötni.
-- [ ] Első hosszabb termelési prototípust a meglévő RuneScape skillekre építeni;
+- [x] Első hosszabb termelési prototípust a meglévő RuneScape skillekre építeni;
   például érc → fém → szerszám/facility-upgrade. Engineering/machining csak akkor
   legyen új személyes skill, ha ezt a fázis tapasztalata ténylegesen indokolja.
 - [ ] Legalább egy olyan tőkeberuházást megvalósítani, amely mérhetően javít egy
