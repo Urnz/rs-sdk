@@ -72,6 +72,9 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `facility-capabilities.json`: Propertyhez és opcionálisan exact Businesshez
   kötött termelési, tárolási és más facility-képességek, kapacitással és az
   elfogadható employment/lease/contract/explicit hozzáférési jogcímekkel.
+- `production-capital.json`: item-lifecyclehoz és telepítési facility-
+  capabilityhez kötött termelőtőke; mechanikai throughput-, minőség-, hibaarány-,
+  kapacitás- és capability-hatást, batchenkénti kopást és javítási policyt ad.
 - `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
   és kimeneti itemjeit köti verziózott konfigurációhoz.
 - `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó

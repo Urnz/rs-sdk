@@ -8,6 +8,14 @@
       "maxDurability": 100,
       "wearPerUse": 1,
       "repairable": true
+    },
+    {
+      "lifecycleTypeId": "workshop-bellows",
+      "itemId": 65000,
+      "itemName": "Workshop bellows",
+      "maxDurability": 200,
+      "wearPerUse": 1,
+      "repairable": true
     }
   ]
 }

@@ -558,7 +558,7 @@ nem igényel végtelen NPC shop injekciót az adott szolgáltatáshoz.
 - [x] A facility-hozzáférést munkaviszonyhoz, bérlethez, szerződéshez vagy explicit
   entitlementhez kötni; a magas személyes skill önmagában ne helyettesítse a
   szükséges infrastruktúrát.
-- [ ] Gépet és más termelőtőkét olyan tárgyként/facility-komponensként modellezni,
+- [x] Gépet és más termelőtőkét olyan tárgyként/facility-komponensként modellezni,
   amely tényleges throughput-, minőség-, hibaarány-, kapacitás- vagy capability-
   hatást ad, és maga is kopik/karbantartást igényelhet.
 - [ ] A késztermék tőkeértékét elsősorban ebből a hasznosságból és a piaci

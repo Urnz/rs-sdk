@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "assets": [
+    {
+      "capitalAssetTypeId": "workshop.bronze-bellows",
+      "lifecycleTypeId": "workshop-bellows",
+      "installationCapabilityId": "smithing.basic-forging",
+      "providedCapabilities": ["smithing.enhanced-airflow"],
+      "effects": {
+        "throughputMultiplierBasisPoints": 12500,
+        "qualityBonusBasisPoints": 500,
+        "failureReductionBasisPoints": 1000,
+        "capacityBonusUnits": 1
+      },
+      "wearUsesPerBatch": 1,
+      "maintenancePolicyId": "workshop-bellows-repair"
+    }
+  ]
+}
