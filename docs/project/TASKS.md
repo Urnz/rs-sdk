@@ -280,12 +280,17 @@ instabillá vagy önfenntartóvá.
   root TypeScript, PowerShell syntax/helper és format PASS.
   [Működés és állapotkezelés](features/phase25-3-server-registry.md),
   [ellenőrzések](PHASE25_PROGRESS.md).
-- [ ] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,
+- [x] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,
   újraindítás és archiválás felületről.
-  **25.4 – ellenőrzés alatt:** tartós műveletnapló, idempotens kérésazonosító,
+  **25.4 – elkészült:** tartós műveletnapló, idempotens kérésazonosító,
   szerverenkénti ownership, verzióhoz kötött munkakönyvtár és felületi lifecycle.
-  A célzott store/HTTP/Chrome/Windows kör 34/34 PASS; a valódi engine/gateway
-  próba és a jogosultsági/migrációs változás miatti egyszeri teljes kapu még hátra van.
+  Célzott store/HTTP/Chrome/Windows kör 34/34 PASS, valódi kétvilágos
+  engine/gateway próba PASS. A migráció/jogosultság miatt teljes regresszió
+  is futott: a régi XP-timeout külön ellenőrzése és a hátramaradt kör után
+  1885 sikeres teszt; az egybefüggő `check` exitje hibás maradt, dokumentálva.
+  A helyi admin privát backup után registry v2-re állt, readiness PASS.
+  [Működés és állapotkezelés](features/phase25-4-server-lifecycle.md),
+  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.5 izoláció.
 - [ ] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,
   botokat, modokat, LLM-konfigurációt, titkokat és auditnaplót biztosítani.
 - [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket

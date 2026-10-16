@@ -1,5 +1,101 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.4 – helyi szerveréletciklus (2026-10-16)
+
+Megvalósult a felületi létrehozás, a valós helyi Git-commit kiválasztása,
+két alkalmazott gazdasági világsablon és az indítás/leállítás/újraindítás/
+archiválás. A létrehozás külön workspace-et készít; a meglévő admin és
+korábbi világ adatait nem másolja új játékosállapotként. Bot és AI nem indul.
+
+A registry v2 additív migrációja megőrzi a v1 rekordokat. Tartós intent,
+actorhoz kötött idempotens request key, revízió és műveletenkénti audit védi
+a lifecycle-t. Az új szerver a létrehozóhoz kötődik, a gateway is ezt az
+erőforrást ellenőrzi. Hat lefoglalt port, verzióhoz kötött workspace és
+hitelesített, generációhoz kötött helyi vezérlés tartozik minden példányhoz.
+Az archiválás megőrzi az adatokat és a portfoglalást. Az admin újraindítása
+után a félbemaradt művelet azonosított leállítás + megszakadt állapot,
+nem automatikusan újrajátszott indítás.
+
+Használat, részletes határok és backup/rollback:
+[25.4 szerveréletciklus](features/phase25-4-server-lifecycle.md).
+A teljes izoláció (25.5), a régi admin szerverkontextusa (25.6), titoktár
+és a további üzemeltetési képességek külön, nyitott feladatok maradnak.
+
+Ellenőrzések:
+
+- Store/HTTP/jogosultsági célzott kör: **21 pass / 0 fail / 0 skip**,
+  **11,773 s**; `20261016-202906-596-phase25-4-lifecycle-focused.log`.
+- Control-plane, Chrome, Windows process és admin-safety kör: **34 pass /
+  0 fail / 0 skip**; root typecheck, PowerShell és format PASS,
+  **88,938 s**; `20261016-203151-776-phase25-4-affected-ui.log`.
+  A Chrome-próba a felületi létrehozás, műveleti eredmény, látható hiba,
+  archiválás és mobil tördelés útját végigjárta. A desktop és 390 px mobil
+  képek vizuálisan ellenőrizve; nincs vízszintes kilógás.
+- Első valódi próba: FAIL, **18,669 s**, a Windows tar két upstream
+  dokumentációs symlink létrehozását elutasította. Csak ezt a két runtimehoz
+  nem szükséges bejegyzést zárjuk ki; nem hagyjuk figyelmen kívül a tar hibáit.
+  A második próba **4 perc 3,732 s** után HTTP-kapcsolati hibával megszakadt;
+  a saját tesztvilágot hitelesített vezérléssel leállítottuk. A próbában azóta
+  minden HTTP-kérés időkorlátos és a választest fogyasztott/lezárt.
+  Sikertelen naplók: `20261016-203501-988-phase25-4-native-lifecycle.log`,
+  `20261016-204029-155-phase25-4-native-lifecycle-repaired.log`.
+- Kibontási regresszió: **3 pass / 0 fail / 0 skip**, **1,397 s**;
+  `20261016-204253-307-phase25-4-export-regression-repaired.log`.
+  Az első minimális fixture-ből hiányzó verziózott engine/webclient
+  szülőkönyvtár miatt 2 pass / 1 fail volt (1,417 s); a fixture javult,
+  assertion és termékviselkedés nem lazult.
+- Valódi kétvilágos próba: **PASS, exit 0, 34,144 s**;
+  `20261016-204455-119-phase25-4-native-lifecycle-bounded.log`.
+  Forrás: `60f1ae347152982d8dba371d2345aa0e0c46b62d` checkpoint.
+  Két külön fiók, két sablon, 12 külön port, tényleges engine/gateway/client
+  HTTP, saját gateway 200 / másik tulajdonos 403, stop/restart/archive,
+  másik világ közbeni elérhetősége, adatmegőrzés és friss runtimeból
+  visszakapcsolódás PASS. A külön admin a végén is 200; a korábbi gyökér
+  AgentState-adatbázis hash-e változatlan. A tesztvilágok leálltak,
+  bizonyítékaik a privát `.local/verification/` alatt maradnak.
+- Teljes regressziós kísérlet: a registry-migráció és a gateway több modult
+  érintő erőforrás-jogosultsági változása indokolta. Az első indítás a
+  tesztek előtt, **43,318 s** után az új fixture
+  `spawnSync` stdin típusánál megállt (exit 2); a helper most fájlból adja
+  át a Gitnek a szintetikus symlink célját.
+  `20261016-204615-795-phase25-4-full-gate.log`.
+  A javított kísérletben format és root/engine/webclient typecheck PASS;
+  **1529 pass / 1 fail / 0 skip**, **6 perc 47,974 s**. A régi
+  `native completed day pairs…` XP-teszt 15 s időkorlátja szakította meg
+  a láncot; az érintett control-plane tesztek átmentek.
+  `20261016-204723-379-phase25-4-full-gate-repaired.log`, belső részletes
+  napló: `20261016-204724-189-full.log`. Ez nem zöld teljes `check` exit.
+  A hibás XP-teszt külön, változatlan assertionökkel és timeouttal
+  **1/1 PASS, 13,049 s**: `20261016-205436-408-phase25-4-existing-xp-focused.log`.
+  A lánc hátramaradt részében **349 pass / 0 fail / 0 skip**, **33,980 s**;
+  a helyi folytató helper túl szűk névellenőrzése a legutolsó,
+  számot tartalmazó `test:phase22-acceptance` script előtt megállt (exit 1).
+  `20261016-205506-691-phase25-4-remaining-regression.log`.
+  Csak ez az el nem indult script futott még le: **6 pass / 0 fail / 0 skip**,
+  **0,739 s**, `20261016-205606-608-phase25-4-remaining-phase22.log`.
+  A konfigurált teljes kör így összesen **1885 sikeres teszttel lefedett**
+  több futásban; az egybefüggő `check` továbbra is FAIL. Nem ismételtünk
+  sikeres csomagot pusztán zöld exitért. A teljes kísérlet után a célzott
+  XP-ellenőrzés és az el nem indult csomagok összesen további **47,768 s**
+  parancsidőt igényeltek. Az XP-futásidő intermittenciája külön
+  tesztinfrastruktúra-probléma marad; a 25.4 termékkapu sikeres.
+- Publikálási privacy vizsgálat: **PASS, exit 0, 0,952 s**, 707 vizsgált
+  szöveges fájl, 0 módosított bináris, 0 blokkoló találat és 0 személyes
+  kimenő commit-metaadat; `20261016-205103-332-phase25-4-publish-privacy.log`.
+- A helyi admin leállítása után az identity/registry és meglevő WAL/SHM
+  állományok privát backupba kerültek. A szolgáltatás az ellenőrzött kóddal
+  újraindult; identity v1, registry v2, független health, login és védett
+  szerverlista/katalógus API **PASS, exit 0, 3,021 s**:
+  `20261016-205635-566-phase25-4-local-ready-migration.log`.
+  A katalógus az aktiváláskor commitolt `f75243ad2` kódverzióhoz kötődik.
+  A későbbi dokumentációs commit nem módosítja a futó világforrást.
+- Végleges feature/progress/TASKS linkek, formázás és kódcommit utáni
+  privacy ellenőrzés **PASS, exit 0, 1,562 s**, 0 blokkoló találat:
+  `20261016-205718-341-phase25-4-final-docs-privacy.log`.
+
+Az itt felsorolt naplók a privát `.local/verification/` alatt találhatók.
+Nincs hosszú társadalmi vagy paraméterhangolási kísérlet.
+
 ## 25.3 – szerverregiszter és Saját szervereim (2026-10-16)
 
 Elkészült a saját kezdőoldal és a külön v1 `servers.sqlite` metaadattár.
