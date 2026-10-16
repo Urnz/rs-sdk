@@ -1,5 +1,76 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.2 – fiókok és tulajdonosi jogosultságok (2026-10-16)
+
+Megvalósult a külön v1 identity SQLite-tár, helyi egyszeri tulajdonos-bootstrap,
+normalizált felhasználónév, aszinkron Argon2id jelszótárolás, 8 órás lejáró
+HttpOnly/SameSite session, login/logout és minden sessiont érvénytelenítő
+jelszócsere. A fiók- és jogosultsági felület backendek nélkül is működik.
+Új fiók csak tulajdonostól jöhet létre, alapból szerverjogosultság nélkül.
+Megadás/visszavonás atomikus audittal; az utolsó tulajdonos nem távolítható el.
+
+A jelenlegi helyi backend a `local-default` erőforrás; nincs új szerverregiszter
+vagy több világ létrehozása. A control plane és a gateway HTTP-határa ugyanazt
+a sessiont és tartós tulajdonjogot ellenőrzi. Hiányzó/hibás identity DB-nél a
+gateway zárva marad; nincs visszaesés a korábbi helyi bypassra. A proxy csak a
+validált session cookie-ját továbbítja, egyéb cookie-t nem; a meglévő backend
+ADMIN_TOKEN kapu megmarad. CSRF, pontos origin/intent, 8 KiB JSON, tartós
+login-kísérlet-korlát és KDF-konkurenciakorlát védi a fiókműveleteket.
+
+A root gateway HTTP dispatcher a külön `admin/entry.ts` modult használja.
+Ez a domainhandler előtt végzi a jogosultságvizsgálatot; a régi domain unit
+tesztek izolált kontextusukkal futnak, valódi helyi fiókot nem olvasnak.
+Külön integráció igazolja a termelési HTTP-belépési pont korábban publikus
+config/statikus útvonalait és a control-plane → gateway session/CSRF átvitelt.
+
+Részletek, használat, migráció/backup/rollback:
+[25.2 fiókkezelés](features/phase25-2-accounts.md).
+Valódi felhasználót/jelszót nem hoztunk létre, csak izolált tesztfiókokat.
+A runtime fióktár, screenshot és napló nem publikálandó. `.canvas.tsx`, bot,
+LLM-hívás vagy hosszú társadalmi paraméterkísérlet nem készült/indult.
+
+Ellenőrzési kör és indok:
+
+- Kezdeti control-plane/store/HTTP/Chrome/admin-safety: **27 pass / 0 fail /
+  0 skip**, **26,312 s**:
+  `.local/verification/20261016-194512-917-phase25-2-focused.log`.
+- Kibővített Chrome account/grant/revoke/nem-tulajdonos folyamat, gateway
+  entry, CLI és Windows indítás: **20 pass / 0 fail / 0 skip**, PowerShell
+  syntax/helper PASS, összesen **32,362 s**:
+  `.local/verification/20261016-194641-651-phase25-2-boundaries.log`.
+- A teljes kapu első indítása **FAIL, exit 2, 24,623 s**, még a root
+  TypeScriptnél, regressziós tesztek előtt. A telepített Bun SQLite típusai
+  `immediate()` eredményét voidnak jelölik; explicit, commit utáni eredmény-
+  átvétel javítja ezt. Assertion vagy teszt-timeout nem változott.
+  `.local/verification/20261016-194945-385-phase25-2-full-local-cache.log`.
+- A javított teljes kapu **1871 pass / 0 fail / 0 skip**, exit 0,
+  format + root/engine/webclient TypeScript PASS, **6 perc 7,982 s** belső
+  parancsidő (külső cache-wrapperrel **6 perc 8,929 s**):
+  `.local/verification/20261016-195123-069-full.log`, wrapper:
+  `20261016-195122-286-phase25-2-full-repaired.log`.
+  Indoka a két HTTP-szolgáltatás közös hitelesítési/jogosultsági határának
+  módosítása; nem a fázisváltás miatt futott teljes regresszió.
+- A teljes kapu után a névvalidáció kizárja a sorvégi karaktereket is, és a
+  gateway az admin HTTP-kaput már a WebSocket upgrade előtt lefuttatja.
+  Ezek szűk szigorításait célzottan ellenőriztük: **12 pass / 0 fail / 0 skip**,
+  root TypeScript, format és privacy PASS, összesen **21,121 s**:
+  `.local/verification/20261016-195829-024-phase25-2-final-input-boundary.log`.
+  A teljes nagy csomag nem futott újra ezért vagy dokumentációs utómunkáért;
+  a teljes és a végső célzott eredmény külön bizonyíték.
+- Publikálható források privacy vizsgálata **PASS, exit 0, 14,246 s**:
+  `.local/verification/20261016-195405-892-phase25-2-privacy.log`.
+- A saját regisztrált helyi admin újraindítása és olvasó readiness-próba
+  **PASS, exit 0, 2,447 s**: health/login elérhető, adminroot 303 loginra,
+  session/backendstatus/adminconfig bejelentkezés nélkül 401.
+  `.local/verification/20261016-195941-589-phase25-2-local-admin-ready.log`.
+  Játékstack vagy bot nem indult. A következő fejlesztési pont a 25.3,
+  szerverregiszter és „Saját szervereim” kezdőoldal.
+
+Chrome képek izolált adatokkal, vizuálisan ellenőrizve:
+`.local/verification/phase25-2-login-mobile.png` (390 px),
+`phase25-2-owner-accounts.png` (1024 px). A mobil login nem lóg ki oldalra;
+a fióklista és a megadás/visszavonás műveletei olvashatók.
+
 ## 25.1 – önálló helyi adminszolgáltatás (2026-10-16)
 
 Elkészült a külön Bun HTTP-folyamat a `127.0.0.1:7781/admin/` címen.

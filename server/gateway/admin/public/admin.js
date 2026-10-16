@@ -75,12 +75,17 @@ const xpForLevel = level => level <= 1 ? 0 : xpThresholds[Math.min(97, level - 2
 
 async function api(path, options = {}) {
     const headers = { ...(options.headers || {}) };
+    if (options.mutation && state.controlSession) headers['X-Control-CSRF'] = state.controlSession.csrfToken;
     if (options.body) headers['Content-Type'] = 'application/json';
     if (options.mutation) headers['X-Admin-Request'] = 'rs-sdk-admin';
     if (state.token) headers.Authorization = `Bearer ${state.token}`;
     const response = await fetch(path, { ...options, headers });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+        if (state.controlSession && ['LOGIN_REQUIRED', 'OWNER_REQUIRED'].includes(data.code)) {
+            location.assign('/admin/login.html');
+            throw new Error(data.error);
+        }
         if (response.status === 401 && state.config?.authMode === 'token') {
             const token = prompt('Add meg a helyi ADMIN_TOKEN értékét:');
             if (token) {
@@ -3176,6 +3181,14 @@ $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault
 document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-map):not(#close-world-admin)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
 async function bootstrapAdmin() {
+    if (!state.controlSession) {
+        const session = await fetch('/api/control-plane/session', { cache: 'no-store' });
+        if (session.ok) {
+            state.controlSession = await session.json();
+            if (!state.controlSession.ownsLocalServer) { location.assign('/admin/account.html'); throw new Error('Tulajdonosi jogosultság szükséges.'); }
+            $('#control-account-link').hidden = false;
+        } else if (session.status === 401) { location.assign('/admin/login.html'); throw new Error('Bejelentkezés szükséges.'); }
+    }
     const bootstrap = await Promise.all([
         api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
         api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),

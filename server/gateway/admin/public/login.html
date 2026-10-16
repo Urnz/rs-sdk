@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="hu">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bejelentkezés · Helyi admin</title><link rel="stylesheet" href="account.css"><script src="account.js" defer></script></head>
+<body><main class="account-shell">
+    <p class="eyebrow">HELYI SZERVERFELÜGYELET</p><h1>Bejelentkezés</h1>
+    <p>A fiókod a játékszerver leállítása közben is elérhető.</p>
+    <p id="account-message" role="status" aria-live="polite"></p>
+    <form id="login-form">
+        <label>Felhasználónév<input name="username" autocomplete="username" required minlength="3" maxlength="40" pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{2,39}"></label>
+        <label>Jelszó<input name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+        <button type="submit">Bejelentkezés</button>
+    </form>
+    <details><summary>Első használat</summary><p>Nincs alapértelmezett fiók. A gép tulajdonosa a projekt termináljában a <code>bun run admin:account:create</code> paranccsal hozhatja létre az első tulajdonost. További fiókokat a bejelentkezett tulajdonos készíthet.</p></details>
+</main></body></html>

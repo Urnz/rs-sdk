@@ -22,7 +22,7 @@ import { runPopulationEstateCycle } from '../../population-estate/runtime.js';
 import { loadPopulationMortalityPolicy } from '../../population-lifecycle/mortality.js';
 import { chunkMessage } from '../../sdk/chunking';
 import { BotSupervisor } from './admin/supervisor';
-import { handleAdminRequest } from './admin/routes';
+import { createOwnedAdminHandler } from './admin/entry';
 import type { AdminItem, GatewayBotSnapshot } from './admin/types';
 import { AgentMemoryIngestionLoop } from './admin/agent-memory-ingestion';
 import { appendReplanRecord, createGatewayAgentReplanCoordinator,
@@ -1210,6 +1210,13 @@ process.on('uncaughtException', (error) => {
     console.error('[Gateway] Uncaught exception (ignored, gateway stays up):', error);
 });
 
+const ownedAdminHandler = createOwnedAdminHandler(() => ({
+    gatewayBots: adminGatewayBots,
+    supervisor: botSupervisor,
+    replanCoordinator: agentReplanCoordinator ?? undefined,
+    simulationClock: replanSimulationClock,
+    worldGenesisAdapter
+}));
 console.log(`[Gateway] Starting Gateway Service on port ${GATEWAY_PORT}...`);
 
 const server = Bun.serve({
@@ -1218,21 +1225,16 @@ const server = Bun.serve({
     async fetch(req, server) {
         const url = new URL(req.url);
 
+        // Admin paths must pass their HTTP ownership gate before any WebSocket upgrade.
+        const adminResponse = await ownedAdminHandler(req, url);
+        if (adminResponse) return adminResponse;
+
         // WebSocket upgrade
         if (req.headers.get('upgrade') === 'websocket') {
             const upgraded = server.upgrade(req);
             if (upgraded) return undefined;
             return new Response('WebSocket upgrade failed', { status: 400 });
         }
-
-        const adminResponse = await handleAdminRequest(req, url, {
-            gatewayBots: adminGatewayBots,
-            supervisor: botSupervisor,
-            replanCoordinator: agentReplanCoordinator ?? undefined,
-            simulationClock: replanSimulationClock,
-            worldGenesisAdapter
-        });
-        if (adminResponse) return adminResponse;
 
         // Noticed-event discovery is scoped to the login-authenticated live avatar.
         // No CORS opt-in and no password-in-body/query fallback for this endpoint.

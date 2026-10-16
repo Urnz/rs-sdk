@@ -15,6 +15,7 @@
     "admin:serve": "bun server/control-plane/main.ts",
     "admin:start": "pwsh -NoProfile -File scripts/start-admin.ps1",
     "admin:stop": "pwsh -NoProfile -File scripts/stop-admin.ps1",
+    "admin:account:create": "pwsh -NoProfile -File scripts/create-admin-account.ps1",
     "test:control-plane": "bun test server/control-plane/test",
     "test:control-plane:windows": "bun test server/control-plane/windows-test",
     "skill:run": "bun agent-skills/run.ts",

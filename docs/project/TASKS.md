@@ -265,7 +265,14 @@ instabillá vagy önfenntartóvá.
   [ellenőrzési napló](PHASE25_PROGRESS.md).
   Felhasználói fiókok, szerverregiszter és több világ felügyelete a következő
   külön feladatok; ezek e véges lépésnek nem részei.
-- [ ] Bejelentkezést, felhasználói fiókot és tulajdonosi jogosultságokat készíteni.
+- [x] Bejelentkezést, felhasználói fiókot és tulajdonosi jogosultságokat készíteni.
+  **25.2 – elkészült:** külön fióktár, helyi bootstrap, login/logout,
+  lejáró session, jelszócsere és auditált tulajdonjog-kezelés; a control plane
+  és a gateway HTTP-belépési pontja egyaránt ellenőrzi a jogosultságot.
+  Teljes regresszió 1871/1871 PASS; az utolsó szűk bemenet-/HTTP-kapu-
+  szigorítás külön 12/12 teszt és root typecheck PASS.
+  [Működés és állapotkezelés](features/phase25-2-accounts.md),
+  [ellenőrzések](PHASE25_PROGRESS.md).
 - [ ] Szerverregisztert és „Saját szervereim” kezdőoldalt létrehozni.
 - [ ] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,
   újraindítás és archiválás felületről.

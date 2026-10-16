@@ -91,8 +91,9 @@ végrehajthatta a műveletet válasz nélkül, ezért állapot/audit ellenőrzé
 újrapróbálás előtt. Nincs automatikus mutáció-újraküldés. A hálózati hiba
 részletes belső üzenete, környezeti változó vagy token nem kerül a hibaválaszba.
 
-A helyi hozzáférési modell nem többfelhasználós account/session/role rendszer;
-az a következő 25.2 feladat. Távoli/public üzemeltetés nincs engedélyezve.
+A 25.1 önmagában nem többfelhasználós account/session/role rendszer;
+ezt a [25.2 fiókkezelés](phase25-2-accounts.md) vezeti be külön lépésként.
+Távoli/public üzemeltetés nincs engedélyezve.
 
 ## Állapot, migráció, visszavonás
 

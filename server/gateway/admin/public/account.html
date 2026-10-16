@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="hu">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fiók és jogosultságok · Helyi admin</title><link rel="stylesheet" href="account.css"><script src="account.js" defer></script></head>
+<body><main class="account-shell">
+    <p class="eyebrow">HELYI SZERVERFELÜGYELET</p><h1>Fiók és jogosultságok</h1>
+    <p id="account-message" role="status" aria-live="polite">Fiók betöltése…</p>
+    <section id="account-content" hidden>
+        <p>Bejelentkezve: <strong id="account-name"></strong></p>
+        <p id="ownership-summary"></p>
+        <nav><a id="back-to-admin" href="/admin/" hidden>Helyi szerver megnyitása</a> <button id="logout-button" type="button">Kijelentkezés</button></nav>
+        <section><h2>Jelszó módosítása</h2><p>A módosítás minden meglévő munkamenetedet lezárja.</p>
+            <form id="password-form">
+                <label>Jelenlegi jelszó<input name="currentPassword" type="password" autocomplete="current-password" required maxlength="1024"></label>
+                <label>Új jelszó<input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024"></label>
+                <button type="submit">Jelszó módosítása</button>
+            </form>
+        </section>
+        <section id="owner-management" hidden><h2>Fiókok és a helyi szerver tulajdonosai</h2>
+            <p>A tulajdonos a szerver minden adminműveletét elvégezheti, és további tulajdonosokat jelölhet ki. Az új fiók kezdetben nem kap szerverhozzáférést.</p>
+            <ul id="account-list"></ul>
+            <h3>Új fiók</h3><form id="create-account-form">
+                <label>Felhasználónév<input name="username" autocomplete="off" required minlength="3" maxlength="40" pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{2,39}"></label>
+                <label>Kezdeti jelszó<input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024"></label>
+                <button type="submit">Fiók létrehozása</button>
+            </form>
+        </section>
+    </section>
+</main></body></html>

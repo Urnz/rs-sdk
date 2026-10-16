@@ -1,13 +1,14 @@
 import { serveAdminAsset } from '../gateway/admin/assets.js';
 import { localOrigin, type ControlPlaneConfig } from './config.js';
+import { accountRoute, authError, json, requireSession, sessionCookieName } from './auth.js';
+import type { IdentityStore } from './identity-store.js';
 
 type Fetcher = (url: URL, init: RequestInit) => Promise<Response>;
 export interface BackendState { state: 'available' | 'unavailable'; httpStatus: number | null }
-const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
-const allowedHeaders = ['accept', 'content-type', 'authorization', 'x-admin-token', 'x-admin-request'];
+const allowedHeaders = ['accept', 'content-type', 'authorization', 'x-admin-token', 'x-admin-request', 'x-control-csrf'];
 
-/** A separate HTTP owner. No gateway imports, game state stores, credentials or simulation timers. */
-export function createControlPlane(config: ControlPlaneConfig, fetcher: Fetcher = fetch) {
+/** A separate HTTP owner. Identity state is independent of every game/domain database. */
+export function createControlPlane(config: ControlPlaneConfig, identities: IdentityStore, fetcher: Fetcher = fetch) {
     const gateway = localOrigin(config.gatewayOrigin), engine = localOrigin(config.engineOrigin);
     for (const timeout of [config.probeTimeoutMs, config.proxyTimeoutMs]) if (!Number.isInteger(timeout) || timeout < 1 || timeout > 120000) throw new Error('Invalid backend timeout');
     let cached: { at: number; value: unknown } | null = null, pending: Promise<unknown> | null = null;
@@ -32,6 +33,21 @@ export function createControlPlane(config: ControlPlaneConfig, fetcher: Fetcher 
         const origin = req.headers.get('origin');
         if ((origin && origin !== url.origin) || req.headers.get('sec-fetch-site') === 'cross-site') return json({ error: 'Same-origin request required' }, 403);
         if (url.pathname === '/health') return req.method === 'GET' ? json({ service: 'rs-sdk-control-plane', ready: true }) : json({ error: 'Method not allowed' }, 405);
+        const publicAccountAssets = ['/admin/login.html', '/admin/account.html', '/admin/account.js', '/admin/account.css'];
+        if (publicAccountAssets.includes(url.pathname)) {
+            if (!['GET', 'HEAD'].includes(req.method)) return json({ error: 'Method not allowed' }, 405);
+            const response = await serveAdminAsset(url, engine);
+            return response && req.method === 'HEAD' ? new Response(null, { status: response.status, headers: response.headers }) : response ?? json({ error: 'Not found' }, 404);
+        }
+        if (url.pathname.startsWith('/api/control-plane/') && url.pathname !== '/api/control-plane/status') return accountRoute(req, identities);
+        if (!['/', '/admin'].includes(url.pathname) && !url.pathname.startsWith('/admin/') && !url.pathname.startsWith('/api/admin/') && url.pathname !== '/api/control-plane/status') return json({ error: 'Not found' }, 404);
+        let session;
+        try { session = requireSession(req, identities, true); }
+        catch (error) {
+            if (['/', '/admin', '/admin/', '/admin/index.html'].includes(url.pathname) && ['GET', 'HEAD'].includes(req.method))
+                return new Response(null, { status: 303, headers: { Location: '/admin/login.html', 'Cache-Control': 'no-store' } });
+            return authError(error);
+        }
         if (url.pathname === '/api/control-plane/status') return req.method === 'GET' ? json(await status()) : json({ error: 'Method not allowed' }, 405);
         if (url.pathname === '/') return Response.redirect(new URL('/admin/', url), 308);
         if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
@@ -46,6 +62,8 @@ export function createControlPlane(config: ControlPlaneConfig, fetcher: Fetcher 
         if (mutation && req.headers.get('x-admin-request') !== 'rs-sdk-admin') return json({ error: 'Explicit admin request required' }, 403);
         const headers = new Headers();
         for (const name of allowedHeaders) { const value = req.headers.get(name); if (value !== null) headers.set(name, value); }
+        // Only this validated session cookie reaches the fixed local gateway; unrelated cookies never do.
+        headers.set('cookie', `${sessionCookieName}=${session.token}`);
         // Same-origin was checked above; keep the gateway's local-mode mutation gate valid through the local proxy.
         if (origin) headers.set('origin', gateway);
         try {

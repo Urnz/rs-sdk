@@ -22,10 +22,12 @@ try {
     $adminRunId = [Guid]::NewGuid().ToString('N')
     $oldAdminPort = [Environment]::GetEnvironmentVariable('CONTROL_PLANE_PORT', 'Process')
     $oldAdminLog = [Environment]::GetEnvironmentVariable('CONTROL_PLANE_LOG_PATH', 'Process')
+    $oldAdminIdentity = [Environment]::GetEnvironmentVariable('CONTROL_PLANE_IDENTITY_PATH', 'Process')
     $adminProcess = $null
     try {
         $env:CONTROL_PLANE_PORT = [string]$Port
         $env:CONTROL_PLANE_LOG_PATH = Join-Path $adminStateRoot "$adminRunId.log"
+        if (-not $oldAdminIdentity) { $env:CONTROL_PLANE_IDENTITY_PATH = Join-Path $adminStateRoot 'identity.sqlite' }
         # No redirected caller handles: the hidden Windows shell launch owns its console.
         # The service writes its own private log, so a captured launcher can reach EOF immediately.
         $adminProcess = Start-Process -FilePath (Get-BunExecutable) -ArgumentList @('run', 'server/control-plane/main.ts') `
@@ -46,5 +48,7 @@ try {
         else { $env:CONTROL_PLANE_PORT = $oldAdminPort }
         if ($null -eq $oldAdminLog) { Remove-Item Env:CONTROL_PLANE_LOG_PATH -ErrorAction SilentlyContinue }
         else { $env:CONTROL_PLANE_LOG_PATH = $oldAdminLog }
+        if ($null -eq $oldAdminIdentity) { Remove-Item Env:CONTROL_PLANE_IDENTITY_PATH -ErrorAction SilentlyContinue }
+        else { $env:CONTROL_PLANE_IDENTITY_PATH = $oldAdminIdentity }
     }
 } finally { $adminOperationLock.Dispose() }

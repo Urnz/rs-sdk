@@ -1,0 +1,22 @@
+:root { color-scheme: dark; font: 16px/1.5 system-ui, sans-serif; background: #10151c; color: #e7edf6; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px 16px; }
+.account-shell { width: min(100%, 720px); margin: 24px auto; padding: clamp(20px, 5vw, 40px); background: #192331; border: 1px solid #35445a; border-radius: 16px; }
+h1 { font-size: clamp(1.6rem, 5vw, 2rem); line-height: 1.2; }
+h2 { font-size: 1.2rem; }
+.eyebrow { font-size: .75rem; letter-spacing: .12em; color: #a9c9ed; }
+form, label { display: grid; gap: 8px; }
+form { gap: 18px; }
+input { width: 100%; padding: 12px; border: 1px solid #8192a9; border-radius: 6px; background: #10151c; color: inherit; font: inherit; }
+button { padding: 10px 16px; border: 1px solid #9ec9ff; border-radius: 6px; background: #244c7e; color: #fff; font: inherit; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+a { color: #b3d5ff; }
+nav, li { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+section section, details { margin-top: 28px; border-top: 1px solid #35445a; padding-top: 16px; }
+ul { list-style: none; padding: 0; }
+li { padding: 12px 0; border-bottom: 1px solid #35445a; }
+code { overflow-wrap: anywhere; }
+#account-message { min-height: 24px; color: #bce8c6; }
+#account-message[data-error="true"] { color: #ffb9b9; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid #c5deff; outline-offset: 3px; }
