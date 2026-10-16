@@ -63,7 +63,10 @@ test('list/detail expose only owned servers; foreign records and unbound endpoin
         const handler = createControlPlane(config, identities, async url => { calls.push(url.toString()); throw new Error('fixture absent'); }, registry);
         const login = async (username: string, password: string) => {
             const session = await identities.login(username, password);
-            return (path: string) => handler(new Request('http://127.0.0.1:7781' + path, { headers: { Cookie: `rs-control-session=${session.token}`, 'X-Control-Server-ID': 'local-default' } }));
+            return (path: string) => handler(new Request('http://127.0.0.1:7781' + path, { headers: {
+                Cookie: `rs-control-session=${session.token}`,
+                ...(path.startsWith('/admin/index.html?') ? {} : { 'X-Control-Server-ID': 'local-default' })
+            } }));
         };
         const own = await login(owner.username, 'synthetic registry password');
         const result = await (await own('/api/control-plane/servers')).json();

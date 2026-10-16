@@ -1,5 +1,101 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.6 – kötelező admin-szerverkontextus (2026-10-17)
+
+A régi bot/world/property/gazdasági/agent/AI/társadalmi nézetek minden domain-
+kérése a dokumentum rögzített serverId-ját viszi. A központi proxy a kiválasztott
+regisztrált/lifecycle-gatewayt választja, friss ownership ellenőrzéssel,
+kezelt világnál azonosított worker-kapcsolattal. A gateway összeveti a fejlécet
+a saját resource ID-jával. Nincs implicit local-default API-visszaesés.
+Az eltérő backendválasz visszatartott; a status cache/pending probe szerverenként
+külön van, a session/ownership nem cache-elt.
+
+A saját szerverkártyákból bármely támogatott világ adminja megnyitható,
+leállítva is. A név/ID a fejlécben marad, a saját backend kiesése nem vált
+másik szerverre. Két lap külön kontextusú, az admin-token tárolása is különül.
+Szerverváltás új dokumentum; History API-val átírt context után a régi lap
+műveletet nem küldhet. A managed ownernek nem kell local-default ownernek lennie.
+
+Használat, kérésprotokoll, pinning és rollback:
+[25.6 admin szerverkontextus](features/phase25-6-admin-server-context.md).
+A 25.7 titoktár és későbbi felügyelet/távoli RBAC nem része e lépésnek.
+
+Ellenőrzések:
+
+- Első szerződésváltási kör **21 pass / 6 fail / 0 skip**, **6,542 s**:
+  korábbi implicit default-kérésekből hiányzott a context fejléc, a közvetlen
+  gateway root 200 helyett saját context URL-re irányító 303, a nem-owner
+  domain-hozzáférés explicit kontextussal 404. A fixture-ök az új szerződésre
+  álltak, auth/CSRF assertionök megmaradtak.
+  `20261017-002618-621-phase25-6-initial-boundary.log`.
+- Következő control-plane/Chrome kör **34 pass / 1 fail / 0 skip**,
+  **25,581 s**: a korábbi account UI-teszt ideiglenes SQLite-takarítása
+  Windows `EBUSY` hibát kapott. A takarítás csak ezen esetben korlátozott
+  filesystem retryt kapott (max. 5, 50 ms); assertion/termékkapu nem változott.
+  `20261017-002731-058-phase25-6-context-quality.log`.
+- Célzott store/proxy/ownership kör **28 pass / 0 fail / 0 skip**, root
+  typecheck PASS, **23,575 s**:
+  `20261017-002909-695-phase25-6-routing-focused.log`.
+- Új kétlapos böngészőteszt első futása **3 pass / 1 fail / 0 skip**, login
+  navigációs timeout a második lap előzetes megnyitása mellett. A második lap
+  a login után nyílik. A célzott javított eset **1/1 PASS**, root typecheck /
+  format PASS, **24,686 s**:
+  `20261017-003029-044-phase25-6-browser-context.log`,
+  `20261017-003152-629-phase25-6-two-tabs-focused.log`.
+  Azonos fiók, két világ, A/B név és ID, csak B-re mentett AI-beállítás,
+  A változatlansága, history-átírás utáni elutasítás, saját offline shell PASS.
+  Chrome 1440 px és 390 px screenshotok vizuálisan ellenőrizve, nincs
+  vízszintes mobil kilógás. Képek: `phase25-6-server-context-desktop.png`,
+  `phase25-6-server-context-mobile.png`.
+- Végső backendhatár-kör **19 pass / 0 fail / 0 skip**, root typecheck és
+  privacy PASS, **21,926 s**:
+  `20261017-003319-185-phase25-6-checkpoint-gate.log`.
+  Hiányzó/ütköző context, minden domain azonos ID-jának két világba irányítása,
+  közvetlen gateway mismatch, külön availability cache, azonnali revokáció,
+  hamis backendválasz visszatartása és nem azonosított worker elutasítása PASS.
+- Valódi kétvilágos központi proxypróba **PASS, exit 0, 40,723 s**:
+  `20261017-003434-839-phase25-6-native-proxy-context.log`.
+  Forrás: `6ede42ea1c75378839f91250bcfd299967882c98` checkpoint.
+  Minden bot-, agent-, LLM- és modmódosítás a külön control-plane HTTP-n,
+  explicit server contexttel ment át két tényleges engine/gatewayhez.
+  Saját válaszfejlécek egyeztek, implicit/ütköző központi context 400/409,
+  idegen owner 404, közvetlen gateway context nélkül 400, másik ID-val 409.
+  Azonos botnév két világban, külön agent/mod/konfig/titok/audit/mentés/cache,
+  saját browser proxy, stop/restart/archive és testvérvilág túlélése PASS.
+  Host AgentState/config hash-e változatlan; a tesztvilágok leálltak,
+  LLM-hívás nem volt.
+- Egyszeri teljes regresszió: **1232 pass / 1 fail / 0 skip**, a teljes kapu
+  exitje 1, **155,980 s**. Format és root/engine/webclient typecheck PASS,
+  mind a négy Chrome-eset PASS. A registry-tesztsegéd az explicit másik
+  szerverű oldalnak még local-default fejlécet adott: az elvárt 404 helyett
+  helyesen 409 context konfliktus keletkezett. A page fixture a böngészőhöz
+  hasonlóan csak querykontextust küld; a termék és az assertion változatlan.
+  `20261017-003558-765-phase25-6-full-gate.log`, részletes gyökércsomag:
+  `20261017-003559-609-full.log`.
+  Indok: a központi és gateway jogosultsági útválasztás több modult érint;
+  a fáziszárás önmagában nem indok. Statikus helyi packed cache,
+  bot/LLM/élő társadalmi kísérlet nélkül.
+- Javított registry **3/3 PASS**, utána a hátralévő domaincsomagok
+  **659/659 PASS**; root typecheck és format PASS. Együttes pótlókapu
+  **662 pass / 0 fail / 0 skip**, **156,939 s**, exit 0:
+  `20261017-004051-924-phase25-6-full-remainder.log`.
+  A gyökércsomag és a pótlás együtt az összes **1892 külön tesztesethez**
+  sikeres eredményt adott; a két már korábban zöld registry-eset a saját
+  fájljában ismét lefutott. A többi sikeres gyökérteszt nem ismétlődött.
+  Az eredeti egybefüggő teljes kapu exitje ettől továbbra is 1.
+- Helyi admin aktiválás privát konzisztens identity/registry backup után:
+  **PASS, exit 0, 2,893 s**. `/health`, login és védett végpontok kapui,
+  identity v1 és registry v2 readiness PASS. Engine/gateway/bot állapotot
+  az aktiválás nem módosított.
+  `20261017-004113-749-phase25-6-local-ready.log`.
+- Publikálás előtti format/link/privacy kapu **PASS, exit 0, 1,402 s**:
+  `20261017-004355-619-phase25-6-closeout.log`. A kumulatív publikálandó
+  szöveges állományok ellenőrzése 0 érzékenyadat-blokkolót és 0 személyes
+  kimenő commit-metaadatot talált; módosított bináris nincs. Privát
+  adatbázis, mentés, kulcs és futási napló nem kerül a verziókövetésbe.
+
+A naplók és bizonyítékok a privát `.local/verification/` alatt maradnak.
+
 ## 25.5 – kezelt világok elkülönítése (2026-10-16)
 
 Az instance binding a saját workspace-hez, forrásverzióhoz és hat porthoz

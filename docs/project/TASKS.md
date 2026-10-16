@@ -302,14 +302,20 @@ instabillá vagy önfenntartóvá.
   a hagyományos local-default kompatibilitási backend marad. OS-sandbox és
   OS-titoktár nincs késznek állítva. A helyi admin frissítve, readiness PASS.
   [Működés és migrációs határ](features/phase25-5-server-isolation.md),
-  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.6 szerverkontextus.
-- [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket
+  [ellenőrzések](PHASE25_PROGRESS.md).
+- [x] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket
   kötelező szerverkontextus alá helyezni.
-  **25.6 – ellenőrzés alatt:** rögzített lapkontextus, kötelező API-fejléc,
+  **25.6 – elkészült:** rögzített lapkontextus, kötelező API-fejléc,
   szerverenkénti proxy és health cache, gateway oldali egyezésvizsgálat,
   látható szervernév/ID, kétlapos mentési és stale-kontextus Chrome-próba.
-  Célzott útválasztás/root typecheck és kétlapos Chrome PASS; valódi
-  kétvilágos proxypróba és a jogosultsági útválasztás miatti teljes kapu következik.
+  Célzott útválasztás, mindhárom typecheck, kétlapos Chrome és valódi
+  kétvilágos engine/gateway proxypróba PASS. A jogosultsági változás miatt
+  teljes regresszió futott: egy elavult tesztkérés javítása és a hátralévő
+  csomagok után mind az 1892 külön teszteset sikeres eredményt adott;
+  az eredeti egybefüggő kapu hibás exitje külön dokumentálva.
+  A helyi admin frissítve, privát backup és readiness PASS.
+  [Működés és kérésprotokoll](features/phase25-6-admin-server-context.md),
+  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.7 titoktár.
 - [ ] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin
   csak állapotot lásson, a kulcsok visszaolvasását ne engedje.
 - [ ] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,
