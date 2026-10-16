@@ -11,3 +11,8 @@ header nav { justify-content: flex-start; }
 .server-card[data-gateway="unavailable"] { border-color: #b89458; }
 #servers-message { min-height: 24px; }
 #servers-message[data-error="true"] { color: #ffb9b9; }
+#server-create { margin-top: 24px; border-top: 1px solid #526883; padding-top: 16px; }
+#server-create-form { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); align-items: end; }
+#server-create-form p { grid-column: 1 / -1; }
+select { width: 100%; padding: 12px; color: inherit; background: #10151c; border: 1px solid #8192a9; border-radius: 6px; font: inherit; }
+#lifecycle-message[data-error="true"], .server-error { color: #ffb9b9; overflow-wrap: anywhere; }

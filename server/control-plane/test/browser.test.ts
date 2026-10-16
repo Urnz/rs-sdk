@@ -8,6 +8,9 @@ import { controlPlaneConfig } from '../config.js';
 import { readAdminLlmSettings } from '../../gateway/admin/llm-settings.js';
 import { IdentityStore } from '../identity-store.js';
 import { ServerRegistry } from '../server-registry.js';
+import { LifecycleManager } from '../lifecycle-manager.js';
+import type { ManagedRuntime } from '../managed-runtime.js';
+import type { ManagedServer } from '../lifecycle-store.js';
 
 test('full admin browser survives absent services and bootstraps after gateway recovery without reloading', async () => {
     const temporary = await mkdtemp(join(tmpdir(), 'control-plane-browser-'));
@@ -76,6 +79,42 @@ test('full admin browser survives absent services and bootstraps after gateway r
         await page.waitForSelector('#connection-status[data-gateway="unavailable"]', { timeout: 10000 });
         expect((await fetch(new URL('/admin/', admin.url), { redirect: 'manual' })).status).toBe(303); expect(errors).toEqual([]);
     } finally { await browser?.close(); gateway?.stop(true); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }
+}, 40000);
+
+test('server creation and lifecycle actions show visible progress, failures and retained archives in Chrome', async () => {
+    const identities = new IdentityStore(':memory:'), registry = new ServerRegistry(':memory:');
+    await identities.createAccount('browser-manager', 'synthetic manager password');
+    let failStart = false; const running = new Set<string>();
+    const runtime: ManagedRuntime = { version: 'a'.repeat(40),
+        async prepare() {}, async start(server) { if (failStart) throw new Error('private fixture detail'); running.add(server.serverId); },
+        async stop(server) { running.delete(server.serverId); }, async inspect(server) { return running.has(server.serverId) ? 'running' : 'stopped'; } };
+    const manager = new LifecycleManager(registry, identities, runtime);
+    const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(controlPlaneConfig(), identities, fetch, registry, manager) });
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+    try {
+        browser = await puppeteer.launch({ headless: true }); const page = await browser.newPage();
+        page.on('dialog', dialog => void dialog.accept());
+        await page.goto(new URL('/admin/', admin.url).toString());
+        await page.type('[name="username"]', 'browser-manager'); await page.type('[name="password"]', 'synthetic manager password');
+        await Promise.all([page.waitForNavigation(), page.click('#login-form button')]);
+        await page.waitForSelector('#server-create:not([hidden])');
+        await page.type('#server-create-form [name="name"]', 'Böngészős világ');
+        await page.select('#server-create-form [name="template"]', 'closed-economy'); await page.click('#server-create-form button');
+        const waitState = (state: string) => page.waitForFunction(text => Array.from(document.querySelectorAll('.server-card > p')).some(element => element.textContent === text), {}, state);
+        await waitState('Leállítva'); await page.waitForSelector('.server-card [data-action="start"]:not(:disabled)');
+        await page.click('.server-card [data-action="start"]'); await waitState('Fut');
+        await page.waitForSelector('.server-card [data-action="restart"]:not(:disabled)'); await page.click('.server-card [data-action="restart"]');
+        await page.waitForFunction(() => document.querySelector('#lifecycle-message')?.textContent === 'A művelet befejeződött.');
+        await page.waitForSelector('.server-card [data-action="stop"]:not(:disabled)'); await page.click('.server-card [data-action="stop"]'); await waitState('Leállítva');
+        failStart = true; await page.waitForSelector('.server-card [data-action="start"]:not(:disabled)'); await page.click('.server-card [data-action="start"]'); await waitState('Műveleti hiba');
+        expect(await page.$eval('#lifecycle-message', element => element.textContent)).not.toContain('private fixture detail');
+        await page.waitForSelector('.server-card [data-action="archive"]:not(:disabled)'); await page.click('.server-card [data-action="archive"]'); await waitState('Archiválva');
+        expect(await page.$$('.server-card button')).toHaveLength(0);
+        await mkdir(join(import.meta.dir, '../../../.local/verification'), { recursive: true });
+        await page.setViewport({ width: 1440, height: 1100 }); await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-4-lifecycle-desktop.png'), fullPage: true });
+        await page.setViewport({ width: 390, height: 844 }); await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-4-lifecycle-mobile.png'), fullPage: true });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    } finally { await browser?.close(); await manager.idle(); admin.stop(true); registry.close(); identities.close(); }
 }, 40000);
 
 test('owner can create an account, grant/revoke access, and a non-owner can log in without backend privileges', async () => {

@@ -1,16 +1,17 @@
 import { serveAdminAsset } from '../gateway/admin/assets.js';
 import { localOrigin, type ControlPlaneConfig } from './config.js';
-import { accountRoute, authError, json, requireSession, sessionCookieName } from './auth.js';
+import { accountRoute, authError, body, json, requireSession, sessionCookieName } from './auth.js';
 import type { IdentityStore } from './identity-store.js';
 import { IdentityError, localServerId } from './identity-store.js';
 import type { RegisteredServer, ServerRegistry } from './server-registry.js';
+import type { LifecycleManager } from './lifecycle-manager.js';
 
 type Fetcher = (url: URL, init: RequestInit) => Promise<Response>;
 export interface BackendState { state: 'available' | 'unavailable'; httpStatus: number | null }
 const allowedHeaders = ['accept', 'content-type', 'authorization', 'x-admin-token', 'x-admin-request', 'x-control-csrf'];
 
 /** A separate HTTP owner. Identity state is independent of every game/domain database. */
-export function createControlPlane(config: ControlPlaneConfig, identities: IdentityStore, fetcher: Fetcher = fetch, registry?: ServerRegistry) {
+export function createControlPlane(config: ControlPlaneConfig, identities: IdentityStore, fetcher: Fetcher = fetch, registry?: ServerRegistry, lifecycle?: LifecycleManager) {
     const gateway = localOrigin(config.gatewayOrigin), engine = localOrigin(config.engineOrigin);
     for (const timeout of [config.probeTimeoutMs, config.proxyTimeoutMs]) if (!Number.isInteger(timeout) || timeout < 1 || timeout > 120000) throw new Error('Invalid backend timeout');
     let cached: { at: number; value: unknown } | null = null, pending: Promise<unknown> | null = null;
@@ -33,14 +34,22 @@ export function createControlPlane(config: ControlPlaneConfig, identities: Ident
         const connected = server.id === localServerId && server.gatewayOrigin === gateway && server.engineOrigin === engine;
         return { id: server.id, name: server.name, registeredAt: server.registeredAt,
             adminUrl: connected ? '/admin/index.html?serverId=local-default' : null,
-            connection: connected ? await status() : null };
+            connection: connected ? await status() : null, ...(lifecycle ? { managed: await lifecycle.view(server.id) } : {}) };
     }
     async function servers(req: Request): Promise<Response> {
         try {
             const session = requireSession(req, identities);
-            if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
             if (!registry) return json({ error: 'A szerverregiszter nem érhető el.', code: 'REGISTRY_UNAVAILABLE' }, 503);
             const path = new URL(req.url).pathname;
+            if (lifecycle) {
+                if (path === '/api/control-plane/servers/catalog' && req.method === 'GET') return json(lifecycle.catalog());
+                const operation = /^\/api\/control-plane\/servers\/operations\/([a-f0-9-]{36})$/.exec(path);
+                if (operation && req.method === 'GET') return json({ operation: lifecycle.operation(session.account.id, operation[1]!) });
+                if (path === '/api/control-plane/servers' && req.method === 'POST') return json({ operation: lifecycle.create(session.account.id, await body(req)) }, 202);
+                const action = /^\/api\/control-plane\/servers\/(srv-[a-f0-9-]{36})\/(start|stop|restart|archive)$/.exec(path);
+                if (action && req.method === 'POST') return json({ operation: lifecycle.action(session.account.id, action[1]!, action[2]!, await body(req)) }, 202);
+            }
+            if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
             if (path === '/api/control-plane/servers') {
                 const visible = registry.visibleTo(id => identities.owns(session.account.id, id));
                 return json({ schemaVersion: 1, servers: await Promise.all(visible.map(serverView)) });

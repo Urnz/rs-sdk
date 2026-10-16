@@ -67,6 +67,7 @@ export function getWebStats() {
 
 export async function startWeb() {
     Bun.serve<WebSocketData, WebSocketRoutes>({
+        hostname: process.env.CONTROL_PLANE_SERVER_ID ? '127.0.0.1' : undefined,
         port: Environment.WEB_PORT,
         async fetch(req, server) {
             const url = new URL(req.url ?? '', `http://${req.headers.get('host')}`);
@@ -339,6 +340,7 @@ let profileRunning = false;
 
 export async function startManagementWeb() {
     Bun.serve({
+        hostname: process.env.CONTROL_PLANE_SERVER_ID ? '127.0.0.1' : undefined,
         port: Environment.WEB_MANAGEMENT_PORT,
         routes: {
             // computed per request (a static Response here froze the metrics at startup)

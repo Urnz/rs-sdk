@@ -282,6 +282,10 @@ instabillá vagy önfenntartóvá.
   [ellenőrzések](PHASE25_PROGRESS.md).
 - [ ] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,
   újraindítás és archiválás felületről.
+  **25.4 – ellenőrzés alatt:** tartós műveletnapló, idempotens kérésazonosító,
+  szerverenkénti ownership, verzióhoz kötött munkakönyvtár és felületi lifecycle.
+  A célzott store/HTTP/Chrome/Windows kör 34/34 PASS; a valódi engine/gateway
+  próba és a jogosultsági/migrációs változás miatti egyszeri teljes kapu még hátra van.
 - [ ] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,
   botokat, modokat, LLM-konfigurációt, titkokat és auditnaplót biztosítani.
 - [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket

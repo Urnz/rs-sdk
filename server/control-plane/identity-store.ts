@@ -52,6 +52,20 @@ export class IdentityStore {
     owns(accountId: string, resource = localServerId) {
         return !!this.db.query('SELECT 1 FROM ownership WHERE account_id=? AND resource_id=?').get(accountId, resource);
     }
+    /** Provisioning may initialize a new managed resource once, never take over an existing resource. */
+    initializeManagedOwnership(accountId: string, resource: string) {
+        if (!/^srv-[a-f0-9-]{36}$/.test(resource)) throw new IdentityError(400, 'INVALID_RESOURCE', 'Érvénytelen kezelt szerver.');
+        this.db.transaction(() => {
+            if (!this.db.query('SELECT 1 FROM accounts WHERE id=?').get(accountId)) throw denied();
+            const owners = this.db.query('SELECT account_id FROM ownership WHERE resource_id=?').all(resource) as { account_id: string }[];
+            if (owners.length) {
+                if (owners.length !== 1 || owners[0]!.account_id !== accountId) throw new IdentityError(409, 'OWNERSHIP_CONFLICT', 'A szerver tulajdonosi kötése ütközik.');
+                return;
+            }
+            this.db.query('INSERT INTO ownership VALUES (?,?)').run(accountId, resource);
+            this.audit('managed-owner-initialized', accountId, accountId, resource);
+        }).immediate();
+    }
     private requireOwner(actor: string, resource = localServerId) { if (!this.owns(actor, resource)) throw denied(); }
     private password(value: unknown): asserts value is string {
         if (typeof value !== 'string' || value.length < 12 || Buffer.byteLength(value) > 1024) throw new IdentityError(400, 'PASSWORD_POLICY', 'A jelszó legalább 12 karakter, legfeljebb 1024 bájt legyen.');

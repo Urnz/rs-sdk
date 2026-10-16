@@ -1220,6 +1220,7 @@ const ownedAdminHandler = createOwnedAdminHandler(() => ({
 console.log(`[Gateway] Starting Gateway Service on port ${GATEWAY_PORT}...`);
 
 const server = Bun.serve({
+    hostname: process.env.CONTROL_PLANE_SERVER_ID ? '127.0.0.1' : undefined,
     port: GATEWAY_PORT,
 
     async fetch(req, server) {

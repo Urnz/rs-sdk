@@ -66,6 +66,6 @@ export default class TcpServer {
             });
         });
 
-        this.tcp.listen(Environment.node.port, '0.0.0.0', () => {});
+        this.tcp.listen(Environment.node.port, process.env.CONTROL_PLANE_SERVER_ID ? '127.0.0.1' : '0.0.0.0', () => {});
     }
 }

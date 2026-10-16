@@ -6,6 +6,16 @@
         <nav><a id="control-account-link" href="account.html">Fiók és jogosultságok</a><button id="servers-refresh" type="button">Frissítés</button></nav>
     </header>
     <p id="servers-message" role="status" aria-live="polite">Szerverek betöltése…</p>
-    <section id="servers-empty" hidden><h2>Még nincs hozzáférhető szervered</h2><p>A meglévő helyi szerverhez egy tulajdonos adhat hozzáférést. Az új szerverek létrehozása a következő fejlesztési lépés.</p></section>
+    <section id="server-create" hidden><h2>Új helyi szerver</h2>
+        <form id="server-create-form">
+            <label>Szerver neve<input name="name" required maxlength="80" autocomplete="off"></label>
+            <label>Forrásverzió<select name="version" required></select></label>
+            <label>Világsablon<select name="template" required></select></label>
+            <p>Üres játékosállapottal készül. A létrehozás után külön indíthatod el; bot és automatikus AI nem indul.</p>
+            <button type="submit">Szerver létrehozása</button>
+        </form>
+    </section>
+    <p id="lifecycle-message" role="status" aria-live="polite"></p>
+    <section id="servers-empty" hidden><h2>Még nincs hozzáférhető szervered</h2><p>Hozz létre saját helyi szervert, vagy kérj hozzáférést egy meglévő szerver tulajdonosától.</p></section>
     <div id="server-list" aria-label="Saját szerverek" aria-busy="true"></div>
 </main></body></html>

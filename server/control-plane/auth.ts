@@ -27,7 +27,7 @@ export function authError(error: unknown) {
     return error instanceof IdentityError ? json({ error: error.message, code: error.code }, error.status)
         : json({ error: 'A fiókművelet nem sikerült.', code: 'IDENTITY_FAILURE' }, 500);
 }
-async function body(req: Request): Promise<Record<string, unknown>> {
+export async function body(req: Request): Promise<Record<string, unknown>> {
     if (req.headers.get('content-type')?.split(';')[0] !== 'application/json') throw new IdentityError(415, 'JSON_REQUIRED', 'JSON kérés szükséges.');
     const reader = req.body?.getReader(); let bytes = 0; const chunks: Uint8Array[] = [];
     if (!reader) throw new IdentityError(400, 'INVALID_BODY', 'Hiányzó kérés.');
