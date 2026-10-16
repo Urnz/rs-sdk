@@ -12,6 +12,21 @@ a gateway és a webkliens kizárólag a helyi/private világot használja.
 
 ## Egyparancsos használat
 
+Az önálló admin külön indítható, a játékstacktől függetlenül:
+
+```powershell
+bun run admin:start
+# http://127.0.0.1:7781/admin/
+# Külön leállítás: bun run admin:stop
+```
+
+A gateway/engine leállása nem zárja be az admint. A felület jelzi a hiányzó
+kapcsolatot és automatikusan újratölti az adatokat a gateway helyreállása után.
+Portok, biztonsági határ és háttérfolyamat-kezelés:
+[Phase 25.1](../features/phase25-1-admin-control-plane.md).
+
+A játékstack szokásos parancsai:
+
 ```powershell
 pwsh -File scripts/start-local.ps1
 pwsh -File scripts/status-local.ps1 -Json

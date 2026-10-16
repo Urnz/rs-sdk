@@ -26,6 +26,11 @@ h3 { font-size: 17px; }
 .topbar .muted { margin: 6px 0 0; }
 .header-actions, .dialog-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 main { max-width: 1500px; margin: auto; padding: 0 28px 60px; }
+.connection-status { margin-bottom: 14px; padding: 15px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.connection-status[hidden] { display: none; }
+.connection-status[data-gateway="unavailable"], .connection-status[data-engine="unavailable"] { border-color: var(--gold); }
+.connection-services { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); margin-top: 5px; }
+.connection-status p { margin: 5px 0 0; color: var(--muted); }
 .admin-tabs { display: flex; gap: 7px; padding: 6px; margin-bottom: 14px; overflow-x: auto; background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
 .admin-tab { flex: none; padding: 9px 16px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px; font-weight: 750; }
 .admin-tab:hover { color: var(--text); background: var(--panel-2); }

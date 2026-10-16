@@ -24,7 +24,13 @@ az általuk létrehozott és PID + indulási idő alapján azonosított folyamat
   leállítása.
 - `pwsh -File scripts/smoke-local.ps1` – állapotellenőrzés és egy valódi botművelet.
 
-A futó gateway helyi botadminisztrációs és gazdasági felülete:
+Önálló admin: `bun run admin:start`, majd `http://127.0.0.1:7781/admin/`.
+Leállítás: `bun run admin:stop`; előtérben `bun run admin:serve`.
+Az admin a játékstack és a gateway leállítása közben is elérhető, külön
+`.local/control-plane` folyamatregiszterrel. Kapcsolatállapot és automatikus
+újracsatlakozás: [Phase 25.1](../docs/project/features/phase25-1-admin-control-plane.md).
+
+A futó gateway kompatibilis közvetlen botadminisztrációs és gazdasági felülete:
 `http://localhost:7780/admin/`. Innen a mentett és online botok szűrhetők,
 részletesen megnyithatók, spawnolhatók/despawnolhatók, és kísérleti snapshot is
 készíthető. Minden módosításhoz indoklás szükséges.

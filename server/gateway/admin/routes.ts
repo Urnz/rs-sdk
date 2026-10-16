@@ -10,10 +10,11 @@ import { readLongExperimentReport, readLongExperimentComparison } from '../../..
 import {xpBaselineClient} from './xp-baseline.js';
 import {xpExecutionClient} from './xp-execution.js';
 import type { LongExperimentDependencies } from '../../../society-experiments/controller.js';
-import { extname, join, dirname } from 'node:path';
+import { join, dirname } from 'node:path';
+import { serveAdminAsset } from './assets.js';
 import { appendAudit, readAudit } from './audit';
 import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, recordEconomy } from './catalog';
-import { adminPublicDir, adminTrashDir, agentSkillsLocalDir, botsDir, experimentsDir, playerSavesDir,
+import { adminTrashDir, agentSkillsLocalDir, botsDir, experimentsDir, playerSavesDir,
     repoRoot, skillRunsDir, skillTrialsPath, skillVerificationsDir } from './paths';
 import { BotSupervisor } from './supervisor';
 import { listAdminDraftSkills, listAdminSkills, resolveAdminDraftSkill, resolveAdminSkill,
@@ -268,33 +269,6 @@ async function collectTrialEvidence(trial: SkillTrial): Promise<SkillRunResult[]
         .sort((left, right) => left.events[0]!.timestamp.localeCompare(right.events[0]!.timestamp)).slice(0, 20);
 }
 
-function contentType(path: string): string {
-    if (extname(path) === '.css') return 'text/css; charset=utf-8';
-    if (extname(path) === '.js') return 'application/javascript; charset=utf-8';
-    if (extname(path) === '.svg') return 'image/svg+xml';
-    return 'text/html; charset=utf-8';
-}
-
-async function serveAdminAsset(url: URL): Promise<Response | null> {
-    if (url.pathname !== '/admin' && !url.pathname.startsWith('/admin/')) return null;
-    if (url.pathname === '/admin') return Response.redirect(new URL('/admin/', url), 308);
-    const relative = url.pathname === '/admin/'
-        ? 'index.html'
-        : url.pathname.slice('/admin/'.length);
-    if (!/^[a-zA-Z0-9._-]+$/.test(relative)) return new Response('Not found', { status: 404 });
-    const path = join(adminPublicDir, relative);
-    const file = Bun.file(path);
-    if (!await file.exists()) return new Response('Not found', { status: 404 });
-    return new Response(file, {
-        headers: {
-            'Content-Type': contentType(path),
-            'Cache-Control': 'no-store',
-            'X-Content-Type-Options': 'nosniff',
-            'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src ${WORLD_MAP_ORIGIN}; frame-ancestors 'none'`
-        }
-    });
-}
-
 async function quarantineBot(username: string): Promise<{ quarantineId: string; moved: string[] }> {
     const key = username.toLowerCase();
     const quarantineId = `${new Date().toISOString().replace(/[:.]/g, '-')}-${key}`;
@@ -316,7 +290,7 @@ async function quarantineBot(username: string): Promise<{ quarantineId: string; 
 }
 
 export async function handleAdminRequest(req: Request, url: URL, context: AdminRouteContext): Promise<Response | null> {
-    const asset = await serveAdminAsset(url);
+    const asset = await serveAdminAsset(url, WORLD_MAP_ORIGIN);
     if (asset) return asset;
     if (!url.pathname.startsWith('/api/admin/')) return null;
 

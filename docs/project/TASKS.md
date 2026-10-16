@@ -250,8 +250,17 @@ instabillá vagy önfenntartóvá.
 
 ## 25. Fázis – több-szerveres admin vezérlőközpont
 
-- [ ] Az adminfelületet a játékszerver-folyamattól független control plane
+- [x] Az adminfelületet a játékszerver-folyamattól független control plane
   szolgáltatásként futtatni, hogy leállított engine mellett is elérhető maradjon.
+  **25.1 – elkészült:** külön loopback HTTP-folyamat és 7781-es port, saját
+  `admin:start`/`admin:stop`; meglévő adminnézetek, szűk gateway API-közvetítés,
+  engine/gateway állapot és automatikus újracsatlakozás. Valódi HTTP-, OS-folyamat-
+  és Chrome-próba leállított backendekkel; teljes regresszió 1861/1861 PASS.
+  A teljes kör utáni Windows indító-csatorna javítást külön folyamatpróba igazolja.
+  [25.1 működés és korlátok](features/phase25-1-admin-control-plane.md),
+  [ellenőrzési napló](PHASE25_PROGRESS.md).
+  Felhasználói fiókok, szerverregiszter és több világ felügyelete a következő
+  külön feladatok; ezek e véges lépésnek nem részei.
 - [ ] Bejelentkezést, felhasználói fiókot és tulajdonosi jogosultságokat készíteni.
 - [ ] Szerverregisztert és „Saját szervereim” kezdőoldalt létrehozni.
 - [ ] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,

@@ -1,4 +1,7 @@
 import { mountSocietyDashboard } from './society-dashboard.js';
+import { mountConnectionStatus } from './connection-status.js';
+
+mountConnectionStatus(document.querySelector('#connection-status'));
 
 const state = {
     bots: [],
@@ -1302,6 +1305,7 @@ function focusWorldPlayer(name) {
 }
 
 function openWorldMap() {
+    if (!state.config?.worldMapUrl) { toast('A világtérkép megnyitásához várd meg a gateway kapcsolatát.', true); return; }
     const frame = $('#world-map-frame');
     if (frame.src === 'about:blank') frame.src = state.config.worldMapUrl;
     renderWorldMapBots();
@@ -1311,6 +1315,7 @@ function openWorldMap() {
 }
 
 function openWorldMapAt(x, z, level, label) {
+    if (!state.config?.worldMapUrl) { toast('A világtérkép megnyitásához várd meg a gateway kapcsolatát.', true); return; }
     const frame = $('#world-map-frame');
     if (frame.src === 'about:blank') frame.src = state.config.worldMapUrl;
     state.worldMapSelected = null;
@@ -3170,22 +3175,31 @@ window.addEventListener('message', event => {
 $('#spectate-dialog').addEventListener('cancel', event => { event.preventDefault(); closeSpectate(); });
 document.querySelectorAll('.dialog-close:not(#close-spectate):not(#close-world-map):not(#close-world-admin)').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 
-const bootstrap = await Promise.all([
-    api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
-    api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
-    api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles'),
-    api('/api/admin/llm-replans?limit=100'), api('/api/admin/multi-agent-experiments?limit=50'),
-    api('/api/admin/skill-drafts'), api('/api/admin/experiment-parameter-profiles?limit=100')
-]);
-state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
-renderLlmSettings(bootstrap[3]);
-renderCapabilityGaps(bootstrap[4].gaps);
-renderSkillTrials(bootstrap[5].trials);
-renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
-renderLlmReplans(bootstrap[8].records);
-renderMultiAgentExperiments(bootstrap[9].experiments);
-renderSkillDrafts(bootstrap[10].drafts);
-renderExperimentParameterProfiles(bootstrap[11].profiles);
+async function bootstrapAdmin() {
+    const bootstrap = await Promise.all([
+        api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
+        api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
+        api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles'),
+        api('/api/admin/llm-replans?limit=100'), api('/api/admin/multi-agent-experiments?limit=50'),
+        api('/api/admin/skill-drafts'), api('/api/admin/experiment-parameter-profiles?limit=100')
+    ]);
+    state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
+    renderLlmSettings(bootstrap[3]);
+    renderCapabilityGaps(bootstrap[4].gaps);
+    renderSkillTrials(bootstrap[5].trials);
+    renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
+    renderLlmReplans(bootstrap[8].records);
+    renderMultiAgentExperiments(bootstrap[9].experiments);
+    renderSkillDrafts(bootstrap[10].drafts);
+    renderExperimentParameterProfiles(bootstrap[11].profiles);
+}
+let bootstrapped = false;
 selectAdminTab('bots');
-await refresh();
-setInterval(refresh, state.config.refreshMs || 5000);
+async function refreshCycle() {
+    try {
+        if (!bootstrapped) { await bootstrapAdmin(); bootstrapped = true; }
+        await refresh();
+    } catch (error) { $('#last-refresh').textContent = `Kapcsolatra vár: ${error.message}`; }
+    finally { setTimeout(refreshCycle, state.config?.refreshMs || 5000); }
+}
+void refreshCycle();

@@ -22,6 +22,11 @@
     </header>
 
     <main>
+        <section id="connection-status" class="connection-status" role="status" aria-live="polite" hidden>
+            <strong data-connection-summary></strong>
+            <div class="connection-services"><span data-connection-gateway></span><span data-connection-engine></span></div>
+            <p data-connection-detail></p>
+        </section>
         <nav class="admin-tabs" role="tablist" aria-label="Admin nézetek">
             <button class="admin-tab active" role="tab" aria-selected="true" data-action="admin-tab" data-tab="bots">Botok</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="economy">Gazdaság</button>
