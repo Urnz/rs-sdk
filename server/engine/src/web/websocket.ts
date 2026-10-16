@@ -71,7 +71,9 @@ export const websocketHandlers = {
     open(ws: ServerWebSocket<WebSocketData>) {
         // Handle agent SDK proxy connections
         if (ws.data.isAgentProxy) {
-            const agentWs = new WebSocket('ws://localhost:7780');
+            const gateway = process.env.GATEWAY_URL;
+            if (process.env.CONTROL_PLANE_SERVER_ID && !gateway) throw new Error('Managed gateway binding required');
+            const agentWs = new WebSocket(gateway || 'ws://localhost:7780');
             ws.data.agentWs = agentWs;
             ws.data.agentReady = false;
             ws.data.agentQueue = [];

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { BotSupervisor, isActiveSkillSnapshot } from './supervisor.js';
 
 const directories: string[] = [];
@@ -25,6 +26,30 @@ afterEach(async () => {
 });
 
 describe('skill marker restart reconciliation', () => {
+    test('managed instances never adopt or terminate a foreign marker PID, even when its heartbeat stalls', async () => {
+        const directory = await markerDirectory(), terminated: number[] = [];
+        await writeFile(join(directory, 'ferrye14.json'), JSON.stringify(marker()));
+        const supervisor = new BotSupervisor(() => false, async () => undefined, () => true, directory,
+            async () => ({}), pid => { terminated.push(pid); }, { CONTROL_PLANE_SERVER_ID: `srv-${randomUUID()}` });
+        expect(await supervisor.reconcileSkillMarkers('2026-09-08T08:10:00.000Z')).toEqual([
+            expect.objectContaining({ status: 'unverified', reason: expect.stringContaining('own child handle') })]);
+        expect(await supervisor.stopSkill('ferrye14')).toBe(false);
+        await supervisor.shutdownOwnedChildren(); expect(terminated).toEqual([]);
+        expect(await Bun.file(join(directory, 'ferrye14.json')).exists()).toBe(true);
+    });
+
+    test('shutdown blocks a skill admission that was waiting for credentials', async () => {
+        const directory = await markerDirectory(); let release!: (value: Record<string, string>) => void;
+        const supervisor = new BotSupervisor(() => false, async () => undefined, () => false, directory,
+            () => new Promise(resolve => { release = resolve; }));
+        const start = supervisor.startSkill('Ferrye14', 'mining.safe@1.0.0', {});
+        // The credential callback is reached after the existing marker lookup.
+        while (!release) await Bun.sleep(1);
+        await supervisor.shutdownOwnedChildren(); release({ PASSWORD: 'fixture' });
+        await expect(start).rejects.toThrow('leáll');
+        await expect(supervisor.spawn({ username: 'Ferrye14', password: 'fixture' })).rejects.toThrow('leáll');
+        expect(supervisor.list().size).toBe(0);
+    });
     test('does not treat a terminal retained snapshot as active autonomy ownership', () => {
         const base = { runId: '11111111-1111-4111-8111-111111111111', pid: null,
             skill: 'mining.safe@1.0.0', startedAt: '2026-09-08T08:00:00.000Z', exitCode: 0,

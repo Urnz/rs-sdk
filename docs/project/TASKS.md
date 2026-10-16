@@ -293,6 +293,11 @@ instabillá vagy önfenntartóvá.
   [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.5 izoláció.
 - [ ] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,
   botokat, modokat, LLM-konfigurációt, titkokat és auditnaplót biztosítani.
+  **25.5 – ellenőrzés alatt:** példánykötés, saját bot-/skill-végpontok és cache,
+  külön login-kulcs és kliens, titokszűrt gyermekkörnyezet, saját folyamatok
+  leállítása, idegen PID és fájlrendszer-alias elutasítása.
+  Célzott 16/16 teszt és root/engine/webclient typecheck PASS; valódi
+  kétvilágos állapot-/bot-/konfigurációs izoláció ellenőrzése következik.
 - [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket
   kötelező szerverkontextus alá helyezni.
 - [ ] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin

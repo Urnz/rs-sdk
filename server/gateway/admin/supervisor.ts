@@ -4,6 +4,7 @@ import { activeSkillsDir, adminLogsDir, adminSkillLogsDir, botsDir, repoRoot, we
 import type { ManagedProcessSnapshot, ManagedSkillRunSnapshot } from './types';
 import type { SkillRuntimeAuthorization } from '../../../agent-skills/types';
 import { assertLocalAvatarCanAct } from './population-death-runtime.js';
+import { managedBotEnvironment } from '../../control-plane/instance-context.js';
 
 export interface SpawnBotOptions {
     username: string;
@@ -79,6 +80,7 @@ export class BotSupervisor {
     private readonly adoptedSkillProcesses = new Map<string, ManagedSkillRunSnapshot>();
     private readonly skillStarts = new Set<string>();
     private readonly skillExitHandlers = new Set<(event: ManagedSkillExitEvent) => void>();
+    private shuttingDown = false;
 
     constructor(
         private readonly requestDisconnect: (username: string, reason: string) => boolean,
@@ -89,7 +91,8 @@ export class BotSupervisor {
         },
         private readonly skillMarkerDirectory = activeSkillsDir,
         private readonly loadBotEnvironment: (username: string) => Promise<Record<string, string>> = readBotEnvironment,
-        private readonly terminateProcess: (pid: number) => void = pid => process.kill(pid, 'SIGTERM')
+        private readonly terminateProcess: (pid: number) => void = pid => process.kill(pid, 'SIGTERM'),
+        private readonly environment: Record<string, string | undefined> = process.env
     ) {}
 
     snapshot(username: string): ManagedProcessSnapshot | null {
@@ -144,6 +147,12 @@ export class BotSupervisor {
                 continue;
             }
             const marker = raw as ActiveSkillMarker;
+            const tracked = this.skillProcesses.get(key)?.snapshot;
+            if (this.environment.CONTROL_PLANE_SERVER_ID && (tracked?.pid !== marker.pid || tracked?.runId !== marker.runId)) {
+                this.adoptedSkillProcesses.delete(key);
+                results.push({ username: key, status: 'unverified', reason: 'Managed instance requires its own child handle; a marker PID cannot authorize adoption or termination.', snapshot: null });
+                continue;
+            }
             if (!this.isProcessAlive(marker.pid)) {
                 this.adoptedSkillProcesses.delete(key);
                 await unlink(markerPath).catch(() => undefined);
@@ -210,6 +219,7 @@ export class BotSupervisor {
     }
 
     async spawn(options: SpawnBotOptions): Promise<ManagedProcessSnapshot> {
+        if (this.shuttingDown) throw new Error('A szerver leáll; új bot nem indítható.');
         const username = assertUsername(options.username);
         assertLocalAvatarCanAct(username);
         const key = username.toLowerCase();
@@ -218,10 +228,13 @@ export class BotSupervisor {
             throw new Error(`${username} már fut vagy éppen indul.`);
         }
 
-        const stored = await readBotEnvironment(username);
+        const stored = await this.loadBotEnvironment(username);
         const password = options.password?.trim() || stored.PASSWORD;
         if (!password) throw new Error('Ehhez a bothoz spawnkor jelszó szükséges.');
-        const server = options.server?.trim() || stored.SERVER || 'localhost:8888';
+        const isolated = managedBotEnvironment({ ...stored, PASSWORD: password }, username, options.server?.trim(), this.environment);
+        const server = isolated?.SERVER || options.server?.trim() || stored.SERVER || 'localhost:8888';
+        const gateway = isolated?.GATEWAY_URL || this.environment.GATEWAY_URL || 'ws://localhost:7780';
+        if (this.shuttingDown) throw new Error('A szerver leáll; új bot nem indítható.');
 
         if (options.rememberCredentials) {
             const botDir = join(botsDir, username);
@@ -230,11 +243,11 @@ export class BotSupervisor {
                 `BOT_USERNAME=${username}`,
                 `PASSWORD=${password}`,
                 `SERVER=${server}`,
-                'GATEWAY_URL=ws://localhost:7780',
+                `GATEWAY_URL=${gateway}`,
                 'SHOW_CHAT=true',
                 'TELEMETRY=true',
                 ''
-            ].join('\n'), 'utf8');
+            ].join('\n'), { encoding: 'utf8', mode: 0o600 });
         }
 
         const startedAt = new Date().toISOString();
@@ -242,19 +255,21 @@ export class BotSupervisor {
         await mkdir(logDirectory, { recursive: true });
         const logPath = join(logDirectory, `${startedAt.replace(/[:.]/g, '-')}.log`);
         const logFile = Bun.file(logPath);
+        if (this.shuttingDown) throw new Error('A szerver leáll; új bot nem indítható.');
         const child = Bun.spawn([
             process.execPath,
+            ...(isolated ? ['--no-env-file'] : []),
             'run',
             'src/lite/runner.ts',
             username
         ], {
             cwd: webclientDir,
-            env: {
-                ...process.env,
+            env: isolated ?? {
+                ...this.environment,
                 BOT_USERNAME: username,
                 PASSWORD: password,
                 SERVER: server,
-                GATEWAY_URL: process.env.GATEWAY_URL || 'ws://localhost:7780'
+                GATEWAY_URL: gateway
             },
             stdout: logFile,
             stderr: logFile
@@ -321,7 +336,9 @@ export class BotSupervisor {
         try {
             if (managed) managed.snapshot.status = 'stopping';
             if (adopted) adopted.status = 'stopping';
-            process.kill(pid, 'SIGTERM');
+            if (managed) managed.process.kill();
+            else if (this.environment.CONTROL_PLANE_SERVER_ID) return false;
+            else this.terminateProcess(pid);
             return true;
         } catch {
             return false;
@@ -334,6 +351,7 @@ export class BotSupervisor {
         parameters: Record<string, string | number | boolean>,
         options: { allowDraft?: boolean; runId?: string; runtimeAuthorization?: SkillRuntimeAuthorization } = {}
     ): Promise<ManagedSkillRunSnapshot> {
+        if (this.shuttingDown) throw new Error('A szerver leáll; új skill nem indítható.');
         const username = assertUsername(usernameInput);
         const key = username.toLowerCase();
         if (!/^[a-z0-9][a-z0-9._-]*@\d+\.\d+\.\d+$/i.test(skill)) throw new Error('Érvénytelen skill hivatkozás.');
@@ -359,6 +377,8 @@ export class BotSupervisor {
 
         const stored = await this.loadBotEnvironment(username);
         if (!stored.PASSWORD) throw new Error('Skill indításához a bot helyi bot.env hitelesítő adata szükséges.');
+        const isolated = managedBotEnvironment(stored, username, undefined, this.environment);
+        if (this.shuttingDown) throw new Error('A szerver leáll; új skill nem indítható.');
         const startedAt = new Date().toISOString();
         const logDirectory = join(adminSkillLogsDir, key);
         await mkdir(logDirectory, { recursive: true });
@@ -383,13 +403,15 @@ export class BotSupervisor {
             args.push(`--param=${name}=${String(value)}`);
         }
         const logFile = Bun.file(logPath);
+        if (this.shuttingDown) throw new Error('A szerver leáll; új skill nem indítható.');
+        if (isolated) args.splice(1, 0, '--no-env-file');
         const child = Bun.spawn(args, {
             cwd: repoRoot,
-            env: {
-                ...process.env,
+            env: isolated ?? {
+                ...this.environment,
                 ...stored,
                 BOT_USERNAME: stored.BOT_USERNAME || username,
-                GATEWAY_URL: stored.GATEWAY_URL || process.env.GATEWAY_URL || 'ws://localhost:7780'
+                GATEWAY_URL: stored.GATEWAY_URL || this.environment.GATEWAY_URL || 'ws://localhost:7780'
             },
             stdout: logFile,
             stderr: logFile
@@ -433,6 +455,19 @@ export class BotSupervisor {
         });
         return snapshot;
         } finally { this.skillStarts.delete(key); }
+    }
+
+    async shutdownOwnedChildren() {
+        this.shuttingDown = true;
+        // Handles created by this supervisor only; marker PIDs never authorize world shutdown.
+        const children = [...this.skillProcesses.values(), ...this.processes.values()];
+        for (const child of children) if (child.process.exitCode === null) child.process.kill();
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            await Promise.race([Promise.all(children.map(child => child.process.exited)), new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(() => reject(new Error('Owned child shutdown timed out.')), 5000);
+            })]);
+        } finally { clearTimeout(timer); }
     }
 }
 

@@ -1,9 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
+import { assertManagedModuleRoot } from '../../control-plane/instance-context.js';
 
 const adminDir = dirname(fileURLToPath(import.meta.url));
 
 export const repoRoot = resolve(adminDir, '../../..');
+assertManagedModuleRoot(repoRoot);
 export const botsDir = join(repoRoot, 'bots');
 export const playerSavesDir = join(repoRoot, 'server', 'engine', 'data', 'players', 'main');
 export const webclientDir = join(repoRoot, 'server', 'webclient');

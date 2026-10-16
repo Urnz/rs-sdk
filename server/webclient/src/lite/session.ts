@@ -91,7 +91,8 @@ export async function startSession(opts: SessionOptions): Promise<LiteSession> {
     }
     const secured = opts.secured ?? !(opts.host.startsWith('localhost') || opts.host.startsWith('127.'));
     const origin = `${secured ? 'https' : 'http'}://${opts.host}`;
-    const cacheDir = opts.cacheDir ?? join(homedir(), '.cache', 'rs-sdk-lite');
+    const cacheDir = opts.cacheDir ?? process.env.RS_SDK_LITE_CACHE_DIR ?? join(homedir(), '.cache', 'rs-sdk-lite');
+    if (process.env.CONTROL_PLANE_SERVER_ID && !process.env.RS_SDK_LITE_CACHE_DIR) throw new Error('Managed Lite cache binding required');
 
     let { checksums } = await loadCache({ origin, cacheDir, members: opts.members, quiet: opts.quiet });
     let locIndex = await LocIndex.load({ origin, cacheDir, versionlistCrc: checksums[5], quiet: opts.quiet });

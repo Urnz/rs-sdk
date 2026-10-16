@@ -1217,6 +1217,10 @@ const ownedAdminHandler = createOwnedAdminHandler(() => ({
     simulationClock: replanSimulationClock,
     worldGenesisAdapter
 }));
+export async function shutdownManagedGateway() {
+    setAdminLlmEmergencyStop(true);
+    await botSupervisor.shutdownOwnedChildren();
+}
 console.log(`[Gateway] Starting Gateway Service on port ${GATEWAY_PORT}...`);
 
 const server = Bun.serve({

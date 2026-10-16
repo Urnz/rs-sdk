@@ -1,10 +1,11 @@
 import { cp, mkdir, readFile, writeFile, symlink, lstat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createPublicKey, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { resolve, join, sep } from 'node:path';
 import { createServer, type Server } from 'node:net';
 import { IdentityError } from './identity-store.js';
 import type { ManagedServer } from './lifecycle-store.js';
+import { assertPrivateInstanceTree, verifyInstanceBinding } from './instance-files.js';
 
 export const worldTemplates = [
     { id: 'classic', label: 'Klasszikus bolti gazdaság', shopEconomyMode: 'legacy', xpRate: 25 },
@@ -47,8 +48,13 @@ export class LocalManagedRuntime implements ManagedRuntime {
         if (!path.startsWith(this.base + sep)) throw failure('INVALID_INSTANCE', 'Érvénytelen szerverkönyvtár.');
         return path;
     }
-    private async command(args: string[], cwd: string, errorLog: string) {
-        const child = Bun.spawn(args, { cwd, stdout: 'ignore', stderr: Bun.file(errorLog), windowsHide: true });
+    private systemEnvironment() {
+        const environment: Record<string, string> = {};
+        for (const key of ['PATH', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'USERPROFILE']) if (process.env[key]) environment[key] = process.env[key]!;
+        return environment;
+    }
+    private async command(args: string[], cwd: string, errorLog: string, environment?: Record<string, string>) {
+        const child = Bun.spawn(args, { cwd, env: environment, stdout: 'ignore', stderr: Bun.file(errorLog), windowsHide: true });
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
             const exit = await Promise.race([child.exited, new Promise<never>((_resolve, reject) => {
@@ -61,8 +67,11 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const dir = this.directory(server), workspace = join(dir, 'workspace'), manifest = join(dir, 'prepared.json');
         const expected = { id: server.serverId, version: server.version, template: server.template, ports: server.ports };
         if (existsSync(manifest)) {
+            if ((await lstat(dir)).isSymbolicLink()) throw failure('INVALID_INSTANCE', 'A szerverkönyvtár nem lehet hivatkozás.');
             const previous = JSON.parse(await readFile(manifest, 'utf8'));
             if (JSON.stringify(previous.binding) !== JSON.stringify(expected)) throw failure('INSTANCE_BINDING_CONFLICT', 'A munkakönyvtár másik szerverhez tartozik.');
+            if (previous.isolationVersion !== 1) throw failure('ISOLATION_UPGRADE_REQUIRED', 'Ez a korábbi világ még nem tartalmazza az izolációs kötést. Az adatait megőriztük; indítás előtt ellenőrzött verziómigráció szükséges.');
+            await verifyInstanceBinding(workspace, expected);
             return;
         }
         if (existsSync(workspace)) throw failure('INSTANCE_PARTIAL', 'Félbemaradt munkakönyvtár; az adatokat megőriztük. Archiváld a hibás szervert, majd hozz létre újat.');
@@ -75,6 +84,7 @@ export class LocalManagedRuntime implements ManagedRuntime {
         // They are not runtime inputs; exclude these two entries without suppressing other errors.
         await this.command(['tar', '-xf', archive, '-C', workspace, '--exclude=AGENTS.md', '--exclude=GEMINI.md'], this.source, join(dir, 'extract.err.log'));
         if (!existsSync(join(workspace, 'server/control-plane/managed-worker.ts'))) throw failure('VERSION_UNSUPPORTED', 'Ez a forrásverzió még nem tartalmaz kezelt szerverindítót.');
+        if (!existsSync(join(workspace, 'server/control-plane/instance-context.ts'))) throw failure('VERSION_UNSUPPORTED', 'Ez a forrásverzió még nem támogatja a szerverenkénti izolációt.');
         for (const relative of ['node_modules', 'server/engine/node_modules', 'server/webclient/node_modules']) {
             const dependency = join(this.source, relative);
             if (!existsSync(dependency)) throw failure('DEPENDENCIES_MISSING', 'Hiányzó helyi függőségek; az admin naplója alapján ellenőrizd a telepítést.');
@@ -82,6 +92,7 @@ export class LocalManagedRuntime implements ManagedRuntime {
         }
         for (const relative of ['server/engine/data/pack', 'server/webclient/out'])
             await cp(join(this.source, relative), join(workspace, relative), { recursive: true, dereference: true });
+        await assertPrivateInstanceTree(workspace);
         const template = worldTemplates.find(value => value.id === server.template)!;
         const configDir = join(workspace, 'server/engine/data/config'); await mkdir(configDir, { recursive: true });
         await writeFile(join(configDir, 'world.json'), JSON.stringify({ easyStartup: false, website: { registration: false },
@@ -91,8 +102,20 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const llmPath = join(workspace, 'config/llm-runtime.json'), llm = JSON.parse(await readFile(llmPath, 'utf8'));
         llm.enabled = false; llm.automaticReplanning = false; llm.autonomousExecution.enabled = false; llm.skillBuilder.enabled = false;
         await writeFile(llmPath, JSON.stringify(llm));
+        // Revision 274 uses a length-prefixed RSA login packet; generate a compatible private key per world.
+        const keys = generateKeyPairSync('rsa', { modulusLength: 1024 });
+        const publicPem = keys.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+        await writeFile(join(configDir, 'private.pem'), keys.privateKey.export({ type: 'pkcs1', format: 'pem' }), { mode: 0o600 });
+        await writeFile(join(configDir, 'public.pem'), publicPem);
+        const jwk = keys.publicKey.export({ format: 'jwk' });
+        const decimal = (value: string) => BigInt(`0x${Buffer.from(value, 'base64url').toString('hex')}`).toString();
+        await this.command([process.execPath, '--no-env-file', 'run', 'bundle.ts', 'dev'], join(workspace, 'server/webclient'), join(dir, 'client-build.err.log'),
+            { ...this.systemEnvironment(), LOGIN_RSAN: decimal(jwk.n!), LOGIN_RSAE: decimal(jwk.e!), BUILD_MODE: 'both' });
+        await mkdir(join(workspace, '.local'), { recursive: true, mode: 0o700 });
+        await writeFile(join(workspace, '.local/instance.json'), JSON.stringify({ schemaVersion: 1, binding: expected, workspace }), { mode: 0o600 });
         const pack = await readFile(join(workspace, 'server/engine/data/pack/main_file_cache.dat'));
-        await writeFile(manifest, JSON.stringify({ binding: expected, cacheSha256: createHash('sha256').update(pack).digest('hex') }), { mode: 0o600 });
+        await writeFile(manifest, JSON.stringify({ binding: expected, isolationVersion: 1, cacheSha256: createHash('sha256').update(pack).digest('hex'),
+            publicKeySha256: createHash('sha256').update(publicPem).digest('hex') }), { mode: 0o600 });
     }
     private async run(server: ManagedServer): Promise<Run | null> {
         try { const run = JSON.parse(await readFile(join(this.directory(server), 'runtime.json'), 'utf8')) as Run;
@@ -130,12 +153,22 @@ export class LocalManagedRuntime implements ManagedRuntime {
         } catch { throw failure('PORT_OCCUPIED', 'Egy lefoglalt portot más folyamat használ; semmit nem állítottunk le.'); }
         finally { await Promise.all(listeners.map(listener => new Promise<void>(resolve => { if (listener.listening) listener.close(() => resolve()); else resolve(); }))); }
         const dir = this.directory(server), workspace = join(dir, 'workspace');
+        await verifyInstanceBinding(workspace, { id: server.serverId, version: server.version, template: server.template, ports: server.ports });
+        const publicKey = createPublicKey(await readFile(join(workspace, 'server/engine/data/config/public.pem')));
+        const manifest = JSON.parse(await readFile(join(dir, 'prepared.json'), 'utf8'));
+        if (manifest.publicKeySha256 !== createHash('sha256').update(await readFile(join(workspace, 'server/engine/data/config/public.pem'))).digest('hex'))
+            throw failure('INSTANCE_KEY_MISMATCH', 'A világ login-kulcsa nem az előkészített példányhoz tartozik.');
+        const privatePublic = createPublicKey(await readFile(join(workspace, 'server/engine/data/config/private.pem')));
+        if (!publicKey.export({ type: 'spki', format: 'der' }).equals(privatePublic.export({ type: 'spki', format: 'der' }))) throw failure('INSTANCE_KEY_MISMATCH', 'A világ login-kulcskötése eltér.');
+        const jwk = publicKey.export({ format: 'jwk' });
+        const decimal = (value: string) => BigInt(`0x${Buffer.from(value, 'base64url').toString('hex')}`).toString();
         const run: Run = { token: randomBytes(32).toString('hex'), generation: randomUUID(), ports: server.ports };
         await writeFile(join(dir, 'runtime.json'), JSON.stringify(run), { mode: 0o600 });
         const template = worldTemplates.find(value => value.id === server.template)!;
-        const environment: Record<string, string> = {};
-        for (const key of ['PATH', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'USERPROFILE']) if (process.env[key]) environment[key] = process.env[key]!;
+        const environment = this.systemEnvironment();
         Object.assign(environment, { CONTROL_PLANE_IDENTITY_PATH: this.identityFile, CONTROL_PLANE_SERVER_ID: server.serverId,
+            MANAGED_WORKSPACE: workspace, GATEWAY_URL: `ws://127.0.0.1:${server.ports[0]}`, SERVER: `127.0.0.1:${server.ports[1]}`,
+            RS_SDK_LITE_CACHE_DIR: join(workspace, '.local/lite-cache'), LOGIN_RSAN: decimal(jwk.n!), LOGIN_RSAE: decimal(jwk.e!),
             MANAGED_CONTROL_TOKEN: run.token, MANAGED_GENERATION: run.generation, ENGINE_ADMIN_TOKEN: run.token,
             AGENT_PORT: String(server.ports[0]), WEB_PORT: String(server.ports[1]), WEB_MANAGEMENT_PORT: String(server.ports[2]), NODE_PORT: String(server.ports[3]),
             ENGINE_ADMIN_URL: `http://127.0.0.1:${server.ports[1]}`, ENGINE_PUBLIC_URL: `http://127.0.0.1:${server.ports[1]}/mapview/`,
@@ -144,7 +177,7 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const children: ReturnType<typeof Bun.spawn>[] = [];
         try {
             for (const role of ['engine', 'gateway'] as const) {
-                const child = Bun.spawn([process.execPath, join(workspace, 'server/control-plane/managed-worker.ts')], {
+                const child = Bun.spawn([process.execPath, '--no-env-file', join(workspace, 'server/control-plane/managed-worker.ts')], {
                     cwd: join(workspace, 'server', role), env: { ...environment, MANAGED_ROLE: role, MANAGED_CONTROL_PORT: String(server.ports[role === 'engine' ? 4 : 5]) },
                     stdout: Bun.file(join(dir, `${role}.out.log`)), stderr: Bun.file(join(dir, `${role}.err.log`)), windowsHide: true });
                 children.push(child);
@@ -160,7 +193,7 @@ export class LocalManagedRuntime implements ManagedRuntime {
     }
     async stop(server: ManagedServer) {
         const run = await this.run(server); if (!run) return;
-        for (const role of ['engine', 'gateway'] as const) {
+        for (const role of ['gateway', 'engine'] as const) {
             const ports = role === 'engine' ? server.ports.slice(1, 5) : [server.ports[0]!, server.ports[5]!];
             if (!await this.control(server, run, role)) {
                 if (!await portsFree(ports)) throw failure('RUNTIME_UNREACHABLE', 'A folyamat nem azonosítható biztonságosan; foglalt porthoz tartozó idegen folyamatot nem állítottunk le.');

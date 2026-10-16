@@ -15,6 +15,7 @@ type RestartExecutor = () => Promise<{ exitCode: number; stdout: string; stderr:
 let restartInProgress = false;
 
 async function defaultExecutor(): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+    if (process.env.CONTROL_PLANE_SERVER_ID) throw new Error('Kezelt világot a Saját szervereim oldalon indíts újra. A régi helyi restart parancs itt nem használható.');
     const resultDirectory = join(repoRoot, '.local', 'admin', 'engine-restarts');
     const resultPath = join(resultDirectory, `${crypto.randomUUID()}.json`);
     await mkdir(resultDirectory, { recursive: true });
