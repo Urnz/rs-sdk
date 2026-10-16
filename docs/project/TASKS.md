@@ -273,7 +273,13 @@ instabillá vagy önfenntartóvá.
   szigorítás külön 12/12 teszt és root typecheck PASS.
   [Működés és állapotkezelés](features/phase25-2-accounts.md),
   [ellenőrzések](PHASE25_PROGRESS.md).
-- [ ] Szerverregisztert és „Saját szervereim” kezdőoldalt létrehozni.
+- [x] Szerverregisztert és „Saját szervereim” kezdőoldalt létrehozni.
+  **25.3 – elkészült:** külön metaadattár, meglévő ownership alapján
+  szűrt lista/részlet, üres és hibás állapot, bekötött helyi szerver megnyitása.
+  Célzott control-plane/Chrome/Windows/admin-safety **36/36 PASS**;
+  root TypeScript, PowerShell syntax/helper és format PASS.
+  [Működés és állapotkezelés](features/phase25-3-server-registry.md),
+  [ellenőrzések](PHASE25_PROGRESS.md).
 - [ ] Új szerver létrehozása, verzió-/világsablon-választás, indítás, leállítás,
   újraindítás és archiválás felületről.
 - [ ] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,

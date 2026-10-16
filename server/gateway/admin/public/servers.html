@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="hu">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Saját szervereim · Helyi admin</title><link rel="stylesheet" href="account.css"><link rel="stylesheet" href="servers.css"><script src="servers.js" defer></script></head>
+<body><main class="account-shell servers-shell">
+    <header><div><p class="eyebrow">HELYI SZERVERFELÜGYELET</p><h1>Saját szervereim</h1><p>A hozzád tartozó szerverek és kapcsolatállapotuk.</p></div>
+        <nav><a id="control-account-link" href="account.html">Fiók és jogosultságok</a><button id="servers-refresh" type="button">Frissítés</button></nav>
+    </header>
+    <p id="servers-message" role="status" aria-live="polite">Szerverek betöltése…</p>
+    <section id="servers-empty" hidden><h2>Még nincs hozzáférhető szervered</h2><p>A meglévő helyi szerverhez egy tulajdonos adhat hozzáférést. Az új szerverek létrehozása a következő fejlesztési lépés.</p></section>
+    <div id="server-list" aria-label="Saját szerverek" aria-busy="true"></div>
+</main></body></html>

@@ -18,7 +18,7 @@ test('admin HTML, assets and readiness remain available with both backends absen
     let probes = 0;
     const handler = createControlPlane(config, fixture.store, async () => { probes++; throw new Error('sensitive backend failure'); });
     const response = await handler(fixture.request('http://127.0.0.1:7781/admin/'));
-    expect(response.status).toBe(200); expect(await response.text()).toContain('connection-status'); expect(probes).toBe(0);
+    expect(response.status).toBe(200); expect(await response.text()).toContain('Saját szervereim'); expect(probes).toBe(0);
     expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
     expect((await handler(fixture.request('http://127.0.0.1:7781/admin/admin.js'))).status).toBe(200);
     expect((await handler(fixture.request('http://127.0.0.1:7781/health'))).status).toBe(200);

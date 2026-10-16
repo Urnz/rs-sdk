@@ -1,0 +1,13 @@
+.servers-shell { width: min(100%, 1100px); }
+header, .server-card footer { display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+header nav { justify-content: flex-start; }
+#server-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 20px; margin-top: 24px; }
+.server-card { min-width: 0; padding: 22px; border: 1px solid #526883; border-radius: 12px; background: #111c29; overflow-wrap: anywhere; }
+.server-card h2 { margin-top: 0; font-size: 1.4rem; }
+.server-card p { margin: 10px 0; }
+.server-card footer { margin-top: 20px; }
+.server-card footer a { padding: 10px 14px; border: 1px solid #9ec9ff; border-radius: 6px; text-decoration: none; }
+.server-card[data-gateway="available"] { border-color: #70ad85; }
+.server-card[data-gateway="unavailable"] { border-color: #b89458; }
+#servers-message { min-height: 24px; }
+#servers-message[data-error="true"] { color: #ffb9b9; }

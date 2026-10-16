@@ -3187,6 +3187,7 @@ async function bootstrapAdmin() {
             state.controlSession = await session.json();
             if (!state.controlSession.ownsLocalServer) { location.assign('/admin/account.html'); throw new Error('Tulajdonosi jogosultság szükséges.'); }
             $('#control-account-link').hidden = false;
+            $('#control-servers-link').hidden = false;
         } else if (session.status === 401) { location.assign('/admin/login.html'); throw new Error('Bejelentkezés szükséges.'); }
     }
     const bootstrap = await Promise.all([

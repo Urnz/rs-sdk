@@ -1,8 +1,9 @@
 # Phase 25.2 – fiókok, munkamenetek és tulajdonosi jogosultságok
 
-A külön helyi control plane saját fióktárral működik. A szerverregiszter,
-„Saját szervereim”, több szerver létrehozása és titoktár-integráció a következő
-feladatok részei. E lépés a meglévő helyi backend `local-default` erőforrását védi.
+A külön helyi control plane saját fióktárral működik. E lépés a meglévő helyi
+backend `local-default` erőforrását védi. A szerverregisztert és a „Saját
+szervereim” kezdőoldalt a [25.3](phase25-3-server-registry.md) vezeti be;
+több szerver létrehozása és titoktár-integráció a későbbi feladatok részei.
 
 ## Használat
 

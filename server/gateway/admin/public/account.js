@@ -50,8 +50,8 @@ async function loadAccount() {
     }
 }
 wireForm('login-form', async data => {
-    await accountApi('login', data); const session = await accountApi('session');
-    location.assign(session.ownsLocalServer ? '/admin/' : '/admin/account.html');
+    await accountApi('login', data);
+    location.assign('/admin/');
 });
 wireForm('password-form', async data => { await accountApi('password', data); location.assign('/admin/login.html'); });
 wireForm('create-account-form', async (data, form) => { await accountApi('accounts', data); form.reset(); await loadAccount(); message('A fiók létrejött, szerverhozzáférés nélkül.'); });

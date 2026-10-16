@@ -1,5 +1,64 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.3 – szerverregiszter és Saját szervereim (2026-10-16)
+
+Elkészült a saját kezdőoldal és a külön v1 `servers.sqlite` metaadattár.
+Induláskor a már konfigurált helyi backend exact, idempotens `local-default`
+regisztrációt kap; eltérő binding ugyanazon ID alatt konfliktus. A regisztráció
+és audit atomikus, restart után a rekord/timestamp változatlan. A regiszter
+önmagában nem ad jogosultságot és nem talál ki szervereket ownership sorokból.
+
+A lista és részlet csak a bejelentkezett fiók meglévő ownership rekordjaihoz
+tartozó szervereket adja vissza. Idegen és hiányzó rekord egyforma 404;
+belső endpoint/fájlútvonal nem kerül a DTO-ba. Üres/idegen lista nem indít
+backendlekérdezést. Csak a konfigurációhoz pontosan kötött default backend
+kapja a meglévő cache-elt health próbát és a megnyitható admin URL-t;
+egyéb regisztrált metadata nem válik önkényes proxy-/probe-céllá.
+
+Login után a „Saját szervereim” minden fióknak kezdőoldal. Van betöltés,
+üres lista, olvasható hiba, Frissítés/újrapróbálás, mobil tördelés, fióknavigáció
+és a korábbi helyi admin megnyitása. Nem-default ID nem nyithatja meg
+véletlenül ugyanazt a régi admint. A régi domain API tulajdonosi kapuja megmarad.
+Új világ létrehozása/indítása/archiválása és teljes több-szerveres elkülönítés
+a következő külön pontok. A következő fejlesztési feladat a 25.4.
+
+Használat, invariánsok, konfiguráció és backup/rollback:
+[25.3 szerverregiszter](features/phase25-3-server-registry.md).
+
+Ellenőrzés és körválasztás:
+
+- Első célzott kör: **22 pass / 1 fail / 0 skip**, **21,325 s**.
+  Egy új teszt tévesen 403-at várt jogosulatlan HTML-megnyitásra; a már
+  meglévő biztonságos viselkedés loginra irányító 303. A javított teszt a
+  státuszt és a pontos login Location fejlécet ellenőrzi; az API 403/404
+  ellenőrzései megmaradtak. Nincs assertion-eltávolítás vagy termékkapu-lazítás.
+  `.local/verification/20261016-201101-569-phase25-3-registry-focused.log`.
+- Végső érintett kör: **36 pass / 0 fail / 0 skip**, root TypeScript,
+  PowerShell syntax/helper és format PASS, összesen **49,091 s**:
+  `.local/verification/20261016-201244-721-phase25-3-affected-quality.log`.
+  Kör: `server/control-plane/test`, Windows process/launcher és gateway
+  `admin-safety.test.ts`. Store restart/idempotencia/konfliktus/audit-rollback,
+  idegen/saját/üres lista, azonnali revokáció, kötött endpointok, login/account
+  regresszió és Chrome lista-hiba → újrapróbálás → régi admin lánc PASS.
+- Chrome 1440 px és 390 px képek vizuálisan ellenőrizve:
+  `.local/verification/phase25-3-servers-desktop.png`,
+  `phase25-3-servers-mobile.png`. Nincs vízszintes mobil kilógás.
+- Teljes regresszió nem futott: új, izolált metadata-séma és célzott lista/
+  navigáció változott, identity v1/account/session/domain kapu, engine,
+  gazdasági persistence és webclient build nem. A root tsconfig kizárólag
+  az új registry-tesztet veszi fel ellenőrzésre; compiler-opció és runtime
+  tesztfelderítés nem változott. A végleges érintett kör az alkalmazott kapu.
+- A saját regisztrált admin újraindítása, a loginhoz kötött homepage/API
+  readiness, végső format és publikálási privacy ellenőrzés **PASS, exit 0,
+  3,416 s**; személyes adat/titok vizsgálatában 0 blokkoló találat:
+  `.local/verification/20261016-201517-625-phase25-3-local-ready-privacy.log`.
+  A helyi szolgáltatás már az új registryvel fut. A `.local` adatfájlok és
+  képek nem kerülnek a commitba.
+
+Valódi felhasználói fiók vagy új játékvilág nem készült. A további registry/
+ownership rekordok izolált fixture-ök; nem több világ működésének bizonyítékai.
+Bot, játékstack, éles LLM vagy hosszú társadalmi kísérlet nem indult.
+
 ## 25.2 – fiókok és tulajdonosi jogosultságok (2026-10-16)
 
 Megvalósult a külön v1 identity SQLite-tár, helyi egyszeri tulajdonos-bootstrap,

@@ -7,6 +7,7 @@ import { createControlPlane } from '../service.js';
 import { controlPlaneConfig } from '../config.js';
 import { readAdminLlmSettings } from '../../gateway/admin/llm-settings.js';
 import { IdentityStore } from '../identity-store.js';
+import { ServerRegistry } from '../server-registry.js';
 
 test('full admin browser survives absent services and bootstraps after gateway recovery without reloading', async () => {
     const temporary = await mkdtemp(join(tmpdir(), 'control-plane-browser-'));
@@ -18,7 +19,9 @@ test('full admin browser survives absent services and bootstraps after gateway r
     const gatewayPort = reservation.port!, gatewayOrigin = reservation.url.origin; reservation.stop(true);
     const engineReservation = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: () => new Response('unused') });
     const engineOrigin = engineReservation.url.origin; engineReservation.stop(true);
-    const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane({ ...controlPlaneConfig(), gatewayOrigin, engineOrigin }, identities) });
+    const config = { ...controlPlaneConfig(), gatewayOrigin, engineOrigin }, registry = new ServerRegistry(':memory:');
+    registry.ensureConfiguredLocal(config);
+    const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(config, identities, fetch, registry) });
     let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined, gateway: ReturnType<typeof Bun.serve> | undefined;
     try {
         browser = await puppeteer.launch({ headless: true }); const page = await browser.newPage(), errors: string[] = [];
@@ -27,6 +30,26 @@ test('full admin browser survives absent services and bootstraps after gateway r
         expect(new URL(page.url()).pathname).toBe('/admin/login.html');
         await page.type('[name="username"]', 'browser-owner'); await page.type('[name="password"]', 'synthetic browser password');
         await Promise.all([page.waitForNavigation(), page.click('#login-form button')]);
+        await page.waitForSelector('.server-card[data-server-id="local-default"] a');
+        expect(await page.$eval('h1', element => element.textContent)).toBe('Saját szervereim');
+        await mkdir(join(import.meta.dir, '../../../.local/verification'), { recursive: true });
+        await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-3-servers-desktop.png') });
+        await page.setViewport({ width: 390, height: 844 });
+        await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-3-servers-mobile.png'), fullPage: true });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        let rejectList = true;
+        await page.setRequestInterception(true);
+        page.on('request', request => {
+            if (new URL(request.url()).pathname === '/api/control-plane/servers' && rejectList)
+                void request.respond({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Teszt: a regiszter átmenetileg nem olvasható.' }) });
+            else void request.continue();
+        });
+        await page.click('#servers-refresh'); await page.waitForSelector('#servers-message[data-error="true"]');
+        expect(await page.$eval('#servers-message', element => element.textContent)).toContain('Frissítés');
+        expect(await page.$$('.server-card')).toHaveLength(0);
+        rejectList = false; await page.click('#servers-refresh'); await page.waitForSelector('.server-card a');
+        await Promise.all([page.waitForNavigation(), page.click('.server-card a')]);
+        await page.setViewport({ width: 1440, height: 1000 });
         await page.waitForSelector('#connection-status[data-gateway="unavailable"][data-engine="unavailable"]');
         expect(await page.$eval('h1', element => element.textContent)).toBe('Bot adminisztráció');
         await page.click('#world-map-button');
@@ -52,14 +75,15 @@ test('full admin browser survives absent services and bootstraps after gateway r
         gateway.stop(true); gateway = undefined;
         await page.waitForSelector('#connection-status[data-gateway="unavailable"]', { timeout: 10000 });
         expect((await fetch(new URL('/admin/', admin.url), { redirect: 'manual' })).status).toBe(303); expect(errors).toEqual([]);
-    } finally { await browser?.close(); gateway?.stop(true); admin.stop(true); identities.close(); await rm(temporary, { recursive: true, force: true }); }
+    } finally { await browser?.close(); gateway?.stop(true); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }
 }, 40000);
 
 test('owner can create an account, grant/revoke access, and a non-owner can log in without backend privileges', async () => {
     const temporary = await mkdtemp(join(tmpdir(), 'control-account-ui-'));
     const identities = new IdentityStore(join(temporary, 'identity.sqlite'));
     await identities.createAccount('ui-owner', 'synthetic owner password');
-    const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(controlPlaneConfig(), identities, async () => { throw new Error('fixture backend absent'); }) });
+    const config = controlPlaneConfig(), registry = new ServerRegistry(':memory:'); registry.ensureConfiguredLocal(config);
+    const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(config, identities, async () => { throw new Error('fixture backend absent'); }, registry) });
     let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
     try {
         browser = await puppeteer.launch({ headless: true }); const page = await browser.newPage(), errors: string[] = [];
@@ -91,9 +115,11 @@ test('owner can create an account, grant/revoke access, and a non-owner can log 
         await Promise.all([page.waitForNavigation(), page.click('#logout-button')]);
         await page.type('[name="username"]', 'ui-guest'); await page.type('[name="password"]', 'synthetic guest password');
         await Promise.all([page.waitForNavigation(), page.click('#login-form button')]);
+        await page.waitForSelector('#servers-empty:not([hidden])');
+        await Promise.all([page.waitForNavigation(), page.click('#control-account-link')]);
         await page.waitForSelector('#account-content:not([hidden])');
         expect(await page.$eval('#owner-management', element => (element as HTMLElement).hidden)).toBe(true);
         expect(await page.evaluate(async () => (await fetch('/api/admin/config')).status)).toBe(403);
         expect(errors).toEqual([]);
-    } finally { await browser?.close(); admin.stop(true); identities.close(); await rm(temporary, { recursive: true, force: true }); }
+    } finally { await browser?.close(); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }
 }, 40000);

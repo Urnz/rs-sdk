@@ -14,7 +14,7 @@ async function ready(port: number) {
     }
     throw new Error('Independent admin did not become ready');
 }
-test('standalone process boots with only its identity database, protects data and binds only loopback', async () => {
+test('standalone process boots with only control-plane stores, protects data and binds only loopback', async () => {
     const temporary = await mkdtemp(join(tmpdir(), 'control-plane-process-')), port = freePort(), absent = freePort();
     const child = Bun.spawn([process.execPath, join(repo, 'server/control-plane/main.ts')], { cwd: temporary,
         env: { ...process.env, CONTROL_PLANE_IDENTITY_PATH: join(temporary, 'identity.sqlite'), CONTROL_PLANE_PORT: String(port), CONTROL_PLANE_GATEWAY_ORIGIN: `http://127.0.0.1:${absent}`, CONTROL_PLANE_ENGINE_ORIGIN: `http://127.0.0.1:${absent}` },
@@ -24,6 +24,7 @@ test('standalone process boots with only its identity database, protects data an
         expect((await fetch(`http://127.0.0.1:${port}/admin/`)).status).toBe(200);
         expect((await fetch(`http://127.0.0.1:${port}/api/control-plane/status`)).status).toBe(401);
         expect(existsSync(join(temporary, 'identity.sqlite'))).toBe(true);
+        expect(existsSync(join(temporary, 'servers.sqlite'))).toBe(true);
         expect(existsSync(join(temporary, '.local'))).toBe(false);
         const bindings = Bun.spawnSync(['pwsh', '-NoProfile', '-Command', `@(Get-NetTCPConnection -State Listen -LocalPort ${port}).LocalAddress | ConvertTo-Json -Compress`], { stdout: 'pipe', stderr: 'pipe' });
         expect(bindings.exitCode).toBe(0); expect(bindings.stdout.toString()).toContain('127.0.0.1'); expect(bindings.stdout.toString()).not.toContain('0.0.0.0');
