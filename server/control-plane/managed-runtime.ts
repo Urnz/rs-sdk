@@ -47,9 +47,15 @@ export class LocalManagedRuntime implements ManagedRuntime {
         if (!path.startsWith(this.base + sep)) throw failure('INVALID_INSTANCE', 'Érvénytelen szerverkönyvtár.');
         return path;
     }
-    private async command(args: string[], cwd: string) {
-        const child = Bun.spawn(args, { cwd, stdout: 'ignore', stderr: 'ignore', windowsHide: true });
-        if (await child.exited !== 0) throw failure('PROVISION_COMMAND_FAILED', 'A szerver forráscsomagja nem készíthető elő.');
+    private async command(args: string[], cwd: string, errorLog: string) {
+        const child = Bun.spawn(args, { cwd, stdout: 'ignore', stderr: Bun.file(errorLog), windowsHide: true });
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            const exit = await Promise.race([child.exited, new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(() => { if (child.exitCode === null) child.kill(); reject(failure('PROVISION_TIMEOUT', 'A forráscsomag előkészítése túllépte az időkorlátot.')); }, 120000);
+            })]);
+            if (exit !== 0) throw failure('PROVISION_COMMAND_FAILED', 'A szerver forráscsomagja nem készíthető elő. A privát előkészítési napló megmaradt.');
+        } finally { clearTimeout(timer); }
     }
     async prepare(server: ManagedServer) {
         const dir = this.directory(server), workspace = join(dir, 'workspace'), manifest = join(dir, 'prepared.json');
@@ -64,8 +70,10 @@ export class LocalManagedRuntime implements ManagedRuntime {
         if ((await lstat(dir)).isSymbolicLink()) throw failure('INVALID_INSTANCE', 'A szerverkönyvtár nem lehet hivatkozás.');
         await mkdir(workspace);
         const archive = join(dir, 'source.tar');
-        await this.command(['git', 'archive', '--format=tar', `--output=${archive}`, server.version], this.source);
-        await this.command(['tar', '-xf', archive, '-C', workspace], this.source);
+        await this.command(['git', 'archive', '--format=tar', `--output=${archive}`, server.version], this.source, join(dir, 'archive.err.log'));
+        // Upstream instruction aliases are symlinks, unsupported by ordinary Windows extraction.
+        // They are not runtime inputs; exclude these two entries without suppressing other errors.
+        await this.command(['tar', '-xf', archive, '-C', workspace, '--exclude=AGENTS.md', '--exclude=GEMINI.md'], this.source, join(dir, 'extract.err.log'));
         if (!existsSync(join(workspace, 'server/control-plane/managed-worker.ts'))) throw failure('VERSION_UNSUPPORTED', 'Ez a forrásverzió még nem tartalmaz kezelt szerverindítót.');
         for (const relative of ['node_modules', 'server/engine/node_modules', 'server/webclient/node_modules']) {
             const dependency = join(this.source, relative);
