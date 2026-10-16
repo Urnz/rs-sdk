@@ -290,14 +290,19 @@ instabillá vagy önfenntartóvá.
   1885 sikeres teszt; az egybefüggő `check` exitje hibás maradt, dokumentálva.
   A helyi admin privát backup után registry v2-re állt, readiness PASS.
   [Működés és állapotkezelés](features/phase25-4-server-lifecycle.md),
-  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.5 izoláció.
-- [ ] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,
+  [ellenőrzések](PHASE25_PROGRESS.md).
+- [x] Minden szerverhez elkülönített portokat, folyamatokat, adatbázist, mentéseket,
   botokat, modokat, LLM-konfigurációt, titkokat és auditnaplót biztosítani.
-  **25.5 – ellenőrzés alatt:** példánykötés, saját bot-/skill-végpontok és cache,
+  **25.5 – elkészült a kezelt világokhoz:** példánykötés, saját bot-/skill-végpontok és cache,
   külön login-kulcs és kliens, titokszűrt gyermekkörnyezet, saját folyamatok
   leállítása, idegen PID és fájlrendszer-alias elutasítása.
-  Célzott 16/16 teszt és root/engine/webclient typecheck PASS; valódi
-  kétvilágos állapot-/bot-/konfigurációs izoláció ellenőrzése következik.
+  Izolációs 16/16, érintett határok 101/101 és végső marker-kapu 8/8 PASS;
+  root/engine/webclient typecheck és valódi kétvilágos bot-/állapotpróba PASS.
+  A régi prepared formátum indítás előtt kifejezett offline migrációt igényel;
+  a hagyományos local-default kompatibilitási backend marad. OS-sandbox és
+  OS-titoktár nincs késznek állítva. A helyi admin frissítve, readiness PASS.
+  [Működés és migrációs határ](features/phase25-5-server-isolation.md),
+  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.6 szerverkontextus.
 - [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket
   kötelező szerverkontextus alá helyezni.
 - [ ] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin

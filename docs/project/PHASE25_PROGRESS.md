@@ -1,5 +1,95 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.5 – kezelt világok elkülönítése (2026-10-16)
+
+Az instance binding a saját workspace-hez, forrásverzióhoz és hat porthoz
+köti a futtatást. Az összes admin-domain fájlútvonala a saját világ alá esik;
+indítás előtt a módosítható állapotban junction/symlink és hard link nem
+kapcsolhat másik világhoz. A gateway-modul forrásgyökere és a worker cwd-je
+is ellenőrzött. Identity és registry központi marad, domain SQL-séma nem változik.
+
+A bot/skill kizárólag a saját engine/gateway címét és Lite cache-ét kapja;
+idegen tárolt vagy kért végpont hibás. A böngészős engine `/gateway` proxy
+fix 7780-as címe is példányhoz kötött. A gyermek engedélylistás környezetből
+indul, `--no-env-file` mellett, provider/admin/worker titkok nélkül.
+Külön login-kulcspár és a saját nyilvános paraméterekkel fordított kliens
+készül. A gateway leállításkor kizárja az új gyermekeket, lezárja a saját
+bot/skill handle-jeit; utána az engine ment és leáll. Marker-PID alapján
+kezelt módban nincs adoptálás vagy idegen folyamat leállítása.
+
+Határok és a korábbi prepared formátum kifejezett migrációs igénye:
+[25.5 szerverizoláció](features/phase25-5-server-isolation.md).
+A logikai elkülönítés a megbízható helyi OS-fiók alatt működik; a telepített
+függőségkód közös, a domainállapot nem. A 25.6 szerverkontextus, 25.7 OS-/
+szolgáltatói titoktár és 25.8 általános verziómigráció/felügyelet nyitott marad.
+
+Ellenőrzések és körválasztás:
+
+- Első runtime/legacy-marker/engine-supervisor kör **12 pass / 0 fail /
+  0 skip**, root typecheck PASS, **37,143 s**:
+  `20261016-210423-555-phase25-5-initial-types-runtime.log`.
+- Új izolációs esetek első köre **15 pass / 1 fail / 0 skip**, **1,781 s**:
+  a fixture junctionjának Windows Bun `rm` hívása EFAULT-tal hibázott.
+  A hard link próbája külön fixture-világba került, az alias-elutasító
+  assertionök megmaradtak. `20261016-210607-766-phase25-5-isolation-focused.log`.
+- Javított izolációs kör **16 pass / 0 fail / 0 skip** és root/engine/webclient
+  typecheck + format **PASS, 1 perc 3,836 s**:
+  `20261016-210636-106-phase25-5-isolation-quality.log`.
+  Két eltérő privát kulcs/kliens, pontos replay, régi profil elutasítása,
+  idegen endpoint, credentials/env titokszűrés, modulgyökér, junction/hard link,
+  saját handle helyetti marker elutasítása, késői skillindítás tiltása.
+- A módosított határok regressziója **101 pass / 0 fail / 0 skip**,
+  **53,493 s**, `20261016-211250-520-phase25-5-affected-boundaries.log`.
+  Kör: teljes control-plane/Chrome, admin-safety/audit, marker és engine-
+  supervisor, LLM-settings, world-mods, autonomy-supervisor, SDK gateway HTTP.
+- Valódi próba első két kísérlete FAIL: **38,708 s** az egy folyamatban futó
+  Bun HTTP kapcsolat időtúllépése; a teszt azóta friss HTTP-kapcsolatot kér
+  és naplózza a lépést, változatlan 10 s timeouttal. Következő **38,574 s**
+  kísérletben az agent-fixture üres personalityTraits listáját az érvényes
+  1–12 elem szabály helyesen elutasította; a fixture egy szintetikus traitet
+  kapott, termékvalidáció nem lazult. Saját tesztfolyamatok leállítva.
+  Naplók: `20261016-210958-982-phase25-5-native-isolation.log`,
+  `20261016-211108-981-phase25-5-native-isolation-bounded.log`.
+- Valódi kétvilágos próba **PASS, exit 0, 46,445 s**:
+  `20261016-211237-341-phase25-5-native-isolation-valid-fixture.log`.
+  Forrás: `0b6762d11f1d568c6352c0095baafb1be0fa3e6f` checkpoint.
+  Egy owner két világban azonos `isotest` botnévvel, két valódi engine/gateway,
+  12 külön port. Külön agent rekordok, bot.env/végpont, natív játékosmentés,
+  hot-reloadolt mod, LLM-konfig, szintetikus titok, audit, cache és login-kulcs/
+  böngészőkliens igazolt. Mindkét böngészős proxy SDK-sessionje csak a saját
+  gatewayben jelent meg. Az egyik stop/archive-ja alatt a másik futott;
+  saját botgyermek megszűnt, másik bot életben maradt. Restart megőrizte a
+  konfigurációt; végül mindkét világ archivált és leállt, mentései megmaradtak.
+  Független admin health 200; a host AgentState/config hash-ei változatlanok.
+  LLM-hívás és hosszú társadalmi/paraméterhangolási futás nem történt.
+- Archivált állapot külön olvasása **PASS, exit 0, 0,465 s**:
+  `20261016-211431-607-phase25-5-retained-isolation.log`. A két modbeállítás
+  és backup külön maradt; egyik szintetikus provider-titok sincs egyik auditban.
+- Az utolsó, bizonytalan marker felülírását is tiltó indítási kapu célzott
+  ellenőrzése **8 pass / 0 fail / 0 skip**, root typecheck és format PASS,
+  **41,954 s**: `20261016-211624-488-phase25-5-final-marker-boundary.log`.
+  Korábban sikeres engine/webclient és kétvilágos próbát ez a szűk új
+  elutasítás nem érint; nem ismételtük őket.
+- A helyi registryben nincs korábbi kezelt világ, amely offline profilmigrációt
+  igényelne. A control-plane-t leállítás és privát identity/registry backup
+  után újraindítottuk az `111eda9f7` végleges kódverzióval. Identity v1,
+  registry v2, független health és loginhoz kötött lista/katalógus readiness
+  **PASS, exit 0, 3,017 s**:
+  `20261016-211809-656-phase25-5-local-activation.log`.
+  A későbbi dokumentációs commit nem módosítja a futó kódot/katalóguskötést.
+- A feature/progress/TASKS formázás és hivatkozások, valamint a végleges
+  forrás/kódcommitok privacy ellenőrzése **PASS, exit 0, 1,511 s**,
+  0 blokkoló találat:
+  `20261016-211853-283-phase25-5-final-docs-privacy.log`.
+- Teljes regresszió nem futott újra: nincs új SQL-séma, közös gazdasági/clock
+  tranzakció, HTTP account/session/ownership kapu, runtime-függőség vagy
+  globális buildkonfiguráció változás. A per-instance kulcs a már létező
+  bundler-paramétereket használja. Az érintett felületi, folyamat-, adatútvonal-
+  és kapcsolat-határokat célzott kör és valódi kétvilágos próba fedte le.
+
+A naplók és szintetikus világok privát `.local/verification/` állományok,
+nem részei a commitnak. A következő fejlesztési feladat a 25.6.
+
 ## 25.4 – helyi szerveréletciklus (2026-10-16)
 
 Megvalósult a felületi létrehozás, a valós helyi Git-commit kiválasztása,
