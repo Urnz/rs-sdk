@@ -11,7 +11,15 @@ import type {
     SDKConnectionMode
 } from './types';
 import { PLAYER_CHAT_TYPES } from './types';
+import {xpExecutionClient} from './admin/xp-execution.js';
 import { ChatHistory } from '../../sdk/chat-history';
+import { loadPopulationAgePolicy } from '../../population-lifecycle/age.js';
+import { loadHealthPolicy, runPopulationHealthCycle } from '../../population-health/index.js';
+import { populationHealthDbPath, populationHealthPolicyPath, populationHealthEngineEvidencePath, repoRoot } from './admin/paths.js';
+import { assertLocalAvatarCanAct, reconcilePopulationDeaths } from './admin/population-death-runtime.js';
+import { defaultEstateRuntimeOptions } from './admin/population-estate-runtime.js';
+import { runPopulationEstateCycle } from '../../population-estate/runtime.js';
+import { loadPopulationMortalityPolicy } from '../../population-lifecycle/mortality.js';
 import { chunkMessage } from '../../sdk/chunking';
 import { BotSupervisor } from './admin/supervisor';
 import { handleAdminRequest } from './admin/routes';
@@ -48,9 +56,20 @@ import { recoverDomainEventWakeups } from './admin/domain-event-recovery';
 import { listEngineProperties } from './admin/properties';
 import { runAutonomyReconciliation } from './admin/autonomy-reconciliation';
 import { recoverReadyEconomicContractSettlements } from './admin/economic-contract-settlement';
+import { recoverReadyFineCollectionSettlements } from './admin/fine-collection-settlement';
+import { recoverReadyJusticeExecutions } from './admin/justice-execution';
 import { openSimulationClockRuntime } from '../../simulation-clock';
 import { playerTimeCapabilities } from '../../simulation-clock';
 import { LocalLostCityWorldGenesisAdapter } from './admin/local-world-genesis-adapter';
+import { fileAuthenticatedWitnessReport, hasMatchingLiveWitnessAvatar } from './crime-report-intake';
+import { listAuthenticatedWitnessObservations } from './crime-witness-observations';
+import { resolveCrimeReportIntakePaths } from './crime-report-paths';
+import { recognizeAuthenticatedWitness } from './crime-witness-recognition';
+
+const crimeReportAcceptanceBundle = process.env.CRIME_REPORT_ACCEPTANCE_BUNDLE;
+if (crimeReportAcceptanceBundle !== undefined && process.env.LOGIN_SERVER !== 'true')
+    throw new Error('Crime report acceptance requires real login authentication (LOGIN_SERVER=true)');
+const crimeReportIntakePaths = resolveCrimeReportIntakePaths(crimeReportAcceptanceBundle);
 
 const GATEWAY_PORT = parseInt(process.env.AGENT_PORT || '7780');
 const AUTONOMY_STARTUP_GRACE_MS = Math.max(0, Math.min(120_000,
@@ -59,7 +78,35 @@ const gatewayInstanceId = crypto.randomUUID();
 const autonomyLeaseOwner = `gateway:${gatewayInstanceId}`;
 const simulationClockRuntime = openSimulationClockRuntime(simulationClockConfigPath, simulationClockDbPath);
 const replanSimulationClock = { store: simulationClockRuntime.store, clockId: simulationClockRuntime.clockId };
-const worldGenesisAdapter = new LocalLostCityWorldGenesisAdapter();
+const populationHealthAgePolicy = loadPopulationAgePolicy(`${repoRoot}/config/population-age-policy.json`);
+const populationHealthPolicy = loadHealthPolicy(populationHealthPolicyPath);
+const populationDeathMortalityPolicy = loadPopulationMortalityPolicy(`${repoRoot}/config/population-mortality-policy.json`);
+const populationEstateOptions = defaultEstateRuntimeOptions();
+const populationHealthTimer = setInterval(() => {
+    let store: AgentStateStore | null = null;
+    try {
+        store = new AgentStateStore(agentStateDbPath, replanSimulationClock);
+        reconcilePopulationDeaths(store, populationHealthEngineEvidencePath, populationHealthAgePolicy, populationDeathMortalityPolicy);
+        try { const estate = runPopulationEstateCycle(populationEstateOptions);
+            if (estate.authorityErrors.length) console.error('[PopulationEstate] Authority blocked:', estate.authorityErrors.join('; ')); }
+        catch (error) { console.error('[PopulationEstate] Cycle failed closed:', error); }
+        for (const member of store.listPopulationMembers()) {
+            if (member.characterLifecycle.status !== 'deceased') continue;
+            const avatar = member.playerUsername;
+            const skill = botSupervisor.activeSkillSnapshot(avatar);
+            if (skill && skill.status !== 'stopping') void botSupervisor.stopSkill(avatar).catch(error => console.error('[PopulationDeath] Skill stop failed:', error));
+            const bot = botSupervisor.snapshot(avatar);
+            if (bot && (bot.status === 'running' || bot.status === 'starting'))
+                void botSupervisor.despawn(avatar, 'Terminal population lifecycle').catch(error => console.error('[PopulationDeath] Bot stop failed:', error));
+        }
+        runPopulationHealthCycle(store, replanSimulationClock, populationHealthAgePolicy,
+        { statePath: populationHealthDbPath, engineEvidencePath: populationHealthEngineEvidencePath, policy: populationHealthPolicy }); }
+    catch (error) { console.error('[PopulationHealth] Cycle failed closed:', error); }
+    finally { store?.close(); }
+}, 10000);
+populationHealthTimer.unref?.();
+const worldGenesisAdapter = new LocalLostCityWorldGenesisAdapter(undefined,
+    { agentPath: agentStateDbPath, simulationClock: replanSimulationClock });
 function recordPlayerPresence(username: string, presence: 'online' | 'offline'): void {
     try {
         simulationClockRuntime.store.recordPlayerPresence(simulationClockRuntime.clockId,
@@ -669,6 +716,11 @@ const SyncModule = {
         if (message.type === 'sdk_action') {
             const sdkSession = this.getSessionForSocket(ws);
             if (!sdkSession) return;
+            try { assertLocalAvatarCanAct(sdkSession.targetUsername); }
+            catch (error) {
+                this.sendToSDK(sdkSession, { type: 'sdk_error', actionId: message.actionId, error: String(error) });
+                return;
+            }
 
             // Gate actions based on mode: observers may only send chat ('say' /
             // 'privateMessage'), so chat tools can talk without driving the bot.
@@ -1009,6 +1061,7 @@ botSupervisor.onSkillExit(event => {
             const experiment = await reconcileMultiAgentExperimentSkillRun(event.snapshot.runId, skillRun, !failed,
                 `${event.snapshot.skill} ${failed ? 'failed' : 'exited successfully'} with exit code ${event.snapshot.exitCode}.`, {
                     store,
+                    xpExecution:xpExecutionClient(),
                     goalSnapshots: async ids => readMultiAgentExperimentGoalSnapshots(ids),
                     goalEvents: async (ids, since, until) => readMultiAgentExperimentGoalEvents(ids, since, until),
                     economySnapshot: async () => economySnapshot(await buildBotCatalog(adminGatewayBots(), botSupervisor.list()))
@@ -1076,6 +1129,14 @@ const runAgentAutonomySupervisor = async (startup = false) => {
     }
     for (const error of report.playerActionSettlements.errors) {
         console.error(`[PlayerActionRecovery] ${error.settlementId}: ${error.message}`);
+    }
+    const fineSettlements = await recoverReadyFineCollectionSettlements();
+    for (const error of fineSettlements.errors) {
+        console.error(`[FineCollectionRecovery] ${error.collectionId}: ${error.message}`);
+    }
+    const justiceExecutions = await recoverReadyJusticeExecutions();
+    for (const error of justiceExecutions.errors) {
+        console.error(`[JusticeRecovery] ${error.decisionId}: ${error.message}`);
     }
     return report.enrollments;
 };
@@ -1172,6 +1233,100 @@ const server = Bun.serve({
             worldGenesisAdapter
         });
         if (adminResponse) return adminResponse;
+
+        // Noticed-event discovery is scoped to the login-authenticated live avatar.
+        // No CORS opt-in and no password-in-body/query fallback for this endpoint.
+        const observationMatch = url.pathname.match(/^\/crime\/observations\/([^/]+)$/);
+        if (observationMatch) {
+            const reply = (body: unknown, status: number) => new Response(JSON.stringify(body), {
+                status, headers: { 'Content-Type': 'application/json' }
+            });
+            if (req.method !== 'GET') return reply({ error: 'Method not allowed' }, 405);
+            if (!LOGIN_SERVER_ENABLED) return reply({ error: 'Authenticated witness observations are unavailable' }, 503);
+            let username: string;
+            try { username = decodeURIComponent(observationMatch[1]!); }
+            catch { return reply({ error: 'Invalid avatar' }, 400); }
+            if (!/^[a-zA-Z0-9]{1,12}$/.test(username)) return reply({ error: 'Invalid avatar' }, 400);
+            const bearer = req.headers.get('authorization');
+            if (!bearer?.startsWith('Bearer ') || bearer.length <= 7)
+                return reply({ error: 'Bearer authentication required' }, 401);
+            const auth = await authenticateSDK(username, bearer.slice(7));
+            if (!auth.success) return reply({ error: 'Authentication failed' }, 401);
+            const botSession = botSessions.get(username);
+            const liveAvatar = botSession?.lastState?.player?.name ?? null;
+            if (!hasMatchingLiveWitnessAvatar({ loginServerEnabled: LOGIN_SERVER_ENABLED,
+                authenticatedUsername: username, avatarName: liveAvatar,
+                connected: !!botSession?.ws, receivedStateThisConnection: !!botSession?.receivedStateThisConnection,
+                inGame: !!botSession?.lastState?.inGame,
+                lastStateReceivedAt: botSession?.lastStateReceivedAt ?? 0, nowMs: Date.now() }))
+                return reply({ error: 'Matching live avatar is required' }, 409);
+            try {
+                return reply({ observations: listAuthenticatedWitnessObservations(username,
+                    liveAvatar, crimeReportIntakePaths) }, 200);
+            } catch (error) {
+                console.error('[CrimeWitness] Observation listing rejected:', error);
+                return reply({ error: 'Witness observations could not be verified' }, 409);
+            }
+        }
+
+        const reportMatch = url.pathname.match(/^\/crime\/(report|recognize)\/([^/]+)$/);
+        if (reportMatch) {
+            const reply = (body: unknown, status: number) => new Response(JSON.stringify(body), {
+                status, headers: { 'Content-Type': 'application/json',
+                    ...(crimeReportAcceptanceBundle ? { 'X-Crime-Report-Acceptance-Bundle': crimeReportAcceptanceBundle } : {}) }
+            });
+            if (req.method !== 'POST') return reply({ error: 'Method not allowed' }, 405);
+            if (!LOGIN_SERVER_ENABLED) return reply({ error: 'Authenticated reporting is unavailable' }, 503);
+            let username: string;
+            try { username = decodeURIComponent(reportMatch[2]!); }
+            catch { return reply({ error: 'Invalid avatar' }, 400); }
+            if (!/^[a-zA-Z0-9]{1,12}$/.test(username)) return reply({ error: 'Invalid avatar' }, 400);
+            const bearer = req.headers.get('authorization');
+            if (!bearer?.startsWith('Bearer ') || bearer.length <= 7)
+                return reply({ error: 'Bearer authentication required' }, 401);
+            const auth = await authenticateSDK(username, bearer.slice(7));
+            if (!auth.success) return reply({ error: 'Authentication failed' }, 401);
+            const botSession = botSessions.get(username);
+            const liveAvatar = botSession?.lastState?.player?.name ?? null;
+            if (!hasMatchingLiveWitnessAvatar({ loginServerEnabled: LOGIN_SERVER_ENABLED,
+                authenticatedUsername: username, avatarName: liveAvatar,
+                connected: !!botSession?.ws, receivedStateThisConnection: !!botSession?.receivedStateThisConnection,
+                inGame: !!botSession?.lastState?.inGame,
+                lastStateReceivedAt: botSession?.lastStateReceivedAt ?? 0, nowMs: Date.now() }))
+                return reply({ error: 'Matching live avatar is required' }, 409);
+            if (Number(req.headers.get('content-length') || 0) > 1024)
+                return reply({ error: 'Report request is too large' }, 413);
+            let body: unknown;
+            try {
+                const reader = req.body?.getReader();
+                if (!reader) return reply({ error: 'Report body must be JSON' }, 400);
+                const decoder = new TextDecoder('utf-8', { fatal: true });
+                let text = '', size = 0;
+                while (true) {
+                    const part = await reader.read();
+                    if (part.done) break;
+                    size += part.value.byteLength;
+                    if (size > 1024) {
+                        void reader.cancel().catch(() => {});
+                        return reply({ error: 'Report request is too large' }, 413);
+                    }
+                    text += decoder.decode(part.value, { stream: true });
+                }
+                body = JSON.parse(text + decoder.decode());
+            }
+            catch { return reply({ error: 'Report body must be JSON' }, 400); }
+            try {
+                if (reportMatch[1] === 'recognize') {
+                    const recognition = await recognizeAuthenticatedWitness(body, username, liveAvatar, crimeReportIntakePaths);
+                    return reply({ recognition }, 200);
+                }
+                const report = fileAuthenticatedWitnessReport(body, username, liveAvatar, crimeReportIntakePaths);
+                return reply({ report }, 200);
+            } catch (error) {
+                console.error('[CrimeReport] Authenticated report rejected:', error);
+                return reply({ error: 'Witness report could not be verified' }, 409);
+            }
+        }
 
         // CORS headers
         const corsHeaders = {
@@ -1419,6 +1574,7 @@ const server = Bun.serve({
 
             return new Response(JSON.stringify({
                 status: 'running',
+                authentication: { enabled: LOGIN_SERVER_ENABLED, loginServerConnected },
                 bots,
                 sdks
             }, null, 2), {

@@ -37,9 +37,8 @@ mock.module('#/client/MobileKeyboard.js', () => ({
     }
 };
 (globalThis as any).navigator = { userAgent: 'bun-test' };
-(globalThis as any).fetch = async () => ({
-    arrayBuffer: async () => new ArrayBuffer(0)
-});
+// MIDI is mocked above; no fetch stub is needed. Replacing global fetch here
+// would leak an incomplete Response into later local cache/oracle tests.
 (globalThis as any).document = {
     hidden: false,
     body: { appendChild() {}, removeChild() {} },

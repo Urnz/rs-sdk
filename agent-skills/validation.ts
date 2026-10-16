@@ -14,7 +14,8 @@ const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const OPERATION_NAMES = new Set<SkillOperationName>([
     'walk-to', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
-    'gather-loc', 'gather-npc', 'smith-at-anvil', 'open-shop', 'buy-from-shop',
+    'gather-loc', 'gather-npc', 'thieve-pickpocket', 'thieve-lockpick', 'thieve-container',
+    'thieve-property-entry', 'smith-at-anvil', 'open-shop', 'buy-from-shop',
     'sell-to-shop', 'close-shop', 'trade-give-item', 'trade-receive-item', 'open-bank', 'deposit-item',
     'withdraw-item', 'close-bank', 'wait-ticks'
 ]);
@@ -31,6 +32,10 @@ const OPERATION_ARGUMENTS: Record<SkillOperationName, { allowed: string[]; requi
     'interact-npc': { allowed: ['name', 'match', 'option'], required: ['name'] },
     'gather-loc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs', 'maxRetargets'], required: ['name', 'item'] },
     'gather-npc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs', 'maxRetargets'], required: ['name', 'item'] },
+    'thieve-pickpocket': { allowed: ['name', 'match', 'option', 'timeoutMs'], required: ['name'] },
+    'thieve-lockpick': { allowed: ['name', 'match', 'option', 'x', 'z', 'timeoutMs'], required: ['name', 'x', 'z'] },
+    'thieve-container': { allowed: ['name', 'match', 'option', 'x', 'z', 'timeoutMs'], required: ['name', 'x', 'z'] },
+    'thieve-property-entry': { allowed: ['name', 'match', 'option', 'x', 'z', 'timeoutMs'], required: ['name', 'x', 'z'] },
     'smith-at-anvil': { allowed: ['product', 'bar', 'timeoutMs'], required: ['product'] },
     'open-shop': { allowed: ['name', 'match'], required: [] },
     'buy-from-shop': { allowed: ['name', 'match', 'amount'], required: ['name', 'amount'] },
@@ -162,9 +167,14 @@ function validateStep(value: unknown, parameters: Record<string, SkillParameterD
                 issues.push(`${path}.arguments.choices must contain 1-20 non-empty text choices`);
             }
         }
-        if (value.operation === 'interact-loc' && isRecord(value.arguments)
+        if (['interact-loc', 'thieve-lockpick', 'thieve-container', 'thieve-property-entry'].includes(String(value.operation))
+            && isRecord(value.arguments)
             && (('x' in value.arguments) !== ('z' in value.arguments))) {
             issues.push(`${path}.arguments.x and z must be provided together`);
+        }
+        if (String(value.operation).startsWith('thieve-') && isRecord(value.arguments)
+            && value.arguments.match !== 'exact') {
+            issues.push(`${path}.arguments.match must be exact for a Thieving operation`);
         }
         if (value.maxAttempts !== undefined && (!Number.isInteger(value.maxAttempts) || Number(value.maxAttempts) < 1 || Number(value.maxAttempts) > 10)) {
             issues.push(`${path}.maxAttempts must be an integer from 1 to 10`);

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "policyId": "default-housing-security",
+  "version": "1.0.0",
+  "hierarchyPolicy": {
+    "policyId": "default-housing-hierarchy",
+    "version": "1.0.0",
+    "digest": "15ffca2ff8d0f1e4fa3ebb97ae126288149bd0e9fc28db459c15ed0877fdf062"
+  },
+  "effectPolicy": {
+    "policyId": "default-housing-effects",
+    "version": "1.0.0",
+    "digest": "2f1d2b5db355572e3f65e28d468c412361200c3ae4b45c35354d1f7b7e6b81ee"
+  },
+  "tiers": [
+    { "tierId": "street", "sleepingExposureBasisPoints": 10000, "entryLockLevel": 0, "entryTraceBasisPoints": 0, "allowedStorageSurfaceIds": [] },
+    { "tierId": "temporary-shelter", "sleepingExposureBasisPoints": 9000, "entryLockLevel": 0, "entryTraceBasisPoints": 1000, "allowedStorageSurfaceIds": [] },
+    { "tierId": "shared-dormitory", "sleepingExposureBasisPoints": 7000, "entryLockLevel": 10, "entryTraceBasisPoints": 2000, "allowedStorageSurfaceIds": ["shared-lockbox"] },
+    { "tierId": "rented-room", "sleepingExposureBasisPoints": 5000, "entryLockLevel": 25, "entryTraceBasisPoints": 3000, "allowedStorageSurfaceIds": ["private-room-chest"] },
+    { "tierId": "owned-home", "sleepingExposureBasisPoints": 3000, "entryLockLevel": 40, "entryTraceBasisPoints": 5000, "allowedStorageSurfaceIds": ["private-home-chest"] },
+    { "tierId": "fortified-property", "sleepingExposureBasisPoints": 1000, "entryLockLevel": 80, "entryTraceBasisPoints": 8000, "allowedStorageSurfaceIds": ["fortified-vault"] }
+  ],
+  "storageSurfaces": [
+    { "surfaceId": "shared-lockbox", "lockLevel": 15, "traceBasisPoints": 2500 },
+    { "surfaceId": "private-room-chest", "lockLevel": 30, "traceBasisPoints": 4000 },
+    { "surfaceId": "private-home-chest", "lockLevel": 45, "traceBasisPoints": 6000 },
+    { "surfaceId": "fortified-vault", "lockLevel": 90, "traceBasisPoints": 9000 }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "phase22-crime-acceptance-v1",
+  "actors": {
+    "thiefUsername": "rKFXWHZFk",
+    "playerWitnessUsername": "YJLhy3Vpb",
+    "agentWitnessUsername": "ZUgnsbd3A"
+  },
+  "packages": [
+    {
+      "id": "22.1",
+      "claim": "verified theft to discovery, identification, evidence, case and explicit report",
+      "tests": ["thieving-procedures/test/event-processor.test.ts", "crime-cases/test/witness-chain-acceptance.test.ts"]
+    },
+    {
+      "id": "22.2",
+      "claim": "protected storage and checkpoint evidence remain source-bound",
+      "tests": ["housing/test/engine-storage-runtime.test.ts", "crime-checkpoints/test/engine-ingestion.test.ts", "server/engine/src/mods/CheckpointEvidence.test.ts"]
+    },
+    {
+      "id": "22.3",
+      "claim": "fine collection is restart-safe and economically exact",
+      "tests": ["crime-cases/test/fine-collection-settlement.test.ts", "server/engine/src/mods/FineCollectionSettlementCheckpoint.test.ts"]
+    },
+    {
+      "id": "22.4",
+      "claim": "authority decision, remedy and timed custody are separated and replay-safe",
+      "tests": ["crime-cases/test/justice-execution.test.ts", "server/engine/src/mods/PlayerCustodyStore.test.ts", "server/engine/src/engine/entity/NetworkPlayerCustody.test.ts"]
+    },
+    {
+      "id": "22.5",
+      "claim": "observer-bound fencing knowledge reaches a real committed player trade",
+      "tests": ["fencing-market/test/live-pipeline.test.ts", "server/engine/src/mods/TradeEvidenceStore.test.ts"]
+    },
+    {
+      "id": "22.6",
+      "claim": "reform evidence changes only the intended standing and preserves legal, title and personality state",
+      "tests": ["crime-reintegration/test/store.test.ts", "crime-reintegration/test/separation-acceptance.test.ts"]
+    },
+    {
+      "id": "22.7",
+      "claim": "crafting lineage and verified crime metrics retain exact source chains",
+      "tests": ["item-transformation/test/execution.test.ts", "crime-metrics/test/verified-economics.test.ts"]
+    }
+  ],
+  "live": {
+    "procedures": ["pickpocket", "lockpick-door", "container-theft", "property-burglary"],
+    "recognition": ["player-only", "agent"],
+    "requiresEngineAndGatewayRestartReplay": true,
+    "requiresExplicitReport": true
+  },
+  "operations": {
+    "workers": ["thieving-procedures/watch.ts", "gateway startup recovery"],
+    "switches": ["-GatewayLoginAuthentication", "-EnableThievingProcessor", "PLAYER_ESCROW_SHARED_CHECKPOINT=true"],
+    "policies": [
+      "config/thieving-witness-attention.json",
+      "config/housing-security-policy.json",
+      "config/crime-checkpoints.json",
+      "config/crime-reintegration-policy.json",
+      "config/item-provenance-policies.json"
+    ],
+    "sources": [
+      "engine thieving evidence",
+      "authenticated witness observations",
+      "crime case and finding ledgers",
+      "checkpoint evidence",
+      "shared player escrow and institution treasury",
+      "player custody ledger",
+      "engine trade evidence",
+      "item provenance and transformation lineage"
+    ]
+  },
+  "failureInjection": [
+    "missing or tampered source fails closed",
+    "exact replay is idempotent and changed replay is rejected",
+    "restart resumes incomplete fine and justice settlements once",
+    "deleted transformation origin invalidates audit",
+    "engine and gateway restart preserves recognition and report receipts"
+  ]
+}

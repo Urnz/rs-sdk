@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "facilities": [
+    {
+      "facilityId": "varrock.east-workshop.forge",
+      "label": "Varrock east workshop forge",
+      "propertyId": "varrock.east-workshop",
+      "businessId": null,
+      "capabilities": [
+        { "capabilityId": "smithing.basic-furnace", "capacityUnits": 1 },
+        { "capabilityId": "smithing.basic-forging", "capacityUnits": 1 },
+        { "capabilityId": "logistics.cart-bay", "capacityUnits": 1 }
+      ],
+      "allowedAccessKinds": ["employment", "lease", "contract", "explicit"]
+    },
+    {
+      "facilityId": "karamja.fishing-hut.utility",
+      "label": "Karamja fishing hut utility area",
+      "propertyId": "karamja.fishing-hut",
+      "businessId": null,
+      "capabilities": [
+        { "capabilityId": "storage.secure", "capacityUnits": 28 },
+        { "capabilityId": "cooking.commercial-kitchen", "capacityUnits": 2 }
+      ],
+      "allowedAccessKinds": ["employment", "lease", "contract", "explicit"]
+    }
+  ]
+}

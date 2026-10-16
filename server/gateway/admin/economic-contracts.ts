@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import { estateHeld } from '../../../population-estate/schema.js';
 import { economicContractsDbPath } from './paths.js';
 import type { AdminSkillRun } from './skill-history.js';
 import { extractEconomyEvents } from './transaction-telemetry.js';
@@ -112,7 +113,7 @@ export interface EconomicContract {
     partyAProvides: EconomicObligation;
     partyBProvides: EconomicObligation;
     termsDigest: string;
-    status: 'active' | 'fulfilled' | 'cancelling' | 'defaulting' | 'cancelled' | 'defaulted';
+    status: 'active' | 'fulfilled' | 'cancelling' | 'defaulting' | 'cancelled' | 'defaulted' | 'estate-held';
     partyASatisfied: boolean;
     partyBSatisfied: boolean;
     evidence: EconomicContractEvidence[];
@@ -426,7 +427,8 @@ export class EconomicContractStore {
             WHERE contract_id = ?1 ORDER BY party`).all(row.contract_id) as SettlementRow[]).map(settlement);
         const playerEscrows = (this.database.query(`SELECT * FROM economic_contract_player_escrow
             WHERE contract_id = ?1 ORDER BY party`).all(row.contract_id) as PlayerEscrowRow[]).map(playerEscrow);
-        return contract(row, records, settlements, playerEscrows);
+        const result = contract(row, records, settlements, playerEscrows);
+        return estateHeld(this.database,'contract',row.contract_id) ? { ...result, status: 'estate-held' } : result;
     }
 
     create(input: CreateEconomicOffer, now = new Date().toISOString(), offerId = randomUUID()): EconomicOffer {

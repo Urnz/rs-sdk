@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Database } from 'bun:sqlite';
-import { parsePropertyCatalog } from './Properties.js';
-import { PropertyStore, type PropertyWallet } from './PropertyStore.js';
+import { parsePropertyCatalog, type PropertyStatus } from './Properties.js';
+import { PropertyStore, type PropertyPendingResolution, type PropertyPurchaseStatus, type PropertyWallet } from './PropertyStore.js';
 import type { EconomicActorRef } from './EconomicActors.js';
 
 const temporaryDirectories: string[] = [];
@@ -15,6 +15,8 @@ const property = {
     type: 'workshop',
     location: { x: 3253, z: 3421, level: 0, region: 'Varrock East' },
     purchasePrice: 25000,
+    security: { lockLevel: 20, lockpickExperience: 150, successChanceNumerator: 32,
+        successChanceDenominator: 180, requiresLockpick: true },
     entryPoints: [{ entryPointId: 'front-door', label: 'Front door', x: 3253, z: 3421, level: 0 }],
     revenue: { mode: 'none', amount: 0, intervalMinutes: 1440 },
     maintenance: { amount: 250, intervalMinutes: 1440 },
@@ -22,8 +24,12 @@ const property = {
         inspect: ['everyone'], purchase: ['eligible-player'], enter: ['owner', 'admin'], manage: ['owner', 'admin']
     }
 };
-const catalog = parsePropertyCatalog({ schemaVersion: 1, properties: [property] });
+const catalog = parsePropertyCatalog({ schemaVersion: 2, properties: [property] });
 const buyer: EconomicActorRef = { kind: 'player', id: 'ferry14' };
+const reconciliationCases: Array<[PropertyPendingResolution, PropertyPurchaseStatus, PropertyStatus]> = [
+    ['commit-debited', 'committed', 'owned'],
+    ['release-unpaid', 'rejected', 'available']
+];
 
 function databasePath(): string {
     const directory = mkdtempSync(join(tmpdir(), 'property-store-'));
@@ -131,7 +137,7 @@ describe('property purchase store', () => {
         const store = new PropertyStore(catalog, path);
         store.close();
         const replacement = parsePropertyCatalog({
-            schemaVersion: 1,
+            schemaVersion: 2,
             properties: [{ ...property, propertyId: 'falador.replacement-house', type: 'house' }]
         });
         expect(() => new PropertyStore(replacement, path)).toThrow('cannot remove persisted property');
@@ -147,10 +153,7 @@ describe('property purchase store', () => {
         store.close();
     });
 
-    test.each([
-        ['commit-debited' as const, 'committed', 'owned'],
-        ['release-unpaid' as const, 'rejected', 'available']
-    ])('reconciles a pending purchase as %s without moving wallet funds', (resolution, purchaseStatus, propertyStatus) => {
+    test.each(reconciliationCases)('reconciles a pending purchase as %s without moving wallet funds', (resolution, purchaseStatus, propertyStatus) => {
         const path = databasePath();
         const initial = new PropertyStore(catalog, path);
         initial.close();

@@ -16,6 +16,9 @@ import { CategoryTypeValid, check, CoordValid, DurationValid, InvTypeValid, Numb
 import World from '#/engine/World.js';
 import { WealthEventType } from '#/server/logger/WealthEventType.js';
 
+type PendingCommittedTrade = { from:string;to:string;fromItems:WealthEventItem[];fromValue:number };
+const pendingCommittedTrades = new WeakMap<object,PendingCommittedTrade>();
+
 const InvOps: CommandHandlers = {
     // inv config
     [ScriptOpcode.INV_ALLSTOCK]: state => {
@@ -454,7 +457,7 @@ const InvOps: CommandHandlers = {
                     recipient_session: toPlayer.session
                 });
             }
-        } else if (!secondary) {
+        } else if (fromInvType.debugname === 'tradeoffer' && !secondary) {
             let toTotal = 0;
             const toLogs: Map<number, WealthEventItem> = new Map();
 
@@ -488,16 +491,16 @@ const InvOps: CommandHandlers = {
                     recipient_items: toItems,
                     recipient_value: toTotal
                 });
-                recordTrade({
-                    tick: World.currentTick,
-                    from: fromPlayer.username,
-                    to: toPlayer.username,
-                    fromItems,
-                    toItems,
-                    fromValue: fromTotal,
-                    toValue: toTotal
-                });
             }
+            // The opposite offer is still only a request here. Do not create a
+            // payment receipt until the following .both_moveinv moved it too.
+            pendingCommittedTrades.set(state,{from:fromPlayer.username,to:toPlayer.username,fromItems,fromValue:fromTotal});
+        } else if (fromInvType.debugname === 'tradeoffer') {
+            const pending=pendingCommittedTrades.get(state);pendingCommittedTrades.delete(state);
+            if(!pending||pending.from!==toPlayer.username||pending.to!==fromPlayer.username)
+                throw new Error('trade commit is missing its first inventory movement');
+            if(pending.fromItems.length>0||fromItems.length>0)recordTrade({tick:World.currentTick,from:pending.from,to:pending.to,
+                fromItems:pending.fromItems,toItems:fromItems,fromValue:pending.fromValue,toValue:fromTotal});
         }
     }),
 

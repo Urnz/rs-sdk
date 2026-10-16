@@ -7,8 +7,8 @@
 // Drives the real framing path (handlePacket over a fake socket) rather than
 // dispatch() directly, because containment lives in the framing.
 //
-// Needs the interface archive; set LITE_TEST_ORIGIN to point elsewhere. Skips if
-// the server is unreachable.
+// Requires the local emulator's interface archive; LITE_TEST_ORIGIN can select
+// another local origin. Cache-loading failures fail the suite instead of skipping.
 
 import { beforeAll, describe, expect, test } from 'bun:test';
 
@@ -21,19 +21,16 @@ import { loadCache } from './cache.js';
 import { LiteClient } from './LiteClient.js';
 import { handlePacket } from './protocol/incoming.js';
 
-const ORIGIN = process.env.LITE_TEST_ORIGIN ?? 'https://rs-sdk-demo.fly.dev';
-const CACHE_DIR = process.env.LITE_TEST_CACHE ?? '/tmp/rs-sdk-lite-test-cache';
+import { LITE_TEST_ORIGIN as ORIGIN, LITE_TEST_CACHE as CACHE_DIR } from './test-cache-config.js';
 
-let available = false;
 
 beforeAll(async () => {
     try {
         await loadCache({ origin: ORIGIN, cacheDir: CACHE_DIR, quiet: true });
-        available = true;
-    } catch {
-        available = false;
+    } catch (error) {
+        throw new Error(`Local Lite test cache unavailable at ${ORIGIN}; start scripts/start-local.ps1 -NoBot`, { cause: error });
     }
-});
+}, 60_000);
 
 /** A socket that hands back a fixed byte script. */
 class FakeStream {
@@ -89,11 +86,6 @@ async function quietly<T>(fn: () => Promise<T>): Promise<T> {
 
 describe('packet handler errors', () => {
     test('a throwing handler drops its packet and the next one still lands', async () => {
-        if (!available) {
-            console.warn(`[skip] ${ORIGIN} unreachable`);
-            return;
-        }
-
         const client = makeClient('botx', [...messageBytes('first'), ...messageBytes('second')]);
 
         // Fail the first packet from inside the handler, the way a real defect
@@ -119,11 +111,6 @@ describe('packet handler errors', () => {
     });
 
     test('handlers failing in a burst end the session', async () => {
-        if (!available) {
-            console.warn(`[skip] ${ORIGIN} unreachable`);
-            return;
-        }
-
         const script: number[] = [];
         for (let i = 0; i < 30; i++) {
             script.push(...messageBytes(`msg${i}`));

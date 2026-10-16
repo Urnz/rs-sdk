@@ -184,3 +184,60 @@ export interface PropertyFurnishingCapabilities extends FurnishingCapabilities {
     propertyId: string;
     placementIds: string[];
 }
+
+export interface PlacedHousingStorage extends FurnishingPlacement {
+    storageSlots: number;
+}
+
+export type HousingAttackSurfaceKind = 'sleeping-person' | 'property-entry' | 'storage';
+export interface HousingSecurityTier {
+    tierId: string;
+    sleepingExposureBasisPoints: number;
+    entryLockLevel: number;
+    entryTraceBasisPoints: number;
+    allowedStorageSurfaceIds: string[];
+}
+export interface HousingStorageSecuritySurface {
+    surfaceId: string;
+    lockLevel: number;
+    traceBasisPoints: number;
+}
+export interface HousingSecurityPolicyDefinition {
+    schemaVersion: 1;
+    policyId: string;
+    version: string;
+    hierarchyPolicy: { policyId: string; version: string; digest: string };
+    effectPolicy: { policyId: string; version: string; digest: string };
+    tiers: HousingSecurityTier[];
+    storageSurfaces: HousingStorageSecuritySurface[];
+}
+export interface HousingSecurityPolicy extends HousingSecurityPolicyDefinition { digest: string }
+
+/** Attested location/surface snapshot; it is not automatically visible to an attacker. */
+export interface HousingAttackSurfaceObservation {
+    observationId: string;
+    kind: HousingAttackSurfaceKind;
+    housingUnitId: string | null;
+    storageSurfaceId: string | null;
+    storageSlots: number;
+    /** Exact Property door lock level for an entry surface; null otherwise. */
+    propertyLockLevel: number | null;
+    sourceEvidenceDigest: string;
+}
+export interface HousingSecurityProjection {
+    kind: HousingAttackSurfaceKind;
+    housingUnitId: string | null;
+    propertyId: string | null;
+    tierId: string;
+    storageSurfaceId: string | null;
+    lockLevel: number;
+    exposureBasisPoints: number;
+    traceBasisPoints: number;
+    theftProtectionBasisPoints: number;
+    observationId: string;
+    sourceEvidenceDigest: string;
+    policyDigest: string;
+    unitCatalogDigest: string;
+    projectionDigest: string;
+}
+export type HousingAttackSurfaceVerifier = (observation: Readonly<HousingAttackSurfaceObservation>) => boolean;

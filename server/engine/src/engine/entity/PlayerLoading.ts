@@ -1,4 +1,6 @@
 import { playerSaveStore } from '#/engine/market/MarketStore.js';
+import { randomUUID } from 'node:crypto';
+import { withSocietyValueMutation } from '../../../../../society-integrity/runtime.js';
 import InvType from '#/cache/config/InvType.js';
 import { NetworkPlayer } from '#/engine/entity/NetworkPlayer.js';
 import Player, { getExpByLevel, getLevelByExp } from '#/engine/entity/Player.js';
@@ -41,6 +43,8 @@ export class PlayerLoading {
         player.lastResponse = World.currentTick;
 
         if (sav.data.length < 2) {
+            return withSocietyValueMutation({source:'engine.save-fallback',operationId:`save-fallback:${randomUUID()}`,
+                actor:`player:${safeName}`,payload:{reason:'new-or-missing-canonical-save',initialHitpointsLevel:10}},()=>{
             for (let i = 0; i < 21; i++) {
                 player.stats[i] = 0;
                 player.baseLevels[i] = 1;
@@ -52,6 +56,7 @@ export class PlayerLoading {
             player.baseLevels[PlayerStat.HITPOINTS] = 10;
             player.levels[PlayerStat.HITPOINTS] = 10;
             return player;
+            });
         }
 
         if (sav.g2() !== PlayerLoading.SAV_MAGIC) {

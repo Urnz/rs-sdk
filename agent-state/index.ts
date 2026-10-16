@@ -1,6 +1,9 @@
 export * from './types.js';
 export * from './validation.js';
 export * from './store.js';
+export type { PopulationMemoryArchive, MemoryTransferReceipt } from './memory-archive.js';
+export {loadMemoryTransferPolicy,validateMemoryTransferPolicy} from './memory-transfer.js';
+export type {MemoryTransferPolicy,MemoryTransferSelection,MemoryTransferRequest,MemoryTransferPreview} from './memory-transfer.js';
 export * from './context.js';
 export * from './planner.js';
 export * from './live.js';
@@ -8,3 +11,7 @@ export * from './retrieval.js';
 export * from './assets.js';
 export * from './control.js';
 export * from './skill-binding.js';
+export * from './underworld-knowledge.js';
+export * from './underworld-claims.js';
+export * from './underworld-context.js';
+export * from './current-underworld-source.js';

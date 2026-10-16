@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "locations": [
+    {
+      "locTypeId": 2572,
+      "x": 2969,
+      "z": 3328,
+      "level": 0,
+      "placementId": "falador.south-house.chest-1"
+    }
+  ]
+}

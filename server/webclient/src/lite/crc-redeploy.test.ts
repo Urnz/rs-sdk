@@ -9,8 +9,8 @@
 // checksums, and must NOT retry when the re-fetched checksums are unchanged
 // (then the mismatch is a genuinely stale build, not a redeploy).
 //
-// Needs the config archives; set LITE_TEST_ORIGIN to point elsewhere. Skips if
-// the server is unreachable.
+// Requires the local emulator's config archives; LITE_TEST_ORIGIN can select
+// another local origin. Cache-loading failures fail the suite instead of skipping.
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 
@@ -21,10 +21,8 @@ import { LoginError } from './net/GameConnection.js';
 import { startSession } from './session.js';
 import { LocIndex } from './world/LocIndex.js';
 
-const ORIGIN = process.env.LITE_TEST_ORIGIN ?? 'https://rs-sdk-demo.fly.dev';
-const CACHE_DIR = process.env.LITE_TEST_CACHE ?? '/tmp/rs-sdk-lite-test-cache';
+import { LITE_TEST_ORIGIN as ORIGIN, LITE_TEST_CACHE as CACHE_DIR } from './test-cache-config.js';
 
-let available = false;
 let realChecksums: number[] = [];
 
 beforeAll(async () => {
@@ -35,11 +33,10 @@ beforeAll(async () => {
         const { checksums } = await loadCache({ origin: ORIGIN, cacheDir: CACHE_DIR, quiet: true });
         realChecksums = checksums;
         await LocIndex.load({ origin: ORIGIN, cacheDir: CACHE_DIR, versionlistCrc: checksums[5], quiet: true });
-        available = true;
-    } catch {
-        available = false;
+    } catch (error) {
+        throw new Error(`Local Lite test cache unavailable at ${ORIGIN}; start scripts/start-local.ps1 -NoBot`, { cause: error });
     }
-});
+}, 60_000);
 
 afterAll(() => {
     // Don't leak the mock's checksums into later test files in this process.
@@ -138,10 +135,6 @@ let redeployed: number[] = [];
 
 describe('startSession recovery from login response 6', () => {
     test('re-fetches /crc and retries with the new checksums', async () => {
-        if (!available) {
-            return;
-        }
-
         // One archive changed on the server; the three we unpack (and the
         // versionlist) did not, so every disk cache still hits.
         redeployed = [...realChecksums];
@@ -163,10 +156,6 @@ describe('startSession recovery from login response 6', () => {
     });
 
     test('does not retry when the re-fetched checksums are unchanged', async () => {
-        if (!available) {
-            return;
-        }
-
         // The previous test's reload memoized `redeployed`; serving the same
         // set again means the response-6 is a stale build, not a redeploy.
         const mock = startMockServer(redeployed);

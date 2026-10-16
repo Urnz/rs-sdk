@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.thieving.container-theft",
+  "version": "0.1.0",
+  "name": "Steal from one configured container",
+  "description": "Attempt one coordinate-bound chest or container theft through the existing Thieving mechanics and retain observable inventory, XP, target and game-message evidence. Ownership is resolved separately by a trusted domain adapter.",
+  "status": "draft",
+  "tags": ["procedure", "thieving", "container"],
+  "parameters": {
+    "target-name": { "type": "string", "description": "Exact display name of the configured container.", "required": true },
+    "target-x": { "type": "number", "description": "Exact world X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "target-z": { "type": "number", "description": "Exact world Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "minimum-level": { "type": "number", "description": "Minimum reviewed Thieving level.", "required": true, "minimum": 1, "maximum": 99 }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-09-21T12:00:00.000Z",
+    "notes": "Phase 22 draft. Inventory deltas are observations, not trusted ownership receipts."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 30000, "maxOperations": 1 },
+  "preconditions": [{
+    "condition": "skill-level-at-least",
+    "arguments": { "skill": "Thieving", "level": { "parameter": "minimum-level" } }
+  }],
+  "steps": [{
+    "kind": "operation",
+    "id": "steal-container",
+    "operation": "thieve-container",
+    "arguments": {
+      "name": { "parameter": "target-name" },
+      "match": "exact",
+      "option": 2,
+      "x": { "parameter": "target-x" },
+      "z": { "parameter": "target-z" },
+      "timeoutMs": 15000
+    }
+  }]
+}

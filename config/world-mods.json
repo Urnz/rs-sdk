@@ -318,8 +318,8 @@
     {
       "id": "economy.diminishing-xp",
       "name": "Csökkenő XP-jutalmak",
-      "version": "1.0.0",
-      "dataSchemaVersion": 1,
+      "version": "1.2.0",
+      "dataSchemaVersion": 2,
       "category": "economy",
       "description": "Az ismételt azonos tevékenység, célpont és régió XP-jutalmát fokozatosan csökkenti, majd idővel regenerálja.",
       "activation": "hot-reload",

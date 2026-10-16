@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "channels": [
+    {
+      "channel": "business-shop",
+      "acquirerKind": "business",
+      "inspection": "observer-evidence",
+      "recognizedIneligible": "reject",
+      "provenanceDisposition": "preserve"
+    },
+    {
+      "channel": "npc-shop",
+      "acquirerKind": "npc",
+      "inspection": "observer-evidence",
+      "recognizedIneligible": "reject",
+      "provenanceDisposition": "preserve"
+    },
+    {
+      "channel": "player-trade",
+      "acquirerKind": "agent",
+      "inspection": "none",
+      "recognizedIneligible": "pass-through",
+      "provenanceDisposition": "preserve"
+    }
+  ]
+}

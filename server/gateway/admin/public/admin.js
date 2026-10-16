@@ -1,3 +1,5 @@
+import { mountSocietyDashboard } from './society-dashboard.js';
+
 const state = {
     bots: [],
     economy: null,
@@ -97,8 +99,10 @@ function toast(message, error = false) {
     toast.timer = setTimeout(() => element.classList.remove('show'), 3500);
 }
 
+const societyDashboard = mountSocietyDashboard(document.querySelector('#society-dashboard'), api);
+
 function selectAdminTab(tab) {
-    if (!['bots', 'economy', 'skills', 'agents', 'experiments', 'llm'].includes(tab)) return;
+    if (!['bots', 'economy', 'skills', 'agents', 'experiments', 'society', 'llm'].includes(tab)) return;
     state.adminTab = tab;
     document.querySelectorAll('.admin-tab').forEach(button => {
         const selected = button.dataset.tab === tab;
@@ -113,6 +117,7 @@ function selectAdminTab(tab) {
     ])
         .catch(error => toast(error.message, true));
     if (tab === 'skills') void refreshSkillDrafts().catch(error => toast(error.message, true));
+    if (tab === 'society') void societyDashboard.prepare();
 }
 
 const llmConfigSourceLabels = { 'server-override': 'Szerver saját beállítása', 'project-default': 'Projekt alapbeállítása' };

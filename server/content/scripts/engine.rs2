@@ -801,6 +801,18 @@
 [command,oc_market_buy_cost](obj $obj)(int)
 // info: Get an exact experiment-profile shop sell price, or -1 for vanilla pricing
 [command,oc_market_sell_cost](obj $obj)(int)
+// info: Return true when the classic shared-inventory shop path is enabled
+[command,shop_legacy_allowed]()(boolean)
+// info: Begin an engine-owned Thieving evidence observation (1 pickpocket, 2 lockpick, 3 container, 4 burglary)
+[command,thieving_evidence_begin](int $procedure_kind)
+// info: Commit a successful observed effect (1 item transfer, 2 lock opened, 3 entry completed)
+[command,thieving_evidence_commit](int $effect)
+// info: Resolve lock policy from the Property catalog at active_loc
+[command,property_lock_level]()(int)
+[command,property_lockpick_experience]()(int)
+[command,property_lock_chance_numerator]()(int)
+[command,property_lock_chance_denominator]()(int)
+[command,property_requires_lockpick]()(boolean)
 // info: Return true if an obj is tradeable
 [command,oc_tradeable](obj $obj)(boolean)
 // info: Get the internal debug name from an obj config

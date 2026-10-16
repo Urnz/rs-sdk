@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "policyId": "lumbridge-general-store.hammers.v1",
+      "businessId": "lumbridge-general-store",
+      "itemId": 2347,
+      "minimumStock": 2,
+      "targetStock": 8,
+      "maximumStock": 12,
+      "procurement": {
+        "maxUnitPriceGp": 10,
+        "verifiedSkills": [{ "id": "shopping.lumbridge.buy-hammers", "version": "1.0.0" }]
+      },
+      "pricing": { "mode": "fixed", "saleUnitPriceGp": 5 },
+      "sales": {
+        "minimumReserve": 2,
+        "maxUnitsPerSettlement": 5,
+        "verifiedSkills": [{ "id": "trade.lumbridge.give-item", "version": "1.0.0" }]
+      }
+    }
+  ]
+}

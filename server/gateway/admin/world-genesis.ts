@@ -2,6 +2,9 @@ import { validateWorldGenesisJsonValue, validateWorldGenesisResult, WorldGenesis
     type WorldGenesisApplication, type WorldGenesisJsonValue, type WorldGenesisResult }
     from '../../../world-genesis/index.js';
 import { worldGenesisProvenanceDbPath, worldGenesisRunDbPath } from './paths.js';
+import { join, dirname } from 'node:path';
+import { SocietyIntegrityStore } from '../../../society-integrity/store.js';
+import { loadSocietyIntegrityPolicy, societyIntegrityPolicyPath } from '../../../society-integrity/runtime.js';
 
 export interface WorldGenesisAdminPreview {
     ok: boolean;
@@ -27,11 +30,15 @@ export interface WorldGenesisAdminAdapter {
 export interface WorldGenesisAdminPaths {
     runDbPath?: string;
     provenanceDbPath?: string;
+    integrityDbPath?: string;
+    integrityPolicyPath?: string;
 }
 
 function paths(input: WorldGenesisAdminPaths): Required<WorldGenesisAdminPaths> {
     return { runDbPath: input.runDbPath ?? worldGenesisRunDbPath,
-        provenanceDbPath: input.provenanceDbPath ?? worldGenesisProvenanceDbPath };
+        provenanceDbPath: input.provenanceDbPath ?? worldGenesisProvenanceDbPath,
+        integrityDbPath: input.integrityDbPath ?? join(dirname(input.runDbPath ?? worldGenesisRunDbPath),'society-integrity.sqlite'),
+        integrityPolicyPath: input.integrityPolicyPath ?? societyIntegrityPolicyPath };
 }
 
 function confirmation(result: WorldGenesisResult, confirmationDigest: string): void {
@@ -67,11 +74,19 @@ export async function startAdminWorldGenesis(resultInput: WorldGenesisResult, co
     const resolved = paths(inputPaths), runs = new WorldGenesisRunStore(resolved.runDbPath);
     try {
         const existing = runs.get(result.resultId);
-        if (existing?.status === 'applied') return existing;
+        if (existing?.status === 'applied') {
+            if(existing.resultDigest!==result.resultDigest)throw new Error('Genesis result id is bound to another digest');
+            return existing;
+        }
         if (existing) throw new Error(`Genesis result requires recovery from ${existing.status}`);
         const prepared = await adapter.prepare(result);
         const rollbackToken = validateWorldGenesisJsonValue(prepared.rollbackToken, 'Genesis rollback token');
         const createdAtSimulationTime = simulationTimestamp(prepared.createdAtSimulationTime);
+        const social=['mature-society','historical-burn-in'].includes(result.profile.profileId);
+        if(social) {
+            const integrity=new SocietyIntegrityStore(resolved.integrityDbPath);
+            try {integrity.begin(result,loadSocietyIntegrityPolicy(resolved.integrityPolicyPath).invalidateOnInjection,createdAtSimulationTime);}finally{integrity.close();}
+        }
         let application = runs.begin(result, rollbackToken, now);
         try {
             const receipt = validateWorldGenesisJsonValue(await adapter.apply(result, rollbackToken),
@@ -80,6 +95,10 @@ export async function startAdminWorldGenesis(resultInput: WorldGenesisResult, co
             try { provenance.recordResult(result, createdAtSimulationTime, now); }
             finally { provenance.close(); }
             application = runs.finishApply(result.resultId, application.revision, receipt, now);
+            if(social) {
+                const integrity=new SocietyIntegrityStore(resolved.integrityDbPath);
+                try{integrity.finishBootstrap(result.resultId);}finally{integrity.close();}
+            }
             return application;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -102,6 +121,10 @@ export async function resetAdminWorldGenesis(resultId: string, expectedRevision:
         try {
             const resetReceipt = validateWorldGenesisJsonValue(await adapter.reset(application.result,
                 application.rollbackToken, application.applyReceipt), 'Genesis reset receipt');
+            if(['mature-society','historical-burn-in'].includes(application.result.profile.profileId)) {
+                const integrity=new SocietyIntegrityStore(resolved.integrityDbPath);
+                try{integrity.reset(application.resultId);}finally{integrity.close();}
+            }
             application = runs.finishReset(resultId, application.revision, now);
             return { application, resetReceipt };
         } catch (error) {

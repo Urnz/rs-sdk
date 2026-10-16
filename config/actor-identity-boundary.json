@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "defaultDisposition": "ambient",
+  "visualTypePromotion": "forbidden",
+  "economicEvidenceKinds": [
+    "business-ownership",
+    "business-employment",
+    "property-entitlement",
+    "treasury-control"
+  ],
+  "socialEvidenceKinds": [
+    "governance-membership",
+    "social-relationship"
+  ]
+}

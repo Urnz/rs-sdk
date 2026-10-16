@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "chains": [
+    {
+      "foodChainId": "lobster",
+      "rawItem": { "itemId": 377, "name": "Raw lobster", "sourceSkill": "Fishing" },
+      "cookedItem": { "itemId": 379, "name": "Lobster" },
+      "processingSkill": "Cooking",
+      "hungerRelief": 1800
+    }
+  ]
+}

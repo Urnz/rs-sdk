@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "policyId": "default-property-witness-attention",
+  "version": "1.0.0",
+  "bands": [
+    { "maxDistance": 3, "attentionBasisPoints": 6000 },
+    { "maxDistance": 8, "attentionBasisPoints": 3000 },
+    { "maxDistance": 15, "attentionBasisPoints": 1000 }
+  ]
+}

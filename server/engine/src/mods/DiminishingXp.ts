@@ -1,6 +1,9 @@
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync, openSync, closeSync, fsyncSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {canonicalXpPlayers,makeXpStateSnapshot,validateXpStateSnapshot,xpCohort,xpConfigurationDigest,xpStateDigest,
+    type XpStateSnapshot,type XpPlayerState} from '../../../../society-experiments/xp-state.js';
 
 export interface XpActivityContext {
     script: string;
@@ -40,9 +43,25 @@ interface PlayerState {
     activities: Record<string, ActivityState>;
 }
 
+interface BaselineCommand {kind:'reset'|'restore';commandId:string;expectedStoreDigest:string;reason:string;cohort:string[];sourceCommandId:string|null}
+export interface XpBaselineReceipt {sequence:number;request:BaselineCommand;at:string;before:XpStateSnapshot;beforePlayers:Record<string,XpPlayerState>;afterCohortDigest:string;previousHash:string;hash:string}
 interface PersistedState {
-    schemaVersion: 1;
+    schemaVersion: 1 | 2;
     players: Record<string, PlayerState>;
+    audit?:{sequence:number;headHash:string;entries:XpBaselineReceipt[]};
+}
+const auditRoot=xpStateDigest('diminishing-xp-baseline-audit-v1');
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+function baselineCommand(raw:BaselineCommand):BaselineCommand{
+    if(!raw || !uuid.test(raw.commandId) || !/^[0-9a-f]{64}$/.test(raw.expectedStoreDigest)
+        || typeof raw.reason!=='string' || !raw.reason.trim() || raw.reason.length>1000
+        || !['reset','restore'].includes(raw.kind) || (raw.kind==='reset'?raw.sourceCommandId!==null:!uuid.test(raw.sourceCommandId??'')))
+        throw new Error('Invalid XP baseline command');
+    return {...raw,cohort:xpCohort(raw.cohort)};
+}
+function rawFileDigest(path:string):string|null{
+    try{return createHash('sha256').update(readFileSync(path)).digest('hex');}
+    catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return null;throw error;}
 }
 
 export interface DiminishingXpSummary {
@@ -100,10 +119,11 @@ function validActivityState(value: unknown): value is ActivityState {
         && typeof entry.grantedXp === 'number' && Number.isFinite(entry.grantedXp) && entry.grantedXp >= 0;
 }
 
-function loadState(path: string): PersistedState {
+function loadState(path: string): {state:PersistedState;fileDigest:string|null} {
     try {
-        const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-        if (!parsed || typeof parsed !== 'object' || (parsed as { schemaVersion?: unknown }).schemaVersion !== 1) {
+        const bytes=readFileSync(path);
+        const parsed = JSON.parse(bytes.toString('utf8')) as unknown;
+        if (!parsed || typeof parsed !== 'object' || ![1,2].includes(Number((parsed as { schemaVersion?: unknown }).schemaVersion))) {
             throw new Error('unsupported state schema');
         }
         const players = (parsed as { players?: unknown }).players;
@@ -114,9 +134,29 @@ function loadState(path: string): PersistedState {
             if (!activities || typeof activities !== 'object' || Array.isArray(activities)
                 || !Object.values(activities as Record<string, unknown>).every(validActivityState)) throw new Error('invalid activity state');
         }
-        return parsed as PersistedState;
+        const state=parsed as PersistedState;state.players=canonicalXpPlayers(players);
+        if(state.schemaVersion===1){if(state.audit!==undefined)throw new Error('Legacy XP schema cannot contain audit history');}
+        else{
+            const audit=state.audit;if(!audit || !Array.isArray(audit.entries) || audit.entries.length>10000 || audit.entries.length!==audit.sequence)throw new Error('XP audit tail differs');
+            let head=auditRoot;const ids=new Set<string>();
+            for(const [index,entry] of audit.entries.entries()){
+                const {hash,...body}=entry;baselineCommand(entry.request);validateXpStateSnapshot(entry.before);
+                canonicalXpPlayers(entry.beforePlayers);
+                if(Object.keys(entry.beforePlayers).some(name=>!entry.request.cohort.includes(name))
+                    || makeXpStateSnapshot(entry.beforePlayers,entry.request.cohort,entry.before.configurationDigest,entry.before.storeDigest,entry.before.observedAt).cohortDigest!==entry.before.cohortDigest)
+                    throw new Error('XP audit before-image differs');
+                if(entry.sequence!==index+1 || entry.previousHash!==head || hash!==xpStateDigest(body) || ids.has(entry.request.commandId)
+                    || new Date(entry.at).toISOString()!==entry.at || entry.before.cohort.join(',')!==entry.request.cohort.join(',')
+                    || !/^[0-9a-f]{64}$/.test(entry.afterCohortDigest))throw new Error('XP audit chain differs');
+                if(entry.request.kind==='restore' && !audit.entries.slice(0,index).some(source=>source.request.commandId===entry.request.sourceCommandId && source.request.kind==='reset'))
+                    throw new Error('XP restore source missing');
+                ids.add(entry.request.commandId);head=hash;
+            }
+            if(audit.headHash!==head)throw new Error('XP audit head differs');
+        }
+        return {state,fileDigest:createHash('sha256').update(bytes).digest('hex')};
     } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { schemaVersion: 1, players: {} };
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {state:{ schemaVersion: 1, players: {} },fileDigest:null};
         throw new Error(`Diminishing XP state cannot be loaded: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
@@ -142,10 +182,11 @@ export function multiplierForRepetition(repetition: number, config: DiminishingX
 }
 
 export class DiminishingXpStore {
-    private readonly state: PersistedState;
+    private state: PersistedState;
+    private fileDigest:string|null;
 
     constructor(private readonly path = defaultStatePath) {
-        this.state = loadState(path);
+        const loaded=loadState(path);this.state=loaded.state;this.fileDigest=loaded.fileDigest;
     }
 
     award(
@@ -159,22 +200,24 @@ export class DiminishingXpStore {
         const playerKey = username.trim().toLowerCase();
         if (!playerKey) throw new Error('Diminishing XP award requires a player identity');
         const activityKey = buildXpActivityKey(skill, context, config.regionSize);
-        const player = this.state.players[playerKey] ?? { activities: {} };
-        const previous = player.activities[activityKey];
+        xpCohort([playerKey]);
+        if(!Number.isFinite(baseXp)||baseXp<0||!Number.isSafeInteger(now)||now<0)throw new Error('Invalid XP award');
+        const player = Object.hasOwn(this.state.players,playerKey)?this.state.players[playerKey]!:{activities:{}};
+        const previous = Object.hasOwn(player.activities,activityKey)?player.activities[activityKey]:undefined;
         const repetitionScore = previous
             ? decayRepetitionScore(previous.repetitionScore, previous.updatedAt, now, config.recoveryMinutes)
             : 0;
         const multiplier = multiplierForRepetition(Math.ceil(repetitionScore) + 1, config);
         const grantedXp = baseXp === 0 || multiplier === 0 ? 0 : Math.max(1, Math.round(baseXp * multiplier));
-        player.activities[activityKey] = {
+        const activity = {
             repetitionScore: repetitionScore + 1,
             updatedAt: now,
             awards: (previous?.awards ?? 0) + 1,
             baseXp: (previous?.baseXp ?? 0) + baseXp,
             grantedXp: (previous?.grantedXp ?? 0) + grantedXp
         };
-        this.state.players[playerKey] = player;
-        this.persist();
+        const players=canonicalXpPlayers({...this.state.players,[playerKey]:{activities:{...player.activities,[activityKey]:activity}}});
+        this.persist({...this.state,players});
         return {
             activityKey, baseXp, grantedXp, multiplier, repetitionScore: repetitionScore + 1,
             nextRecoveryAt: repetitionScore + 1 > 0 ? new Date(now + config.recoveryMinutes * 60_000).toISOString() : null
@@ -211,15 +254,51 @@ export class DiminishingXpStore {
         return activities.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, Math.max(1, limit));
     }
 
-    private persist(): void {
+    snapshot(cohort:string[],configuration:Record<string,boolean|number|string>,now=Date.now()):XpStateSnapshot{
+        this.assertCurrent();parseDiminishingXpConfig(configuration);
+        return makeXpStateSnapshot(this.state.players,cohort,xpConfigurationDigest(configuration),xpStateDigest(this.state),new Date(now).toISOString());
+    }
+
+    /** Caller must establish that every selected player is offline before changing XP history. */
+    applyBaseline(raw:BaselineCommand,configuration:Record<string,boolean|number|string>,now=Date.now()){
+        const request=baselineCommand(raw);this.assertCurrent();
+        const existing=this.state.audit?.entries.find(entry=>entry.request.commandId===request.commandId);
+        if(existing){if(xpStateDigest(existing.request)!==xpStateDigest(request))throw new Error('XP command identity conflict');
+            return {receipt:structuredClone(existing),replayed:true,snapshot:this.snapshot(request.cohort,configuration,now)};}
+        if(request.expectedStoreDigest!==xpStateDigest(this.state))throw new Error('XP baseline compare-and-set conflict');
+        const before=this.snapshot(request.cohort,configuration,now);
+        let restored:Record<string,XpPlayerState>={};
+        if(request.kind==='restore'){
+            const source=this.state.audit?.entries.find(entry=>entry.request.commandId===request.sourceCommandId && entry.request.kind==='reset');
+            if(!source || source.before.cohort.join(',')!==request.cohort.join(',') || source.before.configurationDigest!==before.configurationDigest)
+                throw new Error('XP restore requires an exact native reset and configuration');
+            restored=source.beforePlayers;
+        }
+        const players=canonicalXpPlayers(Object.fromEntries(Object.entries(this.state.players).filter(([name])=>!request.cohort.includes(name))));
+        for(const [name,player] of Object.entries(restored))Object.defineProperty(players,name,{value:structuredClone(player),enumerable:true,configurable:true,writable:true});
+        const audit=this.state.audit??{sequence:0,headHash:auditRoot,entries:[]};
+        if(audit.entries.length>=10000)throw new Error('XP baseline audit limit reached');
+        const after=makeXpStateSnapshot(players,request.cohort,before.configurationDigest,before.storeDigest,before.observedAt);
+        const beforePlayers=canonicalXpPlayers(Object.fromEntries(Object.entries(this.state.players).filter(([name])=>request.cohort.includes(name))));
+        const body={sequence:audit.sequence+1,request,at:before.observedAt,before,beforePlayers,afterCohortDigest:after.cohortDigest,previousHash:audit.headHash};
+        const receipt={...body,hash:xpStateDigest(body)};
+        this.persist({schemaVersion:2,players,audit:{sequence:receipt.sequence,headHash:receipt.hash,entries:[...audit.entries,receipt]}});
+        return {receipt:structuredClone(receipt),replayed:false,snapshot:this.snapshot(request.cohort,configuration,now)};
+    }
+    private assertCurrent(){if(rawFileDigest(this.path)!==this.fileDigest)throw new Error('XP state changed outside this runtime; restart required');}
+    private persist(next:PersistedState): void {
         mkdirSync(dirname(this.path), { recursive: true });
         const temporary = `${this.path}.${process.pid}.${crypto.randomUUID()}.tmp`;
+        const lock=`${this.path}.lock`;let descriptor:number|undefined;
         try {
-            writeFileSync(temporary, `${JSON.stringify(this.state, null, 2)}\n`, 'utf8');
+            descriptor=openSync(lock,'wx',0o600);this.assertCurrent();
+            writeFileSync(temporary, `${JSON.stringify(next, null, 2)}\n`, {encoding:'utf8',mode:0o600,flag:'wx'});
+            const file=openSync(temporary,'r+');try{fsyncSync(file);}finally{closeSync(file);}
             renameSync(temporary, this.path);
+            this.state=next;this.fileDigest=rawFileDigest(this.path);
         } catch (error) {
             try { unlinkSync(temporary); } catch { /* nothing to clean up */ }
             throw error;
-        }
+        }finally{if(descriptor!==undefined){closeSync(descriptor);try{unlinkSync(lock);}catch{/* A retained lock requires operator recovery, never a competing write. */}}}
     }
 }

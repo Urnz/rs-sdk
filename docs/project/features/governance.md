@@ -70,7 +70,9 @@ obligations. Version 5 adds exemptions, obligation resolutions and their append-
 verified manor-property portfolio and its audit. Version 7 adds faction lifecycle state and audit. Version 8 adds
 nullable shared-simulation stamps and a per-clock sequence uniqueness constraint to verified source events. Each migration
 runs in one immediate transaction, and the full
-v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Future migrations must upgrade one
+v1-to-current path has a reopen-and-migrate test using a prior-schema fixture. Version 9 adds the
+jurisdiction-linked, versioned crime policy and append-only hash-chain audit (see
+`crime-cases.md`). Future migrations must upgrade one
 known version at a time and preserve stable IDs. Unknown versions fail closed instead of being silently rewritten.
 
 Rollback for version 8 is operational: stop governance, collection and manor-property writers, then restore the

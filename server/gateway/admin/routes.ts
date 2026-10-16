@@ -1,5 +1,16 @@
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { SocietyIntegrityStore } from '../../../society-integrity/store.js';
+import { societyIntegrityDbPath } from '../../../society-integrity/runtime.js';
+import { reportSelfSufficiency, reportSocietyEvaluation, societyEvaluationContract, type MetricSourcePaths } from '../../../society-metrics/index.js';
+import { reportSocietyDashboard, readSocietyDashboardEvent, SocietyDashboardError } from '../../../society-metrics/dashboard.js';
+import { observeExternalTrade, reportExternalTrade, defaultExternalTradeOptions, type ExternalTradeOptions } from '../../../external-trade/runtime.js';
+import { reportEconomicDependencies, reportEconomicRisk, type DependencyOptions } from '../../../economic-dependency/index.js';
+import { readLongExperimentReport, readLongExperimentComparison } from '../../../society-experiments/runtime.js';
+import {xpBaselineClient} from './xp-baseline.js';
+import {xpExecutionClient} from './xp-execution.js';
+import type { LongExperimentDependencies } from '../../../society-experiments/controller.js';
+import { extname, join, dirname } from 'node:path';
 import { appendAudit, readAudit } from './audit';
 import { buildBotCatalog, describeLiveActivity, economySnapshot, readEconomy, recordEconomy } from './catalog';
 import { adminPublicDir, adminTrashDir, agentSkillsLocalDir, botsDir, experimentsDir, playerSavesDir,
@@ -85,7 +96,7 @@ import { resolveLearnAndPlan } from './deterministic-learning.js';
 import { compareExperimentCalibrations } from './experiment-calibration.js';
 import { compareMultiAgentExperiments, MultiAgentExperimentStore, readMultiAgentExperimentGoalEvents,
     readMultiAgentExperimentGoalSnapshots,
-    startMultiAgentExperiment,
+    startMultiAgentExperiment, previewMultiAgentExperiment, experimentInitialStateDigest, validateMultiAgentExperimentEnvironment,
     type MultiAgentExperimentEnvironment } from './multi-agent-experiments.js';
 import { multiAgentExperimentsDbPath } from './paths.js';
 import { ExperimentParameterStore, type ExperimentParameterOrigin,
@@ -107,9 +118,16 @@ import { BusinessManagerStore, type BusinessPolicyMode, type BusinessStatus,
 import { proposeBusinessPolicyForAgent } from './business-agent-port.js';
 import { businessManagerDbPath, economicContractsDbPath } from './paths.js';
 import { loadWorldGenesisProfileCatalog, type WorldGenesisResult } from '../../../world-genesis/index.js';
+import { populationEntryDefaults, runAdminPopulationEntry, type PopulationEntryAdminOptions } from './population-entry.js';
+import { populationDemographicDefaults, readPopulationDemographics, type PopulationDemographicOptions } from './population-demographics.js';
 import { listAdminWorldGenesis, previewAdminWorldGenesis, resetAdminWorldGenesis, startAdminWorldGenesis,
     type WorldGenesisAdminAdapter, type WorldGenesisAdminPaths } from './world-genesis.js';
 import { worldGenesisProfileCatalogPath } from './paths.js';
+import { executeAdminInheritance, previewAdminInheritance, loadInheritancePolicy, type EstateRuntimeOptions } from '../../../population-estate/index.js';
+import { defaultEstateRuntimeOptions } from './population-estate-runtime.js';
+import { populationInheritancePolicyPath } from './paths.js';
+import { loadMemoryTransferPolicy } from '../../../agent-state/memory-transfer.js';
+import { populationMemoryTransferPolicyPath, populationHealthEngineEvidencePath } from './paths.js';
 
 export interface AdminRouteContext {
     gatewayBots(): Map<string, GatewayBotSnapshot>;
@@ -119,6 +137,17 @@ export interface AdminRouteContext {
     simulationClock?: EconomyEventSimulationClock;
     worldGenesisAdapter?: WorldGenesisAdminAdapter;
     worldGenesisPaths?: WorldGenesisAdminPaths;
+    selfSufficiencySources?: MetricSourcePaths;
+    externalTradeOptions?: ExternalTradeOptions;
+    dependencyGraphOptions?: DependencyOptions;
+    longExperimentJournalPath?: string;
+    longExperimentDependencies?: LongExperimentDependencies;
+    populationEstateOptions?: EstateRuntimeOptions;
+    populationInheritancePolicyPath?: string;
+    populationMemoryTransferPolicyPath?: string;
+    populationMemoryEnginePath?: string;
+    populationEntryOptions?: PopulationEntryAdminOptions;
+    populationDemographicOptions?: PopulationDemographicOptions;
 }
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN?.trim() || '';
@@ -456,14 +485,15 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             catch { unavailableSources.push('properties'); }
             return json(await listAdminAgents(context.agentStatePath ?? agentStateDbPath, {
                 bots, properties, unavailableSources, observedAt: new Date().toISOString(),
-                gatewayBots: context.gatewayBots()
+                gatewayBots: context.gatewayBots(), simulationClock: context.simulationClock
             }));
         }
 
         if (req.method === 'GET' && url.pathname === '/api/admin/autonomy/status') {
             const bots = await catalog();
             const agents = await listAdminAgents(context.agentStatePath ?? agentStateDbPath, {
-                bots, observedAt: new Date().toISOString(), gatewayBots: context.gatewayBots()
+                bots, observedAt: new Date().toISOString(), gatewayBots: context.gatewayBots(),
+                simulationClock: context.simulationClock
             });
             return json(readAutonomyObservability(agents.agents, {
                 agentPath: context.agentStatePath ?? agentStateDbPath,
@@ -595,6 +625,87 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/multi-agent-experiments/environment') return json(await activeExperimentEnvironment());
+        if(url.pathname==='/api/admin/society/xp-baseline'){
+            if(req.method==='GET')return json(await xpBaselineClient()(url.searchParams.getAll('player')));
+            if(req.method!=='POST')return json({error:'Method not allowed'},405);
+            const body=await requestBody(req);const result=await xpBaselineClient()(body.cohort as string[],body);
+            await appendAudit({operator:'local-admin',action:'society.xp-baseline',reason:String(body.reason??''),success:true,
+                after:{commandId:body.commandId,kind:body.kind,cohort:body.cohort}});return json(result);
+        }
+        const xpExecutionMatch=url.pathname.match(/^\/api\/admin\/society\/xp-execution\/([0-9a-f-]{36})$/);
+        if(xpExecutionMatch){
+            if(req.method==='GET')return json(await xpExecutionClient().read(xpExecutionMatch[1]!));
+            if(req.method!=='POST')return json({error:'Method not allowed'},405);
+            const body=await requestBody(req);
+            if(Object.keys(body).sort().join(',')!=='action,reason'||body.action!=='seal')throw new Error('Only explicit XP execution seal recovery is supported');
+            const reason=text(body,'reason',true),result=await xpExecutionClient().seal(xpExecutionMatch[1]!);
+            await appendAudit({operator:'local-admin',action:'society.xp-execution.seal',reason,success:true,after:{experimentId:xpExecutionMatch[1],digest:result.digest}});
+            return json(result);
+        }
+        const exactExperiment = url.pathname.match(/^\/api\/admin\/multi-agent-experiments\/([0-9a-f-]{36})$/i);
+        if (req.method === 'GET' && exactExperiment) {
+            if (!existsSync(multiAgentExperimentsDbPath)) return json({ experiment: null });
+            const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath, true);
+            try { return json({ experiment: store.get(exactExperiment[1]!) }); } finally { store.close(); }
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/population-demographics') {
+            if (!context.simulationClock) throw new Error('Demographic metrics require the shared SimulationClock');
+            const options = context.populationDemographicOptions ?? { ...populationDemographicDefaults(context.simulationClock),
+                estate: context.populationEstateOptions ?? defaultEstateRuntimeOptions() };
+            if (options.simulationClock.store !== context.simulationClock.store || options.simulationClock.clockId !== context.simulationClock.clockId
+                || context.agentStatePath && context.agentStatePath !== options.agentPath) throw new Error('Demographic authority conflicts with gateway context');
+            const report = readPopulationDemographics(options, url.searchParams.get('fromSimulationTime') ?? '');
+            return json({ ok: report.status !== 'unavailable', report }, report.status === 'unavailable' ? 503 : 200);
+        }
+
+        if (req.method === 'POST' && ['/api/admin/population-entry/preview', '/api/admin/population-entry/apply'].includes(url.pathname)) {
+            if (!context.simulationClock) throw new Error('Population entry requires the shared SimulationClock');
+            const body = await requestBody(req), reason = text(body, 'reason', true);
+            const options = context.populationEntryOptions ?? populationEntryDefaults(context.simulationClock);
+            if (options.simulationClock.store !== context.simulationClock.store || options.simulationClock.clockId !== context.simulationClock.clockId
+                || context.agentStatePath && context.agentStatePath !== options.agentPath) throw new Error('Population entry authority conflicts with gateway context');
+            const request = body.request, apply = url.pathname.endsWith('/apply');
+            try {
+                const result = runAdminPopulationEntry({ ...options, onlineUsernames: [...context.gatewayBots().keys()] }, request,
+                    apply ? { expectedPlanDigest: text(body, 'expectedPlanDigest', true), reason } : undefined);
+                await appendAudit({ operator: 'local-admin', action: apply ? 'population-entry.apply' : 'population-entry.preview',
+                    reason, success: true, after: result });
+                return json({ ok: true, result, activation: 'separate-local-avatar-login' });
+            } catch (error) {
+                await appendAudit({ operator: 'local-admin', action: apply ? 'population-entry.apply' : 'population-entry.preview',
+                    reason, success: false, error: String(error) });
+                throw error;
+            }
+        }
+
+        const memoryMatch=url.pathname.match(/^\/api\/admin\/population-memory\/([^/]+)\/(archive|transfer-preview|transfer)$/);
+        if(memoryMatch&&(req.method==='POST'||req.method==='GET'&&memoryMatch[2]==='archive')) {
+            const sourceAgentId=decodeURIComponent(memoryMatch[1]!),store=new AgentStateStore(context.agentStatePath??agentStateDbPath);
+            try {
+                if(memoryMatch[2]==='archive')return json(store.getPopulationMemoryArchive(sourceAgentId));
+                const body=await requestBody(req),selection={sourceAgentId,recipientAgentId:text(body,'recipientAgentId',true),ruleId:text(body,'ruleId',true),reason:text(body,'reason',true)};
+                const policy=loadMemoryTransferPolicy(context.populationMemoryTransferPolicyPath??populationMemoryTransferPolicyPath);
+                const enginePath=context.populationMemoryEnginePath??populationHealthEngineEvidencePath;
+                return json(memoryMatch[2]==='transfer-preview'?store.previewArchivedKnowledge(enginePath,policy,selection):
+                    store.transferArchivedKnowledge(enginePath,policy,{...selection,transferId:text(body,'transferId',true),previewDigest:text(body,'previewDigest',true)}));
+            }finally{store.close();}
+        }
+
+        const inheritanceMatch = url.pathname.match(/^\/api\/admin\/population-estates\/([^/]+)\/(inheritance-preview|inheritance)$/);
+        if (req.method === 'POST' && inheritanceMatch) {
+            const body = await requestBody(req), options = context.populationEstateOptions ?? defaultEstateRuntimeOptions();
+            if (context.agentStatePath && context.agentStatePath !== options.sources.agents) throw new Error('Inheritance AgentState source conflicts');
+            const selection = {estateId:decodeURIComponent(inheritanceMatch[1]!),heirAgentId:text(body,'heirAgentId',true),
+                ruleId:text(body,'ruleId',true),reason:text(body,'reason',true)};
+            const policy = loadInheritancePolicy(context.populationInheritancePolicyPath ?? populationInheritancePolicyPath);
+            if (inheritanceMatch[2] === 'inheritance-preview') return json(previewAdminInheritance(options,policy,selection));
+            const result = executeAdminInheritance(options,policy,{...selection,decisionId:text(body,'decisionId',true),
+                expectedRevision:body.expectedRevision as number,previewDigest:text(body,'previewDigest',true)});
+            return json(result);
+        }
+
         if (req.method === 'GET' && url.pathname === '/api/admin/world-genesis/profiles') {
             return json(loadWorldGenesisProfileCatalog(worldGenesisProfileCatalogPath));
         }
@@ -602,6 +713,76 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         if (req.method === 'GET' && url.pathname === '/api/admin/world-genesis/runs') {
             return json({ runs: listAdminWorldGenesis(context.worldGenesisPaths,
                 Number(url.searchParams.get('limit') || 50)) });
+        }
+
+        if (req.method === 'GET' && ['/api/admin/economy/dependencies', '/api/admin/economy/dependency-risk'].includes(url.pathname)) {
+            const report = url.pathname.endsWith('/dependency-risk') ? reportEconomicRisk : reportEconomicDependencies;
+            return json(report({ from: url.searchParams.get('from') ?? '', to: url.searchParams.get('to') ?? '',
+                basis: (url.searchParams.get('basis') ?? 'simulation') as 'wall' | 'simulation', clockId: url.searchParams.get('clockId') ?? undefined,
+                clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? undefined }, context.dependencyGraphOptions));
+        }
+        if (req.method === 'GET' && url.pathname === '/api/admin/society/long-experiment-comparison')
+            return json(readLongExperimentComparison({schemaVersion:1,axis:url.searchParams.get('axis')??'diminishing-xp',
+                controlSessionId:url.searchParams.get('control'),treatmentSessionId:url.searchParams.get('treatment')},
+            {controlJournalPath:context.longExperimentJournalPath,controlDependencies:context.longExperimentDependencies}));
+        const longExperimentMatch = url.pathname.match(/^\/api\/admin\/society\/long-experiments\/([a-z0-9][a-z0-9.-]{0,63})$/);
+        if (req.method === 'GET' && longExperimentMatch) return json(readLongExperimentReport(longExperimentMatch[1]!,context.longExperimentJournalPath,context.longExperimentDependencies));
+        if (req.method === 'GET' && url.pathname === '/api/admin/society/evaluation/contract')
+            return json(societyEvaluationContract());
+        const dashboardEvent = url.pathname.match(/^\/api\/admin\/society\/dashboard\/events\/([^/]+)$/);
+        if (req.method === 'GET' && (url.pathname === '/api/admin/society/dashboard' || dashboardEvent)) {
+            const query = { fromSimulationTime: url.searchParams.get('from') ?? '', toSimulationTime: url.searchParams.get('to') ?? '',
+                clockId: url.searchParams.get('clockId') ?? '', clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '',
+                actorAgentIds: url.searchParams.getAll('actor') };
+            const numeric = (key: string) => {
+                const value = url.searchParams.get(key); if (value === null) return undefined;
+                if (!/^(0|[1-9]\d*)$/.test(value)) throw new SocietyDashboardError(`Invalid ${key}`); return Number(value);
+            };
+            const filters = { agent: url.searchParams.get('agent') ?? undefined, business: url.searchParams.get('business') ?? undefined,
+                itemId: numeric('itemId'), region: url.searchParams.get('region') ?? undefined, metric: url.searchParams.get('metric') ?? undefined,
+                eventFrom: url.searchParams.get('eventFrom') ?? undefined, eventTo: url.searchParams.get('eventTo') ?? undefined,
+                offset: numeric('offset'), limit: numeric('limit'), snapshot: url.searchParams.get('snapshot') ?? undefined };
+            const options = { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions };
+            try {
+                return json(dashboardEvent ? readSocietyDashboardEvent(query, filters, decodeURIComponent(dashboardEvent[1]!), options)
+                    : reportSocietyDashboard(query, filters, options));
+            } catch (error) { if (error instanceof SocietyDashboardError) return json({ error: error.message }, error.status); throw error; }
+        }
+        if (req.method === 'GET' && url.pathname === '/api/admin/society/evaluation') {
+            return json(reportSocietyEvaluation({ fromSimulationTime: url.searchParams.get('from') ?? '',
+                toSimulationTime: url.searchParams.get('to') ?? '', clockId: url.searchParams.get('clockId') ?? '',
+                clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '', actorAgentIds: url.searchParams.getAll('actor') },
+            { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions }));
+        }
+        if (req.method === 'GET' && url.pathname === '/api/admin/society/self-sufficiency') {
+            return json(reportSelfSufficiency({ fromSimulationTime: url.searchParams.get('from') ?? '',
+                toSimulationTime: url.searchParams.get('to') ?? '', clockId: url.searchParams.get('clockId') ?? '',
+                actorAgentIds: url.searchParams.getAll('actor') }, { configDirectory: join(repoRoot, 'config'),
+                sources: context.selfSufficiencySources }));
+        }
+        const externalTradeMatch = url.pathname.match(/^\/api\/admin\/world-genesis\/([^/]+)\/external-trade(?:\/(observe))?$/);
+        if (externalTradeMatch) {
+            const runId = decodeURIComponent(externalTradeMatch[1]!), options = context.externalTradeOptions ?? defaultExternalTradeOptions();
+            if (req.method === 'GET' && !externalTradeMatch[2]) return json(reportExternalTrade(options, runId,
+                url.searchParams.get('from') ?? '', url.searchParams.get('to') ?? ''));
+            if (req.method === 'POST' && externalTradeMatch[2] === 'observe') {
+                const body = await requestBody(req), reason = text(body, 'reason', true), result = observeExternalTrade(options, runId);
+                await appendAudit({ operator: 'local-admin', action: 'external-trade.observe', reason,
+                    success: true, after: { runId, added: result.added } });
+                return json(result);
+            }
+        }
+        const integrityMatch=url.pathname.match(/^\/api\/admin\/world-genesis\/([^/]+)\/integrity$/);
+        if(req.method==='GET' && integrityMatch) {
+            const location=context.worldGenesisPaths?.integrityDbPath
+                ?? (context.worldGenesisPaths?.runDbPath?join(dirname(context.worldGenesisPaths.runDbPath),'society-integrity.sqlite'):societyIntegrityDbPath);
+            if(!existsSync(location))return json({status:'unavailable',reason:'No observed society integrity history.'});
+            const integrity=new SocietyIntegrityStore(location,true);
+            try {
+                const runId=decodeURIComponent(integrityMatch[1]!);
+                if(!integrity.get(runId))return json({status:'unavailable',reason:'No observed society integrity history.'});
+                return json(integrity.report(runId));
+            }finally{integrity.close();}
         }
 
         if (req.method === 'POST' && url.pathname === '/api/admin/world-genesis/preview') {
@@ -735,6 +916,13 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const store = new BusinessManagerStore(businessManagerDbPath);
             try {
                 return json({ businesses: store.list(Number(url.searchParams.get('limit') || 100)) });
+            } finally { store.close(); }
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/admin/business-role-definitions') {
+            const store = new BusinessManagerStore(businessManagerDbPath);
+            try {
+                return json({ roleDefinitions: store.listRoleDefinitions() });
             } finally { store.close(); }
         }
 
@@ -940,8 +1128,11 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             if (!knownAgents.has(workerAgentId)) throw new Error('A dolgozónak létező persistent agentnek kell lennie.');
             const store = new BusinessManagerStore(businessManagerDbPath);
             try {
+                const role = body.role === undefined ? undefined
+                    : oneOf<EmploymentRole>(body.role, ['manager', 'worker'], 'role');
                 const employment = store.hire(businessEmploymentMatch[1], { workerAgentId,
-                    role: oneOf<EmploymentRole>(body.role, ['manager', 'worker'], 'role'),
+                    role,
+                    roleDefinitionId: text(body, 'roleDefinitionId') || undefined,
                     title: text(body, 'title', true), wageGp: Number(body.wageGp),
                     requiredSkill: body.requiredSkill as { id: string; version: string } | null });
                 await appendAudit({ operator: 'local-admin', action: 'business.employment.create', reason,
@@ -1978,20 +2169,21 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 throw error;
             } finally { store.close(); }
         }
-        if (req.method === 'POST' && url.pathname === '/api/admin/multi-agent-experiments') {
+        if (req.method === 'POST' && ['/api/admin/multi-agent-experiments', '/api/admin/multi-agent-experiments/preflight'].includes(url.pathname)) {
             const body = await requestBody(req);
             const reason = text(body, 'reason', true);
             const agentIds = Array.isArray(body.agentIds) ? body.agentIds.map(value => String(value)) : [];
-            if (!context.replanCoordinator) throw new Error('Az autonóm újratervező nem érhető el.');
-            const store = new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
+            const preview = url.pathname.endsWith('/preflight');
+            if (!preview && !context.replanCoordinator) throw new Error('Az autonóm újratervező nem érhető el.');
+            const store = preview ? null : new MultiAgentExperimentStore(multiAgentExperimentsDbPath);
             try {
                 const initial = await listAdminAgents();
                 const gateways = context.gatewayBots();
-                const started = await startMultiAgentExperiment({ label: text(body, 'label', true),
+                const input = { label: text(body, 'label', true),
                     seed: text(body, 'seed', true), summary: text(body, 'summary', true), agentIds,
                     parameterProfileId: text(body, 'parameterProfileId', true),
-                    parameterProfileVersion: text(body, 'parameterProfileVersion', true) }, {
-                    store, coordinator: context.replanCoordinator,
+                    parameterProfileVersion: text(body, 'parameterProfileVersion', true) };
+                const dependencies = {
                     listCandidates: async () => initial.agents.map(agent => {
                         const avatar = agent.controlProfile.avatarPlayerUsername;
                         const gateway = avatar ? [...gateways.entries()]
@@ -2020,9 +2212,9 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                                 && Date.now() - gateway.lastStateReceivedAt <= 5_000) };
                     }),
                     economySnapshot: async () => economySnapshot(await catalog()),
-                    goalSnapshots: async ids => readMultiAgentExperimentGoalSnapshots(ids),
-                    goalEvents: async (ids, since, until) => readMultiAgentExperimentGoalEvents(ids, since, until),
-                    parameterProfile: async (profileId, version) => {
+                    goalSnapshots: async (ids: readonly string[]) => readMultiAgentExperimentGoalSnapshots(ids),
+                    goalEvents: async (ids: readonly string[], since: string, until: string) => readMultiAgentExperimentGoalEvents(ids, since, until),
+                    parameterProfile: async (profileId: string, version: string) => {
                         const profiles = new ExperimentParameterStore(experimentParametersDbPath);
                         try {
                             const profile = profiles.get(profileId, version);
@@ -2030,8 +2222,21 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                             return profile;
                         } finally { profiles.close(); }
                     },
-                    worldModEnvironment: activeExperimentEnvironment
-                });
+                    worldModEnvironment: activeExperimentEnvironment,
+                    xpSnapshot:(cohort:string[])=>xpBaselineClient()(cohort),xpExecution:xpExecutionClient()
+                };
+                if (preview) {
+                    const result = await previewMultiAgentExperiment(input, dependencies);
+                    return json({ definitionDigest: result.definition.digest, initialStateDigest: experimentInitialStateDigest(result.candidates, result.baselineGoals),
+                        environment: result.environment, environmentDigest: validateMultiAgentExperimentEnvironment(result.environment).digest,
+                        parameterProfileDigest: result.parameterProfile.digest,xpInitialState:result.xpInitialState });
+                }
+                const started = await startMultiAgentExperiment(input, { ...dependencies, store: store!, coordinator: context.replanCoordinator! },
+                    new Date().toISOString(), { experimentId: text(body, 'experimentId') || undefined,
+                        expectedInitialStateDigest: text(body, 'expectedInitialStateDigest') || undefined,
+                        expectedEnvironmentDigest: text(body, 'expectedEnvironmentDigest') || undefined,
+                        expectedParameterProfileDigest: text(body, 'expectedParameterProfileDigest') || undefined,
+                        expectedXpCohortDigest:text(body,'expectedXpCohortDigest')||undefined });
                 await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.start', reason,
                     success: true, after: { experimentId: started.run.experimentId,
                         definitionDigest: started.run.definitionDigest,
@@ -2043,10 +2248,10 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                     .catch(error => appendAudit({ operator: 'system', action: 'multi-agent-experiment.dispatched',
                         reason: 'A háttérben futó dispatch hibával zárult.', success: false, error: String(error),
                         after: { experimentId: started.run.experimentId } }))
-                    .finally(() => store.close());
+                    .finally(() => store!.close());
                 return json({ ok: true, experiment: started.run }, 202);
             } catch (error) {
-                store.close();
+                store?.close();
                 await appendAudit({ operator: 'local-admin', action: 'multi-agent-experiment.start', reason,
                     success: false, error: String(error), after: { agentIds } });
                 throw error;

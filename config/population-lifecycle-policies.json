@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "schemaVersion": 1,
+      "policyId": "finite-population",
+      "version": "1.0.0",
+      "kind": "finite",
+      "scope": "social-simulation",
+      "deathTransition": "terminal",
+      "respawn": "forbidden"
+    },
+    {
+      "schemaVersion": 1,
+      "policyId": "classic-respawn-compatibility",
+      "version": "1.0.0",
+      "kind": "classic-respawn-compatibility",
+      "scope": "compatibility-experiment",
+      "deathTransition": "avatar-respawn",
+      "respawn": "engine-classic"
+    }
+  ]
+}

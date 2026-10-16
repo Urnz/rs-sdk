@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.thieving.property-burglary",
+  "version": "1.0.0",
+  "name": "Attempt entry at one configured Property access point",
+  "description": "Attempt one coordinate-bound Property entry using the existing Thieving skill. A trusted Property adapter resolves the stable entry point, entitlement and completed entry before a rights violation can be persisted.",
+  "status": "verified",
+  "tags": ["procedure", "thieving", "property", "burglary"],
+  "parameters": {
+    "target-name": { "type": "string", "description": "Exact display name of the Property access loc.", "required": true },
+    "target-x": { "type": "number", "description": "Exact world X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "target-z": { "type": "number", "description": "Exact world Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "minimum-level": { "type": "number", "description": "Minimum reviewed Thieving level.", "required": true, "minimum": 1, "maximum": 99 }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-09-27T19:30:00.000Z",
+    "derivedFrom": { "id": "procedure.thieving.property-burglary", "version": "0.1.0" },
+    "notes": "Manually promoted after reviewed live engine run 21ada3aa-e7d0-4cfe-9bcc-2fb84ab76741 with recognition, report and restart replay in the frozen Phase 22.1 acceptance bundle."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 30000, "maxOperations": 1 },
+  "preconditions": [{
+    "condition": "skill-level-at-least",
+    "arguments": { "skill": "Thieving", "level": { "parameter": "minimum-level" } }
+  }],
+  "steps": [{
+    "kind": "operation",
+    "id": "attempt-property-entry",
+    "operation": "thieve-property-entry",
+    "arguments": {
+      "name": { "parameter": "target-name" },
+      "match": "exact",
+      "option": 2,
+      "x": { "parameter": "target-x" },
+      "z": { "parameter": "target-z" },
+      "timeoutMs": 15000
+    }
+  }]
+}

@@ -75,6 +75,12 @@ survival) is described in the project memory; this file is the human-readable ch
       staffmodlevel on non-production worlds** (public server safety).
 
 ### Gameplay / safety
+- [ ] **Closed-society legacy shop gate** — `WorldConfig.node.shopEconomyMode`,
+      `mods/ShopEconomyPolicy.ts`, `World.ts` restock guard and the
+      `SHOP_LEGACY_ALLOWED` engine/content opcode pair must survive together.
+      `closed-society` blocks the classic shop UI and request path because that
+      path has no actor-backed inventory/treasury settlement.
+      Verify: `bun test src/mods/ShopEconomyPolicy.test.ts && BUILD_VERIFY=false bun run build`
 - [ ] **World mod hook** — `src/mods/WorldMods.ts` fail-closed módon tölti be a
       verziózott manifestet és a kért lokális állapotot; `World.ts` login hookja
       hívja a visszafordítható welcome-message mintamodot. Az aktív snapshotot a
@@ -320,6 +326,9 @@ These are the rules derived from every severed-wire bug found so far:
 6. **Diminishing XP context crosses two vendored hook points**: `STAT_ADVANCE` supplies the
    RuneScript/target/region context and `Player.addXp` applies the fail-open policy. Preserve
    both when syncing upstream; direct/admin XP with `allowMulti=false` intentionally bypasses it.
+7. **Closed-society shop safety crosses engine and content**: the world-config policy and
+   restock guard must remain paired with the `SHOP_LEGACY_ALLOWED` opcode, command declaration
+   and shop-script guards. Losing either side can restore infinite stock or liquidity.
 
 ## Post-sync verification (5 minutes)
 

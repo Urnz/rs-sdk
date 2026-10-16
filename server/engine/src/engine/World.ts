@@ -1,8 +1,20 @@
 import { tickExchange } from '#/engine/market/GrandExchange.js';
+import { executeWitnessInspection, loadWitnessInspectionPolicy, type WitnessInspectionCommand } from '#/mods/WitnessInspection.js';
+import { getWitnessInspectionStore, type EngineWitnessInspectionReceipt } from '#/mods/WitnessInspectionStore.js';
+import { getThievingEvidenceStore } from '#/mods/ThievingEvidenceStore.js';
+import { recordPlayerHealthHeartbeat } from '#/mods/PlayerHealthEvidenceStore.js';
+import { tickPopulationDeaths, populationAvatarRestricted, populationAvatarIsFinite } from '#/mods/PopulationDeathRuntime.js';
+import { executeCheckpointDetection, executeCheckpointSearch, loadEngineCheckpointConfiguration,
+    type CheckpointDetectionCommand, type CheckpointSearchCommand } from '#/mods/CheckpointInspection.js';
+import { getCheckpointEvidenceStore, type EngineCheckpointDetectionRecord,
+    type EngineCheckpointInspectionRecord } from '#/mods/CheckpointEvidenceStore.js';
+import { anonymousVisualDigest, witnessContinuityTracker } from '#/mods/WitnessContinuity.js';
 import { playerSaveStore } from '#/engine/market/MarketStore.js';
 // stdlib
 import fs from 'fs';
 import { randomUUID } from 'node:crypto';
+import { withSocietyValueMutation } from '../../../../society-integrity/runtime.js';
+import { saveCreatesValue, saveValueSnapshot } from '../../../../society-integrity/store.js';
 import { Worker } from 'worker_threads';
 import WSClientSocket from '#/server/ws/WSClientSocket.js';
 
@@ -56,7 +68,7 @@ import { PlayerStat, PlayerStatEnabled, PlayerStatNameMap } from '#/engine/entit
 import { PlayerTelemetryEvent } from '#/engine/entity/tracking/PlayerTelemetry.js';
 import { SessionLog } from '#/engine/entity/tracking/SessionLog.js';
 import { WealthTransactionEvent, WealthEvent } from '#/engine/entity/tracking/WealthEvent.js';
-import GameMap, { changeLocCollision, changeNpcCollision, changePlayerCollision } from '#/engine/GameMap.js';
+import GameMap, { changeLocCollision, changeNpcCollision, changePlayerCollision, isLineOfSight } from '#/engine/GameMap.js';
 import { CollisionFlag, isFlagged, isZoneAllocated } from '#/engine/routefinder/index.js';
 import { Inventory } from '#/engine/Inventory.js';
 import { preserveAdminCoinPlacement } from '#/engine/AdminOfflineSaveCoins.js';
@@ -118,9 +130,14 @@ import { formatWorldDirectorSignalMessage, isWorldModEnabled, onWorldModPlayerLo
     recordWorldModDomainEvent, applyWorldModRespawnDuration } from '#/mods/WorldMods.js';
 import { getPlayerRewardStore, type PlayerRewardRecord } from '#/mods/PlayerRewardStore.js';
 import { getPlayerInventoryEscrowStore, type PlayerEscrowAssets,
-    type PlayerInventoryEscrowRecord } from '#/mods/PlayerInventoryEscrowStore.js';
+    type PlayerEscrowCheckpointCommand, type PlayerInventoryEscrowRecord } from '#/mods/PlayerInventoryEscrowStore.js';
+import { getSharedPlayerEscrowAuthority } from '#/mods/SharedPlayerEscrowAuthority.js';
+import { executeSharedEscrowWorldCommand } from '#/mods/PlayerEscrowWorldAdapter.js';
+import { automaticShopRestockAllowed } from '#/mods/ShopEconomyPolicy.js';
 import { getWorldDirectorEventStore, type EngineWorldDirectorEvent,
     type EngineWorldDirectorEventRecord } from '#/mods/WorldDirectorEventStore.js';
+import { getPlayerCustodyStore, type PlayerCustodyOrder,
+    type PlayerCustodyRecord } from '#/mods/PlayerCustodyStore.js';
 
 const priv = forge.pki.privateKeyFromPem(fs.readFileSync('data/config/private.pem', 'ascii'));
 
@@ -224,7 +241,7 @@ export interface AdminSaveBackup {
 
 export interface AdminOfflineSaveReadiness {
     editable: boolean;
-    code: 'ready' | 'player-online' | 'login-pending' | 'logout-pending';
+    code: 'ready' | 'player-online' | 'login-pending' | 'logout-pending' | 'population-closed';
 }
 
 export interface AdminPlayerLogoutCommand {
@@ -295,7 +312,7 @@ export interface AdminPlayerRewardResult {
 export interface AdminPlayerEscrowCommand {
     commandId: string;
     escrowId: string;
-    operation: 'hold' | 'release' | 'commit';
+    operation: 'hold' | 'release' | 'commit' | 'consume';
     username: string;
     payeeUsername?: string;
     assets?: PlayerEscrowAssets;
@@ -306,10 +323,26 @@ export interface AdminPlayerEscrowResult {
     ok: boolean;
     commandId: string;
     escrowId: string;
-    operation: 'hold' | 'release' | 'commit';
+    operation: 'hold' | 'release' | 'commit' | 'consume';
     username: string;
     payeeUsername?: string;
     escrow?: PlayerInventoryEscrowRecord;
+    tick?: number;
+    code?: string;
+    error?: string;
+}
+
+export interface AdminPlayerCustodyCommand extends PlayerCustodyOrder {
+    commandId: string;
+    expiresAt: number;
+}
+
+export interface AdminPlayerCustodyResult {
+    ok: boolean;
+    commandId: string;
+    custodyId: string;
+    username: string;
+    custody?: PlayerCustodyRecord;
     tick?: number;
     code?: string;
     error?: string;
@@ -353,6 +386,10 @@ type PendingAdminPlayerReward = AdminPlayerRewardCommand & {
 
 type PendingAdminPlayerEscrow = AdminPlayerEscrowCommand & {
     resolve: (result: AdminPlayerEscrowResult) => void;
+};
+
+type PendingAdminPlayerCustody = AdminPlayerCustodyCommand & {
+    resolve: (result: AdminPlayerCustodyResult) => void;
 };
 
 type PendingAdminWorldDirectorEvent = AdminWorldDirectorEventCommand & {
@@ -420,11 +457,15 @@ class World {
     readonly npcEventQueue: LinkList<NpcEventRequest> = new LinkList();
     readonly objDelayedQueue: LinkList<ObjDelayedRequest> = new LinkList();
     private readonly adminTeleportQueue: PendingAdminTeleport[] = [];
+    private readonly witnessInspectionQueue: Array<WitnessInspectionCommand & {resolve:(value:{ok:boolean;receipt?:EngineWitnessInspectionReceipt;error?:string})=>void}> = [];
+    private readonly checkpointSearchQueue: Array<CheckpointSearchCommand & {resolve:(value:{ok:boolean;receipt?:EngineCheckpointInspectionRecord;error?:string})=>void}> = [];
+    private readonly checkpointDetectionQueue: Array<CheckpointDetectionCommand & {resolve:(value:{ok:boolean;receipt?:EngineCheckpointDetectionRecord;error?:string})=>void}> = [];
     private readonly adminOfflineSaveQueue: PendingAdminOfflineSave[] = [];
     private readonly adminPlayerLogoutQueue: PendingAdminPlayerLogout[] = [];
     private readonly adminPropertyPurchaseQueue: PendingAdminPropertyPurchase[] = [];
     private readonly adminPlayerRewardQueue: PendingAdminPlayerReward[] = [];
     private readonly adminPlayerEscrowQueue: PendingAdminPlayerEscrow[] = [];
+    private readonly adminPlayerCustodyQueue: PendingAdminPlayerCustody[] = [];
     private readonly adminWorldDirectorEventQueue: PendingAdminWorldDirectorEvent[] = [];
 
     // debug data
@@ -634,6 +675,17 @@ class World {
             this.nextTick = Math.max(this.nextTick, start - this.tickRate * 2);
             const drift: number = Math.max(0, start - this.nextTick);
 
+            try { tickPopulationDeaths(this.currentTick); }
+            catch (error) { printError(`Population death authority unavailable: ${String(error)}`); }
+            for (const player of this.playerLoop.all()) {
+                try { player.populationFinite = populationAvatarIsFinite(player.username);
+                    player.populationTerminal ||= populationAvatarRestricted(player.username);
+                    if (player.populationFinite && player.levels[PlayerStat.HITPOINTS] === 0) player.populationTerminal = true;
+                }
+                catch { player.populationTerminal = true; }
+                if (player.populationTerminal) { player.stopAction(); player.clearWaypoints(); this.removePlayer(player); }
+            }
+
             // world processing
             // - world queue
             // - npc hunt
@@ -649,9 +701,12 @@ class World {
             // Local admin commands execute at an explicit world-tick boundary after
             // pending client packets are visible, but before entity processing/movement.
             this.processAdminTeleports();
+            this.processWitnessInspections();
+            this.processCheckpointOperations();
             this.processAdminPropertyPurchases();
             this.processAdminPlayerRewards();
             this.processAdminPlayerEscrows();
+            this.processAdminPlayerCustodies();
             this.processAdminWorldDirectorEvents();
             this.processAdminPlayerLogouts();
             this.processAdminOfflineSaves();
@@ -711,6 +766,15 @@ class World {
             // - afk zones changes
             // - flush packets
             this.processClientsOut();
+            // Refresh observer-local continuity after rsbuf has applied each recipient's visibility list.
+            witnessContinuityTracker.refresh(this.currentTick,Date.now(),(observerRef,targetRef,visualDigest)=>{
+                const observer=observerRef as Player,target=targetRef as Player;
+                return observer.isActive && target.isActive && observer.visibility===rsbuf.Visibility.DEFAULT
+                    && target.visibility===rsbuf.Visibility.DEFAULT && isClientConnected(observer) && isClientConnected(target)
+                    && observer.level===target.level && rsbuf.hasPlayer(observer.slot,target.slot)
+                    && isLineOfSight(observer.level,observer.x,observer.z,target.x,target.z)
+                    && anonymousVisualDigest(target.generateAppearance())===visualDigest;
+            });
 
             // cleanup
             // - reset zones
@@ -848,6 +912,8 @@ class World {
             }
 
             this.currentTick++;
+            try { recordPlayerHealthHeartbeat(); }
+            catch (error) { console.error('[PopulationHealth] Engine source heartbeat failed:', error); }
             this.nextTick += this.tickRate;
 
             // ----
@@ -875,6 +941,51 @@ class World {
 
     // - world queue
     // - npc hunt
+    enqueueWitnessInspection(command: WitnessInspectionCommand): Promise<{ok:boolean;receipt?:EngineWitnessInspectionReceipt;error?:string}> {
+        if (this.witnessInspectionQueue.length >= 50) return Promise.resolve({ok:false,error:'Inspection queue full'});
+        return new Promise(resolve => this.witnessInspectionQueue.push({...command,resolve}));
+    }
+    private processWitnessInspections(): void {
+        for (const command of this.witnessInspectionQueue.splice(0)) {
+            try {
+                if (this.shutdown) throw new Error('World shutdown');
+                const receipt = executeWitnessInspection(command,{engine:getThievingEvidenceStore(),inspections:getWitnessInspectionStore(),
+                    observer:username=>this.getPlayerByUsername(username) ?? null,target:slot=>this.getPlayer(slot) ?? null,
+                    visible:rsbuf.hasPlayer,lineOfSight:isLineOfSight,connected:player=>isClientConnected(player as NetworkPlayer),
+                    engineTick:this.currentTick,now:Date.now(),policy:loadWitnessInspectionPolicy()});
+                command.resolve({ok:true,receipt});
+            } catch(error) { command.resolve({ok:false,error:error instanceof Error?error.message:String(error)}); }
+        }
+    }
+
+    enqueueCheckpointSearch(command: CheckpointSearchCommand): Promise<{ok:boolean;receipt?:EngineCheckpointInspectionRecord;error?:string}> {
+        if (this.checkpointSearchQueue.length >= 50) return Promise.resolve({ok:false,error:'Checkpoint search queue full'});
+        return new Promise(resolve => this.checkpointSearchQueue.push({...command,resolve}));
+    }
+    enqueueCheckpointDetection(command: CheckpointDetectionCommand): Promise<{ok:boolean;receipt?:EngineCheckpointDetectionRecord;error?:string}> {
+        if (this.checkpointDetectionQueue.length >= 50) return Promise.resolve({ok:false,error:'Checkpoint detection queue full'});
+        return new Promise(resolve => this.checkpointDetectionQueue.push({...command,resolve}));
+    }
+    private processCheckpointOperations(): void {
+        const store = getCheckpointEvidenceStore();
+        for (const command of this.checkpointSearchQueue.splice(0)) {
+            try {
+                if (this.shutdown) throw new Error('World shutdown');
+                const receipt = executeCheckpointSearch(command,{store,configuration:loadEngineCheckpointConfiguration(),
+                    subject:username=>this.getPlayerByUsername(username) ?? null,
+                    connected:player=>isClientConnected(player as NetworkPlayer),engineTick:this.currentTick,now:Date.now()});
+                command.resolve({ok:true,receipt});
+            } catch(error) { command.resolve({ok:false,error:error instanceof Error?error.message:String(error)}); }
+        }
+        for (const command of this.checkpointDetectionQueue.splice(0)) {
+            try {
+                if (this.shutdown) throw new Error('World shutdown');
+                const receipt = executeCheckpointDetection(command,{store,engineTick:this.currentTick,now:Date.now()});
+                command.resolve({ok:true,receipt});
+            } catch(error) { command.resolve({ok:false,error:error instanceof Error?error.message:String(error)}); }
+        }
+    }
+
     enqueueAdminTeleport(command: AdminTeleportCommand): Promise<AdminTeleportResult> {
         if (this.adminTeleportQueue.length >= 50) {
             return Promise.resolve({
@@ -1088,6 +1199,32 @@ class World {
         return true;
     }
 
+    authorizePropertyBurglaryAttempt(player: Player, x: number, z: number, level: number): boolean {
+        const runtime = getPropertyRuntime();
+        const entry = runtime.resolveEntryPoint(x, z, level);
+        if (!entry) {
+            player.messageGame('This door has no configured property security policy.');
+            player.unsetMapFlag();
+            return false;
+        }
+        if (Math.max(Math.abs(player.x - x), Math.abs(player.z - z)) > 2 || player.level !== level) {
+            player.messageGame('Walk closer to the property door and try again.');
+            player.unsetMapFlag();
+            return false;
+        }
+        if (!entry.property.state.owner) {
+            player.messageGame('This unowned property has no private lock to bypass.');
+            player.unsetMapFlag();
+            return false;
+        }
+        if (runtime.canPlayerEnter(entry.property, player.username, player.staffModLevel >= 2)) {
+            player.messageGame('You are already authorised to use this entrance.');
+            player.unsetMapFlag();
+            return false;
+        }
+        return true;
+    }
+
     handlePropertyRegister(player: Player, x: number, z: number, level: number): boolean {
         if (Math.max(Math.abs(player.x - x), Math.abs(player.z - z)) > 2 || player.level !== level) {
             player.messageGame('Walk closer to the bank notice board and try again.');
@@ -1282,17 +1419,54 @@ class World {
                     remove: (itemId: number, count: number) => player.invDel(InvType.INV, itemId, count),
                     add: (itemId: number, count: number) => player.invAdd(InvType.INV, itemId, count)
                 };
+                if (Environment.PLAYER_ESCROW_SHARED_CHECKPOINT) {
+                    // The preflight runs before any inventory mutation. A legacy row blocks this
+                    // opt-in path rather than silently falling back to the split authority.
+                    const store = getSharedPlayerEscrowAuthority();
+                    const inventory = player.getInventory(InvType.INV);
+                    if (!inventory) throw new Error('Player inventory is unavailable for escrow checkpoint');
+                    const request: PlayerEscrowCheckpointCommand = command.operation === 'hold'
+                        ? { operation: 'hold', escrowId: command.escrowId, username: command.username,
+                            assets: command.assets! }
+                        : command.operation === 'commit'
+                            ? { operation: 'commit', escrowId: command.escrowId, username: command.username,
+                                payeeUsername: command.payeeUsername! }
+                            : { operation: command.operation, escrowId: command.escrowId, username: command.username };
+                    const { escrow, save } = executeSharedEscrowWorldCommand(store, request, {
+                        username: player.username, wallet, inventory,
+                        save: () => player.save(false),
+                        checkpointAll: bytes => { this.checkpointPlayers(player, bytes); }
+                    });
+                    command.resolve({ ok: true, commandId: command.commandId, escrowId: command.escrowId,
+                        operation: command.operation, username: command.username,
+                        payeeUsername: command.payeeUsername, escrow, tick: this.currentTick });
+                    // Post-commit UI and the login-server copy are best-effort; the authoritative
+                    // player save already committed with the escrow row in one database.
+                    try {
+                        player.addSessionLog(LoggerEventType.MODERATOR,
+                            `Player inventory escrow ${command.operation}: ${command.escrowId}`, command.commandId);
+                        player.messageGame('A szerződéses escrow művelet tartósan elszámolva.');
+                        this.loginThread.postMessage({ type: 'player_autosave', username: player.username,
+                            save });
+                    } catch (error) {
+                        printError(`Post-commit escrow notification failed: ${error}`);
+                    }
+                    continue;
+                }
                 const store = getPlayerInventoryEscrowStore();
                 const escrow = command.operation === 'hold'
                     ? store.hold(command.escrowId, command.username, command.assets!, wallet)
                     : command.operation === 'release'
                         ? store.release(command.escrowId, command.username, wallet)
-                        : store.commit(command.escrowId, command.username, command.payeeUsername!, wallet);
+                        : command.operation === 'commit'
+                            ? store.commit(command.escrowId, command.username, command.payeeUsername!, wallet)
+                            : store.consume(command.escrowId,command.username);
                 player.addSessionLog(LoggerEventType.MODERATOR,
                     `Player inventory escrow ${command.operation}: ${command.escrowId}`, command.commandId);
                 player.messageGame(command.operation === 'hold' ? 'A szerződéses fedezet escrowba került.'
                     : command.operation === 'release' ? 'Az escrowban foglalt eszközök visszakerültek.'
-                        : 'A szerződéses escrow kifizetése megérkezett.');
+                        : command.operation === 'commit' ? 'A szerződéses escrow kifizetése megérkezett.'
+                            : 'Az escrow fedezete az intézményi elszámolásba került.');
                 this.loginThread.postMessage({ type: 'player_autosave', username: player.username, save: player.save() });
                 command.resolve({ ok: true, commandId: command.commandId, escrowId: command.escrowId,
                     operation: command.operation, username: command.username,
@@ -1302,6 +1476,39 @@ class World {
                 reject(message.includes('reconciliation') ? 'reconciliation-required'
                     : message.includes('Insufficient') ? 'insufficient-assets' : 'escrow-failed', message);
             }
+        }
+    }
+
+    enqueueAdminPlayerCustody(command: AdminPlayerCustodyCommand): Promise<AdminPlayerCustodyResult> {
+        if (this.adminPlayerCustodyQueue.length >= 50) return Promise.resolve({ ok: false,
+            commandId: command.commandId, custodyId: command.custodyId, username: command.username,
+            code: 'queue-full', error: 'The engine player custody queue is full.' });
+        return new Promise(resolve => this.adminPlayerCustodyQueue.push({ ...command, resolve }));
+    }
+
+    private processAdminPlayerCustodies(): void {
+        const commands = this.adminPlayerCustodyQueue.splice(0);
+        for (const command of commands) {
+            const reject = (code: string, error: string) => command.resolve({ ok: false,
+                commandId: command.commandId, custodyId: command.custodyId, username: command.username,
+                tick: this.currentTick, code, error });
+            try {
+                if (Date.now() > command.expiresAt) { reject('expired', 'The custody command expired.'); continue; }
+                if (this.shutdown) { reject('world-shutdown', 'The world is shutting down.'); continue; }
+                const { commandId: _commandId, expiresAt: _expiresAt, resolve: _resolve, ...order } = command;
+                void _commandId; void _expiresAt; void _resolve;
+                const custody = getPlayerCustodyStore().apply(order);
+                const player = this.getPlayerByUsername(command.username);
+                if (player && isClientConnected(player) && custody.status === 'active') {
+                    player.custodyRestricted = true;
+                    player.stopAction();
+                    player.clearWaypoints();
+                    player.teleport(custody.x, custody.z, custody.level);
+                    player.messageGame(`Őrizet alatt állsz eddig: ${custody.releaseAt}`);
+                }
+                command.resolve({ ok: true, commandId: command.commandId, custodyId: command.custodyId,
+                    username: command.username, custody, tick: this.currentTick });
+            } catch (error) { reject('custody-failed', error instanceof Error ? error.message : String(error)); }
         }
     }
 
@@ -1444,6 +1651,8 @@ class World {
 
     getAdminOfflineSaveReadiness(username: string): AdminOfflineSaveReadiness {
         const normalized = username.toLowerCase();
+        try { if (populationAvatarRestricted(normalized)) return { editable: false, code: 'population-closed' }; }
+        catch { return { editable: false, code: 'population-closed' }; }
         const matches = (value: string) => value.toLowerCase() === normalized;
         if (this.getPlayerByUsername(normalized)) return { editable: false, code: 'player-online' };
         if ([...this.loginRequests.keys()].some(matches)) return { editable: false, code: 'login-pending' };
@@ -1545,12 +1754,25 @@ class World {
                     continue;
                 }
                 const backupId = this.createAdminSaveBackup(username, command.operation, command.commandId, original);
-                this.replaceAdminPlayerSave(savePath, command.commandId, nextBytes);
-                const persisted = fs.readFileSync(savePath);
-                if (!PlayerLoading.verify(new Packet(persisted))) {
-                    fs.copyFileSync(`${this.adminBackupDirectory(username)}/${backupId}.sav`, savePath);
-                    reject('persist-verification-failed', 'The written save failed verification and the previous save was restored.', before);
-                    continue;
+                const planned=this.adminSaveSummary(PlayerLoading.load(username,new Packet(nextBytes),null),before.savedAt);
+                let verificationFailed=false;
+                const persist=()=>{
+                    this.replaceAdminPlayerSave(savePath,command.commandId,nextBytes);
+                    const bytes=fs.readFileSync(savePath);
+                    if(!PlayerLoading.verify(new Packet(bytes))) {
+                        fs.copyFileSync(`${this.adminBackupDirectory(username)}/${backupId}.sav`,savePath);
+                        verificationFailed=true;throw new Error('The written save failed verification and the previous save was restored.');
+                    }
+                    return bytes;
+                };
+                let persisted:Uint8Array;
+                try {
+                    persisted=saveCreatesValue(before,planned)?withSocietyValueMutation({source:'engine.offline-save',
+                        operationId:`offline-save:${command.commandId}`,actor:`player:${username}`,
+                        payload:{before:saveValueSnapshot(before),after:saveValueSnapshot(planned)}},persist):persist();
+                }catch(error) {
+                    if(verificationFailed){reject('persist-verification-failed',String(error),before);continue;}
+                    throw error;
                 }
                 const afterPlayer = PlayerLoading.load(username, new Packet(persisted), null);
                 const after = this.adminSaveSummary(afterPlayer, fs.statSync(savePath).mtime.toISOString());
@@ -1801,8 +2023,23 @@ class World {
 
         this.cycleStats[WorldStat.BANDWIDTH_IN] = 0;
 
+        const custodyStore = getPlayerCustodyStore();
+        custodyStore.releaseExpired(new Date().toISOString());
         for (const player of this.playerLoop.all()) {
             try {
+                if (player.populationTerminal) continue;
+                if (isClientConnected(player)) {
+                    const wasRestricted = player.custodyRestricted;
+                    const custody = custodyStore.activeFor(player.username, new Date().toISOString());
+                    player.custodyRestricted = custody !== null;
+                    if (custody) {
+                        player.stopAction();
+                        player.clearWaypoints();
+                        if (player.x !== custody.x || player.z !== custody.z || player.level !== custody.level)
+                            player.teleport(custody.x, custody.z, custody.level);
+                        if (!wasRestricted) player.messageGame(`Őrizet alatt állsz eddig: ${custody.releaseAt}`);
+                    } else if (wasRestricted) player.messageGame('Az időzített őrizet véget ért.');
+                }
                 player.playtime++;
 
                 if (this.currentTick % World.AFK_EVENTRATE === 0) {
@@ -1887,6 +2124,12 @@ class World {
 
         for (const player of this.playerLoop.all()) {
             try {
+                if (isClientConnected(player) && player.custodyRestricted) {
+                    player.stopAction();
+                    player.clearWaypoints();
+                    continue;
+                }
+                if (player.populationTerminal) continue;
                 if (player.delayed && this.currentTick >= player.delayedUntil) player.delayed = false;
 
                 // - resume suspended script
@@ -1897,19 +2140,24 @@ class World {
                 // - primary queue
                 // - weak queue
                 player.processQueues();
+                if (player.populationTerminal) continue;
                 if (!player.loggingOut) {
                     // - timers
                     player.processTimers(PlayerTimerType.NORMAL);
+                    if (player.populationTerminal) continue;
                     // - soft timers
                     player.processTimers(PlayerTimerType.SOFT);
+                    if (player.populationTerminal) continue;
                 }
                 // - engine queue
                 player.processEngineQueue();
+                if (player.populationTerminal) continue;
                 // Update target facing
                 player.setFaceEntity();
                 // - interactions
                 // - movement
                 player.processInteraction();
+                if (player.populationTerminal) continue;
                 if (!player.busy() && !player.delayed && !player.loggingOut) player.recoverItems();
                 if (Environment.GE_ENABLED) tickExchange(player);
 
@@ -1936,6 +2184,9 @@ class World {
         const start: number = Date.now();
 
         for (const player of this.playerLoop.all()) {
+            if (player.populationTerminal) {
+                player.stopAction(); player.clearWaypoints(); this.removePlayer(player); continue;
+            }
             let force = false;
             if (this.shutdown || this.currentTick - player.lastResponse >= World.TIMEOUT_NO_RESPONSE) {
                 // world shutdown or x-logged / timed out for 60s: force logout
@@ -2022,6 +2273,16 @@ class World {
         }
 
         player: for (const player of this.newPlayers) {
+            try {
+                player.populationFinite = populationAvatarIsFinite(player.username);
+                if (populationAvatarRestricted(player.username) || (player.populationFinite && player.levels[PlayerStat.HITPOINTS] === 0)) {
+                    if (isClientConnected(player)) { player.client.send(Uint8Array.from([4])); player.client.close(); }
+                    continue;
+                }
+            } catch {
+                if (isClientConnected(player)) { player.client.send(Uint8Array.from([13])); player.client.close(); }
+                continue;
+            }
             // prevent logging in if a player save is being flushed
             if (this.logoutRequests.has(player.username)) {
                 player.addSessionLog(LoggerEventType.ENGINE, 'Tried to log in - old session is mid-logout');
@@ -2446,7 +2707,7 @@ class World {
             // Increase or Decrease shop stock
             const invType = InvType.get(inv.type);
 
-            if (!invType.restock || !invType.stockcount || !invType.stockrate) {
+            if (!automaticShopRestockAllowed(Environment.node.shopEconomyMode) || !invType.restock || !invType.stockcount || !invType.stockrate) {
                 continue;
             }
 
@@ -3044,13 +3305,13 @@ class World {
     getPlayerByUsername(username: string): Player | undefined {
         const username37: bigint = toBase37(username);
         for (const player of this.playerLoop.all()) {
-            if (player.username37 === username37) {
+            if (player.username37 === username37 && !player.populationTerminal) {
                 return player;
             }
         }
 
         for (const player of this.newPlayers) {
-            if (player.username37 === username37) {
+            if (player.username37 === username37 && !player.populationTerminal) {
                 return player;
             }
         }

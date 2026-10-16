@@ -12,8 +12,8 @@
 // The connection stub's Packet has no ISAAC cipher (`random` is null), so
 // p1Enc writes the plaintext opcode and the bytes can be compared directly.
 //
-// Needs the config archives; set LITE_TEST_ORIGIN to point elsewhere. Skips if
-// the server is unreachable.
+// Requires the local emulator's config archives; LITE_TEST_ORIGIN can select
+// another local origin. Cache-loading failures fail the suite instead of skipping.
 
 import { beforeAll, describe, expect, test } from 'bun:test';
 
@@ -31,22 +31,19 @@ import { LiteClient } from './LiteClient.js';
 import { tryMoveTo } from './movement.js';
 import { dispatch } from './protocol/incoming.js';
 
-const ORIGIN = process.env.LITE_TEST_ORIGIN ?? 'https://rs-sdk-demo.fly.dev';
-const CACHE_DIR = process.env.LITE_TEST_CACHE ?? '/tmp/rs-sdk-lite-test-cache';
+import { LITE_TEST_ORIGIN as ORIGIN, LITE_TEST_CACHE as CACHE_DIR } from './test-cache-config.js';
 
 const INV_COMPONENT = 3214; // inventory:inv
 const BANK_SIDE_INV = 2006; // bank_side:inv on this 274 build (5064 is the 317-era id)
 
-let available = false;
 
 beforeAll(async () => {
     try {
         await loadCache({ origin: ORIGIN, cacheDir: CACHE_DIR, quiet: true });
-        available = true;
-    } catch {
-        available = false;
+    } catch (error) {
+        throw new Error(`Local Lite test cache unavailable at ${ORIGIN}; start scripts/start-local.ps1 -NoBot`, { cause: error });
     }
-});
+}, 60_000);
 
 /** A LiteClient with no socket: nothing below touches the connection. */
 function makeClient(name: string): LiteClient {
@@ -117,11 +114,6 @@ class Capture {
 
 describe('outgoing action encoding', () => {
     test('OPHELDU field order matches OpHeldUDecoder (obj, slot, com, useObj, useSlot, useCom)', () => {
-        if (!available) {
-            console.warn(`[skip] ${ORIGIN} unreachable`);
-            return;
-        }
-
         const c = makeClient('bota');
         // slot 0: knife (946), slot 3: logs (1511)
         giveItems(c, INV_COMPONENT, { 0: 946, 3: 1511 });
@@ -141,10 +133,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('OPHELDT field order matches OpHeldTDecoder (obj, slot, com, spellCom)', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         giveItems(c, INV_COMPONENT, { 2: 1511 });
 
@@ -162,10 +150,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('bank deposit targets bank_side:inv 2006 and maps amounts to the browser option table', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         // The bank side inventory is its own component; depositing reads it,
         // not inventory:inv. This dispatch doubles as proof that 2006 is a real
@@ -196,10 +180,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('MESSAGE_PUBLIC carries colour + effect inside the size byte, then packed text', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
 
         const start = c.out.pos;
@@ -220,10 +200,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('say() self-echoes into the chat ring like incoming public chat', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         c.say('hello world');
 
@@ -234,10 +210,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('MESSAGE_PRIVATE carries the target userhash inside the size byte, then packed text', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
 
         const start = c.out.pos;
@@ -257,10 +229,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('sendPrivateMessage() self-echoes as a sent-PM (type 6) and rejects bad names', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         c.sendPrivateMessage('botb', 'hello world');
 
@@ -274,10 +242,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('INV_BUTTON carries the real obj id from linkObjType, not 0', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         giveItems(c, INV_COMPONENT, { 1: 1511 });
 
@@ -303,10 +267,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('useInventoryItem routes non-inventory components to INV_BUTTON (no OPHELD handlers there)', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         giveItems(c, INV_COMPONENT, { 2: 385 }); // shark in the main inventory
         giveItems(c, BANK_SIDE_INV, { 1: 385 }); // shark in the bank side inventory
@@ -336,10 +296,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('long walks clamp to the current scene edge like the browser client', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         c.mapBuildBaseX = 3200;
         c.mapBuildBaseZ = 3200;
@@ -363,10 +319,6 @@ describe('outgoing action encoding', () => {
     });
 
     test('an actor already inside an NPC footprint needs no movement packet', () => {
-        if (!available) {
-            return;
-        }
-
         const c = makeClient('bota');
         c.collision[0] = new CollisionMap();
         c.localPlayer!.routeX[0] = 50;

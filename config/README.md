@@ -3,7 +3,22 @@
 Csak verziókezelhető minták és nem titkos alapértékek kerüljenek ide. A tényleges
 jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 
+- `society-integrity-policy.json`: a 24.2 genesis/admin/fallback integritási napló
+  `invalidateOnInjection` kapcsolója. Alapértelmezetten igaz; a run az értéket
+  rögzíti, a kikapcsolás a szennyezési jelzést és az eseményt nem törli. A korábbi
+  nem megfigyelt történet explicit bizonyítékrés marad.
+- `society-minimum-policy.json`: a 24.1 önfenntartási minimum mérési szerződése:
+  24 szimulációs óra warmup, hét teljes nap, legalább négy alapító, 17 mennyiségi
+  követelmény és nyolc integritáskapu. Katalógusokhoz exact digest-snapshot köti;
+  hiányzó bizonyíték vagy nulla igény nem PASS. Definíció, nem lefutott benchmark.
+
 - `world-mods.json`: a modok manifestje és szerkeszthető alapbeállításai.
+- `population-lifecycle-policies.json`: a társadalomszimuláció véges, terminális
+  életciklus-policyja és az ettől elkülönített klasszikus respawn kompatibilitási
+  policy; önmagában egyik sem ír agentállapotot.
+- `population-world-profile-bindings.json`: pontos profile- és policy-digesttel
+  köti a társadalomszimulációs genesis profilokat a véges population policyhoz;
+  elavult kötés fail-closed.
 - `properties.json`: a verziózott ingatlankatalógus; tulajdonosi állapot soha nem
   kerül ebbe a fájlba.
 - `attribute-budget-policies.json`: a nem játékos karakterek seedelt, korlátozott
@@ -36,6 +51,89 @@ jelszavak, API-kulcsok, tokenek és lokális botadatok nem commitolhatók.
 - `land-construction.json`: alapból letiltott, verziózott előkészítő katalógus a
   későbbi megvásárolható földparcellákhoz és építési terv/stage definíciókhoz.
   Nem hoz létre épületet és nem módosítja a világot.
+- `food-loops.json`: a nyersanyagforrást, Cooking átalakítást, kész ételt és
+  hunger-csökkentést egyetlen verziózott, bizonyíték-alapú láncba köti.
+- `item-lifecycle.json`: a példányszintű tárgyak maximális tartósságát,
+  használatonkénti kopását és javíthatóságát definiálja.
+- `item-state-policies.json`: konkrét item ID-nként választ a példányszintű,
+  stack- és batch-kezelés között; ismeretlen tárgyhoz nincs implicit fallback.
+- `batch-expiry-policies.json`: alapból csak `prepared` állapotú, szimulációs
+  időre épülő szerződés a romlandó gyártási tételek eltarthatóságához és
+  capabilityhez kötött tárolási minőségéhez; önmagában nem aktivál romlást.
+- `loop-metric-policies.json`: a zárt food- és tool-loopok készletminimumait és
+  hiányszámítását köti a verziózott chain-, illetve production-cycle azonosítókhoz.
+- `economic-npc-migrations.json`: csak tervezési állapotú, verziózott migrációs
+  katalógus a statikus gazdasági NPC-szolgáltatások Business-, Property-, agent-,
+  inventory- és treasury-alapú kiváltásához; önmagában nem kapcsol át élő shopot.
+- `shop-genesis-bootstraps.json`: genesis-only, adatvezérelt shop-nyitókészlet és
+  Business-nyitótőke; csak egyszer használható world-genesis allokációkat fordít,
+  futás közbeni restock vagy közvetlen tárgy-/pénzjuttatás nincs benne.
+- `actor-identity-boundary.json`: az ambient világentitások tartós actorrá
+  emelésének fail-closed policyja; vizuális NPC/állat/mob típus önmagában nem
+  jogosít agent-identitásra, csak domainadapterrel igazolt perzisztens állapot.
+- `business-role-definitions.json`: stabil Business-szerepek, pontosan verziózott
+  verified skill-korlátok, domainenkénti készlet-/storage-/treasury-/ár-/szerződés-
+  jogosultságok és felvételi/delegálási policy. Draft skillre hivatkozva a gateway
+  fail-closed módon nem indul el.
+- `business-stock-policies.json`: Business- és item-specifikus véges készletminimum,
+  cél- és maximumkészlet, beszerzési árplafon, eladási ár/reserve és settlement-
+  korlát. Fizikai teljesítéshez csak pontos, review-zott verified skill engedhető.
+- `business-work-policies.json`: szerephez és verified skillhez kötött műszak- és
+  work-order korlátok, szükséges Property/facility entitlement és kizárólag
+  hiteles teljesítés után kiérdemelhető bér feltétele.
+- `production-workflows.json`: pontosan verziózott, adatvezérelt receptek és
+  függőségi gráfok item-inputtal/-outputtal, idővel, személyes skill-, facility-,
+  tool-, tudás- és entitlement-követelménnyel; önmagában nem mozgat készletet.
+- `facility-capabilities.json`: Propertyhez és opcionálisan exact Businesshez
+  kötött termelési, tárolási és más facility-képességek, kapacitással és az
+  elfogadható employment/lease/contract/explicit hozzáférési jogcímekkel.
+- `production-capital.json`: item-lifecyclehoz és telepítési facility-
+  capabilityhez kötött termelőtőke; mechanikai throughput-, minőség-, hibaarány-,
+  kapacitás- és capability-hatást, batchenkénti kopást és javítási policyt ad.
+- `logistics.json`: Property/storage végpontok közötti verziózott útvonalak és
+  gyalogos vagy járműves szállítási módok kapacitással, sebességgel, költséggel
+  és a járműhöz szükséges facility-capabilityvel.
+- `production-tool-cycles.json`: a termelőeszköz-életciklusok engedélyezett skilljét
+  és kimeneti itemjeit köti verziózott konfigurációhoz.
+- `item-repair-policies.json`: tárgytípusonként rögzíti a javításhoz elfogyasztandó
+  anyagot, minimális időt, személyes kompetenciát és facility-capabilityt.
+- `population-age-policy.json`: a véges lifecycle-policy pontos digestjéhez
+  kötött szimulációs évhossz, életkori szakaszok és későbbi domainfogyasztóknak
+  adott regenerációs, munkaterhelési és kockázati basis-point módosítók.
+- `population-mortality-policy.json`: pontos age-policy digesthez kötött,
+  genesisből seedelt, korlátozott referencia-élettartam, halálozási hajlam és
+  éves kockázati sávok. Halálozási jelöltet ad, lifecycle-átmenetet nem hajt végre.
+- `population-health-policy.json`: pontos age-policyhoz kötött sérülésterhelés,
+  pihenéses gyógyulás, súlyos sérülés ellátási küszöbe és care floor.
+  A treatment-lista alapból üres; klinikai ellátás csak valódi verified
+  eljárás-, Herblore-, facility- és completion-bizonyítékhoz köthető.
+- `population-estate-policy.json`: hiteles haláleseményhez kötött hagyatéki
+  őrizet nyolc kötelező gazdasági forrással és forrásonkénti rekordkorláttal.
+  Hiányzó forrás vagy bizonytalan settlement blokkol; örököst nem választ.
+- `population-inheritance-policy.json`: egyetlen élő örökösnek, admin-döntéssel
+  átadható személyes Propertyk faction/jurisdiction-kötései. A szállított kötéslista
+  üres; tényleges joghatóság és explicit Property-kiosztás nélkül nincs átadás.
+- `population-memory-transfer-policy.json`: pontos archívum-digesthez, forrás- és
+  címzettagenthez kötött, explicit semantic tudásátadási szabályok. A szállított
+  lista üres; személyes epizódot, social memóriát vagy skill-jogot nem másol.
+- `population-entry-policy.json`: exact finite lifecycle- és world-profile-kötésű,
+  seedelt belépőgenerátor. Admin-batch maximum 8 fő, élőlétszámmaximum 64, közös
+  clock/profile életére összesen maximum 256 belépő, 18–35 éves generált életkorral.
+  Csak szüneteltetett közös órán fogad új batch-et; nem indít botot és nem ad vagyont.
+- `population-demographics-policy.json`: leíró demográfiai policy; 18–70 év közötti,
+  legalább 8000 bázispontos korfüggő munkakapacitású potenciális munkaerő, valamint
+  explicit skill ID/verzió alapú szakembercsoportok. Nem ad képességet vagy fizikai
+  műveleti jogot; a hiányzó vagy későn archivált skill-profil ismeretlenként marad.
+- `external-trade-policies.json`, `external-trade-world-profile-bindings.json`:
+  a 24.4 külön import/export domain véges partner-/áru-/GP-kvótái és pontos
+  world-profile/policy digestkötései. Mindkét szállított lista üres; implicit
+  engedély vagy NPC shop/restock fallback nincs.
+  Részletek: [24.4](../docs/project/features/phase24-4-external-trade.md).
+- `self-sufficiency-inputs.json`: a 24.3 diagnosztikai riport diszjunkt, tételes
+  inputkategóriái (raw food, érc, karbantartási fém, póteszköz, építőanyag).
+  A hiányzó idő-/eredetbizonyíték ismeretlen marad; a kategória nem ad belső
+  eredetet vagy automatikus önellátási minősítést.
+  Részletek: [24.3](../docs/project/features/phase24-3-self-sufficiency.md).
 - `llm-runtime.json`: titokmentes provider-, modell- és biztonsági limitminta;
   alapértelmezetten kikapcsolt mock providerrel. API-kulcs soha nem kerül ide.
 - `llm-runtime.openai.example.json`: másolható Responses API minta. A tényleges

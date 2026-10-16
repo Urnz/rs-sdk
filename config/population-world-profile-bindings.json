@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "bindings": [
+    {
+      "worldProfileId": "mature-society",
+      "worldProfileVersion": "1.0.0",
+      "worldProfileDigest": "5bfbc4400390732eb3feba94056ffd769ed5ce00d843bfc01f4cc881470108a4",
+      "policyId": "finite-population",
+      "policyVersion": "1.0.0",
+      "policyDigest": "fa1b2fe71e047c08f8e018dbcfba558a585265f2214c6e17e6aca8e2dbf367b4"
+    },
+    {
+      "worldProfileId": "historical-burn-in",
+      "worldProfileVersion": "1.0.0",
+      "worldProfileDigest": "351301541321bd2b95ff07a0907eb23a31f0467965bc56e9bdab2c3a14ab2423",
+      "policyId": "finite-population",
+      "policyVersion": "1.0.0",
+      "policyDigest": "fa1b2fe71e047c08f8e018dbcfba558a585265f2214c6e17e6aca8e2dbf367b4"
+    }
+  ]
+}

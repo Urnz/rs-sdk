@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "policyId": "finite-population-health",
+  "version": "1.0.0",
+  "agePolicy": {
+    "policyId": "finite-population-age",
+    "version": "1.0.0",
+    "digest": "b852eaa5dd9f3db7e534201a62ae6fb063f8119fa9583d517555a9e538f75e66"
+  },
+  "recoveryBurdenPerSimulationHour": 1000,
+  "treatmentRequiredBurden": 5000,
+  "untreatedRecoveryFloor": 1000,
+  "criticalBurden": 7500,
+  "maximumOpenInjuries": 256,
+  "treatments": []
+}

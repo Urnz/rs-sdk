@@ -276,6 +276,7 @@ export class MarketStore {
     }
 }
 let store: MarketStore | undefined;
+let checkpointStore: MarketStore | undefined;
 export function marketStore(): MarketStore {
     if (!Environment.GE_ENABLED) throw new Error('Grand Exchange is not available on this server.');
     return (store ??= new MarketStore(process.env.GE_DATABASE ?? 'data/market.sqlite'));
@@ -284,7 +285,19 @@ export function marketStore(): MarketStore {
  * A world that has never used GE does not create or require a market database.
  */
 export function playerSaveStore(): MarketStore | undefined {
+    const checkpointPath = process.env.PLAYER_CHECKPOINT_DATABASE;
+    if (checkpointPath) return (checkpointStore ??= new MarketStore(checkpointPath));
     const path = process.env.GE_DATABASE ?? 'data/market.sqlite';
     if (!Environment.GE_ENABLED && !store && !existsSync(path)) return undefined;
     return (store ??= new MarketStore(path));
+}
+
+/** Explicitly establish the player checkpoint authority for a non-GE asset settlement.
+ * Unlike playerSaveStore, this may create the database while GE is disabled.
+ * Call only after the separate escrow migration preflight and reconciliation.
+ */
+export function ensurePlayerSaveStore(): MarketStore {
+    const checkpointPath = process.env.PLAYER_CHECKPOINT_DATABASE;
+    if (checkpointPath) return (checkpointStore ??= new MarketStore(checkpointPath));
+    return (store ??= new MarketStore(process.env.GE_DATABASE ?? 'data/player-checkpoints.sqlite'));
 }

@@ -1,0 +1,21 @@
+# Dependency, runtime, and generated output already excluded from source review.
+node_modules/
+.local/
+backups/
+coverage/
+dist/
+build/
+runs/
+screenshots/
+*.log
+
+# Large generated or binary assets that pollute normal code searches.
+**/bun.lock
+**/package-lock.json
+docs/media/
+sdk/collision-data.json
+server/content/maps/
+server/content/scripts/_unpack/
+server/engine/data/
+server/engine/public/client/
+server/webclient/public/

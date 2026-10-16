@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { furnishingCatalogDigest } from './furnishings.js';
 import type { FurnishingCatalog, FurnishingPlacement, FurnishingPurchaseEvidence,
-    PropertyFurnishingCapabilities } from './types.js';
+    PlacedHousingStorage, PropertyFurnishingCapabilities } from './types.js';
 
 const ID = /^[a-z0-9][a-z0-9._:-]{0,127}$/i;
 const ZERO = '0'.repeat(64);
@@ -13,6 +13,8 @@ type Row = { placement_id: string; property_id: string; placement_slot_id: strin
     property_authority_digest: string;
     status: 'placed' | 'removed'; placed_at: string; removed_at: string | null; revision: number;
     sleep_places: number; private_storage_slots: number; work_surfaces: number };
+type AuditRow = { sequence: number; action: string; placement_id: string; occurred_at: string;
+    payload_json: string; previous_hash: string; entry_hash: string };
 function id(value: string, field: string): string { const normalized = value.trim().toLowerCase();
     if (!ID.test(normalized)) throw new Error(`${field} is invalid`); return normalized; }
 function timestamp(value: string, field: string): string { const parsed = Date.parse(value);
@@ -50,9 +52,18 @@ export class FurnishingPlacementStore {
             : this.database.query('SELECT * FROM furnishing_placement ORDER BY placement_id').all();
         return (rows as Row[]).map(placement);
     }
+    /** Exact active storage placement, verified against the placement audit before use. */
+    getStoragePlacement(placementIdInput: string): PlacedHousingStorage | null {
+        if (!this.verifyAuditChain()) throw new Error('Furnishing placement state or audit is invalid');
+        const row = this.database.query('SELECT * FROM furnishing_placement WHERE placement_id=?1')
+            .get(id(placementIdInput, 'Placement id')) as Row | null;
+        return row?.status === 'placed' && row.private_storage_slots > 0
+            ? { ...placement(row), storageSlots: row.private_storage_slots } : null;
+    }
     place(input: { placementId: string; propertyId: string; placementSlotId: string;
         evidence: FurnishingPurchaseEvidence; propertyAuthorityDigest: string;
         atSimulationTime: string }): FurnishingPlacement {
+        if (!this.verifyAuditChain()) throw new Error('Furnishing placement state or audit is invalid');
         const placementId = id(input.placementId, 'Placement id'), propertyId = id(input.propertyId, 'Property id');
         const slotId = id(input.placementSlotId, 'Placement slot id');
         const at = timestamp(input.atSimulationTime, 'Placement time');
@@ -89,16 +100,22 @@ export class FurnishingPlacementStore {
             this.audit('furnishing-placed', placementId, at, { propertyId, slotId,
                 furnishingTypeId: furnishing.furnishingTypeId, assetId: evidence.assetId,
                 ownerAgentId: evidence.ownerAgentId, evidenceDigest: evidence.sourceDigest,
-                propertyAuthorityDigest: input.propertyAuthorityDigest });
+                propertyAuthorityDigest: input.propertyAuthorityDigest,
+                sleepPlaces: furnishing.capabilities.sleepPlaces,
+                privateStorageSlots: furnishing.capabilities.privateStorageSlots,
+                workSurfaces: furnishing.capabilities.workSurfaces });
         });
         transaction.immediate();
         return this.get(placementId)!;
     }
     remove(placementIdInput: string, expectedRevision: number,
         atSimulationTime: string): FurnishingPlacement {
+        if (!this.verifyAuditChain()) throw new Error('Furnishing placement state or audit is invalid');
         const current = this.get(placementIdInput); if (!current) throw new Error('Unknown furnishing placement');
         if (current.status === 'removed') return current;
         const at = timestamp(atSimulationTime, 'Removal time');
+        if (Date.parse(at) < Date.parse(current.placedAtSimulationTime))
+            throw new Error('Removal cannot predate furnishing placement');
         const transaction = this.database.transaction(() => {
             const changed = this.database.run(`UPDATE furnishing_placement SET status='removed',removed_at=?3,
                 revision=revision+1 WHERE placement_id=?1 AND revision=?2 AND status='placed'`,
@@ -110,6 +127,7 @@ export class FurnishingPlacementStore {
         return this.get(current.placementId)!;
     }
     capabilities(propertyIdInput: string): PropertyFurnishingCapabilities {
+        if (!this.verifyAuditChain()) throw new Error('Furnishing placement state or audit is invalid');
         const propertyId = id(propertyIdInput, 'Property id');
         const rows = this.database.query(`SELECT placement_id,sleep_places,private_storage_slots,work_surfaces
             FROM furnishing_placement WHERE property_id=?1 AND status='placed' ORDER BY placement_id`).all(propertyId) as
@@ -121,13 +139,65 @@ export class FurnishingPlacementStore {
             workSurfaces: rows.reduce((sum, row) => sum + row.work_surfaces, 0) };
     }
     verifyAuditChain(): boolean {
-        const rows = this.database.query(`SELECT previous_hash,entry_hash,payload_json FROM furnishing_audit
-            ORDER BY sequence`).all() as Array<{ previous_hash: string; entry_hash: string; payload_json: string }>;
-        let head = ZERO;
-        for (const row of rows) { if (row.previous_hash !== head
-            || hash({ previousHash: head, payload: JSON.parse(row.payload_json) }) !== row.entry_hash) return false;
-        head = row.entry_hash; }
-        return true;
+        try {
+            const audits = this.database.query('SELECT * FROM furnishing_audit ORDER BY sequence').all() as AuditRow[];
+            const expected = new Map<string, Row>();
+            let head = ZERO;
+            for (let index = 0; index < audits.length; index++) {
+                const audit = audits[index]!;
+                const payload = JSON.parse(audit.payload_json) as Record<string, unknown>;
+                if (!payload || typeof payload !== 'object' || Array.isArray(payload)
+                    || Object.keys(payload).sort().join(',') !== 'action,at,detail,placementId'
+                    || audit.sequence !== index + 1 || audit.previous_hash !== head
+                    || hash({ previousHash: head, payload }) !== audit.entry_hash
+                    || audit.action !== payload.action || audit.placement_id !== payload.placementId
+                    || audit.occurred_at !== payload.at) return false;
+                const detail = payload.detail;
+                if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return false;
+                const fields = detail as Record<string, unknown>;
+                if (audit.action === 'furnishing-placed') {
+                    const keys = Object.keys(fields).sort().join(',');
+                    const legacy = keys ===
+                        'assetId,evidenceDigest,furnishingTypeId,ownerAgentId,propertyAuthorityDigest,propertyId,slotId';
+                    const snapshotted = keys ===
+                        'assetId,evidenceDigest,furnishingTypeId,ownerAgentId,privateStorageSlots,propertyAuthorityDigest,propertyId,sleepPlaces,slotId,workSurfaces';
+                    if ((!legacy && !snapshotted) || expected.has(audit.placement_id)) return false;
+                    const slot = this.catalog.placementSlots.find(value => value.placementSlotId === fields.slotId);
+                    const furnishing = this.catalog.furnishings.find(value => value.furnishingTypeId ===
+                        fields.furnishingTypeId);
+                    if (legacy && (!slot || !furnishing || slot.propertyId !== fields.propertyId
+                        || !slot.allowedKinds.includes(furnishing.kind))) return false;
+                    const capacity = snapshotted ? { sleepPlaces: fields.sleepPlaces,
+                        privateStorageSlots: fields.privateStorageSlots, workSurfaces: fields.workSurfaces }
+                        : furnishing!.capabilities;
+                    if (Object.values(capacity).some(value => !Number.isSafeInteger(value)
+                        || Number(value) < 0)) return false;
+                    expected.set(audit.placement_id, { placement_id: audit.placement_id,
+                        property_id: fields.propertyId as string, placement_slot_id: fields.slotId as string,
+                        furnishing_type_id: fields.furnishingTypeId as string, asset_id: fields.assetId as string,
+                        owner_agent_id: fields.ownerAgentId as string,
+                        purchase_evidence_digest: fields.evidenceDigest as string,
+                        property_authority_digest: fields.propertyAuthorityDigest as string,
+                        status: 'placed', placed_at: audit.occurred_at, removed_at: null, revision: 1,
+                        sleep_places: capacity.sleepPlaces as number,
+                        private_storage_slots: capacity.privateStorageSlots as number,
+                        work_surfaces: capacity.workSurfaces as number });
+                } else if (audit.action === 'furnishing-removed') {
+                    if (Object.keys(fields).length !== 0) return false;
+                    const previous = expected.get(audit.placement_id);
+                    if (!previous || previous.status !== 'placed'
+                        || Date.parse(audit.occurred_at) < Date.parse(previous.placed_at)) return false;
+                    expected.set(audit.placement_id, { ...previous, status: 'removed',
+                        removed_at: audit.occurred_at, revision: previous.revision + 1 });
+                } else return false;
+                head = audit.entry_hash;
+            }
+            const rows = this.database.query('SELECT * FROM furnishing_placement').all() as Row[];
+            if (rows.length !== expected.size) return false;
+            return rows.every(row => { const value = expected.get(row.placement_id);
+                return value !== undefined && (Object.keys(value) as Array<keyof Row>)
+                    .every(key => row[key] === value[key]); });
+        } catch { return false; }
     }
     private evidence(value: FurnishingPurchaseEvidence): FurnishingPurchaseEvidence {
         if (!value || Object.keys(value).sort().join(',') !== 'assetId,furnishingTypeId,ownerAgentId,sourceDigest') {

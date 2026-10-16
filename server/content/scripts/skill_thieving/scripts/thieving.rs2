@@ -1,4 +1,5 @@
 [proc,pick_pocket](dbrow $data)
+thieving_evidence_begin(1);
 def_string $pocket = db_getfield($data, pickpocket:pocket, 0);
 // https://www.youtube.com/watch?v=O2n9Hc719YE
 mes("You attempt to pick the <$pocket>.");
@@ -20,6 +21,7 @@ def_int $experience = db_getfield($data, pickpocket:experience, 0);
 ~pick_pocket_check_for_reward($data);
 anim(human_pickpocket, 0);
 stat_advance(thieving, $experience);
+thieving_evidence_commit(1);
 sound_synth(pick, 0, 0);
 mes("You pick the <$pocket>.");
 
@@ -59,6 +61,7 @@ if (~stealing_check_for_guard($data) = true) {
    return;
 }
 p_arrivedelay;
+thieving_evidence_begin(3);
 def_int $experience = db_getfield($data, stealing:experience, 0);
 // osrs is 2x respawn speed, since they removed the scale by playercount
 def_int $respawn_ticks = ~scale_by_playercount(db_getfield($data, stealing:respawn_ticks, 0));
@@ -97,6 +100,7 @@ switch_loc (loc_type) {
 }
 ~stealing_check_for_reward($data);
 stat_advance(thieving, $experience);
+thieving_evidence_commit(1);
 // Temp note: dur does not need updated
 if(loc_type = viking_fur_market | loc_type = viking_fish_market) loc_change(viking_market, $respawn_ticks);
 else loc_change(market, $respawn_ticks);
@@ -119,6 +123,7 @@ $damage = calc($damage + 3);
 ~damage_self($damage);
 
 [proc,disarm_trapped_chest](dbrow $data, loc $loc, coord $loc_coord, int $loc_angle, locshape $loc_shape)
+thieving_evidence_begin(3);
 // https://www.youtube.com/watch?v=5SxYEdRdiPU
 mes("You find a trap on the chest, "); // extra space matches OSRS
 p_delay(1);
@@ -133,6 +138,7 @@ anim(human_openchest, 0);
 ~trapped_chest_check_for_reward($data);
 def_int $experience = db_getfield($data, trapped_chest:experience, 0);
 stat_advance(thieving, $experience);
+thieving_evidence_commit(1);
 def_int $respawn_ticks = ~scale_by_playercount(db_getfield($data, trapped_chest:respawn_ticks, 0));
 loc_change(loc_2574, 4); //opened chest
 p_delay(2);

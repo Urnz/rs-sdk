@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "locations": [
+    { "locationId": "varrock.east-workshop.loading-bay", "label": "Varrock workshop loading bay", "propertyId": "varrock.east-workshop", "storageId": "varrock.east-workshop.loading-bay" },
+    { "locationId": "falador.south-house.delivery", "label": "Falador south delivery storage", "propertyId": "falador.south-house", "storageId": "falador.south-house.delivery" }
+  ],
+  "routes": [
+    { "routeId": "varrock-workshop-to-falador-south", "fromLocationId": "varrock.east-workshop.loading-bay", "toLocationId": "falador.south-house.delivery", "distanceTiles": 800 }
+  ],
+  "carrierModes": [
+    { "carrierModeId": "courier.walking", "kind": "pedestrian", "capacityUnits": 28, "speedTilesPerSimulationMinute": 80, "fixedCostGp": 5, "costGpPer100Tiles": 1, "requiredFacilityCapabilityId": null },
+    { "carrierModeId": "vehicle.handcart", "kind": "vehicle", "capacityUnits": 120, "speedTilesPerSimulationMinute": 160, "fixedCostGp": 8, "costGpPer100Tiles": 2, "requiredFacilityCapabilityId": "logistics.cart-bay" }
+  ]
+}

@@ -217,6 +217,11 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                     selector(stringArg(args, 'name'), args.match),
                     (args.option as string | number | undefined) ?? 1
                 ));
+            case 'thieve-pickpocket':
+            case 'thieve-lockpick':
+            case 'thieve-container':
+            case 'thieve-property-entry':
+                return this.executeThievingOperation(operation, args, signal);
             case 'gather-loc':
             case 'gather-npc': {
                 const target = selector(stringArg(args, 'name'), args.match);
@@ -425,6 +430,95 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 await this.sdk.waitForTicks(numberArg(args, 'ticks', undefined, 1, 100));
                 return { success: true, message: 'Wait complete' };
         }
+    }
+
+    private async executeThievingOperation(operation: Extract<SkillOperationName,
+        'thieve-pickpocket' | 'thieve-lockpick' | 'thieve-container' | 'thieve-property-entry'>,
+    args: Record<string, unknown>, signal: AbortSignal): Promise<SkillOperationResult> {
+        const name = stringArg(args, 'name');
+        if (args.match !== 'exact') return { success: false,
+            message: 'Thieving operations require an exact target name', code: 'thieving-target-not-exact' };
+        const targetSelector = selector(name, args.match);
+        const option = (args.option as string | number | undefined)
+            ?? (operation === 'thieve-pickpocket' ? 'pickpocket' : 2);
+        const optionMatches = (options: Array<{ text: string; opIndex: number }>): boolean => {
+            if (typeof option === 'number') return options.some(candidate => candidate.opIndex === option);
+            try { return options.some(candidate => new RegExp(option, 'i').test(candidate.text)); }
+            catch { return options.some(candidate => candidate.text.toLowerCase().includes(option.toLowerCase())); }
+        };
+        const nameMatches = (candidate: string): boolean => typeof targetSelector === 'string'
+            ? candidate.toLowerCase().includes(targetSelector.toLowerCase()) : targetSelector.test(candidate);
+        const beforeState = this.sdk.getState();
+        if (!beforeState?.player) return { success: false, message: 'Player state is unavailable', code: 'state-unavailable' };
+        const beforeInventory = snapshotInventory(this.sdk);
+        const beforeXp = this.sdk.getSkillXp('Thieving') ?? 0;
+        const beforeTick = beforeState.tick;
+        const beforePosition = { x: beforeState.player.worldX, z: beforeState.player.worldZ,
+            level: beforeState.player.level };
+        let target: { kind: 'npc' | 'loc'; id: number; name: string; x: number; z: number; index?: number };
+        let interaction: SkillOperationResult;
+        if (operation === 'thieve-pickpocket') {
+            const npc = this.sdk.getNearbyNpcs().filter(candidate => nameMatches(candidate.name)
+                && optionMatches(candidate.optionsWithIndex)).sort((left, right) => left.distance - right.distance)[0];
+            if (!npc) return { success: false, message: `Pickpocket target not found: ${name}`,
+                code: 'thieving-target-not-found' };
+            target = { kind: 'npc', id: npc.id, index: npc.index, name: npc.name, x: npc.x, z: npc.z };
+            interaction = normalized(await this.bot.interactNpc(npc, option));
+        } else {
+            const x = numberArg(args, 'x', undefined, 0, 16_383);
+            const z = numberArg(args, 'z', undefined, 0, 16_383);
+            const loc = this.sdk.getNearbyLocs().find(candidate => candidate.x === x && candidate.z === z
+                && nameMatches(candidate.name) && optionMatches(candidate.optionsWithIndex));
+            if (!loc) return { success: false, message: `Thieving target not found: ${name} at (${x}, ${z})`,
+                code: 'thieving-target-not-found' };
+            target = { kind: 'loc', id: loc.id, name: loc.name, x: loc.x, z: loc.z };
+            interaction = normalized(await this.bot.interactLoc(loc, option));
+        }
+        const failurePattern = /fail|stunned|activated a trap|find nothing|too suspicious|not a high enough|need level|need a .*lockpick|already been looted|can't|cannot|during combat|inventory is too full/i;
+        const observe = () => {
+            const state = this.sdk.getState();
+            const delta = inventoryDelta(beforeInventory, snapshotInventory(this.sdk));
+            const xpDelta = Math.max(0, (this.sdk.getSkillXp('Thieving') ?? beforeXp) - beforeXp);
+            const messages = (state?.gameMessages ?? []).filter(message => message.tick > beforeTick && message.type === 0)
+                .map(message => message.text).slice(-20);
+            const itemGain = delta.some(item => item.delta > 0);
+            return { state, delta, xpDelta, messages, succeeded: xpDelta > 0 || itemGain,
+                failed: messages.some(message => failurePattern.test(message)) };
+        };
+        let observed = observe();
+        if (!observed.succeeded && !observed.failed && !signal.aborted) {
+            try {
+                await withAbort(this.sdk.waitForCondition(() => {
+                    observed = observe();
+                    return observed.succeeded || observed.failed;
+                }, numberArg(args, 'timeoutMs', 15_000, 100, 60_000)), signal);
+            } catch { /* unresolved evidence is returned below */ }
+            observed = observe();
+        }
+        const outcome = observed.succeeded ? 'succeeded' : observed.failed ? 'failed' : 'unresolved';
+        const finalPlayer = observed.state?.player;
+        const data = {
+            procedureKind: operation,
+            outcome,
+            source: 'sdk-observation',
+            trusted: false,
+            receiptEligible: false,
+            target,
+            startedAtTick: beforeTick,
+            endedAtTick: observed.state?.tick ?? beforeTick,
+            positionBefore: beforePosition,
+            positionAfter: finalPlayer ? { x: finalPlayer.worldX, z: finalPlayer.worldZ, level: finalPlayer.level } : null,
+            thievingXpDelta: observed.xpDelta,
+            inventoryDelta: observed.delta,
+            systemMessages: observed.messages,
+            interaction: { success: interaction.success, code: interaction.code ?? null, message: interaction.message }
+        };
+        if (outcome === 'succeeded') return { success: true, message: `${operation} produced observable game evidence`,
+            code: 'thieving-observed-success', data };
+        if (outcome === 'failed') return { success: false, message: `${operation} failed according to game evidence`,
+            code: 'thieving-observed-failure', data };
+        return { success: false, message: `${operation} did not produce conclusive evidence`,
+            code: signal.aborted ? 'cancelled' : 'thieving-evidence-timeout', data };
     }
 
     private authorize(operation: SkillOperationName, args: Record<string, unknown>): SkillOperationResult | null {

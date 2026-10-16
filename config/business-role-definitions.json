@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "roles": [
+    {
+      "roleDefinitionId": "business.manager.v1",
+      "name": "Operations manager",
+      "legacyProjection": "manager",
+      "skillPolicy": {
+        "mode": "employment-required-only",
+        "verifiedSkills": []
+      },
+      "permissions": {
+        "inventory": ["inspect", "receive", "issue"],
+        "storage": ["inspect", "deposit", "withdraw", "assign"],
+        "treasury": ["inspect", "reserve", "pay"],
+        "pricing": ["inspect", "propose", "approve"],
+        "contracts": ["inspect", "propose", "accept", "settle"],
+        "logistics": ["inspect", "dispatch", "operate"]
+      },
+      "hiringPolicy": {
+        "mayHire": true,
+        "mayDismiss": true,
+        "mayDelegate": true,
+        "assignableRoleDefinitionIds": [
+          "business.worker.v1",
+          "business.shop-clerk.v1"
+        ]
+      }
+    },
+    {
+      "roleDefinitionId": "business.worker.v1",
+      "name": "Assigned worker",
+      "legacyProjection": "worker",
+      "skillPolicy": {
+        "mode": "employment-required-only",
+        "verifiedSkills": []
+      },
+      "permissions": {
+        "inventory": ["inspect", "receive"],
+        "storage": ["inspect", "deposit", "withdraw"],
+        "treasury": [],
+        "pricing": ["inspect"],
+        "contracts": ["inspect"],
+        "logistics": ["inspect", "operate"]
+      },
+      "hiringPolicy": {
+        "mayHire": false,
+        "mayDismiss": false,
+        "mayDelegate": false,
+        "assignableRoleDefinitionIds": []
+      }
+    },
+    {
+      "roleDefinitionId": "business.shop-clerk.v1",
+      "name": "Shop clerk",
+      "legacyProjection": "worker",
+      "skillPolicy": {
+        "mode": "allowlist",
+        "verifiedSkills": [
+          { "id": "shopping.lumbridge.buy-hammers", "version": "1.0.0" },
+          { "id": "trade.lumbridge.give-item", "version": "1.0.0" }
+        ]
+      },
+      "permissions": {
+        "inventory": ["inspect", "receive", "issue"],
+        "storage": ["inspect", "deposit", "withdraw"],
+        "treasury": [],
+        "pricing": ["inspect", "propose"],
+        "contracts": ["inspect"],
+        "logistics": ["inspect"]
+      },
+      "hiringPolicy": {
+        "mayHire": false,
+        "mayDismiss": false,
+        "mayDelegate": false,
+        "assignableRoleDefinitionIds": []
+      }
+    }
+  ]
+}

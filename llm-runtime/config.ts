@@ -18,7 +18,11 @@ const ROUTINE_OPERATIONS: SkillOperationName[] = ['walk-to', 'wait-for-area', 't
     'interact-loc', 'interact-npc', 'gather-loc', 'gather-npc', 'smith-at-anvil', 'open-shop', 'sell-to-shop',
     'close-shop', 'open-bank', 'deposit-item', 'withdraw-item', 'close-bank', 'wait-ticks'];
 const OPERATIONS = new Set<SkillOperationName>([
-    ...ROUTINE_OPERATIONS, 'buy-from-shop', 'trade-give-item', 'trade-receive-item'
+    ...ROUTINE_OPERATIONS, 'buy-from-shop', 'trade-give-item', 'trade-receive-item',
+    'thieve-pickpocket', 'thieve-lockpick', 'thieve-container', 'thieve-property-entry'
+]);
+const RIGHTS_VIOLATION_OPERATIONS = new Set<SkillOperationName>([
+    'thieve-pickpocket', 'thieve-lockpick', 'thieve-container', 'thieve-property-entry'
 ]);
 
 function scalar(value: unknown): value is AutonomousScalar {
@@ -97,8 +101,9 @@ function autonomousSkills(value: unknown): LlmRuntimeConfig['autonomousExecution
         const itemNames = shortStringList(item.itemNames, `allowedSkills[${index}].itemNames`, 100);
         const partners = shortStringList(item.partners, `allowedSkills[${index}].partners`, 100);
         if (risk === 'routine' && operations.some(operation => operation === 'buy-from-shop'
-            || operation === 'trade-give-item' || operation === 'trade-receive-item')) {
-            throw new Error('Routine authorization cannot include buy or player trade');
+            || operation === 'trade-give-item' || operation === 'trade-receive-item'
+            || RIGHTS_VIOLATION_OPERATIONS.has(operation as SkillOperationName))) {
+            throw new Error('Routine authorization cannot include buy, player trade or rights-violation operations');
         }
         if (risk === 'shop-buy' && (!operations.includes('buy-from-shop') || maxUnitPriceGp < 1
             || maxGpPerRun < 1 || maxGpPerDay < maxGpPerRun || itemNames.length < 1)) {

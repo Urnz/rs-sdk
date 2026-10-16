@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "bindings": [
+    {
+      "placementSlotId": "falador.south-house.storage-1",
+      "housingUnitId": "falador.south-house.main",
+      "storageSurfaceId": "private-room-chest"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "policyId": "finite-population-admin-inheritance",
+  "version": "1.0.0",
+  "mode": "admin-single-heir-personal-property",
+  "bindings": []
+}

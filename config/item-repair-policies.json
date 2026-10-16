@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "policyId": "bronze-pickaxe-workshop-repair",
+      "lifecycleTypeId": "bronze-pickaxe",
+      "requiredStatus": "broken",
+      "restoredDurability": 50,
+      "durationSeconds": 600,
+      "materials": [
+        { "itemId": 2349, "quantity": 1 }
+      ],
+      "competence": { "skillId": "smithing", "minimumLevel": 1 },
+      "facility": { "capabilityId": "work-surface" }
+    },
+    {
+      "policyId": "workshop-bellows-repair",
+      "lifecycleTypeId": "workshop-bellows",
+      "requiredStatus": "broken",
+      "restoredDurability": 100,
+      "durationSeconds": 900,
+      "materials": [
+        { "itemId": 2349, "quantity": 1 }
+      ],
+      "competence": { "skillId": "smithing", "minimumLevel": 5 },
+      "facility": { "capabilityId": "smithing.basic-forging" }
+    }
+  ]
+}

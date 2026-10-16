@@ -4,6 +4,8 @@ param(
     [string[]]$BotNames,
     [string]$FixturePath,
     [switch]$NoBot,
+    [switch]$GatewayLoginAuthentication,
+    [switch]$EnableThievingProcessor,
     [int]$TimeoutSeconds = 90
 )
 
@@ -34,6 +36,9 @@ foreach ($selectedBotName in $selectedBotNames) {
 
 $existingHealth = Get-LocalHealth -BotNames $selectedBotNames
 if ($existingHealth.healthy) {
+    if ($EnableThievingProcessor -and -not $existingHealth.thievingProcessor.enabled) {
+        throw 'A helyi stack már fut Thieving feldolgozó nélkül. Állítsd le a scripts/stop-local.ps1 paranccsal, majd indítsd újra -EnableThievingProcessor kapcsolóval.'
+    }
     Write-Host 'A helyi stack már egészséges.'
     $existingHealth | ConvertTo-Json -Depth 6
     exit 0
@@ -57,6 +62,7 @@ $state = [ordered]@{
     botName = if ($selectedBotNames.Count -gt 0) { $selectedBotNames[0] } else { $null }
     botNames = $selectedBotNames
     fixturePath = if ($FixturePath) { $FixturePath } else { $null }
+    thievingProcessorEnabled = [bool]$EnableThievingProcessor
     components = @()
 }
 
@@ -86,12 +92,20 @@ function Start-LocalComponent {
 
 $oldEasyStartup = $env:EASY_STARTUP
 $oldRegistration = $env:WEBSITE_REGISTRATION
+$oldGatewayLoginServer = $env:LOGIN_SERVER
 $oldEngineAdminToken = [Environment]::GetEnvironmentVariable('ENGINE_ADMIN_TOKEN', 'Process')
 $oldAutonomyStartupGraceMs = [Environment]::GetEnvironmentVariable('AUTONOMY_STARTUP_GRACE_MS', 'Process')
+$oldPlayerEscrowSharedCheckpoint = [Environment]::GetEnvironmentVariable('PLAYER_ESCROW_SHARED_CHECKPOINT', 'Process')
+$oldPlayerCheckpointDatabase = [Environment]::GetEnvironmentVariable('PLAYER_CHECKPOINT_DATABASE', 'Process')
 $env:ENGINE_ADMIN_TOKEN = if ($oldEngineAdminToken) { $oldEngineAdminToken } else { [Guid]::NewGuid().ToString('N') }
 $env:AUTONOMY_STARTUP_GRACE_MS = [string](($TimeoutSeconds + 10) * 1000)
+$env:PLAYER_ESCROW_SHARED_CHECKPOINT = 'true'
+# Explicit checkpoint authority: operationally independent of GE_ENABLED and GE_DATABASE.
+# The existing local save was migrated in place; new deployments may choose a dedicated path.
+$env:PLAYER_CHECKPOINT_DATABASE = 'data/market.sqlite'
 
 try {
+    if ($GatewayLoginAuthentication) { $env:LOGIN_SERVER = 'true' }
     Start-LocalComponent -Name 'gateway' -WorkingDirectory (Join-Path $repoRoot 'server\gateway') -Arguments @('run', 'gateway.ts') | Out-Null
     Wait-LocalCondition -Description 'gateway /status' -TimeoutSeconds $TimeoutSeconds -Condition {
         (Test-LocalHttp -Uri 'http://localhost:7780/status' -ExpectedContentType 'application/json').healthy
@@ -99,6 +113,9 @@ try {
 
     $env:EASY_STARTUP = 'true'
     $env:WEBSITE_REGISTRATION = 'false'
+    # Gateway bearer authentication is distinct from the engine's remote save authority.
+    # Keep the local engine file-backed, including audited offline acceptance setup.
+    if ($GatewayLoginAuthentication) { $env:LOGIN_SERVER = $oldGatewayLoginServer }
     Start-LocalComponent -Name 'engine' -WorkingDirectory (Join-Path $repoRoot 'server\engine') -Arguments @('run', 'src/app.ts') | Out-Null
     Wait-LocalCondition -Description 'engine /engine-status' -TimeoutSeconds $TimeoutSeconds -Condition {
         (Test-LocalHttp -Uri 'http://localhost:8888/engine-status').healthy
@@ -109,6 +126,15 @@ try {
 
     # Only gateway and engine need the internal mutation token. Do not pass it to bot clients.
     Remove-Item Env:ENGINE_ADMIN_TOKEN -ErrorAction SilentlyContinue
+
+    if ($EnableThievingProcessor) {
+        $worker = Start-LocalComponent -Name 'thieving-processor' -WorkingDirectory $repoRoot `
+            -Arguments @('run', 'thieving-procedures/watch.ts')
+        Start-Sleep -Seconds 1
+        if (-not (Test-LocalManagedProcess $worker)) {
+            throw "A Thieving feldolgozó leállt indítás után. Napló: $($worker.stderr)"
+        }
+    }
 
     foreach ($selectedBotName in $selectedBotNames) {
         Start-LocalComponent -Name "bot-$($selectedBotName.ToLowerInvariant())" `
@@ -123,6 +149,7 @@ try {
     }
 
     $health = Get-LocalHealth -BotNames $selectedBotNames
+    if (-not $health.healthy) { throw 'A helyi stack állapotellenőrzése sikertelen az indítás után.' }
     Write-Host "Helyi stack elindult. Naplók: $logDirectory"
     $health | ConvertTo-Json -Depth 6
 } catch {
@@ -132,6 +159,7 @@ try {
     Remove-Item -LiteralPath (Get-LocalStatePath) -Force -ErrorAction SilentlyContinue
     throw
 } finally {
+    $env:LOGIN_SERVER = $oldGatewayLoginServer
     $env:EASY_STARTUP = $oldEasyStartup
     $env:WEBSITE_REGISTRATION = $oldRegistration
     if ($oldEngineAdminToken) {
@@ -143,5 +171,15 @@ try {
         $env:AUTONOMY_STARTUP_GRACE_MS = $oldAutonomyStartupGraceMs
     } else {
         Remove-Item Env:AUTONOMY_STARTUP_GRACE_MS -ErrorAction SilentlyContinue
+    }
+    if ($oldPlayerEscrowSharedCheckpoint) {
+        $env:PLAYER_ESCROW_SHARED_CHECKPOINT = $oldPlayerEscrowSharedCheckpoint
+    } else {
+        Remove-Item Env:PLAYER_ESCROW_SHARED_CHECKPOINT -ErrorAction SilentlyContinue
+    }
+    if ($oldPlayerCheckpointDatabase) {
+        $env:PLAYER_CHECKPOINT_DATABASE = $oldPlayerCheckpointDatabase
+    } else {
+        Remove-Item Env:PLAYER_CHECKPOINT_DATABASE -ErrorAction SilentlyContinue
     }
 }

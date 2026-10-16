@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { activeSkillsDir, adminLogsDir, adminSkillLogsDir, botsDir, repoRoot, webclientDir } from './paths';
 import type { ManagedProcessSnapshot, ManagedSkillRunSnapshot } from './types';
 import type { SkillRuntimeAuthorization } from '../../../agent-skills/types';
+import { assertLocalAvatarCanAct } from './population-death-runtime.js';
 
 export interface SpawnBotOptions {
     username: string;
@@ -210,6 +211,7 @@ export class BotSupervisor {
 
     async spawn(options: SpawnBotOptions): Promise<ManagedProcessSnapshot> {
         const username = assertUsername(options.username);
+        assertLocalAvatarCanAct(username);
         const key = username.toLowerCase();
         const current = this.processes.get(key);
         if (current && (current.snapshot.status === 'starting' || current.snapshot.status === 'running')) {
@@ -283,6 +285,7 @@ export class BotSupervisor {
 
     async despawn(usernameInput: string, reason: string): Promise<ManagedProcessSnapshot | null> {
         const username = assertUsername(usernameInput);
+        assertLocalAvatarCanAct(username);
         const key = username.toLowerCase();
         const managed = this.processes.get(key);
         if (managed) managed.snapshot.status = 'stopping';

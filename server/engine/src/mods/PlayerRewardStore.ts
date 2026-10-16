@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs';
+import { withSocietyValueMutation, nativeSocietyValuePaths, nativeSocietyPathMatches, type IntegrityBoundary } from '../../../../society-integrity/runtime.js';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 
@@ -43,7 +44,8 @@ function record(row: RewardRow): PlayerRewardRecord {
 export class PlayerRewardStore {
     private readonly database: Database;
 
-    constructor(path: string) {
+    constructor(path: string, private integrityBoundary?:IntegrityBoundary|false) {
+        if(this.integrityBoundary===undefined && !nativeSocietyPathMatches(path,nativeSocietyValuePaths.reward))this.integrityBoundary=false;
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
         this.database.run(`CREATE TABLE IF NOT EXISTS player_action_reward (
@@ -59,7 +61,7 @@ export class PlayerRewardStore {
     }
 
     close(): void {
-        this.database.clearQueryCache();
+        (this.database as Database & { clearQueryCache(): void }).clearQueryCache();
         this.database.close(true);
     }
 
@@ -106,6 +108,8 @@ export class PlayerRewardStore {
                 VALUES (?1, ?2, ?3, 'pending', ?4, NULL, ?5, ?5, NULL)`,
             [settlementId, username, amount, before, now]);
         }
+        withSocietyValueMutation({source:'engine.player-reward',operationId:`player-reward:${settlementId}`,
+            actor:`player:${username}`,payload:{amountGp:amount}},()=>{
         try {
             const credited = wallet.credit(amount);
             if (credited !== amount || wallet.balance() !== before + amount) {
@@ -124,6 +128,10 @@ export class PlayerRewardStore {
             [settlementId, message.slice(0, 500), now]);
             throw error;
         }
+        },this.integrityBoundary,undefined,()=>{
+            const current=this.get(settlementId),after=wallet.balance();
+            return current?.status==='rejected' && after===before?{coinsBefore:before,coinsAfter:after,nativeStatus:'rejected'}:null;
+        });
         return this.get(settlementId)!;
     }
 }

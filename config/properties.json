@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "properties": [
     {
       "propertyId": "varrock.east-workshop",
@@ -8,6 +8,7 @@
       "type": "workshop",
       "location": { "x": 3247, "z": 3411, "level": 0, "region": "Varrock East" },
       "purchasePrice": 25000,
+      "security": { "lockLevel": 20, "lockpickExperience": 150, "successChanceNumerator": 32, "successChanceDenominator": 180, "requiresLockpick": true },
       "entryPoints": [
         { "entryPointId": "front-door", "label": "Nyugati utcai bejárat", "x": 3248, "z": 3411, "level": 0 }
       ],
@@ -27,6 +28,7 @@
       "type": "house",
       "location": { "x": 2969, "z": 3328, "level": 0, "region": "Falador South" },
       "purchasePrice": 50000,
+      "security": { "lockLevel": 35, "lockpickExperience": 300, "successChanceNumerator": 24, "successChanceDenominator": 180, "requiresLockpick": true },
       "entryPoints": [
         { "entryPointId": "front-door", "label": "Főbejárat", "x": 2969, "z": 3328, "level": 0 }
       ],
@@ -46,6 +48,7 @@
       "type": "warehouse",
       "location": { "x": 2927, "z": 3174, "level": 0, "region": "Musa Point" },
       "purchasePrice": 35000,
+      "security": { "lockLevel": 28, "lockpickExperience": 220, "successChanceNumerator": 28, "successChanceDenominator": 180, "requiresLockpick": true },
       "entryPoints": [
         { "entryPointId": "dock-door", "label": "Kikötői bejárat", "x": 2927, "z": 3174, "level": 0 }
       ],

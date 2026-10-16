@@ -36,6 +36,14 @@ export interface PropertyPermissions {
     manage: PropertyRole[];
 }
 
+export interface PropertySecurity {
+    lockLevel: number;
+    lockpickExperience: number;
+    successChanceNumerator: number;
+    successChanceDenominator: number;
+    requiresLockpick: boolean;
+}
+
 export interface PropertyDefinition {
     propertyId: string;
     displayName: string;
@@ -43,6 +51,7 @@ export interface PropertyDefinition {
     type: PropertyType;
     location: PropertyTile & { region: string };
     purchasePrice: number;
+    security: PropertySecurity;
     entryPoints: PropertyEntryPoint[];
     revenue: PropertyEconomyRule;
     maintenance: Omit<PropertyEconomyRule, 'mode'>;
@@ -50,7 +59,7 @@ export interface PropertyDefinition {
 }
 
 export interface PropertyCatalog {
-    schemaVersion: 1;
+    schemaVersion: 2;
     properties: PropertyDefinition[];
 }
 
@@ -123,6 +132,21 @@ function parseEconomyRule(value: unknown, context: string): PropertyEconomyRule 
     return { mode: value.mode as PropertyEconomyRule['mode'], amount, intervalMinutes };
 }
 
+function parseSecurity(value: unknown, context: string): PropertySecurity {
+    if (!isRecord(value)) throw new Error(`${context} must be an object`);
+    const lockLevel = positiveInteger(value, 'lockLevel');
+    const lockpickExperience = positiveInteger(value, 'lockpickExperience');
+    const successChanceNumerator = positiveInteger(value, 'successChanceNumerator');
+    const successChanceDenominator = positiveInteger(value, 'successChanceDenominator');
+    if (lockLevel > 99) throw new Error(`${context}.lockLevel must be between 1 and 99`);
+    if (successChanceNumerator > successChanceDenominator) {
+        throw new Error(`${context} success chance numerator cannot exceed its denominator`);
+    }
+    if (typeof value.requiresLockpick !== 'boolean') throw new Error(`${context}.requiresLockpick must be boolean`);
+    return { lockLevel, lockpickExperience, successChanceNumerator, successChanceDenominator,
+        requiresLockpick: value.requiresLockpick };
+}
+
 function parseProperty(value: unknown): PropertyDefinition {
     if (!isRecord(value)) throw new Error('property must be an object');
     const propertyId = requiredString(value, 'propertyId', 64);
@@ -162,6 +186,7 @@ function parseProperty(value: unknown): PropertyDefinition {
         type: type as PropertyType,
         location: { ...location, region },
         purchasePrice,
+        security: parseSecurity(value.security, `${propertyId}.security`),
         entryPoints,
         revenue: parseEconomyRule(value.revenue, `${propertyId}.revenue`),
         maintenance,
@@ -175,14 +200,14 @@ function parseProperty(value: unknown): PropertyDefinition {
 }
 
 export function parsePropertyCatalog(value: unknown): PropertyCatalog {
-    if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.properties)) {
-        throw new Error('Property catalog must use schemaVersion 1 and contain a properties array');
+    if (!isRecord(value) || value.schemaVersion !== 2 || !Array.isArray(value.properties)) {
+        throw new Error('Property catalog must use schemaVersion 2 and contain a properties array');
     }
     const properties = value.properties.map(parseProperty);
     if (properties.length === 0) throw new Error('Property catalog must contain at least one property');
     const ids = properties.map(property => property.propertyId);
     if (new Set(ids).size !== ids.length) throw new Error('Property catalog contains duplicate propertyId values');
-    return { schemaVersion: 1, properties };
+    return { schemaVersion: 2, properties };
 }
 
 export function loadPropertyCatalog(path: string): PropertyCatalog {

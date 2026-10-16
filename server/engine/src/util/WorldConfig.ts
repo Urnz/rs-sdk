@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 
+import {
+    InvalidShopEconomyModeError,
+    parseShopEconomyMode,
+    type ShopEconomyMode
+} from '#/mods/ShopEconomyPolicy.js';
 import { tryParseBoolean, tryParseInt, tryParseString } from '#/util/TryParse.js';
 
 export interface WorldConfig {
@@ -37,6 +42,7 @@ export interface WorldConfig {
         maxMessageLength: number; // max length of a public/private chat message
         objRevealTicks: number; // ticks before a player-dropped obj becomes visible to everyone
         objDespawnScale: number; // percent applied to ground-item despawn timers (100 = vanilla)
+        shopEconomyMode: ShopEconomyMode; // legacy compatibility or actor-funded closed society
     };
     login: {
         enabled: boolean;
@@ -113,7 +119,8 @@ export function createDefaultWorldConfig(): WorldConfig {
             rateLimitDeviceLogin: 5,
             maxMessageLength: 400, // rs-sdk: raised from the RS-classic 80 for bot-to-bot chat. Single source of truth for server validation + client truncation + SDK chunking. Hard ceiling is ~509 chars: the player-info chat block and MESSAGE_PUBLIC frames carry a 1-byte length over WordPack's ~2-chars-per-byte packing.
             objRevealTicks: 100, // rs-sdk: matches Obj.REVEAL default
-            objDespawnScale: 100 // rs-sdk: 100% = unchanged despawn timers
+            objDespawnScale: 100, // rs-sdk: 100% = unchanged despawn timers
+            shopEconomyMode: 'legacy'
         },
         login: {
             enabled: false,
@@ -184,6 +191,7 @@ function mergeConfig<T>(defaults: T, value: unknown): T {
 
 export function normalizeWorldConfig(value: unknown): WorldConfig {
     const config = mergeConfig(createDefaultWorldConfig(), value);
+    config.node.shopEconomyMode = parseShopEconomyMode(config.node.shopEconomyMode);
 
     // Legacy compatibility: accept db.kyselyVerbose from older world.json files.
     if (isObject(value) && isObject(value.db) && !('verbose' in value.db)) {
@@ -256,6 +264,7 @@ export function migrateFromLegacyEnv(defaults: WorldConfig, env: Record<string, 
     config.node.maxMessageLength = tryParseInt(env.NODE_MAX_MESSAGE_LENGTH, config.node.maxMessageLength);
     config.node.objRevealTicks = tryParseInt(env.NODE_OBJ_REVEAL_TICKS, config.node.objRevealTicks);
     config.node.objDespawnScale = tryParseInt(env.NODE_OBJ_DESPAWN_SCALE, config.node.objDespawnScale);
+    config.node.shopEconomyMode = parseShopEconomyMode(tryParseString(env.NODE_SHOP_ECONOMY_MODE, config.node.shopEconomyMode));
 
     config.login.enabled = tryParseBoolean(env.LOGIN_SERVER, config.login.enabled);
     config.login.host = tryParseString(env.LOGIN_HOST, config.login.host);
@@ -308,6 +317,12 @@ export function loadWorldConfig(): WorldConfig {
             const parsed = JSON.parse(raw);
             return normalizeWorldConfig(parsed);
         } catch (error) {
+            // Never recover a mistyped closed-society policy by enabling the
+            // legacy infinite-stock/infinite-liquidity default.
+            if (error instanceof InvalidShopEconomyModeError) {
+                throw error;
+            }
+
             if (error instanceof Error) {
                 console.warn(`[Config] Failed to parse ${worldConfigPath}: ${error.message}. Using defaults.`);
             } else {

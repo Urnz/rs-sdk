@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.thieving.pickpocket",
+  "version": "0.1.0",
+  "name": "Pickpocket one nearby NPC",
+  "description": "Attempt one exact-target pickpocket through the bounded Thieving operation and retain observable inventory, XP, target and game-message evidence. This draft is not legal proof and requires live verification before publication.",
+  "status": "draft",
+  "tags": ["procedure", "thieving", "pickpocket"],
+  "parameters": {
+    "target-name": {
+      "type": "string",
+      "description": "Exact display name of the nearby NPC.",
+      "required": true
+    },
+    "minimum-level": {
+      "type": "number",
+      "description": "Minimum reviewed Thieving level for the selected target.",
+      "required": true,
+      "minimum": 1,
+      "maximum": 99
+    }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-09-21T12:00:00.000Z",
+    "notes": "Phase 22 typed procedure draft. SDK observations remain explicitly untrusted for legal-domain persistence."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 30000, "maxOperations": 1 },
+  "preconditions": [{
+    "condition": "skill-level-at-least",
+    "arguments": { "skill": "Thieving", "level": { "parameter": "minimum-level" } }
+  }],
+  "steps": [{
+    "kind": "operation",
+    "id": "pickpocket",
+    "operation": "thieve-pickpocket",
+    "arguments": {
+      "name": { "parameter": "target-name" },
+      "match": "exact",
+      "option": "pickpocket",
+      "timeoutMs": 15000
+    }
+  }]
+}

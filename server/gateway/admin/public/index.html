@@ -28,8 +28,47 @@
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="skills">Agent skillek</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="agents">Agentek</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="experiments">Kísérletek</button>
+            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="society">Társadalom</button>
             <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="llm">AI beállítások</button>
         </nav>
+
+        <section id="society-dashboard" class="panel society-dashboard" data-admin-tab-panel="society" hidden>
+            <div class="panel-heading"><div><p class="eyebrow">TÁRSADALOM</p><h2>Mutatók és forrásesemények</h2></div><span class="count-pill">Csak olvasás</span></div>
+            <div class="society-body">
+                <p class="muted">Tíz külön értékelési szempont. Az adathiány látható marad; összpontszám és társadalmi sikerítélet nincs.</p>
+                <form id="society-scope" class="society-scope">
+                    <label>Kezdet (UTC ISO)<input name="from" required placeholder="2030-01-01T00:00:00.000Z"></label>
+                    <label>Vég (UTC ISO)<input name="to" required placeholder="2030-01-02T00:00:00.000Z"></label>
+                    <label>Clock ID<input name="clockId" required maxlength="128"></label>
+                    <label>Clock profile digest<input name="clockProfileDigest" required pattern="[0-9a-f]{64}" maxlength="64"></label>
+                    <label class="society-wide">Riportkohorsz: agent ID-k, vesszővel elválasztva<input name="actors" required placeholder="ada, bea"></label>
+                    <div class="society-actions society-wide"><button type="submit" class="button primary">Riport betöltése</button><button type="button" class="button secondary" data-society-action="clock">Óraadatok kitöltése</button></div>
+                </form>
+                <p id="society-status" role="status" aria-live="polite">Adj meg időablakot és riportkohorszot.</p>
+                <p id="society-scope-caption" class="muted"></p>
+                <div id="society-objectives" class="society-objectives"></div>
+                <details id="society-coverage" hidden><summary>Források, lefedettség és korlátok</summary><div id="society-coverage-body"></div></details>
+                <section id="society-event-section" hidden aria-label="Natív események">
+                    <h3>Forrásesemények</h3>
+                    <p class="muted">Az alábbi szűrők az eseménylistát szűkítik. A fenti mutatók értéke és nevezője a riport eredeti scope-jához tartozik. A rendszerkockázat a megfigyelt gazdasági ablakot, a specializáció a kijelölt kohorszot írja le.</p>
+                    <form id="society-filters" class="society-filters">
+                        <label>Agent<select name="agent"><option value="">Összes</option></select></label>
+                        <label>Business<select name="business"><option value="">Összes</option></select></label>
+                        <label>Termék (item ID)<select name="itemId"><option value="">Összes</option></select></label>
+                        <label>Régió<select name="region"><option value="">Összes</option><option value="unknown">Ismeretlen</option></select></label>
+                        <label>Oldalméret<select name="limit"><option value="1">1</option><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select></label>
+                        <label class="society-wide">Mutatóhoz tartozó események<select name="metric"><option value="">Összes natív esemény</option></select></label>
+                        <div class="society-actions society-wide"><button type="button" class="button secondary" data-society-action="reset-filters">Szűrők törlése</button><button type="button" class="button secondary" data-society-action="reset-time">Teljes riportidőszak</button></div>
+                    </form>
+                    <p class="muted" id="society-region-note">A jelenlegi bizonylatok nem rögzítenek történeti régiót; a helyszín ismeretlen.</p>
+                    <div id="society-timeline" class="society-timeline" aria-label="Szűrt események időeloszlása"></div>
+                    <p id="society-event-count" role="status"></p>
+                    <div class="society-table-scroll"><table><thead><tr><th>Szimulációs idő / bizonylat</th><th>Agent / Business</th><th>Termékek / régió</th><th>Hozzájárulás</th><th>Részlet</th></tr></thead><tbody id="society-events"></tbody></table></div>
+                    <div class="society-actions"><button type="button" class="button secondary" data-society-action="previous">Előző oldal</button><button type="button" class="button secondary" data-society-action="next">Következő oldal</button></div>
+                    <aside id="society-detail" class="society-detail" hidden aria-label="Natív bizonylatrészlet" aria-live="polite"></aside>
+                </section>
+            </div>
+        </section>
 
         <section class="summary-grid" aria-label="Gazdasági összesítés" data-admin-tab-panel="economy" hidden>
             <article class="metric"><span>Összes bot</span><strong id="metric-bots">–</strong></article>

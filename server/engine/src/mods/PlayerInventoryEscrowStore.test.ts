@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MarketStore } from '../engine/market/MarketStore.js';
 import { PlayerInventoryEscrowStore, type PlayerInventoryEscrowWallet } from './PlayerInventoryEscrowStore.js';
 
 const directories: string[] = [];
@@ -28,6 +29,141 @@ function fixture(entries: Record<number, number>) {
 afterEach(() => directories.splice(0).forEach(path => rmSync(path, { recursive: true, force: true })));
 
 describe('player inventory escrow', () => {
+    test('shared-database hold and checkpoint survive restart as one durable state', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-atomic-escrow-')); directories.push(directory);
+        const path = join(directory, 'assets.sqlite'), id = '99999999-9999-4999-8999-999999999999';
+        const market = new MarketStore(path), store = new PlayerInventoryEscrowStore(market);
+        const { wallet, inventory } = memoryWallet({ 995: 100 });
+        const account = { owner: 'payer', save: () => new Uint8Array([inventory.get(995) ?? 0]),
+            rollback: () => inventory.set(995, 100) };
+        expect(store.mutateWithCheckpoint({ operation: 'hold', escrowId: id, username: 'payer',
+            assets: { gp: 25, items: [] } }, wallet, account)).toMatchObject({ status: 'held' });
+        expect(inventory.get(995)).toBe(75);
+        store.close(); market.db.close(true);
+        const reopenedMarket = new MarketStore(path), reopened = new PlayerInventoryEscrowStore(reopenedMarket);
+        try {
+            expect(reopened.get(id)?.status).toBe('held');
+            expect(reopened.verifySharedAuditChain()).toBeTrue();
+            expect([...reopenedMarket.saved('payer')!]).toEqual([75]);
+            expect(reopened.mutateWithCheckpoint({ operation: 'hold', escrowId: id, username: 'payer',
+                assets: { gp: 25, items: [] } }, wallet, account).status).toBe('held');
+            expect(inventory.get(995)).toBe(75);
+        } finally { reopened.close(); reopenedMarket.db.close(true); }
+    });
+
+    test('failed checkpoint rolls back both escrow row and the live wallet', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-atomic-escrow-')); directories.push(directory);
+        const market = new MarketStore(join(directory, 'assets.sqlite'));
+        const store = new PlayerInventoryEscrowStore(market);
+        const { wallet, inventory } = memoryWallet({ 995: 100 });
+        const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+        try {
+            expect(() => store.mutateWithCheckpoint({ operation: 'hold', escrowId: id,
+                username: 'payer', assets: { gp: 25, items: [] } }, wallet,
+            { owner: 'payer', save: () => { throw new Error('save failed'); },
+                rollback: () => inventory.set(995, 100) })).toThrow('save failed');
+            expect(store.get(id)).toBeNull();
+            expect(store.verifySharedAuditChain()).toBeTrue();
+            expect(market.saved('payer')).toBeUndefined();
+            expect(inventory.get(995)).toBe(100);
+        } finally { store.close(); market.db.close(true); }
+    });
+
+    test('SQLite checkpoint failure cannot leave a held escrow without a saved debit', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-atomic-escrow-')); directories.push(directory);
+        const market = new MarketStore(join(directory, 'assets.sqlite'));
+        market.db.run(`CREATE TRIGGER reject_escrow_checkpoint BEFORE INSERT ON accounts
+            BEGIN SELECT RAISE(ABORT, 'checkpoint rejected'); END`);
+        const store = new PlayerInventoryEscrowStore(market);
+        const { wallet, inventory } = memoryWallet({ 995: 100 });
+        const id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+        try {
+            expect(() => store.mutateWithCheckpoint({ operation: 'hold', escrowId: id,
+                username: 'payer', assets: { gp: 25, items: [] } }, wallet,
+            { owner: 'payer', save: () => new Uint8Array([inventory.get(995) ?? 0]),
+                rollback: () => inventory.set(995, 100) })).toThrow('checkpoint rejected');
+            expect(store.get(id)).toBeNull();
+            expect(market.saved('payer')).toBeUndefined();
+            expect(inventory.get(995)).toBe(100);
+        } finally { store.close(); market.db.close(true); }
+    });
+
+    test('shared-database payee commit checkpoints the credit exactly once', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-atomic-escrow-')); directories.push(directory);
+        const path = join(directory, 'assets.sqlite'), id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+        const market = new MarketStore(path), store = new PlayerInventoryEscrowStore(market);
+        const payer = memoryWallet({ 995: 100 }), payee = memoryWallet({ 995: 10 });
+        const payerAccount = { owner: 'payer', save: () => new Uint8Array([payer.inventory.get(995) ?? 0]),
+            rollback: () => payer.inventory.set(995, 100) };
+        const payeeAccount = { owner: 'payee', save: () => new Uint8Array([payee.inventory.get(995) ?? 0]),
+            rollback: () => payee.inventory.set(995, 10) };
+        try {
+            store.mutateWithCheckpoint({ operation: 'hold', escrowId: id, username: 'payer',
+                assets: { gp: 25, items: [] } }, payer.wallet, payerAccount);
+            expect(store.mutateWithCheckpoint({ operation: 'commit', escrowId: id,
+                username: 'payer', payeeUsername: 'payee' }, payee.wallet, payeeAccount).status).toBe('committed');
+            expect(payee.inventory.get(995)).toBe(35);
+            expect(store.mutateWithCheckpoint({ operation: 'commit', escrowId: id,
+                username: 'payer', payeeUsername: 'payee' }, payee.wallet, payeeAccount).status).toBe('committed');
+            expect(payee.inventory.get(995)).toBe(35);
+            expect([...market.saved('payer')!]).toEqual([75]);
+            expect([...market.saved('payee')!]).toEqual([35]);
+        } finally { store.close(); market.db.close(true); }
+    });
+
+    test('shared checkpoint requires the affected player and is unavailable on a separate database', () => {
+        const { store, wallet, inventory } = fixture({ 995: 100 });
+        const command = { operation: 'hold' as const, escrowId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            username: 'payer', assets: { gp: 25, items: [] } };
+        const account = { owner: 'payer', save: () => new Uint8Array([75]), rollback: () => {} };
+        try {
+            expect(() => store.mutateWithCheckpoint(command, wallet, account)).toThrow('shared player save');
+            expect(inventory.get(995)).toBe(100);
+        } finally { store.close(); }
+        const directory = mkdtempSync(join(tmpdir(), 'rs-atomic-escrow-')); directories.push(directory);
+        const market = new MarketStore(join(directory, 'assets.sqlite'));
+        const shared = new PlayerInventoryEscrowStore(market);
+        try {
+            expect(() => shared.mutateWithCheckpoint(command, wallet, { ...account, owner: 'other' }))
+                .toThrow('does not match');
+            expect(shared.get(command.escrowId)).toBeNull();
+        } finally { shared.close(); market.db.close(true); }
+    });
+
+    test('shared mode audits each real transition once and rejects direct or tampered mutations', () => {
+        const directory = mkdtempSync(join(tmpdir(), 'rs-atomic-escrow-')); directories.push(directory);
+        const market = new MarketStore(join(directory, 'assets.sqlite'));
+        const store = new PlayerInventoryEscrowStore(market);
+        const { wallet, inventory } = memoryWallet({ 995: 100 });
+        const id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+        const command = { operation: 'hold' as const, escrowId: id, username: 'payer',
+            assets: { gp: 25, items: [] } };
+        const account = { owner: 'payer', save: () => new Uint8Array([inventory.get(995) ?? 0]),
+            rollback: () => inventory.set(995, 100) };
+        try {
+            expect(() => store.hold(id, 'payer', command.assets, wallet)).toThrow('atomic checkpoint');
+            store.mutateWithCheckpoint(command, wallet, account);
+            store.mutateWithCheckpoint(command, wallet, account);
+            expect((market.db.query('SELECT COUNT(*) AS count FROM player_inventory_escrow_audit')
+                .get() as { count: number }).count).toBe(1);
+            store.mutateWithCheckpoint({ operation: 'consume', escrowId: id, username: 'payer' }, wallet, account);
+            expect((market.db.query('SELECT COUNT(*) AS count FROM player_inventory_escrow_audit')
+                .get() as { count: number }).count).toBe(2);
+            expect(store.verifySharedAuditChain()).toBeTrue();
+            market.db.run("UPDATE player_inventory_escrow SET status='released' WHERE escrow_id=?1", [id]);
+            expect(store.verifySharedAuditChain()).toBeFalse();
+            expect(() => store.get(id)).toThrow('audit chain is invalid');
+            expect(() => store.list()).toThrow('audit chain is invalid');
+            expect(() => store.mutateWithCheckpoint(command, wallet, {
+                ...account, rollback: () => inventory.set(995, 75)
+            })).toThrow('audit chain is invalid');
+            expect(inventory.get(995)).toBe(75);
+            market.db.run("UPDATE player_inventory_escrow SET status='held' WHERE escrow_id=?1", [id]);
+            expect(store.verifySharedAuditChain()).toBeTrue();
+            market.db.run("UPDATE player_inventory_escrow_audit SET entry_hash='broken' WHERE sequence=1");
+            expect(store.verifySharedAuditChain()).toBeFalse();
+        } finally { store.close(); market.db.close(true); }
+    });
     test('holds GP and canonical item totals exactly once, then releases them exactly once', () => {
         const { store, path, wallet, inventory } = fixture({ 995: 1_000, 436: 10 });
         const id = '11111111-1111-4111-8111-111111111111';
@@ -136,5 +272,14 @@ describe('player inventory escrow', () => {
         expect({ coins: payeeInventory.get(995), copper: payeeInventory.get(436) })
             .toEqual({ coins: 450, copper: 6 });
         store.close();
+    });
+
+    test('consumes held assets into an institution settlement without a player payee',()=>{
+        const {store,path,wallet,inventory}=fixture({995:100});const id='88888888-8888-4888-8888-888888888888';
+        store.hold(id,'buyer',{gp:25,items:[]},wallet);const consumed=store.consume(id,'buyer');
+        expect(consumed).toMatchObject({status:'committed',payeeUsername:null,committedAt:expect.any(String)});
+        expect(inventory.get(995)).toBe(75);expect(store.consume(id,'buyer')).toEqual(consumed);
+        expect(()=>store.release(id,'buyer',wallet)).toThrow('Only held');store.close();
+        const reopened=new PlayerInventoryEscrowStore(path);expect(reopened.get(id)).toEqual(consumed);reopened.close()
     });
 });

@@ -7,6 +7,7 @@ import { InstitutionTreasuryStore, type InstitutionKind,
     type InstitutionTreasuryTransfer } from './institution-treasury.js';
 import { requestEnginePlayerEscrow, type EnginePlayerEscrowResult } from './player-escrow.js';
 import { requestEnginePlayerReward, type EnginePlayerRewardResult } from './player-rewards.js';
+import { bindSocietyInternalPayment } from './society-integrity.js';
 import { agentStateDbPath, economicContractsDbPath, institutionTreasuryDbPath } from './paths.js';
 
 export interface EconomicContractSettlementOptions {
@@ -224,10 +225,14 @@ export async function settleReadyEconomicContract(contractId: string,
                     validateTreasuryTransfer(receipt, payment);
                 } else {
                     if (!payment.payeeUsername) throw new Error('Contract settlement has no exact payee');
+                    const integrityPayment={settlementId:payment.settlementId,username:payment.payeeUsername,
+                        amountGp:payment.amountGp,reservationId:payment.reservationId,treasuryPath:options.treasuryPath ?? institutionTreasuryDbPath};
+                    bindSocietyInternalPayment(integrityPayment,'reserve');
                     const receipt = await (options.rewarder ?? requestEnginePlayerReward)(payment.payeeUsername,
                         payment.amountGp, payment.settlementId);
                     validateReceipt(receipt, payment);
                     treasury.commit(payment.reservationId, payment.settlementId, options.now);
+                    bindSocietyInternalPayment(integrityPayment,'commit');
                 }
                 current = contracts.commitSettlement(payment.settlementId, options.now);
             } catch (error) {

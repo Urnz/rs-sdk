@@ -1,10 +1,22 @@
 import { randomUUID } from 'node:crypto';
+import { withSocietyValueMutation, nativeSocietyValuePaths, nativeSocietyPathMatches, type IntegrityBoundary } from '../../../society-integrity/runtime.js';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import { estateHeld } from '../../../population-estate/schema.js';
+
+import {
+    businessRoleAllowsSkill,
+    loadDefaultBusinessRoleCatalog,
+    resolveBusinessRole,
+    resolveLegacyBusinessRole,
+    type BusinessRoleCatalog,
+    type BusinessRoleDefinition,
+    type LegacyEmploymentRole
+} from '../../../business-roles/index.js';
 
 export type BusinessStatus = 'active' | 'dormant' | 'closed';
-export type EmploymentRole = 'manager' | 'worker';
+export type EmploymentRole = LegacyEmploymentRole;
 export type EmploymentStatus = 'active' | 'ended';
 export type BusinessPolicyMode = 'balanced' | 'growth' | 'profit' | 'survival';
 export type BusinessPolicyStatus = 'pending' | 'approved' | 'rejected' | 'superseded';
@@ -30,6 +42,7 @@ export interface BusinessEmployment {
     businessId: string;
     workerAgentId: string;
     role: EmploymentRole;
+    roleDefinitionId: string;
     title: string;
     wageGp: number;
     requiredSkill: { id: string; version: string } | null;
@@ -77,7 +90,8 @@ export interface UpdateBusiness {
 
 export interface CreateEmployment {
     workerAgentId: string;
-    role: EmploymentRole;
+    role?: EmploymentRole;
+    roleDefinitionId?: string;
     title: string;
     wageGp: number;
     requiredSkill?: { id: string; version: string } | null;
@@ -109,6 +123,7 @@ interface EmploymentRow {
     business_id: string;
     worker_agent_id: string;
     role: EmploymentRole;
+    role_definition_id: string | null;
     title: string;
     wage_gp: number;
     required_skill_id: string | null;
@@ -170,11 +185,13 @@ function skillReference(value: CreateEmployment['requiredSkill']): { id: string;
 }
 
 function employment(row: EmploymentRow): BusinessEmployment {
+    if (!row.role_definition_id) throw new Error('Employment has no Business role definition');
     return {
         employmentId: row.employment_id,
         businessId: row.business_id,
         workerAgentId: row.worker_agent_id,
         role: row.role,
+        roleDefinitionId: row.role_definition_id,
         title: row.title,
         wageGp: row.wage_gp,
         requiredSkill: row.required_skill_id && row.required_skill_version
@@ -209,7 +226,9 @@ function policy(row: PolicyRow): BusinessPolicyProposal {
 export class BusinessManagerStore {
     private readonly database: Database;
 
-    constructor(path: string) {
+    constructor(path: string, private readonly roleCatalog: BusinessRoleCatalog = loadDefaultBusinessRoleCatalog(),
+        private integrityBoundary?:IntegrityBoundary|false) {
+        if(this.integrityBoundary===undefined && !nativeSocietyPathMatches(path,nativeSocietyValuePaths.business))this.integrityBoundary=false;
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
         this.database.run('PRAGMA foreign_keys = ON');
@@ -221,6 +240,7 @@ export class BusinessManagerStore {
         this.database.run(`CREATE TABLE IF NOT EXISTS business_employment (
             employment_id TEXT PRIMARY KEY, business_id TEXT NOT NULL REFERENCES business(business_id),
             worker_agent_id TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('manager', 'worker')),
+            role_definition_id TEXT NOT NULL,
             title TEXT NOT NULL, wage_gp INTEGER NOT NULL CHECK (wage_gp >= 0),
             required_skill_id TEXT, required_skill_version TEXT,
             status TEXT NOT NULL CHECK (status IN ('active', 'ended')),
@@ -229,6 +249,17 @@ export class BusinessManagerStore {
             CHECK ((required_skill_id IS NULL) = (required_skill_version IS NULL)))`);
         this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS business_active_worker
             ON business_employment(business_id, worker_agent_id) WHERE status = 'active'`);
+        const employmentColumns = this.database.query('PRAGMA table_info(business_employment)')
+            .all() as Array<{ name: string }>;
+        if (!employmentColumns.some(column => column.name === 'role_definition_id')) {
+            this.database.run('ALTER TABLE business_employment ADD COLUMN role_definition_id TEXT');
+        }
+        this.database.run(`UPDATE business_employment SET role_definition_id = CASE role
+            WHEN 'manager' THEN 'business.manager.v1' ELSE 'business.worker.v1' END
+            WHERE role_definition_id IS NULL OR role_definition_id = ''`);
+        const persistedRoles = this.database.query(`SELECT DISTINCT role_definition_id
+            FROM business_employment`).all() as Array<{ role_definition_id: string }>;
+        for (const persisted of persistedRoles) resolveBusinessRole(this.roleCatalog, persisted.role_definition_id);
         this.database.run(`CREATE TABLE IF NOT EXISTS business_policy_proposal (
             proposal_id TEXT PRIMARY KEY, business_id TEXT NOT NULL REFERENCES business(business_id),
             proposer_agent_id TEXT NOT NULL, objective TEXT NOT NULL,
@@ -253,6 +284,10 @@ export class BusinessManagerStore {
     }
 
     close(): void { this.database.close(true); }
+
+    listRoleDefinitions(): BusinessRoleDefinition[] {
+        return this.roleCatalog.roles.map(role => structuredClone(role));
+    }
 
     list(limit = 100): Business[] {
         if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error('Business list limit is invalid');
@@ -363,7 +398,8 @@ export class BusinessManagerStore {
                 revision=revision+1,updated_at=excluded.updated_at`,[businessId,itemId,count,now]);
             this.database.run(`INSERT INTO business_genesis_inventory VALUES(?1,?2,?3,?4,'active',?5,NULL)`,
                 [allocationId,businessId,itemId,count,now]);
-        });transaction.immediate();
+        });withSocietyValueMutation({source:'gateway.business-stock-genesis',operationId:`business-stock-genesis:${allocationId}`,
+            actor:`business:${businessId}`,payload:{allocationId,itemId,count}},()=>transaction.immediate(),this.integrityBoundary);
         return this.listInventory(businessId).find(item=>item.itemId===itemId)!;
     }
 
@@ -420,19 +456,30 @@ export class BusinessManagerStore {
         if (!current || current.status !== 'active') throw new Error('Only an active business may hire');
         const workerAgentId = stableId(input.workerAgentId, 'workerAgentId');
         if (workerAgentId === current.ownerAgentId) throw new Error('Owner is not represented as an employment');
-        if (!['manager', 'worker'].includes(input.role)) throw new Error('Employment role is invalid');
+        if (!input.role && !input.roleDefinitionId) throw new Error('Employment role is required');
+        const roleDefinition = input.roleDefinitionId
+            ? resolveBusinessRole(this.roleCatalog, input.roleDefinitionId)
+            : resolveLegacyBusinessRole(this.roleCatalog, input.role!);
+        if (input.role && input.role !== roleDefinition.legacyProjection) {
+            throw new Error('Employment role does not match its Business role definition');
+        }
+        const role = roleDefinition.legacyProjection;
         const title = boundedText(input.title, 'title', 120);
         if (!Number.isSafeInteger(input.wageGp) || input.wageGp < 0 || input.wageGp > 2_147_483_647) {
             throw new Error('Employment wage is invalid');
         }
         const requiredSkill = skillReference(input.requiredSkill);
+        if (requiredSkill && !businessRoleAllowsSkill(roleDefinition, requiredSkill, requiredSkill)) {
+            throw new Error('Employment required skill is not allowed by its Business role definition');
+        }
         const startedAt = timestamp(now, 'now');
         try {
             this.database.run(`INSERT INTO business_employment (employment_id, business_id, worker_agent_id,
-                role, title, wage_gp, required_skill_id, required_skill_version, status, revision,
-                started_at, ended_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
-                'active', 1, ?9, NULL, ?9)`, [employmentId, businessId, workerAgentId, input.role,
-                title, input.wageGp, requiredSkill?.id ?? null, requiredSkill?.version ?? null, startedAt]);
+                role, role_definition_id, title, wage_gp, required_skill_id, required_skill_version, status, revision,
+                started_at, ended_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
+                'active', 1, ?10, NULL, ?10)`, [employmentId, businessId, workerAgentId, role,
+                roleDefinition.roleDefinitionId, title, input.wageGp, requiredSkill?.id ?? null,
+                requiredSkill?.version ?? null, startedAt]);
         } catch (error) {
             if (String(error).includes('UNIQUE constraint failed')) {
                 throw new Error('Agent already has an active employment at this business');
@@ -571,7 +618,7 @@ export class BusinessManagerStore {
             summary: row.summary,
             ownerAgentId: row.owner_agent_id,
             propertyId: row.property_id,
-            status: row.status,
+            status: estateHeld(this.database,'business',row.business_id) && row.status === 'active' ? 'dormant' : row.status,
             revision: row.revision,
             employments,
             activePolicy: policyProposals.find(item => item.status === 'approved') ?? null,

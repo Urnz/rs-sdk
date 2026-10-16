@@ -29,6 +29,10 @@ A tulajdonos, a vásárlás időpontja, az aktuális állapot és a revízió k�
 perzisztálódik. A katalógus cseréje vagy a mod felfüggesztése nem törölhet és nem
 írhat felül tulajdonjogot.
 
+A katalógus formátuma `schemaVersion: 2`, a külön kezelt `PropertyState` kezdeti
+burka `schemaVersion: 1`. Ezek nem közös verziószámok; a tartós tulajdonállapotot
+a `PropertyStore` SQLite-táblái tárolják, nem ez a kezdeti állapotburok.
+
 A Property mod nem vállalkozásmanager. A műhely, bolt vagy bánya fizikai és jogi
 eszköz; a benne működő vállalkozás külön modulban él és stabil `propertyId`
 hivatkozással használja vagy bérli. Ugyanígy a királyság, város vagy uradalom

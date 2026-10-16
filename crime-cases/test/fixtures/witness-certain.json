@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "policyId": "acceptance-certain-attention",
+  "version": "1.0.0",
+  "bands": [{ "maxDistance": 15, "attentionBasisPoints": 10000 }]
+}

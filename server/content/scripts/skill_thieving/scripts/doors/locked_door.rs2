@@ -138,6 +138,7 @@ def_boolean $gate = db_getfield($data, locked_door:gate, 0);
 def_boolean $mirror = db_getfield($data, locked_door:mirror, 0);
 if ($locked = true) {
 
+    thieving_evidence_begin(2);
     mes("You attempt to pick the lock.");
 
     def_int $current_level = stat(thieving);
@@ -183,6 +184,7 @@ if ($locked = true) {
     }
     p_delay(0);
     facesquare($loc_coord);
+    thieving_evidence_commit(2);
     return;
 }
 mes("The door is already unlocked.");

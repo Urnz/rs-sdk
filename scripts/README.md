@@ -6,8 +6,11 @@ az általuk létrehozott és PID + indulási idő alapján azonosított folyamat
 
 ## Helyi stack
 
-- `pwsh -File scripts/start-local.ps1` – gateway, engine és az egyetlen automatikusan
-  felismerhető helyi bot indítása.
+- `bun run local:start` – a normál helyi profil: autentikált gateway, engine,
+  Thieving eseményfeldolgozó és az egyetlen automatikusan felismerhető helyi bot.
+- `pwsh -File scripts/start-local.ps1` – alacsony szintű indító gatewayhez, engine-hez
+  és az egyetlen automatikusan felismerhető helyi bothoz; az opcionális komponenseket
+  explicit kapcsolókkal kell kérni.
 - `pwsh -File scripts/start-local.ps1 -BotNames VRCopper1,VRCopper2,VRIron1` –
   több bot egyetlen kezelt stackben, közös health- és PID-nyilvántartással.
 - `pwsh -File scripts/start-local.ps1 -FixturePath config/fixtures/varrock-proto-v1.json` –
@@ -33,14 +36,73 @@ rögzíti; a status csak akkor egészséges, ha minden kiválasztott avatar fris
 játékban van. A gateway startup reconciliation rövid türelmi időt kap, hogy a
 launcher által indított botokat adoptálja, ne indítson velük párhuzamos példányt.
 
+## Gazdasági függőségi gráf
+
+`bun run economy:dependencies --from 2030-01-01T00:00:00.000Z --to 2030-01-02T00:00:00.000Z --basis wall`
+csak olvasó JSON-riportot készít a natív trade és auditált Business WIP
+termelés alapján. Szimulációs időhöz `--basis simulation --clock-id <id>
+--clock-profile-digest <digest>` szükséges. A hiányzó forrás nem válik üres,
+bizonyított gazdasággá, és a parancs nem hoz létre adatbázist.
+
+Források, időablakok és migration/rollback:
+[Phase 24.5](../docs/project/features/phase24-5-economic-dependency.md).
+
+A `--risk` kapcsoló ugyanebből a hiteles gráfból termékenkénti koncentrációt,
+megfigyelt láncmélységet, egyetlen termelőtől függő termékjelölteket és feltételes
+agent/Business/termék-kiesési forgatókönyveket számol. A jelentés nem előrejelzés;
+a hiányzó lotkapcsolatokat nem pótolja feltételezésekkel.
+[Phase 24.6](../docs/project/features/phase24-6-economic-risk.md).
+
+## Hosszú, kontrollált kísérleti programok
+
+`bun run society:experiment --command prepare --plan .local/long-plan.json`
+rögzíti a meglévő natív genesis, founder, attribute-input, policy és Phase 12
+avatar/cél baseline digestjeit. A `start --plan ... --run` és a
+`step --id ... --run` véges bemelegítési/mérési programot koordinál a meglévő
+Phase 12 dispatch fölött. A `report --id ...` csak olvas; a `stop --id ...
+--reason ...` új ciklust már nem indít, de a korábban indított skilleket nem öli
+meg. A parancsok nem indítják el a helyi stacket vagy botokat.
+
+A completed státusz a futási protokoll teljesülése; nem önellátási minősítés.
+Az attribute-inputok engine-oldali alkalmazása és a teljes engine RNG seedelése
+nem igazolt a Phase 12 adapterrel. Tervminta, használat, bizonyítékhatárok és
+migration/rollback: [Phase 24.7](../docs/project/features/phase24-7-long-experiments.md).
+
 ## Minőségi kapuk
 
-- `bun run test:quick` – gyors unit/regressziós tesztek.
+- `bun run test:quick` – széles unit/regressziós alapcsomag; implementáció közben
+  inkább közvetlen `bun test <érintett-pathok>` futást használj.
 - `bun run test:integration` – futó helyi komponensek HTTP- és MIME-ellenőrzése.
 - `bun run test:smoke` – a teljes stack és egy botakció ellenőrzése.
 - `bun run check` – formázási ellenőrzés, két typecheck és a teljes tesztcsomag,
   beleértve az offline player-save adminolvasó tesztjeit.
 - `bun run test:powershell` – minden PowerShell segéd szintaktikai ellenőrzése.
+
+### Kompakt, blokkoló ellenőrzés
+
+Az agent hosszú parancsot a `scripts/invoke-verification.ps1` wrapperen keresztül
+futtat. A wrapper a folyamat végéig blokkol, a teljes kimenetet a Gitből kizárt
+`.local/verification/` könyvtárba írja, és siker esetén csak rövid összegzést ad.
+Nincs szükség ismételt státuszlekérdezésre.
+
+```powershell
+# A legkisebb releváns teszt vagy több kapcsolódó teszt egy Bun futásban
+pwsh -NoProfile -File scripts/invoke-verification.ps1 `
+  -Name targeted `
+  -CommandText 'bun test crime-cases/test/player-witness-proof.test.ts sdk/test/crime-report-client.test.ts'
+
+# Formázás és mindkét typecheck egy modell/tool körben
+bun run verify:quality
+
+# Teljes regresszió egyszer, feladatlezárás előtt, amikor indokolt
+bun run verify:full
+```
+
+Implementáció közben targeted tesztet, mérföldkőnél érintett modul/integrációs
+suite-ot használj. Sikeres teljes regressziót csak releváns új kódváltozás,
+korábbi hiba vagy konkrét nyitott ellenőrzési kockázat után ismételj meg. Ha egy
+teszt JUnitot készít, add át a fájlt `-JUnitPath`-tal; egyébként a wrapper a
+szokásos tömör tesztösszesítést olvassa ki a naplóból.
 
 ## Proto-society fixture
 
@@ -86,8 +148,52 @@ exporter 2-es kilépési kódot ad:
 bun scripts/export-phase15-live-soak.ts .local/phase15-soak/<session>/session.json --output .local/phase15-soak/<session>/acceptance.json
 ```
 
+## Hosszú társadalmi futások összehasonlítása
+
+A hosszú társadalmi futások csak olvasó összehasonlítása:
+
+```powershell
+bun run society:experiment --command capabilities
+bun run society:experiment --command compare --control xp-control --treatment xp-treatment --axis diminishing-xp
+```
+
+Natív lezárt programokat olvas, és megőrzi a hullámok receipt/clock/skill
+hivatkozásait. Hiányzó forrás: `unavailable`; egyenlőtlen mintaszám:
+`inconclusive`; hiányzó kezelésattesztáció: `unsupported`. Nem indít futást.
+Részletek: [Phase 24.8](../docs/project/features/phase24-8-controlled-comparisons.md).
+
+A natív XP-előzmény külön, admin hitelesítéssel olvasható és offline,
+aktív society run nélküli cohorton auditáltan resetelhető/restorálható:
+`/api/admin/society/xp-baseline`. A pontos kérés, migráció és rollback:
+[XP-baseline](../docs/project/features/phase24-8-xp-baseline.md).
+
+Az új Phase 12 kísérletek első natív XP-hívásának auditja és explicit seal
+helyreállítása: `/api/admin/society/xp-execution/<experiment UUID>`.
+Szerződés, bizonyítékhatár és rollback:
+[XP execution](../docs/project/features/phase24-8-xp-execution.md).
+
+## Többcélú társadalmi értékelés
+
+`bun run society:evaluation --contract` a tíz társadalmi dimenzió képleteit,
+mértékegységeit és értékelési irányát adja vissza. Az időablakot, actorokat és
+clock-kötést megadó `society:evaluation` csak olvasó natív diagnosztikai riport.
+Nem indít benchmarkot; az adathiány látható, nincs súlyozott összpontszám.
+Elérés, forrásbeállítások és a jelenlegi natív lefedettség korlátai:
+[Phase 24.9](../docs/project/features/phase24-9-society-evaluation.md).
+
+Az admin **Társadalom** füle a mutatóktól a natív termelési/trade bizonylatig
+vezet, agent-, Business-, termék-, régióállapot- és időszűréssel. A csak olvasó
+API: `/api/admin/society/dashboard`, illetve `/events/<evidence-id>` a kapott
+snapshot digesttel. A forrás változása 409-et ad; történeti régió hiányában a
+helyszín ismeretlen. Használat, korlátok és technikai ellenőrzés:
+[Phase 24.10](../docs/project/features/phase24-10-society-dashboard.md).
+
 ## Mentés
 
+- `bun run society:benchmark` – offline társadalmi baseline/eredménycsomag,
+  fájlhash-ellenőrzés, kizárólag új könyvtárba történő restore és natív riport.
+  Aktuális forrás/config/cache, társadalmi állapot és clock pause/resume:
+  [Phase 24.11 protokoll](../docs/project/features/phase24-11-society-benchmark.md).
 - `pwsh -File scripts/backup-local.ps1 -Name <név>` – leállított engine állapotának
   mentése SHA-256 manifesttel.
 - `pwsh -File scripts/restore-local.ps1 -BackupPath <útvonal> -Force` – visszaállítás;

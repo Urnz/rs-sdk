@@ -94,6 +94,7 @@ if (inv_total(inv, lockpick) < 1) {
     return;
 }
 
+thieving_evidence_begin(3);
 mes("You manage to pick the lock.");
 p_delay(1);
 mes("You open the chest.");
@@ -103,6 +104,7 @@ mes("You find treasure inside!");
 anim(human_openchest, 0);
 stat_advance(thieving, $experience);
 ~trapped_chest_check_for_reward($data);
+thieving_evidence_commit(1);
 loc_change(loc_2574, 4); //opened chest
 p_delay(2);
 loc_change(loc_2572, $respawn_ticks); //looted chest

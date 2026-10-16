@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { WealthEventItem } from '#/engine/entity/tracking/WealthEvent.js';
+import { getTradeEvidenceStore } from '#/mods/TradeEvidenceStore.js';
 
 // Append-only JSONL ledger of completed player<->player trades, written at the
 // moment the engine executes the exchange (BOTH_MOVEINV from the trade-confirm
@@ -31,6 +32,11 @@ let dirReady = false;
 let warned = false;
 
 export function recordTrade(entry: Omit<TradeLedgerEntry, 'ts'>): void {
+    const committedAt = new Date().toISOString();
+    // This SQLite evidence is authoritative for Phase 22.5. JSONL below remains
+    // optional benchmark telemetry and must never be treated as trade authority.
+    getTradeEvidenceStore().record({ tick:entry.tick,fromUsername:entry.from,toUsername:entry.to,
+        fromItems:entry.fromItems,toItems:entry.toItems,fromValue:entry.fromValue,toValue:entry.toValue,committedAt });
     if (!LEDGER_FILE) {
         return;
     }
@@ -42,7 +48,7 @@ export function recordTrade(entry: Omit<TradeLedgerEntry, 'ts'>): void {
             }
             dirReady = true;
         }
-        fs.appendFileSync(LEDGER_FILE, JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n');
+        fs.appendFileSync(LEDGER_FILE, JSON.stringify({ ts: committedAt, ...entry }) + '\n');
     } catch (err) {
         if (!warned) {
             warned = true;

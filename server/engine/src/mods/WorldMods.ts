@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type Player from '#/engine/entity/Player.js';
+import {armNativeXpExecution,observeNativeXpExecution} from '#/mods/XpExecutionRuntime.js';
+import type {XpExecutionArmRequest} from '../../../../society-experiments/xp-execution.js';
 import {
     DiminishingXpStore,
     parseDiminishingXpConfig,
@@ -326,6 +328,21 @@ function getDiminishingXpStore(): DiminishingXpStore {
     diminishingXpStore ??= new DiminishingXpStore();
     return diminishingXpStore;
 }
+export function captureDiminishingXpBaseline(cohort:string[]){
+    const mod=snapshot.mods['economy.diminishing-xp'];
+    if(!mod || snapshot.loadError)throw new Error('Active diminishing XP configuration unavailable');
+    return getDiminishingXpStore().snapshot(cohort,mod.config);
+}
+export function applyDiminishingXpBaseline(command:Parameters<DiminishingXpStore['applyBaseline']>[0]){
+    const mod=snapshot.mods['economy.diminishing-xp'];
+    if(!mod || snapshot.loadError)throw new Error('Active diminishing XP configuration unavailable');
+    return getDiminishingXpStore().applyBaseline(command,mod.config);
+}
+export function armDiminishingXpExecution(request:XpExecutionArmRequest){
+    const mod=snapshot.mods['economy.diminishing-xp'];
+    if(!mod || snapshot.loadError)throw new Error('Active XP execution policy unavailable');
+    return armNativeXpExecution(request,captureDiminishingXpBaseline(request.cohort),mod,snapshot.mods['experiment.xp-calibration']??null);
+}
 
 function refreshDiminishingXpDetails(): void {
     const modId = 'economy.diminishing-xp';
@@ -351,7 +368,16 @@ export function applyWorldModXpAward(
     baseXp: number,
     context: XpActivityContext
 ): number {
-    return runWorldModXpAwardHook(snapshot, player, skill, baseXp, context);
+    const mod=snapshot.mods['economy.diminishing-xp'];
+    return observeNativeXpExecution(player.username.trim().toLowerCase(),skill,context,baseXp,
+        mod??{enabled:false,version:'0.0.0',dataSchemaVersion:0,config:{}},
+        ()=>captureDiminishingXpBaseline([player.username.trim().toLowerCase()]),strict=>{
+            const ids=['experiment.xp-calibration','economy.diminishing-xp'];
+            const errors=ids.map(id=>snapshot.metrics[id]?.hookErrors??0);
+            const result=runWorldModXpAwardHook(snapshot,player,skill,baseXp,context);
+            if(strict && ids.some((id,index)=>(snapshot.metrics[id]?.hookErrors??0)!==errors[index]))throw new Error('Native XP policy hook failed');
+            return result;
+        },snapshot.mods['experiment.xp-calibration']??null);
 }
 
 export function runWorldModXpAwardHook(

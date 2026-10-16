@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "policyId": "private-society-integrity",
+  "version": "1.0.0",
+  "invalidateOnInjection": true
+}

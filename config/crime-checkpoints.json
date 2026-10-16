@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "schemaVersion": 1,
+    "policyId": "local-city-checkpoints",
+    "version": "1.0.0",
+    "effectiveFrom": "2026-01-01T00:00:00.000Z",
+    "expiresAt": null,
+    "rules": [
+      {
+        "jurisdictionId": "varrock",
+        "locationId": "varrock-east-bank",
+        "checkpointId": "varrock-east-bank-entry",
+        "permission": "allow",
+        "authorityId": "varrock-guard"
+      }
+    ]
+  },
+  "checkpoints": [
+    {
+      "checkpointId": "varrock-east-bank-entry",
+      "inspectorAgentId": "varrock-east-bank.guard",
+      "x": 3252,
+      "z": 3420,
+      "level": 0,
+      "radius": 3
+    }
+  ]
+}

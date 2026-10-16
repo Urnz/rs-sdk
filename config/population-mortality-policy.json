@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "policyId": "finite-population-natural-mortality",
+  "version": "1.0.0",
+  "algorithm": "sha256-annual-hazard-v1",
+  "agePolicy": {
+    "policyId": "finite-population-age",
+    "version": "1.0.0",
+    "digest": "b852eaa5dd9f3db7e534201a62ae6fb063f8119fa9583d517555a9e538f75e66"
+  },
+  "naturalAgeBoundsYears": { "minimum": 40, "maximum": 120 },
+  "referenceLifespanYears": { "minimum": 60, "maximum": 100 },
+  "susceptibilityBasisPoints": { "minimum": 7500, "maximum": 12500 },
+  "hazardBands": [
+    { "fromReferenceAgeBasisPoints": 0, "annualRiskBasisPoints": 0 },
+    { "fromReferenceAgeBasisPoints": 5000, "annualRiskBasisPoints": 100 },
+    { "fromReferenceAgeBasisPoints": 7500, "annualRiskBasisPoints": 500 },
+    { "fromReferenceAgeBasisPoints": 10000, "annualRiskBasisPoints": 2000 },
+    { "fromReferenceAgeBasisPoints": 12500, "annualRiskBasisPoints": 6000 }
+  ]
+}

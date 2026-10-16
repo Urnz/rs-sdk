@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "policyId": "local-crime-traceability",
+  "version": "1.0.0",
+  "valueScaleCoins": 10000,
+  "decayPerSimulationHourBasisPoints": 100,
+  "weights": {
+    "value": 1200,
+    "uniqueness": 1800,
+    "victimImportance": 1000,
+    "witness": 1200,
+    "report": 1200,
+    "publicity": 1200,
+    "locationExposure": 1000
+  },
+  "jurisdictions": [
+    {
+      "jurisdictionId": "varrock",
+      "localMultiplierBasisPoints": 10000,
+      "foreignMultiplierBasisPoints": 6500
+    },
+    {
+      "jurisdictionId": "falador",
+      "localMultiplierBasisPoints": 10000,
+      "foreignMultiplierBasisPoints": 6500
+    },
+    {
+      "jurisdictionId": "lumbridge",
+      "localMultiplierBasisPoints": 10000,
+      "foreignMultiplierBasisPoints": 6500
+    }
+  ]
+}

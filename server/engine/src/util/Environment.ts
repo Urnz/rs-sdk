@@ -36,6 +36,8 @@ export default {
 
     // Restart the engine after changing this flag; no cache rebuild is required.
     GE_ENABLED: tryParseBoolean(process.env.GE_ENABLED, true),
+    // Requires an authority marker created fresh or by the offline legacy migration.
+    PLAYER_ESCROW_SHARED_CHECKPOINT: tryParseBoolean(process.env.PLAYER_ESCROW_SHARED_CHECKPOINT, false),
 
     // rs-sdk-only keys (not part of upstream WorldConfig)
     WEB_SOCKET_TOKEN_PROTECTION: tryParseBoolean(process.env.WEB_SOCKET_TOKEN_PROTECTION, false),

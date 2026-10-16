@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
-import { loadPropertyCatalog, type PropertyCatalog, type PropertyDefinition, type PropertyStateEntry } from './Properties.js';
+import { loadPropertyCatalog, type PropertyCatalog, type PropertyDefinition, type PropertyEntryPoint,
+    type PropertyStateEntry } from './Properties.js';
 import {
     PropertyStore,
     type PropertyPendingResolution,
@@ -20,6 +21,11 @@ export interface PropertyView extends PropertyDefinition {
     state: PropertyStateEntry;
 }
 
+export interface PropertyEntryView {
+    property: PropertyView;
+    entryPoint: PropertyEntryPoint;
+}
+
 export interface PropertyPurchaseOutcome {
     purchase: PropertyPurchaseRecord;
     property: PropertyView;
@@ -28,7 +34,8 @@ export interface PropertyPurchaseOutcome {
 }
 
 const catalogPath = fileURLToPath(new URL('../../../../config/properties.json', import.meta.url));
-const statePath = fileURLToPath(new URL('../../../../.local/admin/properties.sqlite', import.meta.url));
+// Operator-only acceptance isolation; never selected by player/HTTP arguments.
+const statePath = process.env.PROPERTY_STATE_DB || fileURLToPath(new URL('../../../../.local/admin/properties.sqlite', import.meta.url));
 
 export class PropertyRuntime {
     private readonly definitions;
@@ -59,9 +66,16 @@ export class PropertyRuntime {
     }
 
     findAtEntryPoint(x: number, z: number, level: number): PropertyView | null {
-        return this.list().find(property => property.entryPoints.some(entry =>
-            entry.x === x && entry.z === z && entry.level === level
-        )) ?? null;
+        return this.resolveEntryPoint(x, z, level)?.property ?? null;
+    }
+
+    resolveEntryPoint(x: number, z: number, level: number): PropertyEntryView | null {
+        for (const property of this.list()) {
+            const entryPoint = property.entryPoints.find(entry =>
+                entry.x === x && entry.z === z && entry.level === level);
+            if (entryPoint) return { property, entryPoint };
+        }
+        return null;
     }
 
     canPlayerEnter(property: PropertyView, username: string, isAdmin = false): boolean {

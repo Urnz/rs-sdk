@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "policyId": "private-society-minimum",
+  "version": "1.0.0",
+  "scope": "closed-economy-finite-society",
+  "window": {
+    "warmupSimulationMilliseconds": 86400000,
+    "evaluationSimulationMilliseconds": 604800000,
+    "bucketSimulationMilliseconds": 86400000,
+    "maximumTraceGapSimulationMilliseconds": 3600000
+  },
+  "population": { "minimumFounders": 4, "minimumLivingFounders": 4, "minimumFounderSurvivalBasisPoints": 9000 },
+  "needs": { "minimumSatisfiedPersonTimeBasisPoints": 9500, "maximumContinuousCriticalSimulationMilliseconds": 21600000 },
+  "food": {
+    "chainIds": ["lobster"],
+    "minimumInternalReliefShareBasisPoints": 10000,
+    "minimumReserveSimulationMilliseconds": 86400000,
+    "minimumStockRetentionBasisPoints": 10000
+  },
+  "housing": { "minimumTierId": "temporary-shelter" },
+  "tools": {
+    "cycleIds": ["bronze-pickaxe-mining"],
+    "minimumMaintenanceCyclesPerType": 1,
+    "maximumUnusableDemandSimulationMilliseconds": 3600000,
+    "minimumServiceCapacityRetentionBasisPoints": 10000
+  },
+  "labor": {
+    "minimumActiveProducersPerBucket": 2,
+    "minimumInterActorFinalUseChainsPerBucket": 1,
+    "requiredStageKinds": ["food-gathering", "food-processing", "tool-maintenance"]
+  },
+  "references": {
+    "worldProfiles": [
+      { "profileId": "mature-society", "version": "1.0.0" },
+      { "profileId": "historical-burn-in", "version": "1.0.0" }
+    ],
+    "needs": { "policyId": "default-character-needs", "version": "1.0.0" },
+    "dynamics": { "policyId": "default-needs-dynamics", "version": "1.0.0" },
+    "housingHierarchy": { "policyId": "default-housing-hierarchy", "version": "1.0.0" },
+    "housingEffects": { "policyId": "default-housing-effects", "version": "1.0.0" }
+  },
+  "integrityGates": [
+    "applied-genesis-baseline",
+    "complete-source-coverage",
+    "unchanged-clock-and-world-policy",
+    "finite-lifecycle-no-respawn",
+    "no-post-genesis-admin-or-fallback-value",
+    "no-external-shop-or-import-value",
+    "frozen-founder-roster",
+    "verified-internal-lineage-and-final-use"
+  ]
+}

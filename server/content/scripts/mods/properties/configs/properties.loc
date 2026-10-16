@@ -17,6 +17,7 @@ desc=The entrance to a privately owned property.
 model=model_loc_3
 active=yes
 op1=Open
+op2=Pick-lock
 retex1s=wall
 retex1d=door
 recol2s=6342

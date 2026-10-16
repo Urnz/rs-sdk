@@ -51,6 +51,12 @@ describe('LLM runtime config', () => {
         expect(config.autonomousExecution.allowedSkills[0]?.operations).not.toContain('buy-from-shop');
         expect(() => validateLlmRuntimeConfig({ schemaVersion: 1, enabled: false,
             automaticReplanning: true, provider: 'mock', model: 'test', autonomousExecution: {
+                enabled: true, allowedSkills: [{ id: 'thieving.pickpocket', version: '0.1.0', risk: 'routine',
+                    operations: ['thieve-pickpocket'] }]
+            }, limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1, maxCostMicros: 0 } }))
+            .toThrow('rights-violation operations');
+        expect(() => validateLlmRuntimeConfig({ schemaVersion: 1, enabled: false,
+            automaticReplanning: true, provider: 'mock', model: 'test', autonomousExecution: {
                 enabled: true, allowedSkills: [{ id: 'shopping', version: '1.0.0', risk: 'shop-buy',
                     operations: ['buy-from-shop'], itemNames: ['Hammer'], maxUnitPriceGp: 10,
                     maxGpPerRun: 20, maxGpPerDay: 10 }]
@@ -63,5 +69,16 @@ describe('LLM runtime config', () => {
             }, limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1, maxCostMicros: 0 }
         }).autonomousExecution.allowedSkills[0]).toMatchObject({ risk: 'player-trade',
             operations: ['trade-receive-item'], itemNames: ['bronze dagger'], partners: ['worker1'] });
+    });
+
+    test('never authorizes legal sanctions as autonomous skill operations', () => {
+        for (const operation of ['issue-fine', 'seize-item', 'imprison-player', 'kill-player']) {
+            expect(() => validateLlmRuntimeConfig({ schemaVersion: 1, enabled: false,
+                automaticReplanning: true, provider: 'mock', model: 'test',
+                autonomousExecution: { enabled: true, allowedSkills: [{ id: 'legal.action',
+                    version: '1.0.0', operations: [operation] }] },
+                limits: { maxDurationMs: 1000, maxModelRequests: 1, maxToolCalls: 1,
+                    maxCostMicros: 0 } })).toThrow('Invalid autonomous operation');
+        }
     });
 });

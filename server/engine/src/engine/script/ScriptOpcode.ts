@@ -450,7 +450,15 @@ export const enum ScriptOpcode {
     MAP_RANDOM_EVENTS,
     GETTIMESPENT, // custom: used to profile script execution (current duration)
     TIMESPENT, // custom: used to profile script execution (record start time)
-    GE_OPEN = 10010 // rs-sdk: native physical Grand Exchange
+    GE_OPEN = 10010, // rs-sdk: native physical Grand Exchange
+    SHOP_LEGACY_ALLOWED, // rs-sdk: closed-society compatibility gate
+    THIEVING_EVIDENCE_BEGIN, // rs-sdk: trusted server-side Thieving observation
+    THIEVING_EVIDENCE_COMMIT, // rs-sdk: persist a successful observed effect
+    PROPERTY_LOCK_LEVEL,
+    PROPERTY_LOCKPICK_EXPERIENCE,
+    PROPERTY_LOCK_CHANCE_NUMERATOR,
+    PROPERTY_LOCK_CHANCE_DENOMINATOR,
+    PROPERTY_REQUIRES_LOCKPICK
 }
 
 export const ScriptOpcodeMap: Map<string, number> = new Map([
@@ -874,6 +882,14 @@ export const ScriptOpcodeMap: Map<string, number> = new Map([
     ['ERROR', ScriptOpcode.ERROR],
     ['MAP_RANDOM_EVENTS', ScriptOpcode.MAP_RANDOM_EVENTS],
     ['GE_OPEN', ScriptOpcode.GE_OPEN],
+    ['SHOP_LEGACY_ALLOWED', ScriptOpcode.SHOP_LEGACY_ALLOWED],
+    ['THIEVING_EVIDENCE_BEGIN', ScriptOpcode.THIEVING_EVIDENCE_BEGIN],
+    ['THIEVING_EVIDENCE_COMMIT', ScriptOpcode.THIEVING_EVIDENCE_COMMIT],
+    ['PROPERTY_LOCK_LEVEL', ScriptOpcode.PROPERTY_LOCK_LEVEL],
+    ['PROPERTY_LOCKPICK_EXPERIENCE', ScriptOpcode.PROPERTY_LOCKPICK_EXPERIENCE],
+    ['PROPERTY_LOCK_CHANCE_NUMERATOR', ScriptOpcode.PROPERTY_LOCK_CHANCE_NUMERATOR],
+    ['PROPERTY_LOCK_CHANCE_DENOMINATOR', ScriptOpcode.PROPERTY_LOCK_CHANCE_DENOMINATOR],
+    ['PROPERTY_REQUIRES_LOCKPICK', ScriptOpcode.PROPERTY_REQUIRES_LOCKPICK],
     ['GETTIMESPENT', ScriptOpcode.GETTIMESPENT],
     ['TIMESPENT', ScriptOpcode.TIMESPENT]
 ]);

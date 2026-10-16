@@ -35,6 +35,17 @@ import { ChatHistory } from './chat-history';
 import * as pathfinding from './pathfinding';
 import { resolveInterfaceOption, shortestNameMatch, type InterfaceOptionSelector } from './action-quantity';
 
+export interface WitnessObservationNotice {
+    eventId: string;
+    observationId: string;
+    caseId: string;
+    sourceCaseEventId: string;
+    procedureKind: 'pickpocket' | 'lockpick-door' | 'container-theft' | 'property-burglary';
+    occurredAt: string;
+    facts: string[];
+    observerKind: 'agent' | 'player-only';
+}
+
 /**
  * Apply {@link FindOptions} to a find* winner. `shortestNameMatch` already
  * prefers a reachable match; `{reachable: true}` turns an unreachable-only
@@ -610,6 +621,94 @@ export class BotSDK {
             .replace(/\/gateway$/, '');  // Remove /gateway suffix if present
 
         return `${httpUrl}/status/${encodeURIComponent(this.config.botUsername)}`;
+    }
+
+    /** List this live avatar's durable noticed theft observations without revealing actor identity. */
+    async listWitnessObservations(): Promise<WitnessObservationNotice[]> {
+        const id = /^[a-z0-9][a-z0-9._:-]{1,127}$/i;
+        if (!this.config.password) throw new Error('Witness observations require a player password');
+        const base = new URL(this.config.gatewayUrl || `http://${this.config.host}:${this.config.port}`);
+        if (base.protocol === 'ws:') base.protocol = 'http:';
+        else if (base.protocol === 'wss:') base.protocol = 'https:';
+        if (base.protocol !== 'http:' && base.protocol !== 'https:')
+            throw new Error('Witness observations require an HTTP gateway');
+        const prefix = base.pathname.replace(/\/gateway\/?$/, '').replace(/\/$/, '');
+        base.pathname = `${prefix}/crime/observations/${encodeURIComponent(this.config.botUsername)}`;
+        base.search = ''; base.hash = ''; base.username = ''; base.password = '';
+        const response = await fetch(base, { method: 'GET',
+            headers: { Authorization: `Bearer ${this.config.password}` }, signal: AbortSignal.timeout(25_000) });
+        const data = await response.json().catch(() => null) as { observations?: Array<Record<string, unknown>>;
+            error?: string } | null;
+        if (!response.ok) throw new Error(data?.error || `Witness observations rejected (HTTP ${response.status})`);
+        if (!Array.isArray(data?.observations)) throw new Error('Gateway returned invalid witness observations');
+        const kinds = new Set(['pickpocket', 'lockpick-door', 'container-theft', 'property-burglary']);
+        for (const value of data.observations) {
+            if (!value || ![value.eventId, value.observationId, value.caseId, value.sourceCaseEventId]
+                .every(item => typeof item === 'string' && id.test(item))
+                || !kinds.has(String(value.procedureKind)) || typeof value.occurredAt !== 'string'
+                || Number.isNaN(Date.parse(value.occurredAt))
+                || !Array.isArray(value.facts) || value.facts.some(item => typeof item !== 'string')
+                || !['agent', 'player-only'].includes(String(value.observerKind)))
+                throw new Error('Gateway returned invalid witness observations');
+        }
+        return data.observations as unknown as WitnessObservationNotice[];
+    }
+
+    /** Inspect a selected visible person separately from noticing the theft; identity is resolved by the engine. */
+    async recognizeWitness(eventId: string, targetPlayerSlot: number, commandId: string = crypto.randomUUID()): Promise<{
+        recognitionId: string; observationId: string; caseId: string; sourceCaseEventId: string;
+    }> {
+        const id = /^[a-z0-9][a-z0-9._:-]{1,127}$/i;
+        if (!id.test(eventId) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(commandId)
+            || !Number.isSafeInteger(targetPlayerSlot) || targetPlayerSlot < 0 || targetPlayerSlot > 2047)
+            throw new Error('Witness recognition request is invalid');
+        if (!this.config.password) throw new Error('Witness recognition requires a player password');
+        const base = new URL(this.config.gatewayUrl || `http://${this.config.host}:${this.config.port}`);
+        if (base.protocol === 'ws:') base.protocol = 'http:';
+        else if (base.protocol === 'wss:') base.protocol = 'https:';
+        if (base.protocol !== 'http:' && base.protocol !== 'https:') throw new Error('Witness recognition requires an HTTP gateway');
+        const prefix = base.pathname.replace(/\/gateway\/?$/, '').replace(/\/$/, '');
+        base.pathname = `${prefix}/crime/recognize/${encodeURIComponent(this.config.botUsername)}`;
+        base.search = ''; base.hash = ''; base.username = ''; base.password = '';
+        const response = await fetch(base, { method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.config.password}` },
+            body: JSON.stringify({ commandId, eventId, targetPlayerSlot }), signal: AbortSignal.timeout(25_000) });
+        const data = await response.json().catch(() => null) as { recognition?: {
+            recognitionId: string; observationId: string; caseId: string; sourceCaseEventId: string;
+        }; error?: string } | null;
+        if (!response.ok) throw new Error(data?.error || `Witness recognition rejected (HTTP ${response.status})`);
+        const result = data?.recognition;
+        if (!result || ![result.recognitionId, result.observationId, result.caseId, result.sourceCaseEventId]
+            .every(value => typeof value === 'string' && id.test(value)))
+            throw new Error('Gateway returned an invalid witness recognition receipt');
+        return result;
+    }
+
+    /** File an explicit witness notice through the authenticated local gateway; never a legal finding. */
+    async fileWitnessReport(caseId: string, sourceCaseEventId: string): Promise<string> {
+        const id = /^[a-z0-9][a-z0-9._:-]{1,127}$/i;
+        if (!id.test(caseId) || !id.test(sourceCaseEventId))
+            throw new Error('Witness report case or discovery id is invalid');
+        if (!this.config.password) throw new Error('Witness reporting requires a player password');
+        const base = new URL(this.config.gatewayUrl || `http://${this.config.host}:${this.config.port}`);
+        if (base.protocol === 'ws:') base.protocol = 'http:';
+        else if (base.protocol === 'wss:') base.protocol = 'https:';
+        if (base.protocol !== 'http:' && base.protocol !== 'https:')
+            throw new Error('Witness reporting requires an HTTP gateway');
+        const prefix = base.pathname.replace(/\/gateway\/?$/, '').replace(/\/$/, '');
+        base.pathname = `${prefix}/crime/report/${encodeURIComponent(this.config.botUsername)}`;
+        base.search = '';
+        base.hash = '';
+        base.username = '';
+        base.password = '';
+        const response = await fetch(base, { method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.config.password}` },
+            body: JSON.stringify({ caseId, sourceCaseEventId }), signal: AbortSignal.timeout(25_000) });
+        const data = await response.json().catch(() => null) as { report?: { reportId?: unknown }; error?: string } | null;
+        if (!response.ok) throw new Error(data?.error || `Witness report rejected (HTTP ${response.status})`);
+        if (typeof data?.report?.reportId !== 'string' || !id.test(data.report.reportId))
+            throw new Error('Gateway returned an invalid witness report receipt');
+        return data.report.reportId;
     }
 
     private buildClientUrl(): string {

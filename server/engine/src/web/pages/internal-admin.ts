@@ -6,6 +6,7 @@ import World, {
     type AdminOfflineSaveResult,
     type AdminPlayerLogoutResult,
     type AdminPlayerEscrowResult,
+    type AdminPlayerCustodyResult,
     type AdminPlayerRewardResult,
     type AdminWorldDirectorEventResult,
     type AdminPropertyMaintenanceResult,
@@ -14,7 +15,13 @@ import World, {
     type AdminPropertyPurchaseResult,
     type AdminTeleportResult
 } from '#/engine/World.js';
-import { getActiveWorldMods, reloadHotWorldMods } from '#/mods/WorldMods.js';
+import { getActiveWorldMods, reloadHotWorldMods,captureDiminishingXpBaseline,applyDiminishingXpBaseline,armDiminishingXpExecution } from '#/mods/WorldMods.js';
+import {handleXpExecutionAdmin} from '#/mods/XpExecutionAdmin.js';
+import {readNativeXpExecution,sealNativeXpExecution} from '#/mods/XpExecutionRuntime.js';
+import {handleXpBaselineAdmin} from '#/mods/DiminishingXpAdmin.js';
+import {existsSync} from 'node:fs';
+import {initializeNativeSocietyObserver,societyIntegrityDbPath} from '../../../../../society-integrity/runtime.js';
+import {SocietyIntegrityStore} from '../../../../../society-integrity/store.js';
 
 interface AdminTeleportDestination {
     id: string;
@@ -66,6 +73,9 @@ function authorized(req: Request): boolean {
 export async function handleInternalAdminRequest(req: Request, url: URL): Promise<Response | null> {
     const backupListMatch = url.pathname.match(/^\/api\/internal\/admin\/offline-backups\/([a-zA-Z0-9]{1,12})$/);
     const knownPath = url.pathname === '/api/internal/admin/teleport'
+        || url.pathname === '/api/internal/admin/witness-inspection'
+        || url.pathname === '/api/internal/admin/checkpoint/search'
+        || url.pathname === '/api/internal/admin/checkpoint/detection'
         || url.pathname === '/api/internal/admin/properties'
         || url.pathname === '/api/internal/admin/properties/purchase'
         || url.pathname === '/api/internal/admin/properties/reset'
@@ -73,15 +83,31 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/properties/reconcile'
         || url.pathname === '/api/internal/admin/world-mods'
         || url.pathname === '/api/internal/admin/world-mods/reload'
+        || url.pathname === '/api/internal/admin/xp-baseline'
+        || url.pathname === '/api/internal/admin/xp-execution'
         || url.pathname === '/api/internal/admin/offline-edit'
         || url.pathname === '/api/internal/admin/offline-restore'
         || url.pathname === '/api/internal/admin/player-logout'
         || url.pathname === '/api/internal/admin/player-escrow'
+        || url.pathname === '/api/internal/admin/player-custody'
         || url.pathname === '/api/internal/admin/player-reward'
         || url.pathname === '/api/internal/admin/world-director/event'
         || !!backupListMatch;
     if (!knownPath) return null;
     if (!authorized(req)) return json({ error: 'Unauthorized' }, 401);
+    if(url.pathname==='/api/internal/admin/xp-execution')return handleXpExecutionAdmin(req,url,{
+        arm:async request=>armDiminishingXpExecution(request),seal:async id=>sealNativeXpExecution(id),read:readNativeXpExecution
+    });
+
+    if(url.pathname==='/api/internal/admin/xp-baseline')return handleXpBaselineAdmin(req,url,{
+        capture:captureDiminishingXpBaseline,apply:applyDiminishingXpBaseline,
+        offline:username=>World.getAdminOfflineSaveReadiness(username).editable,
+        assertResetAllowed:()=>{
+            initializeNativeSocietyObserver();if(!existsSync(societyIntegrityDbPath))return;
+            const store=new SocietyIntegrityStore(societyIntegrityDbPath,true);
+            try{store.verify();if(store.active().length)throw new Error('XP baseline changes require resetting the active society genesis first');}finally{store.close();}
+        }
+    });
 
     if (url.pathname === '/api/internal/admin/world-mods') {
         if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
@@ -127,10 +153,46 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     } catch {
         return json({ error: 'Invalid JSON body' }, 400);
     }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return json({error:'Invalid JSON body'},400);
     const username = typeof body.username === 'string' ? body.username.trim() : '';
     const commandId = typeof body.commandId === 'string' ? body.commandId.trim() : '';
     const validCommandId = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(commandId);
     if (!validCommandId) return json({ error: 'Invalid admin command identity' }, 400);
+
+    if (url.pathname === '/api/internal/admin/witness-inspection') {
+        if (!body || Array.isArray(body) || Object.keys(body).sort().join(',') !== 'commandId,eventId,observerUsername,targetPlayerSlot'
+            || typeof body.eventId !== 'string' || !/^[a-z0-9][a-z0-9._:-]{1,127}$/i.test(body.eventId)
+            || typeof body.observerUsername !== 'string' || !/^[a-z0-9]{1,12}$/.test(body.observerUsername)
+            || !Number.isSafeInteger(body.targetPlayerSlot) || Number(body.targetPlayerSlot) < 0 || Number(body.targetPlayerSlot) > 2047)
+            return json({error:'Invalid typed witness inspection request'},400);
+        const result = await World.enqueueWitnessInspection({commandId,eventId:body.eventId,
+            observerUsername:body.observerUsername,targetPlayerSlot:Number(body.targetPlayerSlot),expiresAt:Date.now()+2000});
+        return json(result,result.ok?200:409);
+    }
+
+    if (url.pathname === '/api/internal/admin/checkpoint/search') {
+        if (Object.keys(body).sort().join(',') !== 'checkpointId,commandId,subjectUsername'
+            || typeof body.checkpointId !== 'string' || !/^[a-z0-9][a-z0-9._:-]{1,127}$/.test(body.checkpointId)
+            || typeof body.subjectUsername !== 'string' || !/^[a-z0-9]{1,12}$/.test(body.subjectUsername))
+            return json({error:'Invalid typed checkpoint search request'},400);
+        const result = await World.enqueueCheckpointSearch({commandId,checkpointId:body.checkpointId,
+            subjectUsername:body.subjectUsername,expiresAt:Date.now()+2000});
+        return json(result,result.ok?200:409);
+    }
+
+    if (url.pathname === '/api/internal/admin/checkpoint/detection') {
+        if (Object.keys(body).sort().join(',') !== 'assetId,commandId,inspectionId,itemId,result,subjectAgentId'
+            || typeof body.inspectionId !== 'string' || !/^[a-z0-9][a-z0-9._:-]{1,127}$/.test(body.inspectionId)
+            || typeof body.subjectAgentId !== 'string' || !/^[a-z0-9]{1,12}$/.test(body.subjectAgentId)
+            || typeof body.assetId !== 'string' || !/^[a-z0-9][a-z0-9._:-]{1,127}$/.test(body.assetId)
+            || !Number.isSafeInteger(body.itemId) || Number(body.itemId)<0 || Number(body.itemId)>65535
+            || (body.result!=='recognized-stolen' && body.result!=='not-recognized'))
+            return json({error:'Invalid typed checkpoint detection request'},400);
+        const result = await World.enqueueCheckpointDetection({commandId,inspectionId:body.inspectionId,
+            subjectAgentId:body.subjectAgentId,assetId:body.assetId,itemId:Number(body.itemId),
+            result:body.result,expiresAt:Date.now()+2000});
+        return json(result,result.ok?200:409);
+    }
 
     if (url.pathname === '/api/internal/admin/world-director/event') {
         const allowedFields = new Set(['commandId', 'eventId', 'cycleKey', 'selectionDigest', 'kind',
@@ -254,6 +316,30 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
 
     if (!/^[a-zA-Z0-9]{1,12}$/.test(username)) return json({ error: 'Invalid admin command identity' }, 400);
 
+    if (url.pathname === '/api/internal/admin/player-custody') {
+        if (Object.keys(body).sort().join(',') !== ['commandId','custodyId','decisionId','decisionDigest',
+            'username','jurisdictionId','x','z','level','startedAt','releaseAt'].sort().join(',')
+            || typeof body.custodyId !== 'string'
+            || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.custodyId)
+            || typeof body.decisionId !== 'string' || !/^[a-z0-9][a-z0-9._:-]{1,127}$/i.test(body.decisionId)
+            || typeof body.decisionDigest !== 'string' || !/^[0-9a-f]{64}$/.test(body.decisionDigest)
+            || typeof body.jurisdictionId !== 'string' || !/^[a-z0-9][a-z0-9._:-]{1,127}$/i.test(body.jurisdictionId)
+            || !Number.isSafeInteger(body.x) || Number(body.x) < 0 || Number(body.x) > 16383
+            || !Number.isSafeInteger(body.z) || Number(body.z) < 0 || Number(body.z) > 16383
+            || !Number.isSafeInteger(body.level) || Number(body.level) < 0 || Number(body.level) > 3
+            || typeof body.startedAt !== 'string' || Number.isNaN(Date.parse(body.startedAt))
+            || typeof body.releaseAt !== 'string' || Number.isNaN(Date.parse(body.releaseAt)))
+            return json({ error: 'Invalid typed player custody request' }, 400);
+        const result: AdminPlayerCustodyResult = await World.enqueueAdminPlayerCustody({
+            commandId, custodyId: body.custodyId, decisionId: body.decisionId,
+            decisionDigest: body.decisionDigest, username, jurisdictionId: body.jurisdictionId,
+            x: Number(body.x), z: Number(body.z), level: Number(body.level),
+            startedAt: new Date(body.startedAt).toISOString(), releaseAt: new Date(body.releaseAt).toISOString(),
+            expiresAt: Date.now() + 2_000
+        });
+        return json(result, result.ok ? 200 : 409);
+    }
+
     if (url.pathname === '/api/internal/admin/player-escrow') {
         const allowedFields = new Set(['commandId', 'escrowId', 'operation', 'username', 'payeeUsername', 'assets']);
         if (Object.keys(body).some(key => !allowedFields.has(key))) {
@@ -276,7 +362,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
                 && Number.isSafeInteger((item as Record<string, unknown>).id)
                 && Number.isSafeInteger((item as Record<string, unknown>).count));
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(escrowId)
-            || !['hold', 'release', 'commit'].includes(String(operation))
+            || !['hold', 'release', 'commit', 'consume'].includes(String(operation))
             || (operation === 'hold' ? !validAssets || payeeUsername !== undefined
                 : assets !== undefined || (operation === 'commit'
                     ? !payeeUsername || !/^[a-zA-Z0-9]{1,12}$/.test(payeeUsername)
@@ -284,7 +370,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
             return json({ error: 'Invalid player escrow request' }, 400);
         }
         const result: AdminPlayerEscrowResult = await World.enqueueAdminPlayerEscrow({ commandId,
-            escrowId, operation: operation as 'hold' | 'release' | 'commit', username,
+            escrowId, operation: operation as 'hold' | 'release' | 'commit' | 'consume', username,
             payeeUsername, assets: operation === 'hold' ? assets as { gp: number; items: Array<{ id: number; count: number }> } : undefined,
             expiresAt: Date.now() + 2_000 });
         return json(result, result.ok ? 200 : 409);

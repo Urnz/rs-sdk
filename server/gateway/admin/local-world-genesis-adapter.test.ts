@@ -9,8 +9,12 @@ import { LocalLostCityWorldGenesisAdapter, type LocalGenesisDependencies } from 
 import { previewAdminWorldGenesis, resetAdminWorldGenesis, startAdminWorldGenesis } from './world-genesis.js';
 import { BusinessManagerStore } from './business-manager.js';
 import { InstitutionTreasuryStore } from './institution-treasury.js';
+import { AgentStateStore } from '../../../agent-state/index.js';
+import { SimulationClockStore } from '../../../simulation-clock/index.js';
+import { SocietyIntegrityStore } from '../../../society-integrity/store.js';
 import type { AdminPropertyList } from './properties.js';
 import type { OfflineSaveSummary } from './offline-editor.js';
+import { loadPopulationEntryEnvironment } from './population-entry.js';
 
 const directories: string[] = [];
 afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }); });
@@ -50,6 +54,16 @@ function institutionalResult() {
         propertyId: 'varrock.test-house'
     }];
     return resultFromAssets('local-institutions', assets);
+}
+
+function populationResult(profileDigest='e'.repeat(64)){
+    const profile=loadWorldGenesisProfileCatalog(join(import.meta.dir,'..','..','..','config',
+        'world-genesis-profiles.json')).profiles.find(item=>item.profileId==='mature-society')!;
+    const configuration=buildWorldGenesisConfiguration({seed:'local-population',profile,
+        worldBuild:'lostcity-local-v1',simulationClock:{clockId:'world',profileDigest,
+            initialSimulationTime:'2001-01-01T00:00:00.000Z'}});
+    return buildWorldGenesisResult(configuration,{assets:[],populationMembers:['alice','bob','cara','dave'].map(name=>({
+        agentId:`${name}-agent`,playerUsername:name}))},'2026-09-14T10:00:00.000Z');
 }
 
 function harness(editable = true) {
@@ -136,6 +150,73 @@ function storedDependencies(local: ReturnType<typeof harness>, businessStore: Bu
 }
 
 describe('local LostCity world genesis adapter', () => {
+    test('compares native save values canonically across the journal JSON boundary, retaining exact value checks',async()=>{
+        const local=harness(),genesis=result(),location=paths(),edit=local.dependencies.editPlayer;
+        const dependencies={...local.dependencies,async editPlayer(...args:Parameters<typeof edit>) {
+            const response=await edit(...args);
+            return {...response,after:response.after?{...response.after,
+                skills:response.after.skills.map(skill=>({name:skill.name,experience:skill.experience}))}:undefined};
+        }};
+        const adapter=new LocalLostCityWorldGenesisAdapter(dependencies);
+        const applied=await startAdminWorldGenesis(genesis,genesis.resultDigest,adapter,location);
+        expect(applied.status).toBe('applied');expect(local.player().coins).toBe(600);
+        await resetAdminWorldGenesis(genesis.resultId,applied.revision,genesis.resultDigest,adapter,location);
+        expect(local.player().coins).toBe(100);
+        const changed=harness(),nativeEdit=changed.dependencies.editPlayer;
+        const conflicting=new LocalLostCityWorldGenesisAdapter({...changed.dependencies,async editPlayer(...args:Parameters<typeof nativeEdit>) {
+            const response=await nativeEdit(...args);return {...response,after:response.after?{...response.after,coins:response.after.coins+1}:undefined};
+        }});
+        await expect(startAdminWorldGenesis(genesis,genesis.resultDigest,conflicting,paths())).rejects.toThrow('not verified');
+    });
+    test('binds a finite genesis population exactly once, survives restart and resets without deleting history', async()=>{
+        const local=harness(),location=paths(),directory=dirname(location.runDbPath);
+        const clock=new SimulationClockStore(join(directory,'clock.sqlite'));
+        const clockState=clock.create({clockId:'world',profile:{schemaVersion:1,profileId:'normal',version:'1.0.0',
+            seed:'local-population',rate:{simulationMilliseconds:1,wallMilliseconds:1}},
+        wallTime:'2026-09-14T10:00:00.000Z',simulationTime:'2001-01-01T00:00:00.000Z'});
+        const genesis=populationResult(clockState.profileDigest);
+        const agentPath=join(directory,'agents.sqlite');
+        let agents=new AgentStateStore(agentPath,{store:clock,clockId:'world'});
+        for(const name of ['alice','bob','cara','dave'])agents.createIdentity({agentId:`${name}-agent`,
+            playerUsername:name,displayName:name,background:'Finite genesis member.',personalityTraits:['steady']},
+        '2026-09-14T10:00:00.000Z');
+        agents.close();
+        const adapter=new LocalLostCityWorldGenesisAdapter(local.dependencies,
+            {agentPath,simulationClock:{store:clock,clockId:'world'},integrityDbPath:join(directory,'society-integrity.sqlite')});
+        expect(await previewAdminWorldGenesis(genesis,adapter)).toMatchObject({preview:{ok:true}});
+        const applied=await startAdminWorldGenesis(genesis,genesis.resultDigest,adapter,location,
+            '2026-09-14T10:01:00.000Z');
+        const integrity=new SocietyIntegrityStore(join(directory,'society-integrity.sqlite'),true);
+        const integrityReport=integrity.report(genesis.resultId);
+        expect(integrityReport.events.filter(event=>event.kind==='genesis-opening-value')).toHaveLength(4);
+        expect(integrityReport.events.filter(event=>event.kind==='genesis-opening-snapshot')).toHaveLength(4);
+        expect(integrityReport.run.genesisAppliedAtSimulationTime).toBe(clock.get('world')!.lastSimulationTime);
+        integrity.close();
+        agents=new AgentStateStore(agentPath,{store:clock,clockId:'world'});
+        expect(agents.listPopulationMembers('active')).toHaveLength(4);
+        expect(agents.getSnapshot('alice-agent')?.populationMember).toMatchObject({status:'active',
+            sourceResultDigest:genesis.resultDigest,worldProfile:{profileId:'mature-society'},
+            lifecyclePolicy:{kind:'finite'}});
+        clock.pause('world',clock.get('world')!.revision,clock.get('world')!.lastObservedWallTime);
+        const environment=loadPopulationEntryEnvironment(join(import.meta.dir,'../../../config'));
+        const request={batchId:'post-genesis',seed:'arrival-reset',count:2,anchorAgentId:'alice-agent'};
+        const preview=agents.previewPopulationEntry(request,environment);
+        const entry=agents.applyPopulationEntry(request,environment,preview.digest,'Post-genesis arrivals.',()=>{},'2026-09-14T10:01:00.000Z');
+        expect(agents.listPopulationMembers('active')).toHaveLength(6);
+        agents.close();
+        expect((await startAdminWorldGenesis(genesis,genesis.resultDigest,adapter,location,
+            '2026-09-14T10:01:30.000Z')).resultDigest).toBe(applied.resultDigest);
+        await resetAdminWorldGenesis(genesis.resultId,applied.revision,genesis.resultDigest,adapter,location,
+            '2026-09-14T10:02:00.000Z');
+        agents=new AgentStateStore(agentPath,{store:clock,clockId:'world'});
+        expect(agents.listPopulationMembers('reset')).toHaveLength(6);
+        expect(agents.listIdentities()).toHaveLength(6);
+        expect(agents.getPopulationEntry(entry.plan.entryId)).toEqual(entry);
+        expect(agents.applyPopulationEntry(request,environment,preview.digest,'Historical replay.',()=>{})).toEqual(entry);
+        expect(agents.listPopulationMembers('active')).toHaveLength(0);
+        agents.close();clock.close();
+    });
+
     test('applies and restores offline player assets and property ownership through verified boundaries', async () => {
         const genesis = result(), local = harness(), location = paths();
         expect(await previewAdminWorldGenesis(genesis, local.adapter)).toMatchObject({ preview: { ok: true } });

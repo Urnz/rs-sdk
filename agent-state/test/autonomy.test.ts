@@ -240,6 +240,15 @@ describe('durable autonomy enrollment', () => {
 
     test('migrates an existing v15 database without enrolling agents implicitly', () => {
         const path = databasePath();
+        // v15 already contained memory tables. Copy their unchanged baseline DDL,
+        // without modern data, triggers or post-v15 schema, into the legacy fixture.
+        const memoryBaselinePath = databasePath();
+        const memoryBaselineStore = new AgentStateStore(memoryBaselinePath); memoryBaselineStore.close();
+        const memoryBaseline = new Database(memoryBaselinePath,{readonly:true});
+        const memorySchemas = memoryBaseline.query(`SELECT sql FROM sqlite_master WHERE type='table'
+            AND name IN ('agent_episode','agent_semantic_memory','agent_relationship','agent_skill_knowledge','agent_consolidation_evidence')`)
+            .all() as Array<{sql:string}>;
+        memoryBaseline.close(true);
         const legacy = new Database(path, { create: true, strict: true });
         legacy.run(`CREATE TABLE agent_identity (
             agent_id TEXT PRIMARY KEY, player_username TEXT UNIQUE, display_name TEXT NOT NULL,
@@ -255,6 +264,7 @@ describe('durable autonomy enrollment', () => {
             llm_cost_micros INTEGER NOT NULL CHECK (llm_cost_micros >= 0),
             operational_budget_gp INTEGER NOT NULL CHECK (operational_budget_gp >= 0),
             occurred_at TEXT NOT NULL, profile_revision INTEGER NOT NULL CHECK (profile_revision >= 1))`);
+        for (const schema of memorySchemas) legacy.run(schema.sql);
         legacy.run('PRAGMA user_version = 15');
         legacy.close(true);
 

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "categories": [
+    { "categoryId": "food-raw", "itemIds": [317, 377] },
+    { "categoryId": "mineral-ores", "itemIds": [436, 438] },
+    { "categoryId": "metal-maintenance", "itemIds": [2349] },
+    { "categoryId": "replacement-tools", "itemIds": [1265, 65000] },
+    { "categoryId": "construction-materials", "itemIds": [1741] }
+  ]
+}

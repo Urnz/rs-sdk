@@ -132,6 +132,20 @@ function Test-LocalManagedProcess {
     }
 }
 
+function Get-LocalThievingProcessorHealth {
+    param($State, [object[]]$Processes)
+
+    $enabled = $null -ne $State -and
+        $State.PSObject.Properties.Name -contains 'thievingProcessorEnabled' -and
+        [bool]$State.thievingProcessorEnabled
+    $worker = @($Processes | Where-Object { $_.name -eq 'thieving-processor' } | Select-Object -First 1)
+    return [pscustomobject]@{
+        enabled = [bool]$enabled
+        running = $worker.Count -gt 0 -and [bool]$worker[0].running
+        pid = if ($worker.Count -gt 0) { $worker[0].pid } else { $null }
+    }
+}
+
 function Stop-LocalManagedProcess {
     param($Entry)
 
@@ -245,9 +259,11 @@ function Get-LocalHealth {
             }
         })
     }
+    $thievingProcessor = Get-LocalThievingProcessorHealth -State $state -Processes $processes
 
     $healthy = $engineHttp.healthy -and $webclientHttp.healthy -and $gatewayHttp.healthy
     if ($bots.Count -gt 0) { $healthy = $healthy -and @($bots | Where-Object { -not $_.healthy }).Count -eq 0 }
+    if ($thievingProcessor.enabled) { $healthy = $healthy -and $thievingProcessor.running }
 
     return [pscustomobject]@{
         healthy = $healthy
@@ -257,6 +273,7 @@ function Get-LocalHealth {
         bot = if ($bots.Count -gt 0) { $bots[0] } else { $null }
         bots = $bots
         processes = $processes
+        thievingProcessor = $thievingProcessor
         runId = if ($state) { $state.runId } else { $null }
         logDirectory = if ($state) { $state.logDirectory } else { $null }
     }

@@ -1,11 +1,25 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { createHash } from 'node:crypto';
+import { generatePopulationEntry, populationEntryId, populationEntryDigest, validatePopulationEntryRequest,
+    type PopulationEntryEnvironment, type PopulationEntryPlan, type PopulationEntryReceipt } from '../population-lifecycle/entry.js';
+import { installPopulationEntrySchema, readPopulationEntry, verifyPopulationEntryHistory } from './population-entry.js';
+import { PlayerHealthEvidenceStore } from '../server/engine/src/mods/PlayerHealthEvidenceStore.js';
+import { createPopulationDeathEvidence, populationDeathMembershipDigest, validatePopulationDeathEvidence,
+    type PopulationDeathRecord } from '../population-lifecycle/death.js';
+import { healthDigest } from '../population-health/policy.js';
+import { installMemoryArchiveSchema, verifyMemoryHistory, archivePopulationMemory, readPopulationMemoryArchive } from './memory-archive.js';
+import { previewMemoryTransfer, executeMemoryTransfer, type MemoryTransferPolicy, type MemoryTransferSelection, type MemoryTransferRequest } from './memory-transfer.js';
 import type { BoundSimulationEventStamp } from '../simulation-clock/types.js';
 import { SimulationClockStore } from '../simulation-clock/store.js';
+import { characterAgeAt, evaluatePopulationAge, type PopulationAgePolicy,
+    type PopulationAgeObservation } from '../population-lifecycle/age.js';
+import { evaluatePopulationMortality, type PopulationMortalityPolicy,
+    type PopulationMortalityObservation } from '../population-lifecycle/mortality.js';
 import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalEvent, type AgentGoalProposal, type AgentIdentity, type AgentSnapshot,
-    type AgentCharacterLifecycle, type AgentCharacterLifecycleOrigin,
+    type AgentCharacterLifecycle, type AgentCharacterLifecycleOrigin, type AgentPopulationMember,
+    type AgentPopulationMembershipStatus, type BindAgentPopulationMember,
     type AgentAutonomyControl, type AgentAutonomyEnrollment, type AgentAutonomyStatus, type AgentControlProfile,
     type AgentDecisionRecord, type AgentDecisionTrigger, type AgentGoalExecution, type AgentSkillDispatch,
     type AgentSkillRunOutcome, type AgentSkillRunOutcomeClassification,
@@ -38,6 +52,14 @@ interface CharacterLifecycleRow {
     birth_at_simulation_time: string | null; age_at_observation_ms: number;
     age_observed_at_simulation_time: string; status: AgentCharacterLifecycle['status'];
     status_changed_at_simulation_time: string; created_at: string; updated_at: string; revision: number;
+}
+interface PopulationMemberRow {
+    agent_id:string;player_username:string;world_profile_id:string;world_profile_version:string;
+    world_profile_digest:string;lifecycle_policy_id:string;lifecycle_policy_version:string;
+    lifecycle_policy_digest:string;lifecycle_policy_kind:'finite';simulation_clock_id:string;
+    simulation_clock_profile_digest:string;joined_at_simulation_time:string;source_result_id:string;
+    source_result_digest:string;status:AgentPopulationMembershipStatus;reset_at_simulation_time:string|null;
+    created_at:string;updated_at:string;revision:number;
 }
 interface GoalRow {
     goal_id: string; agent_id: string; parent_goal_id: string | null; horizon: AgentGoal['horizon'];
@@ -163,10 +185,10 @@ function identity(row: IdentityRow): AgentIdentity {
         createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
 }
 function characterLifecycle(row: CharacterLifecycleRow, atSimulationTime: string): AgentCharacterLifecycle {
-    const elapsed = row.status === 'active'
-        ? Math.max(0, Date.parse(atSimulationTime) - Date.parse(row.age_observed_at_simulation_time)) : 0;
-    const currentAgeSimulationMilliseconds = row.age_at_observation_ms + elapsed;
-    if (!Number.isSafeInteger(currentAgeSimulationMilliseconds)) throw new Error('Character age exceeds the safe range');
+    const currentAgeSimulationMilliseconds = characterAgeAt({ birthAtSimulationTime: row.birth_at_simulation_time,
+        ageAtObservationMilliseconds: row.age_at_observation_ms,
+        ageObservedAtSimulationTime: row.age_observed_at_simulation_time, status: row.status,
+        statusChangedAtSimulationTime: row.status_changed_at_simulation_time }, atSimulationTime);
     return { agentId: row.agent_id, origin: row.origin,
         createdAtSimulationTime: row.created_at_simulation_time,
         birthAtSimulationTime: row.birth_at_simulation_time,
@@ -175,6 +197,33 @@ function characterLifecycle(row: CharacterLifecycleRow, atSimulationTime: string
         currentAgeSimulationMilliseconds, status: row.status,
         statusChangedAtSimulationTime: row.status_changed_at_simulation_time,
         createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision };
+}
+function populationMember(row:PopulationMemberRow,lifecycle:AgentCharacterLifecycle):AgentPopulationMember{
+    return{agentId:row.agent_id,playerUsername:row.player_username,
+        worldProfile:{profileId:row.world_profile_id,version:row.world_profile_version,digest:row.world_profile_digest},
+        lifecyclePolicy:{policyId:row.lifecycle_policy_id,version:row.lifecycle_policy_version,
+            digest:row.lifecycle_policy_digest,kind:row.lifecycle_policy_kind},
+        simulationClock:{clockId:row.simulation_clock_id,profileDigest:row.simulation_clock_profile_digest},
+        joinedAtSimulationTime:row.joined_at_simulation_time,sourceResultId:row.source_result_id,
+        sourceResultDigest:row.source_result_digest,status:row.status,resetAtSimulationTime:row.reset_at_simulation_time,
+        characterLifecycle:lifecycle,createdAt:row.created_at,updatedAt:row.updated_at,revision:row.revision};
+}
+const POPULATION_ID=/^[a-z0-9][a-z0-9._:-]{0,127}$/;const SEMVER=/^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i;
+const SHA256=/^[0-9a-f]{64}$/;const POPULATION_RESULT=/^(genesis|entry)-[0-9a-f]{24}$/;
+function populationKey(value:string,label:string,maximum=127):string{
+    const normalized=value.trim().toLowerCase();
+    if(normalized.length>maximum||!POPULATION_ID.test(normalized))throw new Error(`${label} is invalid`);
+    return normalized;
+}
+function populationVersion(value:string,label:string):string{
+    const normalized=value.trim();if(!SEMVER.test(normalized))throw new Error(`${label} is invalid`);return normalized;
+}
+function populationDigest(value:string,label:string):string{
+    const normalized=value.trim().toLowerCase();if(!SHA256.test(normalized))throw new Error(`${label} is invalid`);return normalized;
+}
+function populationTimestamp(value:string,label:string):string{
+    if(Number.isNaN(Date.parse(value))||new Date(value).toISOString()!==value)throw new Error(`${label} must be canonical UTC`);
+    return value;
 }
 function goal(row: GoalRow): AgentGoal {
     return { goalId: row.goal_id, agentId: row.agent_id, parentGoalId: row.parent_goal_id, horizon: row.horizon,
@@ -323,23 +372,48 @@ function consolidationEvidence(row: ConsolidationEvidenceRow): AgentConsolidatio
 
 export class AgentStateStore {
     private readonly database: Database;
+    private readonly ownedStatements = new Set<{ finalize(): void }>();
 
-    constructor(path: string, private readonly simulationClock?: AgentStateSimulationClock) {
-        mkdirSync(dirname(path), { recursive: true });
-        this.database = new Database(path, { create: true, strict: true });
+    constructor(path: string, private readonly simulationClock?: AgentStateSimulationClock, readonly readOnly = false) {
+        if (!readOnly) mkdirSync(dirname(path), { recursive: true });
+        this.database = new Database(path, readOnly ? { readonly: true, strict: true } : { create: true, strict: true });
+        // Cached statements must not retain a zombie SQLite connection after a short-lived admin read.
+        this.database.query = new Proxy(this.database.query, { apply: (target, receiver, argumentsList) => {
+            const statement = Reflect.apply(target, receiver, argumentsList);
+            this.ownedStatements.add(statement);
+            return statement;
+        } });
         try {
             this.database.run('PRAGMA foreign_keys = ON');
-            this.database.run('PRAGMA journal_mode = WAL');
-            this.migrate();
-            if (simulationClock) this.backfillGoalEventSimulationStamps();
-            if (simulationClock) this.backfillCharacterLifecycles();
+            if (readOnly) {
+                const version = (this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version;
+                if (version !== AGENT_STATE_SCHEMA_VERSION) throw new Error('Read-only AgentState requires the current schema; migration is pending or unsupported');
+            } else {
+                this.database.run('PRAGMA journal_mode = WAL');
+                this.migrate();
+            }
+            verifyMemoryHistory(this.database);
+            verifyPopulationEntryHistory(this.database);
+            if (simulationClock && !readOnly) this.backfillGoalEventSimulationStamps();
+            if (simulationClock && !readOnly) this.backfillCharacterLifecycles();
         } catch (error) {
-            this.database.close(true);
+            this.close();
             throw error;
         }
     }
 
-    close(): void { this.database.close(false); }
+    close(): void {
+        for (const statement of this.ownedStatements) statement.finalize();
+        this.ownedStatements.clear();
+        this.database.close(true);
+    }
+
+    readSnapshot<T>(read: () => T): T {
+        if (!this.readOnly) throw new Error('Read snapshots require a read-only AgentState connection');
+        let result!: T;
+        this.database.transaction(() => { verifyMemoryHistory(this.database); verifyPopulationEntryHistory(this.database); result = read(); }).deferred();
+        return result;
+    }
 
     private bindGoalEventRow(row: GoalEventRow): void {
         if (!this.simulationClock || row.simulation_clock_id !== null) return;
@@ -464,6 +538,9 @@ export class AgentStateStore {
         const value = validateIdentityPatch(patch);
         const next = { ...current, ...value };
         const transaction = this.database.transaction(() => {
+            const member = this.getPopulationMember(current.agentId);
+            if (member && next.playerUsername?.toLowerCase() !== member.playerUsername)
+                throw new Error('Population avatar identity cannot be rebound');
             const result = this.database.run(`UPDATE agent_identity SET player_username = ?3, display_name = ?4,
                 background = ?5, personality_traits = ?6, agent_values = ?7, updated_at = ?8, revision = revision + 1
                 WHERE agent_id = ?1 AND revision = ?2`, [current.agentId, expectedRevision, next.playerUsername,
@@ -511,13 +588,16 @@ export class AgentStateStore {
         const normalized = normalizeAgentId(agentId), current = this.getCharacterLifecycle(normalized);
         if (!current) throw new Error('Character lifecycle is not initialized for this player agent');
         if (current.birthAtSimulationTime !== null) throw new Error('Character birth time is immutable once recorded');
+        if (current.status !== 'active') throw new Error('Character birth registration requires an active lifecycle');
+        if (origin !== 'born' && origin !== 'imported') throw new Error('Character birth origin is invalid');
         const birth = new Date(birthAtSimulationTime).toISOString();
         if (birth !== birthAtSimulationTime) throw new Error('Character birth time must be canonical UTC ISO');
         const observed = this.observeSimulationTime(now), age = Date.parse(observed) - Date.parse(birth);
         if (!Number.isSafeInteger(age) || age < 0) throw new Error('Character birth time cannot follow observation time');
         const result = this.database.run(`UPDATE agent_character_lifecycle SET origin=?3,
             birth_at_simulation_time=?4,age_at_observation_ms=?5,age_observed_at_simulation_time=?6,
-            updated_at=?7,revision=revision+1 WHERE agent_id=?1 AND revision=?2 AND birth_at_simulation_time IS NULL`,
+            updated_at=?7,revision=revision+1 WHERE agent_id=?1 AND revision=?2
+            AND birth_at_simulation_time IS NULL AND status='active'`,
         [normalized, expectedRevision, origin, birth, age, observed, now]);
         if (result.changes !== 1) throw new Error('Character lifecycle changed before birth registration');
         return this.getCharacterLifecycle(normalized)!;
@@ -528,14 +608,339 @@ export class AgentStateStore {
         const normalized = normalizeAgentId(agentId), current = this.getCharacterLifecycle(normalized);
         if (!current) throw new Error('Character lifecycle is not initialized for this player agent');
         const observed = this.observeSimulationTime(now);
-        const age = current.ageAtObservationMilliseconds
-            + (current.status === 'active' ? Date.parse(observed) - Date.parse(current.ageObservedAtSimulationTime) : 0);
-        if (!Number.isSafeInteger(age) || age < 0) throw new Error('Character age exceeds the safe range');
+        const age = characterAgeAt(current, observed);
         const result = this.database.run(`UPDATE agent_character_lifecycle SET age_at_observation_ms=?3,
             age_observed_at_simulation_time=?4,updated_at=?5,revision=revision+1
             WHERE agent_id=?1 AND revision=?2`, [normalized, expectedRevision, age, observed, now]);
         if (result.changes !== 1) throw new Error('Character lifecycle changed before age observation');
         return this.getCharacterLifecycle(normalized)!;
+    }
+
+    getPopulationAge(agentId: string, policy: PopulationAgePolicy, now?: string): PopulationAgeObservation | null {
+        const member = this.getPopulationMember(agentId);
+        if (!member) return null;
+        if (!this.simulationClock) throw new Error('Population age requires the shared simulation clock');
+        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+        if (!clock || member.simulationClock.clockId !== clock.clockId
+            || member.simulationClock.profileDigest !== clock.profileDigest) {
+            throw new Error('Population age requires the exact shared simulation clock');
+        }
+        const simulationTime = now === undefined ? clock.lastSimulationTime : this.observeSimulationTime(now);
+        return evaluatePopulationAge(member, { clockId: clock.clockId, profileDigest: clock.profileDigest,
+            simulationTime, wallTime: now ?? clock.lastObservedWallTime, engineTick: null,
+            status: clock.status, revision: clock.revision }, policy);
+    }
+
+    getPopulationMortality(agentId: string, agePolicy: PopulationAgePolicy,
+        mortalityPolicy: PopulationMortalityPolicy, now?: string): PopulationMortalityObservation | null {
+        // Reuse the authoritative read/clock binding and optional wall-time observation.
+        const age = this.getPopulationAge(agentId, agePolicy, now);
+        if (!age) return null;
+        const member = this.getPopulationMember(agentId)!;
+        const clock = this.simulationClock!.store.get(this.simulationClock!.clockId)!;
+        return evaluatePopulationMortality(member, { clockId: clock.clockId, profileDigest: clock.profileDigest,
+            simulationTime: clock.lastSimulationTime, wallTime: clock.lastObservedWallTime, engineTick: null,
+            status: clock.status, revision: clock.revision }, agePolicy, mortalityPolicy);
+    }
+
+    bindPopulationMember(input:BindAgentPopulationMember,now=new Date().toISOString()):AgentPopulationMember{
+        if(!this.simulationClock)throw new Error('Population membership requires the shared simulation clock');
+        const agentId=normalizeAgentId(input.agentId),identity=this.requireIdentity(agentId),profile=this.getControlProfile(agentId),
+            lifecycle=this.getCharacterLifecycle(agentId);
+        const playerUsername=input.playerUsername.trim().toLowerCase();
+        if(!/^[a-z0-9]{1,12}$/.test(playerUsername)||identity.playerUsername?.toLowerCase()!==playerUsername
+            ||profile?.role!=='player'||profile.subjectKind!=='player'||profile.subjectId.toLowerCase()!==playerUsername
+            ||profile.avatarPlayerUsername?.toLowerCase()!==playerUsername)
+            throw new Error('PopulationMember requires the exact player-controlled avatar identity');
+        if(!lifecycle||lifecycle.status!=='active')throw new Error('PopulationMember requires an active character lifecycle');
+        if(input.lifecyclePolicy.kind!=='finite')throw new Error('PopulationMember requires the finite lifecycle policy');
+        const worldProfile={profileId:populationKey(input.worldProfile.profileId,'World profile id',63),
+            version:populationVersion(input.worldProfile.version,'World profile version'),
+            digest:populationDigest(input.worldProfile.digest,'World profile digest')};
+        const lifecyclePolicy={policyId:populationKey(input.lifecyclePolicy.policyId,'Lifecycle policy id',63),
+            version:populationVersion(input.lifecyclePolicy.version,'Lifecycle policy version'),
+            digest:populationDigest(input.lifecyclePolicy.digest,'Lifecycle policy digest'),kind:'finite' as const};
+        const simulationClock={clockId:populationKey(input.simulationClock.clockId,'Simulation clock id',63),
+            profileDigest:populationDigest(input.simulationClock.profileDigest,'Simulation clock profile digest')};
+        const joinedAtSimulationTime=populationTimestamp(input.joinedAtSimulationTime,'Population join time');
+        const sourceResultId=input.sourceResultId.trim().toLowerCase(),sourceResultDigest=populationDigest(input.sourceResultDigest,
+            'Population source result digest');
+        if(!POPULATION_RESULT.test(sourceResultId))throw new Error('Population source result id is invalid');
+        if(sourceResultId.startsWith('entry-')){
+            const receipt=readPopulationEntry(this.database,sourceResultId),plan=receipt?.plan;
+            if(!plan||plan.digest!==sourceResultDigest||!plan.entrants.some(item=>item.identity.agentId===agentId
+                &&item.identity.playerUsername===playerUsername)||JSON.stringify(plan.worldProfile)!==JSON.stringify(worldProfile)
+                ||JSON.stringify(plan.lifecyclePolicy)!==JSON.stringify(lifecyclePolicy)
+                ||JSON.stringify(plan.simulationClock)!==JSON.stringify(simulationClock)||plan.joinedAtSimulationTime!==joinedAtSimulationTime)
+                throw new Error('Population entry requires its exact persisted admission receipt');
+        }
+        const clock=this.simulationClock.store.get(this.simulationClock.clockId);
+        if(!clock||simulationClock.clockId!==this.simulationClock.clockId||simulationClock.profileDigest!==clock.profileDigest)
+            throw new Error('Population membership simulation clock binding is invalid');
+        if(joinedAtSimulationTime<lifecycle.createdAtSimulationTime||joinedAtSimulationTime>clock.lastSimulationTime)
+            throw new Error('Population join time is outside the character lifecycle');
+        const expected={agentId,playerUsername,worldProfile,lifecyclePolicy,simulationClock,joinedAtSimulationTime,
+            sourceResultId,sourceResultDigest};
+        const existing=this.getPopulationMember(agentId);
+        if(existing){
+            const actual={agentId:existing.agentId,playerUsername:existing.playerUsername,worldProfile:existing.worldProfile,
+                lifecyclePolicy:existing.lifecyclePolicy,simulationClock:existing.simulationClock,
+                joinedAtSimulationTime:existing.joinedAtSimulationTime,sourceResultId:existing.sourceResultId,
+                sourceResultDigest:existing.sourceResultDigest};
+            if(existing.status==='active'&&JSON.stringify(actual)===JSON.stringify(expected))return existing;
+            throw new Error('Agent already has a different or reset population membership');
+        }
+        this.database.run(`INSERT INTO agent_population_member
+            (agent_id,player_username,world_profile_id,world_profile_version,world_profile_digest,
+            lifecycle_policy_id,lifecycle_policy_version,lifecycle_policy_digest,lifecycle_policy_kind,
+            simulation_clock_id,simulation_clock_profile_digest,joined_at_simulation_time,
+            source_result_id,source_result_digest,status,reset_at_simulation_time,created_at,updated_at,revision)
+            VALUES(?1,?2,?3,?4,?5,?6,?7,?8,'finite',?9,?10,?11,?12,?13,'active',NULL,?14,?14,1)`,
+        [agentId,playerUsername,worldProfile.profileId,worldProfile.version,worldProfile.digest,lifecyclePolicy.policyId,
+            lifecyclePolicy.version,lifecyclePolicy.digest,simulationClock.clockId,simulationClock.profileDigest,
+            joinedAtSimulationTime,sourceResultId,sourceResultDigest,now]);
+        return this.getPopulationMember(agentId)!;
+    }
+
+    getPopulationEntry(entryId: string): PopulationEntryReceipt | null {
+        return readPopulationEntry(this.database, entryId);
+    }
+
+    previewPopulationEntry(raw: unknown, environment: PopulationEntryEnvironment): PopulationEntryPlan {
+        const request = validatePopulationEntryRequest(raw);
+        if (!this.simulationClock) throw new Error('Population entry requires the shared simulation clock');
+        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+        if (!clock) throw new Error('Population entry clock is unavailable');
+        const binding = { clockId: clock.clockId, profileDigest: clock.profileDigest };
+        const prior = this.getPopulationEntry(populationEntryId(request, binding));
+        if (prior) {
+            if (JSON.stringify(prior.plan.request) !== JSON.stringify(request)) throw new Error('Population entry batch conflicts with its recorded request');
+            return prior.plan; // Historical receipt; never reactivate dead/reset members on replay.
+        }
+        if (clock.status !== 'paused') throw new Error('New population entry requires a paused simulation clock');
+        const anchor = this.getPopulationMember(request.anchorAgentId);
+        if (!anchor || JSON.stringify(anchor.simulationClock) !== JSON.stringify(binding)) throw new Error('Population entry genesis clock binding is invalid');
+        const plan = generatePopulationEntry(request, anchor, clock.lastSimulationTime, environment);
+        const members = this.listPopulationMembers().filter(item => item.simulationClock.clockId === clock.clockId
+            && item.simulationClock.profileDigest === clock.profileDigest);
+        const active = members.filter(item => item.status === 'active');
+        // A shared world clock cannot silently combine two genesis populations.
+        for (const member of active) {
+            const source = member.sourceResultId.startsWith('entry-') ? this.getPopulationEntry(member.sourceResultId)?.plan.genesis
+                : { resultId: member.sourceResultId, resultDigest: member.sourceResultDigest };
+            if (JSON.stringify(member.worldProfile) !== JSON.stringify(plan.worldProfile)
+                || JSON.stringify(source) !== JSON.stringify(plan.genesis)) throw new Error('Population entry world contains conflicting genesis bindings');
+        }
+        const profile = environment.profiles.profiles.find(item => item.profileId === plan.worldProfile.profileId)!;
+        const alive = active.filter(item => item.characterLifecycle.status === 'active').length;
+        if (alive + request.count > Math.min(profile.population.maximumAgents, plan.policy.maximumActiveMembers))
+            throw new Error('Population entry active member limit exceeded');
+        const admitted = this.database.query(`SELECT COALESCE(SUM(entrant_count),0) AS count FROM agent_population_entry
+            WHERE clock_id=?1 AND clock_profile_digest=?2`).get(clock.clockId, clock.profileDigest) as { count: number };
+        if (admitted.count + request.count > plan.policy.maximumAdmissionsPerClock) throw new Error('Population entry lifetime clock quota exceeded');
+        for (const { identity } of plan.entrants) {
+            const conflict = this.database.query(`SELECT agent_id FROM agent_identity WHERE agent_id=?1 OR LOWER(player_username)=?2
+                UNION SELECT agent_id FROM agent_control_profile WHERE LOWER(avatar_player_username)=?2 OR (subject_kind='player' AND LOWER(subject_id)=?2)
+                UNION SELECT agent_id FROM agent_population_member WHERE player_username=?2`).get(identity.agentId, identity.playerUsername!);
+            if (conflict) throw new Error('Population entry identity or avatar is already reserved');
+        }
+        return plan;
+    }
+
+    /** Identity, birth, finite membership and audit receipt share one AgentState commit. */
+    applyPopulationEntry(raw: unknown, environment: PopulationEntryEnvironment, expectedPlanDigest: string, reason: string,
+        assertUnusedAvatar: (username: string) => void, now = new Date().toISOString()): PopulationEntryReceipt {
+        if (!SHA256.test(expectedPlanDigest) || typeof reason !== 'string' || !reason.trim() || reason.length > 1000
+            || new Date(now).toISOString() !== now) throw new Error('Population entry approval digest, reason or audit time is invalid');
+        let result!: PopulationEntryReceipt;
+        this.database.transaction(() => {
+            const plan = this.previewPopulationEntry(raw, environment);
+            if (plan.digest !== expectedPlanDigest) throw new Error('Population entry preview changed; refresh before apply');
+            const prior = this.getPopulationEntry(plan.entryId);
+            if (prior) { result = prior; return; }
+            for (const item of plan.entrants) assertUnusedAvatar(item.identity.playerUsername!);
+            const body = { plan, reason: reason.trim(), appliedAt: now };
+            const receipt: PopulationEntryReceipt = { ...body, digest: populationEntryDigest(body) };
+            this.database.run(`INSERT INTO agent_population_entry VALUES(?1,?2,?3,?4,?5,?6)`,
+                [plan.entryId, plan.simulationClock.clockId, plan.simulationClock.profileDigest,
+                    plan.entrants.length, JSON.stringify(receipt), receipt.digest]);
+            for (const item of plan.entrants) {
+                this.createIdentity(item.identity, now);
+                // This is a generated adult arrival, not a reproduction/birth event or a legacy backfill.
+                this.database.run(`UPDATE agent_character_lifecycle SET origin='imported',created_at_simulation_time=?2,
+                    birth_at_simulation_time=?3,age_at_observation_ms=?4,age_observed_at_simulation_time=?2,
+                    status_changed_at_simulation_time=?2 WHERE agent_id=?1`, [item.identity.agentId, plan.joinedAtSimulationTime,
+                    item.birthAtSimulationTime, Date.parse(plan.joinedAtSimulationTime) - Date.parse(item.birthAtSimulationTime)]);
+                this.bindPopulationMember({ agentId: item.identity.agentId, playerUsername: item.identity.playerUsername!,
+                    worldProfile: plan.worldProfile, lifecyclePolicy: plan.lifecyclePolicy, simulationClock: plan.simulationClock,
+                    joinedAtSimulationTime: plan.joinedAtSimulationTime, sourceResultId: plan.entryId, sourceResultDigest: plan.digest }, now);
+            }
+            const clock = this.simulationClock!.store.get(this.simulationClock!.clockId)!;
+            if (clock.status !== 'paused' || clock.lastSimulationTime !== plan.joinedAtSimulationTime
+                || clock.profileDigest !== plan.simulationClock.profileDigest) throw new Error('Population entry clock changed during admission');
+            result = receipt;
+        }).immediate();
+        return result;
+    }
+
+    getPopulationMember(agentId:string):AgentPopulationMember|null{
+        const normalized=normalizeAgentId(agentId),row=this.database.query('SELECT * FROM agent_population_member WHERE agent_id=?1')
+            .get(normalized) as PopulationMemberRow|null;if(!row)return null;
+        const lifecycle=this.getCharacterLifecycle(normalized);if(!lifecycle)throw new Error('PopulationMember lifecycle source is missing');
+        return populationMember(row,lifecycle);
+    }
+
+    getPopulationDeath(agentId: string): PopulationDeathRecord | null {
+        const query = this.database.prepare('SELECT event_json,event_digest FROM agent_population_death WHERE agent_id=?1');
+        let row: { event_json: string; event_digest: string } | null;
+        try { row = query.get(normalizeAgentId(agentId)) as { event_json: string; event_digest: string } | null; }
+        finally { query.finalize(); }
+        if (!row) return null;
+        const record = JSON.parse(row.event_json) as PopulationDeathRecord;
+        const { sequence: _sequence, eventDigest: _digest, ...event } = record;
+        validatePopulationDeathEvidence(event);
+        if (record.agentId !== normalizeAgentId(agentId) || healthDigest(record) !== row.event_digest
+            || healthDigest(event) !== record.eventDigest)
+            throw new Error('Population death history was altered');
+        return record;
+    }
+
+    /** Only a verified read-only engine journal entry can terminate a character. */
+    consumePopulationDeath(source: PlayerHealthEvidenceStore, eventId: string, agePolicy: PopulationAgePolicy,
+        mortalityPolicy: PopulationMortalityPolicy): PopulationDeathRecord {
+        if (!(source instanceof PlayerHealthEvidenceStore) || !source.readOnly || source.schemaVersion < 2)
+            throw new Error('Population death requires the read-only engine authority');
+        const record = source.listDeaths().find(event => event.eventId === eventId);
+        if (!record) throw new Error('Authoritative population death is missing');
+        this.database.transaction(() => {
+            const existing = this.getPopulationDeath(record.agentId);
+            if (existing) {
+                if (existing.eventDigest !== record.eventDigest) throw new Error('Population death replay conflicts');
+                const lifecycle = this.getCharacterLifecycle(record.agentId);
+                if (lifecycle?.status !== 'deceased' || lifecycle.statusChangedAtSimulationTime !== record.atSimulationTime)
+                    throw new Error('Terminal character lifecycle was altered');
+                archivePopulationMemory(this.database,record,new Date().toISOString(),'late-reconciliation');
+                return;
+            }
+            const member = this.getPopulationMember(record.agentId);
+            if (!member || member.status !== 'active' || member.characterLifecycle.status !== 'active'
+                || member.revision !== record.memberRevision || member.characterLifecycle.revision !== record.lifecycleRevision
+                || populationDeathMembershipDigest(member) !== record.membershipDigest) throw new Error('Population death membership changed');
+            if (!this.simulationClock) throw new Error('Death requires the shared simulation clock');
+            const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+            if (!clock || clock.clockId !== record.clock.clockId || clock.profileDigest !== record.clock.profileDigest
+                || clock.lastSimulationTime < record.clock.simulationTime || record.recordedAt < member.createdAt)
+                throw new Error('Population death clock/source binding is invalid');
+            const expected = createPopulationDeathEvidence(member, record.clock, agePolicy, mortalityPolicy,
+                record.cause.kind === 'engine-hp-zero' ? { damageEventId: record.cause.damageEventId,
+                    sessionId: record.cause.sessionId, engineTick: record.cause.engineTick } : undefined);
+            const { sequence: _sequence, eventDigest: _digest, ...event } = record;
+            if (healthDigest(expected) !== healthDigest(event)) throw new Error('Population death evidence conflicts with its policy');
+            const age = characterAgeAt(member.characterLifecycle, record.atSimulationTime);
+            this.database.run(`INSERT INTO agent_population_death(agent_id,event_id,event_json,event_digest)
+                VALUES(?1,?2,?3,?4)`, [member.agentId,record.eventId,JSON.stringify(record),healthDigest(record)]);
+            const changed = this.database.run(`UPDATE agent_character_lifecycle SET status='deceased',
+                status_changed_at_simulation_time=?3,age_at_observation_ms=?4,age_observed_at_simulation_time=?3,
+                updated_at=?5,revision=revision+1 WHERE agent_id=?1 AND revision=?2 AND status='active'`,
+                [member.agentId,record.lifecycleRevision,record.atSimulationTime,age,record.recordedAt]);
+            if (changed.changes !== 1) throw new Error('Population death lifecycle revision conflict');
+            this.database.run(`UPDATE agent_autonomy_enrollment SET status='paused',lease_owner=NULL,lease_expires_at=NULL,
+                next_wakeup_at=NULL,updated_at=?2,revision=revision+1 WHERE agent_id=?1`, [member.agentId,record.recordedAt]);
+            archivePopulationMemory(this.database,record,new Date().toISOString(),'death-admission');
+        }).immediate();
+        return record;
+    }
+
+    assertCharacterCanAct(agentId: string): void {
+        const member = this.getPopulationMember(agentId), lifecycle = this.getCharacterLifecycle(agentId);
+        if (lifecycle?.status === 'deceased' || member?.status === 'reset') throw new Error('Character lifecycle is closed to physical actions');
+    }
+
+    getPopulationMemoryArchive(agentId: string) { return readPopulationMemoryArchive(this.database,normalizeAgentId(agentId)); }
+
+    ensurePopulationMemoryArchive(source:PlayerHealthEvidenceStore,agentId:string) {
+        if (!(source instanceof PlayerHealthEvidenceStore) || !source.readOnly || source.schemaVersion<2) throw new Error('Memory archive requires read-only engine death authority');
+        this.database.transaction(()=>{
+            const death=this.getPopulationDeath(agentId), proof=source.listDeaths().find(row=>row.agentId===agentId);
+            if (!death || !proof || healthDigest(death)!==healthDigest(proof) || this.getCharacterLifecycle(agentId)?.status!=='deceased')
+                throw new Error('Memory archive requires exact verified death');
+            archivePopulationMemory(this.database,death,new Date().toISOString(),'late-reconciliation');
+        }).immediate();
+        return this.getPopulationMemoryArchive(agentId)!;
+    }
+
+    private withArchivedMemoryAuthority<T>(enginePath:string,agentId:string,run:(source:PlayerHealthEvidenceStore)=>T):T {
+        if(!existsSync(enginePath))throw new Error('Memory transfer engine authority unavailable');
+        let result!:T;
+        this.database.transaction(()=>{
+            const writer=new Database(enginePath,{strict:true});
+            try {writer.transaction(()=>{
+                const source=new PlayerHealthEvidenceStore(enginePath,true);
+                try {this.ensurePopulationMemoryArchive(source,agentId);result=run(source);}finally{source.close();}
+            }).immediate();}finally{writer.close(true);}
+        }).immediate();
+        return result;
+    }
+
+    previewArchivedKnowledge(enginePath:string,policy:MemoryTransferPolicy,input:MemoryTransferSelection,now=new Date().toISOString()) {
+        return this.withArchivedMemoryAuthority(enginePath,input.sourceAgentId,source=>previewMemoryTransfer(this.database,policy,input,
+            new Set(source.listDeaths().map(death=>death.playerUsername)),now));
+    }
+
+    transferArchivedKnowledge(enginePath:string,policy:MemoryTransferPolicy,input:MemoryTransferRequest,now=new Date().toISOString()) {
+        return this.withArchivedMemoryAuthority(enginePath,input.sourceAgentId,source=>executeMemoryTransfer(this.database,policy,input,
+            new Set(source.listDeaths().map(death=>death.playerUsername)),now,(agentId,episode,knowledge)=>{
+                this.createEpisode(agentId,episode,now);this.createKnowledge(agentId,knowledge,now);
+            }));
+    }
+
+    listPopulationMembers(status?:AgentPopulationMembershipStatus):AgentPopulationMember[]{
+        if(status!==undefined&&status!=='active'&&status!=='reset')throw new Error('Population membership status is invalid');
+        const rows=(status===undefined?this.database.query('SELECT * FROM agent_population_member ORDER BY agent_id').all()
+            :this.database.query('SELECT * FROM agent_population_member WHERE status=?1 ORDER BY agent_id').all(status)) as PopulationMemberRow[];
+        return rows.map(row=>{const lifecycle=this.getCharacterLifecycle(row.agent_id);
+            if(!lifecycle)throw new Error('PopulationMember lifecycle source is missing');return populationMember(row,lifecycle)});
+    }
+
+    resetPopulationMember(agentId:string,sourceResultDigest:string,expectedRevision:number,
+        now=new Date().toISOString()):AgentPopulationMember{
+        if(!this.simulationClock)throw new Error('Population membership requires the shared simulation clock');
+        const normalized=normalizeAgentId(agentId),digest=populationDigest(sourceResultDigest,'Population source result digest'),
+            current=this.getPopulationMember(normalized);
+        if(!current||current.sourceResultDigest!==digest)throw new Error('Exact genesis PopulationMember binding is missing');
+        if(current.status==='reset')return current;
+        const resetAtSimulationTime=this.simulationTime();
+        const result=this.database.run(`UPDATE agent_population_member SET status='reset',reset_at_simulation_time=?4,
+            updated_at=?5,revision=revision+1 WHERE agent_id=?1 AND source_result_digest=?2 AND revision=?3 AND status='active'`,
+        [normalized,digest,expectedRevision,resetAtSimulationTime,now]);
+        if(result.changes!==1)throw new Error('Population membership changed before reset');
+        return this.getPopulationMember(normalized)!;
+    }
+
+    /** Closes descendants admitted after the original genesis rollback token was captured. */
+    resetPopulationGenesisMembers(resultId: string, resultDigest: string, originalAgentIds: string[],
+        now = new Date().toISOString()): AgentPopulationMember[] {
+        if (!/^genesis-[0-9a-f]{24}$/.test(resultId) || !SHA256.test(resultDigest)) throw new Error('Population genesis reset source is invalid');
+        const reset: AgentPopulationMember[] = [];
+        this.database.transaction(() => {
+            const targets = new Map<string, AgentPopulationMember>();
+            for (const id of originalAgentIds) {
+                const member = this.getPopulationMember(id);
+                if (!member) continue;
+                if (member.sourceResultId !== resultId || member.sourceResultDigest !== resultDigest)
+                    throw new Error(`PopulationMember changed before reset: ${id}`);
+                targets.set(id, member);
+            }
+            for (const member of this.listPopulationMembers()) {
+                if (!member.sourceResultId.startsWith('entry-')) continue;
+                const genesis = this.getPopulationEntry(member.sourceResultId)?.plan.genesis;
+                if (!genesis) throw new Error('Population entry reset receipt is unavailable');
+                if (genesis.resultId === resultId && genesis.resultDigest === resultDigest) targets.set(member.agentId, member);
+            }
+            for (const member of targets.values()) reset.push(this.resetPopulationMember(member.agentId,
+                member.sourceResultDigest, member.revision, now));
+        }).immediate();
+        return reset;
     }
 
     getControlProfile(agentId: string): AgentControlProfile | null {
@@ -619,6 +1024,7 @@ export class AgentStateStore {
         now = new Date().toISOString()): AgentAutonomyEnrollment {
         const normalized = normalizeAgentId(agentId);
         const value = validateAutonomyEnrollment(input);
+        if (value.status === 'desired') this.assertCharacterCanAct(normalized);
         if (value.status === 'running') throw new Error('Use claimAutonomyEnrollment to enter running state');
         const nowTime = Date.parse(now);
         if (Number.isNaN(nowTime)) throw new Error('Autonomy enrollment time must be an ISO timestamp');
@@ -644,6 +1050,7 @@ export class AgentStateStore {
         now = new Date().toISOString()): AgentAutonomyEnrollment {
         const normalized = normalizeAgentId(agentId);
         const value = validateAutonomyEnrollment(input);
+        if (value.status === 'desired') this.assertCharacterCanAct(normalized);
         if (value.status === 'running') throw new Error('Use claimAutonomyEnrollment to enter running state');
         const nowTime = Date.parse(now);
         if (Number.isNaN(nowTime)) throw new Error('Autonomy enrollment time must be an ISO timestamp');
@@ -752,6 +1159,10 @@ export class AgentStateStore {
         now = new Date().toISOString()): AgentControlProfile {
         const normalized = normalizeAgentId(agentId);
         const value = validateControlProfile(input);
+        const member = this.getPopulationMember(normalized);
+        if (member && (value.role !== 'player' || value.subjectKind !== 'player'
+            || value.subjectId.toLowerCase() !== member.playerUsername || value.avatarPlayerUsername?.toLowerCase() !== member.playerUsername))
+            throw new Error('Population avatar control binding cannot be changed');
         if (Number.isNaN(Date.parse(now))) throw new Error('Control profile time must be an ISO timestamp');
         const transaction = this.database.transaction(() => {
             this.requireIdentity(normalized);
@@ -1670,6 +2081,7 @@ export class AgentStateStore {
         if (Number.isNaN(Date.parse(asOf))) throw new Error('Retention cutoff must be an ISO timestamp');
         if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error('Retention preview limit must be from 1 to 500');
         this.requireIdentity(normalized);
+        const archived = !!this.getPopulationDeath(normalized) || this.getCharacterLifecycle(normalized)?.status==='deceased';
         const expiredCount = (this.database.query(`SELECT COUNT(*) AS count FROM agent_episode
             WHERE agent_id = ?1 AND expires_at IS NOT NULL AND expires_at <= ?2`)
             .get(normalized, asOf) as { count: number }).count;
@@ -1687,6 +2099,7 @@ export class AgentStateStore {
             .all(normalized, asOf, limit) as EpisodeRetentionRow[];
         const candidates = rows.map(row => {
             const reasons: AgentEpisodeProtectionReason[] = [];
+            if (archived) reasons.push('population-archive');
             if (row.semantic_ref) reasons.push('semantic-evidence');
             if (row.relationship_ref) reasons.push('relationship-evidence');
             if (row.commitment_ref) reasons.push('commitment-evidence');
@@ -2054,6 +2467,7 @@ export class AgentStateStore {
     getSnapshot(agentId: string): AgentSnapshot | null {
         const found = this.getIdentity(agentId);
         return found ? { identity: found, characterLifecycle: this.getCharacterLifecycle(found.agentId),
+            populationMember: this.getPopulationMember(found.agentId),
             goals: this.listGoals(found.agentId),
             workingMemory: this.getWorkingMemory(found.agentId), knownSkills: this.listSkillKnowledge(found.agentId) } : null;
     }
@@ -2595,6 +3009,41 @@ export class AgentStateStore {
                 this.database.run('PRAGMA user_version = 21');
             });
             transaction.immediate();
+        }
+        if(version<22){
+            const transaction=this.database.transaction(()=>{
+                this.database.run(`CREATE TABLE IF NOT EXISTS agent_population_member (
+                    agent_id TEXT PRIMARY KEY REFERENCES agent_character_lifecycle(agent_id) ON DELETE RESTRICT,
+                    player_username TEXT NOT NULL,world_profile_id TEXT NOT NULL,world_profile_version TEXT NOT NULL,
+                    world_profile_digest TEXT NOT NULL CHECK(length(world_profile_digest)=64),
+                    lifecycle_policy_id TEXT NOT NULL,lifecycle_policy_version TEXT NOT NULL,
+                    lifecycle_policy_digest TEXT NOT NULL CHECK(length(lifecycle_policy_digest)=64),
+                    lifecycle_policy_kind TEXT NOT NULL CHECK(lifecycle_policy_kind='finite'),
+                    simulation_clock_id TEXT NOT NULL,simulation_clock_profile_digest TEXT NOT NULL
+                        CHECK(length(simulation_clock_profile_digest)=64),joined_at_simulation_time TEXT NOT NULL,
+                    source_result_id TEXT NOT NULL,source_result_digest TEXT NOT NULL CHECK(length(source_result_digest)=64),
+                    status TEXT NOT NULL CHECK(status IN ('active','reset')),reset_at_simulation_time TEXT,
+                    created_at TEXT NOT NULL,updated_at TEXT NOT NULL,revision INTEGER NOT NULL CHECK(revision>=1),
+                    CHECK((status='active' AND reset_at_simulation_time IS NULL)
+                        OR (status='reset' AND reset_at_simulation_time IS NOT NULL)))`);
+                this.database.run(`CREATE UNIQUE INDEX IF NOT EXISTS agent_population_member_source
+                    ON agent_population_member(source_result_digest,agent_id)`);
+                this.database.run('PRAGMA user_version = 22');
+            });transaction.immediate();
+        }
+        if (version < 23) {
+            this.database.transaction(() => {
+                this.database.run(`CREATE TABLE IF NOT EXISTS agent_population_death(
+                    agent_id TEXT PRIMARY KEY REFERENCES agent_character_lifecycle(agent_id) ON DELETE RESTRICT,
+                    event_id TEXT NOT NULL UNIQUE,event_json TEXT NOT NULL,event_digest TEXT NOT NULL)`);
+                this.database.run('PRAGMA user_version=23');
+            }).immediate();
+        }
+        if (version < 24) {
+            this.database.transaction(()=>{ installMemoryArchiveSchema(this.database); this.database.run('PRAGMA user_version=24'); }).immediate();
+        }
+        if (version < 25) {
+            this.database.transaction(()=>{ installPopulationEntrySchema(this.database); this.database.run('PRAGMA user_version=25'); }).immediate();
         }
     }
 }

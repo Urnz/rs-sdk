@@ -7,8 +7,8 @@
 // packet path (dispatch of UPDATE_INV_FULL) rather than the table API, so it fails
 // if a future handler writes to `IfType.list` directly instead of via ifMutable().
 //
-// Needs the interface archive; set LITE_TEST_ORIGIN to point elsewhere. Skips if
-// the server is unreachable.
+// Requires the local emulator's interface archive; LITE_TEST_ORIGIN can select
+// another local origin. Cache-loading failures fail the suite instead of skipping.
 
 import { beforeAll, describe, expect, test } from 'bun:test';
 
@@ -22,22 +22,19 @@ import { loadCache } from './cache.js';
 import { LiteClient } from './LiteClient.js';
 import { dispatch } from './protocol/incoming.js';
 
-const ORIGIN = process.env.LITE_TEST_ORIGIN ?? 'https://rs-sdk-demo.fly.dev';
-const CACHE_DIR = process.env.LITE_TEST_CACHE ?? '/tmp/rs-sdk-lite-test-cache';
+import { LITE_TEST_ORIGIN as ORIGIN, LITE_TEST_CACHE as CACHE_DIR } from './test-cache-config.js';
 
 /** The inventory tab's component id - what UPDATE_INV_FULL targets in game. */
 const INV_COMPONENT = 3214;
 
-let available = false;
 
 beforeAll(async () => {
     try {
         await loadCache({ origin: ORIGIN, cacheDir: CACHE_DIR, quiet: true });
-        available = true;
-    } catch {
-        available = false;
+    } catch (error) {
+        throw new Error(`Local Lite test cache unavailable at ${ORIGIN}; start scripts/start-local.ps1 -NoBot`, { cause: error });
     }
-});
+}, 60_000);
 
 /** A LiteClient with no socket: nothing below touches the connection. */
 function makeClient(name: string): LiteClient {
@@ -65,11 +62,6 @@ function invPacket(componentId: number, items: Array<[number, number]>): Packet 
 
 describe('per-client interface tables', () => {
     test('two clients keep separate inventories', () => {
-        if (!available) {
-            console.warn(`[skip] ${ORIGIN} unreachable`);
-            return;
-        }
-
         const a = makeClient('bota');
         const b = makeClient('botb');
 
@@ -93,10 +85,6 @@ describe('per-client interface tables', () => {
     });
 
     test('client methods activate their own table', () => {
-        if (!available) {
-            return;
-        }
-
         const a = makeClient('bota');
         const b = makeClient('botb');
 
@@ -114,10 +102,6 @@ describe('per-client interface tables', () => {
     });
 
     test('untouched components stay shared, not copied', () => {
-        if (!available) {
-            return;
-        }
-
         const a = makeClient('bota');
         const b = makeClient('botb');
 

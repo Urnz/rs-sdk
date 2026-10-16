@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Database } from 'bun:sqlite';
 import { InstitutionTreasuryStore } from './institution-treasury.js';
 
 const dirs: string[] = [];
@@ -95,6 +96,112 @@ describe('institution treasury', () => {
         expect(treasury.resetGenesis('genesis-capital')).toMatchObject({ status: 'reset' });
         expect(treasury.get('business', 'forge')).toMatchObject({ balanceGp: 250 });
         expect(treasury.resetGenesis('genesis-capital')).toMatchObject({ status: 'reset' });
+        treasury.close();
+    });
+
+    test('credits a verified external settlement once with an immutable audit receipt', () => {
+        const treasury = store(), evidence = { settlementId:'55555555-5555-4555-8555-555555555555',
+            kind:'business' as const,actorId:'forge',amountGp:75,sourceRef:'shop.sale.order-1',
+            status:'committed' as const,occurredAt:'2026-09-20T10:00:00.000Z' };
+        expect(() => treasury.creditExternalSettlement(evidence)).toThrow('not trusted');
+        const first=treasury.creditExternalSettlement(evidence,()=>true,'2026-09-20T10:00:01.000Z');
+        expect(first).toMatchObject({actorId:'forge',amountGp:75,sourceRef:'shop.sale.order-1'});
+        expect(treasury.creditExternalSettlement(evidence,()=>true)).toEqual(first);
+        expect(treasury.getExternalCredit(evidence.settlementId)).toEqual(first);
+        expect(treasury.listExternalCredits()).toEqual([first]);
+        expect(() => treasury.verifyExternalCreditAudit()).not.toThrow();
+        expect(treasury.get('business','forge')).toMatchObject({balanceGp:75});
+        expect(() => treasury.creditExternalSettlement({...evidence,amountGp:76},()=>true))
+            .toThrow('settlement id was reused');
+        expect(treasury.get('business','forge')).toMatchObject({balanceGp:75});
+        treasury.close();
+    });
+
+    test('external-credit audit survives restart and exact retry does not append', () => {
+        const dir=mkdtempSync(join(tmpdir(),'rs-treasury-audit-'));dirs.push(dir);
+        const path=join(dir,'treasury.sqlite');
+        const evidence={settlementId:'66666666-6666-4666-8666-666666666666',kind:'faction' as const,
+            actorId:'guard',amountGp:40,sourceRef:'fine.settlement-1',status:'committed' as const,
+            occurredAt:'2026-09-20T10:00:00.000Z'};
+        let treasury=new InstitutionTreasuryStore(path);
+        const first=treasury.creditExternalSettlement(evidence,()=>true);
+        treasury.close();
+        treasury=new InstitutionTreasuryStore(path);
+        expect(treasury.getExternalCredit(evidence.settlementId)).toEqual(first);
+        expect(treasury.creditExternalSettlement(evidence,()=>true)).toEqual(first);
+        treasury.close();
+        const db=new Database(path);
+        expect((db.query('SELECT COUNT(*) AS n FROM institution_treasury_external_credit_audit')
+            .get() as {n:number}).n).toBe(1);
+        db.close();
+    });
+
+    test('external-credit read and write fail closed after receipt or audit tampering', () => {
+        for(const tamper of ['receipt','audit']){
+            const dir=mkdtempSync(join(tmpdir(),'rs-treasury-tamper-'));dirs.push(dir);
+            const path=join(dir,'treasury.sqlite'),treasury=new InstitutionTreasuryStore(path);
+            const evidence={settlementId:'77777777-7777-4777-8777-777777777777',kind:'business' as const,
+                actorId:'forge',amountGp:12,sourceRef:'shop.sale.order-7',status:'committed' as const,
+                occurredAt:'2026-09-20T10:00:00.000Z'};
+            treasury.creditExternalSettlement(evidence,()=>true);
+            const db=new Database(path);
+            db.run(tamper==='receipt'
+                ?'UPDATE institution_treasury_external_credit SET amount_gp=13'
+                :'UPDATE institution_treasury_external_credit_audit SET receipt_hash=\'tampered\'');
+            db.close();
+            expect(() => treasury.getExternalCredit(evidence.settlementId)).toThrow('audit');
+            expect(() => treasury.listExternalCredits()).toThrow('audit');
+            expect(() => treasury.creditExternalSettlement({...evidence,settlementId:
+                '88888888-8888-4888-8888-888888888888'},()=>true)).toThrow('audit');
+            expect(treasury.get('business','forge')?.balanceGp).toBe(12);
+            treasury.close();
+        }
+    });
+
+    test('preexisting unaudited receipt blocks only external-credit path', () => {
+        const dir=mkdtempSync(join(tmpdir(),'rs-treasury-legacy-'));dirs.push(dir);
+        const path=join(dir,'treasury.sqlite'),treasury=new InstitutionTreasuryStore(path);
+        treasury.ensure('business','forge');
+        const db=new Database(path);
+        db.run(`INSERT INTO institution_treasury_external_credit VALUES
+            ('99999999-9999-4999-8999-999999999999','business','forge',9,'legacy.source','2026-09-20')`);
+        db.close();
+        const evidence={settlementId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',kind:'business' as const,
+            actorId:'forge',amountGp:12,sourceRef:'shop.sale.order-8',status:'committed' as const,
+            occurredAt:'2026-09-20T10:00:00.000Z'};
+        expect(() => treasury.getExternalCredit('99999999-9999-4999-8999-999999999999')).toThrow('incomplete');
+        expect(() => treasury.creditExternalSettlement(evidence,()=>true)).toThrow('incomplete');
+        expect(treasury.get('business','forge')).toMatchObject({balanceGp:0});
+        treasury.creditGenesis('business','forge','genesis-legacy',5);
+        expect(treasury.get('business','forge')).toMatchObject({balanceGp:5});
+        treasury.close();
+    });
+
+    test('failed audit insert rolls back external credit and account creation', () => {
+        const dir=mkdtempSync(join(tmpdir(),'rs-treasury-rollback-'));dirs.push(dir);
+        const path=join(dir,'treasury.sqlite'),treasury=new InstitutionTreasuryStore(path);
+        const db=new Database(path);
+        db.run(`CREATE TRIGGER reject_credit_audit BEFORE INSERT ON institution_treasury_external_credit_audit
+            BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END`);
+        db.close();
+        const evidence={settlementId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',kind:'business' as const,
+            actorId:'forge',amountGp:12,sourceRef:'shop.sale.order-9',status:'committed' as const,
+            occurredAt:'2026-09-20T10:00:00.000Z'};
+        expect(() => treasury.creditExternalSettlement(evidence,()=>true)).toThrow('audit unavailable');
+        expect(treasury.get('business','forge')).toBeNull();
+        expect(treasury.getExternalCredit(evidence.settlementId)).toBeNull();
+        treasury.close();
+    });
+
+    test('verified external-credit listing exposes all receipts sharing one source reference', () => {
+        const treasury=store();
+        const evidence={settlementId:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',kind:'faction' as const,
+            actorId:'guard',amountGp:10,sourceRef:'fine.collection-1',status:'committed' as const,
+            occurredAt:'2026-09-20T10:00:00.000Z'};
+        const first=treasury.creditExternalSettlement(evidence,()=>true);
+        const second=treasury.creditExternalSettlement({...evidence,
+            settlementId:'dddddddd-dddd-4ddd-8ddd-dddddddddddd'},()=>true);
+        expect(treasury.listExternalCredits()).toEqual([first,second]);
         treasury.close();
     });
 });

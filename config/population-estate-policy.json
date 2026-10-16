@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "policyId": "finite-population-estate-custody",
+  "version": "1.0.0",
+  "mode": "custody",
+  "maximumRowsPerSource": 10000,
+  "requiredDomains": ["agents", "business", "contracts", "treasury", "banking", "property", "governance", "escrow"]
+}

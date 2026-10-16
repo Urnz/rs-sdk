@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.thieving.property-burglary",
+  "version": "0.1.0",
+  "name": "Attempt entry at one configured Property access point",
+  "description": "Attempt one coordinate-bound Property entry using the existing Thieving skill. A trusted Property adapter must later resolve the stable entry point, entitlement and completed entry before a rights violation can be persisted.",
+  "status": "draft",
+  "tags": ["procedure", "thieving", "property", "burglary"],
+  "parameters": {
+    "target-name": { "type": "string", "description": "Exact display name of the Property access loc.", "required": true },
+    "target-x": { "type": "number", "description": "Exact world X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "target-z": { "type": "number", "description": "Exact world Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "minimum-level": { "type": "number", "description": "Minimum reviewed Thieving level.", "required": true, "minimum": 1, "maximum": 99 }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-09-21T12:00:00.000Z",
+    "notes": "Phase 22 draft. This does not bypass Property authorization or produce legal proof."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 30000, "maxOperations": 1 },
+  "preconditions": [{
+    "condition": "skill-level-at-least",
+    "arguments": { "skill": "Thieving", "level": { "parameter": "minimum-level" } }
+  }],
+  "steps": [{
+    "kind": "operation",
+    "id": "attempt-property-entry",
+    "operation": "thieve-property-entry",
+    "arguments": {
+      "name": { "parameter": "target-name" },
+      "match": "exact",
+      "option": 2,
+      "x": { "parameter": "target-x" },
+      "z": { "parameter": "target-z" },
+      "timeoutMs": 15000
+    }
+  }]
+}

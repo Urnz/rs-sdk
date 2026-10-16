@@ -59,6 +59,9 @@ interface PropertyTransferRow { transfer_id: string; property_id: string; from_k
 interface PropertyGenesisRow { allocation_id: string; property_id: string; owner_kind: EconomicActorRef['kind'];
     owner_id: string; before_version: number; version: number; created_at: string }
 
+// Bun exposes clearQueryCache at runtime, but its current Database type omits it.
+type DatabaseWithQueryCache = Database & { clearQueryCache(): void };
+
 function purchaseRecord(row: PurchaseRow): PropertyPurchaseRecord {
     return {
         transactionId: row.transaction_id,
@@ -89,12 +92,12 @@ function sameRequest(record: PropertyPurchaseRecord, request: PropertyPurchaseRe
 }
 
 export class PropertyStore {
-    private readonly database: Database;
+    private readonly database: DatabaseWithQueryCache;
     private readonly definitions;
 
     constructor(catalog: PropertyCatalog, path: string, now = new Date().toISOString()) {
         mkdirSync(dirname(path), { recursive: true });
-        this.database = new Database(path, { create: true, strict: true });
+        this.database = new Database(path, { create: true, strict: true }) as DatabaseWithQueryCache;
         this.definitions = new Map(catalog.properties.map(property => [property.propertyId, property]));
         try {
             this.database.run('PRAGMA foreign_keys = ON');

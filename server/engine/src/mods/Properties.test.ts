@@ -13,6 +13,8 @@ const baseProperty = {
     type: 'workshop',
     location: { x: 3253, z: 3421, level: 0, region: 'Varrock East' },
     purchasePrice: 25000,
+    security: { lockLevel: 20, lockpickExperience: 150, successChanceNumerator: 32,
+        successChanceDenominator: 180, requiresLockpick: true },
     entryPoints: [{ entryPointId: 'front-door', label: 'Front door', x: 3253, z: 3421, level: 0 }],
     revenue: { mode: 'none', amount: 0, intervalMinutes: 1440 },
     maintenance: { amount: 250, intervalMinutes: 1440 },
@@ -25,14 +27,14 @@ describe('property catalog', () => {
     test('loads the versioned project catalog with three distinct MVP properties', () => {
         const path = fileURLToPath(new URL('../../../../config/properties.json', import.meta.url));
         const catalog = loadPropertyCatalog(path);
-        expect(catalog.schemaVersion).toBe(1);
+        expect(catalog.schemaVersion).toBe(2);
         expect(catalog.properties).toHaveLength(3);
         expect(new Set(catalog.properties.map(property => property.propertyId)).size).toBe(3);
         expect(catalog.properties.map(property => property.type)).toEqual(['workshop', 'house', 'warehouse']);
     });
 
     test('creates ownerless domain state separately from immutable definitions', () => {
-        const catalog = parsePropertyCatalog({ schemaVersion: 1, properties: [baseProperty] });
+        const catalog = parsePropertyCatalog({ schemaVersion: 2, properties: [baseProperty] });
         const state = createInitialPropertyState(catalog, '2026-08-28T12:00:00.000Z');
         expect(state).toEqual({
             schemaVersion: 1,
@@ -53,25 +55,29 @@ describe('property catalog', () => {
 
     test('rejects duplicate stable property and entry-point identifiers', () => {
         expect(() => parsePropertyCatalog({
-            schemaVersion: 1,
+            schemaVersion: 2,
             properties: [baseProperty, { ...baseProperty }]
         })).toThrow('duplicate propertyId');
         expect(() => parsePropertyCatalog({
-            schemaVersion: 1,
+            schemaVersion: 2,
             properties: [{ ...baseProperty, entryPoints: [baseProperty.entryPoints[0], baseProperty.entryPoints[0]] }]
         })).toThrow('duplicate identifiers');
     });
 
     test('rejects invalid prices, world coordinates and permission roles', () => {
         expect(() => parsePropertyCatalog({
-            schemaVersion: 1, properties: [{ ...baseProperty, purchasePrice: 0 }]
+            schemaVersion: 2, properties: [{ ...baseProperty, purchasePrice: 0 }]
         })).toThrow('purchasePrice must be a positive integer');
         expect(() => parsePropertyCatalog({
-            schemaVersion: 1,
+            schemaVersion: 2, properties: [{ ...baseProperty,
+                security: { ...baseProperty.security, lockLevel: 100 } }]
+        })).toThrow('lockLevel must be between 1 and 99');
+        expect(() => parsePropertyCatalog({
+            schemaVersion: 2,
             properties: [{ ...baseProperty, location: { ...baseProperty.location, level: 4 } }]
         })).toThrow('level must be between 0 and 3');
         expect(() => parsePropertyCatalog({
-            schemaVersion: 1,
+            schemaVersion: 2,
             properties: [{
                 ...baseProperty,
                 permissions: { ...baseProperty.permissions, manage: ['superuser'] }
@@ -81,11 +87,11 @@ describe('property catalog', () => {
 
     test('requires internally consistent economy rules', () => {
         expect(() => parsePropertyCatalog({
-            schemaVersion: 1,
+            schemaVersion: 2,
             properties: [{ ...baseProperty, revenue: { mode: 'none', amount: 100, intervalMinutes: 1440 } }]
         })).toThrow('amount must be zero when mode is none');
         expect(() => parsePropertyCatalog({
-            schemaVersion: 1,
+            schemaVersion: 2,
             properties: [{ ...baseProperty, maintenance: { amount: 250, intervalMinutes: 0 } }]
         })).toThrow('intervalMinutes must be a positive integer');
     });

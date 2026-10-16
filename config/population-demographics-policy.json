@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "policyId": "finite-population-demographics",
+  "version": "1.0.0",
+  "workingAgeYears": { "minimum": 18, "maximumExclusive": 70 },
+  "minimumWorkloadCapacityBasisPoints": 8000,
+  "specialisms": [
+    { "specialismId": "gathering", "skills": [{ "id": "procedure.gather-loc-until-full", "version": "1.0.0" }] },
+    { "specialismId": "fishing", "skills": [{ "id": "fishing.karamja.lobster-to-draynor-bank", "version": "1.0.0" }, { "id": "fishing.karamja.lobster-to-general-store", "version": "1.0.0" }] },
+    { "specialismId": "bronze-production", "skills": [{ "id": "production.varrock.bronze-daggers", "version": "1.0.0" }] }
+  ]
+}

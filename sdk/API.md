@@ -210,6 +210,9 @@
 |---|---|
 | `async checkBotStatus(): Promise<BotStatus>` | Check bot status via gateway HTTP endpoint. Returns info about whether bot is connected and who else is controlling/observing. |
 | `async launchBrowser(): Promise<void>` | Launch native browser to client URL. Uses the `open` package for cross-platform support (macOS, Windows, Linux, WSL). Falls back to printing the URL if no browser can be opened. |
+| `async listWitnessObservations(): Promise<WitnessObservationNotice[]>` | List this live avatar's durable noticed theft observations without revealing actor identity. |
+| `async recognizeWitness(eventId: string, targetPlayerSlot: number, commandId: string = crypto.randomUUID()): Promise<{ recognitionId: string; observationId: string; caseId: string; sourceCaseEventId: string; }>` | Inspect a selected visible person separately from noticing the theft; identity is resolved by the engine. |
+| `async fileWitnessReport(caseId: string, sourceCaseEventId: string): Promise<string>` | File an explicit witness notice through the authenticated local gateway; never a legal finding. |
 | `countInventoryItems(pattern: string \| RegExp): number` | Count total item quantity matching a name pattern. This sums stack sizes across every matching slot. Use `getInventory().filter(...)` when the number of occupied slots is needed. |
 | `async clickInterfaceOption(selector: InterfaceOptionSelector): Promise<ActionResult>` | Click exactly one interface option, selected by its state object or by visible text (substring for strings, match for regexes). This dispatches the option's `componentId` and never interprets `InterfaceOption.index` as an array position. |
 | `async dm(targetName: string, text: string, opts: { maxLen?: number; delayTicks?: number } = {}): Promise<ActionResult[]>` | Send a private message of any length, auto-split into chunks like {@link say}. Returns one ActionResult per chunk. |

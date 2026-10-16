@@ -12,8 +12,8 @@
 // Anything wrong with the map data shows up here rather than as a bot that
 // mysteriously can't reach a bank.
 //
-// Needs the game server for map data (cached on disk after the first run). Set
-// LITE_TEST_ORIGIN to point elsewhere; the test skips if it's unreachable.
+// Needs the local emulator for map data (cached on disk after the first run).
+// Set LITE_TEST_ORIGIN for another private emulator; unavailable data fails the test.
 
 import { describe, expect, test } from 'bun:test';
 
@@ -33,8 +33,7 @@ import { loadCache } from '../cache.js';
 import { buildCollision } from './CollisionBuilder.js';
 import { LocIndex } from './LocIndex.js';
 
-const ORIGIN = process.env.LITE_TEST_ORIGIN ?? 'https://rs-sdk-demo.fly.dev';
-const CACHE_DIR = process.env.LITE_TEST_CACHE ?? '/tmp/rs-sdk-lite-test-cache';
+import { LITE_TEST_ORIGIN as ORIGIN, LITE_TEST_CACHE as CACHE_DIR } from '../test-cache-config.js';
 
 // Both default to TRUE, but the engine serves the bot client with lowmem=0
 // (engine/src/web/pages/client.ts), so the real client DOES load locs on levels
@@ -63,12 +62,11 @@ const REGIONS: Array<[string, number, number]> = [
 
 describe('CollisionBuilder matches the browser client', () => {
     test('byte-identical collision flags across regions and levels', async () => {
-        // Reachability is checked inside the test, not at module scope: a
-        // top-level await runs after bun:test has already collected suites.
-        const reachable = await fetch(`${ORIGIN}/crc`).then(r => r.ok).catch(() => false);
+        // Reachability is checked inside the test, not at module scope.
+        const reachable = await fetch(`${ORIGIN}/crc`, { signal: AbortSignal.timeout(5_000) })
+            .then(r => r.ok).catch(() => false);
         if (!reachable) {
-            console.warn(`[lite] skipping collision oracle test - ${ORIGIN} unreachable`);
-            return;
+            throw new Error(`Local collision oracle cache unavailable at ${ORIGIN}; start scripts/start-local.ps1 -NoBot`);
         }
 
         const { checksums } = await loadCache({ origin: ORIGIN, cacheDir: CACHE_DIR, quiet: true });

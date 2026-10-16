@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
+import {validateXpStateSnapshot,xpConfigurationDigest,xpStateDigest,type XpStateSnapshot} from '../../../society-experiments/xp-state.js';
+import {validateXpExecutionReport,xpExecutionPolicyDigest,type XpExecutionPort,type XpExecutionReport,type XpExecutionArmRequest} from '../../../society-experiments/xp-execution.js';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
@@ -179,6 +181,9 @@ export interface MultiAgentExperimentParticipantResult {
 }
 
 export interface MultiAgentExperimentRun {
+    xpInitialState?:XpStateSnapshot;
+    xpExecutionArmed?:true;
+    xpExecution?:XpExecutionReport;
     experimentId: string;
     definitionDigest: string;
     environmentDigest: string;
@@ -202,6 +207,8 @@ export interface MultiAgentExperimentRun {
 }
 
 interface ExperimentRow {
+    xp_initial_state_json?:string|null;
+    xp_execution_armed?:number|null;xp_execution_json?:string|null;
     experiment_id: string; definition_digest: string; label: string; seed: string; summary: string;
     status: MultiAgentExperimentStatus; baseline_economy_json: string; dispatch_economy_json: string | null;
     final_economy_json: string | null; metrics_json: string | null;
@@ -837,9 +844,18 @@ function economyMetrics(run: MultiAgentExperimentRun, finalEconomy: EconomySnaps
 export class MultiAgentExperimentStore {
     private readonly database: Database;
 
-    constructor(path = multiAgentExperimentsDbPath) {
-        mkdirSync(dirname(path), { recursive: true });
-        this.database = new Database(path, { create: true, strict: true });
+    constructor(path = multiAgentExperimentsDbPath, readOnly = false) {
+        if (!readOnly) mkdirSync(dirname(path), { recursive: true });
+        this.database = new Database(path, readOnly ? {readonly:true,strict:true} : { create: true, strict: true });
+        if(readOnly){
+            try {
+                for(const table of ['multi_agent_experiment','multi_agent_experiment_participant','multi_agent_experiment_world_region'])
+                    if(!this.database.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1").get(table))throw new Error('Unsupported Phase 12 read-only source');
+                for(const field of ['environment_digest','parameter_profile_digest','final_economy_json','metrics_json'])
+                    if(!(this.database.query('PRAGMA table_info(multi_agent_experiment)').all() as Array<{name:string}>).some(row=>row.name===field))throw new Error('Legacy Phase 12 source requires explicit migration');
+                return;
+            }catch(error){this.close();throw error;}
+        }
         this.database.run('PRAGMA foreign_keys = ON');
         this.database.run(`CREATE TABLE IF NOT EXISTS multi_agent_experiment (
             experiment_id TEXT PRIMARY KEY, definition_digest TEXT NOT NULL, label TEXT NOT NULL,
@@ -871,6 +887,9 @@ export class MultiAgentExperimentStore {
             "TEXT NOT NULL DEFAULT '{\"schemaVersion\":1,\"activeRevision\":0,\"capturedAt\":\"1970-01-01T00:00:00.000Z\",\"mods\":[]}'");
         this.addColumn('multi_agent_experiment', 'parameter_profile_digest', 'TEXT');
         this.addColumn('multi_agent_experiment', 'parameter_profile_json', 'TEXT');
+        this.addColumn('multi_agent_experiment', 'xp_initial_state_json', 'TEXT');
+        this.addColumn('multi_agent_experiment', 'xp_execution_armed', 'INTEGER');
+        this.addColumn('multi_agent_experiment', 'xp_execution_json', 'TEXT');
         this.addColumn('multi_agent_experiment_participant', 'skill_run_json', 'TEXT');
         this.addColumn('multi_agent_experiment_participant', 'baseline_goals_json', "TEXT NOT NULL DEFAULT '[]'");
         this.addColumn('multi_agent_experiment_participant', 'final_goals_json', 'TEXT');
@@ -883,12 +902,14 @@ export class MultiAgentExperimentStore {
         if (!columns.some(entry => entry.name === column)) this.database.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
     }
 
-    close(): void { this.database.close(true); }
+    close(): void { (this.database as Database & {clearQueryCache():void}).clearQueryCache(); this.database.close(true); }
 
     get(experimentId: string): MultiAgentExperimentRun | null {
         const row = this.database.query('SELECT * FROM multi_agent_experiment WHERE experiment_id = ?1')
             .get(experimentId) as ExperimentRow | null;
         if (!row) return null;
+        if(row.xp_execution_armed!=null && row.xp_execution_armed!==1 || row.xp_execution_json && row.xp_execution_armed!==1)
+            throw new Error('Invalid native XP execution marker');
         const participants = (this.database.query(`SELECT * FROM multi_agent_experiment_participant
             WHERE experiment_id = ?1 ORDER BY ordinal`).all(experimentId) as ParticipantRow[]).map(participant);
         const regions = this.database.query(`SELECT agent_id, level, region_x, region_z, first_x, first_z, observed_at
@@ -904,7 +925,10 @@ export class MultiAgentExperimentStore {
                     observedAt: region.observed_at }));
             entry.worldRegions = entry.worldRegionObservations.map(observation => observation.region);
         }
-        return { experimentId: row.experiment_id, definitionDigest: row.definition_digest,
+        return { ...(row.xp_initial_state_json?{xpInitialState:validateXpStateSnapshot(JSON.parse(row.xp_initial_state_json))}:{}),
+            ...(row.xp_execution_armed?{xpExecutionArmed:true as const}:{}),
+            ...(row.xp_execution_json?{xpExecution:validateXpExecutionReport(JSON.parse(row.xp_execution_json))}:{}),
+            experimentId: row.experiment_id, definitionDigest: row.definition_digest,
             label: row.label, seed: row.seed, summary: row.summary, status: row.status,
             environmentDigest: row.environment_digest,
             environment: JSON.parse(row.environment_json) as MultiAgentExperimentEnvironment,
@@ -930,8 +954,9 @@ export class MultiAgentExperimentStore {
         candidates: ReadonlyMap<string, MultiAgentExperimentCandidate>, baseline: EconomySnapshot,
         baselineGoalInput: MultiAgentExperimentGoalSnapshots,
         environmentInput: MultiAgentExperimentEnvironment, parameterProfileInput: ExperimentParameterProfile,
-        now = new Date().toISOString(), experimentId = randomUUID()): MultiAgentExperimentRun {
+        now = new Date().toISOString(), experimentId: string = randomUUID(),xpInitialState?:XpStateSnapshot,xpExecutionArmed=false): MultiAgentExperimentRun {
         const startedAt = timestamp(now);
+        if(xpExecutionArmed && !xpInitialState)throw new Error('XP execution requires a native initial snapshot');
         const { environment, digest: environmentDigest } = validateMultiAgentExperimentEnvironment(environmentInput);
         const baselineGoals = validateGoalSnapshots(definition.orderedAgentIds, baselineGoalInput);
         const parameterProfile = validateExperimentParameterProfile(parameterProfileInput, parameterProfileInput.createdAt);
@@ -941,16 +966,21 @@ export class MultiAgentExperimentStore {
             throw new Error('Experiment parameter profile reference or digest is invalid');
         }
         verifyExperimentAppliedProfile(parameterProfile, environment);
+        if(xpInitialState)validateXpStateSnapshot(xpInitialState,[...candidates.values()].map(item=>item.avatarPlayerUsername!),
+            xpConfigurationDigest(environment.mods.find(mod=>mod.id==='economy.diminishing-xp')!.config));
         const transaction = this.database.transaction(() => {
+            for(const id of definition.orderedAgentIds) if(this.database.query(`SELECT 1 FROM multi_agent_experiment_participant p
+                JOIN multi_agent_experiment e ON e.experiment_id=p.experiment_id WHERE p.agent_id=?1 AND e.status='running' LIMIT 1`).get(id))
+                throw new Error(`Experiment agent already belongs to a running cohort: ${id}`);
             this.database.run(`INSERT INTO multi_agent_experiment
                 (experiment_id, definition_digest, environment_digest, environment_json,
                     parameter_profile_digest, parameter_profile_json, label, seed, summary,
-                    status, baseline_economy_json, dispatch_economy_json, started_at, finished_at, error, revision)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'running', ?10, NULL, ?11, NULL, NULL, 1)`,
+                    status, baseline_economy_json, dispatch_economy_json, started_at, finished_at, error, revision,xp_initial_state_json,xp_execution_armed)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'running', ?10, NULL, ?11, NULL, NULL, 1,?12,?13)`,
             [experimentId, definition.digest, environmentDigest, JSON.stringify(environment),
                 parameterProfile.digest, JSON.stringify(parameterProfile),
                 definition.input.label, definition.input.seed, definition.input.summary,
-                JSON.stringify(baseline), startedAt]);
+                JSON.stringify(baseline), startedAt,xpInitialState?JSON.stringify(xpInitialState):null,xpExecutionArmed?1:null]);
             definition.orderedAgentIds.forEach((id, ordinal) => {
                 const candidate = candidates.get(id)!;
                 const avatar = canonicalAvatarBaseline(candidate.avatarBaseline, candidate.avatarPlayerUsername!);
@@ -1070,7 +1100,7 @@ export class MultiAgentExperimentStore {
 
     finish(experimentId: string, finalEconomy: EconomySnapshot,
         finalGoalInput: MultiAgentExperimentGoalSnapshots, goalEventInput: MultiAgentExperimentGoalEvents,
-        now = new Date().toISOString()): MultiAgentExperimentRun {
+        now = new Date().toISOString(),xpExecution?:XpExecutionReport): MultiAgentExperimentRun {
         const finishedAt = timestamp(now);
         const current = this.get(experimentId);
         if (!current) throw new Error('Experiment is missing');
@@ -1078,6 +1108,9 @@ export class MultiAgentExperimentStore {
         if (!current.dispatchEconomy || current.participants.some(item => item.status === 'pending' || item.status === 'executing')) {
             throw new Error('Experiment cannot finish before every dispatched skill run resolves');
         }
+        if(current.xpExecutionArmed){if(!xpExecution)throw new Error('Native XP execution seal required');
+            verifyRunXpExecution(current,xpExecution,true,finishedAt);}
+        else if(xpExecution)throw new Error('Unarmed experiment cannot accept XP execution evidence');
         const finalGoals = validateGoalSnapshots(current.participants.map(item => item.agentId), finalGoalInput);
         const goalEvents = validateGoalEvents(current.participants.map(item => item.agentId), goalEventInput,
             current.startedAt, finishedAt);
@@ -1087,12 +1120,14 @@ export class MultiAgentExperimentStore {
             [experimentId, item.agentId, JSON.stringify(finalGoals[item.agentId])]);
             const withFinalGoals = this.get(experimentId)!;
             const metrics = economyMetrics(withFinalGoals, finalEconomy, goalEvents, finishedAt);
-            const status: MultiAgentExperimentStatus = metrics.unsuccessfulParticipants
+            const xpFailed=xpExecution?.members.some(member=>member.status==='pending'||member.status==='rejected')??false;
+            const status: MultiAgentExperimentStatus = xpFailed?'failed':metrics.unsuccessfulParticipants
                 ? 'completed-with-errors' : 'completed';
             this.database.run(`UPDATE multi_agent_experiment SET status = ?2, final_economy_json = ?3,
-                metrics_json = ?4, finished_at = ?5, revision = revision + 1
+                metrics_json = ?4, finished_at = ?5, revision = revision + 1,xp_execution_json=?6,error=?7
                 WHERE experiment_id = ?1 AND status = 'running'`,
-            [experimentId, status, JSON.stringify(finalEconomy), JSON.stringify(metrics), finishedAt]);
+            [experimentId, status, JSON.stringify(finalEconomy), JSON.stringify(metrics), finishedAt,xpExecution?JSON.stringify(xpExecution):null,
+                xpFailed?'Native first XP calculation evidence rejected or unresolved':null]);
         });
         transaction.immediate();
         return this.get(experimentId)!;
@@ -1110,6 +1145,8 @@ export class MultiAgentExperimentStore {
 }
 
 export interface MultiAgentExperimentDependencies {
+    xpSnapshot?(cohort:string[]):Promise<XpStateSnapshot>;
+    xpExecution?:XpExecutionPort;
     listCandidates(): Promise<readonly MultiAgentExperimentCandidate[]>;
     economySnapshot(): Promise<EconomySnapshot>;
     worldModEnvironment(): Promise<MultiAgentExperimentEnvironment>;
@@ -1118,6 +1155,45 @@ export interface MultiAgentExperimentDependencies {
     goalEvents(agentIds: readonly string[], since: string, until: string): Promise<MultiAgentExperimentGoalEvents>;
     coordinator: AgentReplanCoordinator;
     store: MultiAgentExperimentStore;
+}
+export function xpExecutionRequest(run:MultiAgentExperimentRun):XpExecutionArmRequest{
+    if(!run.xpInitialState)throw new Error('XP execution requires a native baseline');
+    const mod=run.environment.mods.find(mod=>mod.id==='economy.diminishing-xp');if(!mod)throw new Error('XP execution policy missing');
+    return {experimentId:run.experimentId,definitionDigest:run.definitionDigest,cohort:run.participants.map(row=>row.avatarPlayerUsername).sort(),
+        expectedCohortDigest:run.xpInitialState.cohortDigest,expectedPolicyDigest:xpExecutionPolicyDigest(mod,run.environment.mods.find(item=>item.id==='experiment.xp-calibration')??null)};
+}
+export function verifyRunXpExecution(run:MultiAgentExperimentRun,raw:XpExecutionReport,sealed:boolean,finishedAt=run.finishedAt??undefined){
+    const report=validateXpExecutionReport(raw);
+    if(xpStateDigest(report.binding.request)!==xpStateDigest(xpExecutionRequest(run))||report.sealed!==sealed)
+        throw new Error('Native XP execution experiment binding differs');
+    if(Date.parse(report.binding.snapshot.observedAt)<Date.parse(run.startedAt)
+        || !sealed && (report.sequence!==1 || report.members.some(member=>member.status!=='unobserved'))
+        || finishedAt && report.entries.some(entry=>['pending','observed'].includes(entry.payload.kind) && Date.parse(entry.payload.at)>Date.parse(finishedAt)))
+        throw new Error('Native first XP calculation escaped its experiment execution window');
+    return report;
+}
+
+export function experimentInitialStateDigest(candidates: ReadonlyMap<string, MultiAgentExperimentCandidate>,
+    goals: MultiAgentExperimentGoalSnapshots): string {
+    return hash(JSON.stringify([...candidates.keys()].sort().map(id => {
+        const candidate = candidates.get(id)!, avatar = canonicalAvatarBaseline(candidate.avatarBaseline, candidate.avatarPlayerUsername!);
+        if (!avatar.baseline.bankKnown) throw new Error('Controlled long experiments require known starting banks');
+        return { agentId: id, avatarDigest: avatar.digest, goals: validateGoalSnapshots([id], { [id]: goals[id]! })[id] };
+    })));
+}
+
+export async function previewMultiAgentExperiment(input: MultiAgentExperimentInput,
+    dependencies: Omit<MultiAgentExperimentDependencies, 'store' | 'coordinator'>) {
+    const definition = multiAgentExperimentDefinition(input), candidates = preflight(definition, await dependencies.listCandidates());
+    const [baseline, environment, baselineGoals, parameterProfile] = await Promise.all([
+        dependencies.economySnapshot(), dependencies.worldModEnvironment(), dependencies.goalSnapshots(definition.orderedAgentIds),
+        dependencies.parameterProfile(definition.input.parameterProfileId, definition.input.parameterProfileVersion)
+    ]);
+    validateMultiAgentExperimentEnvironment(environment); verifyExperimentAppliedProfile(parameterProfile, environment);
+    const cohort=[...candidates.values()].map(item=>item.avatarPlayerUsername!),xpMod=environment.mods.find(mod=>mod.id==='economy.diminishing-xp');
+    const xpInitialState=dependencies.xpSnapshot?validateXpStateSnapshot(await dependencies.xpSnapshot(cohort),cohort,
+        xpMod?xpConfigurationDigest(xpMod.config):'missing-xp-mod'):undefined;
+    return { definition, candidates, baseline, environment, baselineGoals, parameterProfile,xpInitialState };
 }
 
 function preflight(definition: ReturnType<typeof multiAgentExperimentDefinition>,
@@ -1142,19 +1218,36 @@ function preflight(definition: ReturnType<typeof multiAgentExperimentDefinition>
 }
 
 export async function startMultiAgentExperiment(input: MultiAgentExperimentInput,
-    dependencies: MultiAgentExperimentDependencies, now = new Date().toISOString()): Promise<{
+    dependencies: MultiAgentExperimentDependencies, now = new Date().toISOString(),
+    options: { experimentId?: string; expectedInitialStateDigest?: string; expectedEnvironmentDigest?: string; expectedParameterProfileDigest?: string;expectedXpCohortDigest?:string } = {}): Promise<{
         run: MultiAgentExperimentRun; completion: Promise<MultiAgentExperimentRun>;
     }> {
-    const definition = multiAgentExperimentDefinition(input);
-    const candidates = preflight(definition, await dependencies.listCandidates());
-    const [baseline, environment, baselineGoals, parameterProfile] = await Promise.all([
-        dependencies.economySnapshot(), dependencies.worldModEnvironment(),
-        dependencies.goalSnapshots(definition.orderedAgentIds),
-        dependencies.parameterProfile(definition.input.parameterProfileId, definition.input.parameterProfileVersion)
-    ]);
-    const run = dependencies.store.create(definition, candidates, baseline, baselineGoals, environment, parameterProfile, now);
+    if (options.experimentId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(options.experimentId)) throw new Error('Invalid explicit experiment id');
+    if(options.expectedXpCohortDigest!==undefined && !/^[0-9a-f]{64}$/.test(options.expectedXpCohortDigest))throw new Error('Invalid expected XP baseline digest');
+    if (options.experimentId && (![options.expectedEnvironmentDigest, options.expectedParameterProfileDigest].every(value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value))
+        || (options.expectedInitialStateDigest !== undefined && !/^[0-9a-f]{64}$/.test(options.expectedInitialStateDigest)))) throw new Error('Explicit experiment id requires exact profile/environment digests');
+    const expected = multiAgentExperimentDefinition(input), existing = options.experimentId ? dependencies.store.get(options.experimentId) : null;
+    if (existing) {
+        if ((options.expectedXpCohortDigest && existing.xpInitialState?.cohortDigest!==options.expectedXpCohortDigest)
+            || existing.definitionDigest !== expected.digest || existing.parameterProfileDigest !== options.expectedParameterProfileDigest
+            || existing.environmentDigest !== options.expectedEnvironmentDigest
+            || (options.expectedInitialStateDigest && experimentInitialStateDigest(new Map(existing.participants.map(item => [item.agentId,
+                { agentId: item.agentId, avatarPlayerUsername: item.avatarPlayerUsername, avatarBaseline: item.baselineAvatar } as MultiAgentExperimentCandidate])),
+                Object.fromEntries(existing.participants.map(item => [item.agentId, item.baselineGoals]))) !== options.expectedInitialStateDigest))
+            throw new Error('Explicit experiment id is bound to another definition or baseline');
+        return { run: existing, completion: Promise.resolve(existing) };
+    }
+    const { definition, candidates, baseline, environment, baselineGoals, parameterProfile,xpInitialState } = await previewMultiAgentExperiment(input, dependencies);
+    if ((options.expectedXpCohortDigest && xpInitialState?.cohortDigest!==options.expectedXpCohortDigest)
+        || (options.expectedInitialStateDigest && experimentInitialStateDigest(candidates, baselineGoals) !== options.expectedInitialStateDigest)
+        || (options.expectedEnvironmentDigest && validateMultiAgentExperimentEnvironment(environment).digest !== options.expectedEnvironmentDigest)
+        || (options.expectedParameterProfileDigest && parameterProfile.digest !== options.expectedParameterProfileDigest))
+        throw new Error('Controlled experiment preflight binding changed before dispatch');
+    if(dependencies.xpExecution && !xpInitialState)throw new Error('XP execution requires a native initial snapshot');
+    const run = dependencies.store.create(definition, candidates, baseline, baselineGoals, environment, parameterProfile, now, options.experimentId,xpInitialState,Boolean(dependencies.xpExecution));
     const completion = (async () => {
         try {
+            if(run.xpExecutionArmed)verifyRunXpExecution(run,await dependencies.xpExecution!.arm(xpExecutionRequest(run)),false);
             await Promise.all(run.participants.map(async entry => {
                 try {
                     const record = await dependencies.coordinator.submit({ eventId: entry.eventId,
@@ -1177,8 +1270,10 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
                 dependencies.economySnapshot(), dependencies.goalSnapshots(ids),
                 dependencies.goalEvents(ids, run.startedAt, finishedAt)
             ]);
-            return dependencies.store.finish(run.experimentId, finalEconomy, finalGoals, goalEvents, finishedAt);
+            const proof=run.xpExecutionArmed?await dependencies.xpExecution!.seal(run.experimentId):undefined;
+            return dependencies.store.finish(run.experimentId, finalEconomy, finalGoals, goalEvents, finishedAt,proof);
         } catch (error) {
+            if(run.xpExecutionArmed)try{await dependencies.xpExecution!.seal(run.experimentId);}catch{/* Ambiguous native ownership remains explicit until operator recovery. */}
             return dependencies.store.fail(run.experimentId, error instanceof Error ? error.message : String(error));
         }
     })();
@@ -1187,11 +1282,19 @@ export async function startMultiAgentExperiment(input: MultiAgentExperimentInput
 
 export async function reconcileMultiAgentExperimentSkillRun(runId: string, skillRun: AdminSkillRun | null,
     processSucceeded: boolean, fallbackReason: string,
-    dependencies: Pick<MultiAgentExperimentDependencies, 'store' | 'economySnapshot' | 'goalSnapshots' | 'goalEvents'>,
+    dependencies: Pick<MultiAgentExperimentDependencies, 'store' | 'economySnapshot' | 'goalSnapshots' | 'goalEvents'|'xpExecution'>,
     now = new Date().toISOString()): Promise<MultiAgentExperimentRun | null> {
     const run = dependencies.store.recordSkillRun(runId, skillRun, processSucceeded, fallbackReason, now);
     if (!run || !dependencies.store.isReadyToFinalize(run.experimentId)) return run;
+    try{
+    if(run.xpExecutionArmed && !dependencies.xpExecution)throw new Error('Native XP execution seal port unavailable');
+    const proof=run.xpExecutionArmed?await dependencies.xpExecution!.seal(run.experimentId):undefined;
     return dependencies.store.finish(run.experimentId, await dependencies.economySnapshot(),
         await dependencies.goalSnapshots(run.participants.map(item => item.agentId)),
-        await dependencies.goalEvents(run.participants.map(item => item.agentId), run.startedAt, now), now);
+        await dependencies.goalEvents(run.participants.map(item => item.agentId), run.startedAt, now), now,proof);
+    }catch(error){
+        if(run.xpExecutionArmed && dependencies.store.get(run.experimentId)?.status==='running')
+            return dependencies.store.fail(run.experimentId,error instanceof Error?error.message:'Native XP execution settlement failed',now);
+        throw error;
+    }
 }

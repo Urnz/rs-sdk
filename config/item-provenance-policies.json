@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "itemId": 995,
+      "itemName": "Coins",
+      "tier": "value-restitution",
+      "rationale": "Fungible currency theft needs an attributable quantity and value claim, not per-coin identity."
+    },
+    {
+      "itemId": 2349,
+      "itemName": "Bronze bar",
+      "tier": "value-restitution",
+      "rationale": "Ordinary interchangeable inputs use value restitution unless a later policy promotes them to a justified lot."
+    },
+    {
+      "itemId": 377,
+      "itemName": "Raw lobster",
+      "tier": "provenance-lot",
+      "rationale": "Perishable food carries shared production and storage history at batch granularity."
+    },
+    {
+      "itemId": 379,
+      "itemName": "Lobster",
+      "tier": "provenance-lot",
+      "rationale": "Cooked food keeps batch origin without creating one identity per interchangeable item."
+    },
+    {
+      "itemId": 1265,
+      "itemName": "Bronze pickaxe",
+      "tier": "identified-asset",
+      "rationale": "A durable lifecycle instance keeps explicit title, custody and theft history."
+    }
+  ]
+}

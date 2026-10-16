@@ -8,8 +8,8 @@
 // StateCollector reads) comes out scaled by N. This test drives the real paths
 // (tickCycle plus a dispatched MESSAGE_GAME) rather than the counter itself.
 //
-// Needs the interface archive; set LITE_TEST_ORIGIN to point elsewhere. Skips if
-// the server is unreachable.
+// Requires the local emulator's interface archive; LITE_TEST_ORIGIN can select
+// another local origin. Cache-loading failures fail the suite instead of skipping.
 
 import { beforeAll, describe, expect, test } from 'bun:test';
 
@@ -23,19 +23,16 @@ import { loadCache } from './cache.js';
 import { LiteClient } from './LiteClient.js';
 import { dispatch } from './protocol/incoming.js';
 
-const ORIGIN = process.env.LITE_TEST_ORIGIN ?? 'https://rs-sdk-demo.fly.dev';
-const CACHE_DIR = process.env.LITE_TEST_CACHE ?? '/tmp/rs-sdk-lite-test-cache';
+import { LITE_TEST_ORIGIN as ORIGIN, LITE_TEST_CACHE as CACHE_DIR } from './test-cache-config.js';
 
-let available = false;
 
 beforeAll(async () => {
     try {
         await loadCache({ origin: ORIGIN, cacheDir: CACHE_DIR, quiet: true });
-        available = true;
-    } catch {
-        available = false;
+    } catch (error) {
+        throw new Error(`Local Lite test cache unavailable at ${ORIGIN}; start scripts/start-local.ps1 -NoBot`, { cause: error });
     }
-});
+}, 60_000);
 
 /** A LiteClient with no socket: nothing below touches the connection. */
 function makeClient(name: string): LiteClient {
@@ -58,11 +55,6 @@ function messagePacket(text: string): Packet {
 
 describe('per-client cycle counters', () => {
     test('one client ticking does not advance another', () => {
-        if (!available) {
-            console.warn(`[skip] ${ORIGIN} unreachable`);
-            return;
-        }
-
         const a = makeClient('bota');
         const b = makeClient('botb');
 
@@ -78,10 +70,6 @@ describe('per-client cycle counters', () => {
     });
 
     test('message age is measured in the receiving bot`s cycles', () => {
-        if (!available) {
-            return;
-        }
-
         const a = makeClient('bota');
         const b = makeClient('botb');
 
@@ -105,10 +93,6 @@ describe('per-client cycle counters', () => {
     });
 
     test('dialog history ticks come from the owning client', () => {
-        if (!available) {
-            return;
-        }
-
         const a = makeClient('bota');
         const b = makeClient('botb');
 

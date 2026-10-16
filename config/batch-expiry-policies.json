@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "activation": "prepared",
+  "policies": [
+    {
+      "policyId": "perishable-food-v1",
+      "expiryClock": "simulation-time",
+      "defaultStorageProfileId": "ambient",
+      "items": [
+        { "itemId": 377, "shelfLifeSimulationMinutes": 720 },
+        { "itemId": 379, "shelfLifeSimulationMinutes": 1440 }
+      ],
+      "storageProfiles": [
+        {
+          "storageProfileId": "ambient",
+          "label": "Ambient storage",
+          "shelfLifeMultiplierBasisPoints": 10000,
+          "requiredCapabilityId": null
+        },
+        {
+          "storageProfileId": "private-dry-storage",
+          "label": "Protected private storage",
+          "shelfLifeMultiplierBasisPoints": 12500,
+          "requiredCapabilityId": "storage.private"
+        },
+        {
+          "storageProfileId": "cold-storage",
+          "label": "Cold storage",
+          "shelfLifeMultiplierBasisPoints": 30000,
+          "requiredCapabilityId": "storage.cold"
+        }
+      ]
+    }
+  ]
+}

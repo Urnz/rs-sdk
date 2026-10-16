@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "lifecycleTypeId": "bronze-pickaxe",
+      "itemId": 1265,
+      "itemName": "Bronze pickaxe",
+      "maxDurability": 100,
+      "wearPerUse": 1,
+      "repairable": true
+    },
+    {
+      "lifecycleTypeId": "workshop-bellows",
+      "itemId": 65000,
+      "itemName": "Workshop bellows",
+      "maxDurability": 200,
+      "wearPerUse": 1,
+      "repairable": true
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -78,6 +79,8 @@ describe('configurable Property furnishings', () => {
         expect(place(store)).toEqual(original);
         expect(() => place(store, { propertyAuthorityDigest: 'c'.repeat(64) })).toThrow('different authority');
         expect(() => store.remove('placement-1', 2, '2030-01-01T01:00:00.000Z')).toThrow('changed');
+        expect(() => store.remove('placement-1', 1, '2029-12-31T23:00:00.000Z'))
+            .toThrow('cannot predate');
         expect(store.remove('placement-1', 1, '2030-01-01T01:00:00.000Z')).toMatchObject({
             status: 'removed', revision: 2 });
         expect(store.capabilities('falador.south-house').sleepPlaces).toBe(0);
@@ -98,6 +101,74 @@ describe('configurable Property furnishings', () => {
         const altered = new FurnishingPlacementStore(path, catalog());
         expect(altered.verifyAuditChain()).toBeFalse();
         altered.close();
+    });
+
+    test('rejects altered materialized storage capacity even with an intact audit chain', () => {
+        const path = databasePath(), store = new FurnishingPlacementStore(path, catalog());
+        place(store, { placementSlotId: 'falador.south-house.storage-1',
+            evidence: { assetId: 'asset-chest-1', ownerAgentId: 'ada', furnishingTypeId: 'wooden-chest',
+                sourceDigest: 'c'.repeat(64) } });
+        store.close();
+        const database = new Database(path, { strict: true });
+        database.run('UPDATE furnishing_placement SET private_storage_slots=999 WHERE placement_id=?1',
+            ['placement-1']);
+        database.close(true);
+        const altered = new FurnishingPlacementStore(path, catalog());
+        expect(altered.verifyAuditChain()).toBeFalse();
+        expect(() => altered.capabilities('falador.south-house')).toThrow('state or audit is invalid');
+        expect(() => place(altered, { placementId: 'placement-2',
+            placementSlotId: 'falador.south-house.bed-1' })).toThrow('state or audit is invalid');
+        expect(() => altered.remove('placement-1', 1, '2030-01-01T01:00:00.000Z'))
+            .toThrow('state or audit is invalid');
+        altered.close();
+    });
+
+    test('audited capability snapshots survive later furnishing catalog changes', () => {
+        const path = databasePath(), original = catalog();
+        const store = new FurnishingPlacementStore(path, original);
+        place(store, { placementSlotId: 'falador.south-house.storage-1',
+            evidence: { assetId: 'asset-chest-1', ownerAgentId: 'ada', furnishingTypeId: 'wooden-chest',
+                sourceDigest: 'c'.repeat(64) } });
+        store.close();
+        const changed = validateFurnishingCatalog({ schemaVersion: 1,
+            furnishings: original.furnishings.map(value => value.furnishingTypeId === 'wooden-chest'
+                ? { ...value, capabilities: { ...value.capabilities, privateStorageSlots: 56 } } : value),
+            placementSlots: original.placementSlots }, new Set(['falador.south-house']));
+        const reopened = new FurnishingPlacementStore(path, changed);
+        expect(reopened.verifyAuditChain()).toBeTrue();
+        expect(reopened.capabilities('falador.south-house').privateStorageSlots).toBe(28);
+        reopened.close();
+    });
+
+    test('verifies legacy placement audits against the original catalog', () => {
+        const path = databasePath(), original = catalog();
+        const store = new FurnishingPlacementStore(path, original);
+        place(store, { placementSlotId: 'falador.south-house.storage-1',
+            evidence: { assetId: 'asset-chest-1', ownerAgentId: 'ada', furnishingTypeId: 'wooden-chest',
+                sourceDigest: 'c'.repeat(64) } });
+        store.close();
+        const database = new Database(path, { strict: true });
+        const row = database.query('SELECT payload_json,previous_hash FROM furnishing_audit').get() as
+            { payload_json: string; previous_hash: string };
+        const payload = JSON.parse(row.payload_json) as { detail: Record<string, unknown> };
+        delete payload.detail.sleepPlaces;
+        delete payload.detail.privateStorageSlots;
+        delete payload.detail.workSurfaces;
+        const entryHash = createHash('sha256').update(JSON.stringify({ previousHash: row.previous_hash,
+            payload })).digest('hex');
+        database.run('UPDATE furnishing_audit SET payload_json=?1,entry_hash=?2',
+            [JSON.stringify(payload), entryHash]);
+        database.close(true);
+        const legacy = new FurnishingPlacementStore(path, original);
+        expect(legacy.verifyAuditChain()).toBeTrue();
+        legacy.close();
+        const changed = validateFurnishingCatalog({ schemaVersion: 1,
+            furnishings: original.furnishings.map(value => value.furnishingTypeId === 'wooden-chest'
+                ? { ...value, capabilities: { ...value.capabilities, privateStorageSlots: 56 } } : value),
+            placementSlots: original.placementSlots }, new Set(['falador.south-house']));
+        const incompatible = new FurnishingPlacementStore(path, changed);
+        expect(incompatible.verifyAuditChain()).toBeFalse();
+        incompatible.close();
     });
 
     test('rejects a catalog whose supplied digest does not describe its content', () => {

@@ -1,4 +1,5 @@
 import v8 from 'node:v8';
+import { grantSocietyCheatValue, executeSocietyDebugProc } from '#/mods/SocietyIntegrity.js';
 
 import { Visibility } from '#/network/rsbuf/index.js';
 import { LocAngle, LocShape } from '#/engine/routefinder/index.js';
@@ -145,7 +146,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                     }
                 }
 
-                player.executeScript(ScriptRunner.init(script, player, null, params), false);
+                executeSocietyDebugProc(player.username,script.info.scriptName,()=>player.executeScript(ScriptRunner.init(script, player, null, params), false));
             } else if (cmd === 'reload') {
                 World.reload();
             } else if (cmd === 'rebuild') {
@@ -351,7 +352,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                 }
 
                 const count = Math.max(1, Math.min(tryParseInt(args[1], 1), 0x7fffffff));
-                player.invAdd(InvType.INV, obj, count);
+                grantSocietyCheatValue(player.username,obj,count,()=>player.invAdd(InvType.INV,obj,count));
             } else if (cmd === 'giveother' && Environment.node.production) {
                 // custom
                 if (args.length < 2) {
@@ -371,7 +372,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                 }
 
                 const count = Math.max(1, Math.min(tryParseInt(args[2], 1), 0x7fffffff));
-                other.invAdd(InvType.INV, obj, count);
+                grantSocietyCheatValue(other.username,obj,count,()=>other.invAdd(InvType.INV,obj,count));
             } else if (cmd === 'givecrap') {
                 // authentic (we don't know the exact specifics of this...)
 
@@ -386,7 +387,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                         }
                     }
 
-                    player.invAdd(InvType.INV, random, 1);
+                    grantSocietyCheatValue(player.username,random,1,()=>player.invAdd(InvType.INV,random,1));
                 }
             } else if (cmd === 'givemany') {
                 // authentic
@@ -401,7 +402,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                     return false;
                 }
 
-                player.invAdd(InvType.INV, obj, 1000);
+                grantSocietyCheatValue(player.username,obj,1000,()=>player.invAdd(InvType.INV,obj,1000));
             } else if (cmd === 'broadcast' && Environment.node.production) {
                 // custom
                 if (args.length < 0) {
@@ -463,7 +464,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                     return false;
                 }
 
-                player.setLevel(stat, parseInt(args[1]));
+                executeSocietyDebugProc(player.username,`setstat:${stat}`,()=>player.setLevel(stat, parseInt(args[1])));
             } else if (cmd === 'advancestat') {
                 // authentic
                 if (args.length < 1) {
@@ -477,12 +478,15 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                     return false;
                 }
 
+                executeSocietyDebugProc(player.username,`advancestat:${stat}`,()=>{
                 player.stats[stat] = 0;
                 player.baseLevels[stat] = 1;
                 player.levels[stat] = 1;
                 player.addXp(stat, getExpByLevel(parseInt(args[1])), false);
+                });
             } else if (cmd === 'minme') {
                 // like maxme debugproc, but in engine because xp goes down
+                executeSocietyDebugProc(player.username,'minme',()=>{
                 for (let i = 0; i < PlayerStatEnabled.length; i++) {
                     if (i === PlayerStat.HITPOINTS) {
                         player.setLevel(i, 10);
@@ -490,6 +494,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                         player.setLevel(i, 1);
                     }
                 }
+                });
             } else if (cmd === 'locadd') {
                 // authentic - https://youtu.be/E6tQ3b3vzro?t=3194
                 if (args.length < 1) {

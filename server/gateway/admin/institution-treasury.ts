@@ -1,6 +1,10 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { createHash } from 'node:crypto';
+import { withSocietyValueMutation, nativeSocietyValuePaths, nativeSocietyPathMatches, type IntegrityBoundary } from '../../../society-integrity/runtime.js';
 import { Database } from 'bun:sqlite';
+import { estateHeld } from '../../../population-estate/schema.js';
+import { verifyLegacyTreasuryCreditArchive } from './institution-treasury-migration.js';
 
 export type InstitutionKind = 'business' | 'faction';
 export type TreasuryReservationStatus = 'reserved' | 'committed' | 'released';
@@ -39,6 +43,27 @@ export interface InstitutionTreasuryTransfer {
 }
 export interface TreasuryGenesisReceipt { allocationId:string;kind:InstitutionKind;actorId:string;amountGp:number;
     status:'active'|'reset';createdAt:string;resetAt:string|null }
+export interface TreasuryExternalCreditEvidence { settlementId:string;kind:InstitutionKind;actorId:string;
+    amountGp:number;sourceRef:string;status:'committed';occurredAt:string }
+export interface TreasuryExternalCredit { settlementId:string;kind:InstitutionKind;actorId:string;
+    amountGp:number;sourceRef:string;createdAt:string }
+interface ExternalCreditRow { settlement_id:string;actor_kind:InstitutionKind;actor_id:string;
+    amount_gp:number;source_ref:string;created_at:string }
+interface ExternalCreditAuditRow { sequence:number;settlement_id:string;receipt_hash:string;
+    previous_hash:string;audit_hash:string }
+
+function externalCredit(row:ExternalCreditRow):TreasuryExternalCredit {
+    return {settlementId:row.settlement_id,kind:row.actor_kind,actorId:row.actor_id,
+        amountGp:row.amount_gp,sourceRef:row.source_ref,createdAt:row.created_at};
+}
+function sha256(value:string):string { return createHash('sha256').update(value).digest('hex'); }
+function receiptHash(row:ExternalCreditRow):string {
+    return sha256(JSON.stringify([row.settlement_id,row.actor_kind,row.actor_id,row.amount_gp,
+        row.source_ref,row.created_at]));
+}
+function auditHash(sequence:number,settlementId:string,hash:string,previousHash:string):string {
+    return sha256(JSON.stringify([sequence,settlementId,hash,previousHash]));
+}
 
 interface AccountRow {
     actor_kind: InstitutionKind; actor_id: string; balance_gp: number; reserved_gp: number;
@@ -78,7 +103,8 @@ function transfer(row: TransferRow): InstitutionTreasuryTransfer {
 export class InstitutionTreasuryStore {
     private readonly database: Database;
 
-    constructor(path: string) {
+    constructor(path: string, private integrityBoundary?:IntegrityBoundary|false) {
+        if(this.integrityBoundary===undefined && !nativeSocietyPathMatches(path,nativeSocietyValuePaths.treasury))this.integrityBoundary=false;
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
         this.database.run('PRAGMA foreign_keys = ON');
@@ -106,6 +132,15 @@ export class InstitutionTreasuryStore {
             allocation_id TEXT PRIMARY KEY,actor_kind TEXT NOT NULL CHECK(actor_kind IN ('business','faction')),
             actor_id TEXT NOT NULL,amount_gp INTEGER NOT NULL CHECK(amount_gp>0),
             status TEXT NOT NULL CHECK(status IN ('active','reset')),created_at TEXT NOT NULL,reset_at TEXT)`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS institution_treasury_external_credit (
+            settlement_id TEXT PRIMARY KEY,actor_kind TEXT NOT NULL CHECK(actor_kind IN ('business','faction')),
+            actor_id TEXT NOT NULL,amount_gp INTEGER NOT NULL CHECK(amount_gp>0),source_ref TEXT NOT NULL,
+            created_at TEXT NOT NULL,FOREIGN KEY(actor_kind,actor_id)
+            REFERENCES institution_treasury(actor_kind,actor_id))`);
+        this.database.run(`CREATE TABLE IF NOT EXISTS institution_treasury_external_credit_audit (
+            sequence INTEGER PRIMARY KEY,settlement_id TEXT NOT NULL UNIQUE,
+            receipt_hash TEXT NOT NULL,previous_hash TEXT NOT NULL,audit_hash TEXT NOT NULL,
+            FOREIGN KEY(settlement_id) REFERENCES institution_treasury_external_credit(settlement_id))`);
     }
 
     close(): void { this.database.close(true); }
@@ -113,12 +148,17 @@ export class InstitutionTreasuryStore {
     get(kind: InstitutionKind, idInput: string): InstitutionTreasuryAccount | null {
         const row = this.database.query(`SELECT * FROM institution_treasury
             WHERE actor_kind = ?1 AND actor_id = ?2`).get(kind, actorId(idInput)) as AccountRow | null;
-        return row ? account(row) : null;
+        if (!row) return null;
+        const current = account(row);
+        return estateHeld(this.database,'actor',`${current.kind}:${current.id}`) ? {...current,availableGp:0} : current;
     }
 
     list(): InstitutionTreasuryAccount[] {
         return (this.database.query(`SELECT * FROM institution_treasury
-            ORDER BY actor_kind, actor_id`).all() as AccountRow[]).map(account);
+            ORDER BY actor_kind, actor_id`).all() as AccountRow[]).map(row => {
+                const current = account(row);
+                return estateHeld(this.database,'actor',`${current.kind}:${current.id}`) ? {...current,availableGp:0} : current;
+            });
     }
 
     ensure(kind: InstitutionKind, idInput: string, now = new Date().toISOString()): InstitutionTreasuryAccount {
@@ -135,10 +175,14 @@ export class InstitutionTreasuryStore {
         if (!Number.isSafeInteger(balanceGp) || balanceGp < current.reservedGp || balanceGp > 2_147_483_647) {
             throw new Error(`Treasury balance must be between reserved funds (${current.reservedGp}) and 2147483647`);
         }
-        const result = this.database.run(`UPDATE institution_treasury SET balance_gp = ?4,
+        if(current.revision!==expectedRevision)throw new Error('Treasury changed before update; refresh and try again');
+        const update=()=>this.database.run(`UPDATE institution_treasury SET balance_gp = ?4,
             revision = revision + 1, updated_at = ?5
             WHERE actor_kind = ?1 AND actor_id = ?2 AND revision = ?3`,
         [kind, current.id, expectedRevision, balanceGp, now]);
+        const result=balanceGp>current.balanceGp?withSocietyValueMutation({source:'gateway.treasury-balance',
+            operationId:`treasury-balance:${kind}:${current.id}:${expectedRevision}`,actor:`${kind}:${current.id}`,
+            payload:{beforeGp:current.balanceGp,afterGp:balanceGp,amountGp:balanceGp-current.balanceGp}},update,this.integrityBoundary):update();
         if (result.changes !== 1) throw new Error('Treasury changed before update; refresh and try again');
         return this.get(kind, current.id)!;
     }
@@ -164,8 +208,86 @@ export class InstitutionTreasuryStore {
             if(changed.changes!==1)throw new Error('Genesis treasury credit would overflow');
             this.database.run(`INSERT INTO institution_treasury_genesis VALUES(?1,?2,?3,?4,'active',?5,NULL)`,
                 [allocationId,kind,id,amountGp,now]);
-        });transaction.immediate();
+        });withSocietyValueMutation({source:'gateway.treasury-genesis',operationId:`treasury-genesis:${allocationId}`,
+            actor:`${kind}:${id}`,payload:{allocationId,amountGp}},()=>transaction.immediate(),this.integrityBoundary);
         return{allocationId,kind,actorId:id,amountGp,status:'active',createdAt:now,resetAt:null};
+    }
+
+    creditExternalSettlement(evidence:TreasuryExternalCreditEvidence,
+        verify?:(evidence:Readonly<TreasuryExternalCreditEvidence>)=>boolean,
+        now=new Date().toISOString()):TreasuryExternalCredit {
+        const id=actorId(evidence.actorId),settlementId=evidence.settlementId.trim().toLowerCase();
+        const sourceRef=evidence.sourceRef.trim().toLowerCase();
+        if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(settlementId)
+            ||!Number.isSafeInteger(evidence.amountGp)||evidence.amountGp<1||evidence.amountGp>2_147_483_647
+            ||!/^[a-z0-9][a-z0-9._:-]{1,159}$/.test(sourceRef)||evidence.status!=='committed'
+            ||Number.isNaN(Date.parse(evidence.occurredAt))||!verify||!verify(Object.freeze({...evidence,settlementId,actorId:id,sourceRef}))) {
+            throw new Error('External treasury credit evidence is not trusted');
+        }
+        let result:TreasuryExternalCredit|null=null;
+        const transaction=this.database.transaction(()=>{
+            this.verifyExternalCreditAudit();
+            const existing=this.database.query(`SELECT * FROM institution_treasury_external_credit
+                WHERE settlement_id=?1`).get(settlementId) as ExternalCreditRow|null;
+            if(existing){if(existing.actor_kind!==evidence.kind||existing.actor_id!==id||existing.amount_gp!==evidence.amountGp
+                ||existing.source_ref!==sourceRef)throw new Error('External treasury settlement id was reused');
+                result=externalCredit(existing);return;
+            }
+            this.ensure(evidence.kind,id,now);
+            const credited=this.database.run(`UPDATE institution_treasury SET balance_gp=balance_gp+?3,
+                revision=revision+1,updated_at=?4 WHERE actor_kind=?1 AND actor_id=?2 AND balance_gp<=?5`,
+            [evidence.kind,id,evidence.amountGp,now,2_147_483_647-evidence.amountGp]);
+            if(credited.changes!==1)throw new Error('External treasury credit would overflow');
+            this.database.run(`INSERT INTO institution_treasury_external_credit VALUES(?1,?2,?3,?4,?5,?6)`,
+                [settlementId,evidence.kind,id,evidence.amountGp,sourceRef,now]);
+            const row=this.database.query(`SELECT * FROM institution_treasury_external_credit WHERE settlement_id=?1`)
+                .get(settlementId) as ExternalCreditRow;
+            const last=this.database.query(`SELECT sequence,audit_hash FROM institution_treasury_external_credit_audit
+                ORDER BY sequence DESC LIMIT 1`).get() as Pick<ExternalCreditAuditRow,'sequence'|'audit_hash'>|null;
+            const sequence=(last?.sequence??0)+1,previousHash=last?.audit_hash??'genesis',hash=receiptHash(row);
+            this.database.run(`INSERT INTO institution_treasury_external_credit_audit
+                (sequence,settlement_id,receipt_hash,previous_hash,audit_hash) VALUES (?1,?2,?3,?4,?5)`,
+            [sequence,settlementId,hash,previousHash,auditHash(sequence,settlementId,hash,previousHash)]);
+            this.verifyExternalCreditAudit();
+            result=externalCredit(row);
+        });transaction.immediate();
+        return result!;
+    }
+
+    /** Fail-closed verification of the entire external-credit journal and its exact receipts. */
+    verifyExternalCreditAudit():void {
+        verifyLegacyTreasuryCreditArchive(this.database);
+        const audits=this.database.query(`SELECT * FROM institution_treasury_external_credit_audit
+            ORDER BY sequence`).all() as ExternalCreditAuditRow[];
+        const receipts=this.database.query(`SELECT * FROM institution_treasury_external_credit`)
+            .all() as ExternalCreditRow[];
+        if(audits.length!==receipts.length)throw new Error('External treasury credit audit is incomplete');
+        const byId=new Map(receipts.map(row=>[row.settlement_id,row]));
+        let previousHash='genesis';
+        for(let index=0;index<audits.length;index++){
+            const audit=audits[index]!,row=byId.get(audit.settlement_id);
+            if(!row||audit.sequence!==index+1||audit.previous_hash!==previousHash
+                ||audit.receipt_hash!==receiptHash(row)
+                ||audit.audit_hash!==auditHash(audit.sequence,audit.settlement_id,
+                    audit.receipt_hash,audit.previous_hash)){
+                throw new Error('External treasury credit audit is inconsistent');
+            }
+            previousHash=audit.audit_hash;
+        }
+    }
+
+    getExternalCredit(settlementId:string):TreasuryExternalCredit|null {
+        this.verifyExternalCreditAudit();
+        const row=this.database.query(`SELECT * FROM institution_treasury_external_credit
+            WHERE settlement_id=?1`).get(settlementId) as ExternalCreditRow|null;
+        return row?externalCredit(row):null;
+    }
+
+    /** Complete verified cohort; callers must not infer absence from a truncated receipt list. */
+    listExternalCredits():TreasuryExternalCredit[] {
+        this.verifyExternalCreditAudit();
+        return (this.database.query(`SELECT * FROM institution_treasury_external_credit
+            ORDER BY settlement_id`).all() as ExternalCreditRow[]).map(externalCredit);
     }
 
     resetGenesis(allocationId:string,now=new Date().toISOString()):TreasuryGenesisReceipt|null {

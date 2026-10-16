@@ -1,6 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { businessGenesisInventoryDigest, validateGenesisAssetAllocation, validateWorldGenesisResult, type GenesisAssetAllocation,
+import { authorizeSocietyBootstrap, societyIntegrityDbPath } from '../../../society-integrity/runtime.js';
+import { SocietyIntegrityStore, saveValueSnapshot } from '../../../society-integrity/store.js';
+import { existsSync } from 'node:fs';
+import { businessGenesisInventoryDigest, loadWorldGenesisProfileCatalog, validateGenesisAssetAllocation,
+    validateWorldGenesisResult, validateWorldGenesisJsonValue, type GenesisAssetAllocation,
     type WorldGenesisJsonValue, type WorldGenesisResult } from '../../../world-genesis/index.js';
+import { AgentStateStore, type AgentStateSimulationClock } from '../../../agent-state/store.js';
+import { loadPopulationLifecyclePolicyCatalog, loadPopulationWorldProfileBindingCatalog,
+    resolvePopulationGenesis, type PopulationGenesisMember,
+    type PopulationLifecyclePolicy } from '../../../population-lifecycle/index.js';
 import { listEngineOfflineBackups, requestEngineOfflineEdit, type OfflineSaveDraft,
     type OfflineSaveSummary } from './offline-editor.js';
 import { listEngineProperties, requestEnginePropertyGenesisAssignment, requestEnginePropertyReset,
@@ -10,7 +18,8 @@ import { BusinessManagerStore, type Business, type BusinessGenesisReceipt,
     type BusinessInventoryEntry } from './business-manager.js';
 import { InstitutionTreasuryStore, type InstitutionKind, type InstitutionTreasuryAccount,
     type TreasuryGenesisReceipt } from './institution-treasury.js';
-import { businessManagerDbPath, institutionTreasuryDbPath } from './paths.js';
+import { businessManagerDbPath, institutionTreasuryDbPath, populationLifecyclePolicyCatalogPath,
+    populationWorldProfileBindingCatalogPath, worldGenesisProfileCatalogPath } from './paths.js';
 
 export interface LocalGenesisDependencies {
     inspectPlayer(username: string): ReturnType<typeof listEngineOfflineBackups>;
@@ -30,6 +39,15 @@ export interface LocalGenesisDependencies {
     getTreasury(kind:InstitutionKind,id:string):InstitutionTreasuryAccount|null;
     creditTreasury(kind:InstitutionKind,id:string,allocationId:string,amountGp:number,now:string):TreasuryGenesisReceipt;
     resetTreasury(allocationId:string,now:string):TreasuryGenesisReceipt|null;
+}
+
+export interface LocalPopulationGenesisOptions {
+    agentPath:string;
+    simulationClock:AgentStateSimulationClock;
+    profileCatalogPath?:string;
+    policyCatalogPath?:string;
+    bindingCatalogPath?:string;
+    integrityDbPath?:string;
 }
 
 function businessCall<T>(callback:(store:BusinessManagerStore)=>T):T { const store=new BusinessManagerStore(businessManagerDbPath);
@@ -59,8 +77,10 @@ const defaults: LocalGenesisDependencies = {
 interface PlayerRollback { username: string; before: OfflineSaveSummary }
 interface PropertyRollback { allocationId: string; propertyId: string; owner: AdminPropertyOwner; beforeVersion: number }
 interface BusinessRollback { allocationId:string;businessId:string;capitalAllocationId:string|null }
-interface LocalRollbackToken { schemaVersion: 1; players: PlayerRollback[]; properties: PropertyRollback[];
-    businesses:BusinessRollback[];treasuryAllocationIds:string[];businessStockAllocationIds:string[] }
+interface PopulationRollback { agentId:string }
+interface LocalRollbackToken { schemaVersion: 2; players: PlayerRollback[]; properties: PropertyRollback[];
+    businesses:BusinessRollback[];treasuryAllocationIds:string[];businessStockAllocationIds:string[];
+    populationMembers:PopulationRollback[] }
 
 function assets(resultInput: WorldGenesisResult): GenesisAssetAllocation[] {
     const result = validateWorldGenesisResult(resultInput);
@@ -115,29 +135,93 @@ function restoreDraft(before: OfflineSaveSummary, expectedSavedAt: string): Offl
 }
 
 function sameSave(left: OfflineSaveSummary, right: OfflineSaveSummary): boolean {
-    const payload = (value: OfflineSaveSummary) => JSON.stringify({ coins: value.coins,
+    const payload = (value: OfflineSaveSummary) => JSON.stringify(validateWorldGenesisJsonValue({ coins: value.coins,
         coinPlacement: value.coinPlacement ?? 'bank', skills: value.skills, inventory: value.inventory,
-        bank: value.bank, equipment: value.equipment, position: value.position });
+        bank: value.bank, equipment: value.equipment, position: value.position },'Genesis save comparison'));
     return payload(left) === payload(right);
 }
 
 function rollbackToken(value: WorldGenesisJsonValue): LocalRollbackToken {
-    const token = value as unknown as LocalRollbackToken;
-    if (!token || token.schemaVersion !== 1 || !Array.isArray(token.players) || !Array.isArray(token.properties)
+    const token = value as unknown as Omit<LocalRollbackToken,'schemaVersion'|'populationMembers'>
+        & {schemaVersion:1|2;populationMembers?:PopulationRollback[]};
+    if (!token || (token.schemaVersion !== 1 && token.schemaVersion !== 2)
+        || !Array.isArray(token.players) || !Array.isArray(token.properties)
         || !Array.isArray(token.businesses) || !Array.isArray(token.treasuryAllocationIds)
-        || !Array.isArray(token.businessStockAllocationIds)) {
+        || !Array.isArray(token.businessStockAllocationIds)
+        || (token.schemaVersion===2&&!Array.isArray(token.populationMembers))) {
         throw new Error('Local genesis rollback token is invalid');
     }
-    return token;
+    return {schemaVersion:2,players:token.players,properties:token.properties,businesses:token.businesses,
+        treasuryAllocationIds:token.treasuryAllocationIds,businessStockAllocationIds:token.businessStockAllocationIds,
+        populationMembers:token.schemaVersion===2?token.populationMembers!:[]};
 }
 
 export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapter {
-    constructor(private readonly dependencies: LocalGenesisDependencies = defaults) {}
+    constructor(private readonly dependencies: LocalGenesisDependencies = defaults,
+        private readonly populationOptions?:LocalPopulationGenesisOptions) {}
+
+    private resolvePopulation(result:WorldGenesisResult):{members:PopulationGenesisMember[];
+        policy:PopulationLifecyclePolicy|null;profile:{profileId:string;version:string;digest:string}}{
+        return resolvePopulationGenesis(result,
+            loadWorldGenesisProfileCatalog(this.populationOptions?.profileCatalogPath??worldGenesisProfileCatalogPath),
+            loadPopulationLifecyclePolicyCatalog(this.populationOptions?.policyCatalogPath??populationLifecyclePolicyCatalogPath),
+            loadPopulationWorldProfileBindingCatalog(this.populationOptions?.bindingCatalogPath
+                ??populationWorldProfileBindingCatalogPath));
+    }
+
+    private populationStore():AgentStateStore{
+        if(!this.populationOptions)throw new Error('Finite population genesis requires the agent-state integration');
+        return new AgentStateStore(this.populationOptions.agentPath,this.populationOptions.simulationClock);
+    }
 
     private async inspect(result: WorldGenesisResult): Promise<{ preview: WorldGenesisAdminPreview;
         players: PlayerRollback[]; properties: PropertyRollback[]; businesses:BusinessRollback[];
-        treasuryAllocationIds:string[];businessStockAllocationIds:string[] }> {
+        treasuryAllocationIds:string[];businessStockAllocationIds:string[];populationMembers:PopulationRollback[] }> {
         const allocations = assets(result), warnings: string[] = [], checks: WorldGenesisAdminPreview['checks'] = [];
+        const population=this.resolvePopulation(result);
+        if(population.policy&&!this.populationOptions)checks.push({key:'population-integration',ok:false,
+            message:'Finite population genesis requires the agent-state integration.'});
+        else if(population.policy&&this.populationOptions){
+            let store:AgentStateStore|null=null;
+            try{
+                store=this.populationStore();
+                const clock=this.populationOptions.simulationClock.store.get(this.populationOptions.simulationClock.clockId);
+                const clockMatches=!!clock&&result.simulationClock.clockId===this.populationOptions.simulationClock.clockId
+                    &&result.simulationClock.profileDigest===clock.profileDigest;
+                checks.push({key:'population-clock',ok:clockMatches,
+                    message:clockMatches?'Population genesis uses the configured simulation clock.':
+                        'Population genesis simulation clock binding is invalid.'});
+                for(const member of population.members){
+                    const identity=store.getIdentity(member.agentId),control=store.getControlProfile(member.agentId),
+                        lifecycle=store.getCharacterLifecycle(member.agentId),existing=store.getPopulationMember(member.agentId);
+                    const expected={agentId:member.agentId,playerUsername:member.playerUsername,
+                        worldProfile:{profileId:population.profile.profileId,version:population.profile.version,
+                            digest:population.profile.digest},
+                        lifecyclePolicy:{policyId:population.policy.policyId,version:population.policy.version,
+                            digest:population.policy.digest,kind:'finite' as const},
+                        simulationClock:{clockId:result.simulationClock.clockId,
+                            profileDigest:result.simulationClock.profileDigest},
+                        joinedAtSimulationTime:result.simulationClock.initialSimulationTime,
+                        sourceResultId:result.resultId,sourceResultDigest:result.resultDigest};
+                    const existingBinding=existing?{agentId:existing.agentId,playerUsername:existing.playerUsername,
+                        worldProfile:existing.worldProfile,lifecyclePolicy:existing.lifecyclePolicy,
+                        simulationClock:existing.simulationClock,joinedAtSimulationTime:existing.joinedAtSimulationTime,
+                        sourceResultId:existing.sourceResultId,sourceResultDigest:existing.sourceResultDigest}:null;
+                    const ok=identity?.playerUsername?.toLowerCase()===member.playerUsername
+                        &&control?.role==='player'&&control.subjectKind==='player'
+                        &&control.subjectId.toLowerCase()===member.playerUsername
+                        &&control.avatarPlayerUsername?.toLowerCase()===member.playerUsername
+                        &&lifecycle?.status==='active'&&result.simulationClock.initialSimulationTime>=lifecycle.createdAtSimulationTime
+                        &&!!clock&&result.simulationClock.initialSimulationTime<=clock.lastSimulationTime
+                        &&(!existing||(existing.status==='active'&&JSON.stringify(existingBinding)===JSON.stringify(expected)));
+                    checks.push({key:`population:${member.agentId}`,ok,
+                        message:ok?'Player agent is ready for exact finite PopulationMember binding.':
+                            'Player agent identity, lifecycle, clock, or existing population binding is incompatible.'});
+                }
+            }catch(error){checks.push({key:'population-integration',ok:false,
+                message:error instanceof Error?error.message:String(error)});}
+            finally{store?.close()}
+        }
         const unsupported = allocations.filter(asset => (asset.kind === 'currency'
             && !['player','business','faction'].includes(asset.owner.kind))
             || (asset.kind === 'item' && !((asset.owner.kind === 'player' && asset.container !== 'business-stock')
@@ -205,7 +289,7 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
             message:error instanceof Error?error.message:String(error)});}
 
         const players: PlayerRollback[] = [];
-        for (const username of playerNames(allocations)) {
+        for (const username of [...new Set([...playerNames(allocations),...population.members.map(member=>member.playerUsername)])].sort()) {
             const inspection = await this.dependencies.inspectPlayer(username);
             const ok = inspection.readiness.editable && !!inspection.state;
             checks.push({ key: `player:${username}`, ok,
@@ -241,7 +325,8 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
         const businessStockAllocationIds=allocations.filter(asset=>asset.kind==='item'
             && asset.owner.kind==='business'&&asset.container==='business-stock').map(asset=>asset.allocationId);
         return { preview: { ok: checks.every(check => check.ok), warnings, checks }, players, properties,
-            businesses,treasuryAllocationIds,businessStockAllocationIds };
+            businesses,treasuryAllocationIds,businessStockAllocationIds,
+            populationMembers:population.members.map(member=>({agentId:member.agentId})) };
     }
 
     async preview(result: WorldGenesisResult): Promise<WorldGenesisAdminPreview> {
@@ -253,17 +338,72 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
         const inspected = await this.inspect(result);
         if (!inspected.preview.ok) throw new Error(`Genesis preflight failed: ${inspected.preview.checks
             .filter(check => !check.ok).map(check => check.message).join('; ')}`);
-        return { createdAtSimulationTime: result.simulationClock.initialSimulationTime,
-            rollbackToken: { schemaVersion: 1, players: inspected.players as unknown as WorldGenesisJsonValue,
+        let createdAtSimulationTime=result.simulationClock.initialSimulationTime;
+        if(this.populationOptions && this.resolvePopulation(result).policy) {
+            const clock=this.populationOptions.simulationClock,state=clock.store.get(clock.clockId)!;
+            createdAtSimulationTime=clock.store.observe(clock.clockId,new Date(Math.max(Date.now(),Date.parse(state.lastObservedWallTime))).toISOString()).simulationTime;
+        }
+        return { createdAtSimulationTime,
+            rollbackToken: { schemaVersion: 2, players: inspected.players as unknown as WorldGenesisJsonValue,
                 properties: inspected.properties as unknown as WorldGenesisJsonValue,
                 businesses:inspected.businesses as unknown as WorldGenesisJsonValue,
                 treasuryAllocationIds:inspected.treasuryAllocationIds,
-                businessStockAllocationIds:inspected.businessStockAllocationIds } };
+                businessStockAllocationIds:inspected.businessStockAllocationIds,
+                populationMembers:inspected.populationMembers as unknown as WorldGenesisJsonValue } };
     }
 
     async apply(result: WorldGenesisResult, tokenValue: WorldGenesisJsonValue): Promise<WorldGenesisJsonValue> {
         const allocations = assets(result), token = rollbackToken(tokenValue);
         const now=result.simulationClock.initialSimulationTime;
+        const population=this.resolvePopulation(result);
+        const integrityPath=this.populationOptions?.integrityDbPath ?? societyIntegrityDbPath;
+        if(population.policy && existsSync(integrityPath)) {
+            const integrity=new SocietyIntegrityStore(integrityPath);
+            try {
+                if(integrity.get(result.resultId)) {
+                    for(const player of token.players) {
+                        const current=await this.dependencies.inspectPlayer(player.username);
+                        if(!current.readiness.editable || !current.state || current.state.savedAt!==player.before.savedAt
+                            || !sameSave(current.state,player.before))throw new Error(`Opening genesis save changed: ${player.username}`);
+                        const values:Array<{key:string;value:unknown}>=[];
+                        if(player.before.coins>0)values.push({key:'currency',value:{kind:'currency',amountGp:player.before.coins}});
+                        for(const container of ['inventory','bank','equipment'] as const)for(const [index,item] of player.before[container].entries())
+                            values.push({key:`${container}:${index}`,value:{kind:'item',container,...item}});
+                        integrity.recordOpening(result.resultId,`player:${player.username}`,values);
+                    }
+                    const institutions=new Map<string,{kind:InstitutionKind;id:string}>();
+                    for(const asset of allocations) {
+                        if((asset.kind==='currency' || asset.kind==='item') && (asset.owner.kind==='business'||asset.owner.kind==='faction'))
+                            institutions.set(`${asset.owner.kind}:${asset.owner.id}`,{kind:asset.owner.kind,id:asset.owner.id});
+                    }
+                    for(const [actor,institution] of institutions) {
+                        const account=this.dependencies.getTreasury(institution.kind,institution.id);
+                        const values:Array<{key:string;value:unknown}>=account?.balanceGp?[
+                            {key:'currency',value:{kind:'currency',amountGp:account.balanceGp}}]:[];
+                        if(institution.kind==='business')for(const item of this.dependencies.getBusinessInventory(institution.id))
+                            values.push({key:`business-stock:${item.itemId}`,value:{kind:'item',container:'business-stock',itemId:item.itemId,count:item.count}});
+                        integrity.recordOpening(result.resultId,actor,values);
+                    }
+                }
+            }finally{integrity.close();}
+        }
+        if(JSON.stringify(token.populationMembers.map(item=>item.agentId).sort())
+            !==JSON.stringify(population.members.map(item=>item.agentId).sort()))
+            throw new Error('Genesis population rollback token does not match the result');
+        const populationReceipts:WorldGenesisJsonValue[]=[];
+        if(population.policy){
+            const store=this.populationStore();
+            try{for(const member of population.members)populationReceipts.push(store.bindPopulationMember({
+                agentId:member.agentId,playerUsername:member.playerUsername,
+                worldProfile:{profileId:population.profile.profileId,version:population.profile.version,
+                    digest:population.profile.digest},
+                lifecyclePolicy:{policyId:population.policy.policyId,version:population.policy.version,
+                    digest:population.policy.digest,kind:'finite'},
+                simulationClock:{clockId:result.simulationClock.clockId,profileDigest:result.simulationClock.profileDigest},
+                joinedAtSimulationTime:result.simulationClock.initialSimulationTime,
+                sourceResultId:result.resultId,sourceResultDigest:result.resultDigest
+            },result.generatedAtAudit) as unknown as WorldGenesisJsonValue)}finally{store.close()}
+        }
         const businessReceipts:WorldGenesisJsonValue[]=[];
         for(const entry of token.businesses){
             const allocation=allocations.find(asset=>asset.kind==='business'&&asset.allocationId===entry.allocationId) as
@@ -279,14 +419,20 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
         for(const entry of token.businesses){
             const allocation=allocations.find(asset=>asset.kind==='business'&&asset.allocationId===entry.allocationId) as
                 Extract<GenesisAssetAllocation,{kind:'business'}>|undefined;
-            if(allocation&&entry.capitalAllocationId)treasuryReceipts.push(this.dependencies.creditTreasury('business',
-                allocation.businessId,entry.capitalAllocationId,allocation.openingCapitalGp,now) as unknown as WorldGenesisJsonValue);
+            if(allocation&&entry.capitalAllocationId){
+                authorizeSocietyBootstrap(result.resultId,{source:'gateway.treasury-genesis',operationId:`treasury-genesis:${entry.capitalAllocationId}`,
+                    actor:`business:${allocation.businessId}`,payload:{allocationId:entry.capitalAllocationId,amountGp:allocation.openingCapitalGp}},this.populationOptions?.integrityDbPath);
+                treasuryReceipts.push(this.dependencies.creditTreasury('business',
+                    allocation.businessId,entry.capitalAllocationId,allocation.openingCapitalGp,now) as unknown as WorldGenesisJsonValue);
+            }
         }
         for(const allocationId of token.treasuryAllocationIds){
             const allocation=allocations.find(asset=>asset.kind==='currency'&&asset.allocationId===allocationId) as
                 Extract<GenesisAssetAllocation,{kind:'currency'}>|undefined;
             if(!allocation||!(allocation.owner.kind==='business'||allocation.owner.kind==='faction'))
                 throw new Error(`Genesis treasury allocation disappeared: ${allocationId}`);
+            authorizeSocietyBootstrap(result.resultId,{source:'gateway.treasury-genesis',operationId:`treasury-genesis:${allocationId}`,
+                actor:`${allocation.owner.kind}:${allocation.owner.id}`,payload:{allocationId,amountGp:allocation.amountGp}},this.populationOptions?.integrityDbPath);
             treasuryReceipts.push(this.dependencies.creditTreasury(allocation.owner.kind,allocation.owner.id,
                 allocation.allocationId,allocation.amountGp,now) as unknown as WorldGenesisJsonValue);
         }
@@ -296,6 +442,8 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
                 Extract<GenesisAssetAllocation,{kind:'item'}>|undefined;
             if(!allocation||allocation.owner.kind!=='business'||allocation.container!=='business-stock')
                 throw new Error(`Genesis business-stock allocation disappeared: ${allocationId}`);
+            authorizeSocietyBootstrap(result.resultId,{source:'gateway.business-stock-genesis',operationId:`business-stock-genesis:${allocationId}`,
+                actor:`business:${allocation.owner.id}`,payload:{allocationId,itemId:allocation.itemId,count:allocation.count}},this.populationOptions?.integrityDbPath);
             stockReceipts.push(this.dependencies.creditBusinessItem(allocation.allocationId,allocation.owner.id,
                 allocation.itemId,allocation.count,now) as unknown as WorldGenesisJsonValue);
         }
@@ -303,8 +451,13 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
         for (const player of token.players) {
             const playerAssets = allocations.filter(asset => asset.owner.kind === 'player' && asset.owner.id === player.username
                 && (asset.kind === 'currency' || asset.kind === 'item'));
+            if(!playerAssets.length)continue;
             const draft = desiredDraft(player.before, playerAssets);
-            const commandId = randomUUID(), response = await this.dependencies.editPlayer(player.username,
+            const commandId = randomUUID();
+            authorizeSocietyBootstrap(result.resultId,{source:'engine.offline-save',operationId:`offline-save:${commandId}`,
+                actor:`player:${player.username}`,payload:{before:saveValueSnapshot(player.before),after:saveValueSnapshot({
+                    ...draft,equipment:draft.equipment!,position:draft.position!})}},this.populationOptions?.integrityDbPath);
+            const response = await this.dependencies.editPlayer(player.username,
                 draft, commandId);
             const expected = response.after ? { ...draft, savedAt: response.after.savedAt,
                 position: draft.position!, equipment: draft.equipment! } : null;
@@ -321,8 +474,9 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
                 expectedVersion: property.beforeVersion, owner: property.owner });
             propertyReceipts.push(response.assignment as unknown as WorldGenesisJsonValue);
         }
-        return { schemaVersion: 1, players: playerReceipts, properties: propertyReceipts,
-            businesses:businessReceipts,treasuries:treasuryReceipts,businessStock:stockReceipts };
+        return { schemaVersion: 2, players: playerReceipts, properties: propertyReceipts,
+            businesses:businessReceipts,treasuries:treasuryReceipts,businessStock:stockReceipts,
+            populationMembers:populationReceipts };
     }
 
     async reset(_result: WorldGenesisResult, tokenValue: WorldGenesisJsonValue,
@@ -359,6 +513,8 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
         }
         const playerReceipts: WorldGenesisJsonValue[] = [];
         for (const player of [...token.players].reverse()) {
+            if(!assets(_result).some(asset=>asset.owner.kind==='player' && asset.owner.id===player.username
+                && (asset.kind==='currency'||asset.kind==='item')))continue;
             const inspection = await this.dependencies.inspectPlayer(player.username);
             if (!inspection.readiness.editable || !inspection.state) {
                 throw new Error(`Player is not offline/editable for genesis reset: ${player.username}`);
@@ -371,7 +527,15 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
             }
             playerReceipts.push({ username: player.username, commandId, restoredSavedAt: response.after.savedAt });
         }
-        return { schemaVersion: 1, players: playerReceipts, properties: propertyReceipts,
-            businesses:businessReceipts,treasuries:treasuryReceipts,businessStock:stockReceipts };
+        const populationReceipts:WorldGenesisJsonValue[]=[];
+        if(token.populationMembers.length){
+            const store=this.populationStore();
+            try{const reset=store.resetPopulationGenesisMembers(_result.resultId,_result.resultDigest,
+                [...token.populationMembers].reverse().map(entry=>entry.agentId),_result.generatedAtAudit);
+                populationReceipts.push(...reset as unknown as WorldGenesisJsonValue[]);}finally{store.close()}
+        }
+        return { schemaVersion: 2, players: playerReceipts, properties: propertyReceipts,
+            businesses:businessReceipts,treasuries:treasuryReceipts,businessStock:stockReceipts,
+            populationMembers:populationReceipts };
     }
 }

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "policyId": "local-world-reintegration",
+  "version": "1.0.0",
+  "worldProfileId": "local-world",
+  "effectiveFrom": "2026-01-01T00:00:00.000Z",
+  "expiresAt": null,
+  "rules": [
+    { "eventKind": "restitution-completed", "projection": "reputation", "delta": 2 },
+    { "eventKind": "compensation-paid", "projection": "reputation", "delta": 1 },
+    { "eventKind": "community-service-completed", "projection": "reputation", "delta": 1 },
+    { "eventKind": "sentence-completed", "projection": "reputation", "delta": 1 },
+    { "eventKind": "forgiveness-granted", "projection": "reputation", "delta": 1 },
+    { "eventKind": "religious-penance-completed", "projection": "moral-standing", "delta": 1 }
+  ]
+}

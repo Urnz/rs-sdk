@@ -135,6 +135,11 @@ export default class ScriptRunner {
             }
 
             while (state.execution === ScriptState.RUNNING) {
+                if (state._activePlayer?.populationTerminal || state._activePlayer2?.populationTerminal
+                    || (state.self instanceof Player && state.self.populationTerminal)) {
+                    state.execution = ScriptState.ABORTED;
+                    break;
+                }
                 const opcodes = state.script.opcodes;
 
                 if (state.pc >= opcodes.length || state.pc < -1) {

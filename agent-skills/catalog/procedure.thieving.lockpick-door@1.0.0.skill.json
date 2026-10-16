@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.thieving.lockpick-door",
+  "version": "1.0.0",
+  "name": "Pick one configured door lock",
+  "description": "Attempt one coordinate-bound lockpick through the existing Thieving mechanics and retain observable target, XP and game-message evidence. Successful lockpicking is not automatically a crime or a legal finding.",
+  "status": "verified",
+  "tags": ["procedure", "thieving", "lockpick"],
+  "parameters": {
+    "target-name": { "type": "string", "description": "Exact display name of the configured door or gate.", "required": true },
+    "target-x": { "type": "number", "description": "Exact world X coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "target-z": { "type": "number", "description": "Exact world Z coordinate.", "required": true, "minimum": 0, "maximum": 16383 },
+    "minimum-level": { "type": "number", "description": "Minimum reviewed Thieving level.", "required": true, "minimum": 1, "maximum": 99 }
+  },
+  "provenance": {
+    "authorKind": "human",
+    "authorId": "agent-society-rs",
+    "createdAt": "2026-09-27T19:30:00.000Z",
+    "derivedFrom": { "id": "procedure.thieving.lockpick-door", "version": "0.1.0" },
+    "notes": "Manually promoted after reviewed live engine run 43e3879c-c3dd-4af1-b465-f7a223c1c239 and restart-stable receipt replay in the frozen Phase 22.1 acceptance bundle."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 30000, "maxOperations": 1 },
+  "preconditions": [{
+    "condition": "skill-level-at-least",
+    "arguments": { "skill": "Thieving", "level": { "parameter": "minimum-level" } }
+  }],
+  "steps": [{
+    "kind": "operation",
+    "id": "pick-lock",
+    "operation": "thieve-lockpick",
+    "arguments": {
+      "name": { "parameter": "target-name" },
+      "match": "exact",
+      "option": 2,
+      "x": { "parameter": "target-x" },
+      "z": { "parameter": "target-z" },
+      "timeoutMs": 15000
+    }
+  }]
+}

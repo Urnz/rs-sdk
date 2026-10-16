@@ -1,0 +1,25 @@
+[oploc2,property_door_closed]
+p_arrivedelay;
+
+def_int $required_level = property_lock_level();
+if (stat(thieving) < $required_level) {
+    ~mesbox("You need level <tostring($required_level)> Thieving to pick this property lock.");
+    return;
+}
+
+if (property_requires_lockpick() = true & inv_total(inv, lockpick) = 0) {
+    mes("You need a lockpick for this property lock.");
+    return;
+}
+
+thieving_evidence_begin(4);
+mes("You attempt to pick the property lock.");
+if (stat_random(thieving, property_lock_chance_numerator(), property_lock_chance_denominator()) = false) {
+    mes("You fail to pick the property lock.");
+    return;
+}
+
+mes("You bypass the property lock and slip through the door.");
+stat_advance(thieving, property_lockpick_experience());
+~open_and_close_door(property_door_open, ~check_axis_locactive(coord), true);
+thieving_evidence_commit(3);

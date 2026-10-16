@@ -34,9 +34,15 @@ import { printError } from '#/util/Logger.js';
 import ClientGameProt from '#/network/game/client/ClientGameProt.js';
 import ClientGameProtRepository from '#/network/game/client/ClientGameProtRepository.js';
 import ServerGameProtRepository from '#/network/game/server/ServerGameProtRepository.js';
+import { custodyPacketAllowed } from '#/mods/PlayerCustodyPacketPolicy.js';
+import { PlayerStat } from '#/engine/entity/PlayerStat.js';
+import { recordPopulationDamage } from '#/mods/PopulationDeathRuntime.js';
+import { applyHealthAuditedDamage } from '#/mods/PlayerHealthDamage.js';
 
 export class NetworkPlayer extends Player {
     client: ClientSocket;
+    /** Set by the world from the persistent custody ledger before packets are decoded. */
+    custodyRestricted = false;
     userLimit = 0; // user packet limit
     clientLimit = 0; // client packet limit
     restrictedLimit = 0;
@@ -50,6 +56,16 @@ export class NetworkPlayer extends Player {
         this.client = client;
         this.session = client.uuid;
         this.client.player = this;
+    }
+
+    override applyDamage(damage: number, type: number) {
+        if (this.populationTerminal) throw new Error('Terminal population avatar cannot receive damage');
+        applyHealthAuditedDamage(this, PlayerStat.HITPOINTS, damage, () => super.applyDamage(damage, type),
+            (before, after) => { const terminal = recordPopulationDamage({ username: this.username.toLowerCase(),
+            sessionId: this.session, engineTick: World.currentTick, occurredAt: new Date().toISOString(),
+            hpBefore: before, hpAfter: after, maxHp: this.baseLevels[PlayerStat.HITPOINTS], damageType: type });
+                if (terminal) this.populationTerminal = true;
+            });
     }
 
     decodeIn() {
@@ -135,7 +151,8 @@ export class NetworkPlayer extends Player {
 
             if (decoder) {
                 const message = decoder.decode(NetworkPlayer.inBuf, this.client.waiting);
-                const success: boolean = ClientGameProtRepository.getHandler(packetType)?.handle(message, this) ?? false;
+                const success: boolean = custodyPacketAllowed(this.custodyRestricted || this.populationTerminal, message.category)
+                    && (ClientGameProtRepository.getHandler(packetType)?.handle(message, this) ?? false);
 
                 // todo: move out of model
                 if (success && message.category === ClientGameProtCategory.USER_EVENT) {
@@ -395,6 +412,7 @@ export class NetworkPlayer extends Player {
         }
     }
 }
+
 
 export function isClientConnected(player: Player): player is NetworkPlayer {
     return player instanceof NetworkPlayer && !(player.client instanceof NullClientSocket);

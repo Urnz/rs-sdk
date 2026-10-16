@@ -231,7 +231,8 @@ export class GovernanceStore {
         this.database.run('INSERT OR IGNORE INTO governance_schema (singleton, version) VALUES (1, 1)');
         const schema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number } | null;
-        if (!schema || schema.version < 1 || schema.version > 8) {
+        if (!schema || schema.version < 1 || schema.version > 10) {
+            this.database.close(true);
             throw new Error(`Unsupported governance schema version: ${schema?.version ?? 'missing'}`);
         }
         this.database.run(`CREATE TABLE IF NOT EXISTS governance_faction (
@@ -278,6 +279,12 @@ export class GovernanceStore {
         const simulationSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
             .get() as { version: number };
         if (simulationSchema.version === 7) this.migrateVersionSevenToEight();
+        const crimeSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+            .get() as { version: number };
+        if (crimeSchema.version === 8) this.migrateVersionEightToNine();
+        const fineSchema = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+            .get() as { version: number };
+        if (fineSchema.version === 9) this.migrateVersionNineToTen();
     }
 
     close(): void { this.database.close(true); }
@@ -859,6 +866,80 @@ export class GovernanceStore {
                     WHERE simulation_clock_id IS NOT NULL`);
             }
             this.database.run('UPDATE governance_schema SET version = 8 WHERE singleton = 1 AND version = 7');
+        });
+        transaction.immediate();
+    }
+
+    private migrateVersionEightToNine(): void {
+        const transaction = this.database.transaction(() => {
+            const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+                .get() as { version: number } | null;
+            if (current?.version === 9) return;
+            if (current?.version !== 8) throw new Error('Governance schema changed during migration');
+            this.database.run(`CREATE TABLE governance_crime_policy (
+                policy_id TEXT PRIMARY KEY,
+                jurisdiction_id TEXT NOT NULL REFERENCES governance_jurisdiction(jurisdiction_id),
+                version INTEGER NOT NULL CHECK (version BETWEEN 1 AND 1000000),
+                evidence_kinds_json TEXT NOT NULL, rules_digest TEXT NOT NULL CHECK (length(rules_digest) = 64),
+                status TEXT NOT NULL CHECK (status IN ('draft', 'active', 'superseded', 'revoked')),
+                revision INTEGER NOT NULL CHECK (revision >= 1),
+                created_by_agent_id TEXT NOT NULL, created_at TEXT NOT NULL,
+                effective_from TEXT, ended_at TEXT, policy_digest TEXT,
+                updated_at TEXT NOT NULL,
+                UNIQUE (jurisdiction_id, version),
+                CHECK ((effective_from IS NULL AND policy_digest IS NULL AND status IN ('draft', 'revoked'))
+                    OR (effective_from IS NOT NULL AND policy_digest IS NOT NULL
+                        AND status IN ('active', 'superseded', 'revoked'))),
+                CHECK (ended_at IS NULL OR effective_from IS NOT NULL))`);
+            this.database.run(`CREATE UNIQUE INDEX governance_active_crime_policy
+                ON governance_crime_policy(jurisdiction_id) WHERE status = 'active'`);
+            this.database.run(`CREATE TABLE governance_crime_policy_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                policy_id TEXT NOT NULL REFERENCES governance_crime_policy(policy_id),
+                action TEXT NOT NULL CHECK (action IN ('created', 'activated', 'superseded', 'revoked')),
+                actor_agent_id TEXT NOT NULL, from_status TEXT, to_status TEXT NOT NULL,
+                rules_digest TEXT NOT NULL CHECK (length(rules_digest) = 64),
+                policy_digest TEXT, occurred_at TEXT NOT NULL,
+                previous_hash TEXT NOT NULL CHECK (length(previous_hash) = 64),
+                entry_hash TEXT NOT NULL CHECK (length(entry_hash) = 64))`);
+            this.database.run('UPDATE governance_schema SET version = 9 WHERE singleton = 1 AND version = 8');
+        });
+        transaction.immediate();
+    }
+
+    private migrateVersionNineToTen(): void {
+        const transaction = this.database.transaction(() => {
+            const current = this.database.query('SELECT version FROM governance_schema WHERE singleton = 1')
+                .get() as { version: number } | null;
+            if (current?.version === 10) return;
+            if (current?.version !== 9) throw new Error('Governance schema changed during migration');
+            this.database.run(`CREATE TABLE governance_fine_policy (
+                policy_id TEXT PRIMARY KEY,
+                jurisdiction_id TEXT NOT NULL REFERENCES governance_jurisdiction(jurisdiction_id),
+                version INTEGER NOT NULL CHECK (version BETWEEN 1 AND 1000000),
+                max_fine_gp INTEGER NOT NULL CHECK (max_fine_gp BETWEEN 1 AND 1000000000),
+                rules_digest TEXT NOT NULL CHECK (length(rules_digest) = 64),
+                status TEXT NOT NULL CHECK (status IN ('draft', 'active', 'superseded', 'revoked')),
+                revision INTEGER NOT NULL CHECK (revision >= 1),
+                created_by_agent_id TEXT NOT NULL, created_at TEXT NOT NULL,
+                effective_from TEXT, ended_at TEXT, policy_digest TEXT, updated_at TEXT NOT NULL,
+                UNIQUE (jurisdiction_id, version),
+                CHECK ((effective_from IS NULL AND policy_digest IS NULL AND status IN ('draft', 'revoked'))
+                    OR (effective_from IS NOT NULL AND policy_digest IS NOT NULL
+                        AND status IN ('active', 'superseded', 'revoked'))),
+                CHECK (ended_at IS NULL OR effective_from IS NOT NULL))`);
+            this.database.run(`CREATE UNIQUE INDEX governance_active_fine_policy
+                ON governance_fine_policy(jurisdiction_id) WHERE status = 'active'`);
+            this.database.run(`CREATE TABLE governance_fine_policy_audit (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                policy_id TEXT NOT NULL REFERENCES governance_fine_policy(policy_id),
+                action TEXT NOT NULL CHECK (action IN ('created', 'activated', 'superseded', 'revoked')),
+                actor_agent_id TEXT NOT NULL, from_status TEXT, to_status TEXT NOT NULL,
+                rules_digest TEXT NOT NULL CHECK (length(rules_digest) = 64),
+                policy_digest TEXT, occurred_at TEXT NOT NULL,
+                previous_hash TEXT NOT NULL CHECK (length(previous_hash) = 64),
+                entry_hash TEXT NOT NULL CHECK (length(entry_hash) = 64))`);
+            this.database.run('UPDATE governance_schema SET version = 10 WHERE singleton = 1 AND version = 9');
         });
         transaction.immediate();
     }

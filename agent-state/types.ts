@@ -1,6 +1,6 @@
 import type { BoundSimulationEventStamp } from '../simulation-clock/types.js';
 
-export const AGENT_STATE_SCHEMA_VERSION = 21 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 25 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -65,6 +65,36 @@ export interface AgentCharacterLifecycle {
     createdAt: string;
     updatedAt: string;
     revision: number;
+}
+
+export type AgentPopulationMembershipStatus = 'active' | 'reset';
+
+export interface AgentPopulationMember {
+    agentId: string;
+    playerUsername: string;
+    worldProfile: { profileId: string; version: string; digest: string };
+    lifecyclePolicy: { policyId: string; version: string; digest: string; kind: 'finite' };
+    simulationClock: { clockId: string; profileDigest: string };
+    joinedAtSimulationTime: string;
+    sourceResultId: string;
+    sourceResultDigest: string;
+    status: AgentPopulationMembershipStatus;
+    resetAtSimulationTime: string | null;
+    characterLifecycle: AgentCharacterLifecycle;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+}
+
+export interface BindAgentPopulationMember {
+    agentId: string;
+    playerUsername: string;
+    worldProfile: AgentPopulationMember['worldProfile'];
+    lifecyclePolicy: AgentPopulationMember['lifecyclePolicy'];
+    simulationClock: AgentPopulationMember['simulationClock'];
+    joinedAtSimulationTime: string;
+    sourceResultId: string;
+    sourceResultDigest: string;
 }
 
 export interface CreateAgentIdentity {
@@ -264,7 +294,7 @@ export interface AgentEpisodeListOptions {
 }
 
 export type AgentEpisodeProtectionReason = 'semantic-evidence' | 'relationship-evidence'
-    | 'commitment-evidence' | 'consolidation-evidence' | 'external-source';
+    | 'commitment-evidence' | 'consolidation-evidence' | 'external-source' | 'population-archive';
 
 export interface AgentEpisodeRetentionCandidate {
     episodeId: string;
@@ -603,6 +633,7 @@ export interface CreateAgentConsolidationEvidence {
 export interface AgentSnapshot {
     identity: AgentIdentity;
     characterLifecycle: AgentCharacterLifecycle | null;
+    populationMember: AgentPopulationMember | null;
     goals: AgentGoal[];
     workingMemory: AgentWorkingMemory | null;
     knownSkills: AgentSkillKnowledge[];

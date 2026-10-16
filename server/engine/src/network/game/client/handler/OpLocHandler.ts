@@ -46,9 +46,14 @@ export default class OpLocHandler extends ClientGameMessageHandler<OpLoc> {
             return World.handlePropertySign(player, x, z, player.level, message.op);
         }
 
-        if (locId === LocType.getId('property_door_closed') && !World.authorizePropertyDoor(player, x, z, player.level)) {
-            player.clearPendingAction();
-            return true;
+        if (locId === LocType.getId('property_door_closed')) {
+            const allowed = message.op === 1
+                ? World.authorizePropertyDoor(player, x, z, player.level)
+                : World.authorizePropertyBurglaryAttempt(player, x, z, player.level);
+            if (!allowed) {
+                player.clearPendingAction();
+                return true;
+            }
         }
 
         if (locId === LocType.getId('banknoticeboard') && message.op === 1) {

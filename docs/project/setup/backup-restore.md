@@ -1,5 +1,11 @@
 # Helyi állapot mentése és visszaállítása
 
+A társadalmi benchmark teljesebb, offline forrás/config/cache/adatbázis/mentés
+csomagját és új könyvtárba történő visszaállítását a
+[24.11 protokoll](../features/phase24-11-society-benchmark.md) írja le.
+Az alábbi régi parancsok engine-only mentést készítenek; AgentState-et,
+SimulationClockot és társadalmi journalokat nem tartalmaznak.
+
 A mentés a játékos-save fájlokat, az SQLite adatbázist és – ha létezik – a helyi
 `world.json` konfigurációt tartalmazza. A `bot.env` jelszavak szándékosan nem
 részei a mentésnek.

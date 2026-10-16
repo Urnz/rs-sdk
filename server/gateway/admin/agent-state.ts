@@ -1,6 +1,13 @@
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { AgentStateStore, type AgentStateSimulationClock } from '../../../agent-state/store.js';
+import { loadPopulationAgePolicy, type PopulationAgePolicy } from '../../../population-lifecycle/age.js';
+import { loadPopulationMortalityPolicy, type PopulationMortalityPolicy } from '../../../population-lifecycle/mortality.js';
+import { reconcilePopulationDeaths } from './population-death-runtime.js';
+import { defaultEstateRuntimeOptions } from './population-estate-runtime.js';
+import { runPopulationEstateCycle, type EstateRuntimeOptions } from '../../../population-estate/runtime.js';
+import { loadHealthPolicy, runPopulationHealthCycle, type PopulationHealthRuntimeOptions } from '../../../population-health/index.js';
+import { populationHealthDbPath, populationHealthPolicyPath, populationHealthEngineEvidencePath } from './paths.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
 import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
@@ -12,12 +19,13 @@ import type { AgentCommitmentStatus, AgentControlProfile, AgentPlayerActionManua
     CreateAgentEpisode, CreateAgentGoal, CreateAgentIdentity, CreateAgentKnowledge, GoalStatus,
     CreateAgentPlayerActionRequest, SetAgentControlProfile, SetAgentRelationship,
     UpdateAgentIdentity } from '../../../agent-state/types.js';
-import { agentStateDbPath, economicContractsDbPath, institutionTreasuryDbPath } from './paths.js';
+import { agentStateDbPath, economicContractsDbPath, institutionTreasuryDbPath, repoRoot } from './paths.js';
 import { listAdminSkills, listAdminSkillsForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { BotCatalogEntry } from './types.js';
 import type { AdminPropertyView } from './properties.js';
 import { readSkillRun, readSkillRunHistory, type AdminSkillRun } from './skill-history.js';
 import { requestEnginePlayerReward } from './player-rewards.js';
+import { bindSocietyInternalPayment } from './society-integrity.js';
 import { InstitutionTreasuryStore, type InstitutionKind } from './institution-treasury.js';
 import { BusinessManagerStore } from './business-manager.js';
 import { businessManagerPathFor, validateBusinessPlayerActionForAgent } from './business-agent-port.js';
@@ -25,6 +33,7 @@ import { factionTreasuryActorForAgent, validateFactionPlayerActionForAgent } fro
 import { inspectGovernanceForAgent, governancePathFor } from './governance-agent-port.js';
 import { EconomicContractStore } from './economic-contracts.js';
 import { buildAdminDecisionContext } from './admin-decision-context.js';
+import { loadCrimeKnowledge, type CrimeKnowledgePaths, type CrimeKnowledgeSnapshot } from './crime-knowledge.js';
 import type { GatewayBotSnapshot } from './types.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T,
@@ -56,6 +65,12 @@ function useBusiness<T>(path: string, callback: (store: BusinessManagerStore) =>
 }
 
 export interface AdminAgentAssetSources {
+    simulationClock?: AgentStateSimulationClock;
+    populationAgePolicy?: PopulationAgePolicy;
+    populationMortalityPolicy?: PopulationMortalityPolicy;
+    populationHealth?: PopulationHealthRuntimeOptions;
+    populationDeathSourcePath?: string;
+    populationEstate?: EstateRuntimeOptions;
     bots?: readonly BotCatalogEntry[];
     properties?: readonly AdminPropertyView[];
     unavailableSources?: readonly string[];
@@ -64,6 +79,7 @@ export interface AdminAgentAssetSources {
     gatewayBots?: ReadonlyMap<string, GatewayBotSnapshot>;
     skillRuns?: readonly AdminSkillRun[];
     economicContractsPath?: string;
+    crimeKnowledgePaths?: CrimeKnowledgePaths;
 }
 
 export async function listAdminAgents(path = agentStateDbPath, assetSources: AdminAgentAssetSources = {}) {
@@ -71,6 +87,26 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         ? Promise.resolve([...assetSources.skillRuns]) : readSkillRunHistory(500)]);
     const availableSkills = skills.map(skill => ({ id: skill.id, version: skill.version }));
     const generatedAt = new Date().toISOString();
+    const agePolicy = assetSources.simulationClock ? assetSources.populationAgePolicy
+        ?? loadPopulationAgePolicy(join(repoRoot, 'config', 'population-age-policy.json')) : null;
+    const mortalityPolicy = agePolicy ? assetSources.populationMortalityPolicy
+        ?? loadPopulationMortalityPolicy(join(repoRoot, 'config', 'population-mortality-policy.json')) : null;
+    const healthOptions = assetSources.populationHealth ?? (path === agentStateDbPath && assetSources.simulationClock
+        ? { statePath: populationHealthDbPath, engineEvidencePath: populationHealthEngineEvidencePath,
+            policy: loadHealthPolicy(populationHealthPolicyPath) } : null);
+    const deathSource = assetSources.populationDeathSourcePath ?? (path === agentStateDbPath ? populationHealthEngineEvidencePath : null);
+    let deathUnavailable = false;
+    if (deathSource && agePolicy && mortalityPolicy && assetSources.simulationClock) {
+        try { useStore(path, store => reconcilePopulationDeaths(store, deathSource, agePolicy, mortalityPolicy), assetSources.simulationClock); }
+        catch { deathUnavailable = true; }
+    }
+    const estateOptions = assetSources.populationEstate ?? (path === agentStateDbPath ? defaultEstateRuntimeOptions() : null);
+    let estate: ReturnType<typeof runPopulationEstateCycle> | null = null;
+    if (estateOptions) { try { estate = runPopulationEstateCycle(estateOptions,assetSources.observedAt ?? generatedAt); }
+        catch { estate = null; } }
+    const health = healthOptions && agePolicy && assetSources.simulationClock ? useStore(path,
+        store => runPopulationHealthCycle(store, assetSources.simulationClock!, agePolicy, healthOptions,
+            assetSources.observedAt ?? generatedAt), assetSources.simulationClock) : null;
     const treasuries = new Map(useTreasury(path, store => store.list())
         .map(item => [`${item.kind}:${item.id}`, item]));
     const businesses = new Map(useBusiness(path, store => store.list(500))
@@ -84,8 +120,28 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         try { offers = economic.listOffers(500, generatedAt); contracts = economic.listContracts(500); }
         finally { economic.close(); }
     }
+    const crimePaths = assetSources.crimeKnowledgePaths ?? (path === agentStateDbPath ? {
+        thieving: join(repoRoot, '.local', 'crime', 'thieving-procedures.sqlite'),
+        cases: join(repoRoot, '.local', 'crime', 'cases.sqlite'),
+        reintegrationEvidence:join(repoRoot,'.local','crime','reintegration-evidence.sqlite'),
+        reintegrationState:join(repoRoot,'.local','crime','reintegration-state.sqlite'),worldProfileId:'local-world'
+    } : null);
+    const crimeKnowledge: CrimeKnowledgeSnapshot = crimePaths
+        ? loadCrimeKnowledge(crimePaths, useStore(path, store => store.listIdentities().map(value => value.agentId)))
+        : { byViewer: new Map(), reformsByViewer:new Map(), unavailable: false };
     const agents = useStore(path, store => store.listIdentities().map(identity => {
+        const populationAge = agePolicy ? store.getPopulationAge(identity.agentId, agePolicy,
+            assetSources.observedAt ?? generatedAt) : null;
+        const populationMortality = agePolicy && mortalityPolicy
+            ? store.getPopulationMortality(identity.agentId, agePolicy, mortalityPolicy) : null;
+        const populationHealth = health?.byAgent.get(identity.agentId) ?? null;
         const snapshot = store.getSnapshot(identity.agentId)!;
+        const populationDeath = store.getPopulationDeath(identity.agentId);
+        const archivedMemory = store.getPopulationMemoryArchive(identity.agentId);
+        const populationMemoryArchive = archivedMemory ? {digest:archivedMemory.digest,deathEventId:archivedMemory.archive.deathEventId,
+            capturedAt:archivedMemory.archive.capturedAt,captureMode:archivedMemory.archive.captureMode,
+            counts:Object.fromEntries(Object.entries(archivedMemory.archive.records).map(([kind,rows])=>[kind,rows.length]))} : null;
+        const populationEstate = estate?.cases.find(current => current.agentId === identity.agentId) ?? null;
         const knownByReference = new Map(snapshot.knownSkills.map(item =>
             [`${item.skill.id}@${item.skill.version}`, item]));
         const skillRelationships = skills.map(skill => {
@@ -153,7 +209,17 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
         const relevantContracts = contracts.filter(item => item.partyAAgentId === identity.agentId
             || item.partyBAgentId === identity.agentId);
         let governance = null;
-        const unavailable = [...(assetSources.unavailableSources ?? []), ...assets.unavailableSources];
+        const unavailable = [...(assetSources.unavailableSources ?? []), ...assets.unavailableSources,
+            ...(snapshot.characterLifecycle?.status === 'deceased' && (!populationEstate || populationEstate.status !== 'custody-ready')
+                ? ['population-estate'] : []),
+            ...(snapshot.characterLifecycle?.status === 'deceased' || snapshot.populationMember?.status === 'reset'
+                ? ['character-lifecycle-closed'] : []),
+            ...(snapshot.populationMember && deathUnavailable ? ['population-death-authority'] : []),
+            ...(snapshot.populationMember && !populationAge ? ['population-age'] : []),
+            ...(snapshot.populationMember && !populationMortality ? ['population-mortality'] : []),
+            ...(snapshot.populationMember && (!health?.sourceAvailable || health.pending
+                || !health.byAgent.has(identity.agentId)) ? ['population-health'] : []),
+            ...(crimeKnowledge.unavailable ? ['crime-case-knowledge'] : [])];
         if (controlProfile.role === 'institution' && controlProfile.subjectKind === 'faction') {
             const governancePath = governancePathFor(path);
             if (existsSync(governancePath)) {
@@ -161,13 +227,26 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
                 catch { unavailable.push('governance-subject'); }
             } else unavailable.push('governance-subject');
         }
+        const witnessDescriptions = crimeKnowledge.byViewer.get(identity.agentId) ?? [];
+        const witnessedCrimeContext = witnessDescriptions.length ? `\nPersonally observed suspects (not legal findings):\n- ${
+            witnessDescriptions.slice(0, 4).map(value => `${value.targetAgentId}: ${value.description}; case event ${
+                value.sourceCaseEventIds[0]}`).join('\n- ')}` : '';
+        const reformDescriptions=crimeKnowledge.reformsByViewer.get(identity.agentId)??[];
+        const reformContext=reformDescriptions.length?`\nKnown reintegration efforts (audience-scoped, not legal erasure):\n- ${
+            reformDescriptions.slice(0,4).map(value=>`${value.targetAgentId}: ${value.description}; source events ${
+                value.sourceEventIds.join(',')}`).join('\n- ')}`:'';
+        const healthContext = snapshot.populationMember ? populationHealth && populationHealth.sourceStatus === 'verified'
+            ? `\nAuthoritative injury health: ${populationHealth.status}; burden ${populationHealth.injuryBurden}/10000; `
+                + `rest required ${populationHealth.restRequired}; treatment required ${populationHealth.treatmentRequired}; `
+                + `workload capacity ${populationHealth.workloadCapacityBasisPoints}/10000. Treatment needs verified clinical evidence.`
+            : '\nInjury health is unobserved/unavailable; stored values are historical. Do not assume the character is healthy.' : '';
         const baseContext = `${buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 6000,
             controlProfile,
             playerActionRequests,
             episodicMemories: relevantEpisodes.map(result => result.episode),
             semanticMemories: relevantKnowledge.map(result => result.knowledge),
-            socialMemories: relevantRelationships, assets })}${treasury
-                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}`;
+            socialMemories: relevantRelationships, assets })}${witnessedCrimeContext}${reformContext}${treasury
+                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}${healthContext}`;
         const decision = buildAdminDecisionContext({ baseContext, profile: controlProfile, bot: bot ?? null,
             gateway, business, governance, offers: relevantOffers, contracts: relevantContracts,
             latestRun: identity.playerUsername
@@ -175,6 +254,12 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             unavailableSources: unavailable, generatedAt });
         return {
             ...snapshot,
+            populationAge,
+            populationMortality,
+            populationDeath,
+            populationMemoryArchive,
+            populationEstate,
+            populationHealth,
             controlProfile,
             autonomyEnrollment,
             business,
@@ -201,7 +286,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             decisionContextProvenance: decision.provenance,
             planner: planNextAction(snapshot, { availableSkills })
         };
-    }));
+    }), assetSources.simulationClock);
     const enrichedAgents = await Promise.all(agents.map(async agent => {
         const catalogSkills = await listAdminSkillsForAgent(agent.identity.agentId, {
             ...assetSources.skillCatalog, at: assetSources.skillCatalog?.at ?? generatedAt
@@ -404,8 +489,12 @@ export async function settleAdminPlayerActionReward(settlementId: string, path =
             }
             store.bindSettlement(state.request.requestId, settlementId);
         });
+        const integrityPayment={settlementId,username:state.username,amountGp:state.request.rewardGp,
+            reservationId:state.request.requestId,treasuryPath:institutionTreasuryPathFor(path)};
+        bindSocietyInternalPayment(integrityPayment,'reserve');
         const receipt = await rewarder(state.username, state.request.rewardGp, settlementId);
         useTreasury(path, store => store.commit(state.request.requestId, settlementId));
+        bindSocietyInternalPayment(integrityPayment,'commit');
         const balance = receipt.reward ? ` (${receipt.reward.coinsBefore} → ${receipt.reward.coinsAfter} gp)` : '';
         return useStore(path, store => store.completePlayerActionSettlement(settlementId,
             `Jutalom kifizetve: ${state.request.rewardGp} gp${balance}.`));

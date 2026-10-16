@@ -533,7 +533,9 @@ const PlayerOps: CommandHandlers = {
         const base = player.baseLevels[stat];
         const current = player.levels[stat];
         const subbed = current - ((constant + (base * percent) / 100) | 0);
-        player.levels[stat] = Math.max(subbed, 0);
+        if (stat === PlayerStat.HITPOINTS && player.populationFinite && subbed < current)
+            player.applyDamage(current - Math.max(subbed, 0), 0);
+        else player.levels[stat] = Math.max(subbed, 0);
         if (subbed !== current) {
             player.changeStat(stat);
         }
@@ -572,7 +574,9 @@ const PlayerOps: CommandHandlers = {
         const player = state.activePlayer;
         const current = player.levels[stat];
         const subbed = current - ((constant + (current * percent) / 100) | 0);
-        player.levels[stat] = Math.max(subbed, 0);
+        if (stat === PlayerStat.HITPOINTS && player.populationFinite && subbed < current)
+            player.applyDamage(current - Math.max(subbed, 0), 0);
+        else player.levels[stat] = Math.max(subbed, 0);
         if (subbed !== current) {
             player.changeStat(stat);
         }

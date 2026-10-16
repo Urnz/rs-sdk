@@ -9,6 +9,8 @@ const available: PropertyView = {
     type: 'workshop',
     location: { x: 3247, z: 3411, level: 0, region: 'Varrock East' },
     purchasePrice: 25000,
+    security: { lockLevel: 20, lockpickExperience: 150, successChanceNumerator: 32,
+        successChanceDenominator: 180, requiresLockpick: true },
     entryPoints: [{ entryPointId: 'front-door', label: 'Nyugati utcai bejárat', x: 3247, z: 3411, level: 0 }],
     revenue: { mode: 'none', amount: 0, intervalMinutes: 1440 },
     maintenance: { amount: 250, intervalMinutes: 1440 },

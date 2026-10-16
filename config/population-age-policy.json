@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "policyId": "finite-population-age",
+  "version": "1.0.0",
+  "lifecyclePolicy": {
+    "policyId": "finite-population",
+    "version": "1.0.0",
+    "digest": "fa1b2fe71e047c08f8e018dbcfba558a585265f2214c6e17e6aca8e2dbf367b4"
+  },
+  "simulationMillisecondsPerYear": 31536000000,
+  "stages": [
+    { "stageId": "child", "fromAgeYears": 0,
+      "modifiers": { "regenerationBasisPoints": 12000, "workloadCapacityBasisPoints": 2500, "riskBasisPoints": 12000 } },
+    { "stageId": "adolescent", "fromAgeYears": 12,
+      "modifiers": { "regenerationBasisPoints": 11000, "workloadCapacityBasisPoints": 6500, "riskBasisPoints": 11000 } },
+    { "stageId": "adult", "fromAgeYears": 18,
+      "modifiers": { "regenerationBasisPoints": 10000, "workloadCapacityBasisPoints": 10000, "riskBasisPoints": 10000 } },
+    { "stageId": "older-adult", "fromAgeYears": 50,
+      "modifiers": { "regenerationBasisPoints": 8500, "workloadCapacityBasisPoints": 8500, "riskBasisPoints": 11500 } },
+    { "stageId": "elder", "fromAgeYears": 70,
+      "modifiers": { "regenerationBasisPoints": 6500, "workloadCapacityBasisPoints": 6000, "riskBasisPoints": 14000 } }
+  ]
+}

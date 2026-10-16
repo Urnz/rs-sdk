@@ -93,7 +93,7 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     }
     if (options.semanticMemories?.length) {
         const knowledge = options.semanticMemories.slice(0, 12)
-            .map(item => `${item.subject} ${item.predicate} ${item.object} (confidence ${item.confidence}): ${item.summary}`);
+            .map(item => `${item.subject} ${item.predicate} ${item.object} (confidence ${item.confidence}${item.tags.includes('archived-knowledge') ? '; archived report' : ''}): ${item.summary}`);
         parts.push(`Relevant semantic knowledge:\n- ${knowledge.join('\n- ')}`);
     }
     if (options.socialMemories?.length) {

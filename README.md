@@ -112,7 +112,11 @@ The gateway listens on `ws://localhost:7780` by default (configurable via `AGENT
 
 ## Development checks
 
-Install the root and webclient dependencies, then run the same checks as CI:
+Install the root and webclient dependencies. CI runs changed-line formatting,
+both typechecks, and the root `bun test` suite. The command below is the stricter
+local completion gate: it is a superset of CI and also runs the feature-specific
+regression suites, so use it once at an appropriate completion milestone rather
+than after every edit.
 
 ```sh
 bun install --frozen-lockfile
