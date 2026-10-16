@@ -21,10 +21,11 @@
 - Spawn with `fork_turns="none"` by default. Give a compact brief with objective, relevant paths/symbols, constraints, established findings, and expected output. Inherit history only when it is genuinely required.
 - Do not model-poll long commands. Run verification through `scripts/invoke-verification.ps1`, which blocks, saves the full log, and returns one compact result.
 - Windows Bun: do not assume `bun` is on PATH. Use the repository verification tooling, which resolves the Bun runtime. A command that fails to launch is a verification failure and must never be reported as PASS.
-- During implementation run the smallest relevant tests. At a meaningful milestone run the affected module/integration suite. Before completion run `bun run verify:full` once when the change warrants the full regression suite.
+- Default completion gate: affected module tests plus tests of changed integration boundaries, changed-line formatting, and only the affected TypeScript projects. Documentation-only changes need formatting/link inspection, not runtime tests. Phase/task completion and pushing a branch do not by themselves require full regression.
+- Run `bun run verify:full` once for changes to shared persistence/migrations, clock or economic transaction foundations, cross-cutting authentication/authorization, runtime dependencies, or test discovery/global build configuration; also use it for a release/integration baseline or when impact cannot be bounded confidently. State the trigger before running. See `docs/project/VERIFICATION_POLICY.md` for selection and timing evidence.
 - Do not repeat a successful check unless relevant code changed, it previously failed, or an unresolved verification concern remains.
 - Batch independent deterministic checks into one command when safe. Keep complete verbose output in `.local/verification/`; inspect only failure excerpts or targeted log sections.
-- After changes, report the checks run and their outcomes.
+- After changes, report the selected scope, outcomes and duration, and why full regression was needed or omitted. A focused PASS must never be described as a full-suite PASS.
 
 ## Visualization policy
 

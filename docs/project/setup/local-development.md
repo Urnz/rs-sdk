@@ -62,11 +62,18 @@ Jelszó, `bot.env` tartalom vagy más titok nem kerülhet naplóba.
 
 ## Tesztszintek
 
-1. Gyors: `bun run test:quick` – tisztán lokális unit/regressziós tesztek.
+1. Célzott: `bun test <érintett tesztfájl vagy könyvtár>` a verification wrapperrel;
+   az érintett modul és módosított integrációs határ ellenőrzése. A korábbi
+   `test:quick` alias megszűnt: azonos volt a széles `test` alapcsomaggal.
 2. Integrációs: `bun run test:integration` – a futó engine, webclient és gateway
    végpontjainak ellenőrzése.
 3. Smoke: `bun run test:smoke` – a futó bot csatlakozása és egy valódi játékakció.
-4. Teljes kapu: `bun run check` – formázás, typecheckek és minden gyors teszt.
+4. Teljes kapu: `bun run verify:full` – formázás, három typecheck és minden
+   `check`-be kötött tesztcsomag; külön indokolt összesített ellenőrzés.
+
+Kiválasztás, futási előfeltételek és időmérés:
+[ellenőrzési rend](../VERIFICATION_POLICY.md). Az élő integráció/smoke csak
+az adott változás szükséges bizonyítékaként fut, nem minden feladat végén.
 
 ## Személyes játék és állapotmentés
 

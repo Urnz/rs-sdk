@@ -36,6 +36,16 @@ function Assert-VerificationFixture {
             throw "Missing '$expected' in verification output:`n$($Result.Text)"
         }
     }
+    $resultLine = @($Result.Text -split "`n" | Where-Object { $_.StartsWith('result: ') })
+    if ($resultLine.Count -ne 1) { throw 'Expected exactly one machine-readable result path.' }
+    $metrics = Get-Content -Raw -LiteralPath $resultLine[0].Substring(8).Trim() | ConvertFrom-Json
+    if ($metrics.version -ne 1 -or $metrics.exitCode -ne $ExitCode -or
+        -not $Result.Text.Contains("outcome: $($metrics.outcome)") -or
+        $metrics.durationSeconds -lt 0 -or
+        [DateTimeOffset]::Parse($metrics.finishedAt) -lt [DateTimeOffset]::Parse($metrics.startedAt) -or
+        $metrics.logBytes -ne (Get-Item -LiteralPath $metrics.logPath).Length) {
+        throw 'Invalid timing, outcome, exit code or log size in verification result.'
+    }
 }
 
 $savedAppData = $env:APPDATA
@@ -43,6 +53,13 @@ $savedPath = $env:PATH
 try {
     $success = Invoke-VerificationFixture -Name 'success' -CommandText "Write-Output 'verification-ok'"
     Assert-VerificationFixture $success 0 @('verification: PASS', 'outcome: SUCCESS', 'exit-code: 0')
+
+    $counts = Invoke-VerificationFixture -Name 'counts' -CommandText "Write-Output ' 3 pass'; Write-Output ' 0 fail'; Write-Output ' 0 skip'"
+    Assert-VerificationFixture $counts 0 @('tests: passed=3 failed=0 skipped=0')
+    $countsPath = ($counts.Text -split "`n" | Where-Object { $_.StartsWith('result: ') }).Substring(8).Trim()
+    $countsMetrics = Get-Content -Raw -LiteralPath $countsPath | ConvertFrom-Json
+    if ($countsMetrics.tests.passed -ne 3 -or $countsMetrics.tests.failed -ne 0 -or
+        $countsMetrics.tests.skipped -ne 0) { throw 'Machine-readable test counts differ from command output.' }
 
     $failed = Invoke-VerificationFixture -Name 'process-failed' -CommandText '& $env:ComSpec /d /c exit 7'
     Assert-VerificationFixture $failed 7 @('verification: FAIL', 'outcome: PROCESS_FAILED', 'exit-code: 7')

@@ -17,6 +17,10 @@ nem blokkoló ötlet a [későbbi backlogba](TASKS_LATER.md).
 Hatókörbővítés vagy vállalás elhagyása külön döntés. Kis feladatnál helyi
 commit, fázisváltásnál push; titok, hitelesítő adat és mentés nem kerül Gitbe.
 
+Ellenőrzés: az [érintett területre szabott rend](VERIFICATION_POLICY.md) az
+alapértelmezés. Egy feladat/fázis lezárása önmagában nem indokol teljes regressziót;
+a kiválasztott kör, indok, eredmény és időtartam kerül a progress fájlba.
+
 ## Korábbi nyitott követési feladat – 15.1
 
 - [ ] Az audit megállapításait executable regression/acceptance tesztjegyzékké

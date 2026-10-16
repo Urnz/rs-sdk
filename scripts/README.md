@@ -76,11 +76,12 @@ migration/rollback: [Phase 24.7](../docs/project/features/phase24-7-long-experim
 
 ## Minőségi kapuk
 
-- `bun run test:quick` – széles unit/regressziós alapcsomag; implementáció közben
-  inkább közvetlen `bun test <érintett-pathok>` futást használj.
+- `bun test <érintett-pathok>` – célzott ellenőrzés a lenti wrapperrel.
+- `bun run test` – széles alapcsomag. A korábbi, ezzel azonos `test:quick`
+  alias megszűnt; a modulok saját `test:<modul>` parancsai megmaradtak.
 - `bun run test:integration` – futó helyi komponensek HTTP- és MIME-ellenőrzése.
 - `bun run test:smoke` – a teljes stack és egy botakció ellenőrzése.
-- `bun run check` – formázási ellenőrzés, két typecheck és a teljes tesztcsomag,
+- `bun run check` – formázási ellenőrzés, három typecheck és a teljes tesztcsomag,
   beleértve az offline player-save adminolvasó tesztjeit.
 - `bun run test:powershell` – minden PowerShell segéd szintaktikai ellenőrzése.
 
@@ -97,10 +98,10 @@ pwsh -NoProfile -File scripts/invoke-verification.ps1 `
   -Name targeted `
   -CommandText 'bun test crime-cases/test/player-witness-proof.test.ts sdk/test/crime-report-client.test.ts'
 
-# Formázás és mindkét typecheck egy modell/tool körben
+# Formázás és mindhárom typecheck, ha mindhárom projekt érintett
 bun run verify:quality
 
-# Teljes regresszió egyszer, feladatlezárás előtt, amikor indokolt
+# Teljes regresszió egyszer, konkrét közös alapot érintő változásnál / kiadáskor
 bun run verify:full
 ```
 
@@ -108,7 +109,13 @@ Implementáció közben targeted tesztet, mérföldkőnél érintett modul/integ
 suite-ot használj. Sikeres teljes regressziót csak releváns új kódváltozás,
 korábbi hiba vagy konkrét nyitott ellenőrzési kockázat után ismételj meg. Ha egy
 teszt JUnitot készít, add át a fájlt `-JUnitPath`-tal; egyébként a wrapper a
-szokásos tömör tesztösszesítést olvassa ki a naplóból.
+szokásos tömör tesztösszesítést olvassa ki a naplóból. Minden futás mellé
+`.result.json` készül időtartammal, exit/outcome értékkel, tesztszámokkal
+(ismeretlen esetben null) és naplómérettel. Ez helyi mérés, nem tokenbecslés.
+Ismételt ellenőrzést ne indíts pusztán az időmérés kedvéért.
+
+A feladatlezárás alapértelmezett kapuja és a teljes regresszió indokai:
+[ellenőrzési rend](../docs/project/VERIFICATION_POLICY.md).
 
 ## Proto-society fixture
 

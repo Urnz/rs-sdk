@@ -220,6 +220,23 @@ $outcome = if ($launchFailure) { 'NOT_STARTED' }
 elseif ($exitCode -eq 0) { 'SUCCESS' }
 else { 'PROCESS_FAILED' }
 $status = if ($outcome -eq 'SUCCESS') { 'PASS' } else { 'FAIL' }
+$resultPath = [System.IO.Path]::ChangeExtension($logPath, '.result.json')
+# Local measurements only: log size is not a token count or an allowance estimate.
+[ordered]@{
+    version = 1
+    name = $Name
+    command = $CommandText
+    workingDirectory = $WorkingDirectory
+    startedAt = $startedAt.ToString('o')
+    finishedAt = $finishedAt.ToString('o')
+    durationSeconds = $duration.TotalSeconds
+    outcome = $outcome
+    exitCode = $exitCode
+    tests = [ordered]@{ passed = $passed; failed = $failed; skipped = $skipped }
+    logPath = $logPath
+    logBytes = (Get-Item -LiteralPath $logPath).Length
+} | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $resultPath -Encoding utf8
+
 $durationText = '{0:hh\:mm\:ss\.fff}' -f $duration
 Write-Output "verification: $status"
 Write-Output "outcome: $outcome"
@@ -234,6 +251,7 @@ if ($null -ne $passed) {
     Write-Output 'tests: counts unavailable'
 }
 Write-Output "log: $logPath"
+Write-Output "result: $resultPath"
 
 if ($status -eq 'FAIL') {
     if ($failedTests.Count -gt 0) {
