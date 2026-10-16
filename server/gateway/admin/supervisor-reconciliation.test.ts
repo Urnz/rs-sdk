@@ -34,6 +34,7 @@ describe('skill marker restart reconciliation', () => {
         expect(await supervisor.reconcileSkillMarkers('2026-09-08T08:10:00.000Z')).toEqual([
             expect.objectContaining({ status: 'unverified', reason: expect.stringContaining('own child handle') })]);
         expect(await supervisor.stopSkill('ferrye14')).toBe(false);
+        await expect(supervisor.startSkill('Ferrye14', 'mining.safe@1.0.0', {})).rejects.toThrow('tulajdonjoga nem igazolt');
         await supervisor.shutdownOwnedChildren(); expect(terminated).toEqual([]);
         expect(await Bun.file(join(directory, 'ferrye14.json')).exists()).toBe(true);
     });

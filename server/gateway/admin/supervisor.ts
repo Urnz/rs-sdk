@@ -365,6 +365,8 @@ export class BotSupervisor {
         }
         if (adopted?.status === 'running') throw new Error(`${username} már futtat adoptált agent skillt.`);
         const markerPath = join(this.skillMarkerDirectory, `${key}.json`);
+        if (this.environment.CONTROL_PLANE_SERVER_ID && await Bun.file(markerPath).exists())
+            throw new Error('A kezelt skill markerének tulajdonjoga nem igazolt; új folyamat nem indítható rá.');
         const marker = await Bun.file(markerPath).json().catch(() => null) as { pid?: number } | null;
         if (marker?.pid) {
             try {
