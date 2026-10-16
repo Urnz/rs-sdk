@@ -112,8 +112,8 @@ test('unauthenticated requests and non-owners never reach game backends or accou
         const other = await fixture.store.createAccount('http-other', 'synthetic other password', fixture.owner.id);
         const login = await fixture.store.login(other.username, 'synthetic other password');
         for (const path of ['/api/admin/config', '/api/control-plane/status', '/api/control-plane/accounts']) {
-            const request = new Request('http://localhost:7781' + path, { headers: { Cookie: `rs-control-session=${login.token}`, Authorization: 'Bearer forged-owner', 'X-Owner-Id': fixture.owner.id } });
-            expect((await handler(request)).status).toBe(403);
+            const request = new Request('http://localhost:7781' + path, { headers: { Cookie: `rs-control-session=${login.token}`, Authorization: 'Bearer forged-owner', 'X-Owner-Id': fixture.owner.id, 'X-Control-Server-ID': 'local-default' } });
+            expect((await handler(request)).status).toBe(path.endsWith('/accounts') ? 403 : 404);
         }
         expect(calls).toBe(0);
     } finally { fixture.store.close(); }
@@ -154,7 +154,7 @@ test('direct gateway ownership is checked on every request, including revocation
         const second = await store.createAccount('gateway-second', 'synthetic second password', owner.id);
         const login = await store.login(owner.username, 'synthetic gateway password'), cookie = `rs-control-session=${login.token}`;
         expect(gate(new Request('http://localhost:7780/api/admin/config'))?.status).toBe(401);
-        expect(gate(new Request('http://localhost:7780/api/admin/config', { headers: { Cookie: cookie } }))).toBeNull();
+        expect(gate(new Request('http://localhost:7780/api/admin/config', { headers: { Cookie: cookie, 'X-Control-Server-ID': 'local-default' } }))).toBeNull();
         expect(gate(new Request('http://localhost:7780/api/admin/config', { method: 'POST', headers: { Cookie: cookie } }))?.status).toBe(403);
         store.setOwnership(owner.id, second.id, true); store.setOwnership(second.id, owner.id, false);
         expect(gate(new Request('http://localhost:7780/api/admin/config', { headers: { Cookie: cookie } }))?.status).toBe(403);
@@ -190,8 +190,8 @@ test('real gateway entry point protects formerly public config and static routes
                 if((await handleAdminRequest(denied,new URL(denied.url),context)).status!==401)process.exit(2);
                 const upgrade=new Request(denied.url,{headers:{Upgrade:'websocket',Connection:'Upgrade'}});
                 if((await handleAdminRequest(upgrade,new URL(upgrade.url),context)).status!==401)process.exit(4);
-                const owner=new Request(denied.url,{headers:{Cookie:process.env.FIXTURE_COOKIE}});
-                if((await handleAdminRequest(owner,new URL(owner.url),context)).status!==200)process.exit(3);
+                const owner=new Request(denied.url,{headers:{Cookie:process.env.FIXTURE_COOKIE,'X-Control-Server-ID':'local-default'}});
+                if((await handleAdminRequest(owner,new URL(owner.url),context)).status!==(path==='/admin/'?303:200))process.exit(3);
             }`;
         const child = Bun.spawn([process.execPath, '--eval', code], { env: { ...process.env, CONTROL_PLANE_IDENTITY_PATH: path, FIXTURE_COOKIE: `rs-control-session=${login.token}` }, stdout: 'ignore', stderr: 'pipe' });
         const [exit, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
@@ -213,7 +213,7 @@ test('real HTTP proxy forwards only the validated session and CSRF to the gatewa
         const handler = createControlPlane({ ...controlPlaneConfig(), gatewayOrigin: gateway.url.origin }, store);
         const response = await handler(new Request('http://127.0.0.1:7781/api/admin/fixture', { method: 'POST',
             headers: { Cookie: `rs-control-session=${login.token}; unrelated=do-not-forward`, Origin: 'http://127.0.0.1:7781',
-                'X-Admin-Request': 'rs-sdk-admin', 'X-Control-CSRF': csrfFor(login.token) }, body: '{"fixture":"exact"}' }));
+                'X-Admin-Request': 'rs-sdk-admin', 'X-Control-CSRF': csrfFor(login.token), 'X-Control-Server-ID': 'local-default' }, body: '{"fixture":"exact"}' }));
         expect(response.status).toBe(200); expect(await response.json()).toEqual({ body: '{"fixture":"exact"}', cookie: `rs-control-session=${login.token}`, method: 'POST' });
     } finally { gateway?.stop(true); gate.close(); store.close(); await rm(temporary, { recursive: true, force: true }); }
 });

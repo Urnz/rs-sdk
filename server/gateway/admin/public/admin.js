@@ -1,5 +1,6 @@
 import { mountSocietyDashboard } from './society-dashboard.js';
 import { mountConnectionStatus } from './connection-status.js';
+import { contextHeaders, serverId, tokenKey } from './server-context.js';
 
 mountConnectionStatus(document.querySelector('#connection-status'));
 
@@ -45,7 +46,7 @@ const state = {
     spectateTimer: null,
     worldMapSelected: null,
     worldMapPinned: null,
-    token: sessionStorage.getItem('rs-admin-token') || ''
+    token: sessionStorage.getItem(tokenKey) || ''
 };
 
 const $ = selector => document.querySelector(selector);
@@ -74,14 +75,16 @@ const levelForXp = xp => {
 const xpForLevel = level => level <= 1 ? 0 : xpThresholds[Math.min(97, level - 2)];
 
 async function api(path, options = {}) {
-    const headers = { ...(options.headers || {}) };
+    const headers = contextHeaders(options.headers);
     if (options.mutation && state.controlSession) headers['X-Control-CSRF'] = state.controlSession.csrfToken;
     if (options.body) headers['Content-Type'] = 'application/json';
     if (options.mutation) headers['X-Admin-Request'] = 'rs-sdk-admin';
     if (state.token) headers.Authorization = `Bearer ${state.token}`;
     const response = await fetch(path, { ...options, headers });
+    if (response.ok && response.headers.get('X-Control-Server-ID') !== serverId) throw new Error('A válasz szerverkontextusa nem igazolt.');
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+        if (data.code === 'SERVER_NOT_FOUND') { location.assign('/admin/'); throw new Error('A szerverhez már nincs hozzáférésed.'); }
         if (state.controlSession && ['LOGIN_REQUIRED', 'OWNER_REQUIRED'].includes(data.code)) {
             location.assign('/admin/login.html');
             throw new Error(data.error);
@@ -90,7 +93,7 @@ async function api(path, options = {}) {
             const token = prompt('Add meg a helyi ADMIN_TOKEN értékét:');
             if (token) {
                 state.token = token;
-                sessionStorage.setItem('rs-admin-token', token);
+                sessionStorage.setItem(tokenKey, token);
             }
         }
         throw new Error(data.error || `HTTP ${response.status}`);
@@ -3185,7 +3188,6 @@ async function bootstrapAdmin() {
         const session = await fetch('/api/control-plane/session', { cache: 'no-store' });
         if (session.ok) {
             state.controlSession = await session.json();
-            if (!state.controlSession.ownsLocalServer) { location.assign('/admin/account.html'); throw new Error('Tulajdonosi jogosultság szükséges.'); }
             $('#control-account-link').hidden = false;
             $('#control-servers-link').hidden = false;
         } else if (session.status === 401) { location.assign('/admin/login.html'); throw new Error('Bejelentkezés szükséges.'); }

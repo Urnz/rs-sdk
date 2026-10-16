@@ -1,13 +1,15 @@
+import { contextHeaders, renderServerContext } from './server-context.js';
 /** Independent of the data bootstrap: the admin shell remains understandable during backend outages. */
 export function mountConnectionStatus(element) {
     let stopped = false, timer;
     async function update() {
         try {
-            const response = await fetch('/api/control-plane/status', { signal: AbortSignal.timeout(3000), cache: 'no-store' });
+            const response = await fetch('/api/control-plane/status', { headers: contextHeaders(), signal: AbortSignal.timeout(3000), cache: 'no-store' });
             // The old gateway URL remains a compatible direct entry point.
             if (response.status === 404) { element.hidden = true; stopped = true; return; }
             if (!response.ok) throw new Error('status unavailable');
             const status = await response.json();
+            renderServerContext(status.server);
             if (status.service !== 'rs-sdk-control-plane' || status.ready !== true
                 || !['available', 'unavailable'].includes(status.gateway?.state) || !['available', 'unavailable'].includes(status.engine?.state)) throw new Error('invalid status');
             element.hidden = false;

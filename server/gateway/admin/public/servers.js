@@ -75,7 +75,7 @@ function card(server) {
             }); footer.append(button);
         }
     }
-    if (server.adminUrl === '/admin/index.html?serverId=local-default') {
+    if (server.adminUrl === `/admin/index.html?serverId=${server.id}`) {
         const open = document.createElement('a'); open.href = server.adminUrl; open.textContent = 'Szerver megnyitása'; footer.append(open);
         if (server.connection?.gateway.state === 'unavailable') {
             const hint = document.createElement('small'); hint.textContent = 'A felület leállított játékszerver mellett is megnyitható.'; footer.append(hint);

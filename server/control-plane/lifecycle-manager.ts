@@ -19,6 +19,13 @@ export class LifecycleManager {
         return { state: server.state, revision: server.revision, version: server.version, template: server.template, error: server.error,
             observedState: server.state === 'running' ? await this.runtime.inspect(server) : null };
     }
+    async connection(actor: string, id: string) {
+        const server = this.owned(actor, id);
+        if (server.state !== 'running') return { gateway: false, engine: false };
+        if (this.runtime.connection) return this.runtime.connection(server);
+        const running = await this.runtime.inspect(server) === 'running';
+        return { gateway: running, engine: running };
+    }
     operation(actor: string, id: string) {
         const operation = this.registry.lifecycle.operation(id);
         if (!operation || !this.identities.owns(actor, operation.serverId)) throw new IdentityError(404, 'OPERATION_NOT_FOUND', 'A művelet nem található.');

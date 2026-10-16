@@ -305,6 +305,11 @@ instabillá vagy önfenntartóvá.
   [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.6 szerverkontextus.
 - [ ] A jelenlegi bot-, world-, property-, gazdasági és AI-admin nézeteket
   kötelező szerverkontextus alá helyezni.
+  **25.6 – ellenőrzés alatt:** rögzített lapkontextus, kötelező API-fejléc,
+  szerverenkénti proxy és health cache, gateway oldali egyezésvizsgálat,
+  látható szervernév/ID, kétlapos mentési és stale-kontextus Chrome-próba.
+  Célzott útválasztás/root typecheck és kétlapos Chrome PASS; valódi
+  kétvilágos proxypróba és a jogosultsági útválasztás miatti teljes kapu következik.
 - [ ] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin
   csak állapotot lásson, a kulcsok visszaolvasását ne engedje.
 - [ ] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,

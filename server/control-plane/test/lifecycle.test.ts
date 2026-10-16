@@ -20,6 +20,53 @@ export class FixtureRuntime implements ManagedRuntime {
     async stop(server: ManagedServer) { this.calls.push(`stop:${server.serverId}`); this.running.delete(server.serverId); }
     async inspect(server: ManagedServer): Promise<'running' | 'stopped'> { return this.running.has(server.serverId) ? 'running' : 'stopped'; }
 }
+
+test('mandatory server contexts route every domain to its owned bound gateway without a default fallback', async () => {
+    const temporary = await mkdtemp(join(tmpdir(), 'admin-context-')), path = join(temporary, 'identity.sqlite');
+    const identities = new IdentityStore(path), registry = new ServerRegistry(':memory:'), runtime = new FixtureRuntime();
+    const manager = new LifecycleManager(registry, identities, runtime), gates: ReturnType<typeof createGatewayIdentityGate>[] = [];
+    try {
+        const root = await identities.createAccount('context-root', 'synthetic root password');
+        const owner = await identities.createAccount('context-owner', 'synthetic owner password', root.id);
+        const login = await identities.login(owner.username, 'synthetic owner password');
+        const worlds = [manager.create(owner.id, creation(runtime, 'Világ A')), manager.create(owner.id, creation(runtime, 'Világ B'))]; await manager.idle();
+        const ids = worlds.map(operation => operation.serverId), calls: string[] = [];
+        for (const id of ids) gates.push(createGatewayIdentityGate(path, id));
+        const handler = createControlPlane(controlPlaneConfig(), identities, async (url, init) => {
+            calls.push(url.toString()); const index = ids.findIndex(id => registry.get(id)!.gatewayOrigin === url.origin);
+            expect(index).toBeGreaterThanOrEqual(0);
+            const request = new Request(url, init), denied = gates[index]!(request); if (denied) return denied;
+            return Response.json({ world: ids[index], path: url.pathname, body: await request.text() }, { headers: { 'X-Control-Server-ID': ids[index]! } });
+        }, registry, manager);
+        const request = (id?: string, route = '/api/admin/config', method = 'GET') => new Request('http://localhost:7781' + route, {
+            method, headers: { Cookie: `rs-control-session=${login.token}`, ...(id === undefined ? {} : { 'X-Control-Server-ID': id }),
+                ...(method === 'GET' ? {} : { Origin: 'http://localhost:7781', 'X-Admin-Request': 'rs-sdk-admin', 'X-Control-CSRF': csrfFor(login.token) }) },
+            ...(method === 'GET' ? {} : { body: '{"subject":"same-id"}' }) });
+        expect((await handler(request())).status).toBe(400);
+        expect((await handler(request(ids[0], `/api/admin/config?serverId=${ids[1]}`))).status).toBe(409);
+        expect((await handler(request('unknown-world'))).status).toBe(404);
+        expect((await handler(request(ids[0]))).status).toBe(503); expect(calls).toHaveLength(0);
+        expect((await handler(request(undefined, `/admin/index.html?serverId=${ids[0]}`))).status).toBe(200);
+        expect((await handler(request(undefined, '/admin/index.html'))).headers.get('location')).toBe('/admin/');
+        for (const id of ids) { manager.action(owner.id, id, 'start', { requestKey: randomUUID(), expectedRevision: registry.lifecycle.managed(id)!.revision }); await manager.idle(); }
+        for (const id of ids) for (const route of ['bots/same-id', 'properties', 'world-mods', 'economy', 'agents', 'llm-settings', 'society/dashboard']) {
+            const response = await handler(request(id, '/api/admin/' + route)); expect(response.headers.get('X-Control-Server-ID')).toBe(id);
+            expect((await response.json()).world).toBe(id);
+        }
+        const mutation = await handler(request(ids[1], '/api/admin/bots/same-id/restart', 'POST'));
+        expect(await mutation.json()).toMatchObject({ world: ids[1], body: '{"subject":"same-id"}' });
+        expect(gates[0]!(request(ids[1]))?.status).toBe(409); expect(gates[0]!(request())?.status).toBe(400);
+        const statuses = await Promise.all(ids.map(id => handler(request(id, '/api/control-plane/status')).then(response => response.json())));
+        expect(statuses.map(status => status.server.id)).toEqual(ids);
+        runtime.running.delete(ids[0]!); await Bun.sleep(1100);
+        const separate = await Promise.all(ids.map(id => handler(request(id, '/api/control-plane/status')).then(response => response.json())));
+        expect(separate[0].gateway.state).toBe('unavailable'); expect(separate[1].gateway.state).toBe('available');
+        identities.setOwnership(owner.id, root.id, true, ids[0]);
+        identities.setOwnership(root.id, owner.id, false, ids[0]);
+        const before = calls.length; expect((await handler(request(ids[0]))).status).toBe(404); expect(calls).toHaveLength(before);
+        expect(gates[0]!(request(ids[0]))?.status).toBe(403);
+    } finally { gates.forEach(gate => gate.close()); await manager.idle(); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
+});
 const creation = (runtime: ManagedRuntime, name = 'Tesztvilág') => ({ name, version: runtime.version, template: 'classic', requestKey: randomUUID() });
 
 test('create replays exactly, conflicting requests fail closed, two worlds have distinct ownership and ports', async () => {
@@ -128,7 +175,7 @@ test('managed gateway accepts its own owner only, not the legacy local-server ow
         identities.initializeManagedOwnership(owner.id, id);
         for (const [username, password, expected] of [[legacy.username, 'synthetic legacy password', 403], [owner.username, 'synthetic managed password', 0]] as const) {
             const login = await identities.login(username, password);
-            expect(gate(new Request('http://localhost:19000/api/admin/config', { headers: { Cookie: `rs-control-session=${login.token}` } }))?.status ?? 0).toBe(expected);
+            expect(gate(new Request('http://localhost:19000/api/admin/config', { headers: { Cookie: `rs-control-session=${login.token}`, 'X-Control-Server-ID': id } }))?.status ?? 0).toBe(expected);
         }
         expect(() => identities.initializeManagedOwnership(legacy.id, id)).toThrow('ütközik');
     } finally { gate.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }

@@ -81,6 +81,69 @@ test('full admin browser survives absent services and bootstraps after gateway r
     } finally { await browser?.close(); gateway?.stop(true); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }
 }, 40000);
 
+test('two admin tabs keep independent mandatory contexts, settings and an explicit offline shell', async () => {
+    const identities = new IdentityStore(':memory:'), registry = new ServerRegistry(':memory:'), running = new Set<string>();
+    const root = await identities.createAccount('tabs-root', 'synthetic root password');
+    const owner = await identities.createAccount('tabs-owner', 'synthetic owner password', root.id);
+    const runtime: ManagedRuntime = { version: 'a'.repeat(40), async prepare() {}, async start(server) { running.add(server.serverId); },
+        async stop(server) { running.delete(server.serverId); }, async inspect(server) { return running.has(server.serverId) ? 'running' : 'stopped'; } };
+    const manager = new LifecycleManager(registry, identities, runtime), ids: string[] = [];
+    for (const name of ['Világ A', 'Világ B']) { ids.push(manager.create(owner.id, { name, version: runtime.version, template: 'classic', requestKey: crypto.randomUUID() }).serverId); await manager.idle(); }
+    for (const id of ids) { manager.action(owner.id, id, 'start', { requestKey: crypto.randomUUID(), expectedRevision: registry.lifecycle.managed(id)!.revision }); await manager.idle(); }
+    const config = JSON.parse(await Bun.file(join(import.meta.dir, '../../../config/llm-runtime.json')).text());
+    const settings = ids.map((id, index) => ({ config: { ...config, model: `model-${index}` }, source: 'server-override', apiKey: { configured: false, source: 'none' } }));
+    const defaults = { skills: [], destinations: [], gaps: [], trials: [], templates: [], cycles: [], outbox: [], records: [], experiments: [], drafts: [], profiles: [],
+        bots: [], runs: [], events: [], players: [], agents: [], grants: [], learningEvents: [], snapshots: [], generatedAt: new Date().toISOString(),
+        economy: { bots: 0, online: 0, totalCoins: 0, totalXp: 0, averageTotalLevel: 0, itemStock: [] } };
+    const writes: string[] = [], requests: string[] = [];
+    const handler = createControlPlane(controlPlaneConfig(), identities, async (url, init) => {
+        const index = ids.findIndex(id => registry.get(id)!.gatewayOrigin === url.origin); expect(index).toBeGreaterThanOrEqual(0);
+        const id = ids[index]!; expect(new Headers(init.headers).get('X-Control-Server-ID')).toBe(id); requests.push(id);
+        if (url.pathname === '/api/admin/config') return Response.json({ authMode: 'local', refreshMs: 500, worldMapUrl: registry.get(id)!.engineOrigin + '/mapview/' });
+        if (url.pathname === '/api/admin/llm-settings') {
+            if (init.method === 'PUT') { settings[index]!.config = (await new Response(init.body).json()).config; writes.push(id); }
+            return Response.json(settings[index]);
+        }
+        return Response.json(defaults);
+    }, registry, manager);
+    const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: handler }); let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+    try {
+        browser = await puppeteer.launch({ headless: true }); const a = await browser.newPage();
+        const errors: string[] = []; a.on('pageerror', error => errors.push(String(error)));
+        await a.goto(new URL('/admin/', admin.url).toString()); await a.type('[name="username"]', owner.username); await a.type('[name="password"]', 'synthetic owner password');
+        await Promise.all([a.waitForNavigation(), a.click('#login-form button')]);
+        await a.waitForSelector(`.server-card[data-server-id="${ids[0]}"] a`);
+        await Promise.all([a.waitForNavigation(), a.click(`.server-card[data-server-id="${ids[0]}"] a`)]);
+        const b = await browser.newPage(); b.on('pageerror', error => errors.push(String(error)));
+        await b.goto(new URL(`/admin/index.html?serverId=${ids[1]}`, admin.url).toString());
+        for (const [index, page] of [a, b].entries()) {
+            await page.waitForFunction(() => document.querySelector('#last-refresh')?.textContent?.startsWith('Frissítve:'));
+            expect(await page.$eval('#server-context-id', element => element.textContent)).toBe(ids[index]!);
+            expect(await page.$eval('#server-context-name', element => element.textContent)).toBe(index ? 'Világ B' : 'Világ A');
+        }
+        await b.evaluate(() => {
+            const form = document.querySelector('#llm-settings-form') as HTMLFormElement;
+            (form.elements.namedItem('model') as HTMLInputElement).value = 'changed-only-b';
+            (form.elements.namedItem('reason') as HTMLInputElement).value = 'context test'; form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        });
+        await b.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('elmentve'));
+        expect(writes).toEqual([ids[1]!]); expect(settings[0]!.config.model).toBe('model-0');
+        expect(await a.$eval('#llm-settings-form [name="model"]', element => (element as HTMLInputElement).value)).toBe('model-0');
+        const previousWrites = writes.length;
+        await a.evaluate(other => { history.replaceState({}, '', `/admin/index.html?serverId=${other}`);
+            document.querySelector('#llm-settings-form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); }, ids[1]);
+        await a.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('töltsd újra'));
+        expect(writes).toHaveLength(previousWrites);
+        await a.goto(new URL(`/admin/index.html?serverId=${ids[0]}`, admin.url).toString());
+        running.delete(ids[0]!); await a.reload();
+        await a.waitForSelector('#connection-status[data-gateway="unavailable"]');
+        expect(await a.$eval('#server-context-name', element => element.textContent)).toBe('Világ A');
+        await a.setViewport({ width: 1440, height: 1050 }); await a.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-6-server-context-desktop.png'), fullPage: true });
+        await b.setViewport({ width: 390, height: 844 }); await b.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-6-server-context-mobile.png'), fullPage: true });
+        expect(await b.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(errors).toEqual([]);
+    } finally { await browser?.close(); await manager.idle(); admin.stop(true); registry.close(); identities.close(); }
+}, 40000);
+
 test('server creation and lifecycle actions show visible progress, failures and retained archives in Chrome', async () => {
     const identities = new IdentityStore(':memory:'), registry = new ServerRegistry(':memory:');
     await identities.createAccount('browser-manager', 'synthetic manager password');
@@ -158,7 +221,7 @@ test('owner can create an account, grant/revoke access, and a non-owner can log 
         await Promise.all([page.waitForNavigation(), page.click('#control-account-link')]);
         await page.waitForSelector('#account-content:not([hidden])');
         expect(await page.$eval('#owner-management', element => (element as HTMLElement).hidden)).toBe(true);
-        expect(await page.evaluate(async () => (await fetch('/api/admin/config')).status)).toBe(403);
+        expect(await page.evaluate(async () => (await fetch('/api/admin/config', { headers: { 'X-Control-Server-ID': 'local-default' } })).status)).toBe(404);
         expect(errors).toEqual([]);
-    } finally { await browser?.close(); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }
+    } finally { await browser?.close(); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
 }, 40000);

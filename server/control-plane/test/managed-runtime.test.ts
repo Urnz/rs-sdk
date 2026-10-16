@@ -31,6 +31,7 @@ test('occupied or unidentified ports never authorize killing a foreign process o
         const dir = join(temporary, server.serverId); await mkdir(dir);
         await writeFile(join(dir, 'runtime.json'), JSON.stringify({ token: 'a'.repeat(64), generation: randomUUID(), ports }));
         expect(await runtime.inspect(server)).toBe('unknown');
+        expect(await runtime.connection(server)).toEqual({ gateway: false, engine: false });
         await expect(runtime.stop(server)).rejects.toMatchObject({ code: 'RUNTIME_UNREACHABLE' });
         expect((await (await fetch(listeners[0]!.url)).json()).foreign).toBe(true);
     } finally { listeners.forEach(listener => listener.stop(true)); await rm(temporary, { recursive: true, force: true }); }

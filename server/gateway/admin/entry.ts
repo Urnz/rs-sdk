@@ -6,7 +6,11 @@ export function createOwnedAdminHandler(context: () => AdminRouteContext, gate =
     return async (req: Request, url: URL): Promise<Response | null> => {
         if (url.pathname === '/admin' || url.pathname.startsWith('/admin/') || url.pathname.startsWith('/api/admin/')) {
             const denied = gate(req); if (denied) return denied;
+            if (['/admin', '/admin/'].includes(url.pathname)) return new Response(null, { status: 303,
+                headers: { Location: `/admin/index.html?serverId=${gate.resource}`, 'Cache-Control': 'no-store' } });
         }
-        return handleAdminRequest(req, url, context());
+        const response = await handleAdminRequest(req, url, context());
+        if (response && url.pathname.startsWith('/api/admin/')) response.headers.set('X-Control-Server-ID', gate.resource);
+        return response;
     };
 }

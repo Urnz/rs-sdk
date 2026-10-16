@@ -7,6 +7,17 @@ beforeAll(async () => { fixture = await identityFixture(); });
 afterAll(() => fixture.store.close());
 
 const config = controlPlaneConfig();
+test('unscoped or conflicting context never reaches a backend and a mismatched backend response is withheld', async () => {
+    let calls = 0;
+    const handler = createControlPlane(config, fixture.store, async () => { calls++; return Response.json({ wrong: true }, { headers: { 'X-Control-Server-ID': 'another-world' } }); });
+    const unscoped = await handler(new Request('http://localhost:7781/api/admin/config', { headers: { Cookie: fixture.cookie } }));
+    expect(unscoped.status).toBe(400); expect((await unscoped.json()).code).toBe('SERVER_CONTEXT_REQUIRED');
+    for (const path of ['/api/admin/config?serverId=another-world', '/admin/index.html?serverId=local-default&serverId=another-world'])
+        expect((await handler(fixture.request('http://localhost:7781' + path))).ok).toBe(false);
+    expect(calls).toBe(0);
+    const mismatch = await handler(fixture.request('http://localhost:7781/api/admin/config'));
+    expect(mismatch.status).toBe(503); expect(await mismatch.text()).not.toContain('wrong'); expect(calls).toBe(1);
+});
 test('configuration accepts only distinct local/private HTTP endpoints', () => {
     for (const origin of ['https://localhost:7780', 'http://example.invalid', 'http://user:password@localhost:7780', 'http://localhost:7780/path', 'http://localhost:7780/?x=1'])
         expect(() => localOrigin(origin)).toThrow();
@@ -75,11 +86,11 @@ test('real HTTP backend shutdown does not close admin or its static asset owner'
         method: req.method, body: await req.text(), origin: req.headers.get('origin'), authorization: req.headers.get('authorization') }) });
     let engine: ReturnType<typeof Bun.serve> | undefined = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: () => Response.json({ ready: true }) });
     const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane({ ...config, gatewayOrigin: gateway.url.origin, engineOrigin: engine.url.origin }, fixture.store) });
-    const get = (path: string) => fetch(new URL(path, admin.url), { headers: { Cookie: fixture.cookie } });
+    const get = (path: string) => fetch(new URL(path, admin.url), { headers: { Cookie: fixture.cookie, 'X-Control-Server-ID': 'local-default' } });
     try {
         expect((await (await get('/api/control-plane/status')).json()).engine.state).toBe('available');
         const forwarded = await (await fetch(new URL('/api/admin/echo', admin.url), { method: 'POST',
-            headers: { Cookie: fixture.cookie, 'X-Control-CSRF': fixture.csrf, Origin: admin.url.origin, 'X-Admin-Request': 'rs-sdk-admin', Authorization: 'Bearer synthetic-test-token' }, body: '{"exact":"body"}' })).json();
+            headers: { Cookie: fixture.cookie, 'X-Control-CSRF': fixture.csrf, 'X-Control-Server-ID': 'local-default', Origin: admin.url.origin, 'X-Admin-Request': 'rs-sdk-admin', Authorization: 'Bearer synthetic-test-token' }, body: '{"exact":"body"}' })).json();
         expect(forwarded).toMatchObject({ method: 'POST', body: '{"exact":"body"}', origin: gateway!.url.origin, authorization: 'Bearer synthetic-test-token' });
         engine.stop(true); engine = undefined; await Bun.sleep(1100);
         const partial = await (await get('/api/control-plane/status')).json(); expect(partial.engine.state).toBe('unavailable'); expect(partial.gateway.state).toBe('available');

@@ -17,6 +17,7 @@ export interface ManagedRuntime {
     start(server: ManagedServer): Promise<void>;
     stop(server: ManagedServer): Promise<void>;
     inspect(server: ManagedServer): Promise<'running' | 'stopped' | 'unknown'>;
+    connection?(server: ManagedServer): Promise<{ gateway: boolean; engine: boolean }>;
 }
 interface Run { generation: string; token: string; ports: number[] }
 const failure = (code: string, message: string) => new IdentityError(409, code, message);
@@ -132,6 +133,11 @@ export class LocalManagedRuntime implements ManagedRuntime {
             if (!stop && (result.id !== server.serverId || result.generation !== run.generation || result.role !== role)) return null;
             return result;
         } catch { return null; }
+    }
+    async connection(server: ManagedServer) {
+        const run = await this.run(server); if (!run) return { gateway: false, engine: false };
+        const [engine, gateway] = await Promise.all([this.control(server, run, 'engine'), this.control(server, run, 'gateway')]);
+        return { gateway: !!gateway?.ready && !gateway.stopping, engine: !!engine?.ready && !engine.stopping };
     }
     async inspect(server: ManagedServer) {
         const run = await this.run(server); if (!run) return 'stopped';

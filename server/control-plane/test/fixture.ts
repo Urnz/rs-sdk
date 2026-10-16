@@ -8,6 +8,7 @@ export async function identityFixture() {
     return { store, owner, cookie, csrf,
         request(url: string, init: RequestInit = {}) {
             const headers = new Headers(init.headers);
+            if (!headers.has('X-Control-Server-ID')) headers.set('X-Control-Server-ID', 'local-default');
             headers.set('cookie', [cookie, headers.get('cookie')].filter(Boolean).join('; '));
             if (init.method && !['GET', 'HEAD'].includes(init.method)) {
                 if (!headers.has('origin')) headers.set('origin', new URL(url).origin);

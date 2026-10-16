@@ -63,7 +63,7 @@ test('list/detail expose only owned servers; foreign records and unbound endpoin
         const handler = createControlPlane(config, identities, async url => { calls.push(url.toString()); throw new Error('fixture absent'); }, registry);
         const login = async (username: string, password: string) => {
             const session = await identities.login(username, password);
-            return (path: string) => handler(new Request('http://127.0.0.1:7781' + path, { headers: { Cookie: `rs-control-session=${session.token}` } }));
+            return (path: string) => handler(new Request('http://127.0.0.1:7781' + path, { headers: { Cookie: `rs-control-session=${session.token}`, 'X-Control-Server-ID': 'local-default' } }));
         };
         const own = await login(owner.username, 'synthetic registry password');
         const result = await (await own('/api/control-plane/servers')).json();
@@ -75,7 +75,7 @@ test('list/detail expose only owned servers; foreign records and unbound endpoin
         expect(foreign.status).toBe(404); expect(await foreign.json()).toEqual(await missing.json());
         const theirs = await login(other.username, 'synthetic other password');
         expect((await (await theirs('/api/control-plane/servers')).json()).servers.map((server: { id: string }) => server.id)).toEqual(['private-world']);
-        expect((await theirs('/admin/')).status).toBe(200); expect((await theirs('/api/admin/config')).status).toBe(403);
+        expect((await theirs('/admin/')).status).toBe(200); expect((await theirs('/api/admin/config')).status).toBe(404);
         const noServers = await login(empty.username, 'synthetic empty password');
         expect(await (await noServers('/api/control-plane/servers')).json()).toEqual({ schemaVersion: 1, servers: [] });
         expect(calls).toHaveLength(2);
@@ -84,7 +84,7 @@ test('list/detail expose only owned servers; foreign records and unbound endpoin
         expect((await (await own('/api/control-plane/servers')).json()).servers.map((server: { id: string }) => server.id)).toEqual(['alpine']);
         expect((await own('/api/control-plane/servers/local-default')).status).toBe(404);
         const deniedPage = await own('/admin/index.html?serverId=alpine');
-        expect(deniedPage.status).toBe(303); expect(deniedPage.headers.get('location')).toBe('/admin/login.html');
+        expect(deniedPage.status).toBe(404);
         expect((await theirs('/admin/index.html?serverId=private-world')).status).toBe(404);
         expect((await handler(new Request('http://127.0.0.1:7781/api/control-plane/servers'))).status).toBe(401);
         const mutationSession = await identities.login(owner.username, 'synthetic registry password');
