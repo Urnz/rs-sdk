@@ -1,5 +1,6 @@
 'use strict';
 const observationId = new URL(location.href).searchParams.get('serverId');
+document.getElementById('observation-capabilities').href = `/admin/capabilities.html?serverId=${encodeURIComponent(observationId || '')}`;
 const observationElement = id => document.getElementById('observation-' + id);
 async function observationApi(path) {
     const response = await fetch(path, { headers: { 'X-Control-Server-ID': observationId }, cache: 'no-store', signal: AbortSignal.timeout(5000) });

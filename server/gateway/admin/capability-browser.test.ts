@@ -1,0 +1,64 @@
+import { expect, test } from 'bun:test';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import puppeteer from 'puppeteer';
+import { createControlPlane } from '../../control-plane/service.js';
+import { controlPlaneConfig } from '../../control-plane/config.js';
+import { IdentityStore } from '../../control-plane/identity-store.js';
+import { ServerRegistry } from '../../control-plane/server-registry.js';
+
+test('searchable capability guide exposes real entries and honest gaps, retains server context and recovers from load errors', async () => {
+    const identities = new IdentityStore(':memory:'), registry = new ServerRegistry(':memory:'), config = controlPlaneConfig({});
+    const owner = await identities.createAccount('guide-owner', 'synthetic guide owner password'); registry.ensureConfiguredLocal(config);
+    const app = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(config, identities, async () => Response.json({ error: 'Fixture backend offline' }, { status: 503 }), registry) });
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+    try {
+        expect((await fetch(new URL('/admin/capability-matrix.v1.json', app.url))).status).toBe(401);
+        browser = await puppeteer.launch({ headless: true }); const page = await browser.newPage();
+        const errors: string[] = [], writes: string[] = []; page.on('pageerror', error => errors.push(String(error)));
+        await page.goto(new URL('/admin/login.html', app.url).toString());
+        await page.type('[name="username"]', owner.username); await page.type('[name="password"]', 'synthetic guide owner password');
+        await Promise.all([page.waitForNavigation(), page.click('#login-form button')]);
+        await page.goto(new URL('/admin/index.html?serverId=local-default', app.url).toString());
+        await page.waitForFunction(() => document.querySelector('#capability-directory-link')!.getAttribute('href')!.includes('serverId=local-default'));
+        await Promise.all([page.waitForNavigation(), page.click('#capability-directory-link')]);
+        await page.waitForSelector('.capability-card');
+        page.on('request', request => { if (request.method() !== 'GET') writes.push(request.method() + ' ' + request.url()); });
+        expect(await page.$$('.capability-card')).toHaveLength(155);
+        expect(await page.$eval('#capability-status', element => element.textContent)).toContain('33 felületi hiány');
+        const response = await page.evaluate(async () => (await fetch('capability-matrix.v1.json')).headers.get('Content-Type'));
+        expect(response).toContain('application/json');
+        await page.type('[name="search"]', 'karakter inditasa');
+        expect(await page.$$('.capability-card')).toHaveLength(1);
+        const entry = await page.$eval('.capability-card a', element => element.getAttribute('href'));
+        expect(entry).toBe('/admin/index.html?serverId=local-default#bots');
+        await page.click('.capability-card summary'); expect(await page.$eval('.capability-card details', element => (element as HTMLDetailsElement).open)).toBe(true);
+        await page.click('[type="reset"]'); await page.select('[name="coverage"]', 'missing');
+        expect(await page.$$('.capability-card')).toHaveLength(33); expect(await page.$$('.capability-card a')).toHaveLength(0);
+        await page.select('[name="area"]', 'Társadalmi mutatók'); expect((await page.$$('.capability-card')).length).toBeGreaterThan(0);
+        await page.type('[name="search"]', '<img src=x onerror=alert(1)>');
+        expect(await page.$$('.capability-card')).toHaveLength(0);
+        expect(await page.$eval('#capability-results', element => element.textContent)).toContain('Nincs találat');
+        await page.click('[type="reset"]');
+        await page.setViewport({ width: 390, height: 844 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await page.type('[name="search"]', 'öröklés');
+        await page.focus('.capability-card summary'); await page.keyboard.press('Enter');
+        expect(await page.$eval('.capability-card details', element => (element as HTMLDetailsElement).open)).toBe(true);
+        await mkdir(join(import.meta.dir, '../../../.local/verification'), { recursive: true });
+        await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase26-2-guide-mobile.png'), fullPage: true });
+        await page.setViewport({ width: 1440, height: 1000 });
+        await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase26-2-guide-desktop.png'), fullPage: true });
+        let fail = true;
+        await page.setRequestInterception(true);
+        page.on('request', request => {
+            if (request.url().endsWith('/capability-matrix.v1.json') && fail) void request.respond({ status: 503, contentType: 'application/json', body: '{}' });
+            else void request.continue();
+        });
+        await page.reload(); await page.waitForSelector('#capability-status[data-error="true"]');
+        expect(await page.$eval('#capability-status', element => element.textContent)).toContain('Újrapróbálás');
+        fail = false; await page.click('#capability-retry'); await page.waitForSelector('.capability-card');
+        expect(await page.$$('.capability-card')).toHaveLength(155);
+        expect(writes).toEqual([]); expect(errors).toEqual([]);
+    } finally { await browser?.close(); await app.stop(true); registry.close(); identities.close(); }
+}, 30000);

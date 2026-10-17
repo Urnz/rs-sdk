@@ -365,11 +365,20 @@ admin control plane mindkét engine leállítása közben is elérhető marad.
   szerződések, képességpróbák és világesemények. Nézetenként rövid magyarázat,
   közvetlen link, Vissza/Előre működés, mobilválasztó és billentyűzetes elérés.
   [Használat és határok](features/phase26-1-admin-workflows.md),
-  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: 26.2.
-- [ ] Verziózott capability-mátrixban minden támogatott backend-művelethez
+  [ellenőrzési napló](PHASE26_PROGRESS.md).
+- [x] Verziózott capability-mátrixban minden támogatott backend-művelethez
   felületi belépési pontot, jogosultságot, előfeltételt, állapotot, eredményt és
   hibamegjelenítést rendelni; az árva backend- és frontend-képességeket teszttel
   kimutatni.
+  **26.2 – elkészült (2026-10-17):** 1.0.0-s mátrix, 170 konkrét HTTP-művelet,
+  155 bejegyzés és kereshető, szerverhez kötött felületi műveletjegyzék.
+  Forrásalapú backend-/frontend- és módszerkapu-ellenőrzés, negatív árva-/hibás
+  kötési tesztek, valós szerepkörkapu és UI-belépési pontok vizsgálata.
+  121 létező UI-kötés, 33 explicit felületi hiány és 1 automatikus háttérbetöltés;
+  a hiányok a meglévő 26.7 paritási auditban zárandók, nem kész funkciók.
+  Érintett admin/control-plane kör **430/430 PASS**, root TypeScript és format
+  PASS, 106,205 s. [Használat és szerződés](features/phase26-2-capability-matrix.md),
+  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: 26.3.
 - [ ] A veszélyes vagy emberi jóváhagyást igénylő műveleteknél pontosan leírni,
   mi változik, milyen bizonyíték alapján, mi nem történik meg, és hogyan lehet
   visszaállni vagy újrapróbálni.

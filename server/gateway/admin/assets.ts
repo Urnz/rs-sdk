@@ -1,6 +1,6 @@
 import { extname, join } from 'node:path';
 import { adminPublicDir } from './paths.js';
-const contentTypes: Record<string, string> = { '.css': 'text/css; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
+const contentTypes: Record<string, string> = { '.css': 'text/css; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml' };
 
 /** Shared static shell; importing this module opens no runtime database and starts no game loop. */
 export async function serveAdminAsset(url: URL, worldMapOrigin: string): Promise<Response | null> {

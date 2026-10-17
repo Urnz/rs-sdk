@@ -1,5 +1,8 @@
+import { serverId } from './server-context.js';
+
 /** Navigation is local to this document; hashes never change its server context. */
 export function mountAdminNavigation(selectView) {
+    document.querySelector('#capability-directory-link').href = `capabilities.html?serverId=${encodeURIComponent(serverId)}`;
     const links = [...document.querySelectorAll('#admin-navigation [data-tab]')];
     const picker = document.querySelector('#admin-view-select');
     const title = document.querySelector('#admin-view-title');

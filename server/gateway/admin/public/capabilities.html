@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="hu">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Műveletek keresése</title><link rel="stylesheet" href="account.css"><link rel="stylesheet" href="capabilities.css"><script src="capabilities.js" type="module"></script></head>
+<body><main class="capability-shell">
+    <header><p class="eyebrow">KEZELÉSI ÚTMUTATÓ</p><h1>Műveletek keresése</h1>
+        <p>Keresd meg, mit szeretnél elvégezni. A leírásból kiderül, hol találod, mi szükséges hozzá, és hol követheted az eredményét.</p>
+        <p>Kiválasztott szerver: <strong id="server-context-name"></strong><code id="server-context-id" hidden></code></p>
+        <nav><a id="capability-back" href="/admin/">Vissza a szerverhez</a><a href="/admin/">Saját szervereim</a></nav>
+    </header>
+    <p>A jegyzék a rendszer funkcióit és felületi elérhetőségüket mutatja. A megnyitás a kezelési területre vezet; műveletet itt nem indít. A jogosultságot a szerver ellenőrzi.</p>
+    <form id="capability-filters" role="search">
+        <label>Mit szeretnél tenni?<input name="search" type="search" placeholder="Például: karakter indítása, mentés, öröklés"></label>
+        <label>Terület<select name="area"><option value="">Minden terület</option></select></label>
+        <label>Elérhetőség<select name="coverage"><option value="">Minden művelet</option><option value="available">Van felületi belépés</option><option value="missing">Felületi kezelés hiányzik</option><option value="infrastructure">Automatikus felületi háttérművelet</option></select></label>
+        <button type="reset">Szűrők törlése</button>
+    </form>
+    <p id="capability-status" role="status" aria-live="polite">A műveletjegyzék betöltése…</p>
+    <button id="capability-retry" type="button" hidden>Újrapróbálás</button>
+    <div id="capability-results" aria-busy="true"></div>
+</main></body></html>

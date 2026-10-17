@@ -1,0 +1,15 @@
+.capability-shell { max-width: 1100px; margin: 20px auto; }
+#capability-filters { grid-template-columns: 2fr 1fr 1fr auto; align-items: end; margin: 28px 0; }
+#capability-results { display: grid; gap: 14px; }
+.capability-card { min-width: 0; padding: 20px; background: #192331; border: 1px solid #35445a; border-radius: 12px; }
+.capability-card h2 { margin: 0 0 8px; }
+.capability-card p { margin: 6px 0; overflow-wrap: anywhere; }
+.capability-card .capability-location { color: #b3d5ff; }
+.capability-card[data-coverage="missing"] { border-left: 4px solid #e8bb71; }
+.capability-card details { margin-top: 16px; padding-top: 12px; }
+.capability-card summary { cursor: pointer; }
+.capability-card dl { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 16px; }
+.capability-card dt { font-weight: 650; }
+.capability-card dd { margin: 0; overflow-wrap: anywhere; }
+#capability-status[data-error="true"] { color: #ffb9b9; }
+@media (max-width: 760px) { #capability-filters { grid-template-columns: 1fr; }.capability-card dl { grid-template-columns: 1fr; }.capability-card dt { margin-top: 10px; } }
