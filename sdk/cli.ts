@@ -15,6 +15,7 @@ import { formatWorldState } from './formatter';
 import type { BotWorldState } from './types';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { resolveBotFileCredential } from './local-credentials.js';
 
 /** ws://host -> http://host, wss://host/path -> https://host/path (the gateway serves both on one port). */
 function gatewayHttpBase(gatewayUrl: string): string {
@@ -51,8 +52,8 @@ async function fetchStateViaHttp(
         }
     }
     if (!res) {
-        console.error(`Error: Failed to reach gateway at ${url}`);
-        console.error(`  ${(lastErr as any)?.message ?? lastErr}`);
+        console.error(`Error: Failed to reach gateway at ${new URL(url).origin}${new URL(url).pathname}`);
+        console.error('  Network connection failed.');
         process.exit(1);
     }
     if (!(res.headers.get('content-type') ?? '').includes('json')) return null;
@@ -144,12 +145,12 @@ To execute code on a bot, use the MCP execute_code tool instead.
 /**
  * Try to load credentials from bots/<name>/bot.env
  */
-function tryLoadBotEnv(botName: string): { username: string; password: string; server?: string; gatewayUrl?: string } | null {
+async function tryLoadBotEnv(botName: string): Promise<{ username: string; password: string; server?: string; gatewayUrl?: string } | null> {
     const envPath = join(process.cwd(), 'bots', botName, 'bot.env');
     if (!existsSync(envPath)) return null;
 
     const content = readFileSync(envPath, 'utf-8');
-    const env: Record<string, string> = {};
+    let env: Record<string, string> = {};
 
     for (const line of content.split('\n')) {
         const trimmed = line.trim();
@@ -160,6 +161,7 @@ function tryLoadBotEnv(botName: string): { username: string; password: string; s
         }
     }
 
+    env = await resolveBotFileCredential(envPath, env);
     if (!env.BOT_USERNAME || !env.PASSWORD) return null;
 
     return {
@@ -179,7 +181,7 @@ async function fetchState(botName: string, flags: { server: string; timeout: num
     const timeout = flags.timeout;
 
     // Try to load from bots/<name>/bot.env
-    const botEnv = tryLoadBotEnv(botName);
+    const botEnv = await tryLoadBotEnv(botName);
     if (botEnv) {
         username = botEnv.username;
         password = botEnv.password;

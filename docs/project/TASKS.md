@@ -315,9 +315,20 @@ instabillá vagy önfenntartóvá.
   az eredeti egybefüggő kapu hibás exitje külön dokumentálva.
   A helyi admin frissítve, privát backup és readiness PASS.
   [Működés és kérésprotokoll](features/phase25-6-admin-server-context.md),
-  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.7 titoktár.
-- [ ] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin
+  [ellenőrzések](PHASE25_PROGRESS.md).
+- [x] Titkokat operációsrendszer- vagy szolgáltatói titoktárban tárolni; az admin
   csak állapotot lásson, a kulcsok visszaolvasását ne engedje.
+  **25.7 – elkészült Windows / kompatibilis workspace esetén:** Windows Credential Manager providerkulcshoz,
+  megjegyzett botjelszóhoz és új kezelt világok login-/worker-kulcsaihoz;
+  write-only admin, ellenőrzött és ismételhető migráció, plaintext fallback nélkül.
+  SDK/MCP/Lite és botlétrehozás is támogatott. Mind az 1902 külön tesztesethez
+  van PASS az egyszeri teljes és célzott/pótló futásokból; az eredeti kapuk
+  timeout miatti hibás exitje dokumentálva. Két valódi világ vault-/restart-
+  próbája PASS, csak olvasó readiness-várással, módosításismétlés nélkül.
+  Helyben 14 botjelszó migrálva, admin readiness és plaintext-utóellenőrzés PASS.
+  Más OS backendje és régi pinnelt világ forrásmigrációja nincs késznek állítva.
+  [Működés és migráció](features/phase25-7-os-secret-store.md),
+  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.8 felügyelet és helyreállítás.
 - [ ] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,
   migrációt, backupot és hibából visszaállást készíteni.
 - [ ] Későbbi távoli eléréshez TLS-t, CSRF-védelmet, rate limitet, session-kezelést

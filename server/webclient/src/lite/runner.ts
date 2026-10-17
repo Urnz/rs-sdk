@@ -359,7 +359,7 @@ if (!botName) {
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const envPath = `${repoRoot}bots/${botName}/bot.env`;
-const fileEnv: Record<string, string> = await Bun.file(envPath).exists()
+let fileEnv: Record<string, string> = await Bun.file(envPath).exists()
     ? Object.fromEntries(
         (await Bun.file(envPath).text())
         .split('\n')
@@ -367,6 +367,10 @@ const fileEnv: Record<string, string> = await Bun.file(envPath).exists()
         .map(l => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()])
     )
     : {};
+if (!process.env.PASSWORD && fileEnv.CREDENTIAL_STORE === 'windows-credential-manager') {
+    const { resolveBotFileCredential } = await import('../../../../sdk/local-credentials.js');
+    fileEnv = await resolveBotFileCredential(envPath, fileEnv);
+}
 const env: Record<string, string | undefined> = {
     ...fileEnv,
     ...(process.env.BOT_USERNAME ? { BOT_USERNAME: process.env.BOT_USERNAME } : {}),

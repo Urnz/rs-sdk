@@ -8,6 +8,7 @@ import { formatWorldStateSummary } from './formatter';
 import type { BotWorldState } from './types';
 import { readFileSync, existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
+import { resolveBotFileCredential } from './local-credentials.js';
 
 // ============ Types ============
 
@@ -79,8 +80,9 @@ const connections = new Map<string, BotConnection>();
 /**
  * Parse a bot.env file and load into process.env
  */
-function loadEnvFile(envPath: string): void {
+async function loadEnvFile(envPath: string): Promise<void> {
     const content = readFileSync(envPath, 'utf-8');
+    const metadata: Record<string, string> = {};
     for (const line of content.split('\n')) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith('#')) continue;
@@ -88,9 +90,10 @@ function loadEnvFile(envPath: string): void {
         if (eqIndex > 0) {
             const key = trimmed.slice(0, eqIndex).trim();
             const value = trimmed.slice(eqIndex + 1).trim();
-            process.env[key] = value;
+            metadata[key] = value;
         }
     }
+    Object.assign(process.env, await resolveBotFileCredential(envPath, metadata));
 }
 
 /**
@@ -100,9 +103,13 @@ function loadEnvFile(envPath: string): void {
  * 2. bot.env sibling to the script file
  * 3. Command line arg: bun script.ts <botname> -> bots/<botname>/bot.env
  */
-function loadEnvFromArgs(): void {
+async function loadEnvFromArgs(): Promise<void> {
     // Skip if already have credentials (e.g., from --env-file)
     if (process.env.BOT_USERNAME && process.env.PASSWORD) return;
+    if (process.env.BOT_USERNAME && process.env.CREDENTIAL_STORE === 'windows-credential-manager') {
+        await loadEnvFile(join(import.meta.dir, '../bots', process.env.BOT_USERNAME, 'bot.env'));
+        return;
+    }
 
     // Try bot.env sibling to the script file
     const scriptPath = process.argv[1];
@@ -110,7 +117,7 @@ function loadEnvFromArgs(): void {
         const scriptDir = dirname(resolve(scriptPath));
         const siblingEnv = join(scriptDir, 'bot.env');
         if (existsSync(siblingEnv)) {
-            loadEnvFile(siblingEnv);
+            await loadEnvFile(siblingEnv);
             return;
         }
     }
@@ -126,12 +133,12 @@ function loadEnvFromArgs(): void {
         throw new Error(`Bot "${botName}" not found at ${envPath}`);
     }
 
-    loadEnvFile(envPath);
+    await loadEnvFile(envPath);
 }
 
 async function getOrCreateConnection(): Promise<BotConnection> {
     // Try to load from command line args first
-    loadEnvFromArgs();
+    await loadEnvFromArgs();
 
     // Read credentials from process.env
     const username = process.env.BOT_USERNAME;
@@ -270,7 +277,7 @@ export async function runScript(
                 managedConnection = true;
             } else {
                 // Try to load env from args first
-                loadEnvFromArgs();
+                await loadEnvFromArgs();
                 const username = process.env.BOT_USERNAME;
                 if (!username) {
                     throw new Error('BOT_USERNAME not set. Run with: bun --env-file=bots/{name}/bot.env script.ts\nOr: bun script.ts {botname}');

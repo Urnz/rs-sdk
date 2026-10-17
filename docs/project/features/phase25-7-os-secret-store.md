@@ -17,6 +17,10 @@ munkakönyvtár SHA-256 névteréből és egy kötött titoknévből áll; nincs
 által megadható vault-cél. Két világ azonos botneve külön jelszót kap.
 Az új folyamat ugyanott, ugyanazzal az OS-fiókkal visszaolvashatja a titkot.
 
+Natív szerződés: [Microsoft CREDENTIALW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/ns-wincred-credentialw),
+[CredReadW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credreadw),
+[CredWriteW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritew).
+
 A PowerShell/natív segéd titkos adatot csak privát stdin/stdout csövön ad át
 a szerverfolyamatnak. A titok nem parancssori argumentum, segédfájl vagy
 naplószöveg. A segéd engedélylistás környezetből fut, hibája általános és
@@ -29,6 +33,16 @@ a saját folyamatkörnyezetében megkapja. Az engine login kulcsát csak az
 engine worker kapja; provider/admin/worker/login titkokat a bot- és skill-
 gyermekek nem örökölnek. Bun `.env` automatikus betöltésük le van tiltva.
 A worker generációja és portjai a futási naplóban maradnak, a token a vaultban.
+
+A kézi Lite-indító, SDK script runner, SDK state/chat CLI és az MCP bot-
+kapcsolatkezelő is feloldja az új `CREDENTIAL_STORE` jelölést. A jelölt fájl
+botneve és könyvtára egyezzen; hiányzó vault-bejegyzésnél nincs plaintext
+fallback. Kifejezett, közvetlen folyamat-/API-credential továbbra is futási
+bemenet lehet. Az új `bots/create-bot.ts` kriptográfiai jelszót generál és
+egyből a vaultba írja; nem írja átmenetileg sem a bot.env-be vagy a többi
+template-fájlba. Alapértelmezett célja a helyi emulátor, explicit cél is
+csak helyi/privát eredet lehet. MCP-n sem jelszó, sem jelszórészlet nem logolódik.
+A CLI hálózati hibája nem írja ki a jelszavas queryt.
 
 Ez OS-védelem a lemezen, nem folyamatok közötti OS-sandbox: ugyanazzal a
 Windows-fiókkal futó, tetszőleges kód az adott fiók Credential Manageréhez is

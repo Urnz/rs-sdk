@@ -1,5 +1,122 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.7 – Windows OS-titoktár (2026-10-17)
+
+A providerkulcs, megjegyzett botjelszó és az új kezelt világ login privát
+kulcsa/worker-tokenje Windows Credential Managerbe kerül, a kanonikus
+workspace külön névterében. Az admin csak állapotot kap, nincs titokolvasó
+HTTP-művelet. Régi fájlos/környezeti providerkulcs nem runtime fallback;
+a migrátor csak igazolt vault-írás után változtatja meg a régi forrást.
+Az új bot.env és runtime.json nem tartalmaz jelszót/tokent. A bot/skill
+gyermekek engedélylistás környezetet kapnak és nem töltenek automatikus .env-t.
+
+[Működés, migráció és rollback](features/phase25-7-os-secret-store.md).
+Régi pinnelt világ ellenőrzött forrásmigrációja 25.8; ugyanazon OS-fiókon
+belüli tetszőleges kód ellen külön OS-sandbox nincs késznek állítva.
+A nyilvános upstream demonstrációs RSA-fixture kompatibilitási szerepe megmarad.
+
+Ellenőrzések:
+
+- Valódi Windows vault, két ideiglenes névtér, új instance-ból visszaolvasás,
+  csere/törlés és LLM write-only adapter: **4/4 PASS**, root typecheck PASS,
+  **23,751 s**. `20261017-105052-610-phase25-7-native-vault-first.log`.
+- Migráció, konfliktus/hiba utáni forrásmegőrzés, bot/runtime és státusz
+  értékmentesség: **19/19 PASS**, root/engine typecheck és format PASS,
+  **35,803 s**. `20261017-105427-928-phase25-7-focused-boundaries.log`.
+- Első valódi kétvilágos futás **FAIL, exit 1, 82,385 s**:
+  `20261017-105859-804-phase25-7-native-world-vault.log`. Mindkét világ
+  elindult és bot/provider/agent/mod beállítást kapott. A vault- és
+  plaintext-mentességi assertionök sikeresek; egy későbbi agents-válasz
+  nem tartalmazott listát. A diagnosztika státuszkód-ellenőrzést kapott;
+  a futás nem elfogadott működési próba.
+- Két diagnosztikai natív futás szintén FAIL: **54,826 s** és **59,813 s**,
+  `20261017-110930-514-phase25-7-native-vault-final.log`,
+  `20261017-111213-461-phase25-7-native-control-diagnostic.log`.
+  A központ átmeneti `SERVER_GATEWAY_UNAVAILABLE` választ adott; közvetlenül
+  utána mindkét worker azonosítottan ready volt, a vault és memória tokenje
+  egyezett. A token-feloldás generációnként memóriában deduplikált; új generáció
+  új OS-feloldást kap, külön teszt igazolja a váltást.
+- Végső kétvilágos elfogadás **PASS, exit 0, 69,938 s**:
+  `20261017-111335-900-phase25-7-native-readiness-acceptance.log`.
+  A próba a dokumentált átmeneti offline állapotnál csak olvasó GET-et
+  ismétel legfeljebb 30 s-ig; módosítást nem ismétel, minden izolációs,
+  kulcsegyezési és fail-closed assertion megmaradt. E nélkül a korábbi
+  futások hibás exitjeit nem minősítjük sikeresnek.
+  Forrás-checkpoint: `53cb62d8ca4c128b40acccc60c82cc30d5597afd`.
+  Két engine/gateway, külön bot/provider/login/worker titok, plaintext-mentes
+  állományok, azonos botnév, saját adatok, stop/restart/archive és testvérvilág
+  túlélése PASS. Restart után a bot vaultból feloldott, újra meg nem adott
+  jelszóval belépett; host állományok hash-e változatlan, LLM-hívás 0.
+- Egyszeri teljes regresszió **1223 pass / 1 hook fail / 0 skip**,
+  **408,473 s**, exit 1. A régi `gateway-http-chat` beforeAll 5 s-os
+  kapujába futott, így a fájl 15 esete ekkor nem futott. Format és mindhárom
+  typecheck PASS. `20261017-105648-994-phase25-7-full-gate.log`, részletek:
+  `20261017-105653-056-full.log`.
+  Indok: tartós hitelesítő adatok, bot-/worker-hitelesítés és indítási határ
+  változik; a fáziszárás önmagában nem indok.
+- Pótlás: a gateway chat 15 esete és a végleges migráció/worker-generáció
+  határok együtt **26/26 PASS**. Az utána maradó 30 domaincsomagból 29 PASS;
+  a society-experiments két régi benchmark/XP-esete timeoutolt. Összesen
+  **683 pass / 2 fail / 0 skip**, **268,792 s**, exit 1:
+  `20261017-110412-073-phase25-7-focused-and-remainder.log`.
+  Root/engine typecheck és format PASS. Külön a két időkorlátos eset
+  **2/2 PASS**, **9,015 s**, változatlan assertion/timeout mellett:
+  `20261017-110910-888-phase25-7-existing-xp-timeouts.log`.
+  A futások együtt mind az **1899 külön tesztesethez sikeres eredményt**
+  adtak. Az eredeti egybefüggő kapuk hibás exitje megmaradt; sikeres csomagok
+  tömeges ismétlése nem történt. A két új alias/generáció eset a pótlásban futott.
+- Kézi indítási kompatibilitás utólagos ellenőrzése: SDK-suite **184/184 PASS**,
+  root/webclient typecheck és format PASS, **110,830 s**:
+  `20261017-111715-479-phase25-7-sdk-vault-compatibility.log`.
+  Natív CLI-vault/scope teszt **2/2 PASS**, **4,709 s**:
+  `20261017-111920-093-phase25-7-manual-cli-vault.log`.
+  Új bot generálásával együtt **3/3 PASS**, hálózati hibakimenetben nincs titok,
+  generált jelszó sem template-ben, sem bot.env-ben nincs. Az első típusindítás
+  PowerShell lib-argumentum hibával állt le (a 3 teszt sikeres maradt), majd
+  JSON-tsconfiggal típus/format **PASS, 13,467 s**:
+  `20261017-112034-822-phase25-7-entrypoint-closeout.log`,
+  `20261017-112102-139-phase25-7-entrypoint-types.log`.
+  A kézi runner/CLI, Lite és MCP adaptere azonos névhez kötött feloldót használ.
+  Ezekkel az összesített külön tesztesetek száma **1902**, mindhez van PASS.
+- Helyi migráció és aktiválás **PASS, 44,663 s**: **14 botjelszó** átkerült
+  az OS-vaultba, nincs régi aktív managed világ, identity v1/registry v2 maradt,
+  admin readiness PASS. Utóellenőrzés **PASS, 1,022 s**: 14 vault-jelölt bot,
+  0 korábbi plaintext titok, providerkulcs nincs beállítva.
+  `20261017-110958-469-phase25-7-local-migration-ready.log`,
+  `20261017-111424-499-phase25-7-local-vault-postcheck.log`.
+- Helyi aktiválási preflight **PASS, 0,526 s**: nincs aktív kezelt világ.
+  `20261017-110138-023-phase25-7-activation-preflight.log`.
+
+GitHub/adatvédelem:
+
+- A repó nyilvános fork; a private PATCH GitHub 422-vel elutasult.
+  A felhasználó ezután kifejezetten a nyilvános állapot megtartását kérte,
+  ha nincs feltöltött érzékeny adat. Leválasztás vagy metaadattörlés nem történt.
+- A teljes aktuális követett fájlkészletből **7804 szöveges / 6306 bináris**
+  állomány került leltárba; a fork saját publikált előzményeiből **12 379 809
+  bájt diff** vizsgálata készült. **Valódi saját titok a fájltartalomban nem került
+  elő.** A két szöveges találattípus: ismert szintetikus tesztkulcs, illetve
+  a nyilvános upstream demonstrációs privát login-kulcs. Utóbbi Git-blobja
+  byte-ra egyezik upstream/main megfelelő fájljával; a saját változások
+  között bináris nincs. Értékeket nem másoltunk auditkimenetbe.
+  Audit **PASS, 183,193 s**: `20261017-105256-876-phase25-7-repository-audit-bounded.log`.
+- Külön commit-metaadatellenőrzés személyes Gmail-címet talált **128 korábbi
+  commitnál**. Ez nem API-kulcs, de személyes adat; a felhasználó külön döntését
+  kértük a nyilvános állapotról; a felhasználó kifejezetten elfogadta a meglévő
+  commitemailt és a nyilvános repót. Az e-mail-címet nem másoltuk dokumentációba
+  vagy kimenetbe. PR-metaadatban vizsgált titok/személyes útvonal nem volt.
+- A GitHub 14 napos adatai: **3 views / 1 unique visitor, 3 clones / 3 unique
+  cloners**. Személyazonosító nincs a statisztikában, ezért harmadik fél
+  hozzáférése nem állapítható meg biztosan. Az adatok privát helyi JSON-ban
+  maradnak. Az egy meglévő PR metaadatairól privát mentés készült.
+
+A naplók, auditok és próbavilágok a privát `.local/verification/` alatt maradnak.
+
+Publikálás előtti végső format/link/privacy kapu **PASS, 1,675 s**:
+`20261017-112325-901-phase25-7-final-publish-gate.log`. Új valódi titok vagy
+személyes kimenő commit-metaadat nem került elő; módosított bináris nincs.
+A korábbi személyes commitemail a felhasználó kifejezett döntésével megmarad.
+
 ## 25.6 – kötelező admin-szerverkontextus (2026-10-17)
 
 A régi bot/world/property/gazdasági/agent/AI/társadalmi nézetek minden domain-

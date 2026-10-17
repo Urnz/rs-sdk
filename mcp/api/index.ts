@@ -2,6 +2,7 @@
 // Supports multiple simultaneous bot connections
 
 import { BotSDK, deriveGatewayUrl } from '../../sdk/index';
+import { resolveBotFileCredential } from '../../sdk/local-credentials.js';
 import { BotActions } from '../../sdk/actions';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
@@ -30,6 +31,7 @@ class BotManager {
    * If password is not provided, loads credentials from bots/{name}/bot.env
    */
   async connect(name: string, password?: string, gatewayUrl?: string): Promise<BotConnection> {
+    if (!/^[a-zA-Z0-9]{1,12}$/.test(name)) throw new Error('Bot name must be 1–12 alphanumeric characters.');
     // Check if already connected
     if (this.connections.has(name)) {
       const existing = this.connections.get(name)!;
@@ -60,14 +62,12 @@ class BotManager {
       }
 
       const envContent = await readFile(envPath, 'utf-8');
-      const env = this.parseEnv(envContent);
+      const env = await resolveBotFileCredential(envPath, this.parseEnv(envContent));
 
       username = env.BOT_USERNAME || name;
       pwd = env.PASSWORD;
 
-      if (env.SERVER) {
-        gateway = deriveGatewayUrl(env.SERVER);
-      }
+      if (!gatewayUrl) gateway = env.GATEWAY_URL || (env.SERVER ? deriveGatewayUrl(env.SERVER) : gateway);
 
       // Allow opting out of player chat via SHOW_CHAT=false in bot.env.
       // Default: true, so multi-bot scripts can see each other's speech.
@@ -83,7 +83,7 @@ class BotManager {
     console.error(`[MCP] Connecting bot "${name}":`);
     console.error(`[MCP]   username: ${username}`);
     console.error(`[MCP]   gateway: ${gateway}`);
-    console.error(`[MCP]   password: ${pwd ? pwd.substring(0, 3) + '...' : 'MISSING'}`);
+    console.error(`[MCP]   credential: ${pwd ? 'configured' : 'missing'}`);
 
     const sdk = new BotSDK({
       botUsername: username,

@@ -17,6 +17,7 @@ import { BotSDK, deriveGatewayUrl } from './index';
 import type { GameMessage } from './types';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { resolveBotFileCredential } from './local-credentials.js';
 
 // No invocation (except --watch) may outlive this, whatever goes wrong - a
 // chat check that silently eats a shell tool's whole timeout is worse than a
@@ -57,12 +58,12 @@ observers get.
 }
 
 /** Same bot.env resolution as sdk/cli.ts. */
-function tryLoadBotEnv(botName: string): { username: string; password: string; server?: string } | null {
+async function tryLoadBotEnv(botName: string): Promise<{ username: string; password: string; server?: string } | null> {
     const envPath = join(process.cwd(), 'bots', botName, 'bot.env');
     if (!existsSync(envPath)) return null;
 
     const content = readFileSync(envPath, 'utf-8');
-    const env: Record<string, string> = {};
+    let env: Record<string, string> = {};
 
     for (const line of content.split('\n')) {
         const trimmed = line.trim();
@@ -73,6 +74,7 @@ function tryLoadBotEnv(botName: string): { username: string; password: string; s
         }
     }
 
+    env = await resolveBotFileCredential(envPath, env);
     if (!env.BOT_USERNAME || !env.PASSWORD) return null;
 
     return {
@@ -153,8 +155,8 @@ async function sendViaHttp(ctx: CliContext, text: string, to?: string): Promise<
             body: JSON.stringify({ text, to, password: ctx.password, timeoutMs: 10_000 })
         }, 60_000);
     } catch (err: any) {
-        console.error(`Error: Failed to reach gateway at ${url}`);
-        console.error(`  ${err?.message ?? err}`);
+        console.error(`Error: Failed to reach gateway at ${new URL(url).origin}${new URL(url).pathname}`);
+        console.error('  Network connection failed.');
         return 1;
     }
     if (!isChatEndpointResponse(res)) return null;
@@ -196,8 +198,8 @@ async function readViaHttp(ctx: CliContext): Promise<number | null> {
     try {
         res = await boundedFetch(url, {}, ctx.timeout);
     } catch (err: any) {
-        console.error(`Error: Failed to reach gateway at ${url}`);
-        console.error(`  ${err?.message ?? err}`);
+        console.error(`Error: Failed to reach gateway at ${new URL(url).origin}${new URL(url).pathname}`);
+        console.error('  Network connection failed.');
         return 1;
     }
     if (!isChatEndpointResponse(res)) return null;
@@ -363,7 +365,7 @@ async function main() {
 
     let username = botName;
     let password = process.env.PASSWORD || '';
-    const botEnv = tryLoadBotEnv(botName);
+    const botEnv = await tryLoadBotEnv(botName);
     if (botEnv) {
         username = botEnv.username;
         password = botEnv.password;

@@ -2,6 +2,9 @@
 import { cp, readFile, writeFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { randomBytes } from 'node:crypto';
+import { parseBotEnvironment, rememberBotCredentials } from '../server/gateway/admin/bot-credentials.js';
+import { localOrigin } from '../server/control-plane/config.js';
 
 function generateRandomString(length: number): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -21,6 +24,8 @@ async function replaceInFile(filePath: string, replacements: Record<string, stri
 }
 
 async function createBot(username?: string, serverOverride?: string, hideChat?: boolean) {
+    serverOverride ??= 'localhost:8888';
+    localOrigin(`http://${serverOverride}`);
     // Generate username if not provided
     const botUsername = username || generateRandomString(9);
 
@@ -55,12 +60,12 @@ async function createBot(username?: string, serverOverride?: string, hideChat?: 
     console.log(`Created bot directory: ${botDir}`);
 
     // Generate random password
-    const password = generateRandomString(12);
+    const password = randomBytes(24).toString('base64url');
 
     // Replace placeholders in all files
     const replacements = {
         '{{USERNAME}}': botUsername,
-        '{{PASSWORD}}': password,
+        '{{PASSWORD}}': '',
     };
 
     const files = await readdir(botDir);
@@ -89,8 +94,9 @@ async function createBot(username?: string, serverOverride?: string, hideChat?: 
         console.log(`Public chat: enabled (default)`);
     }
 
+    await rememberBotCredentials(process.cwd(), botUsername, password, parseBotEnvironment(await readFile(envPath, 'utf8')));
     console.log(`\n✓ Bot "${botUsername}" created successfully!`);
-    console.log(`\nCredentials saved in bots/${botUsername}/bot.env`);
+    console.log(`\nCredentials saved in the Windows OS vault; bot.env contains connection metadata.`);
     console.log(`\nTo get started:`);
     console.log(`  bun bots/${botUsername}/script.ts`);
 }
@@ -115,4 +121,7 @@ for (const arg of args) {
     }
 }
 
-createBot(positional[0], serverOverride, hideChat).catch(console.error);
+createBot(positional[0], serverOverride, hideChat).catch(() => {
+    console.error('Bot creation failed. Check the local/private target, OS vault and retained bot metadata.');
+    process.exitCode = 1;
+});
