@@ -287,3 +287,103 @@ audit változatlanul nyitott. A kísérleti űrlap szükséges catch ága elkés
 hogy a megszakítás ne kezeletlen promise-hiba legyen; ez nem a 26.4 minden
 hosszú műveletre és néma kísérleti indításra vonatkozó elfogadása.
 Következő feladat: **26.4**.
+
+## 26.4 – Műveletek követhető indítása és eredménye (2026-10-17)
+
+Közös műveleti lista készült a meglévő admin-, szerver- és fiókkezelő
+klienshez. Megkülönbözteti a még nem beküldött jóváhagyást, az elküldött
+kérést, a visszaigazolt háttérfutást, a lezárt eredményt, a részleges
+végrehajtást, a konkrét hibát és a bizonytalan kimenetelt. Nézetváltáskor
+megmarad, összecsukható, a lezárt elemek elrejthetők; a modális űrlapban is
+látható az állapot. Műveletspecifikus név és érintett kör, időpont,
+futásazonosító, részletekre mutató hivatkozás és olvasási ellenőrzőgomb
+segíti a használatot. Szöveges státuszok, natív gombok, képernyőolvasós
+jelzés és az admin meglévő színváltozói támogatják az elérést.
+
+A Kísérletek a jóváhagyás után rögtön jelzik a beküldést. Az elfogadott
+futás a POST-válaszból azonnal megjelenik; egy későbbi listafrissítési hiba
+nem teszi sikertelenné az indítást. A konkrét rekordon követett kiosztás,
+skillfutás, siker, részleges eredmény és futtatóhiba minden esetben látható
+eredményt vagy teendőt ad. Újratöltéskor a szerverről olvasott futó
+kísérletek követése felépül. A régi lista pillanatképe nem írhatja vissza
+futóra a már lezárt műveleti bejegyzést.
+
+A szerver-karbantartás tartós műveletazonosítója, a skill-run jelentések
+és a karakter kért állapotának visszaolvasása külön követett. Karakter
+újraindításakor az eredeti online állapot nem elég: a visszaigazolt új
+folyamat és annak friss játékállapota szükséges a befejezéshez. Aktiválási,
+elszámolási vagy epizódmentési mellékhiba részleges eredmény, az
+újraindítást igénylő konfiguráció pedig külön teendő.
+
+Az olvasási követés két másodpercenként fut, három perc után kézi
+ellenőrzésre vált. HTTP-kérés: 30 s; műveleti útmutató betöltése: 10 s.
+Időtúllépés, elveszett válasz vagy hibás JSON nem jelent igazolatlan
+sikert. Automatikus módosító újrapróbálás nincs; azonos függő kérés
+lenyomat alapján blokkolt, a kísérleti submit dupla beküldése is védett.
+Titokérték és teljes kérésbody nem tárolt a műveleti bejegyzésekben.
+
+A mátrix **1.2.0**, 155 bejegyzés / 170 művelet. Az új karakter- és
+kísérletállapot-ellenőrző UI-kötés után **123 elérhető / 31 hiányzó /
+1 infrastruktúra** marad. A `reader` hívások konkrét útvonalait az önálló
+AST-audit is számon kéri; a két dinamikus továbbító indokolt transport.
+A 31 fennmaradó hiány a 26.7 paritási auditban nyitott.
+
+[Használat és működési határok](features/phase26-4-operation-progress.md).
+
+### Ellenőrzési kör és eredmények
+
+Az admin/public kliens, capability-forrásaudit és a control-plane böngészős
+határ érintett. Az admin és control-plane modulcsomag, a valódi helyi
+Chrome-tesztek, root TypeScript és módosított sorok formázása indokolt.
+Backend-API, szerveroldali hitelesítés/jogosultság, gazdasági elszámolás,
+tartós adattárolási modell, engine és runtime-függőség nem változott;
+teljes `verify:full`, engine- és webclient-typecheck nem volt indokolt.
+
+- **Széles érintett kör: 435/435 PASS, root TypeScript és format PASS,
+  exit 0, 203,799 s.** Parancs:
+  `bun test server/gateway/admin server/control-plane/test && bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-205006-231-phase26-4-affected.log`
+  és azonos nevű `.result.json`.
+- A széles kör után pontosabb műveletnév/érintett kör és az újraindítás
+  eredeti folyamatát kizáró ellenőrzés készült. **Végső célzott kör:
+  15/15 PASS, root TypeScript és format PASS, exit 0, 83,371 s.** Ez a kör
+  a módosítások próbáit, a közös jóváhagyást és a valós szerver/fiók
+  böngészős határokat futtatja:
+  `bun test server/gateway/admin/operation-progress-browser.test.ts server/gateway/admin/operation-review-browser.test.ts server/gateway/admin/capability-matrix.test.ts server/control-plane/test/browser.test.ts && bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-205345-265-phase26-4-final.log`
+  és azonos nevű `.result.json`.
+
+Az első célzott kapuk nem voltak zöldek: az átvezetett közös wrapper régi
+forrásszerződését és böngészős várakozásait, majd a root TS DOM-iterálási
+hibáját javítottuk. Az érdemi assertionök és a termék jóváhagyási kapui
+megmaradtak. A korai hibás naplók megőrzöttek:
+`20261017-175312-327-phase26-4-targeted.log`,
+`20261017-204637-733-phase26-4-debug.log`,
+`20261017-204737-738-phase26-4-targeted-fixed.log`.
+Az utóbbi tesztkörben 8/8 PASS után a typecheck állt meg; ez önmagában
+nem zöld kapu.
+
+Az új valódi Chrome-próbák késleltetett beküldést, dupla submitot,
+megszakított jóváhagyást, nézetváltást, elfogadás utáni listahibát,
+hibás státuszolvasás utáni helyreállást, részleges és elutasított
+kísérletet, újratöltött futó rekordot, skill-run hibát, régi online
+folyamatot és tényleges fetch-időtúllépést fednek le. A bizonytalan
+művelet ismételt küldése nem éri el a végrehajtót. Ellenséges HTML
+szövegként jelenik meg. A valódi karbantartási böngészőteszt a mentés,
+visszaállítás és migráció mindhárom befejezett műveleti kártyáját ellenőrzi.
+
+**Vizuális QA:** 1440 px és 390 px képek átnézve; olvasható állapotok,
+szövegtörés, működő belső görgetés és vízszintes túllógás nélküli mobilos
+lista. Képek: `.local/verification/phase26-4-progress-desktop.png`,
+`phase26-4-progress-mobile.png`.
+
+**Dokumentáció és stagingelt fájlok:** 54 helyi dokumentációhivatkozás
+feloldható, formázás PASS, exit 0, 1,583 s.
+`.local/verification/20261017-205540-873-phase26-4-docs.log`
+és azonos nevű `.result.json`. A dokumentációs lezárás nem igényelt
+új runtime-kört.
+
+A követő dokumentumélettartamú, nem új tartós napló. A kísérletek futó
+rekordjai újraolvashatók, a többi művelet szerveroldali eredménye az eredeti
+kezelési nézetben marad. Az azonosító nélküli HTTP 202 nem kész háttérmunka,
+hanem külön állapotellenőrzési teendő. Következő feladat: **26.5**.

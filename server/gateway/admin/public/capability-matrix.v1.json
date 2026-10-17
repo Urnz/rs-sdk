@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "reviewedAt": "2026-10-17",
   "evidence": [
     {
@@ -164,6 +164,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "'/api/admin/society/long-experiment-comparison'"
+    },
+    {
+      "id": "12b637dada9d9ccb4fbac335",
+      "file": "server/gateway/admin/public/operation-progress.js",
+      "kind": "frontend",
+      "text": "[\"reader\", `/api/admin/multi-agent-experiments/${encodeURIComponent(record.reference)}`, \"GET\"]"
     },
     {
       "id": "143b4c3f993d208b629d5cdc",
@@ -512,6 +518,12 @@
       "file": "server/gateway/admin/public/admin.js",
       "kind": "frontend",
       "text": "[\"api\", `/api/admin/bots/${encodeURIComponent(username)}`, 'DELETE']"
+    },
+    {
+      "id": "35ebb7a6ec2b6bc4001e9065",
+      "file": "server/gateway/admin/public/operation-progress.js",
+      "kind": "frontend",
+      "text": "[\"reader\", `/api/admin/multi-agent-experiments/${encodeURIComponent(run.experimentId)}`, \"GET\"]"
     },
     {
       "id": "35ee066646fdfe9c57966710",
@@ -1216,6 +1228,12 @@
       "text": "'/api/admin/world-director/preview'"
     },
     {
+      "id": "6e0d17f109c89dd7abbf1179",
+      "file": "server/gateway/admin/public/admin.js",
+      "kind": "frontend",
+      "text": "[\"api\", path, \"GET\"]"
+    },
+    {
       "id": "6e39e5a985fb936e7a6b550a",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
@@ -1316,6 +1334,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "/^\\/api\\/admin\\/agents\\/([a-z0-9.-]+)\\/commitments\\/([a-z0-9.-]+)\\/status$/"
+    },
+    {
+      "id": "77fab2775d2da9765994279e",
+      "file": "server/gateway/admin/public/servers.js",
+      "kind": "frontend",
+      "text": "[\"lifecycleApi\", target.replace('/api/control-plane/servers', ''), \"GET\"]"
     },
     {
       "id": "782eba7966b0cae86e56d2ed",
@@ -1538,6 +1562,12 @@
       "file": "server/gateway/admin/public/account.js",
       "kind": "frontend",
       "text": "[\"accountApi\", 'session', \"GET\"]"
+    },
+    {
+      "id": "936b9cd00c08079728121abb",
+      "file": "server/gateway/admin/public/operation-progress.js",
+      "kind": "frontend",
+      "text": "[\"reader\", `/api/admin/bots/${encodeURIComponent(username)}`, \"GET\"]"
     },
     {
       "id": "9430e148024d36c69e5ed435",
@@ -2104,6 +2134,12 @@
       "text": "req.method === 'POST' && url.pathname === '/api/admin/multi-agent-experiments/calibration-compare'"
     },
     {
+      "id": "d019dca4fe8ab1665a902406",
+      "file": "server/gateway/admin/public/operation-progress.js",
+      "kind": "frontend",
+      "text": "[\"reader\", `/api/control-plane/servers/operations/${encodeURIComponent(record.reference)}`, \"GET\"]"
+    },
+    {
       "id": "d148c7647d9d420feb958830",
       "file": "server/control-plane/service.ts",
       "kind": "backend",
@@ -2530,6 +2566,12 @@
       "text": "[\"api\", '/api/admin/multi-agent-experiments', 'POST']"
     },
     {
+      "id": "f74a2cdb1a93a85c394c23e6",
+      "file": "server/gateway/admin/public/operation-progress.js",
+      "kind": "frontend",
+      "text": "[\"reader\", '/api/admin/skill-runs?limit=1000', \"GET\"]"
+    },
+    {
       "id": "f8b28595bd08c4f0335d33cf",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
@@ -2610,6 +2652,14 @@
     {
       "evidence": "46410fcd93d9b4099cbf285e",
       "reason": "A módosító kérés előtti, csak olvasó műveleti magyarázat betöltése; nem hajt végre domainműveletet."
+    },
+    {
+      "evidence": "6e0d17f109c89dd7abbf1179",
+      "reason": "A közös műveletkövető GET-olvasójának továbbítása; a konkrét útvonalak külön reader-bizonyítékokkal szerepelnek."
+    },
+    {
+      "evidence": "77fab2775d2da9765994279e",
+      "reason": "A közös műveletkövető GET-olvasójának továbbítása; a konkrét útvonalak külön reader-bizonyítékokkal szerepelnek."
     }
   ],
   "capabilities": [
@@ -2666,9 +2716,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Támogatott szolgáltató, modell és érvényes korlátok szükségesek. Valódi modellhíváshoz titoktárban tárolt kulcs és szabad költségkeret kell.",
-      "state": "A konfiguráció forrása, engedélyezése és a kulcs megléte látható.",
+      "state": "A konfiguráció forrása, engedélyezése és a kulcs megléte látható. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A mentett beállítás és a kulcs állapota frissül; a titok értéke nem olvasható vissza.",
-      "error": "A felület hibaüzenetet mutat; javítsd a beállítást vagy a titoktár elérhetőségét.",
+      "error": "A felület hibaüzenetet mutat; javítsd a beállítást vagy a titoktár elérhetőségét. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#llm",
@@ -2745,9 +2795,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Két külön fél és pontos kötelezettségek kellenek. Elfogadáskor igazolt fedezet, teljesítéskor a szerződéshez kötött hiteles bizonyíték szükséges.",
-      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető.",
+      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A szerződés és az elszámolás eredménye frissül; az elfogadás önmagában nem teljesítési igazolás.",
-      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd.",
+      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#contracts",
@@ -2817,9 +2867,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Két külön fél és pontos kötelezettségek kellenek. Elfogadáskor igazolt fedezet, teljesítéskor a szerződéshez kötött hiteles bizonyíték szükséges.",
-      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető.",
+      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A szerződés és az elszámolás eredménye frissül; az elfogadás önmagában nem teljesítési igazolás.",
-      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd.",
+      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#contracts",
@@ -2858,9 +2908,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Két külön fél és pontos kötelezettségek kellenek. Elfogadáskor igazolt fedezet, teljesítéskor a szerződéshez kötött hiteles bizonyíték szükséges.",
-      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető.",
+      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A szerződés és az elszámolás eredménye frissül; az elfogadás önmagában nem teljesítési igazolás.",
-      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd.",
+      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#contracts",
@@ -2922,9 +2972,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Két külön fél és pontos kötelezettségek kellenek. Elfogadáskor igazolt fedezet, teljesítéskor a szerződéshez kötött hiteles bizonyíték szükséges.",
-      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető.",
+      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A szerződés és az elszámolás eredménye frissül; az elfogadás önmagában nem teljesítési igazolás.",
-      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd.",
+      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#contracts",
@@ -2968,9 +3018,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Két külön fél és pontos kötelezettségek kellenek. Elfogadáskor igazolt fedezet, teljesítéskor a szerződéshez kötött hiteles bizonyíték szükséges.",
-      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető.",
+      "state": "Az ajánlat, elfogadás, teljesítés és elszámolás külön állapotként követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A szerződés és az elszámolás eredménye frissül; az elfogadás önmagában nem teljesítési igazolás.",
-      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd.",
+      "error": "A felület hibaüzenetet mutat. Ismeretlen pénzügyi kimenetelnél előbb a szerződés és az elszámolás állapotát ellenőrizd. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#contracts",
@@ -3051,9 +3101,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3096,9 +3146,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3156,9 +3206,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3201,9 +3251,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3269,9 +3319,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3383,9 +3433,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3461,9 +3511,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3506,9 +3556,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3547,9 +3597,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3593,9 +3643,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3638,9 +3688,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3683,9 +3733,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3728,9 +3778,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3773,9 +3823,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3818,9 +3868,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3863,9 +3913,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3908,9 +3958,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -3953,9 +4003,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4035,9 +4085,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4076,9 +4126,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4121,9 +4171,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4167,9 +4217,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4212,9 +4262,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4257,9 +4307,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4335,9 +4385,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4384,9 +4434,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot.",
+      "state": "A döntéshozó adatlapján és a döntési naplóban követhető az állapot. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Az adatlap vagy a döntés eredménye megjelenik; feladatindításkor futásazonosító készül.",
-      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót.",
+      "error": "A felület rövid hibaüzenetet mutat; ellenőrizd a karakter kapcsolatát, célját, képességeit és a döntési naplót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#agents",
@@ -4509,9 +4559,9 @@
       ],
       "access": "Bejelentkezés előtt is használható, helyes fióknévvel és jelszóval.",
       "prerequisites": "Meglévő fiók neve és jelszava szükséges. Lejárt munkamenet után újra bejelentkezhetsz.",
-      "state": "A bejelentkezési űrlap státuszsora mutatja a kérést vagy a hibát.",
+      "state": "A bejelentkezési űrlap státuszsora mutatja a kérést vagy a hibát. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Sikeres bejelentkezés után a Saját szervereim oldal nyílik meg.",
-      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra.",
+      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "login.html",
@@ -4587,9 +4637,9 @@
       ],
       "access": "A helyi alapértelmezett szerver tulajdonosa.",
       "prerequisites": "Bejelentkezés szükséges. Más fiókjának vagy szerverhozzáférésének kezeléséhez az adott tulajdonosi jogosultság kell.",
-      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül.",
+      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A fiók, munkamenet vagy hozzáférés módosítása visszaigazolást kap.",
-      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra.",
+      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "account.html",
@@ -4628,9 +4678,9 @@
       ],
       "access": "A helyi alapértelmezett szerver tulajdonosa.",
       "prerequisites": "Bejelentkezés szükséges. Más fiókjának vagy szerverhozzáférésének kezeléséhez az adott tulajdonosi jogosultság kell.",
-      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül.",
+      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A fiók, munkamenet vagy hozzáférés módosítása visszaigazolást kap.",
-      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra.",
+      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "account.html",
@@ -4674,9 +4724,9 @@
       ],
       "access": "Bejelentkezett felhasználó; kizárólag a saját fiók vagy hozzáférhető szerver adatai.",
       "prerequisites": "Bejelentkezés szükséges. Más fiókjának vagy szerverhozzáférésének kezeléséhez az adott tulajdonosi jogosultság kell.",
-      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül.",
+      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A fiók, munkamenet vagy hozzáférés módosítása visszaigazolást kap.",
-      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra.",
+      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "account.html",
@@ -4720,9 +4770,9 @@
       ],
       "access": "Bejelentkezett felhasználó; kizárólag a saját fiók vagy hozzáférhető szerver adatai.",
       "prerequisites": "Bejelentkezés szükséges. Más fiókjának vagy szerverhozzáférésének kezeléséhez az adott tulajdonosi jogosultság kell.",
-      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül.",
+      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A fiók, munkamenet vagy hozzáférés módosítása visszaigazolást kap.",
-      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra.",
+      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "account.html",
@@ -4761,9 +4811,9 @@
       ],
       "access": "Bejelentkezett felhasználó; kizárólag a saját fiók vagy hozzáférhető szerver adatai.",
       "prerequisites": "Bejelentkezés szükséges. Más fiókjának vagy szerverhozzáférésének kezeléséhez az adott tulajdonosi jogosultság kell.",
-      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül.",
+      "state": "A fiók státuszsora és a munkamenet-/jogosultságlista frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A fiók, munkamenet vagy hozzáférés módosítása visszaigazolást kap.",
-      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra.",
+      "error": "A fiók státuszsora megjeleníti a hibát; lejárt munkamenetnél jelentkezz be újra. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "account.html",
@@ -4876,9 +4926,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül.",
+      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A művelet sikeréről rövid üzenet, az állapotról frissített karakterlista tájékoztat.",
-      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet.",
+      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#bots",
@@ -4913,7 +4963,9 @@
       "backend": [
         "7a74cf8e76a5d7f8ac50adfd"
       ],
-      "frontend": [],
+      "frontend": [
+        "936b9cd00c08079728121abb"
+      ],
       "methods": [
         "GET"
       ],
@@ -4922,9 +4974,13 @@
       "state": "A funkcióhoz még nincs felületi állapotjelző.",
       "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
       "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#bots",
+        "selector": "#bot-rows",
+        "label": "Karakterek → Műveletek → Állapot ellenőrzése"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
@@ -4934,8 +4990,7 @@
           "method": "GET",
           "path": "/api/admin/bots/:id"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.bots-item.delete",
@@ -4953,9 +5008,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül.",
+      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A művelet sikeréről rövid üzenet, az állapotról frissített karakterlista tájékoztat.",
-      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet.",
+      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#bots",
@@ -4999,9 +5054,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül.",
+      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A művelet sikeréről rövid üzenet, az állapotról frissített karakterlista tájékoztat.",
-      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet.",
+      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#bots",
@@ -5047,9 +5102,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül.",
+      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A művelet sikeréről rövid üzenet, az állapotról frissített karakterlista tájékoztat.",
-      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet.",
+      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#bots",
@@ -5127,9 +5182,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül.",
+      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A művelet sikeréről rövid üzenet, az állapotról frissített karakterlista tájékoztat.",
-      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet.",
+      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#bots",
@@ -5209,9 +5264,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül.",
+      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A művelet sikeréről rövid üzenet, az állapotról frissített karakterlista tájékoztat.",
-      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet.",
+      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#bots",
@@ -5291,9 +5346,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül.",
+      "state": "A karakter adatlapja, állapota vagy a megnyitott műveleti ablak frissül. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A művelet sikeréről rövid üzenet, az állapotról frissített karakterlista tájékoztat.",
-      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet.",
+      "error": "A felület hibaüzenetet ad; bizonytalan kimenetelnél frissítsd az állapotot, mielőtt újra kéred a műveletet. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#bots",
@@ -5410,9 +5465,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz képességet vagy fejlesztési próbát. Valós futáshoz kijelölt online tesztkarakter és ellenőrzött paraméterek szükségesek; publikáláshoz külön emberi jóváhagyás kell.",
-      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást.",
+      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A futás eredménye vagy az ellenőrzés/publikálás visszaigazolása jelenik meg.",
-      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj.",
+      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#skills",
@@ -5492,9 +5547,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz képességet vagy fejlesztési próbát. Valós futáshoz kijelölt online tesztkarakter és ellenőrzött paraméterek szükségesek; publikáláshoz külön emberi jóváhagyás kell.",
-      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást.",
+      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A futás eredménye vagy az ellenőrzés/publikálás visszaigazolása jelenik meg.",
-      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj.",
+      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#skills",
@@ -5648,9 +5703,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz képességet vagy fejlesztési próbát. Valós futáshoz kijelölt online tesztkarakter és ellenőrzött paraméterek szükségesek; publikáláshoz külön emberi jóváhagyás kell.",
-      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást.",
+      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A futás eredménye vagy az ellenőrzés/publikálás visszaigazolása jelenik meg.",
-      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj.",
+      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#skills",
@@ -5687,7 +5742,8 @@
         "833eaa40d38899e2e29b3c86"
       ],
       "frontend": [
-        "8aa27af29281180a14176c40"
+        "8aa27af29281180a14176c40",
+        "f74a2cdb1a93a85c394c23e6"
       ],
       "methods": [
         "GET"
@@ -5731,9 +5787,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz képességet vagy fejlesztési próbát. Valós futáshoz kijelölt online tesztkarakter és ellenőrzött paraméterek szükségesek; publikáláshoz külön emberi jóváhagyás kell.",
-      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást.",
+      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A futás eredménye vagy az ellenőrzés/publikálás visszaigazolása jelenik meg.",
-      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj.",
+      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#skills",
@@ -5776,9 +5832,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz képességet vagy fejlesztési próbát. Valós futáshoz kijelölt online tesztkarakter és ellenőrzött paraméterek szükségesek; publikáláshoz külön emberi jóváhagyás kell.",
-      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást.",
+      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A futás eredménye vagy az ellenőrzés/publikálás visszaigazolása jelenik meg.",
-      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj.",
+      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#skills",
@@ -5821,9 +5877,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz képességet vagy fejlesztési próbát. Valós futáshoz kijelölt online tesztkarakter és ellenőrzött paraméterek szükségesek; publikáláshoz külön emberi jóváhagyás kell.",
-      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást.",
+      "state": "A futásnapló és a próba ellenőrzési állapota mutatja az előrehaladást. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A futás eredménye vagy az ellenőrzés/publikálás visszaigazolása jelenik meg.",
-      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj.",
+      "error": "A felület hibaüzenetet mutat. Vizsgáld meg a futás és ellenőrzés részleteit; hibás próbát ne publikálj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#skills",
@@ -5895,7 +5951,10 @@
       "backend": [
         "71070e9a7b213d246cce2a18"
       ],
-      "frontend": [],
+      "frontend": [
+        "12b637dada9d9ccb4fbac335",
+        "35ebb7a6ec2b6bc4001e9065"
+      ],
       "methods": [
         "GET"
       ],
@@ -5904,9 +5963,13 @@
       "state": "A funkcióhoz még nincs felületi állapotjelző.",
       "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
       "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#multi-agent-experiment-form",
+        "label": "Kísérletek → Műveletek → Állapot ellenőrzése"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
@@ -5916,8 +5979,7 @@
           "method": "GET",
           "path": "/api/admin/multi-agent-experiments/:id"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.multi-agent-experiments.calibration-compare.post",
@@ -5935,9 +5997,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -5976,9 +6038,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6021,9 +6083,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6199,9 +6261,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6277,9 +6339,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6359,9 +6421,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6400,9 +6462,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6445,9 +6507,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6490,9 +6552,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A kísérleti listában és a részletes eredményekben követhető a futás.",
+      "state": "A kísérleti listában és a részletes eredményekben követhető a futás. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Futásazonosító és eredmény, profil-alkalmazási visszaigazolás vagy összehasonlítás jelenik meg.",
-      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata.",
+      "error": "A jelenlegi felület rövid hibaüzenetet mutat. A néma indítás és a hosszú műveletek visszajelzésének egységesítése a 26.4 feladata. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#experiments",
@@ -6679,9 +6741,9 @@
       ],
       "access": "Indítás, leállítás és újraindítás: tulajdonos vagy üzemeltető. Archiválás, mentés, visszaállítás és migráció: tulajdonos.",
       "prerequisites": "Bejelentkezés és hozzáférhető szerver kell. Kezelt világ műveletéhez aktuális állapotverzió és kérésazonosító szükséges; visszaállításhoz ellenőrzött mentés.",
-      "state": "A szerverkártya és a műveleti státuszsor jelzi az indítást, futást és befejezést.",
+      "state": "A szerverkártya és a műveleti státuszsor jelzi az indítást, futást és befejezést. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Frissített szerverállapot, tartós műveletazonosító vagy mentéslista jelenik meg.",
-      "error": "A tartós műveleti hiba és státuszsor ad támpontot; bizonytalan kérésnél előbb frissítsd a szerver állapotát.",
+      "error": "A tartós műveleti hiba és státuszsor ad támpontot; bizonytalan kérésnél előbb frissítsd a szerver állapotát. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "servers.html",
@@ -6884,9 +6946,9 @@
       ],
       "access": "Bejelentkezett felhasználó; a szerverlista és műveletállapot csak a saját hozzáférése szerinti szerverekre vonatkozik.",
       "prerequisites": "Bejelentkezés és hozzáférhető szerver kell. Kezelt világ műveletéhez aktuális állapotverzió és kérésazonosító szükséges; visszaállításhoz ellenőrzött mentés.",
-      "state": "A szerverkártya és a műveleti státuszsor jelzi az indítást, futást és befejezést.",
+      "state": "A szerverkártya és a műveleti státuszsor jelzi az indítást, futást és befejezést. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Frissített szerverállapot, tartós műveletazonosító vagy mentéslista jelenik meg.",
-      "error": "A tartós műveleti hiba és státuszsor ad támpontot; bizonytalan kérésnél előbb frissítsd a szerver állapotát.",
+      "error": "A tartós műveleti hiba és státuszsor ad támpontot; bizonytalan kérésnél előbb frissítsd a szerver állapotát. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "servers.html",
@@ -6966,9 +7028,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Bejelentkezés és hozzáférhető szerver kell. Kezelt világ műveletéhez aktuális állapotverzió és kérésazonosító szükséges; visszaállításhoz ellenőrzött mentés.",
-      "state": "A szerverkártya és a műveleti státuszsor jelzi az indítást, futást és befejezést.",
+      "state": "A szerverkártya és a műveleti státuszsor jelzi az indítást, futást és befejezést. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Frissített szerverállapot, tartós műveletazonosító vagy mentéslista jelenik meg.",
-      "error": "A tartós műveleti hiba és státuszsor ad támpontot; bizonytalan kérésnél előbb frissítsd a szerver állapotát.",
+      "error": "A tartós műveleti hiba és státuszsor ad támpontot; bizonytalan kérésnél előbb frissítsd a szerver állapotát. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "servers.html",
@@ -7082,7 +7144,8 @@
         "f06cb4bca4270e24d0a830e5"
       ],
       "frontend": [
-        "638286bb8fc66966934e31de"
+        "638286bb8fc66966934e31de",
+        "d019dca4fe8ab1665a902406"
       ],
       "methods": [
         "GET"
@@ -7806,9 +7869,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Jóváhagyott eseménysablon és seed kell. Játékbeli megjelenéshez a megfelelő világmódosításnak is aktívnak kell lennie.",
-      "state": "Az ütemezés, ciklus és kézbesítési napló állapota látható.",
+      "state": "Az ütemezés, ciklus és kézbesítési napló állapota látható. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Előnézet, mentett ütemezés vagy tartós eseményazonosító jelenik meg.",
-      "error": "A rövid hibaüzenet után ellenőrizd a ciklus és kézbesítés állapotát, mielőtt új eseményt kérsz.",
+      "error": "A rövid hibaüzenet után ellenőrizd a ciklus és kézbesítés állapotát, mielőtt új eseményt kérsz. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world-events",
@@ -7921,9 +7984,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Jóváhagyott eseménysablon és seed kell. Játékbeli megjelenéshez a megfelelő világmódosításnak is aktívnak kell lennie.",
-      "state": "Az ütemezés, ciklus és kézbesítési napló állapota látható.",
+      "state": "Az ütemezés, ciklus és kézbesítési napló állapota látható. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Előnézet, mentett ütemezés vagy tartós eseményazonosító jelenik meg.",
-      "error": "A rövid hibaüzenet után ellenőrizd a ciklus és kézbesítés állapotát, mielőtt új eseményt kérsz.",
+      "error": "A rövid hibaüzenet után ellenőrizd a ciklus és kézbesítés állapotát, mielőtt új eseményt kérsz. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world-events",
@@ -7966,9 +8029,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Jóváhagyott eseménysablon és seed kell. Játékbeli megjelenéshez a megfelelő világmódosításnak is aktívnak kell lennie.",
-      "state": "Az ütemezés, ciklus és kézbesítési napló állapota látható.",
+      "state": "Az ütemezés, ciklus és kézbesítési napló állapota látható. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "Előnézet, mentett ütemezés vagy tartós eseményazonosító jelenik meg.",
-      "error": "A rövid hibaüzenet után ellenőrizd a ciklus és kézbesítés állapotát, mielőtt új eseményt kérsz.",
+      "error": "A rövid hibaüzenet után ellenőrizd a ciklus és kézbesítés állapotát, mielőtt új eseményt kérsz. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world-events",
@@ -8011,9 +8074,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8075,9 +8138,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8120,9 +8183,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8239,9 +8302,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8389,9 +8452,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8634,9 +8697,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8679,9 +8742,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8761,9 +8824,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Aktuális konfiguráció és revízió szükséges. Vásárláskor elérhető ingatlan és fedezet kell; visszaállításhoz meglévő mentést válassz.",
-      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja.",
+      "state": "A kezelőablak a kért és aktív szabályokat, függő módosításokat és ingatlanállapotot mutatja. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A módosítás visszaigazolása és az aktív vagy újraindításra váró állapot látható.",
-      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj.",
+      "error": "A felület hibaüzenetet ad. Ellenőrizd a konfiguráció állapotverzióját és az engine állapotát; pénzügyi egyeztetést csak bizonyíték alapján kérj. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#world",
@@ -8806,9 +8869,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tulajdonosként kijelölhető tartós döntéshozó kell; foglalkoztatáshoz létező vállalkozás és dolgozó. Módosításkor az aktuális állapotverzió szükséges.",
-      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető.",
+      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A frissített vállalkozás vagy jóváhagyott munkaszabály megjelenik a listában.",
-      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót.",
+      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#businesses",
@@ -8851,9 +8914,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tulajdonosként kijelölhető tartós döntéshozó kell; foglalkoztatáshoz létező vállalkozás és dolgozó. Módosításkor az aktuális állapotverzió szükséges.",
-      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető.",
+      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A frissített vállalkozás vagy jóváhagyott munkaszabály megjelenik a listában.",
-      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót.",
+      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#businesses",
@@ -8896,9 +8959,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tulajdonosként kijelölhető tartós döntéshozó kell; foglalkoztatáshoz létező vállalkozás és dolgozó. Módosításkor az aktuális állapotverzió szükséges.",
-      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető.",
+      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A frissített vállalkozás vagy jóváhagyott munkaszabály megjelenik a listában.",
-      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót.",
+      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#businesses",
@@ -9010,9 +9073,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tulajdonosként kijelölhető tartós döntéshozó kell; foglalkoztatáshoz létező vállalkozás és dolgozó. Módosításkor az aktuális állapotverzió szükséges.",
-      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető.",
+      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A frissített vállalkozás vagy jóváhagyott munkaszabály megjelenik a listában.",
-      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót.",
+      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#businesses",
@@ -9051,9 +9114,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tulajdonosként kijelölhető tartós döntéshozó kell; foglalkoztatáshoz létező vállalkozás és dolgozó. Módosításkor az aktuális állapotverzió szükséges.",
-      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető.",
+      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A frissített vállalkozás vagy jóváhagyott munkaszabály megjelenik a listában.",
-      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót.",
+      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#businesses",
@@ -9115,9 +9178,9 @@
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tulajdonosként kijelölhető tartós döntéshozó kell; foglalkoztatáshoz létező vállalkozás és dolgozó. Módosításkor az aktuális állapotverzió szükséges.",
-      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető.",
+      "state": "A vállalkozás, foglalkoztatás és üzleti javaslat állapota a listában követhető. A Műveletek lista megőrzi a jóváhagyási, beküldési és eredményállapotot a dokumentumon belüli nézetváltáskor.",
       "result": "A frissített vállalkozás vagy jóváhagyott munkaszabály megjelenik a listában.",
-      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót.",
+      "error": "A rövid hibaüzenet után frissítsd a listát; ellenőrizd a szereplőket és a megváltozott állapotverziót. A tartós műveleti bejegyzés HTTP-hibát vagy bizonytalan kimenetelt és ellenőrzési teendőt jelez; nincs automatikus módosító újrapróbálás.",
       "coverage": "available",
       "entry": {
         "page": "index.html#businesses",

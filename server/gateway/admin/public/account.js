@@ -3,20 +3,29 @@ const byId = id => document.getElementById(id);
 let accountSession;
 function message(text, error = false) { byId('account-message').textContent = text; byId('account-message').dataset.error = String(error && text !== 'A műveletet nem indítottuk el.'); }
 async function accountApi(path, data, method = 'POST') {
-    if (data !== undefined && path !== 'login') await (await import('./operation-review.js')).reviewMutation('/api/control-plane/' + path, method, data);
-    const headers = {};
-    if (data !== undefined) {
-        headers['Content-Type'] = 'application/json'; headers['X-Admin-Request'] = 'rs-sdk-admin';
-        if (accountSession) headers['X-Control-CSRF'] = accountSession.csrfToken;
-    }
-    const response = await fetch('/api/control-plane/' + path, { method: data === undefined ? 'GET' : method, headers, cache: 'no-store',
-        ...(data === undefined ? {} : { body: JSON.stringify(data) }) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        if (result.code === 'LOGIN_REQUIRED' && !byId('login-form')) location.assign('/admin/login.html');
-        throw new Error(result.error || 'A fiókművelet nem sikerült.');
-    }
-    return result;
+    const send = async (signal, markSent) => {
+        const headers = {};
+        if (data !== undefined) {
+            headers['Content-Type'] = 'application/json'; headers['X-Admin-Request'] = 'rs-sdk-admin';
+            if (accountSession) headers['X-Control-CSRF'] = accountSession.csrfToken;
+        }
+        markSent();
+        const response = await fetch('/api/control-plane/' + path, { method: data === undefined ? 'GET' : method, headers, cache: 'no-store', signal,
+            ...(data === undefined ? {} : { body: JSON.stringify(data) }) });
+        const result = await response.json().catch(() => {
+            if (response.ok) throw new Error('A szerverválasz nem olvasható.');
+            return {};
+        });
+        if (!response.ok) {
+            if (result.code === 'LOGIN_REQUIRED' && !byId('login-form')) location.assign('/admin/login.html');
+            const error = new Error(`${result.error || 'A fiókművelet nem sikerült.'} (HTTP ${response.status})`);
+            error.rejected = response.status >= 400 && response.status < 500; throw error;
+        }
+        return { data: result, status: response.status };
+    };
+    if (['login', 'logout'].includes(path)) return (await send(AbortSignal.timeout(30000), () => {})).data;
+    const { runOperation } = await import('./operation-progress.js');
+    return runOperation('/api/control-plane/' + path, { method: data === undefined ? 'GET' : method, body: data }, send);
 }
 function wireForm(id, action) {
     const form = byId(id); if (!form) return;

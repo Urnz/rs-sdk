@@ -9,20 +9,25 @@ const lifecycleMessage = document.getElementById('lifecycle-message');
 const stateLabels = { provisioning: 'Létrehozás folyamatban', stopped: 'Leállítva', starting: 'Indítás folyamatban', running: 'Fut', stopping: 'Leállítás folyamatban', restarting: 'Újraindítás folyamatban', archiving: 'Archiválás folyamatban', archived: 'Archiválva', failed: 'Műveleti hiba', maintenance: 'Karbantartás folyamatban' };
 function lifecycleStatus(text, error = false) { lifecycleMessage.textContent = text; lifecycleMessage.dataset.error = String(error); }
 async function lifecycleApi(path, data) {
-    if (data) await (await import('./operation-review.js')).reviewMutation('/api/control-plane/servers' + path, 'POST', data);
-    const headers = {};
-    if (data) {
-        const sessionResponse = await fetch('/api/control-plane/session', { cache: 'no-store' });
-        if (!sessionResponse.ok) { stopped = true; location.assign('/admin/login.html'); throw new Error('Jelentkezz be újra.'); }
-        session = await sessionResponse.json();
-        headers['Content-Type'] = 'application/json'; headers['X-Admin-Request'] = 'rs-sdk-admin'; headers['X-Control-CSRF'] = session.csrfToken;
-    }
-    const response = await fetch('/api/control-plane/servers' + path, { method: data ? 'POST' : 'GET', headers,
-        ...(data ? { body: JSON.stringify(data) } : {}), signal: AbortSignal.timeout(5000), cache: 'no-store' });
-    const result = await response.json();
-    if (response.status === 401) { stopped = true; location.assign('/admin/login.html'); }
-    if (!response.ok) throw new Error(result.error || 'A szerverművelet nem sikerült.');
-    return result;
+    const { runOperation, setOperationReader } = await import('./operation-progress.js');
+    setOperationReader(async target => lifecycleApi(target.replace('/api/control-plane/servers', '')));
+    return runOperation('/api/control-plane/servers' + path, { method: data ? 'POST' : 'GET', body: data }, async (signal, markSent) => {
+        const headers = {};
+        if (data) {
+            const sessionResponse = await fetch('/api/control-plane/session', { cache: 'no-store', signal });
+            if (!sessionResponse.ok) { stopped = true; location.assign('/admin/login.html'); throw new Error('Jelentkezz be újra.'); }
+            session = await sessionResponse.json();
+            headers['Content-Type'] = 'application/json'; headers['X-Admin-Request'] = 'rs-sdk-admin'; headers['X-Control-CSRF'] = session.csrfToken;
+        }
+        markSent();
+        const response = await fetch('/api/control-plane/servers' + path, { method: data ? 'POST' : 'GET', headers,
+            ...(data ? { body: JSON.stringify(data) } : {}), signal, cache: 'no-store' });
+        const result = await response.json();
+        if (response.status === 401) { stopped = true; location.assign('/admin/login.html'); }
+        if (!response.ok) { const error = new Error(`${result.error || 'A szerverművelet nem sikerült.'} (HTTP ${response.status})`);
+            error.rejected = response.status >= 400 && response.status < 500; throw error; }
+        return { data: result, status: response.status };
+    });
 }
 async function watchOperation(operation) {
     const deadline = Date.now() + 180000;
@@ -40,12 +45,12 @@ async function mutate(path, data) {
     if (mutationPending) return;
     mutationPending = true;
     try {
-        lifecycleStatus('A művelet kérése folyamatban…');
+        lifecycleStatus('A művelet jóváhagyásra vár; még nem indult el.');
         const { operation } = await lifecycleApi(path, data);
         lifecycleStatus('A művelet elindult; az eredményre várunk…');
         await update(); return await watchOperation(operation);
     } catch (error) { lifecycleStatus(['REVIEW_CANCELLED', 'REVIEW_NOT_SENT'].includes(error.code) ? error.message
-        : `${error.message} A kérés kimenetele bizonytalan lehet; ellenőrizd a szerver állapotát.`, error.code !== 'REVIEW_CANCELLED'); }
+        : `${error.message} Ellenőrizd a Műveletek listát és a szerver állapotát.`, error.code !== 'REVIEW_CANCELLED'); }
     finally { mutationPending = false; await update(); }
 }
 function card(server) {

@@ -44,6 +44,8 @@ test('maintenance UI backs up, selects a snapshot, restores and migrates with vi
         await page.waitForFunction(() => document.getElementById('lifecycle-message')!.textContent === 'A művelet befejeződött.');
         await click('Verzió frissítése');
         await page.waitForFunction(() => document.querySelector('.server-card')!.textContent!.includes('Forrás: bbbbbbbb'));
+        await page.waitForFunction(() => document.querySelectorAll('#operation-progress li[data-state="completed"]').length === 3);
+        expect(await page.$$('#operation-progress li[data-state="failed"], #operation-progress li[data-state="unknown"]')).toHaveLength(0);
         expect(registry.lifecycle.managed(created.serverId)!.version).toBe(runtime.version);
         await page.setViewport({ width: 390, height: 844 });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(errors).toEqual([]);

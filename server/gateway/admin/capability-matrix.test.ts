@@ -15,8 +15,8 @@ const actual = discoverCapabilityEvidence(sources);
 test('versioned matrix accounts for every discovered backend declaration, routing guard and frontend request', () => {
     expect(auditCapabilityMatrix(matrix, actual).problems).toEqual([]);
     expect(matrix.capabilities.every(item => item.methods.length === 1)).toBe(true);
-    expect(matrix.capabilities.filter(item => item.coverage === 'missing')).toHaveLength(33);
-    expect(matrix.capabilities.filter(item => item.coverage === 'available')).toHaveLength(121);
+    expect(matrix.capabilities.filter(item => item.coverage === 'missing')).toHaveLength(31);
+    expect(matrix.capabilities.filter(item => item.coverage === 'available')).toHaveLength(123);
     expect(matrix.capabilities.filter(item => item.coverage === 'infrastructure')).toHaveLength(1);
     expect(matrix.capabilities.flatMap(item => item.operations)).toHaveLength(170);
 });
@@ -49,6 +49,8 @@ test('source discovery catches new routes, method changes, new client calls and 
     expect(auditCapabilityMatrix(matrix, methodChange).problems.some(problem => problem.startsWith('Unregistered guard:'))).toBe(true);
     const extraClient = discoverCapabilityEvidence({ ...sources, 'server/gateway/admin/public/new-client.js': "api('/api/admin/no-backend', {method:'POST'});" });
     expect(auditCapabilityMatrix(matrix, extraClient).problems.some(problem => problem.startsWith('Orphan frontend:'))).toBe(true);
+    const extraReader = discoverCapabilityEvidence({ ...sources, 'progress-fixture.js': "reader('/api/admin/unregistered-status');" });
+    expect(auditCapabilityMatrix(matrix, extraReader).problems.some(problem => problem.startsWith('Orphan frontend:'))).toBe(true);
     const removed = actual.filter(item => item.kind !== 'frontend');
     expect(auditCapabilityMatrix(matrix, removed).problems.some(problem => problem.startsWith('Stale evidence:'))).toBe(true);
 });
@@ -92,8 +94,9 @@ test('every exposed mutation has a reviewed decision policy and native confirm p
     for (const name of ['admin.js', 'account.js', 'servers.js']) {
         const source = sources[`server/gateway/admin/public/${name}`]!;
         expect(source).not.toMatch(/\bconfirm\(/);
-        expect(source).toContain('reviewMutation(');
+        expect(source.includes('runOperation(')).toBe(true);
     }
+    expect(sources['server/gateway/admin/public/operation-progress.js']!.includes('await reviewMutation(')).toBe(true);
     const broken = structuredClone(matrix);
     broken.capabilities.find(item => item.review?.mode === 'required')!.review!.recovery = '';
     expect(auditCapabilityMatrix(broken, actual).problems.some(problem => problem.startsWith('Incomplete review recovery:'))).toBe(true);

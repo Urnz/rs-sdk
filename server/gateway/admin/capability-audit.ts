@@ -41,7 +41,7 @@ export function discoverCapabilityEvidence(files: Record<string, string>): Surfa
                 if (ts.isRegularExpressionLiteral(node) && /api\\\/.*(admin|control-plane)/.test(node.text)) add('backend', node);
                 if (ts.isIfStatement(node) && /\breq\.method\b/.test(node.expression.getText(tree))) add('guard', node.expression);
             } else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)
-                && ['api', 'fetch', 'request', 'accountApi', 'lifecycleApi', 'observationApi', 'mutate'].includes(node.expression.text)) {
+                && ['api', 'fetch', 'request', 'accountApi', 'lifecycleApi', 'observationApi', 'mutate', 'reader'].includes(node.expression.text)) {
                 // Capture method selection, URL templates and wrapper calls; ignore bodies/content.
                 const argument = node.arguments[0];
                 if (argument) {

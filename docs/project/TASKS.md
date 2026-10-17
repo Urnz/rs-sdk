@@ -391,11 +391,21 @@ admin control plane mindkét engine leállítása közben is elérhető marad.
   432 PASS / 1 új tesztbeállítási hiba; javítás után 8/8 célzott teszt,
   root TypeScript és format PASS. Ez nem zöld teljes regressziós exit.
   [Használat és működési határok](features/phase26-3-operation-reviews.md),
-  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: 26.4.
-- [ ] Minden hosszabb művelethez látható indítási visszaigazolást, futási
+  [ellenőrzési napló](PHASE26_PROGRESS.md).
+- [x] Minden hosszabb művelethez látható indítási visszaigazolást, futási
   állapotot, befejezést és diagnosztizálható hibát adni. Külön regresszióként
   lefedni a Kísérletek néma indítását: a megerősítés után jelenjen meg a futás,
   vagy egy konkrét, teendőt is tartalmazó hiba.
+  **26.4 – elkészült (2026-10-17):** nézetváltáskor megmaradó Műveletek
+  lista az admin-, szerver- és fiókműveletekhez; külön jóváhagyási,
+  beküldési, futási, lezárt, részleges és bizonytalan állapot, konkrét teendők.
+  Az elfogadott kísérlet azonnal megjelenik, exact azonosítóval követett és
+  újratöltéskor ismét megtalálható; lista-frissítési hiba nem vonja vissza az
+  indítás visszaigazolását. Nincs automatikus módosító újrapróbálás.
+  Capability-mátrix 1.2.0: 123 UI-kötés, 31 explicit hiány, 1 infrastruktúra.
+  Széles érintett kör **435/435 PASS**, végső célzott böngészős és szerződéses
+  kör **15/15 PASS**. [Használat és határok](features/phase26-4-operation-progress.md),
+  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: **26.5**.
 - [ ] Beépített, rövid ellenőrzési útmutatót és kontextusos magyarázatot adni a
   ritkán használt workflowkhoz, hogy a felhasználónak ne kelljen a backend
   felépítését ismernie egy funkció kipróbálásához.

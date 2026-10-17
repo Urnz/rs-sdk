@@ -5,7 +5,7 @@ export class OperationReviewCancelled extends Error {
 export const formatReviewParameters = value => JSON.stringify(value, (key, entry) => /password|secret|token|api.?key|credential/i.test(key) ? '[rejtett]' : entry);
 let matrixPromise, pending = false;
 async function matrix() {
-    if (!matrixPromise) matrixPromise = fetch('/admin/capability-matrix.v1.json', { cache: 'no-store' }).then(async response => {
+    if (!matrixPromise) matrixPromise = fetch('/admin/capability-matrix.v1.json', { cache: 'no-store', signal: AbortSignal.timeout(10000) }).then(async response => {
         if (!response.ok) throw new Error('A műveleti magyarázat nem tölthető be. Töltsd újra az oldalt; a kérés nem indult el.');
         const value = await response.json();
         if (value.schemaVersion !== 1 || value.reviewSchemaVersion !== 1) throw new Error('A műveleti útmutató verziója nem megfelelő. Töltsd újra az oldalt.');
@@ -54,7 +54,7 @@ async function prepareReview(path, method, body, context) {
     const key = capability.review.variantField === 'path' ? variant : capability.review.variantField === 'execute'
         ? data.execute === true ? 'execute' : 'preview' : data[capability.review.variantField];
     const policy = capability.review.variants?.[key] || capability.review;
-    if (policy.mode === 'direct') return;
+    if (policy.mode === 'direct') return capability;
     if (policy.mode !== 'required' || ['changes', 'evidence', 'notChanged', 'recovery', 'retry'].some(field => !policy[field]))
         throw new Error('Ehhez a művelethez még nincs felületi jóváhagyás. A kérés nem indult el.');
     if (pending) throw new Error('Egy másik művelet jóváhagyásra vár. Előbb zárd le azt az ablakot.');
@@ -174,4 +174,5 @@ async function prepareReview(path, method, body, context) {
         if (!approved) throw new OperationReviewCancelled();
         if (location.pathname + location.search !== locationBefore) throw new Error('A szerver vagy oldal megváltozott. Töltsd újra; a kérés nem indult el.');
     } finally { dialog.remove(); pending = false; if (returnFocus?.isConnected) returnFocus.focus(); }
+    return { ...capability, title: policy.title || policy.approveLabel || capability.title, scope: server };
 }

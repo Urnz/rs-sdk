@@ -1,0 +1,16 @@
+#operation-progress { margin: 1rem 0; padding: 1rem; border: 1px solid var(--border, #60748c); border-radius: 12px; background: var(--panel, #152334); color: var(--text, #f1f5fa); overflow-wrap: anywhere; }
+#operation-progress summary { cursor: pointer; font-weight: 700; }
+#operation-progress > p { font-size: .875rem; color: var(--muted, #c7d4e3); }
+#operation-progress > [role="status"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#operation-progress ol { list-style: none; margin: 0; padding: 0; max-height: 22rem; overflow-y: auto; }
+#operation-progress li { display: block; padding: .8rem; margin-top: .6rem; border-left: 4px solid var(--blue, #7cbbff); background: var(--panel-2, #1f3043); border-radius: 5px; }
+#operation-progress li[data-state="completed"] { border-color: #70d6a4; }
+#operation-progress li[data-state="failed"], #operation-progress li[data-state="unknown"], #operation-progress li[data-state="partial"] { border-color: #ffc97a; }
+#operation-progress small, #operation-progress code { display: block; color: var(--muted, #d0dceb); margin: .3rem 0; }
+#operation-progress p { margin: .5rem 0; }
+#operation-progress a { color: var(--gold, #a6d5ff); display: inline-block; margin: .35rem .8rem .35rem 0; }
+#operation-progress button { background: var(--panel, #263d54); color: var(--text, #fff); border: 1px solid var(--muted, #8eabc8); padding: .5rem .8rem; border-radius: 6px; margin: .3rem .5rem .3rem 0; cursor: pointer; }
+#operation-progress button:disabled { opacity: .6; cursor: wait; }
+#operation-progress :focus-visible { outline: 3px solid #ffc97a; outline-offset: 3px; }
+@media (max-width: 600px) { #operation-progress { padding: .75rem; } #operation-progress ol { max-height: 19rem; } }
+.operation-inline { padding: .8rem; border: 1px solid #7cbbff; border-radius: 8px; overflow-wrap: anywhere; }

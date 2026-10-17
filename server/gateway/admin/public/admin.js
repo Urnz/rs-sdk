@@ -2,7 +2,8 @@ import { mountSocietyDashboard } from './society-dashboard.js';
 import { mountConnectionStatus } from './connection-status.js';
 import { contextHeaders, serverId, tokenKey } from './server-context.js';
 import { mountAdminNavigation } from './navigation.js';
-import { reviewMutation, reviewCancelledMessage, formatReviewParameters } from './operation-review.js';
+import { reviewCancelledMessage, formatReviewParameters } from './operation-review.js';
+import { runOperation, setOperationReader, observeExperiments } from './operation-progress.js';
 
 mountConnectionStatus(document.querySelector('#connection-status'));
 
@@ -78,33 +79,41 @@ const xpForLevel = level => level <= 1 ? 0 : xpThresholds[Math.min(97, level - 2
 
 async function api(path, options = {}) {
     contextHeaders(options.headers);
-    await reviewMutation(path, options.method || 'GET', options.body, options.reviewContext);
-    const headers = contextHeaders(options.headers);
-    if (options.mutation && state.controlSession) headers['X-Control-CSRF'] = state.controlSession.csrfToken;
-    if (options.body) headers['Content-Type'] = 'application/json';
-    if (options.mutation) headers['X-Admin-Request'] = 'rs-sdk-admin';
-    if (state.token) headers.Authorization = `Bearer ${state.token}`;
-    const { reviewContext, ...requestOptions } = options;
-    const response = await fetch(path, { ...requestOptions, headers });
-    if (response.ok && response.headers.get('X-Control-Server-ID') !== serverId) throw new Error('A válasz szerverkontextusa nem igazolt.');
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        if (data.code === 'SERVER_NOT_FOUND') { location.assign('/admin/'); throw new Error('A szerverhez már nincs hozzáférésed.'); }
-        if (state.controlSession && ['LOGIN_REQUIRED', 'OWNER_REQUIRED'].includes(data.code)) {
-            location.assign('/admin/login.html');
-            throw new Error(data.error);
-        }
-        if (response.status === 401 && state.config?.authMode === 'token') {
-            const token = prompt('Add meg a helyi ADMIN_TOKEN értékét:');
-            if (token) {
-                state.token = token;
-                sessionStorage.setItem(tokenKey, token);
+    return runOperation(path, options, async (signal, markSent) => {
+        const headers = contextHeaders(options.headers);
+        if (options.mutation && state.controlSession) headers['X-Control-CSRF'] = state.controlSession.csrfToken;
+        if (options.body) headers['Content-Type'] = 'application/json';
+        if (options.mutation) headers['X-Admin-Request'] = 'rs-sdk-admin';
+        if (state.token) headers.Authorization = `Bearer ${state.token}`;
+        const { reviewContext, ...requestOptions } = options;
+        markSent();
+        const response = await fetch(path, { ...requestOptions, headers, signal });
+        if (response.ok && response.headers.get('X-Control-Server-ID') !== serverId) throw new Error('A válasz szerverkontextusa nem igazolt.');
+        const data = await response.json().catch(() => {
+            if (response.ok) throw new Error('A szerverválasz nem olvasható.');
+            return {};
+        });
+        if (!response.ok) {
+            if (data.code === 'SERVER_NOT_FOUND') { location.assign('/admin/'); throw new Error('A szerverhez már nincs hozzáférésed.'); }
+            if (state.controlSession && ['LOGIN_REQUIRED', 'OWNER_REQUIRED'].includes(data.code)) {
+                location.assign('/admin/login.html');
+                throw new Error(data.error);
             }
+            if (response.status === 401 && state.config?.authMode === 'token') {
+                const token = prompt('Add meg a helyi ADMIN_TOKEN értékét:');
+                if (token) {
+                    state.token = token;
+                    sessionStorage.setItem(tokenKey, token);
+                }
+            }
+            const error = new Error(`${data.error || 'A kérés sikertelen.'} (HTTP ${response.status})`);
+            error.rejected = response.status >= 400 && response.status < 500;
+            throw error;
         }
-        throw new Error(data.error || `HTTP ${response.status}`);
-    }
-    return data;
+        return { data, status: response.status };
+    });
 }
+setOperationReader(path => api(path));
 
 function toast(message, error = false) {
     if (message === reviewCancelledMessage) error = false;
@@ -666,6 +675,7 @@ function renderEconomicOfferAgentOptions() {
 
 function renderMultiAgentExperiments(experiments) {
     state.multiAgentExperiments = experiments;
+    observeExperiments(experiments);
     $('#multi-agent-experiment-count').textContent = `${experiments.length} futás`;
     $('#multi-agent-experiment-list').innerHTML = experiments.length ? experiments.map(run => {
         const baseline = run.baselineEconomy;
@@ -2789,6 +2799,7 @@ $('#experiment-parameter-profile-form').addEventListener('submit', async event =
 });
 $('#multi-agent-experiment-form').addEventListener('submit', async event => {
     event.preventDefault();
+    if ($('#start-multi-agent-experiment').disabled) return;
     const form = event.currentTarget;
     const agentIds = [...form.querySelectorAll('input[name="experimentAgentId"]:checked')]
         .map(input => input.value);
@@ -2804,7 +2815,10 @@ $('#multi-agent-experiment-form').addEventListener('submit', async event => {
                 summary: form.elements.summary.value, reason: form.elements.reason.value, agentIds,
                 parameterProfileId, parameterProfileVersion }) });
         toast(`A kísérlet elindult: ${response.experiment.experimentId}.`);
-        await refreshMultiAgentExperiments();
+        renderMultiAgentExperiments([response.experiment,
+            ...state.multiAgentExperiments.filter(run => run.experimentId !== response.experiment.experimentId)]);
+        try { await refreshMultiAgentExperiments(); }
+        catch (error) { toast(`A kísérlet elindult, de a lista nem frissíthető: ${error.message} A Műveletek listában ellenőrizd a futást.`, true); }
     } catch (error) { toast(error.message, true); }
     finally { button.disabled = false; }
 });
