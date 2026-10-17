@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, writeFile, symlink, lstat } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, symlink, lstat, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { createHash, createPublicKey, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { resolve, join, sep } from 'node:path';
@@ -6,6 +6,7 @@ import { createServer, type Server } from 'node:net';
 import { IdentityError } from './identity-store.js';
 import type { ManagedServer } from './lifecycle-store.js';
 import { assertPrivateInstanceTree, verifyInstanceBinding } from './instance-files.js';
+import { ServerSecretStore } from './secret-store.js';
 
 export const worldTemplates = [
     { id: 'classic', label: 'Klasszikus bolti gazdaság', shopEconomyMode: 'legacy', xpRate: 25 },
@@ -106,7 +107,8 @@ export class LocalManagedRuntime implements ManagedRuntime {
         // Revision 274 uses a length-prefixed RSA login packet; generate a compatible private key per world.
         const keys = generateKeyPairSync('rsa', { modulusLength: 1024 });
         const publicPem = keys.publicKey.export({ type: 'spki', format: 'pem' }).toString();
-        await writeFile(join(configDir, 'private.pem'), keys.privateKey.export({ type: 'pkcs1', format: 'pem' }), { mode: 0o600 });
+        await new ServerSecretStore(workspace).set('engine-login-key', keys.privateKey.export({ type: 'pkcs1', format: 'pem' }).toString());
+        await rm(join(configDir, 'private.pem'), { force: true });
         await writeFile(join(configDir, 'public.pem'), publicPem);
         const jwk = keys.publicKey.export({ format: 'jwk' });
         const decimal = (value: string) => BigInt(`0x${Buffer.from(value, 'base64url').toString('hex')}`).toString();
@@ -119,10 +121,16 @@ export class LocalManagedRuntime implements ManagedRuntime {
             publicKeySha256: createHash('sha256').update(publicPem).digest('hex') }), { mode: 0o600 });
     }
     private async run(server: ManagedServer): Promise<Run | null> {
-        try { const run = JSON.parse(await readFile(join(this.directory(server), 'runtime.json'), 'utf8')) as Run;
+        try { const stored = JSON.parse(await readFile(join(this.directory(server), 'runtime.json'), 'utf8'));
+            if (stored.token || stored.secretStore !== 'windows-credential-manager') throw failure('SECRET_MIGRATION_REQUIRED', 'A korábbi futási token titoktár-migrációt igényel.');
+            const run = { ...stored, token: await new ServerSecretStore(join(this.directory(server), 'workspace')).get('worker-control-token') } as Run;
             if (JSON.stringify(run.ports) !== JSON.stringify(server.ports) || !/^[a-f0-9]{64}$/.test(run.token) || !/^[a-f0-9-]{36}$/.test(run.generation)) throw new Error();
             return run;
-        } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw failure('RUNTIME_INVALID', 'A szerver folyamatregisztere hibás; idegen folyamatot nem állítottunk le.'); }
+        } catch (error) {
+            if (error instanceof IdentityError) throw error;
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+            throw failure('RUNTIME_INVALID', 'A szerver folyamatregisztere vagy titoktára nem olvasható; idegen folyamatot nem állítottunk le.');
+        }
     }
     private async control(server: ManagedServer, run: Run, role: 'engine' | 'gateway', stop = false) {
         try {
@@ -164,12 +172,15 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const manifest = JSON.parse(await readFile(join(dir, 'prepared.json'), 'utf8'));
         if (manifest.publicKeySha256 !== createHash('sha256').update(await readFile(join(workspace, 'server/engine/data/config/public.pem'))).digest('hex'))
             throw failure('INSTANCE_KEY_MISMATCH', 'A világ login-kulcsa nem az előkészített példányhoz tartozik.');
-        const privatePublic = createPublicKey(await readFile(join(workspace, 'server/engine/data/config/private.pem')));
+        const loginKey = await new ServerSecretStore(workspace).get('engine-login-key');
+        if (!loginKey) throw failure('SECRET_MIGRATION_REQUIRED', 'A világ login-kulcsa hiányzik a titoktárból; ellenőrzött migráció szükséges.');
+        const privatePublic = createPublicKey(loginKey);
         if (!publicKey.export({ type: 'spki', format: 'der' }).equals(privatePublic.export({ type: 'spki', format: 'der' }))) throw failure('INSTANCE_KEY_MISMATCH', 'A világ login-kulcskötése eltér.');
         const jwk = publicKey.export({ format: 'jwk' });
         const decimal = (value: string) => BigInt(`0x${Buffer.from(value, 'base64url').toString('hex')}`).toString();
         const run: Run = { token: randomBytes(32).toString('hex'), generation: randomUUID(), ports: server.ports };
-        await writeFile(join(dir, 'runtime.json'), JSON.stringify(run), { mode: 0o600 });
+        await new ServerSecretStore(workspace).set('worker-control-token', run.token);
+        await writeFile(join(dir, 'runtime.json'), JSON.stringify({ generation: run.generation, ports: run.ports, secretStore: 'windows-credential-manager' }), { mode: 0o600 });
         const template = worldTemplates.find(value => value.id === server.template)!;
         const environment = this.systemEnvironment();
         Object.assign(environment, { CONTROL_PLANE_IDENTITY_PATH: this.identityFile, CONTROL_PLANE_SERVER_ID: server.serverId,
@@ -184,7 +195,7 @@ export class LocalManagedRuntime implements ManagedRuntime {
         try {
             for (const role of ['engine', 'gateway'] as const) {
                 const child = Bun.spawn([process.execPath, '--no-env-file', join(workspace, 'server/control-plane/managed-worker.ts')], {
-                    cwd: join(workspace, 'server', role), env: { ...environment, MANAGED_ROLE: role, MANAGED_CONTROL_PORT: String(server.ports[role === 'engine' ? 4 : 5]) },
+                    cwd: join(workspace, 'server', role), env: { ...environment, ...(role === 'engine' ? { ENGINE_LOGIN_PRIVATE_KEY: loginKey } : {}), MANAGED_ROLE: role, MANAGED_CONTROL_PORT: String(server.ports[role === 'engine' ? 4 : 5]) },
                     stdout: Bun.file(join(dir, `${role}.out.log`)), stderr: Bun.file(join(dir, `${role}.err.log`)), windowsHide: true });
                 children.push(child);
                 const deadline = Date.now() + 60000;

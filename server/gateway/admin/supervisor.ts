@@ -5,6 +5,7 @@ import type { ManagedProcessSnapshot, ManagedSkillRunSnapshot } from './types';
 import type { SkillRuntimeAuthorization } from '../../../agent-skills/types';
 import { assertLocalAvatarCanAct } from './population-death-runtime.js';
 import { managedBotEnvironment } from '../../control-plane/instance-context.js';
+import { loadBotCredentials, rememberBotCredentials, publicBotEnvironment } from './bot-credentials.js';
 
 export interface SpawnBotOptions {
     username: string;
@@ -63,15 +64,7 @@ function assertUsername(username: string): string {
 }
 
 async function readBotEnvironment(username: string): Promise<Record<string, string>> {
-    try {
-        const text = await readFile(join(botsDir, username, 'bot.env'), 'utf8');
-        return Object.fromEntries(text.split(/\r?\n/)
-            .map(line => line.trim())
-            .filter(line => line && !line.startsWith('#') && line.includes('='))
-            .map(line => [line.slice(0, line.indexOf('=')).trim(), line.slice(line.indexOf('=') + 1).trim()]));
-    } catch {
-        return {};
-    }
+    return loadBotCredentials(repoRoot, username);
 }
 
 export class BotSupervisor {
@@ -237,17 +230,9 @@ export class BotSupervisor {
         if (this.shuttingDown) throw new Error('A szerver leáll; új bot nem indítható.');
 
         if (options.rememberCredentials) {
-            const botDir = join(botsDir, username);
-            await mkdir(botDir, { recursive: true });
-            await writeFile(join(botDir, 'bot.env'), [
-                `BOT_USERNAME=${username}`,
-                `PASSWORD=${password}`,
-                `SERVER=${server}`,
-                `GATEWAY_URL=${gateway}`,
-                'SHOW_CHAT=true',
-                'TELEMETRY=true',
-                ''
-            ].join('\n'), { encoding: 'utf8', mode: 0o600 });
+            await rememberBotCredentials(repoRoot, username, password, {
+                BOT_USERNAME: username, SERVER: server, GATEWAY_URL: gateway, SHOW_CHAT: 'true', TELEMETRY: 'true'
+            });
         }
 
         const startedAt = new Date().toISOString();
@@ -258,14 +243,14 @@ export class BotSupervisor {
         if (this.shuttingDown) throw new Error('A szerver leáll; új bot nem indítható.');
         const child = Bun.spawn([
             process.execPath,
-            ...(isolated ? ['--no-env-file'] : []),
+            '--no-env-file',
             'run',
             'src/lite/runner.ts',
             username
         ], {
             cwd: webclientDir,
             env: isolated ?? {
-                ...this.environment,
+                ...publicBotEnvironment(this.environment),
                 BOT_USERNAME: username,
                 PASSWORD: password,
                 SERVER: server,
@@ -386,7 +371,7 @@ export class BotSupervisor {
         await mkdir(logDirectory, { recursive: true });
         await mkdir(this.skillMarkerDirectory, { recursive: true });
         const logPath = join(logDirectory, `${startedAt.replace(/[:.]/g, '-')}.log`);
-        const args = [process.execPath, 'run', 'agent-skills/run.ts', username, skill];
+        const args = [process.execPath, '--no-env-file', 'run', 'agent-skills/run.ts', username, skill];
         if (options.allowDraft) args.push('--allow-draft');
         const runId = options.runId ?? crypto.randomUUID();
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(runId)) {
@@ -410,8 +395,9 @@ export class BotSupervisor {
         const child = Bun.spawn(args, {
             cwd: repoRoot,
             env: isolated ?? {
-                ...this.environment,
-                ...stored,
+                ...publicBotEnvironment(this.environment),
+                ...publicBotEnvironment(stored),
+                PASSWORD: stored.PASSWORD,
                 BOT_USERNAME: stored.BOT_USERNAME || username,
                 GATEWAY_URL: stored.GATEWAY_URL || this.environment.GATEWAY_URL || 'ws://localhost:7780'
             },

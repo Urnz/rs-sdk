@@ -8,6 +8,7 @@ import { LocalManagedRuntime } from '../managed-runtime.js';
 import type { ManagedServer } from '../lifecycle-store.js';
 import { assertManagedModuleRoot, managedBotEnvironment, managedContext } from '../instance-context.js';
 import { assertPrivateInstanceTree } from '../instance-files.js';
+import { ServerSecretStore } from '../secret-store.js';
 
 test('runtime rejects path/version/template substitutions before any filesystem provisioning', async () => {
     const temporary = await mkdtemp(join(tmpdir(), 'managed-runtime-validation-'));
@@ -28,13 +29,17 @@ test('occupied or unidentified ports never authorize killing a foreign process o
     const server: ManagedServer = { serverId: `srv-${randomUUID()}`, creatorId: 'fixture', version: runtime.version, template: 'classic', ports, state: 'stopped', revision: 1, error: null };
     try {
         await expect(runtime.start(server)).rejects.toMatchObject({ code: 'PORT_OCCUPIED' });
-        const dir = join(temporary, server.serverId); await mkdir(dir);
-        await writeFile(join(dir, 'runtime.json'), JSON.stringify({ token: 'a'.repeat(64), generation: randomUUID(), ports }));
+        const dir = join(temporary, server.serverId); await mkdir(join(dir, 'workspace'), { recursive: true });
+        await new ServerSecretStore(join(dir, 'workspace')).set('worker-control-token', 'a'.repeat(64));
+        await writeFile(join(dir, 'runtime.json'), JSON.stringify({ secretStore: 'windows-credential-manager', generation: randomUUID(), ports }));
         expect(await runtime.inspect(server)).toBe('unknown');
         expect(await runtime.connection(server)).toEqual({ gateway: false, engine: false });
         await expect(runtime.stop(server)).rejects.toMatchObject({ code: 'RUNTIME_UNREACHABLE' });
         expect((await (await fetch(listeners[0]!.url)).json()).foreign).toBe(true);
-    } finally { listeners.forEach(listener => listener.stop(true)); await rm(temporary, { recursive: true, force: true }); }
+    } finally { listeners.forEach(listener => listener.stop(true));
+        const workspace = join(temporary, server.serverId, 'workspace');
+        if (existsSync(workspace)) await new ServerSecretStore(workspace).delete('worker-control-token');
+        await rm(temporary, { recursive: true, force: true }); }
 });
 
 test('source export handles upstream instruction symlinks on Windows and preserves the exact prepared binding', async () => {
@@ -71,7 +76,9 @@ test('source export handles upstream instruction symlinks on Windows and preserv
         await runtime.prepare(second);
         const otherWorkspace = join(temporary, 'instances', second.serverId, 'workspace');
         const hash = async (path: string) => createHash('sha256').update(await readFile(path)).digest('hex');
-        expect(await hash(join(workspace, 'server/engine/data/config/private.pem'))).not.toBe(await hash(join(otherWorkspace, 'server/engine/data/config/private.pem')));
+        expect(await new ServerSecretStore(workspace).get('engine-login-key')).not.toBe(await new ServerSecretStore(otherWorkspace).get('engine-login-key'));
+        expect(existsSync(join(workspace, 'server/engine/data/config/private.pem'))).toBe(false);
+        expect(existsSync(join(otherWorkspace, 'server/engine/data/config/private.pem'))).toBe(false);
         expect(await hash(join(workspace, 'server/webclient/out/client.js'))).not.toBe(await hash(join(otherWorkspace, 'server/webclient/out/client.js')));
         expect(existsSync(join(workspace, 'AGENTS.md'))).toBe(false);
         expect(existsSync(join(workspace, 'GEMINI.md'))).toBe(false);
@@ -85,7 +92,14 @@ test('source export handles upstream instruction symlinks on Windows and preserv
         delete previous.isolationVersion; await writeFile(manifest, JSON.stringify(previous));
         await expect(runtime.prepare(server)).rejects.toMatchObject({ code: 'ISOLATION_UPGRADE_REQUIRED' });
         expect(await readFile(marker, 'utf8')).toBe('retained');
-    } finally { await rm(temporary, { recursive: true, force: true }); }
+    } finally {
+        const instances = join(temporary, 'instances');
+        if (existsSync(instances)) for (const entry of await import('node:fs/promises').then(fs => fs.readdir(instances))) {
+            const workspace = join(instances, entry, 'workspace');
+            if (existsSync(workspace)) await new ServerSecretStore(workspace).delete('engine-login-key');
+        }
+        await rm(temporary, { recursive: true, force: true });
+    }
 }, 20000);
 
 test('managed bot environments bind both endpoints and cache, excluding host and sibling secrets', async () => {

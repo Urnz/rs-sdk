@@ -139,7 +139,10 @@ import { getWorldDirectorEventStore, type EngineWorldDirectorEvent,
 import { getPlayerCustodyStore, type PlayerCustodyOrder,
     type PlayerCustodyRecord } from '#/mods/PlayerCustodyStore.js';
 
-const priv = forge.pki.privateKeyFromPem(fs.readFileSync('data/config/private.pem', 'ascii'));
+// Managed worlds receive their private login key from the OS vault through the parent pipe/environment.
+// Legacy local engines retain the public upstream demonstration key until explicitly migrated.
+if (process.env.CONTROL_PLANE_SERVER_ID && !process.env.ENGINE_LOGIN_PRIVATE_KEY) throw new Error('Managed engine login key unavailable.');
+const priv = forge.pki.privateKeyFromPem(process.env.ENGINE_LOGIN_PRIVATE_KEY || fs.readFileSync('data/config/private.pem', 'ascii'));
 
 type LogoutRequest = {
     save: Uint8Array;

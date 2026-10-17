@@ -15,6 +15,11 @@ async function fixture() {
     const directory = await mkdtemp(join(tmpdir(), 'rs-llm-settings-'));
     temporaryDirectories.push(directory);
     const paths = {
+        secretStore: (() => {
+            const values = new Map<string, string>();
+            return { status: async (name: string) => values.has(name), get: async (name: string) => values.get(name) ?? null,
+                set: async (name: string, value: string) => { values.set(name, value); }, delete: async (name: string) => { values.delete(name); } };
+        })(),
         defaultConfigPath: join(directory, 'default.json'),
         overrideConfigPath: join(directory, 'server', 'llm-runtime.json'),
         apiKeyPath: join(directory, 'server', 'secrets', 'openai-api-key.txt')
@@ -34,7 +39,7 @@ describe('admin LLM settings', () => {
         const settings = await readAdminLlmSettings(paths, { OPENAI_API_KEY: 'environment-secret-value-123' });
 
         expect(settings.source).toBe('project-default');
-        expect(settings.apiKey).toEqual({ configured: true, source: 'environment' });
+        expect(settings.apiKey).toEqual({ configured: false, source: 'migration-required' });
         expect(JSON.stringify(settings)).not.toContain('environment-secret-value-123');
         expect(settings.config.plannerPrompt).toContain('RuneScape-style');
         expect(settings.config.limits.maxOutputTokens).toBe(2000);
@@ -72,7 +77,7 @@ describe('admin LLM settings', () => {
         await replaceOpenAIApiKey('sk-local-secret-value-123456789', paths);
 
         const configured = await readAdminLlmSettings(paths, {});
-        expect(configured.apiKey).toEqual({ configured: true, source: 'local-secret' });
+        expect(configured.apiKey).toEqual({ configured: true, source: 'os-secret-store' });
         expect(JSON.stringify(configured)).not.toContain('sk-local-secret');
 
         await removeOpenAIApiKey(paths);

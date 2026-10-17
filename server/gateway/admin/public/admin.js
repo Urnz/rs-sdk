@@ -132,7 +132,7 @@ function selectAdminTab(tab) {
 }
 
 const llmConfigSourceLabels = { 'server-override': 'Szerver saját beállítása', 'project-default': 'Projekt alapbeállítása' };
-const llmSecretSourceLabels = { 'local-secret': 'Helyi szerverkulcs', environment: 'OPENAI_API_KEY környezeti változó', none: 'Nincs beállítva' };
+const llmSecretSourceLabels = { 'os-secret-store': 'Windows titoktár', 'migration-required': 'Korábbi kulcs: titoktár-migráció szükséges', none: 'Nincs beállítva' };
 
 function renderLlmSettings(settings) {
     state.llmSettings = settings;
@@ -175,7 +175,7 @@ function renderLlmSettings(settings) {
     $('#llm-config-status').textContent = `${config.enabled ? 'Engedélyezve' : 'Kikapcsolva'} · ${config.provider} · ${config.model}`;
     $('#llm-api-key-status').textContent = settings.apiKey.configured
         ? `Beállítva · ${llmSecretSourceLabels[settings.apiKey.source] || settings.apiKey.source}`
-        : 'Nincs beállítva';
+        : (llmSecretSourceLabels[settings.apiKey.source] || 'Nincs beállítva');
     syncLlmProviderFields();
 }
 

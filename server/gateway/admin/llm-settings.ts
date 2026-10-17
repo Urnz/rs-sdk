@@ -2,14 +2,15 @@ import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { validateLlmRuntimeConfig } from '../../../llm-runtime/config.js';
 import type { LlmRuntimeConfig } from '../../../llm-runtime/types.js';
-import { llmApiKeyPath, llmRuntimeConfigPath, llmRuntimeOverridePath } from './paths.js';
+import { llmApiKeyPath, llmRuntimeConfigPath, llmRuntimeOverridePath, repoRoot } from './paths.js';
+import { ServerSecretStore, type SecretStore } from '../../control-plane/secret-store.js';
 
 export interface AdminLlmSettings {
     config: LlmRuntimeConfig;
     source: 'server-override' | 'project-default';
     apiKey: {
         configured: boolean;
-        source: 'local-secret' | 'environment' | 'none';
+        source: 'os-secret-store' | 'migration-required' | 'none';
     };
 }
 
@@ -17,6 +18,11 @@ export interface AdminLlmSettingsPaths {
     defaultConfigPath?: string;
     overrideConfigPath?: string;
     apiKeyPath?: string;
+    secretStore?: SecretStore;
+}
+
+function secrets(options: AdminLlmSettingsPaths) {
+    return options.secretStore ?? new ServerSecretStore(options.defaultConfigPath ? dirname(options.defaultConfigPath) : repoRoot);
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -52,22 +58,21 @@ export async function resolveOpenAIApiKey(options: AdminLlmSettingsPaths = {},
         value: string;
         source: AdminLlmSettings['apiKey']['source'];
     }> {
-    const path = paths(options).apiKeyPath;
-    if (await exists(path)) {
-        const value = (await readFile(path, 'utf8')).trim();
-        if (value) return { value, source: 'local-secret' };
-    }
-    const value = environment.OPENAI_API_KEY?.trim() ?? '';
-    return { value, source: value ? 'environment' : 'none' };
+    const value = await secrets(options).get('openai-api-key');
+    if (value) return { value, source: 'os-secret-store' };
+    if (await exists(paths(options).apiKeyPath) || environment.OPENAI_API_KEY?.trim())
+        throw new Error('A korábbi API-kulcs titoktár-migrációt igényel; fájlos és környezeti visszaesés nincs.');
+    return { value: '', source: 'none' };
 }
 
 export async function readAdminLlmSettings(options: AdminLlmSettingsPaths = {},
     environment: Record<string, string | undefined> = process.env): Promise<AdminLlmSettings> {
     const loaded = await loadLlmRuntimeConfig(options);
-    const secret = await resolveOpenAIApiKey(options, environment);
+    const configured = await secrets(options).status('openai-api-key');
+    const legacy = await exists(paths(options).apiKeyPath) || Boolean(environment.OPENAI_API_KEY?.trim());
     return {
         ...loaded,
-        apiKey: { configured: Boolean(secret.value), source: secret.source }
+        apiKey: { configured, source: configured ? 'os-secret-store' : legacy ? 'migration-required' : 'none' }
     };
 }
 
@@ -90,12 +95,13 @@ export async function updateAdminLlmSettings(input: unknown, options: AdminLlmSe
 }
 
 export async function replaceOpenAIApiKey(value: string, options: AdminLlmSettingsPaths = {}): Promise<void> {
-    const path = paths(options).apiKeyPath;
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, `${validateOpenAIApiKey(value)}\n`, { encoding: 'utf8', mode: 0o600 });
-    await chmod(path, 0o600).catch(() => undefined);
+    const store = secrets(options), key = validateOpenAIApiKey(value);
+    await store.set('openai-api-key', key);
+    if (await store.get('openai-api-key') !== key) throw new Error('A titoktár írása nem igazolható; a korábbi fájl megmaradt.');
+    await rm(paths(options).apiKeyPath, { force: true });
 }
 
 export async function removeOpenAIApiKey(options: AdminLlmSettingsPaths = {}): Promise<void> {
+    await secrets(options).delete('openai-api-key');
     await rm(paths(options).apiKeyPath, { force: true });
 }
