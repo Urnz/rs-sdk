@@ -12,6 +12,42 @@ import { LifecycleManager } from '../lifecycle-manager.js';
 import type { ManagedRuntime } from '../managed-runtime.js';
 import type { ManagedServer } from '../lifecycle-store.js';
 
+test('maintenance UI backs up, selects a snapshot, restores and migrates with visible completed operations', async () => {
+    const registry = new ServerRegistry(':memory:'), identities = new IdentityStore(':memory:');
+    const backups: { id: string; version: string; createdAt: number }[] = [];
+    const runtime: ManagedRuntime = { version: 'a'.repeat(40), async prepare() {}, async start() {}, async stop() {}, async inspect() { return 'stopped'; },
+        async backup(server, id) { backups.push({ id, version: server.version, createdAt: Date.now() }); }, async backups() { return backups; },
+        async restore(_server, id) { return backups.find(backup => backup.id === id)!.version; }, async migrate(_server, version) { return version; } };
+    const manager = new LifecycleManager(registry, identities, runtime);
+    const owner = await identities.createAccount('maintenance-ui', 'synthetic maintenance UI password');
+    const created = manager.create(owner.id, { name: 'Menthető világ', version: runtime.version, template: 'classic', requestKey: crypto.randomUUID() }); await manager.idle();
+    runtime.version = 'b'.repeat(40);
+    const admin = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(controlPlaneConfig(), identities, fetch, registry, manager) });
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+    try {
+        browser = await puppeteer.launch({ headless: true }); const page = await browser.newPage(), errors: string[] = [];
+        page.on('pageerror', error => errors.push(String(error))); page.on('dialog', dialog => { void dialog.accept(); });
+        await page.goto(new URL('/admin/', admin.url).toString());
+        await page.type('[name="username"]', owner.username); await page.type('[name="password"]', 'synthetic maintenance UI password');
+        await Promise.all([page.waitForNavigation(), page.click('#login-form button')]);
+        const click = async (text: string) => {
+            await page.waitForFunction(label => Array.from(document.querySelectorAll('.server-card button')).some(button => button.textContent === label && !(button as HTMLButtonElement).disabled), {}, text);
+            await page.evaluate(label => (Array.from(document.querySelectorAll('.server-card button')).find(button => button.textContent === label) as HTMLButtonElement).click(), text);
+        };
+        await click('Mentés készítése'); await page.waitForFunction(() => document.getElementById('lifecycle-message')!.textContent === 'A művelet befejeződött.');
+        await page.waitForFunction(() => !document.querySelector('.server-card button:disabled'));
+        expect(backups).toHaveLength(1);
+        await click('Mentések betöltése'); await page.waitForSelector('.server-card select option');
+        await click('Mentés visszaállítása'); await manager.idle();
+        await page.waitForFunction(() => document.getElementById('lifecycle-message')!.textContent === 'A művelet befejeződött.');
+        await click('Verzió frissítése');
+        await page.waitForFunction(() => document.querySelector('.server-card')!.textContent!.includes('Forrás: bbbbbbbb'));
+        expect(registry.lifecycle.managed(created.serverId)!.version).toBe(runtime.version);
+        await page.setViewport({ width: 390, height: 844 });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(errors).toEqual([]);
+    } finally { await browser?.close(); await manager.idle(); admin.stop(true); registry.close(); identities.close(); }
+}, 30000);
+
 test('full admin browser survives absent services and bootstraps after gateway recovery without reloading', async () => {
     const temporary = await mkdtemp(join(tmpdir(), 'control-plane-browser-'));
     const identities = new IdentityStore(join(temporary, 'identity.sqlite'));

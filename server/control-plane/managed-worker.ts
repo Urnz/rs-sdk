@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { writeFile } from 'node:fs/promises';
 import { assertManagedModuleRoot } from './instance-context.js';
 
 const role = process.env.MANAGED_ROLE, id = process.env.CONTROL_PLANE_SERVER_ID;
@@ -22,7 +23,11 @@ const control = Bun.serve({ hostname: '127.0.0.1', port: Number(process.env.MANA
                 const { default: world } = await import(pathToFileURL(resolve('src/engine/World.ts')).href);
                 world.rebootTimer(0);
             } else {
-                try { await application?.shutdownManagedGateway?.(); control.stop(true); process.exit(0); }
+                try {
+                    await application?.shutdownManagedGateway?.();
+                    if (role === 'gateway') await writeFile(resolve(process.env.MANAGED_WORKSPACE!, '../gateway-quiesced.json'), JSON.stringify({ id, generation }), { mode: 0o600 });
+                    control.stop(true); process.exit(0);
+                }
                 catch { console.error('Managed child shutdown failed.'); stopping = false; }
             }
         }, 100);

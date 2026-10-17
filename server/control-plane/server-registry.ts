@@ -23,7 +23,7 @@ export class ServerRegistry {
             if (path !== ':memory:') chmodSync(path, 0o600);
             this.db.exec('PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON');
             const version = (this.db.query('PRAGMA user_version').get() as { user_version: number }).user_version;
-            if (version !== 0 && version !== 1 && version !== 2) throw new Error('Unsupported server registry schema');
+            if (![0, 1, 2, 3].includes(version)) throw new Error('Unsupported server registry schema');
             this.db.exec('PRAGMA journal_mode=WAL');
             if (version === 0) this.db.transaction(() => {
                 if ((this.db.query('PRAGMA user_version').get() as { user_version: number }).user_version === 1) return;
@@ -32,7 +32,7 @@ export class ServerRegistry {
                     PRAGMA user_version=1`);
             }).immediate();
             let lifecycle!: LifecycleStore;
-            this.db.transaction(() => { lifecycle = new LifecycleStore(this.db); this.db.exec('PRAGMA user_version=2'); }).immediate();
+            this.db.transaction(() => { lifecycle = new LifecycleStore(this.db); this.db.exec('PRAGMA user_version=3'); }).immediate();
             this.lifecycle = lifecycle;
         } catch (error) { this.db.close(); throw error; }
     }

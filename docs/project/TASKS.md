@@ -331,6 +331,9 @@ instabillá vagy önfenntartóvá.
   [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.8 felügyelet és helyreállítás.
 - [ ] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,
   migrációt, backupot és hibából visszaállást készíteni.
+  **25.8 – folyamatban:** tartós karbantartási intent, offline ellenőrzött
+  világmentés, staging/rollback és felügyelet; a végső technikai ellenőrzés nyitott.
+  [Működés és helyreállítási határok](features/phase25-8-runtime-recovery.md).
 - [ ] Későbbi távoli eléréshez TLS-t, CSRF-védelmet, rate limitet, session-kezelést
   és szerepköralapú engedélyezést bevezetni.
 

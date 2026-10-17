@@ -67,7 +67,9 @@ export function createControlPlane(config: ControlPlaneConfig, identities: Ident
                 const operation = /^\/api\/control-plane\/servers\/operations\/([a-f0-9-]{36})$/.exec(path);
                 if (operation && req.method === 'GET') return json({ operation: lifecycle.operation(session.account.id, operation[1]!) });
                 if (path === '/api/control-plane/servers' && req.method === 'POST') return json({ operation: lifecycle.create(session.account.id, await body(req)) }, 202);
-                const action = /^\/api\/control-plane\/servers\/(srv-[a-f0-9-]{36})\/(start|stop|restart|archive)$/.exec(path);
+                const backups = /^\/api\/control-plane\/servers\/(srv-[a-f0-9-]{36})\/backups$/.exec(path);
+                if (backups && req.method === 'GET') return json({ backups: await lifecycle.backups(session.account.id, backups[1]!) });
+                const action = /^\/api\/control-plane\/servers\/(srv-[a-f0-9-]{36})\/(start|stop|restart|archive|backup|restore|migrate)$/.exec(path);
                 if (action && req.method === 'POST') return json({ operation: lifecycle.action(session.account.id, action[1]!, action[2]!, await body(req)) }, 202);
             }
             if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);

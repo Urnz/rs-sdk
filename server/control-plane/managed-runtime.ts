@@ -2,11 +2,15 @@ import { cp, mkdir, readFile, writeFile, symlink, lstat, rm } from 'node:fs/prom
 import { existsSync } from 'node:fs';
 import { createHash, createPublicKey, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto';
 import { resolve, join, sep } from 'node:path';
-import { createServer, type Server } from 'node:net';
+import { createServer } from 'node:net';
 import { IdentityError } from './identity-store.js';
 import type { ManagedServer } from './lifecycle-store.js';
 import { assertPrivateInstanceTree, verifyInstanceBinding } from './instance-files.js';
 import { ServerSecretStore } from './secret-store.js';
+import { InstanceMaintenance, instanceBinding, type WorldBackup } from './instance-maintenance.js';
+import { readJson, dependencyTrees, atomicJson } from './instance-snapshots.js';
+import { migrateWorkspaceSecrets } from '../gateway/admin/secret-migration.js';
+import { reservePorts } from './runtime-leases.js';
 
 export const worldTemplates = [
     { id: 'classic', label: 'Klasszikus bolti gazdaság', shopEconomyMode: 'legacy', xpRate: 25 },
@@ -19,6 +23,12 @@ export interface ManagedRuntime {
     stop(server: ManagedServer): Promise<void>;
     inspect(server: ManagedServer): Promise<'running' | 'stopped' | 'unknown'>;
     connection?(server: ManagedServer): Promise<{ gateway: boolean; engine: boolean }>;
+    backups?(server: ManagedServer): Promise<WorldBackup[]>;
+    backup?(server: ManagedServer, operationId: string): Promise<void>;
+    restore?(server: ManagedServer, backupId: string, operationId: string): Promise<string>;
+    migrate?(server: ManagedServer, version: string, operationId: string): Promise<string>;
+    recover?(server: ManagedServer, interrupted: boolean): Promise<void>;
+    pendingMaintenance?(server: ManagedServer): Promise<string | null>;
 }
 interface Run { generation: string; token: string; ports: number[] }
 const failure = (code: string, message: string) => new IdentityError(409, code, message);
@@ -50,6 +60,78 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const path = resolve(this.base, server.serverId);
         if (!path.startsWith(this.base + sep)) throw failure('INVALID_INSTANCE', 'Érvénytelen szerverkönyvtár.');
         return path;
+    }
+    private async attachDependencies(workspace: string) {
+        for (const relative of dependencyTrees) await symlink(join(this.source, relative), join(workspace, relative), 'junction');
+    }
+    private maintenance(server: ManagedServer) { return new InstanceMaintenance(this.directory(server), workspace => this.attachDependencies(workspace)); }
+    async backups(server: ManagedServer) { return this.maintenance(server).list(server); }
+    async backup(server: ManagedServer, operationId: string) {
+        await this.offline(server); await migrateWorkspaceSecrets(join(this.directory(server), 'workspace'));
+        await this.maintenance(server).backup(server, operationId);
+    }
+    async restore(server: ManagedServer, backupId: string, operationId: string) {
+        await this.offline(server);
+        await this.backup(server, operationId); // A failed restore can always return to the current state.
+        return this.maintenance(server).restore(server, backupId, operationId);
+    }
+    async recover(server: ManagedServer, interrupted: boolean) {
+        if (existsSync(this.directory(server))) await this.maintenance(server).recover(interrupted);
+    }
+    async pendingMaintenance(server: ManagedServer) {
+        const path = join(this.directory(server), 'maintenance.json');
+        return existsSync(path) ? (await readJson(path)).operationId as string : null;
+    }
+    private async offline(server: ManagedServer) {
+        await this.stop(server);
+        if (!await portsFree(server.ports)) throw failure('WORLD_NOT_OFFLINE', 'A világ portjai még foglaltak; a karbantartás nem kezdődött el.');
+        await this.quiescent(server);
+    }
+    private async quiescent(server: ManagedServer) {
+        const dir = this.directory(server), path = join(dir, 'runtime.json'); if (!existsSync(path)) return;
+        const run = await readJson(path);
+        if (run.quiescenceRequired) {
+            const proof = existsSync(join(dir, 'gateway-quiesced.json')) ? await readJson(join(dir, 'gateway-quiesced.json')) : null;
+            if (proof?.id !== server.serverId || proof.generation !== run.generation)
+                throw failure('CHILD_RECOVERY_REQUIRED', 'A gateway nem igazolta a saját gyermekfolyamatainak leállását. Indítás és karbantartás előtt ellenőrizd a privát folyamatnaplót; PID alapján nem állítunk le ismeretlen folyamatot.');
+        }
+    }
+    async migrate(server: ManagedServer, version: string, operationId: string) {
+        if (version !== this.version || version === server.version) throw failure('VERSION_UNSUPPORTED', 'Csak az aktuális, eltérő helyi forrásverzióra lehet migrálni.');
+        const dir = this.directory(server), workspace = join(dir, 'workspace'), stage = join(dir, `stage-${operationId}`);
+        await verifyInstanceBinding(workspace, instanceBinding(server));
+        // Plaintext legacy sources are changed only after every reserved port is already free.
+        if (!await portsFree(server.ports)) throw failure('MIGRATION_REQUIRES_STOP', 'A régi világot migráció előtt külön állítsd le.');
+        await this.quiescent(server);
+        await migrateWorkspaceSecrets(workspace, new ServerSecretStore(workspace), {}, { offlineSourceUpgrade: true });
+        await this.maintenance(server).backup(server, operationId);
+        await mkdir(stage, { mode: 0o700 });
+        const archive = join(dir, `upgrade-${operationId}.tar`);
+        await this.command(['git', 'archive', '--format=tar', `--output=${archive}`, version], this.source, join(dir, 'upgrade-archive.err.log'));
+        await this.command(['tar', '-xf', archive, '-C', stage, '--exclude=AGENTS.md', '--exclude=GEMINI.md'], this.source, join(dir, 'upgrade-extract.err.log'));
+        for (const relative of ['server/control-plane/secret-store.ts', 'server/control-plane/managed-worker.ts', 'server/control-plane/instance-context.ts'])
+            if (!existsSync(join(stage, relative))) throw failure('VERSION_UNSUPPORTED', 'A célverzió nem támogatja a kezelt, titoktárhoz kötött világot.');
+        for (const relative of ['package.json', 'server/engine/package.json', 'server/webclient/package.json']) {
+            const before = JSON.parse(await readFile(join(workspace, relative), 'utf8')), after = JSON.parse(await readFile(join(stage, relative), 'utf8'));
+            for (const key of ['dependencies', 'devDependencies', 'peerDependencies']) if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+                throw failure('DEPENDENCY_MIGRATION_REQUIRED', 'A célverzió függőségei eltérnek. Ehhez külön ellenőrzött telepítési migráció szükséges; a világ mentése megmaradt.');
+        }
+        // Retain mutable world data exactly. The old application never opens it during staging.
+        for (const relative of ['.local', 'bots', 'config', 'server/engine/data']) {
+            if (!existsSync(join(workspace, relative))) continue;
+            if (existsSync(join(stage, relative))) await rm(join(stage, relative), { recursive: true });
+            await cp(join(workspace, relative), join(stage, relative), { recursive: true, dereference: false });
+        }
+        await this.attachDependencies(stage); await assertPrivateInstanceTree(stage);
+        const publicPem = await readFile(join(stage, 'server/engine/data/config/public.pem'), 'utf8'), jwk = createPublicKey(publicPem).export({ format: 'jwk' });
+        const decimal = (value: string) => BigInt(`0x${Buffer.from(value, 'base64url').toString('hex')}`).toString();
+        await this.command([process.execPath, '--no-env-file', 'run', 'bundle.ts', 'dev'], join(stage, 'server/webclient'), join(dir, 'upgrade-client.err.log'),
+            { ...this.systemEnvironment(), LOGIN_RSAN: decimal(jwk.n!), LOGIN_RSAE: decimal(jwk.e!), BUILD_MODE: 'both' });
+        const binding = instanceBinding({ ...server, version });
+        await atomicJson(join(stage, '.local/instance.json'), { schemaVersion: 1, binding, workspace });
+        const before = await readJson(join(dir, 'prepared.json'));
+        await this.maintenance(server).replace(server, stage, { ...before, binding }, operationId);
+        return version;
     }
     private systemEnvironment() {
         const environment: Record<string, string> = {};
@@ -121,8 +203,10 @@ export class LocalManagedRuntime implements ManagedRuntime {
         await writeFile(manifest, JSON.stringify({ binding: expected, isolationVersion: 1, cacheSha256: createHash('sha256').update(pack).digest('hex'),
             publicKeySha256: createHash('sha256').update(publicPem).digest('hex') }), { mode: 0o600 });
     }
-    private async run(server: ManagedServer): Promise<Run | null> {
+    private async run(server: ManagedServer, stoppingLegacy = false): Promise<Run | null> {
         try { const stored = JSON.parse(await readFile(join(this.directory(server), 'runtime.json'), 'utf8'));
+            if (stoppingLegacy && /^[a-f0-9]{64}$/.test(stored.token) && /^[a-f0-9-]{36}$/.test(stored.generation)
+                && JSON.stringify(stored.ports) === JSON.stringify(server.ports)) return stored as Run;
             if (stored.token || stored.secretStore !== 'windows-credential-manager') throw failure('SECRET_MIGRATION_REQUIRED', 'A korábbi futási token titoktár-migrációt igényel.');
             if (!/^[a-f0-9-]{36}$/.test(stored.generation)) throw new Error();
             let cached = this.runTokens.get(server.serverId);
@@ -162,19 +246,21 @@ export class LocalManagedRuntime implements ManagedRuntime {
         return !engine && !gateway && await portsFree(server.ports) ? 'stopped' : 'unknown';
     }
     async start(server: ManagedServer) {
+        if (existsSync(join(this.directory(server), 'maintenance.json'))) throw failure('RECOVERY_REQUIRED', 'Félbeszakadt karbantartási napló; indítás előtt admin-helyreállítás szükséges.');
         if (await this.inspect(server) !== 'stopped') {
             // A completed previous stop leaves its run journal; verify all reserved ports are free below.
             const run = await this.run(server);
             if (run && (await this.control(server, run, 'engine') || await this.control(server, run, 'gateway'))) throw failure('INSTANCE_RUNNING', 'A szerver valamelyik folyamata még fut.');
         }
-        const listeners: Server[] = [];
+        let leases: Awaited<ReturnType<typeof reservePorts>>;
+        try { leases = await reservePorts(server.ports); }
+        catch { throw failure('PORT_OCCUPIED', 'Egy lefoglalt portot más folyamat használ; semmit nem állítottunk le.'); }
         try {
-            for (const port of server.ports) await new Promise<void>((resolve, reject) => {
-                const listener = createServer(); listeners.push(listener); listener.once('error', reject); listener.listen(port, '127.0.0.1', resolve);
-            });
-        } catch { throw failure('PORT_OCCUPIED', 'Egy lefoglalt portot más folyamat használ; semmit nem állítottunk le.'); }
-        finally { await Promise.all(listeners.map(listener => new Promise<void>(resolve => { if (listener.listening) listener.close(() => resolve()); else resolve(); }))); }
         const dir = this.directory(server), workspace = join(dir, 'workspace');
+        await this.quiescent(server);
+        if (!existsSync(join(workspace, 'server/control-plane/secret-store.ts'))
+            || !(await readFile(join(workspace, 'server/control-plane/managed-worker.ts'), 'utf8')).includes('gateway-quiesced.json'))
+            throw failure('VERSION_UPGRADE_REQUIRED', 'A korábbi világ forrásmigrációt igényel a titoktár használatához.');
         await verifyInstanceBinding(workspace, { id: server.serverId, version: server.version, template: server.template, ports: server.ports });
         const publicKey = createPublicKey(await readFile(join(workspace, 'server/engine/data/config/public.pem')));
         const manifest = JSON.parse(await readFile(join(dir, 'prepared.json'), 'utf8'));
@@ -188,7 +274,8 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const decimal = (value: string) => BigInt(`0x${Buffer.from(value, 'base64url').toString('hex')}`).toString();
         const run: Run = { token: randomBytes(32).toString('hex'), generation: randomUUID(), ports: server.ports };
         await new ServerSecretStore(workspace).set('worker-control-token', run.token);
-        await writeFile(join(dir, 'runtime.json'), JSON.stringify({ generation: run.generation, ports: run.ports, secretStore: 'windows-credential-manager' }), { mode: 0o600 });
+        const runMetadata = { generation: run.generation, ports: run.ports, secretStore: 'windows-credential-manager', quiescenceRequired: false };
+        await atomicJson(join(dir, 'runtime.json'), runMetadata);
         const template = worldTemplates.find(value => value.id === server.template)!;
         const environment = this.systemEnvironment();
         Object.assign(environment, { CONTROL_PLANE_IDENTITY_PATH: this.identityFile, CONTROL_PLANE_SERVER_ID: server.serverId,
@@ -202,6 +289,9 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const children: ReturnType<typeof Bun.spawn>[] = [];
         try {
             for (const role of ['engine', 'gateway'] as const) {
+                if (role === 'gateway') { runMetadata.quiescenceRequired = true; await atomicJson(join(dir, 'runtime.json'), runMetadata); }
+                // Keep the other worker's ports reserved until that worker is about to bind.
+                await leases.release(role === 'engine' ? server.ports.slice(1, 5) : [server.ports[0]!, server.ports[5]!]);
                 const child = Bun.spawn([process.execPath, '--no-env-file', join(workspace, 'server/control-plane/managed-worker.ts')], {
                     cwd: join(workspace, 'server', role), env: { ...environment, ...(role === 'engine' ? { ENGINE_LOGIN_PRIVATE_KEY: loginKey } : {}), MANAGED_ROLE: role, MANAGED_CONTROL_PORT: String(server.ports[role === 'engine' ? 4 : 5]) },
                     stdout: Bun.file(join(dir, `${role}.out.log`)), stderr: Bun.file(join(dir, `${role}.err.log`)), windowsHide: true });
@@ -214,10 +304,16 @@ export class LocalManagedRuntime implements ManagedRuntime {
                     await Bun.sleep(200);
                 }
             }
-        } catch (error) { for (const child of children) if (child.exitCode === null) child.kill(); throw error; }
+        } catch (error) {
+            for (const child of children) if (child.exitCode === null) child.kill();
+            await Promise.all(children.map(child => child.exited));
+            // No admin action can reach a world until start succeeds, so these startup children have no admitted bot/skill work.
+            await atomicJson(join(dir, 'gateway-quiesced.json'), { id: server.serverId, generation: run.generation }); throw error;
+        }
+        } finally { await leases.release(); }
     }
     async stop(server: ManagedServer) {
-        const run = await this.run(server); if (!run) return;
+        const run = await this.run(server, true); if (!run) return;
         for (const role of ['gateway', 'engine'] as const) {
             const ports = role === 'engine' ? server.ports.slice(1, 5) : [server.ports[0]!, server.ports[5]!];
             if (!await this.control(server, run, role)) {

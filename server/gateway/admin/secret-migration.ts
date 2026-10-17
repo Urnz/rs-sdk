@@ -7,7 +7,7 @@ import { parseBotEnvironment, rememberBotCredentials } from './bot-credentials.j
 import { validateOpenAIApiKey } from './llm-settings.js';
 
 /** Restartable import: verify OS storage before changing any legacy source. Never export secrets. */
-export async function migrateWorkspaceSecrets(root: string, store: SecretStore = new ServerSecretStore(root), environment: Record<string, string | undefined> = {}) {
+export async function migrateWorkspaceSecrets(root: string, store: SecretStore = new ServerSecretStore(root), environment: Record<string, string | undefined> = {}, options: { offlineSourceUpgrade?: boolean } = {}) {
     root = resolve(root);
     const checkSource = async (file: string, base = root) => {
         const path = relative(base, file);
@@ -30,7 +30,7 @@ export async function migrateWorkspaceSecrets(root: string, store: SecretStore =
         imported++;
     };
     const managed = existsSync(join(root, '.local/instance.json'));
-    if (managed && !existsSync(join(root, 'server/control-plane/secret-store.ts')))
+    if (managed && !options.offlineSourceUpgrade && !existsSync(join(root, 'server/control-plane/secret-store.ts')))
         throw new Error('A pinnelt régi világ előbb kompatibilis forrásmigrációt igényel; titkai változatlanok.');
     const keyFile = join(root, '.local/admin/secrets/openai-api-key.txt');
     await checkSource(keyFile);
