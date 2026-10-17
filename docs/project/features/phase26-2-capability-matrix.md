@@ -9,6 +9,11 @@ Az alábbi verzió- és bizonyítékszámok a 26.2 elfogadáskori, 1.0.0-s
 [műveleti jóváhagyási szabályokkal](phase26-3-operation-reviews.md);
 a műveletek és ismert felületi hiányok száma változatlan.
 
+A későbbi [26.7 auditban](phase26-7-usability-audit.md) a jegyzék **1.3.0**:
+156 bejegyzés / 171 művelet, 155 felületi kapcsolat, **0 ismert felületi
+hiány** és 1 automatikus infrastruktúraművelet. Az alábbi 26.2-es számok
+történeti elfogadási adatok; az aktuális forrás a verziózott JSON.
+
 ## Használat
 
 A szerver fejlécében válaszd a **Műveletek keresése** hivatkozást. A korlátozott

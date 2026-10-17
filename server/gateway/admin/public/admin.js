@@ -4,6 +4,7 @@ import { contextHeaders, serverId, tokenKey } from './server-context.js';
 import { mountAdminNavigation } from './navigation.js';
 import { reviewCancelledMessage, formatReviewParameters } from './operation-review.js';
 import { runOperation, setOperationReader, observeExperiments } from './operation-progress.js';
+import { mountManagementWorkflows } from './management-workflows.js';
 
 mountConnectionStatus(document.querySelector('#connection-status'));
 
@@ -114,6 +115,7 @@ async function api(path, options = {}) {
     });
 }
 setOperationReader(path => api(path));
+mountManagementWorkflows(api);
 
 function toast(message, error = false) {
     if (message === reviewCancelledMessage) error = false;

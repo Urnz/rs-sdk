@@ -64,7 +64,7 @@ export function discoverCapabilityEvidence(files: Record<string, string>): Surfa
     return [...result.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function frontendRequest(text: string) {
+export function frontendRequest(text: string) {
     const tree = ts.createSourceFile('request.js', text, ts.ScriptTarget.Latest, true);
     const statement = tree.statements[0];
     if (!statement || !ts.isExpressionStatement(statement) || !ts.isArrayLiteralExpression(statement.expression)) return null;

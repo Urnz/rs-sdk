@@ -24,8 +24,8 @@ test('searchable capability guide exposes real entries and honest gaps, retains 
         await Promise.all([page.waitForNavigation(), page.click('#capability-directory-link')]);
         await page.waitForSelector('.capability-card');
         page.on('request', request => { if (request.method() !== 'GET') writes.push(request.method() + ' ' + request.url()); });
-        expect(await page.$$('.capability-card')).toHaveLength(155);
-        expect(await page.$eval('#capability-status', element => element.textContent)).toContain('31 felületi hiány');
+        expect(await page.$$('.capability-card')).toHaveLength(156);
+        expect(await page.$eval('#capability-status', element => element.textContent)).toContain('0 felületi hiány');
         const response = await page.evaluate(async () => (await fetch('capability-matrix.v1.json')).headers.get('Content-Type'));
         expect(response).toContain('application/json');
         await page.type('[name="search"]', 'karakter inditasa');
@@ -34,7 +34,9 @@ test('searchable capability guide exposes real entries and honest gaps, retains 
         expect(entry).toBe('/admin/index.html?serverId=local-default#bots');
         await page.click('.capability-card summary'); expect(await page.$eval('.capability-card details', element => (element as HTMLDetailsElement).open)).toBe(true);
         await page.click('[type="reset"]'); await page.select('[name="coverage"]', 'missing');
-        expect(await page.$$('.capability-card')).toHaveLength(31); expect(await page.$$('.capability-card a')).toHaveLength(0);
+        expect(await page.$$('.capability-card')).toHaveLength(0); expect(await page.$$('.capability-card a')).toHaveLength(0);
+        expect(await page.$eval('#capability-results', element => element.textContent)).toContain('Nincs találat');
+        await page.select('[name="coverage"]', 'available');
         await page.select('[name="area"]', 'Társadalmi mutatók'); expect((await page.$$('.capability-card')).length).toBeGreaterThan(0);
         await page.type('[name="search"]', '<img src=x onerror=alert(1)>');
         expect(await page.$$('.capability-card')).toHaveLength(0);
@@ -58,7 +60,7 @@ test('searchable capability guide exposes real entries and honest gaps, retains 
         await page.reload(); await page.waitForSelector('#capability-status[data-error="true"]');
         expect(await page.$eval('#capability-status', element => element.textContent)).toContain('Újrapróbálás');
         fail = false; await page.click('#capability-retry'); await page.waitForSelector('.capability-card');
-        expect(await page.$$('.capability-card')).toHaveLength(155);
+        expect(await page.$$('.capability-card')).toHaveLength(156);
         expect(writes).toEqual([]); expect(errors).toEqual([]);
     } finally { await browser?.close(); await app.stop(true); registry.close(); identities.close(); }
 }, 30000);

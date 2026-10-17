@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="operation-review.css">
     <link rel="stylesheet" href="operation-progress.css">
     <link rel="stylesheet" href="workflow-help.css">
+    <link rel="stylesheet" href="management-workflows.css">
     <script type="module" src="workflow-help.js"></script>
 </head>
 <body>
@@ -57,6 +58,7 @@
             </div>
         </nav>
         <div class="admin-content">
+        <section id="management-options" aria-label="Kezelési űrlapok választói"></section>
         <label class="mobile-navigation" for="admin-view-select">Kezelési terület<select id="admin-view-select"></select></label>
         <header class="view-heading">
             <p id="admin-view-group" class="eyebrow">NAPI FELÜGYELET</p>
@@ -545,6 +547,14 @@
             </form>
         </section>
 
+        <section id="agent-reports" class="panel management-section" data-admin-tab-panel="agents" hidden aria-label="Döntési állapot és teljes idővonal"></section>
+        <section id="admin-audit-reports" class="panel management-section" data-admin-tab-panel="bots" hidden aria-label="Adminműveletek naplója"></section>
+        <section id="experiment-reports" class="panel management-section" data-admin-tab-panel="experiments" hidden aria-label="Kísérleti ellenőrzések és bizonyítékok"></section>
+        <section id="economy-reports" class="panel management-section" data-admin-tab-panel="economy" hidden aria-label="Függőségek és kockázatok"></section>
+        <section id="business-reports" class="panel management-section" data-admin-tab-panel="businesses" hidden aria-label="Vállalkozási szerepkörök"></section>
+        <section id="evaluation-reports" class="panel management-section" data-admin-tab-panel="society" hidden aria-label="Külön társadalmi riportok"></section>
+        <section id="population-workflows" class="panel management-section" data-admin-tab-panel="society" hidden aria-label="Hosszú kísérletek, utánpótlás és hagyaték"></section>
+        <section id="genesis-workflows" class="panel management-section" data-admin-tab-panel="world" hidden aria-label="Világkezdet és kapcsolódó riportok"></section>
         <section class="panel stock-panel" data-admin-tab-panel="economy" hidden>
             <div class="panel-heading"><div><p class="eyebrow">KÉSZLETEK</p><h2>Legnagyobb itemállományok</h2></div></div>
             <div id="item-stock" class="stock-grid scroll-region" role="region" aria-label="Itemkészletek görgethető listája" tabindex="0"></div>

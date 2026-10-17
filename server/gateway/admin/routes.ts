@@ -124,7 +124,7 @@ import { populationDemographicDefaults, readPopulationDemographics, type Populat
 import { listAdminWorldGenesis, previewAdminWorldGenesis, resetAdminWorldGenesis, startAdminWorldGenesis,
     type WorldGenesisAdminAdapter, type WorldGenesisAdminPaths } from './world-genesis.js';
 import { worldGenesisProfileCatalogPath } from './paths.js';
-import { executeAdminInheritance, previewAdminInheritance, loadInheritancePolicy, type EstateRuntimeOptions } from '../../../population-estate/index.js';
+import { executeAdminInheritance, previewAdminInheritance, loadInheritancePolicy, PopulationEstateStore, type EstateRuntimeOptions } from '../../../population-estate/index.js';
 import { defaultEstateRuntimeOptions } from './population-estate-runtime.js';
 import { populationInheritancePolicyPath } from './paths.js';
 import { loadMemoryTransferPolicy } from '../../../agent-state/memory-transfer.js';
@@ -599,6 +599,26 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json({ error: ADMIN_TOKEN ? 'Érvénytelen vagy hiányzó admin token.' : 'Adminművelet csak a helyi adminfelületről engedélyezett.' }, 401);
         }
 
+        if (req.method === 'GET' && url.pathname === '/api/admin/workflow-options') {
+            // Read-only choices for the owner UI. Missing policy/history is not fabricated.
+            const warnings: string[] = [];
+            const read = <T>(label: string, fallback: T, load: () => T): T => {
+                try { return load(); } catch (error) { warnings.push(`${label}: ${String(error)}`); return fallback; }
+            };
+            const inheritanceRules = read('Öröklési szabályzat nem olvasható', [], () =>
+                loadInheritancePolicy(context.populationInheritancePolicyPath ?? populationInheritancePolicyPath).bindings);
+            const memoryRules = read('Tudásátadási szabályzat nem olvasható', [], () =>
+                loadMemoryTransferPolicy(context.populationMemoryTransferPolicyPath ?? populationMemoryTransferPolicyPath).rules);
+            const estates = read('Hagyatéki nyilvántartás nem olvasható', [], () => {
+                const path = (context.populationEstateOptions ?? defaultEstateRuntimeOptions()).statePath;
+                if (!existsSync(path)) return [];
+                const store = new PopulationEstateStore(path, true);
+                try { return store.readSnapshot(() => store.list().map(item => ({ estateId: item.estateId,
+                    agentId: item.agentId, username: item.username, status: item.status, revision: item.revision }))); }
+                finally { store.close(); }
+            });
+            return json({ inheritanceRules, memoryRules, estates, warnings });
+        }
         if (req.method === 'GET' && url.pathname === '/api/admin/multi-agent-experiments/environment') return json(await activeExperimentEnvironment());
         if(url.pathname==='/api/admin/society/xp-baseline'){
             if(req.method==='GET')return json(await xpBaselineClient()(url.searchParams.getAll('player')));

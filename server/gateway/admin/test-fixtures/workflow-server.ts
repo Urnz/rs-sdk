@@ -16,7 +16,7 @@ const paths = Object.fromEntries(Object.entries(originalPaths).map(([key, value]
 // Static sources stay in the checkout; every runtime/config path stays under root.
 await mkdir(root, { recursive: true });
 await mkdir(join(root, 'agent-skills', 'catalog'), { recursive: true });
-for (const name of ['llm-runtime.json', 'world-director.json', 'population-estate-policy.json']) {
+for (const name of ['llm-runtime.json', 'world-director.json', 'population-estate-policy.json', 'population-inheritance-policy.json', 'population-memory-transfer-policy.json']) {
     const target = join(root, 'config', name); await mkdir(dirname(target), { recursive: true });
     await copyFile(join(originalPaths.repoRoot, 'config', name), target);
 }
@@ -52,7 +52,7 @@ const { handleAdminRequest } = await import('../routes.js');
 const { SkillTrialStore } = await import('../../../../agent-skills/trials.js');
 const { CapabilityGapStore } = await import('../../../../agent-skills/capability-gaps.js');
 const { SKILL_VERIFIER_ID } = await import('../../../../agent-skills/verifier.js');
-if (process.env.RS_ADMIN_WORKFLOW_SCENARIO === 'commerce') {
+if (['commerce', 'audit'].includes(process.env.RS_ADMIN_WORKFLOW_SCENARIO || '')) {
     const { createAdminAgent } = await import('../agent-state.js');
     for (const agentId of ['contract-a', 'contract-b']) createAdminAgent({ agentId, displayName: agentId, playerUsername: agentId === 'contract-a' ? 'Contracta' : 'Contractb',
         background: 'Synthetic API/UI fixture.', personalityTraits: ['careful'] });
@@ -103,6 +103,8 @@ const realPaths = new Set(['/api/admin/llm-settings', '/api/admin/experiment-par
     '/api/admin/skill-trials', '/api/admin/world-director/templates', '/api/admin/world-director/cycles',
     '/api/admin/world-director/config', '/api/admin/world-director/preview', '/api/admin/world-mods', '/api/admin/world-mods/backups',
     '/api/admin/world-mods/fixture.signal']);
+if (process.env.RS_ADMIN_WORKFLOW_SCENARIO === 'audit') for (const path of ['/api/admin/workflow-options', '/api/admin/audit',
+    '/api/admin/autonomy-control', '/api/admin/agents', '/api/admin/agents/contract-a/timeline', '/api/admin/business-role-definitions', '/api/admin/experiments']) realPaths.add(path);
 const app = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(config, identities, async (url, init) => {
     if (realPaths.has(url.pathname) || /^\/api\/admin\/skill-trials\/[^/]+\/(publication-approval|publish)$/.test(url.pathname))
         return await handleAdminRequest(new Request(url, init), url, context) || new Response('Fixture route missing', { status: 404 });

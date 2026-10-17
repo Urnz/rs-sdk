@@ -15,10 +15,10 @@ const actual = discoverCapabilityEvidence(sources);
 test('versioned matrix accounts for every discovered backend declaration, routing guard and frontend request', () => {
     expect(auditCapabilityMatrix(matrix, actual).problems).toEqual([]);
     expect(matrix.capabilities.every(item => item.methods.length === 1)).toBe(true);
-    expect(matrix.capabilities.filter(item => item.coverage === 'missing')).toHaveLength(31);
-    expect(matrix.capabilities.filter(item => item.coverage === 'available')).toHaveLength(123);
+    expect(matrix.capabilities.filter(item => item.coverage === 'missing')).toHaveLength(0);
+    expect(matrix.capabilities.filter(item => item.coverage === 'available')).toHaveLength(155);
     expect(matrix.capabilities.filter(item => item.coverage === 'infrastructure')).toHaveLength(1);
-    expect(matrix.capabilities.flatMap(item => item.operations)).toHaveLength(170);
+    expect(matrix.capabilities.flatMap(item => item.operations)).toHaveLength(171);
 });
 
 test('orphan backend, orphan frontend and unsupported UI claims produce concrete failures', () => {
@@ -33,7 +33,9 @@ test('orphan backend, orphan frontend and unsupported UI claims produce concrete
     const issues = auditCapabilityMatrix(frontendCopy, actual).problems;
     expect(issues.some(problem => problem.startsWith('Orphan frontend:'))).toBe(true);
     expect(issues.some(problem => problem.startsWith('Unsupported UI claim:'))).toBe(true);
-    const untrackedGap = structuredClone(matrix); untrackedGap.capabilities.find(item => item.coverage === 'missing')!.gap = null;
+    const untrackedGap = structuredClone(matrix);
+    const gap = untrackedGap.capabilities.find(item => item.coverage === 'available')!;
+    gap.coverage = 'missing'; gap.entry = null; gap.gap = null;
     expect(auditCapabilityMatrix(untrackedGap, actual).problems.some(problem => problem.startsWith('Unexplained gap:'))).toBe(true);
     const wrongEndpoint = structuredClone(matrix);
     wrongEndpoint.capabilities.find(item => item.coverage === 'available')!.operations = [{ method: 'POST', path: '/api/admin/wrong-target' }];
@@ -88,9 +90,9 @@ test('every exposed mutation has a reviewed decision policy and native confirm p
     expect(matrix.reviewSchemaVersion).toBe(1);
     const mutations = matrix.capabilities.filter(item => item.methods[0] !== 'GET');
     expect(mutations).toHaveLength(91);
-    expect(mutations.filter(item => item.review?.mode === 'required')).toHaveLength(64);
-    expect(mutations.filter(item => item.review?.mode === 'direct')).toHaveLength(16);
-    expect(mutations.filter(item => item.review?.mode === 'blocked')).toHaveLength(11);
+    expect(mutations.filter(item => item.review?.mode === 'required')).toHaveLength(72);
+    expect(mutations.filter(item => item.review?.mode === 'direct')).toHaveLength(19);
+    expect(mutations.filter(item => item.review?.mode === 'blocked')).toHaveLength(0);
     for (const name of ['admin.js', 'account.js', 'servers.js']) {
         const source = sources[`server/gateway/admin/public/${name}`]!;
         expect(source).not.toMatch(/\bconfirm\(/);

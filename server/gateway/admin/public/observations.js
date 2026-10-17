@@ -1,11 +1,12 @@
-'use strict';
+import { mountReportWorkflows } from './workflow-reports.js';
 const observationId = new URL(location.href).searchParams.get('serverId');
 document.getElementById('observation-capabilities').href = `/admin/capabilities.html?serverId=${encodeURIComponent(observationId || '')}`;
 const observationElement = id => document.getElementById('observation-' + id);
 async function observationApi(path) {
-    const response = await fetch(path, { headers: { 'X-Control-Server-ID': observationId }, cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const response = await fetch(path, { headers: { 'X-Control-Server-ID': observationId, 'X-Admin-Request': 'rs-sdk-admin' }, cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (response.status === 401) location.assign('/admin/login.html');
-    if (!response.ok) throw new Error();
+    if (!response.ok) throw new Error(`A riport nem olvasható (HTTP ${response.status}). Ellenőrizd a hozzáférést és a szerver kapcsolatát.`);
+    if (path.startsWith('/api/admin/') && response.headers.get('X-Control-Server-ID') !== observationId) throw new Error('A riport szerverkontextusa nem igazolt. Töltsd újra az oldalt.');
     return response.json();
 }
 async function refreshObservations() {
@@ -29,4 +30,5 @@ async function refreshObservations() {
     finally { button.disabled = false; }
 }
 observationElement('refresh').addEventListener('click', refreshObservations);
+mountReportWorkflows(observationApi);
 void refreshObservations();

@@ -580,3 +580,128 @@ széles körben ez a folyamat is sikeres. Assertion nem lett kihagyva.
 
 A 26.6 lezárható. Következő: **26.7 használhatósági, hozzáférhetőségi,
 reszponzív és capability-paritási audit**, a 31 ismert felületi hiánnyal.
+
+## 26.7 – Használhatósági és képességparitási audit (2026-10-18)
+
+A 31 ismert hiányhoz feladat szerinti kezelési kártya készült a meglévő
+nézetekben. Olvasható adminnapló, idővonal, környezet- és pillanatkép-
+riportok; gazdasági függőségek/kockázatok, mérési szerződés és társadalmi
+riportok, hosszú kísérletek, vállalkozási szerepleírás. Új űrlapok kezelik
+az archivált tudást, öröklést, népesség-utánpótlást, XP-alapállapotot és
+bizonyítéklezárást, világkezdetet és a kapcsolódó megfigyeléseket.
+
+Az új előnézetekhez a kliens megőrzi a lenyomatot, revíziót és egyszeri
+azonosítót. Adatváltozás, választófrissítés, megszakítás vagy hiba után
+a végrehajtás letiltott, új előnézet szükséges. Akadályos vagy hibás alakú
+előnézetből nem indítható átadás. A jóváhagyás konkrét forrást, címzettet,
+vagyont/tudást és bizonyítékkötést mutat; nincs automatikus módosító retry.
+A már meglévő backend-kapuk és gazdasági tranzakciók változatlanok.
+
+A csak olvasó `workflow-options` végpont engedélyezett szabályokat és
+meglévő hagyatékokat ad a név szerinti választóknak. Az üres alap-policy
+látható előfeltétel, nem kitalált engedély. Hiányzó hagyatéki adatbázist
+nem hoz létre. A hiányos szabályzat figyelmeztetést kap, a többi lista
+használható marad. A helyi védett GET-ekhez a kliens a szükséges
+`X-Admin-Request` fejlécet is elküldi, az auth-szabályok megváltoztatása nélkül.
+
+A néző és üzemeltető a saját megfigyelési oldalán olvashatja a megengedett
+két gazdasági és két társadalmi riportot. A tulajdonosi önfenntartás és a
+módosítások nem láthatók ott. Óraadatok egy gombbal kitölthetők, üres
+időablaknál az utolsó 24 szimulációs óra ajánlott; a megadott időablak
+megmarad. A tulajdonosi közös társadalmi riport feltételei is átvehetők.
+
+**Mátrix 1.3.0:** 156 bejegyzés, 171 konkrét módszer/útvonal pár,
+155 felületi kapcsolat, **0 ismert felületi hiány**, 1 infrastruktúra.
+A 91 módosító bejegyzéshez 72 külön jóváhagyási és 19 indokoltan közvetlen
+policy tartozik; az előnézet/végrehajtás variánsok külön szabályozottak.
+140 backend-deklaráció, 153 módszerkapu és 181 frontend-hívásalak kötése
+ellenőrzött. A korábbi árvaságot, hibás kötést és indokolatlan hiányt
+kimutató negatív tesztek megmaradtak.
+
+### Használhatósági és hozzáférhetőségi bizonyíték
+
+Hét új Chrome-eset: 20 korábban hiányzó olvasási és 11 módosító
+műveletcsoport kérésalakja; valódi üres policy, adminnapló és idővonal;
+előnézeti akadályok, pontos bizonyítékok, megszakítás, mezőmódosítás,
+HTTP-hiba utáni adatmegőrzés, előkészített világtervfájl, valamint
+nézői/üzemeltetői valódi szerepkörkapuk. A 26.6 hat valódi API/UI esete
+és az összes korábbi admin/control-plane teszt megmaradt.
+
+A 13 nézet 320, 390, 768, 1440 px szélességen nem okoz vízszintes
+oldalkilógást. Chrome AX-fában az ellenőrzött látható vezérlőknek van neve;
+kártyanyitás és mezőelérés billentyűzettel működik. Az új űrlapok aktív
+szövegeire legalább 4,5:1 kontraszt igazolt. A szerver-, fiók- és
+műveletjegyzék oldal mobil/asztali, a megfigyelői riportok 320 px-es
+ellenőrzést kaptak. A képernyőképek vizuálisan is ellenőrizve:
+`.local/verification/phase26-7-audit-mobile.png` és
+`.local/verification/phase26-7-audit-desktop.png`.
+
+Az új domain-módosítások kérésalakjai szintetikus HTTP-válaszokat is
+használnak: ez nem élő gazdasági vagy népességi futás. Nem teljes WCAG-
+tanúsítás és nem képernyőolvasós felhasználói kutatás.
+[Használat, lefedettség és működési korlátok](features/phase26-7-usability-audit.md).
+
+### Kiválasztott ellenőrzési kör
+
+Érintett: admin HTML/CSS/JS, riportok és műveleti jóváhagyás fogyasztói,
+egy új tulajdonosi olvasó végpont, verziózott capability-szerződés és
+izolált tesztfixture. Határok: HTTP-kérésalak, szerverkontextus,
+szerepkör, előnézeti bizonyíték, API/UI megjelenítés és olvasó adatforrások.
+Indokolt a teljes admin/control-plane modulcsomag és a root TypeScript.
+Nincs közös persistence-, migráció-, SimulationClock-, gazdasági alap-,
+auth-szabály-, runtimefüggőség- vagy globális konfigurációváltozás;
+`verify:full`, engine- és webclient-typecheck nem volt indokolt.
+
+- **Mátrix és root TypeScript: 7/7 PASS, exit 0, 40,015 s.**
+  `bun test server/gateway/admin/capability-matrix.test.ts && bun run typecheck`.
+  `.local/verification/20261018-004038-711-phase26-7-static.log` és `.result.json`.
+- **Javított új böngészős kör: 5/5 PASS, exit 0, 17,127 s.**
+  `bun test server/gateway/admin/usability-audit-browser.test.ts`.
+  `.local/verification/20261018-004438-189-phase26-7-browser-fixed.log` és `.result.json`.
+  Az ekkor meglévő öt esethez később két további eset és óraadat-kitöltés került.
+- **Kísérleti elővizsgálat és szerepkörök: 2/2 PASS, exit 0, 5,229 s.**
+  `.local/verification/20261018-004559-601-phase26-7-preflight-roles.log` és `.result.json`.
+- **Kibővített AX/kontraszt/reszponzív audit: 1/1 PASS, exit 0, 4,918 s.**
+  `.local/verification/20261018-004726-318-phase26-7-a11y-final.log` és `.result.json`.
+- **Széles érintett kör: 450 PASS / 0 FAIL / 0 skip, a lánc exitje 2,
+  203,905 s.** Az összes admin/control-plane teszt sikeres. Az utána futó
+  TypeScript az új auditteszt `NodeList` spreadjénél TS2488 hibát talált;
+  ebben a láncban a format nem futott. Javítás: `Array.from`, assertion-
+  elhagyás és időlimit-emelés nélkül.
+  `bun test server/gateway/admin server/control-plane/test && bun run typecheck && bun run format:check`.
+  `.local/verification/20261018-004742-429-phase26-7-affected.log` és `.result.json`.
+- **Végső megváltozott határok: 16/16 PASS, root TypeScript és format PASS,
+  exit 0, 46,137 s.** A javított audit, az új óraadat-kitöltés, a mátrix,
+  a műveletjegyzék és a control-plane szerepkörös Chrome-próba együtt.
+  `bun .local/verification/update-audit-clock-matrix.ts && bun test server/gateway/admin/usability-audit-browser.test.ts server/gateway/admin/capability-matrix.test.ts server/gateway/admin/capability-browser.test.ts server/control-plane/test/security-browser.test.ts && bun run typecheck && bun run format:check`.
+  `.local/verification/20261018-005138-048-phase26-7-final-boundaries.log` és `.result.json`.
+- **Végső riportmegjelenítés: 7/7 PASS, root TypeScript és format PASS,
+  exit 0, 38,631 s.** A fordítás a mező jelentését követi: a `constructor`
+  nevű résztvevő és az `active` vállalkozásazonosító eredeti szöveg marad,
+  nem örökölt szótártag vagy állapotfordítás. HTML-injekció továbbra sem fut.
+  `bun test server/gateway/admin/usability-audit-browser.test.ts && bun run typecheck && bun run format:check`.
+  `.local/verification/20261018-005512-602-phase26-7-identifiers-final.log` és `.result.json`.
+
+A 450 sikeres tesztből a változatlan modulokat nem ismételtük csak a
+TypeScript-teszthiba és a végső riportkényelmi módosítás miatt. A széles
+lánc hibás exitje megmaradt; ez nem teljes regressziós PASS.
+
+### Korai hibák és helyi működés
+
+Az első böngészős kör 2 PASS / 4 FAIL: az új védett olvasó kliensből
+kimaradt helyi kérésfejlécet a valódi handler 401-gyel kimutatta; egy új
+mező tesztazonosítójának eltérését is javítottuk. A sikeres útmutató- és
+reszponzív assertionök nem kerültek ki. A sikertelen korai naplók és a
+`phase26-7-choices-debug` diagnosztika megmaradtak.
+A mátrixsegéd kezdeti általános/pontos útvonal-ütközése után konkrétabb
+kötés készült. Két sandboxos Bun-indítás `CouldntReadCurrentDirectory`
+hibával leállt, nem PASS-ként kezelve; az ellenőrzések engedélyezett
+sandboxon kívüli futásban sikerültek. Egy már végrehajtott mátrixfrissítés
+ismétlése duplikációs hibával megállt, a JSON-t nem írta felül.
+
+Helyi szolgáltatást nem állítottunk le. A statikus felület frissítéskor
+az új forrásokat tölti; az új választólistás végponthoz az admin/gateway
+folyamatot újra kell indítani. A tesztek saját loopback folyamatot és
+temp gyökeret használnak, valódi bot, AI-hívás és kifizetés nélkül.
+
+A 26.7 és a **26. fázis lezárható** a dokumentált működési és auditkorlátokkal.

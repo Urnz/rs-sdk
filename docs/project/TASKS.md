@@ -430,9 +430,20 @@ admin control plane mindkét engine leállítása közben is elérhető marad.
   javítás után **3/3 ismételt navigációs próba**, root TypeScript és format
   PASS. Ez nem egybefüggő zöld teljes regressziós kapu.
   [Lefedettség és határok](features/phase26-6-workflow-contracts.md),
-  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: **26.7**.
-- [ ] Az egységesítés végén használhatósági, hozzáférhetőségi, reszponzív és
+  [ellenőrzési napló](PHASE26_PROGRESS.md).
+- [x] Az egységesítés végén használhatósági, hozzáférhetőségi, reszponzív és
   capability-paritási auditot futtatni, majd minden feltárt hiányt lezárni.
+  **26.7 – elkészült (2026-10-18):** a 31 ismert felületi hiány lezárva:
+  témakörönkénti űrlapok és riportok, betölthető résztvevők/szabályok,
+  előnézethez kötött átadások és visszaállítás, automatikus óraadat-kitöltés,
+  nézői/üzemeltetői riportok. Mátrix **1.3.0: 156 bejegyzés / 171 művelet,
+  155 felületi kapcsolat, 0 ismert hiány, 1 infrastruktúra**. Hét új Chrome-eset,
+  13 nézet 320–1440 px-en, billentyűzetes kezelés, vezérlőnevek és szövegkontraszt.
+  Széles admin/control-plane kör **450 PASS / 0 teszthiba**; a láncban talált
+  TypeScript-teszthiba javítása és a végső kényelmi módosítás után **16/16 PASS**,
+  root TypeScript és format PASS. Az eredeti lánc hibás exitje dokumentálva;
+  ez nem teljes regressziós PASS. [Használat és auditkorlátok](features/phase26-7-usability-audit.md),
+  [eredmények és mért idők](PHASE26_PROGRESS.md). A 26. fázis lezárva.
 
 Elfogadási feltétel: a backend minden támogatott admin-képessége megtalálható és
 érthetően használható a felületen, minden felületi művelet látható eredménnyel

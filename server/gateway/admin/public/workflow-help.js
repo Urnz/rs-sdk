@@ -57,7 +57,7 @@ export const workflowGuides = {
             'A létrejött vállalkozás részleteiben ellenőrizd a szerepeket és az alkalmazottakat. A tulajdonos külön szerep, nem alkalmazott.',
             'Munkavégzés előtt ellenőrizd a jóváhagyott működési szabályt, a munkakör képességét és a fedezetet; a player agentnek a megbízást külön el kell fogadnia.'],
         expected: 'A vállalkozás megjelenik a listában. Létrehozása önmagában nem indít karaktert vagy munkafutást.',
-        trouble: 'Hiányzó dolgozó vagy indítható munka esetén a foglalkoztatást, a jóváhagyott szabályt, a megtanult képességet és az online karaktert ellenőrizd.',
+        trouble: 'Hiányzó dolgozó vagy indítható munka esetén a foglalkoztatást, a jóváhagyott szabályt, a megtanult képességet és az online karaktert ellenőrizd. A Vállalkozási szerepkörök és feladatok kártya elmondja a támogatott szerepeket.',
         terms: { Business: 'Tartós vállalkozási nyilvántartás tulajdonossal és szerepekkel.', Policy: 'Jóváhagyott működési szabály; a javaslat még nem aktív szabály.' },
         links: [['#agents', 'Agentek és megbízások'], ['#world', 'Ingatlanok']]
     },
@@ -78,7 +78,7 @@ export const workflowGuides = {
         steps: ['Az Óraadatok kitöltése gombbal kérd le a világ órájának adatait, majd állítsd be az időablakot és a riportkohorsz mezőben a vizsgált agentek azonosítóit.',
             'Kérd le a mutatókat, majd a Források, lefedettség és korlátok alatt ellenőrizd, milyen adatokra támaszkodik a jelentés.'],
         expected: 'Az adott időszak és agentcsoport eredménye látható; a lefedettségi hiányok külön jelzettek.',
-        trouble: 'Üres vagy hiányos eredménynél ellenőrizd az időablakot, az agentazonosítókat és a források lefedettségét. Ha az óra nem olvasható, ne találj ki azonosítót vagy lenyomatot. A hiányzó adat nem azonos a nulla teljesítménnyel.',
+        trouble: 'Üres vagy hiányos eredménynél ellenőrizd az időablakot, az agentazonosítókat és a források lefedettségét. Ha az óra nem olvasható, ne találj ki azonosítót vagy lenyomatot. A hiányzó adat nem azonos a nulla teljesítménnyel. A külön riportokba átveheted ezt az időablakot; utánpótláshoz, örökléshez és tudásátadáshoz előbb töltsd be az oldal tetején a választható adatokat.',
         terms: { Kohorsz: 'A vizsgálathoz kiválasztott agentcsoport.', UTC: 'Egységes időzóna; az ISO időpont végén a Z ezt jelöli.' }, links: [['#economy', 'Gazdasági események']]
     },
     skills: {
@@ -110,7 +110,7 @@ export const workflowGuides = {
             'Mentés után ellenőrizd, hogy aktív lett-e a változás, vagy újraindítás/migráció szükséges. A konfiguráció mentése nem minden esetben jelent aktiválást.',
             'Visszaállításhoz válaszd ki a megfelelő konfigurációmentést. Teljes világmentést a Saját szervereim oldalon kezelhetsz.'],
         expected: 'A kért konfiguráció és az aktív állapot megkülönböztethető; a Műveletek lista jelzi a fennmaradó teendőt.',
-        trouble: 'Állapotverzió-ütközésnél frissítsd az adatokat és hasonlítsd össze az új állapotot a tervezett módosítással. Aktiválási hibánál ne ismételd meg vakon a teljes mentést.',
+        trouble: 'Állapotverzió-ütközésnél frissítsd az adatokat és hasonlítsd össze az új állapotot a tervezett módosítással. Aktiválási hibánál ne ismételd meg vakon a teljes mentést. Világkezdethez az alábbi kártyákon ellenőrzött tervfájlt választhatsz; visszaállítás előtt frissítsd a korábbi alkalmazásokat.',
         terms: { 'Hot reload': 'Az ezt támogató szabály újraindítás nélküli aktiválása.', Revízió: 'Állapotverzió; védi a frissebb változásokat a régi űrlap felülírásától.', Konfigurációmentés: 'A kért szabályértékek mentése; nem a teljes világ és játékosállapot másolata.' },
         links: [['servers.html', 'Teljes világmentés és újraindítás'], ['#experiments', 'Kísérleti paraméterprofilok']]
     },

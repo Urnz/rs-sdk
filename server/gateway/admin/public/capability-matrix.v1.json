@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "version": "1.2.0",
-  "reviewedAt": "2026-10-17",
+  "version": "1.3.0",
+  "reviewedAt": "2026-10-18",
   "evidence": [
     {
       "id": "015c81cbdd2b526b3ac3612c",
@@ -20,6 +20,12 @@
       "file": "server/control-plane/service.ts",
       "kind": "guard",
       "text": "action && req.method === 'POST'"
+    },
+    {
+      "id": "042c205848b0e270b07c4882",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/population-estates/${encoded(data.estateId)}/inheritance-preview`, 'POST']"
     },
     {
       "id": "047f90858ce1aa37ae0464bf",
@@ -100,6 +106,12 @@
       "text": "'/api/admin/properties/reconcile'"
     },
     {
+      "id": "0c537cce55c86ac7ebbf279d",
+      "file": "server/gateway/admin/public/workflow-reports.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/society/evaluation/contract', \"GET\"]"
+    },
+    {
       "id": "0c74a546b7af6bdc899f7a0b",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
@@ -136,16 +148,34 @@
       "text": "'/api/admin/engine/restart'"
     },
     {
+      "id": "0f0e6f6409811176f043f76c",
+      "file": "server/gateway/admin/routes.ts",
+      "kind": "guard",
+      "text": "req.method === 'GET' && url.pathname === '/api/admin/workflow-options'"
+    },
+    {
       "id": "0fcb93656ae928650dfc22a0",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "'/api/admin/society/dashboard'"
     },
     {
+      "id": "0fdcb65154fa2044d927ae18",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/society/xp-baseline', 'POST']"
+    },
+    {
       "id": "10378c99b869f1345ef4e7cc",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
       "text": "req.method === 'GET' && url.pathname === '/api/admin/world-genesis/profiles'"
+    },
+    {
+      "id": "1156d2781618ae2f0f36050a",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/world-genesis/${encoded(data.resultId)}/external-trade?${scopeQuery(data)}`, \"GET\"]"
     },
     {
       "id": "11f3a6ec209db789e2ce4ff6",
@@ -454,6 +484,12 @@
       "text": "req.method === 'GET' && botDetailMatch?.[1]"
     },
     {
+      "id": "2deffcf8aeed4aa901af5673",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/population-estates/${encoded(data.estateId)}/inheritance`, 'POST']"
+    },
+    {
       "id": "2e0611fe71ccd2db2efd0caa",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
@@ -488,6 +524,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "/^\\/api\\/admin\\/agents\\/([a-z0-9.-]+)\\/skills$/"
+    },
+    {
+      "id": "31d2940f8a748cc9412b3885",
+      "file": "server/gateway/admin/public/workflow-reports.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/simulation-clock?limit=1', \"GET\"]"
     },
     {
       "id": "32a946c13319e00cbf7ce61b",
@@ -542,6 +584,12 @@
       "file": "server/control-plane/auth.ts",
       "kind": "backend",
       "text": "'/api/control-plane/sessions'"
+    },
+    {
+      "id": "365fef8b1e3b328153adb7cf",
+      "file": "server/gateway/admin/public/workflow-reports.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/society/evaluation?${scopeQuery(data)}`, \"GET\"]"
     },
     {
       "id": "3684c94aced3d7d4faa2f62e",
@@ -632,6 +680,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "/^\\/api\\/admin\\/player-actions\\/([a-z0-9.-]+)\\/settle$/"
+    },
+    {
+      "id": "3f1cf21edb1754e1079b073e",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/multi-agent-experiments/environment', \"GET\"]"
     },
     {
       "id": "3f29ab92cf96ff509b6ed514",
@@ -1144,6 +1198,12 @@
       "text": "'/api/admin/world-genesis/profiles'"
     },
     {
+      "id": "66c38896deb8268b57cc22d5",
+      "file": "server/gateway/admin/public/workflow-reports.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/economy/dependencies?${scopeQuery(data)}&basis=simulation`, \"GET\"]"
+    },
+    {
       "id": "67f2cca1ab8dc589918e67d3",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
@@ -1306,6 +1366,12 @@
       "text": "req.method === 'GET' && url.pathname === '/api/admin/skill-drafts'"
     },
     {
+      "id": "722dc78655f5643857cc8a70",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/population-memory/${encoded(id)}/archive`, \"GET\"]"
+    },
+    {
       "id": "727f117e4818b814ce45b945",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
@@ -1330,10 +1396,28 @@
       "text": "/^\\/api\\/admin\\/agents\\/([a-z0-9.-]+)\\/treasury$/"
     },
     {
+      "id": "7729adc9cb1d793cf66ac3fd",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/experiments?limit=100', \"GET\"]"
+    },
+    {
+      "id": "77700da29f6fc7038c4cba78",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/population-memory/${encoded(data.sourceAgentId)}/transfer-preview`, 'POST']"
+    },
+    {
       "id": "7776d32da38f83c33783f1f2",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "/^\\/api\\/admin\\/agents\\/([a-z0-9.-]+)\\/commitments\\/([a-z0-9.-]+)\\/status$/"
+    },
+    {
+      "id": "77c8b02e385ee46b91143715",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/population-entry/preview', 'POST']"
     },
     {
       "id": "77fab2775d2da9765994279e",
@@ -1456,6 +1540,12 @@
       "text": "req.method === 'POST' && url.pathname === '/api/admin/world-director/cycles'"
     },
     {
+      "id": "8406a824278f67313dee386d",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/society/xp-execution/${encoded(data.experimentId)}`, 'POST']"
+    },
+    {
       "id": "8432077cd61eb91e0537a570",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
@@ -1480,6 +1570,12 @@
       "text": "/^\\/api\\/admin\\/society\\/xp-execution\\/([0-9a-f-]{36})$/"
     },
     {
+      "id": "87060edfbb6a54270d3a911d",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/society/long-experiment-comparison?${new URLSearchParams(data)}`, \"GET\"]"
+    },
+    {
       "id": "872bd79ba8be7be1693be999",
       "file": "server/gateway/admin/public/admin.js",
       "kind": "frontend",
@@ -1498,10 +1594,28 @@
       "text": "req.method === 'GET' && url.pathname === '/api/admin/bots'"
     },
     {
+      "id": "8853ec06c0f5a4fe191e9297",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/population-memory/${encoded(data.sourceAgentId)}/transfer`, 'POST']"
+    },
+    {
+      "id": "887152ce41c4bcbb8f7faef0",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/business-role-definitions', \"GET\"]"
+    },
+    {
       "id": "88e1a138395323a8e80265d3",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
       "text": "req.method === 'GET' && url.pathname === '/api/admin/agents'"
+    },
+    {
+      "id": "88e43b9e4282c3bc5aa80b40",
+      "file": "server/gateway/admin/routes.ts",
+      "kind": "backend",
+      "text": "'/api/admin/workflow-options'"
     },
     {
       "id": "89c79eae0f7dec99bd684453",
@@ -1514,6 +1628,12 @@
       "file": "server/gateway/admin/public/admin.js",
       "kind": "frontend",
       "text": "[\"api\", '/api/admin/skill-runs?limit=30', \"GET\"]"
+    },
+    {
+      "id": "8bb70078a34ed6ea1eb0acde",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/society/xp-baseline?${new URLSearchParams(splitNames(data.cohort).map(player => ['player', player]))}`, \"GET\"]"
     },
     {
       "id": "8bf3a042856aad73f848ab8d",
@@ -1576,10 +1696,22 @@
       "text": "'/api/control-plane/accounts'"
     },
     {
+      "id": "94a1e1024d893dfefa6d7df6",
+      "file": "server/gateway/admin/public/workflow-reports.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/economy/dependency-risk?${scopeQuery(data)}&basis=simulation`, \"GET\"]"
+    },
+    {
       "id": "96669499902a1c1f0618aa51",
       "file": "server/gateway/admin/public/servers.js",
       "kind": "frontend",
       "text": "[\"mutate\", `/${server.id}/${action}`, \"POST\"]"
+    },
+    {
+      "id": "967c9ed84d66991b1a5aabb0",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/world-genesis/${encoded(data.resultId)}/external-trade/observe`, 'POST']"
     },
     {
       "id": "97e25bf8488b3ed993df1d9f",
@@ -1618,10 +1750,28 @@
       "text": "memoryMatch && (req.method === 'POST' || req.method === 'GET' && memoryMatch[2] === 'archive')"
     },
     {
+      "id": "9aeec9f3bfecd7f3a3d72de5",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/world-genesis/start', 'POST']"
+    },
+    {
       "id": "9b3de6f871e5459856dbc0e2",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "/^\\/api\\/admin\\/businesses\\/([a-z0-9][a-z0-9._-]{1,63})$/"
+    },
+    {
+      "id": "9ba6190e6cf3641290d51d3e",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/workflow-options', \"GET\"]"
+    },
+    {
+      "id": "9be99fea3fd45d3bb89b3068",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/audit?limit=100', \"GET\"]"
     },
     {
       "id": "9ca7d27469a0f52e43602716",
@@ -1660,6 +1810,12 @@
       "text": "[\"api\", `/api/admin/goal-proposals/${encodeURIComponent(button.dataset.proposalId)}/approve-and-start`, 'POST']"
     },
     {
+      "id": "9ee204fa9dd2f333ccdcbbf8",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/world-genesis/runs?limit=50', \"GET\"]"
+    },
+    {
       "id": "9fa6952192d9d6b145cf0fca",
       "file": "server/gateway/admin/public/admin.js",
       "kind": "frontend",
@@ -1688,6 +1844,12 @@
       "file": "server/gateway/admin/public/admin.js",
       "kind": "frontend",
       "text": "[\"api\", `/api/admin/agents/${encodeURIComponent(agent.identity.agentId)}/treasury`, 'PUT']"
+    },
+    {
+      "id": "a0e55d2fe017f45951722569",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/world-genesis/${encoded(data.resultId)}/reset`, 'POST']"
     },
     {
       "id": "a1bf3cbf7658887a3430e5b2",
@@ -1720,6 +1882,12 @@
       "text": "'/api/admin/economy/dependencies'"
     },
     {
+      "id": "a43d0b427720fa5b897d44c3",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/world-genesis/${encoded(data.resultId)}/integrity`, \"GET\"]"
+    },
+    {
       "id": "a4682da8b6ab1925b39a55b4",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
@@ -1738,6 +1906,12 @@
       "text": "req.method === 'POST' && propertyPurchaseMatch?.[1]"
     },
     {
+      "id": "a5649931e11822649ba50320",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/society/long-experiments/${encoded(data.control)}`, \"GET\"]"
+    },
+    {
       "id": "a5b66768528ffa9a9a6471c4",
       "file": "server/gateway/admin/public/admin.js",
       "kind": "frontend",
@@ -1754,6 +1928,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
       "text": "req.method === 'POST' && trialPublishMatch?.[1]"
+    },
+    {
+      "id": "a6df497c2200ff632475a02a",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/autonomy-control', \"GET\"]"
     },
     {
       "id": "a6e588539a0a09a3721ff32a",
@@ -1930,6 +2110,12 @@
       "text": "[\"api\", '/api/admin/world-mods', \"GET\"]"
     },
     {
+      "id": "b3f8455724aaf4db663a1d5b",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/multi-agent-experiments/preflight', 'POST']"
+    },
+    {
       "id": "b4a7763256b2ad3721f999b2",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
@@ -1940,6 +2126,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
       "text": "req.method === 'POST' && economicContractSettlementMatch?.[1]"
+    },
+    {
+      "id": "b5c7bdbcb1783ff4c01f4864",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/world-genesis/preview', 'POST']"
     },
     {
       "id": "b5c92c8d95f2ec69672446eb",
@@ -1970,6 +2162,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "/^\\/api\\/admin\\/experiment-parameter-profiles\\/([^/]+)\\/([^/]+)\\/apply-finished-products$/"
+    },
+    {
+      "id": "bc9237882c5856763a408125",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/population-entry/apply', 'POST']"
     },
     {
       "id": "bce4270e440c6ab9b52ed028",
@@ -2060,6 +2258,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "/^\\/api\\/admin\\/population-estates\\/([^/]+)\\/(inheritance-preview|inheritance)$/"
+    },
+    {
+      "id": "c6ff4672b588f1bb3b3898d2",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/agents/${encoded(data.agentId)}/timeline?limit=200`, \"GET\"]"
     },
     {
       "id": "c79ac4cb9a56b4f54ee89553",
@@ -2362,6 +2566,12 @@
       "text": "[\"api\", '/api/admin/bots', \"GET\"]"
     },
     {
+      "id": "e9243fbecd02cecd3af46c15",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/world-genesis/profiles', \"GET\"]"
+    },
+    {
       "id": "ea36019d343b87081d5b9b2a",
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
@@ -2530,6 +2740,12 @@
       "text": "req.method === 'POST' && ['/api/admin/population-entry/preview', '/api/admin/population-entry/apply'].includes(url.pathname)"
     },
     {
+      "id": "f43bb2165c5768684e2ed49f",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", '/api/admin/agents', \"GET\"]"
+    },
+    {
       "id": "f492df1485e93849afa1fcb0",
       "file": "server/control-plane/service.ts",
       "kind": "backend",
@@ -2572,6 +2788,12 @@
       "text": "[\"reader\", '/api/admin/skill-runs?limit=1000', \"GET\"]"
     },
     {
+      "id": "f89e2e1e6a06673ff534bc77",
+      "file": "server/gateway/admin/public/workflow-reports.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/society/self-sufficiency?${scopeQuery(data)}`, \"GET\"]"
+    },
+    {
       "id": "f8b28595bd08c4f0335d33cf",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
@@ -2582,6 +2804,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
       "text": "req.method === 'POST' && playerActionCreateMatch?.[1]"
+    },
+    {
+      "id": "fa4d3bcb66e354bb96e550f8",
+      "file": "server/gateway/admin/public/management-workflows.js",
+      "kind": "frontend",
+      "text": "[\"api\", `/api/admin/society/xp-execution/${encoded(data.experimentId)}`, \"GET\"]"
     },
     {
       "id": "fafb464165e22de5f134358a",
@@ -3356,29 +3584,34 @@
       "backend": [
         "e3a77ae58505958d14ef8a72"
       ],
-      "frontend": [],
+      "frontend": [
+        "c6ff4672b588f1bb3b3898d2"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#agents",
+        "selector": "#agent-reports",
+        "label": "Döntéshozó teljes idővonala"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/agents/:id/timeline"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.agents.get",
@@ -3389,7 +3622,8 @@
         "15bb85fbce7ad45350c0b05f"
       ],
       "frontend": [
-        "2a2c6725076171e086b0b27a"
+        "2a2c6725076171e086b0b27a",
+        "f43bb2165c5768684e2ed49f"
       ],
       "methods": [
         "GET"
@@ -4479,29 +4713,34 @@
       "backend": [
         "153b7b7b44d531d3bb0e1b23"
       ],
-      "frontend": [],
+      "frontend": [
+        "a6df497c2200ff632475a02a"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tartós döntéshozó szükséges. Fizikai feladat indításához online, egyértelműen kapcsolt karakter, aktív cél, megtanult és engedélyezett képesség kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#agents",
+        "selector": "#agent-reports",
+        "label": "Önálló működés vezérlőállapota"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/autonomy-control"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "control.session.get",
@@ -4886,29 +5125,34 @@
       "backend": [
         "9fb62082e5769b4eecff7476"
       ],
-      "frontend": [],
+      "frontend": [
+        "9be99fea3fd45d3bb89b3068"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Válassz karaktert a listából. Élő művelethez online karakter, mentésszerkesztéshez teljesen offline állapot és aktuális mentés kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#bots",
+        "selector": "#admin-audit-reports",
+        "label": "Adminműveleti auditnapló"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/audit"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.bots-item.start-skill.post",
@@ -6116,32 +6360,37 @@
       "backend": [
         "d31c190b51f4fd774fc409bd"
       ],
-      "frontend": [],
+      "frontend": [
+        "b3f8455724aaf4db663a1d5b"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#experiment-reports",
+        "label": "Kísérlet indítás előtti vizsgálata"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/multi-agent-experiments/preflight"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "direct",
+        "reason": "Kifejezett, csak olvasó előzetes vizsgálat; nem hajtja végre az ellenőrzött változtatást."
       }
     },
     {
@@ -6189,29 +6438,34 @@
       "backend": [
         "4e44d50c3fd7c1694772e308"
       ],
-      "frontend": [],
+      "frontend": [
+        "3f1cf21edb1754e1079b073e"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#experiment-reports",
+        "label": "Kísérleti környezet ellenőrzése"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/multi-agent-experiments/environment"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.experiments.get",
@@ -6221,29 +6475,34 @@
       "backend": [
         "243c0cb0422fe313b5accd42"
       ],
-      "frontend": [],
+      "frontend": [
+        "7729adc9cb1d793cf66ac3fd"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Megadott paraméterprofil, reprodukálható seed és legalább két külön online játékos-döntéshozó kell. Összehasonlításkor a futások előfeltételeinek egyezniük kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#experiment-reports",
+        "label": "Kísérleti pillanatképek visszakeresése"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/experiments"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.experiments.post",
@@ -6626,31 +6885,36 @@
       "backend": [
         "a39a5217c7270ae77952ab82"
       ],
-      "frontend": [],
+      "frontend": [
+        "66c38896deb8268b57cc22d5"
+      ],
       "methods": [
         "GET"
       ],
       "access": "Tulajdonos, üzemeltető vagy néző; csak olvasás.",
       "prerequisites": "Elérhető gazdasági adatforrás szükséges. Időablakos riporthoz add meg a kért szimulációs időt és óraazonosítót.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "observations.html",
+        "selector": "#economy-reports",
+        "label": "Gazdasági függőségek riportja"
+      },
+      "gap": null,
       "roles": [
         "owner",
         "operator",
         "viewer"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/economy/dependencies"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.economy.get",
@@ -6699,31 +6963,36 @@
       "backend": [
         "11f3a6ec209db789e2ce4ff6"
       ],
-      "frontend": [],
+      "frontend": [
+        "94a1e1024d893dfefa6d7df6"
+      ],
       "methods": [
         "GET"
       ],
       "access": "Tulajdonos, üzemeltető vagy néző; csak olvasás.",
       "prerequisites": "Elérhető gazdasági adatforrás szükséges. Időablakos riporthoz add meg a kért szimulációs időt és óraazonosítót.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "observations.html",
+        "selector": "#economy-reports",
+        "label": "Kiesési kockázat riportja"
+      },
+      "gap": null,
       "roles": [
         "owner",
         "operator",
         "viewer"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/economy/dependency-risk"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "control.servers-item-item.post",
@@ -7218,29 +7487,34 @@
       "backend": [
         "a6f03b3b0ae2b26f0e6fec7b"
       ],
-      "frontend": [],
+      "frontend": [
+        "722dc78655f5643857cc8a70"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "A forrás lezárt életciklusához tartozó archívum kell. Tudásátadáshoz jogosult címzett és policy, indoklás, az előnézet azonosítója és egyedi átadásazonosító szükséges.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#population-workflows",
+        "label": "Archivált emlékek olvasása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/population-memory/:id/archive"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.population-memory-item-item.post",
@@ -7250,22 +7524,29 @@
       "backend": [
         "a6f03b3b0ae2b26f0e6fec7b"
       ],
-      "frontend": [],
+      "frontend": [
+        "77700da29f6fc7038c4cba78",
+        "8853ec06c0f5a4fe191e9297"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "A forrás lezárt életciklusához tartozó archívum kell. Tudásátadáshoz jogosult címzett és policy, indoklás, az előnézet azonosítója és egyedi átadásazonosító szükséges.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#population-workflows",
+        "label": "Archivált tudás előnézete és szabályozott átadása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
@@ -7280,10 +7561,20 @@
           "path": "/api/admin/population-memory/:id/transfer"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "Az engedélyezett archivált ismeretek a kiválasztott fogadóhoz kerülnek, származási bizonylattal.",
+        "evidence": "Pontos forrás, fogadó, szabály, tudáslista és az előnézet lenyomata.",
+        "notChanged": "Nincs teljes emlékmásolás vagy automatikus tudásátadás.",
+        "recovery": "Nincs általános visszavonás. Ellenőrizd az átadási bizonylatot és a fogadó ismereteit.",
+        "retry": "Előbb keresd vissza az átadásazonosítót; sikeres átadást ne ismételj új azonosítóval.",
+        "variantField": "path",
+        "variants": {
+          "transfer-preview": {
+            "mode": "direct",
+            "reason": "Kifejezett, csak olvasó előzetes vizsgálat; nem hajtja végre az ellenőrzött változtatást."
+          }
+        }
       }
     },
     {
@@ -7331,29 +7622,34 @@
       "backend": [
         "5e422ae853e133a031ad2aa1"
       ],
-      "frontend": [],
+      "frontend": [
+        "a5649931e11822649ba50320"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#population-workflows",
+        "label": "Hosszú kísérlet riportja"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/society/long-experiments/:id"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.society.long-experiment-comparison.get",
@@ -7363,164 +7659,197 @@
       "backend": [
         "128fa4dd98605c61fb9ab702"
       ],
-      "frontend": [],
+      "frontend": [
+        "87060edfbb6a54270d3a911d"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#population-workflows",
+        "label": "Hosszú kísérletek összehasonlítása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/society/long-experiment-comparison"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.society.xp-baseline.get",
       "title": "Kísérleti XP-alapállapot olvasása",
       "route": "/api/admin/society/xp-baseline",
-      "area": "Társadalmi mutatók",
+      "area": "Kísérletek",
       "backend": [
         "015c81cbdd2b526b3ac3612c"
       ],
-      "frontend": [],
+      "frontend": [
+        "8bb70078a34ed6ea1eb0acde"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
-      "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "prerequisites": "1–50 kisbetűs karakternevű résztvevő és elérhető helyi engine.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#experiment-reports",
+        "label": "Kísérleti XP-alapállapot olvasása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/society/xp-baseline"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.society.xp-baseline.post",
       "title": "Kísérleti XP-alapállapot kezelése",
       "route": "/api/admin/society/xp-baseline",
-      "area": "Társadalmi mutatók",
+      "area": "Kísérletek",
       "backend": [
         "015c81cbdd2b526b3ac3612c"
       ],
-      "frontend": [],
+      "frontend": [
+        "0fdcb65154fa2044d927ae18"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
-      "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "prerequisites": "1–50 kisbetűs karakternevű résztvevő, elérhető helyi engine és frissen olvasott állapot. Visszaállításhoz a korábbi nullázás műveletazonosítója kell.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#experiment-reports",
+        "label": "Kísérleti XP-alapállapot kezelése"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/society/xp-baseline"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "A kijelölt karakterek ismétlési XP-állapota nullázódik vagy korábbi nullázásból visszaáll.",
+        "evidence": "Pontos karakterlista, műveletfajta, aktuális store-lenyomat és azonosító; visszaállításnál a forrásművelet.",
+        "notChanged": "A karakter megszerzett összes XP-jét nem törli; nem indít kísérletet.",
+        "recovery": "Nullázás a bizonylat commandId azonosítójával visszaállítható, ha az engine kapui ezt engedik.",
+        "retry": "Előbb olvasd vissza az állapotot és a bizonylatot. Bizonytalan nullázást ne ismételj új commandId-val."
       }
     },
     {
       "id": "admin.society.xp-execution-item.get",
       "title": "XP-végrehajtási bizonyíték olvasása",
       "route": "/api/admin/society/xp-execution/:id",
-      "area": "Társadalmi mutatók",
+      "area": "Kísérletek",
       "backend": [
         "8650db048bb87833243b8a50"
       ],
-      "frontend": [],
+      "frontend": [
+        "fa4d3bcb66e354bb96e550f8"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
-      "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "prerequisites": "A rövid kísérlet pontos UUID-je és elérhető helyi engine. Lezáráshoz előzetesen beolvasott bizonyíték és indoklás.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#experiment-reports",
+        "label": "XP-végrehajtási bizonyíték olvasása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/society/xp-execution/:id"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.society.xp-execution-item.post",
       "title": "XP-végrehajtási bizonyíték lezárása",
       "route": "/api/admin/society/xp-execution/:id",
-      "area": "Társadalmi mutatók",
+      "area": "Kísérletek",
       "backend": [
         "8650db048bb87833243b8a50"
       ],
-      "frontend": [],
+      "frontend": [
+        "8406a824278f67313dee386d"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
-      "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "prerequisites": "A rövid kísérlet pontos UUID-je és elérhető helyi engine. Lezáráshoz előzetesen beolvasott bizonyíték és indoklás.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#experiments",
+        "selector": "#experiment-reports",
+        "label": "XP-végrehajtási bizonyíték lezárása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/society/xp-execution/:id"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "Lezárja a kiválasztott kísérlet natív XP-bizonyítékgyűjtését.",
+        "evidence": "Pontos kísérletazonosító és a beolvasott bizonyíték.",
+        "notChanged": "Nem hoz létre hiányzó mérést és nem indít új feladatot.",
+        "recovery": "Lezárt bizonyítékot ez a felület nem nyit újra. Olvasd vissza az eredményt.",
+        "retry": "Az eredeti kísérletazonosítón olvasd vissza a lezárt jelentést az újraküldés előtt."
       }
     },
     {
@@ -7531,32 +7860,41 @@
       "backend": [
         "5b8a409831fbe65ebc4d00d8"
       ],
-      "frontend": [],
+      "frontend": [
+        "bc9237882c5856763a408125"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Hiteles közös szimulációs óra és konfigurált utánpótlási policy szükséges. Alkalmazás előtt előnézet és az előnézet azonosítójának egyezése kell; az avatar bejelentkezése külön művelet.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#population-workflows",
+        "label": "Népesség-utánpótlás alkalmazása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/population-entry/apply"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "Az előnézeti terv új népességtagjai tartósan létrejönnek.",
+        "evidence": "Pontos csomagnév, kiinduló döntéshozó, darabszám, seed és a szerver előnézeti lenyomata.",
+        "notChanged": "A karakterek nem lépnek be automatikusan; nincs örökölt vagyon vagy tudás.",
+        "recovery": "Nincs általános csomagtörlés. Ellenőrizd az utánpótlási bizonylatot.",
+        "retry": "Előbb ellenőrizd az eredeti csomag bizonylatát. Ugyanahhoz a kéréshez ne hozz létre más csomagnevet."
       }
     },
     {
@@ -7567,32 +7905,37 @@
       "backend": [
         "047f90858ce1aa37ae0464bf"
       ],
-      "frontend": [],
+      "frontend": [
+        "77c8b02e385ee46b91143715"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Hiteles közös szimulációs óra és konfigurált utánpótlási policy szükséges. Alkalmazás előtt előnézet és az előnézet azonosítójának egyezése kell; az avatar bejelentkezése külön művelet.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#population-workflows",
+        "label": "Népesség-utánpótlás előnézete"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/population-entry/preview"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "direct",
+        "reason": "Kifejezett, csak olvasó előzetes vizsgálat; nem hajtja végre az ellenőrzött változtatást."
       }
     },
     {
@@ -7644,7 +7987,8 @@
       ],
       "frontend": [
         "15b9b08d78a319e092e258a2",
-        "9d23dd19db572dc2c26b6743"
+        "9d23dd19db572dc2c26b6743",
+        "31d2940f8a748cc9412b3885"
       ],
       "methods": [
         "GET"
@@ -7721,31 +8065,36 @@
       "backend": [
         "bdf32c9815d446243f383f21"
       ],
-      "frontend": [],
+      "frontend": [
+        "0c537cce55c86ac7ebbf279d"
+      ],
       "methods": [
         "GET"
       ],
       "access": "Tulajdonos, üzemeltető vagy néző; csak olvasás.",
       "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "observations.html",
+        "selector": "#evaluation-reports",
+        "label": "Társadalmi mérési szerződés"
+      },
+      "gap": null,
       "roles": [
         "owner",
         "operator",
         "viewer"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/society/evaluation/contract"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.society.evaluation.get",
@@ -7755,31 +8104,36 @@
       "backend": [
         "5007327a659c3afa3dfd7d7b"
       ],
-      "frontend": [],
+      "frontend": [
+        "365fef8b1e3b328153adb7cf"
+      ],
       "methods": [
         "GET"
       ],
       "access": "Tulajdonos, üzemeltető vagy néző; csak olvasás.",
       "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "observations.html",
+        "selector": "#evaluation-reports",
+        "label": "Társadalmi értékelés külön riportja"
+      },
+      "gap": null,
       "roles": [
         "owner",
         "operator",
         "viewer"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/society/evaluation"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.society.self-sufficiency.get",
@@ -7789,29 +8143,34 @@
       "backend": [
         "461ac0c0737b9c47b35b0ee1"
       ],
-      "frontend": [],
+      "frontend": [
+        "f89e2e1e6a06673ff534bc77"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#evaluation-reports",
+        "label": "Önfenntartás külön riportja"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/society/self-sufficiency"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.population-estates-item-item.post",
@@ -7821,22 +8180,29 @@
       "backend": [
         "c653cd11aebe39fd379868bc"
       ],
-      "frontend": [],
+      "frontend": [
+        "042c205848b0e270b07c4882",
+        "2deffcf8aeed4aa901af5673"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező hagyaték, jogosult örökös és öröklési szabály szükséges. Végrehajtáskor az előnézet azonosítója, aktuális állapotverzió és egyedi döntésazonosító kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#society",
+        "selector": "#population-workflows",
+        "label": "Öröklés előnézete és végrehajtása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
@@ -7847,10 +8213,20 @@
           "path": "/api/admin/population-estates/:id/inheritance"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "A felsorolt személyes ingatlanok a kijelölt örököshöz kerülnek.",
+        "evidence": "Hagyaték, örökös, pontos ingatlanlista, szabály, állapotverzió és előnézeti lenyomat.",
+        "notChanged": "Nem teljes vagyonelosztás; szervezeti tulajdon nem válik automatikusan személyessé.",
+        "recovery": "Nincs általános visszavonógomb. Az öröklési és tulajdoni bizonylatot ellenőrizd.",
+        "retry": "Bizonytalan eredménynél előbb frissítsd a hagyatékot; azonos döntést ne küldj új döntésazonosítóval.",
+        "variantField": "path",
+        "variants": {
+          "inheritance-preview": {
+            "mode": "direct",
+            "reason": "Kifejezett, csak olvasó előzetes vizsgálat; nem hajtja végre az ellenőrzött változtatást."
+          }
+        }
       }
     },
     {
@@ -8339,29 +8715,34 @@
       "backend": [
         "53a7a865232709701ee46f2d"
       ],
-      "frontend": [],
+      "frontend": [
+        "1156d2781618ae2f0f36050a"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Külső kereskedelem riportja"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/world-genesis/:id/external-trade"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.world-genesis-item.external-trade-observe.post",
@@ -8371,32 +8752,41 @@
       "backend": [
         "53a7a865232709701ee46f2d"
       ],
-      "frontend": [],
+      "frontend": [
+        "967c9ed84d66991b1a5aabb0"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Külső kereskedelem megfigyelése"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/world-genesis/:id/external-trade/observe"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "A meglévő helyi főkönyv új külsőkereskedelmi megfigyeléseit rögzíti.",
+        "evidence": "Pontos világkezdet-azonosító és helyi forrásbizonylatok.",
+        "notChanged": "Nem indít kereskedést és nem kapcsolódik hivatalos játékszolgáltatáshoz.",
+        "recovery": "A rögzített megfigyelések auditadatok. Ellenőrizd a riportot; nincs kézi törlőművelet.",
+        "retry": "Előbb kérd le a riportot. A megfigyelő a meglévő bizonylatokat ismétléskor nem duplázza."
       }
     },
     {
@@ -8485,32 +8875,41 @@
       "backend": [
         "acae97ac2b8414a010fa311d"
       ],
-      "frontend": [],
+      "frontend": [
+        "9aeec9f3bfecd7f3a3d72de5"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Világkezdet alkalmazása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/world-genesis/start"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "Alkalmazza az ellenőrzött világtervet, és tartós eredménybizonylatot, valamint visszaállítási anyagot tárol.",
+        "evidence": "Pontos eredményazonosító, profil, seed, teljes előnézeti terv és confirmationDigest.",
+        "notChanged": "Nem készül új, eltérő világterv; a felület nem indít bejelentkezést.",
+        "recovery": "A korábbi alkalmazásoknál az eltárolt visszaállítási anyaggal lehet resetet kérni. Részleges alkalmazás után előbb helyreállítás kell.",
+        "retry": "Előbb frissítsd a futáslistát. Alkalmazott tervet ne küldj új eredményazonosítóval."
       }
     },
     {
@@ -8521,32 +8920,37 @@
       "backend": [
         "54e5eea2f320200b05e389d4"
       ],
-      "frontend": [],
+      "frontend": [
+        "b5c7bdbcb1783ff4c01f4864"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Világkezdet előnézete"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/world-genesis/preview"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "direct",
+        "reason": "Kifejezett, csak olvasó előzetes vizsgálat; nem hajtja végre az ellenőrzött változtatást."
       }
     },
     {
@@ -8557,29 +8961,34 @@
       "backend": [
         "a9a07b136eb72e48d9938bd8"
       ],
-      "frontend": [],
+      "frontend": [
+        "a43d0b427720fa5b897d44c3"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Világkezdet tisztaságának ellenőrzése"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/world-genesis/:id/integrity"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.world-genesis-item.reset.post",
@@ -8589,32 +8998,41 @@
       "backend": [
         "02cbfbdc11649b9ce950e741"
       ],
-      "frontend": [],
+      "frontend": [
+        "a0e55d2fe017f45951722569"
+      ],
       "methods": [
         "POST"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Világkezdet visszaállítása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "POST",
           "path": "/api/admin/world-genesis/:id/reset"
         }
       ],
-      "followup": "26.7",
       "review": {
-        "mode": "blocked",
-        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+        "mode": "required",
+        "changes": "A kiválasztott világkezdetet a tárolt mentőanyagból visszaállítja.",
+        "evidence": "Pontos eredményazonosító, jelenlegi állapotverzió, eredménylenyomat és tárolt rollback-anyag.",
+        "notChanged": "Nem állít vissza másik világot vagy tetszőleges szervermentést.",
+        "recovery": "Sikertelen reset rollback-required állapotot hagyhat. Ellenőrizd a futáslistát és rendezd a konkrét adapterhibát.",
+        "retry": "Előbb frissítsd az alkalmazás állapotát és verzióját. Ne próbálj régi verzióval újra módosítani."
       }
     },
     {
@@ -8625,29 +9043,34 @@
       "backend": [
         "edba4d15399e189ea467037f"
       ],
-      "frontend": [],
+      "frontend": [
+        "9ee204fa9dd2f333ccdcbbf8"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Világkezdeti futások"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/world-genesis/runs"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.world-genesis.profiles.get",
@@ -8657,29 +9080,34 @@
       "backend": [
         "66b9b84bce3f10edd635e042"
       ],
-      "frontend": [],
+      "frontend": [
+        "e9243fbecd02cecd3af46c15"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Létező világkezdeti profil, seed és célállapot szükséges. Alkalmazás előtt ellenőrzött előnézet és tartós futásazonosító, visszaállításhoz a megfelelő kezdeti futás kell.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#world",
+        "selector": "#genesis-workflows",
+        "label": "Világkezdeti profilok"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/world-genesis/profiles"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.world-mods-item.put",
@@ -8996,29 +9424,34 @@
       "backend": [
         "1940b0731628420e7a4db8dc"
       ],
-      "frontend": [],
+      "frontend": [
+        "887152ce41c4bcbb8f7faef0"
+      ],
       "methods": [
         "GET"
       ],
       "access": "A kiválasztott szerver tulajdonosa.",
       "prerequisites": "Tulajdonosként kijelölhető tartós döntéshozó kell; foglalkoztatáshoz létező vállalkozás és dolgozó. Módosításkor az aktuális állapotverzió szükséges.",
-      "state": "A funkcióhoz még nincs felületi állapotjelző.",
-      "result": "Az eredmény a rendszerben már lekérhető, de itt még nincs megjelenítő nézete.",
-      "error": "Ehhez még nincs felületi hibajelzés. A funkció kezeléséhez további felület szükséges.",
-      "coverage": "missing",
-      "entry": null,
-      "gap": "Ehhez még nincs kezelőfelület. A funkcióhoz külön űrlap vagy megjelenítő nézet szükséges; innen egyelőre nem indítható.",
+      "state": "A kinyitott kezelési kártya betöltést, ellenőrzött eredményt vagy megmaradó hibát jelez. Az előnézet adatmódosításkor érvénytelenné válik.",
+      "result": "Feliratozott, görgethető eredmény és külön technikai forrásrészletek. Üres/hiányzó adat nem nulla érték; végrehajtás csak ellenőrzött előnézetből.",
+      "error": "Helyi validálás, HTTP-hiba és előfeltétel-hiány érthető teendővel megmarad a kártyán. Nincs automatikus módosító újrapróbálás.",
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#businesses",
+        "selector": "#business-reports",
+        "label": "Vállalkozási szerepkörök leírása"
+      },
+      "gap": null,
       "roles": [
         "owner"
       ],
-      "feedbackStatus": "missing",
+      "feedbackStatus": "available",
       "operations": [
         {
           "method": "GET",
           "path": "/api/admin/business-role-definitions"
         }
-      ],
-      "followup": "26.7"
+      ]
     },
     {
       "id": "admin.businesses.get",
@@ -9202,6 +9635,42 @@
         "mode": "direct",
         "reason": "A megadott üzleti javaslat rögzítése; nem modellhívás, nem aktiválja a javaslatot és nem indít munkát."
       }
+    },
+    {
+      "id": "admin.workflow-options.get",
+      "title": "Kezelési űrlapok választható adatai",
+      "area": "Célok és önálló működés",
+      "route": "/api/admin/workflow-options",
+      "methods": [
+        "GET"
+      ],
+      "roles": [
+        "owner"
+      ],
+      "access": "A kiválasztott szerver tulajdonosa.",
+      "prerequisites": "Bejelentkezés a kiválasztott szerverhez. A hiányzó szabályzat külön figyelmeztetés.",
+      "state": "Kézi betöltés, helyi állapot és hiba.",
+      "result": "Valódi hagyatékok és engedélyezett szabályok; a választók frissülnek.",
+      "error": "Hiányzó szabályzat és adatforrás külön figyelmeztetés, hiba esetén újra kérhető.",
+      "backend": [
+        "88e43b9e4282c3bc5aa80b40"
+      ],
+      "frontend": [
+        "9ba6190e6cf3641290d51d3e"
+      ],
+      "coverage": "available",
+      "entry": {
+        "page": "index.html#agents",
+        "selector": "#management-options",
+        "label": "Választható résztvevők, hagyatékok és szabályok"
+      },
+      "gap": null,
+      "operations": [
+        {
+          "method": "GET",
+          "path": "/api/admin/workflow-options"
+        }
+      ]
     }
   ],
   "reviewSchemaVersion": 1

@@ -1,0 +1,25 @@
+.management-section { padding: 20px; }
+.management-workflow { margin: 12px 0; padding: 16px; border: 1px solid #819078; border-radius: 10px; background: #181d17; color: #edf0e7; overflow-wrap: anywhere; }
+.management-workflow > summary { cursor: pointer; color: #e9c779; font-size: 16px; font-weight: 650; }
+.management-workflow > p { max-width: 90ch; }
+.management-workflow fieldset { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; border: 0; padding: 10px 0; margin: 0; min-width: 0; }
+.management-workflow legend { font-weight: 650; padding: 0; }
+.management-workflow label { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.management-workflow small { color: #b7c1af; font-weight: 400; }
+.management-workflow input, .management-workflow select, .management-workflow textarea { width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid #819078; border-radius: 6px; background: #10130f; color: #edf0e7; font: inherit; }
+.management-actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.management-actions button, .management-result button { min-height: 44px; padding: 10px 14px; background: #20271e; color: #edf0e7; border: 1px solid #819078; border-radius: 6px; font: inherit; }
+.management-workflow button:disabled { opacity: .6; cursor: default; }
+.management-workflow :focus-visible { outline: 3px solid #e9c779; outline-offset: 3px; }
+.management-workflow [role='status'] { padding: 10px; border-left: 3px solid #819078; }
+.management-workflow .danger-text { color: #ffb4aa; border-color: #ffb4aa; }
+.management-result { max-height: 700px; overflow: auto; }
+.management-result:empty { display: none; }
+.management-result dl { margin: 10px 0; }
+.management-result dt { font-weight: 650; color: #b7c1af; }
+.management-result dd { margin: 4px 0 12px 14px; }
+.management-result li { padding: 8px 0; border-bottom: 1px solid #313b2e; }
+.management-result pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.management-result details { margin: 12px 0; }
+@media (max-width: 620px) { .management-workflow fieldset { grid-template-columns: minmax(0, 1fr); }.management-section { padding: 12px; }.management-workflow { padding: 12px; }.management-actions { flex-direction: column; }.management-actions button { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: 0s !important; } }
