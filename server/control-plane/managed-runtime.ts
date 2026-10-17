@@ -8,7 +8,7 @@ import type { ManagedServer } from './lifecycle-store.js';
 import { assertPrivateInstanceTree, verifyInstanceBinding } from './instance-files.js';
 import { ServerSecretStore } from './secret-store.js';
 import { InstanceMaintenance, instanceBinding, type WorldBackup } from './instance-maintenance.js';
-import { readJson, dependencyTrees, atomicJson } from './instance-snapshots.js';
+import { readJson, dependencyTrees, atomicJson, inventory } from './instance-snapshots.js';
 import { migrateWorkspaceSecrets } from '../gateway/admin/secret-migration.js';
 import { reservePorts } from './runtime-leases.js';
 
@@ -97,10 +97,12 @@ export class LocalManagedRuntime implements ManagedRuntime {
         }
     }
     async migrate(server: ManagedServer, version: string, operationId: string) {
+        if (!/^[a-f0-9-]{36}$/.test(operationId)) throw failure('INVALID_OPERATION', 'Érvénytelen karbantartási azonosító.');
+        const dir = this.directory(server), workspace = join(dir, 'workspace'), stage = resolve(dir, `stage-${operationId}`);
+        if (!stage.startsWith(dir + sep)) throw failure('INVALID_INSTANCE', 'Érvénytelen staging könyvtár.');
         if (version !== this.version || version === server.version) throw failure('VERSION_UNSUPPORTED', 'Csak az aktuális, eltérő helyi forrásverzióra lehet migrálni.');
         const ancestry = Bun.spawnSync(['git', 'merge-base', '--is-ancestor', server.version, version], { cwd: this.source, stdout: 'ignore', stderr: 'ignore', windowsHide: true });
         if (ancestry.exitCode) throw failure('VERSION_UNSUPPORTED', 'Csak igazolt elődverzióból történő előrelépés támogatott; visszaállításhoz válassz világmentést.');
-        const dir = this.directory(server), workspace = join(dir, 'workspace'), stage = join(dir, `stage-${operationId}`);
         await verifyInstanceBinding(workspace, instanceBinding(server));
         // Plaintext legacy sources are changed only after every reserved port is already free.
         if (!await portsFree(server.ports)) throw failure('MIGRATION_REQUIRES_STOP', 'A régi világot migráció előtt külön állítsd le.');
@@ -116,12 +118,18 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const archive = join(dir, `upgrade-${operationId}.tar`);
         await this.command(['git', 'archive', '--format=tar', `--output=${archive}`, version], this.source, join(dir, 'upgrade-archive.err.log'));
         await this.command(['tar', '-xf', archive, '-C', stage, '--exclude=AGENTS.md', '--exclude=GEMINI.md'], this.source, join(dir, 'upgrade-extract.err.log'));
+        await inventory(stage); // Reject source aliases before replacing any extracted mutable tree.
         for (const relative of ['server/control-plane/secret-store.ts', 'server/control-plane/managed-worker.ts', 'server/control-plane/instance-context.ts'])
             if (!existsSync(join(stage, relative))) throw failure('VERSION_UNSUPPORTED', 'A célverzió nem támogatja a kezelt, titoktárhoz kötött világot.');
         for (const relative of ['package.json', 'server/engine/package.json', 'server/webclient/package.json']) {
             const before = JSON.parse(await readFile(join(workspace, relative), 'utf8')), after = JSON.parse(await readFile(join(stage, relative), 'utf8'));
             for (const key of ['dependencies', 'devDependencies', 'peerDependencies']) if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
                 throw failure('DEPENDENCY_MIGRATION_REQUIRED', 'A célverzió függőségei eltérnek. Ehhez külön ellenőrzött telepítési migráció szükséges; a világ mentése megmaradt.');
+        }
+        for (const relative of ['bun.lock', 'server/engine/bun.lock', 'server/webclient/bun.lock']) {
+            if (existsSync(join(workspace, relative)) !== existsSync(join(stage, relative))
+                || existsSync(join(stage, relative)) && !(await readFile(join(workspace, relative))).equals(await readFile(join(stage, relative))))
+                throw failure('DEPENDENCY_MIGRATION_REQUIRED', 'A dependency lock eltér; külön telepítési migráció szükséges. A világ mentése megmaradt.');
         }
         // Retain mutable world data exactly. The old application never opens it during staging.
         for (const relative of ['.local', 'bots', 'config', 'server/engine/data']) {
