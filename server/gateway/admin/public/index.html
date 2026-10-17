@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="admin.css">
     <link rel="stylesheet" href="operation-review.css">
     <link rel="stylesheet" href="operation-progress.css">
+    <link rel="stylesheet" href="workflow-help.css">
+    <script type="module" src="workflow-help.js"></script>
 </head>
 <body>
     <a class="skip-navigation" href="#admin-view-title">Ugrás a tartalomra</a>
@@ -61,6 +63,7 @@
             <h2 id="admin-view-title" tabindex="-1">Áttekintés</h2>
             <p id="admin-view-description" class="muted"></p>
         </header>
+        <div data-workflow-guide="context"></div>
         <section class="panel overview-panel" data-admin-tab-panel="overview">
             <div class="panel-heading"><h2>Első lépések ezen a szerveren</h2></div>
             <ol class="getting-started">

@@ -1,0 +1,17 @@
+.workflow-help { margin: .5rem 0 1.25rem; padding: .85rem 1rem; border: 1px solid var(--border, #526883); border-radius: 10px; background: var(--panel, #152334); overflow-wrap: anywhere; }
+.workflow-help summary { color: var(--gold, #b3d5ff); cursor: pointer; font-weight: 650; }
+.workflow-help summary:focus-visible, .workflow-help a:focus-visible { outline: 3px solid var(--gold, #ffc97a); outline-offset: 4px; }
+.workflow-help-body { max-width: 90ch; padding-top: .6rem; }
+.workflow-help h3 { font-size: 1rem; margin: 1rem 0 .35rem; }
+.workflow-help p { margin: .35rem 0; }
+.workflow-help ol { margin: .4rem 0; padding-left: 1.5rem; }
+.workflow-help li { display: list-item; padding: .25rem 0 .25rem .25rem; border: 0; }
+.workflow-terms { margin: .4rem 0 1rem; }
+.workflow-terms dt { font-weight: 650; margin-top: .5rem; }
+.workflow-terms dd { margin-left: 0; color: var(--muted, #c7d4e3); }
+.workflow-help nav { display: flex; gap: .6rem 1.2rem; flex-wrap: wrap; justify-content: flex-start; padding: .6rem 0; }
+.workflow-help a { color: var(--gold, #b3d5ff); }
+.workflow-field-hint { display: block; color: var(--muted, #c7d4e3); font-size: .85rem; font-weight: 400; line-height: 1.5; margin-top: .25rem; overflow-wrap: anywhere; }
+.workflow-field { min-width: 0; align-self: start; }
+.llm-form-grid > label { align-self: start; }
+@media (max-width: 600px) { .workflow-help { padding: .75rem; } }

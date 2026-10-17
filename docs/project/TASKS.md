@@ -405,10 +405,19 @@ admin control plane mindkét engine leállítása közben is elérhető marad.
   Capability-mátrix 1.2.0: 123 UI-kötés, 31 explicit hiány, 1 infrastruktúra.
   Széles érintett kör **435/435 PASS**, végső célzott böngészős és szerződéses
   kör **15/15 PASS**. [Használat és határok](features/phase26-4-operation-progress.md),
-  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: **26.5**.
-- [ ] Beépített, rövid ellenőrzési útmutatót és kontextusos magyarázatot adni a
+  [ellenőrzési napló](PHASE26_PROGRESS.md).
+- [x] Beépített, rövid ellenőrzési útmutatót és kontextusos magyarázatot adni a
   ritkán használt workflowkhoz, hogy a felhasználónak ne kelljen a backend
   felépítését ismernie egy funkció kipróbálásához.
+  **26.5 – elkészült (2026-10-17):** 13 kezelési nézethez, valamint a szerver-,
+  fiók- és megfigyelői oldalhoz összecsukható Rövid útmutató. Előfeltétel,
+  két-három kipróbálási lépés, várt eredmény, elakadás esetén teendő és helyi
+  fogalommagyarázat; 20 mezőhöz kapcsolt, akadálymentes leírás. A súgó nem
+  indít műveletet, a játékbackend kiesésekor is olvasható, a nézetlinkek
+  megtartják a szerverkontextust. **19/19 érintett teszt**, root TypeScript
+  és format PASS; végső mobil/asztali finomítás után a célzott Chrome-próba
+  is PASS. [Használat és határok](features/phase26-5-contextual-guides.md),
+  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: **26.6**.
 - [ ] A kritikus admin-workflowkat böngészős end-to-end és API/UI contract
   tesztekkel lefedni, beleértve az üres, betöltési, siker-, részleges és
   hibaállapotokat.

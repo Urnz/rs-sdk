@@ -387,3 +387,88 @@ A követő dokumentumélettartamú, nem új tartós napló. A kísérletek futó
 rekordjai újraolvashatók, a többi művelet szerveroldali eredménye az eredeti
 kezelési nézetben marad. Az azonosító nélküli HTTP 202 nem kész háttérmunka,
 hanem külön állapotellenőrzési teendő. Következő feladat: **26.5**.
+
+## 26.5 – Beépített útmutatók és mezőmagyarázatok (2026-10-17)
+
+A 13 kezelési nézet és a szerver-, fiók-, megfigyelői oldal összesen
+16 kontextusához helyi, összecsukható Rövid útmutató készült. Azonos
+szerkezetben mutatja az előfeltételeket, a két-három kipróbálási lépést,
+a várt eredményt, az elakadások ellenőrzését, az adott nézet fogalmait és
+a kapcsolódó nézeteket. Külön magyarázatot kapott a kísérleti profil
+mentés/alkalmazás, a draftfuttatás/tesztpróba/publikálás, az esemény
+előnézet/sorba állítás/kézbesítés és a mentés-visszaállítás folyamata.
+
+20 mező mellett közvetlen leírás segít az azonosítók, paraméterek,
+verziók, UTC-időpontok, pénz- és időegységek, célok, képességek és
+hozzáférések megértésében. A szimulációs óra azonosítóihoz konkrét
+adatkitöltő gombot nevez meg. A helyi alapértelmezett szerver tulajdonosi
+joga és a másik szerver szerepkörkezelése külön szerepel. A mezőleírás
+`aria-describedby` kapcsolattal működik, megőrzi a korábbi leírásokat,
+és nem hosszabbítja meg a mező akadálymentes címkéjét.
+
+A segítség nem hív API-t, nem küld űrlapot, nem indít műveletet és nem
+tárol preferenciát. Nézetváltáskor megtartja a kinyitott állapotot,
+a tartalmat az új nézetre cseréli; újratöltéskor összecsukott. A kapcsolódó
+hivatkozások a meglévő navigációval, ugyanahhoz a szerverhez vezetnek.
+A játékbackend kiesésekor a helyi útmutatók és mezőmagyarázatok olvashatók.
+
+[Használat és működési határok](features/phase26-5-contextual-guides.md).
+
+### Kiválasztott ellenőrzési kör
+
+Változás: statikus admin HTML/CSS, helyi segítségmodul, navigációs
+böngészőpróba és új útmutató-/mezőkötési szerződéspróbák. Érintett határ:
+mezőcímke és leírás, űrlap DOM, nézetváltás, szerverkontextus, szerver/fiók
+és megfigyelői oldalak, valamint a meglévő jóváhagyási és indítási felület.
+
+A közös segítség nem ad új végrehajtási képességet és nem változtat API-t,
+szerveroldali auth/jogosultságot, gazdasági vagy tartós modellt, engine-t
+vagy runtime-függőséget. Célzott UI-/szerződéses ellenőrzés és root
+TypeScript indokolt; teljes `verify:full`, teljes domain-regresszió,
+engine- és webclient-typecheck nem volt szükséges.
+
+### Eredmények és naplók
+
+- **Induló útmutató-/navigáció-/capability-kör: 10/10 PASS, root TypeScript
+  és format PASS, exit 0, 36,598 s.**
+  `bun test server/gateway/admin/workflow-help.test.ts server/gateway/admin/navigation-browser.test.ts server/gateway/admin/capability-matrix.test.ts && bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-210057-110-phase26-5-guides.log`
+  és azonos nevű `.result.json`.
+- **Végső érintett határok: 19/19 PASS, root TypeScript és format PASS,
+  exit 0, 54,106 s.**
+  `bun test server/gateway/admin/workflow-help.test.ts server/gateway/admin/navigation-browser.test.ts server/gateway/admin/operation-review-browser.test.ts server/gateway/admin/operation-progress-browser.test.ts server/gateway/admin/capability-matrix.test.ts server/control-plane/test/browser.test.ts server/control-plane/test/security-browser.test.ts && bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-210232-814-phase26-5-boundaries.log`
+  és azonos nevű `.result.json`.
+- **Vizuális finomítás után célzott navigációs Chrome és format PASS,
+  1/1 teszt, exit 0, 4,496 s.** A mezőmagyarázat betűmérete nőtt,
+  a mezők igazítása egységes lett; a képkivágások pontosításával az
+  útmutató és a mobilos mezők külön is láthatók.
+  `bun test server/gateway/admin/navigation-browser.test.ts && bun run format:check`.
+  `.local/verification/20261017-210354-213-phase26-5-visual-final.log`
+  és azonos nevű `.result.json`. TypeScriptet és változatlan runtime-kört
+  a CSS-finomságok után nem ismételtünk.
+
+A böngészőpróba minden nézetben tényleges súgót és célpontot ellenőriz,
+billentyűzetes nyitást, mezőleírásokat, űrlapérték-megőrzést, útmutatóból
+indított nézetváltást, Vissza/Előre működést, újratöltést és mobilválasztót.
+Leállt játékbackend mellett a szerver-, fiók- és megfigyelői útmutató
+is elérhető; valódi, nézői fiókkal a megfigyelői súgó jelenik meg,
+kezelési űrlap nélkül. A segédlet bejárása nem küld módosító gateway-kérést.
+Az összes meglévő jóváhagyási, időtúllépési, dupla indítási és szerver-/fiók-
+regressziós assertion megmaradt.
+
+**Vizuális QA:** 1440 px asztali és 390 px mobilos útmutató, külön mobilos
+mezőleírás átnézve. Nincs vízszintes túllógás; a natív összecsukás,
+szövegtörés, egységes mezőmagasság és jól olvasható magyarázat ellenőrzött.
+Képek: `.local/verification/phase26-5-help-desktop.png`,
+`phase26-5-help-mobile.png`, `phase26-5-fields-mobile.png`.
+
+**Dokumentáció:** 60 helyi hivatkozás feloldható, stagingelt formázás PASS,
+exit 0, 1,661 s. Napló:
+`.local/verification/20261017-210453-054-phase26-5-docs.log`
+és azonos nevű `.result.json`. A dokumentációs lezárás nem indokolt
+újabb runtime-kört.
+
+A 26.5 lezárható. A 31 korábbi capability-hiány változatlanul a 26.7
+paritási auditban nyitott; a következő feladat a **26.6 kritikus
+admin-workflowk böngészős és API/UI szerződéses lefedése**.

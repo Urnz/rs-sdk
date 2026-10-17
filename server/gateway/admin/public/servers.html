@@ -3,6 +3,8 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Saját szervereim · Helyi admin</title><link rel="stylesheet" href="account.css"><link rel="stylesheet" href="servers.css"><script src="servers.js" defer></script>
     <link rel="stylesheet" href="operation-review.css">
     <link rel="stylesheet" href="operation-progress.css">
+    <link rel="stylesheet" href="workflow-help.css">
+    <script type="module" src="workflow-help.js"></script>
 </head>
 <body><main class="account-shell servers-shell">
     <header><div><p class="eyebrow">HELYI SZERVERFELÜGYELET</p><h1>Saját szervereim</h1><p>A hozzád tartozó szerverek és kapcsolatállapotuk.</p></div>
@@ -10,6 +12,7 @@
     </header>
     <p>Itt indíthatod és állíthatod le a szervereidet, illetve kezelheted a mentéseiket. A kiválasztott szerver megnyitása után a karaktereket, a gazdaságot és a világ beállításait találod.</p>
     <p id="servers-message" role="status" aria-live="polite">Szerverek betöltése…</p>
+    <div data-workflow-guide="servers"></div>
     <section id="server-create" hidden><h2>Új helyi szerver</h2>
         <form id="server-create-form">
             <label>Szerver neve<input name="name" required maxlength="80" autocomplete="off"></label>

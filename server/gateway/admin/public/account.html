@@ -3,10 +3,13 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fiók és jogosultságok · Helyi admin</title><link rel="stylesheet" href="account.css"><script src="account.js" defer></script>
     <link rel="stylesheet" href="operation-review.css">
     <link rel="stylesheet" href="operation-progress.css">
+    <link rel="stylesheet" href="workflow-help.css">
+    <script type="module" src="workflow-help.js"></script>
 </head>
 <body><main class="account-shell">
     <p class="eyebrow">HELYI SZERVERFELÜGYELET</p><h1>Fiók és jogosultságok</h1>
     <p id="account-message" role="status" aria-live="polite">Fiók betöltése…</p>
+    <div data-workflow-guide="account"></div>
     <section id="account-content" hidden>
         <p>Bejelentkezve: <strong id="account-name"></strong></p>
         <p id="ownership-summary"></p>
