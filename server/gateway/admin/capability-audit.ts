@@ -2,6 +2,11 @@ import * as ts from 'typescript';
 import { createHash } from 'node:crypto';
 
 export interface SurfaceEvidence { id: string; file: string; kind: 'backend' | 'guard' | 'frontend'; text: string }
+export interface OperationReviewPolicy {
+    mode: 'required' | 'direct' | 'blocked'; reason?: string;
+    changes?: string; evidence?: string; notChanged?: string; recovery?: string; retry?: string;
+    variants?: Record<string, OperationReviewPolicy>; variantField?: string;
+}
 export interface Capability {
     id: string; title: string; area: string; route: string;
     backend: string[]; frontend: string[];
@@ -11,9 +16,10 @@ export interface Capability {
     operations: { method: string; path: string }[];
     entry: { page: string; selector: string; label: string } | null;
     gap: string | null;
+    review?: OperationReviewPolicy;
 }
 export interface CapabilityMatrix {
-    schemaVersion: number; version: string; reviewedAt: string;
+    schemaVersion: number; version: string; reviewedAt: string; reviewSchemaVersion: number;
     evidence: SurfaceEvidence[]; capabilities: Capability[];
     transports: { evidence: string; reason: string }[];
 }
@@ -121,6 +127,18 @@ export function auditCapabilityMatrix(matrix: CapabilityMatrix, actual: SurfaceE
             const request = frontendRequest(known.get(id)?.text ?? '');
             if (!request || !capability.operations.some(operation => operation.method === request.method && compatiblePaths(operation.path, request.path)))
                 problems.push(`Frontend/backend mismatch: ${capability.id}: ${id}`);
+        }
+        if (capability.methods[0] !== 'GET') {
+            const checkReview = (policy: OperationReviewPolicy | undefined) => {
+                if (!policy || !['required', 'direct', 'blocked'].includes(policy.mode)) { problems.push(`Missing operation review: ${capability.id}`); return; }
+                if (policy.mode === 'required') {
+                    for (const field of ['changes', 'evidence', 'notChanged', 'recovery', 'retry'] as const)
+                        if (!policy[field]?.trim()) problems.push(`Incomplete review ${field}: ${capability.id}`);
+                } else if (!policy.reason?.trim()) problems.push(`Unexplained review mode: ${capability.id}`);
+                if (capability.coverage === 'available' && policy.mode === 'blocked') problems.push(`Available operation blocked: ${capability.id}`);
+                if (policy.variants) Object.values(policy.variants).forEach(checkReview);
+            };
+            checkReview(capability.review);
         }
     }
     for (const item of actual) {

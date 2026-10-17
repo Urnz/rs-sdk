@@ -378,10 +378,20 @@ admin control plane mindkét engine leállítása közben is elérhető marad.
   a hiányok a meglévő 26.7 paritási auditban zárandók, nem kész funkciók.
   Érintett admin/control-plane kör **430/430 PASS**, root TypeScript és format
   PASS, 106,205 s. [Használat és szerződés](features/phase26-2-capability-matrix.md),
-  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: 26.3.
-- [ ] A veszélyes vagy emberi jóváhagyást igénylő műveleteknél pontosan leírni,
+  [ellenőrzési napló](PHASE26_PROGRESS.md).
+- [x] A veszélyes vagy emberi jóváhagyást igénylő műveleteknél pontosan leírni,
   mi változik, milyen bizonyíték alapján, mi nem történik meg, és hogyan lehet
   visszaállni vagy újrapróbálni.
+  **26.3 – elkészült (2026-10-17):** közös beküldés előtti áttekintés az
+  admin-, szerver- és fiókműveleteknél; műveletspecifikus hatás, bizonyítékkötés,
+  korlát, helyreállítás és újrapróbálás. A mátrix 1.1.0: 64 jóváhagyási,
+  16 indokoltan közvetlen és 11 továbbra is UI nélküli módosító bejegyzés.
+  Megszakításkor nincs módosító kérés, a titokmezők rejtettek; a pontos
+  publikálási összeállítás és backend-kapuk megmaradtak. A széles érintett kör
+  432 PASS / 1 új tesztbeállítási hiba; javítás után 8/8 célzott teszt,
+  root TypeScript és format PASS. Ez nem zöld teljes regressziós exit.
+  [Használat és működési határok](features/phase26-3-operation-reviews.md),
+  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: 26.4.
 - [ ] Minden hosszabb művelethez látható indítási visszaigazolást, futási
   állapotot, befejezést és diagnosztizálható hibát adni. Külön regresszióként
   lefedni a Kísérletek néma indítását: a megerősítés után jelenjen meg a futás,

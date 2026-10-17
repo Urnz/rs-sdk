@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import puppeteer from 'puppeteer';
+import { approveOperation } from '../../gateway/admin/test-review-helper.js';
 import { IdentityStore } from '../identity-store.js';
 import { ServerRegistry } from '../server-registry.js';
 import { createControlPlane } from '../service.js';
@@ -32,6 +33,7 @@ test('browser owner grants viewer access, viewer gets observation UI and another
             const select = document.querySelector('[aria-label="security-guest szerepköre"]')!;
             (select.closest('li')!.querySelector('button') as HTMLButtonElement).click();
         });
+        await approveOperation(page);
         await page.waitForFunction(() => document.getElementById('account-message')!.textContent === 'A szerepkör frissült.');
         expect(store.role(guest.id)).toBe('viewer');
         const guestContext = await browser.createBrowserContext(), guestPage = await guestContext.newPage(); guestPage.on('pageerror', error => errors.push(String(error)));
@@ -49,6 +51,7 @@ test('browser owner grants viewer access, viewer gets observation UI and another
             const row = Array.from(document.querySelectorAll('#session-list li')).find(element => element.textContent!.includes('Másik munkamenet'))!;
             (row.querySelector('button') as HTMLButtonElement).click();
         });
+        await approveOperation(page);
         await page.waitForFunction(() => document.querySelectorAll('#session-list li').length === 1);
         expect(await otherPage.evaluate(async () => (await fetch('/api/control-plane/session')).status)).toBe(401);
         store.setRole(owner.id, guest.id, 'local-default', null);

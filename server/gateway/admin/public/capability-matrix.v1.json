@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "reviewedAt": "2026-10-17",
   "evidence": [
     {
@@ -716,6 +716,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
       "text": "'/api/admin/society/self-sufficiency'"
+    },
+    {
+      "id": "46410fcd93d9b4099cbf285e",
+      "file": "server/gateway/admin/public/operation-review.js",
+      "kind": "frontend",
+      "text": "[\"fetch\", '/admin/capability-matrix.v1.json', \"GET\"]"
     },
     {
       "id": "47237d473611134a46206a7b",
@@ -2600,6 +2606,10 @@
     {
       "evidence": "fafb464165e22de5f134358a",
       "reason": "Közös HTTP-kliens belső továbbítása; a konkrét hívásokat külön frontend-bizonyítékok fedik le."
+    },
+    {
+      "evidence": "46410fcd93d9b4099cbf285e",
+      "reason": "A módosító kérés előtti, csak olvasó műveleti magyarázat betöltése; nem hajt végre domainműveletet."
     }
   ],
   "capabilities": [
@@ -2675,7 +2685,16 @@
           "method": "PUT",
           "path": "/api/admin/llm-settings"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az AI szolgáltatója, modellje, költségkerete, automatikus újratervezése, képességfejlesztése és feladatengedélyei a beküldött beállításokra változnak. A kulcs is cserélhető vagy törölhető.",
+        "evidence": "Az űrlap teljes konfigurációját és engedélyezési listáját a backend ellenőrzi. A kapcsolók új értékei itt láthatók; a titok értéke rejtve marad.",
+        "notChanged": "A mentés nem önmagában indít azonnali fizikai feladatot. Bekapcsolt automatika későbbi eseményekkor kattintás nélkül is költséget és valódi feladatindítást okozhat.",
+        "recovery": "A beállítások a következő mentéssel módosíthatók, az automatika lekapcsolható. A törölt kulcs nem olvasható vissza: újra meg kell adni. Elköltött keret és megtörtént játéklépés nem vonható vissza.",
+        "retry": "Olvasd újra a mentett beállítást és a kulcs állapotát. Külön ellenőrizd a működési kapcsolókat, mielőtt újra mentenél.",
+        "approveLabel": "Beállítások mentése"
+      }
     },
     {
       "id": "admin.config.get",
@@ -2745,7 +2764,42 @@
           "method": "PUT",
           "path": "/api/admin/economic-offers/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az ajánlat elfogadása aktív szerződést hozhat létre, és az ígért GP/tárgyfedezetet előre zárolhatja. Elutasítás vagy visszavonás az ajánlatot lezárja.",
+        "evidence": "A kiválasztott ajánlat, szereplő, döntés és aktuális állapotverzió, elfogadásnál a tényleges fedezet alapján ellenőriz a backend.",
+        "notChanged": "Az elfogadás nem bizonyít teljesítést és nem jelenti a végleges ellenérték kifizetését.",
+        "recovery": "Teljesítés nélküli szerződés a szerződéses lezáró folyamatban megszüntethető, nyitott fedezete egyeztethető. Lezárt ajánlat helyett új ajánlat kellhet.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás.",
+        "variantField": "action",
+        "variants": {
+          "accept": {
+            "mode": "required",
+            "changes": "Az ajánlat változatlan feltételekkel aktív szerződést hoz létre, és a vállalt GP/tárgyfedezetet a backend előre zárolhatja.",
+            "evidence": "A kiválasztott ajánlat, szereplő, döntés és aktuális állapotverzió, elfogadásnál a tényleges fedezet alapján ellenőriz a backend.",
+            "notChanged": "Az elfogadás nem bizonyít teljesítést és nem jelenti a végleges ellenérték kifizetését.",
+            "recovery": "Teljesítés nélküli szerződés a szerződéses lezáró folyamatban megszüntethető, nyitott fedezete egyeztethető. Lezárt ajánlat helyett új ajánlat kellhet.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          },
+          "decline": {
+            "mode": "required",
+            "changes": "A kijelölt ajánlat elutasított állapotba kerül; nem keletkezik belőle új szerződés.",
+            "evidence": "A kiválasztott ajánlat, szereplő, döntés és aktuális állapotverzió, elfogadásnál a tényleges fedezet alapján ellenőriz a backend.",
+            "notChanged": "Az elfogadás nem bizonyít teljesítést és nem jelenti a végleges ellenérték kifizetését.",
+            "recovery": "Teljesítés nélküli szerződés a szerződéses lezáró folyamatban megszüntethető, nyitott fedezete egyeztethető. Lezárt ajánlat helyett új ajánlat kellhet.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          },
+          "withdraw": {
+            "mode": "required",
+            "changes": "Az ajánlattevő visszavonja a kijelölt nyitott ajánlatot; nem keletkezik belőle új szerződés.",
+            "evidence": "A kiválasztott ajánlat, szereplő, döntés és aktuális állapotverzió, elfogadásnál a tényleges fedezet alapján ellenőriz a backend.",
+            "notChanged": "Az elfogadás nem bizonyít teljesítést és nem jelenti a végleges ellenérték kifizetését.",
+            "recovery": "Teljesítés nélküli szerződés a szerződéses lezáró folyamatban megszüntethető, nyitott fedezete egyeztethető. Lezárt ajánlat helyett új ajánlat kellhet.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          }
+        }
+      }
     },
     {
       "id": "admin.economic-offers.post",
@@ -2782,7 +2836,11 @@
           "method": "POST",
           "path": "/api/admin/economic-offers"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Új ajánlat rögzítése; elfogadás és fedezetfoglalás külön jóváhagyási pont."
+      }
     },
     {
       "id": "admin.economic-contracts-item.resolve.post",
@@ -2819,7 +2877,34 @@
           "method": "POST",
           "path": "/api/admin/economic-contracts/:id/resolve"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt szerződés a választott módon lezárul; a nyitott fedezet feloldása egyeztetésre kerül.",
+        "evidence": "A szerződés azonosítója, aktuális állapotverziója, választott lezárás és meglévő teljesítési bizonylatok alapján ellenőriz a backend.",
+        "notChanged": "A már teljesített átadásokat nem fordítja vissza. Megszüntetés teljesítés után nem helyettesíti a meghiúsultként lezárást.",
+        "recovery": "A lezárás végleges lehet. A beragadt fedezetet az eredeti szerződés folyamatában kell rendezni, új pénzteremtés nélkül.",
+        "retry": "Olvasd vissza a szerződést és a nyitott fedezetet. Az ugyanahhoz a szerződéshez tartozó függő fedezetfeloldás próbálható újra.",
+        "variantField": "resolution",
+        "variants": {
+          "cancelled": {
+            "mode": "required",
+            "changes": "A még teljesítés nélküli szerződés megszüntetése és a nyitott fedezet feloldása kerül egyeztetésre.",
+            "evidence": "A szerződés azonosítója, aktuális állapotverziója, választott lezárás és meglévő teljesítési bizonylatok alapján ellenőriz a backend.",
+            "notChanged": "A már teljesített átadásokat nem fordítja vissza. Megszüntetés teljesítés után nem helyettesíti a meghiúsultként lezárást.",
+            "recovery": "A lezárás végleges lehet. A beragadt fedezetet az eredeti szerződés folyamatában kell rendezni, új pénzteremtés nélkül.",
+            "retry": "Olvasd vissza a szerződést és a nyitott fedezetet. Az ugyanahhoz a szerződéshez tartozó függő fedezetfeloldás próbálható újra."
+          },
+          "defaulted": {
+            "mode": "required",
+            "changes": "A szerződés véglegesen meghiúsultként zárul. Csak a nyitott fedezet feloldása történhet meg; a korábbi teljesítések megmaradnak.",
+            "evidence": "A szerződés azonosítója, aktuális állapotverziója, választott lezárás és meglévő teljesítési bizonylatok alapján ellenőriz a backend.",
+            "notChanged": "A már teljesített átadásokat nem fordítja vissza. Megszüntetés teljesítés után nem helyettesíti a meghiúsultként lezárást.",
+            "recovery": "A lezárás végleges lehet. A beragadt fedezetet az eredeti szerződés folyamatában kell rendezni, új pénzteremtés nélkül.",
+            "retry": "Olvasd vissza a szerződést és a nyitott fedezetet. Az ugyanahhoz a szerződéshez tartozó függő fedezetfeloldás próbálható újra."
+          }
+        }
+      }
     },
     {
       "id": "admin.economic-contracts-item.settle.post",
@@ -2856,7 +2941,16 @@
           "method": "POST",
           "path": "/api/admin/economic-contracts/:id/settle"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A hitelesen teljesített szerződés vagy munkamegbízás díjazása elszámolható; a meglévő fedezet, pénz vagy tárgyak átadását a backend egyezteti.",
+        "evidence": "Az eredeti szerződés/megbízás, a hozzá kötött sikeres futás és a tartós elszámolásazonosítók szükségesek. A szabad szöveg nem teljesítési bizonyíték.",
+        "notChanged": "Ez nem új jutalom vagy második kifizetés létrehozása, és nem tesz egy hibás futást sikeressé.",
+        "recovery": "A teljesített átadásokat nincs általános visszavonó művelet. Vitás esetben az eredeti bizonylatok alapján kell egyeztetni.",
+        "retry": "A meglévő szerződés vagy megbízás állapotát olvasd vissza, és annak függő elszámolását próbáld újra. Új jutalmat vagy másik szerződést ne hozz létre pótlásként.",
+        "approveLabel": "Meglévő elszámolás folytatása"
+      }
     },
     {
       "id": "admin.economic-contracts-item.evidence.post",
@@ -2893,7 +2987,16 @@
           "method": "POST",
           "path": "/api/admin/economic-contracts/:id/evidence"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A hitelesen teljesített szerződés vagy munkamegbízás díjazása elszámolható; a meglévő fedezet, pénz vagy tárgyak átadását a backend egyezteti.",
+        "evidence": "Az eredeti szerződés/megbízás, a hozzá kötött sikeres futás és a tartós elszámolásazonosítók szükségesek. A szabad szöveg nem teljesítési bizonyíték.",
+        "notChanged": "Ez nem új jutalom vagy második kifizetés létrehozása, és nem tesz egy hibás futást sikeressé.",
+        "recovery": "A teljesített átadásokat nincs általános visszavonó művelet. Vitás esetben az eredeti bizonylatok alapján kell egyeztetni.",
+        "retry": "A meglévő szerződés vagy megbízás állapotát olvasd vissza, és annak függő elszámolását próbáld újra. Új jutalmat vagy másik szerződést ne hozz létre pótlásként.",
+        "approveLabel": "Bizonyíték rögzítése és elszámolás"
+      }
     },
     {
       "id": "admin.economic-contracts.get",
@@ -2967,7 +3070,15 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/llm-dry-run"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az AI a kijelölt döntéshozóhoz előnézetet készít. A modellhívás költséget okozhat, de fizikai feladatot nem indít.",
+        "evidence": "A kiválasztott döntéshozó, friss kontextus, engedélyezett képességek és költségkorlátok alapján ellenőriz a backend.",
+        "notChanged": "Az előnézet nem hajt végre fizikai játékbeli feladatot. A modell válasza nem önálló végrehajtási jogosultság.",
+        "recovery": "A már felhasznált modellköltség nem vonható vissza. Elindult feladat leállítható, a már végrehajtott lépések azonban megmaradnak.",
+        "retry": "Előbb nézd meg a döntési naplót és az esetleges futást. Új modellkérés új költséget jelenthet."
+      }
     },
     {
       "id": "admin.agents-item.goals.post",
@@ -3004,7 +3115,30 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/goals"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Új célt rögzítesz a kijelölt döntéshozónál. Az azonnali cél az engedélyezett önálló működésben új döntést és valódi feladatindítást is kiválthat.",
+        "evidence": "A döntéshozó, célazonosító, időtáv, képességhivatkozás és aktuális működési engedélyek alapján ellenőriz a backend.",
+        "notChanged": "A cél létrehozása nem sikeres teljesítési bizonyíték. A kapcsolt képesség végrehajtásához továbbra is a szerveroldali engedélyek kellenek.",
+        "recovery": "A cél később blokkolható vagy elvethető. Már elindult feladatot külön állíts le; a megtörtént lépések megmaradnak.",
+        "retry": "Előbb frissítsd a célhierarchiát és a döntési naplót, majd a futó feladatokat. Ne hozz létre azonos célból újabb példányt ismeretlen kimenetel után.",
+        "variantField": "horizon",
+        "variants": {
+          "life": {
+            "mode": "direct",
+            "reason": "Nem azonnali cél rögzítése az űrlapból; az aktív végrehajtás külön működési kapun indul."
+          },
+          "long-term": {
+            "mode": "direct",
+            "reason": "Nem azonnali cél rögzítése az űrlapból; az aktív végrehajtás külön működési kapun indul."
+          },
+          "current": {
+            "mode": "direct",
+            "reason": "Nem azonnali cél rögzítése az űrlapból; az aktív végrehajtás külön működési kapun indul."
+          }
+        }
+      }
     },
     {
       "id": "admin.agents-item.goals-item.status.put",
@@ -3041,7 +3175,15 @@
           "method": "PUT",
           "path": "/api/admin/agents/:id/goals/:id/status"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott cél, kapcsolat, kötelezettség vagy személyiség a megadott új állapotra változik; ez a későbbi döntéseket is befolyásolhatja.",
+        "evidence": "A kijelölt rekord és beküldött állapotverzió alapján ellenőriz a backend; az indoklás az audithoz tartozik.",
+        "notChanged": "A kézi státuszváltozás önmagában nem igazol tényleges játékbeli teljesítést vagy pénzátadást.",
+        "recovery": "Lezárt állapot nem mindenhol nyitható újra. Téves lezárásnál új, helyes cél vagy kötelezettség rögzíthető; a múlt nem írható át.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.agents-item.plan.post",
@@ -3078,7 +3220,38 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/plan"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az AI modellhívást végezhet és költséget okozhat. Végrehajtást kérő változatnál a kiválasztott engedélyezett képesség is elindulhat.",
+        "evidence": "A kiválasztott döntéshozó, friss kontextus, engedélyezett képességek és költségkorlátok alapján ellenőriz a backend.",
+        "notChanged": "Az előnézet nem hajt végre fizikai játékbeli feladatot. A modell válasza nem önálló végrehajtási jogosultság.",
+        "recovery": "A már felhasznált modellköltség nem vonható vissza. Elindult feladat leállítható, a már végrehajtott lépések azonban megmaradnak.",
+        "retry": "Előbb nézd meg a döntési naplót és az esetleges futást. Új modellkérés új költséget jelenthet.",
+        "variantField": "execute",
+        "variants": {
+          "preview": {
+            "mode": "required",
+            "changes": "Az AI döntési előnézetet készíthet, ami modellhívást és költséget okozhat.",
+            "evidence": "A kiválasztott döntéshozó, friss kontextus, engedélyezett képességek és költségkorlátok alapján ellenőriz a backend.",
+            "notChanged": "Az előnézet nem hajt végre fizikai játékbeli feladatot. A modell válasza nem önálló végrehajtási jogosultság.",
+            "recovery": "A már felhasznált modellköltség nem vonható vissza. Elindult feladat leállítható, a már végrehajtott lépések azonban megmaradnak.",
+            "retry": "Előbb nézd meg a döntési naplót és az esetleges futást. Új modellkérés új költséget jelenthet.",
+            "title": "AI-döntési előnézet",
+            "approveLabel": "Előnézet kérése"
+          },
+          "execute": {
+            "mode": "required",
+            "changes": "Az AI döntést készít, és az általa kiválasztott engedélyezett képesség elindulhat a kapcsolt karakteren. Modellköltség és tényleges játékbeli változás is keletkezhet.",
+            "evidence": "A karakter, képességverzió, paraméterek és engedélyek ellenőrzése után a backend engedélyezi a futást.",
+            "notChanged": "Az indítás nem bizonyít sikeres befejezést; a már elvégzett lépéseknek nincs általános visszavonása.",
+            "recovery": "A futó feladat a karakter adatlapján leállítható. Ez a már végrehajtott lépéseket nem fordítja vissza.",
+            "retry": "Előbb keresd meg a legutóbbi futást és eredményét. Új indítást csak a karakter aktuális állapotából kérj.",
+            "title": "AI által választott feladat végrehajtása",
+            "approveLabel": "Döntés és végrehajtás kérése"
+          }
+        }
+      }
     },
     {
       "id": "admin.agents-item.control-profile.put",
@@ -3115,7 +3288,15 @@
           "method": "PUT",
           "path": "/api/admin/agents/:id/control-profile"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A döntéshozó szerepe, intézményi kötése, kapcsolt karaktere, döntési gyakorisága és napi keretei a megadott értékekre változnak.",
+        "evidence": "A megadott szereplő, képesség/jogosultság és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A hozzáférés nem azonos a képesség megtanulásával, és a kézi ismeretállítás nem új futási bizonyíték.",
+        "recovery": "Ahol a szerkesztő megengedi, új auditált módosítással rendezhető az állapot. A korábbi naplóbejegyzés nem törlődik.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.agents-item.timeline.get",
@@ -3221,7 +3402,11 @@
           "method": "POST",
           "path": "/api/admin/agents"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Alapadatok létrehozása; az új döntéshozó rögzítése önmagában nem indít fizikai munkát."
+      }
     },
     {
       "id": "admin.llm-replans.get",
@@ -3295,7 +3480,15 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/autonomous-cycle"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az AI modellhívást végezhet és költséget okozhat. Végrehajtást kérő változatnál a kiválasztott engedélyezett képesség is elindulhat.",
+        "evidence": "A kiválasztott döntéshozó, friss kontextus, engedélyezett képességek és költségkorlátok alapján ellenőriz a backend.",
+        "notChanged": "Az előnézet nem hajt végre fizikai játékbeli feladatot. A modell válasza nem önálló végrehajtási jogosultság.",
+        "recovery": "A már felhasznált modellköltség nem vonható vissza. Elindult feladat leállítható, a már végrehajtott lépések azonban megmaradnak.",
+        "retry": "Előbb nézd meg a döntési naplót és az esetleges futást. Új modellkérés új költséget jelenthet."
+      }
     },
     {
       "id": "admin.agents-item.episodes.post",
@@ -3332,7 +3525,11 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/episodes"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Emlék kézi rögzítése, nem gazdasági vagy fizikai végrehajtás."
+      }
     },
     {
       "id": "admin.agents-item.episodes.prune.post",
@@ -3369,7 +3566,16 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/episodes/prune"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A backend által elévültnek és nem hivatkozottnak minősített epizodikus emlékek véglegesen törlődnek.",
+        "evidence": "Az adott döntéshozó megőrzési szabálya, emlékkora és bizonyítékhivatkozásai alapján a backend újraszámolja a törölhetőséget.",
+        "notChanged": "Nem törli az aktív hivatkozással védett emléket, és nem készít automatikus visszaállítható archívumot.",
+        "recovery": "Ez az adminból nem vonható vissza. Csak korábbi, külön elkészített és ellenőrzött adatmentésből lehetséges helyi helyreállítás.",
+        "retry": "Frissítsd a megőrzési összesítést; csak a még létező, továbbra is törölhető elemekre kérd újra.",
+        "approveLabel": "Emlékek végleges törlése"
+      }
     },
     {
       "id": "admin.agents-item.treasury.put",
@@ -3406,7 +3612,15 @@
           "method": "PUT",
           "path": "/api/admin/agents/:id/treasury"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az intézményi pénztár egyenlege a megadott összegre változik. Ez kézi finanszírozás vagy pénzkivonás, nem megtermelt bevétel.",
+        "evidence": "A kiválasztott intézmény, az új GP-egyenleg és a meglévő foglalások alapján ellenőriz a backend. Foglalt összeg alá nem csökkenthető.",
+        "notChanged": "Nem mozgat fizikai játékosérméket, és nem igazol kereskedelmet vagy szolgáltatást.",
+        "recovery": "Helyesbítés csak új, indokolt pénztármódosítással lehetséges; a már elköltött vagy lefoglalt pénzt nem szabad kitalált jóváírással rendezni.",
+        "retry": "Előbb olvasd vissza az egyenleget és a foglalásokat. Bizonytalan válasz után ne küldd újra ugyanazt az összeget ellenőrzés nélkül."
+      }
     },
     {
       "id": "admin.goal-proposals-item.approve-and-start.post",
@@ -3443,7 +3657,15 @@
           "method": "POST",
           "path": "/api/admin/goal-proposals/:id/approve-and-start"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt javaslat teljes célhierarchiája jóváhagyásra kerül. Ha pontos képességet is tartalmaz, az azonnal elindulhat a kapcsolt karakteren; ennek hiányában csak a célok jönnek létre.",
+        "evidence": "A karakter, képességverzió, paraméterek és engedélyek ellenőrzése után a backend engedélyezi a futást.",
+        "notChanged": "Az indítás nem bizonyít sikeres befejezést; a már elvégzett lépéseknek nincs általános visszavonása.",
+        "recovery": "A futó feladat a karakter adatlapján leállítható. Ez a már végrehajtott lépéseket nem fordítja vissza.",
+        "retry": "Előbb keresd meg a legutóbbi futást és eredményét. Új indítást csak a karakter aktuális állapotából kérj."
+      }
     },
     {
       "id": "admin.agents-item.player-actions.post",
@@ -3480,7 +3702,15 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/player-actions"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az intézmény játékos-munkamegbízást hoz létre. Pozitív díjazásnál a meglévő intézményi pénztárból a jutalom fedezete előre lefoglalható.",
+        "evidence": "A kijelölt intézmény, dolgozó, pontos képesség és paraméterei, díjazás és tényleges pénztári fedezet alapján ellenőriz a backend.",
+        "notChanged": "Nem azonnali kifizetés és nem a munka teljesítésének bizonyítéka. A tényleges futtatás külön jóváhagyást igényel.",
+        "recovery": "A függő megbízás a megengedett állapotváltással visszautasítható vagy lezárható; a fedezetet az eredeti megbízás folyamatában kell rendezni.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.player-actions-item.approve-and-start.post",
@@ -3517,7 +3747,15 @@
           "method": "POST",
           "path": "/api/admin/player-actions/:id/approve-and-start"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott képesség valódi műveleteket végezhet a kapcsolt karakterrel; pénz, tárgy, pozíció és tapasztalat is változhat.",
+        "evidence": "A karakter, képességverzió, paraméterek és engedélyek ellenőrzése után a backend engedélyezi a futást.",
+        "notChanged": "Az indítás nem bizonyít sikeres befejezést; a már elvégzett lépéseknek nincs általános visszavonása.",
+        "recovery": "A futó feladat a karakter adatlapján leállítható. Ez a már végrehajtott lépéseket nem fordítja vissza.",
+        "retry": "Előbb keresd meg a legutóbbi futást és eredményét. Új indítást csak a karakter aktuális állapotából kérj."
+      }
     },
     {
       "id": "admin.agents-item.relationships.put",
@@ -3554,7 +3792,15 @@
           "method": "PUT",
           "path": "/api/admin/agents/:id/relationships"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott cél, kapcsolat, kötelezettség vagy személyiség a megadott új állapotra változik; ez a későbbi döntéseket is befolyásolhatja.",
+        "evidence": "A kijelölt rekord és beküldött állapotverzió alapján ellenőriz a backend; az indoklás az audithoz tartozik.",
+        "notChanged": "A kézi státuszváltozás önmagában nem igazol tényleges játékbeli teljesítést vagy pénzátadást.",
+        "recovery": "Lezárt állapot nem mindenhol nyitható újra. Téves lezárásnál új, helyes cél vagy kötelezettség rögzíthető; a múlt nem írható át.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.agents-item.skills.learn.post",
@@ -3591,7 +3837,15 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/skills/learn"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt, hozzáférhető és ellenőrzött képesség megtanulásának ténye és a döntéshozó képességismerete tartósan rögzül.",
+        "evidence": "A megadott szereplő, képesség/jogosultság és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A hozzáférés nem azonos a képesség megtanulásával, és a kézi ismeretállítás nem új futási bizonyíték.",
+        "recovery": "Ahol a szerkesztő megengedi, új auditált módosítással rendezhető az állapot. A korábbi naplóbejegyzés nem törlődik.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.skill-grants.post",
@@ -3628,7 +3882,15 @@
           "method": "POST",
           "path": "/api/admin/skill-grants"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A megadott döntéshozó a kijelölt erőforráshoz új, időben érvényes képességhozzáférést kap.",
+        "evidence": "A megadott szereplő, képesség/jogosultság és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A hozzáférés nem azonos a képesség megtanulásával, és a kézi ismeretállítás nem új futási bizonyíték.",
+        "recovery": "Ahol a szerkesztő megengedi, új auditált módosítással rendezhető az állapot. A korábbi naplóbejegyzés nem törlődik.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.skill-grants-item.revoke.post",
@@ -3665,7 +3927,15 @@
           "method": "POST",
           "path": "/api/admin/skill-grants/:id/revoke"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt döntéshozó adott képességhozzáférése visszavonásra kerül; későbbi tanulása és végrehajtási jogosultsága szűkülhet.",
+        "evidence": "A megadott szereplő, képesség/jogosultság és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A hozzáférés nem azonos a képesség megtanulásával, és a kézi ismeretállítás nem új futási bizonyíték.",
+        "recovery": "Ahol a szerkesztő megengedi, új auditált módosítással rendezhető az állapot. A korábbi naplóbejegyzés nem törlődik.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.agents-item.skills.put",
@@ -3702,7 +3972,15 @@
           "method": "PUT",
           "path": "/api/admin/agents/:id/skills"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt döntéshozó adott képességének nyilvántartott ismeretállapotát kézzel felülbírálod a megadott új értékre.",
+        "evidence": "A megadott szereplő, képesség/jogosultság és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A hozzáférés nem azonos a képesség megtanulásával, és a kézi ismeretállítás nem új futási bizonyíték.",
+        "recovery": "Ahol a szerkesztő megengedi, új auditált módosítással rendezhető az állapot. A korábbi naplóbejegyzés nem törlődik.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.skill-learning.get",
@@ -3776,7 +4054,11 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/relationships/:id/commitments"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Új kötelezettség rögzítése nem fizet vagy ad át vagyont."
+      }
     },
     {
       "id": "admin.agents-item.commitments-item.status.put",
@@ -3813,7 +4095,15 @@
           "method": "PUT",
           "path": "/api/admin/agents/:id/commitments/:id/status"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott cél, kapcsolat, kötelezettség vagy személyiség a megadott új állapotra változik; ez a későbbi döntéseket is befolyásolhatja.",
+        "evidence": "A kijelölt rekord és beküldött állapotverzió alapján ellenőriz a backend; az indoklás az audithoz tartozik.",
+        "notChanged": "A kézi státuszváltozás önmagában nem igazol tényleges játékbeli teljesítést vagy pénzátadást.",
+        "recovery": "Lezárt állapot nem mindenhol nyitható újra. Téves lezárásnál új, helyes cél vagy kötelezettség rögzíthető; a múlt nem írható át.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.player-actions-item.settle.post",
@@ -3850,7 +4140,16 @@
           "method": "POST",
           "path": "/api/admin/player-actions/:id/settle"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A hitelesen teljesített szerződés vagy munkamegbízás díjazása elszámolható; a meglévő fedezet, pénz vagy tárgyak átadását a backend egyezteti.",
+        "evidence": "Az eredeti szerződés/megbízás, a hozzá kötött sikeres futás és a tartós elszámolásazonosítók szükségesek. A szabad szöveg nem teljesítési bizonyíték.",
+        "notChanged": "Ez nem új jutalom vagy második kifizetés létrehozása, és nem tesz egy hibás futást sikeressé.",
+        "recovery": "A teljesített átadásokat nincs általános visszavonó művelet. Vitás esetben az eredeti bizonylatok alapján kell egyeztetni.",
+        "retry": "A meglévő szerződés vagy megbízás állapotát olvasd vissza, és annak függő elszámolását próbáld újra. Új jutalmat vagy másik szerződést ne hozz létre pótlásként.",
+        "approveLabel": "Meglévő díjazás elszámolása"
+      }
     },
     {
       "id": "admin.player-actions-item.put",
@@ -3887,7 +4186,15 @@
           "method": "PUT",
           "path": "/api/admin/player-actions/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt munkamegbízás a választott elfogadott, elutasított, visszavont vagy lezárt állapotra változik; az eredeti fedezetfoglalás rendezését is érintheti.",
+        "evidence": "A kijelölt rekord és beküldött állapotverzió alapján ellenőriz a backend; az indoklás az audithoz tartozik.",
+        "notChanged": "Az elfogadás önmagában nem indít munkát és nem bizonyít teljesítést vagy kifizetést.",
+        "recovery": "Lezárt állapot nem mindenhol nyitható újra. Téves lezárásnál új, helyes cél vagy kötelezettség rögzíthető; a múlt nem írható át.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.agents-item.put",
@@ -3924,7 +4231,15 @@
           "method": "PUT",
           "path": "/api/admin/agents/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott cél, kapcsolat, kötelezettség vagy személyiség a megadott új állapotra változik; ez a későbbi döntéseket is befolyásolhatja.",
+        "evidence": "A kijelölt rekord és beküldött állapotverzió alapján ellenőriz a backend; az indoklás az audithoz tartozik.",
+        "notChanged": "A kézi státuszváltozás önmagában nem igazol tényleges játékbeli teljesítést vagy pénzátadást.",
+        "recovery": "Lezárt állapot nem mindenhol nyitható újra. Téves lezárásnál új, helyes cél vagy kötelezettség rögzíthető; a múlt nem írható át.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.agents-item.knowledge.post",
@@ -3961,7 +4276,11 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/knowledge"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Tudás rögzítése; nem ellenőrzött játékbeli teljesítési bizonyíték."
+      }
     },
     {
       "id": "admin.autonomy.status.get",
@@ -4039,7 +4358,15 @@
           "method": "POST",
           "path": "/api/admin/autonomy/resume"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt döntéshozó vagy a szerver önálló működése a választott szüneteltetés, folytatás, feloldás vagy vészleállítás szerint változik.",
+        "evidence": "A kijelölt kör, aktuális vezérlőállapot és beküldött állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A leállítás nem fordítja vissza a már végrehajtott lépéseket; a folytatás nem bővíti automatikusan a képességengedélyeket.",
+        "recovery": "A folytatás/szüneteltetés a megfelelő vezérlőből új, auditált döntéssel kérhető. Karantént csak az eredeti hiba megvizsgálása után oldj fel.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.agents-item.autonomy-item.post",
@@ -4084,7 +4411,15 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/autonomy/release-quarantine"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt döntéshozó vagy a szerver önálló működése a választott szüneteltetés, folytatás, feloldás vagy vészleállítás szerint változik.",
+        "evidence": "A kijelölt kör, aktuális vezérlőállapot és beküldött állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A leállítás nem fordítja vissza a már végrehajtott lépéseket; a folytatás nem bővíti automatikusan a képességengedélyeket.",
+        "recovery": "A folytatás/szüneteltetés a megfelelő vezérlőből új, auditált döntéssel kérhető. Karantént csak az eredeti hiba megvizsgálása után oldj fel.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.autonomy-control.get",
@@ -4193,7 +4528,11 @@
           "method": "POST",
           "path": "/api/control-plane/login"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Bejelentkezés; nem adminisztratív jóváhagyási művelet."
+      }
     },
     {
       "id": "control.accounts.get",
@@ -4267,7 +4606,11 @@
           "method": "POST",
           "path": "/api/control-plane/accounts"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Új fiók rögzítése önmagában nem ad szerverhozzáférést; a kitöltött űrlap a közvetlen indítási pont."
+      }
     },
     {
       "id": "control.accounts-item.ownership.put",
@@ -4304,7 +4647,16 @@
           "method": "PUT",
           "path": "/api/control-plane/accounts/:id/ownership"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt fiók adott szerverhez tartozó hozzáférése a megadott szerepkörre vagy tulajdonjogra változik. Teljes tulajdonjog más fiókok és beállítások kezelésére is jogosít.",
+        "evidence": "A kijelölt fiók, szerver és kifejezett szerepkör-/tulajdonjog-döntés alapján ellenőriz a backend. Az utolsó tulajdonos védelme továbbra is szerveroldali.",
+        "notChanged": "Nem mozgat játékbeli vagyont és nem hoz létre új fiókot. A már elvégzett adminműveleteket a visszavonás nem fordítja vissza.",
+        "recovery": "A megmaradó tulajdonos új, auditált szerepkör-módosítást végezhet. Hozzáférés elvesztése esetén másik jogosult tulajdonos segítsége kell.",
+        "retry": "Frissítsd a hozzáféréslistát; ellenőrizd a tényleges szerepkört, mielőtt újra módosítanád.",
+        "approveLabel": "Tulajdonjog módosítása"
+      }
     },
     {
       "id": "control.password.post",
@@ -4341,7 +4693,16 @@
           "method": "POST",
           "path": "/api/control-plane/password"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A saját fiókod jelszava lecserélődik, és az összes meglévő munkameneted lezárul, az aktuális is.",
+        "evidence": "A jelenlegi jelszó helyességét és az új jelszó szabályait a backend ellenőrzi. A jelszavak ebben az ablakban rejtve maradnak.",
+        "notChanged": "Nem változtat más fiók jelszaván vagy a játékos-botok hitelesítő adatain.",
+        "recovery": "Az új jelszóval ismét be kell jelentkezned. A korábbi jelszó nem olvasható vissza az adminból.",
+        "retry": "Előbb próbálj bejelentkezni az új jelszóval. Megszakadt válasz után ne feltételezd, hogy a régi jelszó maradt érvényes.",
+        "approveLabel": "Jelszócsere és kijelentkezés"
+      }
     },
     {
       "id": "control.logout.post",
@@ -4378,7 +4739,11 @@
           "method": "POST",
           "path": "/api/control-plane/logout"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "A Kijelentkezés gomb közvetlenül lezárja a saját aktuális munkamenetet."
+      }
     },
     {
       "id": "control.sessions-item.delete",
@@ -4415,7 +4780,16 @@
           "method": "DELETE",
           "path": "/api/control-plane/sessions/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott saját admin-munkamenet megszűnik. Ha az aktuális munkamenetet választottad, erről az oldalról is kijelentkezel.",
+        "evidence": "A saját fiókodhoz tartozó pontos munkamenet-azonosító alapján ellenőriz a backend.",
+        "notChanged": "Nem törli a fiókot, nem módosít jelszót és nem állítja le a játékszervert.",
+        "recovery": "A munkamenet nem állítható vissza; új bejelentkezés hoz létre újat.",
+        "retry": "Frissítsd a saját munkamenetlistát. Ha a rekord eltűnt, a visszavonás már megtörtént.",
+        "approveLabel": "Munkamenet visszavonása"
+      }
     },
     {
       "id": "control.sessions.get",
@@ -4521,7 +4895,15 @@
           "method": "POST",
           "path": "/api/admin/bots/:id/start-skill"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott képesség valódi műveleteket végezhet a kapcsolt karakterrel; pénz, tárgy, pozíció és tapasztalat is változhat.",
+        "evidence": "A karakter, képességverzió, paraméterek és engedélyek ellenőrzése után a backend engedélyezi a futást.",
+        "notChanged": "Az indítás nem bizonyít sikeres befejezést; a már elvégzett lépéseknek nincs általános visszavonása.",
+        "recovery": "A futó feladat a karakter adatlapján leállítható. Ez a már végrehajtott lépéseket nem fordítja vissza.",
+        "retry": "Előbb keresd meg a legutóbbi futást és eredményét. Új indítást csak a karakter aktuális állapotából kérj."
+      }
     },
     {
       "id": "admin.bots-item.get",
@@ -4590,7 +4972,16 @@
           "method": "DELETE",
           "path": "/api/admin/bots/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az offline karakter meglévő mentése és helyi botkonfigurációja karanténba kerül; a karakter eltűnhet az aktív katalógusból.",
+        "evidence": "A pontos karakternév-megerősítés és a backend által ellenőrzött offline/hibás állapot szükséges.",
+        "notChanged": "Ez nem végleges fájltörlés, és nem rendezi a karakterhez kapcsolódó összes társadalmi vagy gazdasági állapotot.",
+        "recovery": "Karanténból ellenőrzött helyi kézi helyreállítás lehetséges; erre jelenleg nincs admin-visszaállítógomb. Őrizd meg a kapott karanténazonosítót.",
+        "retry": "Előbb ellenőrizd a katalógust, az auditot és a karanténeredményt. Ne hozz létre új mentést a régi helyreállítása helyett.",
+        "approveLabel": "Karanténba helyezés"
+      }
     },
     {
       "id": "admin.bots.spawn.post",
@@ -4627,7 +5018,16 @@
           "method": "POST",
           "path": "/api/admin/bots/spawn"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A megadott karakterrel új helyi botfolyamat próbál belépni a kiválasztott privát játékszerverre. A jelszó megjegyzése esetén a Windows titoktárba kerül.",
+        "evidence": "A kijelölt karakternév és a szerver aktuális folyamat-/játékállapota alapján dönt a backend.",
+        "notChanged": "Nem kapcsol be önálló döntéshozást és nem hoz létre hozzá tartós célt. A jelszó nem kerül a listába vagy auditba.",
+        "recovery": "Leállított karakter a Karakterek nézetből újraindítható. Megszakadt feladatot csak az aktuális játékállapot ellenőrzése után indíts újra.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás.",
+        "approveLabel": "Karakter indítása"
+      }
     },
     {
       "id": "admin.bots-item-item.post",
@@ -4674,7 +5074,42 @@
           "method": "POST",
           "path": "/api/admin/bots/:id/stop-skill"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt karakter elindul, leáll, újraindul vagy a futó feladata megszakad a választott művelet szerint. A játékbeli kapcsolat és a folyamatban lévő munka érintett.",
+        "evidence": "A kijelölt karakternév és a szerver aktuális folyamat-/játékállapota alapján dönt a backend.",
+        "notChanged": "A leállítás nem fordítja vissza a már végrehajtott játékbeli lépéseket. A karakter indítása nem hoz létre tartós döntéshozót vagy önálló célokat.",
+        "recovery": "Leállított karakter a Karakterek nézetből újraindítható. Megszakadt feladatot csak az aktuális játékállapot ellenőrzése után indíts újra.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás.",
+        "variantField": "path",
+        "variants": {
+          "despawn": {
+            "mode": "required",
+            "changes": "A kijelölt botfolyamat leáll; a karakter kijelentkezése és utolsó mentése rövid időt igényelhet.",
+            "evidence": "A kijelölt karakternév és a szerver aktuális folyamat-/játékállapota alapján dönt a backend.",
+            "notChanged": "A leállítás nem fordítja vissza a már végrehajtott játékbeli lépéseket. A karakter indítása nem hoz létre tartós döntéshozót vagy önálló célokat.",
+            "recovery": "Leállított karakter a Karakterek nézetből újraindítható. Megszakadt feladatot csak az aktuális játékállapot ellenőrzése után indíts újra.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          },
+          "restart": {
+            "mode": "required",
+            "changes": "A kijelölt bot leáll, majd új folyamatból ismét bejelentkezik; a folyamatban lévő feladata megszakadhat.",
+            "evidence": "A kijelölt karakternév és a szerver aktuális folyamat-/játékállapota alapján dönt a backend.",
+            "notChanged": "A leállítás nem fordítja vissza a már végrehajtott játékbeli lépéseket. A karakter indítása nem hoz létre tartós döntéshozót vagy önálló célokat.",
+            "recovery": "Leállított karakter a Karakterek nézetből újraindítható. Megszakadt feladatot csak az aktuális játékállapot ellenőrzése után indíts újra.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          },
+          "stop-skill": {
+            "mode": "required",
+            "changes": "Csak a kijelölt karakter futó képességfolyamata áll le; a már végrehajtott lépései megmaradnak.",
+            "evidence": "A kijelölt karakternév és a szerver aktuális folyamat-/játékállapota alapján dönt a backend.",
+            "notChanged": "A leállítás nem fordítja vissza a már végrehajtott játékbeli lépéseket. A karakter indítása nem hoz létre tartós döntéshozót vagy önálló célokat.",
+            "recovery": "Leállított karakter a Karakterek nézetből újraindítható. Megszakadt feladatot csak az aktuális játékállapot ellenőrzése után indíts újra.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          }
+        }
+      }
     },
     {
       "id": "admin.bots-item.teleport.post",
@@ -4711,7 +5146,15 @@
           "method": "POST",
           "path": "/api/admin/bots/:id/teleport"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt online karakter pozíciója a kiválasztott engedélyezett célpontra változik.",
+        "evidence": "A karakter és a célpont azonosítóját, illetve az élő állapotot az engine ellenőrzi.",
+        "notChanged": "Nem jelent megtett utat vagy gazdasági teljesítést; a célpontlistán kívüli tetszőleges koordináta nem adható meg.",
+        "recovery": "Másik engedélyezett célpont új művelettel kérhető; automatikus visszatelepítés nincs.",
+        "retry": "Előbb frissítsd a karakter pozícióját vagy nézd meg a térképen; ne ismételd vakon a kérést."
+      }
     },
     {
       "id": "admin.bots.get",
@@ -4785,7 +5228,15 @@
           "method": "POST",
           "path": "/api/admin/bots/:id/offline-save/restore"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott korábbi másolat a teljes offline karaktermentés aktuális adatai helyébe lép. A jelenlegi állapotról előbb automatikus másolat készül.",
+        "evidence": "A kiválasztott karakter és a megnyitott mentés időpontja alapján, kizárólag igazoltan offline állapotban engedélyezhető. A backend elutasítja az időközben módosult mentést.",
+        "notChanged": "Nem fut játékbeli termelés vagy kereskedés, és nem keletkezik ilyen teljesítési bizonyíték.",
+        "recovery": "Módosítás előtt automatikus mentés készül. A szerkesztő Biztonsági másolatok részéből a megfelelő mentés választható vissza.",
+        "retry": "Hiba után töltsd újra a mentést és a másolatlistát. Elavult mentés adatait ne küldd újra változtatás nélkül."
+      }
     },
     {
       "id": "admin.bots-item.offline-save.get",
@@ -4859,7 +5310,15 @@
           "method": "POST",
           "path": "/api/admin/bots/:id/offline-save"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A megadott pénz, képesség-XP, hátizsák és bank az offline karakter mentésében felülíródik. Ez kézi állapotmódosítás, amely gazdasági injekciót is jelenthet.",
+        "evidence": "A kiválasztott karakter és a megnyitott mentés időpontja alapján, kizárólag igazoltan offline állapotban engedélyezhető. A backend elutasítja az időközben módosult mentést.",
+        "notChanged": "Nem fut játékbeli termelés vagy kereskedés, és nem keletkezik ilyen teljesítési bizonyíték.",
+        "recovery": "Módosítás előtt automatikus mentés készül. A szerkesztő Biztonsági másolatok részéből a megfelelő mentés választható vissza.",
+        "retry": "Hiba után töltsd újra a mentést és a másolatlistát. Elavult mentés adatait ne küldd újra változtatás nélkül."
+      }
     },
     {
       "id": "admin.teleport-destinations.get",
@@ -4970,7 +5429,15 @@
           "method": "POST",
           "path": "/api/admin/capability-gaps/:id/trials"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A fejlesztési próba valódi, még nem ellenőrzött képességet indíthat a kijelölt tesztkarakteren; tárgyat használhat fel vagy adhat el.",
+        "evidence": "A draft pontos verziója, a kijelölt tesztkarakter és a próba paraméterei alapján ellenőriz a backend.",
+        "notChanged": "A teszt nem publikál képességet és nem ad autonóm használati jogot. A sikertelen vagy hiányzó futásnapló nem bizonyít sikeres próbát.",
+        "recovery": "A futó feladat leállítható, a próba elvethető; a megtörtént játékbeli lépéseknek nincs általános visszavonása.",
+        "retry": "Előbb ellenőrizd a próba és a tesztkarakter állapotát. Második bizonyítékhoz külön új futás kell, nem ugyanazon futás újraszámolása."
+      }
     },
     {
       "id": "admin.skills.get",
@@ -5044,7 +5511,15 @@
           "method": "POST",
           "path": "/api/admin/skill-drafts/:id/run"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A fejlesztési próba valódi, még nem ellenőrzött képességet indíthat a kijelölt tesztkarakteren; tárgyat használhat fel vagy adhat el.",
+        "evidence": "A draft pontos verziója, a kijelölt tesztkarakter és a próba paraméterei alapján ellenőriz a backend.",
+        "notChanged": "A teszt nem publikál képességet és nem ad autonóm használati jogot. A sikertelen vagy hiányzó futásnapló nem bizonyít sikeres próbát.",
+        "recovery": "A futó feladat leállítható, a próba elvethető; a megtörtént játékbeli lépéseknek nincs általános visszavonása.",
+        "retry": "Előbb ellenőrizd a próba és a tesztkarakter állapotát. Második bizonyítékhoz külön új futás kell, nem ugyanazon futás újraszámolása."
+      }
     },
     {
       "id": "admin.skill-drafts.get",
@@ -5192,7 +5667,16 @@
           "method": "POST",
           "path": "/api/admin/skill-trials/:id/publish"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A pontosan megnevezett draftból a megadott változatlan verzió bekerül az ellenőrzött, közös képességtárba; a várakozó döntéshozók újratervezhetnek.",
+        "evidence": "A két független élő bizonyító futás, az egyező paraméterek, az ellenőrzési jelentés és a jóváhagyási azonosító alapján ismét ellenőriz a backend. Az összeállítás részletei alább olvashatók.",
+        "notChanged": "Nem kerül automatikusan az autonóm engedélylistára és a publikálás önmagában nem indít karaktert.",
+        "recovery": "A publikált változat változatlan. Hibás képesség további használatát a működési engedélyek szűkítésével kell megállítani; javításhoz új verzió és új ellenőrzés kell.",
+        "retry": "Előbb keresd meg a publikált verziót és a próba státuszát. Megváltozott bizonyítékhoz új jóváhagyást kell áttekinteni.",
+        "approveLabel": "Ellenőrzött verzió publikálása"
+      }
     },
     {
       "id": "admin.skill-runs.get",
@@ -5266,7 +5750,15 @@
           "method": "POST",
           "path": "/api/admin/skill-trials/:id/verify"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt próba meglévő futásbizonyítékai determinisztikus ellenőrzésre kerülnek; ellenőrzési jelentés és új próbaállapot készülhet.",
+        "evidence": "Az eredeti tesztkarakterhez és paraméterekhez tartozó futások és az aktuális próbaállapot alapján ellenőriz a backend.",
+        "notChanged": "Nem jelent automatikus publikálást, új játékbeli futást vagy autonóm engedélyt.",
+        "recovery": "Elvetés után a képességhiány ismét fejlesztési állapotba kerülhet; új próbához új bizonyíték kellhet.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.skill-trials-item.cancel.post",
@@ -5303,7 +5795,15 @@
           "method": "POST",
           "path": "/api/admin/skill-trials/:id/cancel"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt fejlesztési próba elvetett állapotba kerül, és a képességhiány ismét draft állapotban várhat javításra.",
+        "evidence": "Az eredeti tesztkarakterhez és paraméterekhez tartozó futások és az aktuális próbaállapot alapján ellenőriz a backend.",
+        "notChanged": "Nem jelent automatikus publikálást, új játékbeli futást vagy autonóm engedélyt.",
+        "recovery": "Elvetés után a képességhiány ismét fejlesztési állapotba kerülhet; új próbához új bizonyíték kellhet.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.skill-trials-item.run.post",
@@ -5340,7 +5840,15 @@
           "method": "POST",
           "path": "/api/admin/skill-trials/:id/run"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A fejlesztési próba valódi, még nem ellenőrzött képességet indíthat a kijelölt tesztkarakteren; tárgyat használhat fel vagy adhat el.",
+        "evidence": "A draft pontos verziója, a kijelölt tesztkarakter és a próba paraméterei alapján ellenőriz a backend.",
+        "notChanged": "A teszt nem publikál képességet és nem ad autonóm használati jogot. A sikertelen vagy hiányzó futásnapló nem bizonyít sikeres próbát.",
+        "recovery": "A futó feladat leállítható, a próba elvethető; a megtörtént játékbeli lépéseknek nincs általános visszavonása.",
+        "retry": "Előbb ellenőrizd a próba és a tesztkarakter állapotát. Második bizonyítékhoz külön új futás kell, nem ugyanazon futás újraszámolása."
+      }
     },
     {
       "id": "admin.skill-trials-item.publication-approval.get",
@@ -5446,7 +5954,11 @@
           "method": "POST",
           "path": "/api/admin/multi-agent-experiments/calibration-compare"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Kalibrációs összevetés rögzítése, nem élő beavatkozás."
+      }
     },
     {
       "id": "admin.experiment-parameter-profiles-item-item.apply-finished-products.post",
@@ -5483,7 +5995,15 @@
           "method": "POST",
           "path": "/api/admin/experiment-parameter-profiles/:id/:id/apply-finished-products"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott kísérleti profil pontos verziójának értékei az élő világ megfelelő tapasztalatipont-, újramegjelenési, piaci vagy késztermékszabályába kerülnek.",
+        "evidence": "A profilazonosító, verzió, ellenőrzött értékek és az aktív világmódosítás alapján ellenőriz a backend.",
+        "notChanged": "Nem állítja vissza a korábban megszerzett XP-t, végrehajtott kereskedést vagy már futó újramegjelenési időzítőket.",
+        "recovery": "Korábbi profil új alkalmazásával vagy megfelelő szabálymentés visszaállításával a későbbi szabály módosítható. A korábbi játékbeli következmények megmaradnak.",
+        "retry": "Ellenőrizd a kért és az aktív világmódosítás állapotát, valamint az alkalmazott profil verzióját."
+      }
     },
     {
       "id": "admin.multi-agent-experiments.compare.post",
@@ -5520,7 +6040,11 @@
           "method": "POST",
           "path": "/api/admin/multi-agent-experiments/compare"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Meglévő eredmények összevetése, nem új élő futás."
+      }
     },
     {
       "id": "admin.multi-agent-experiments.preflight.post",
@@ -5552,7 +6076,11 @@
           "path": "/api/admin/multi-agent-experiments/preflight"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.multi-agent-experiments-item.acceptance-bundle.get",
@@ -5690,7 +6218,11 @@
           "method": "POST",
           "path": "/api/admin/experiments"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Kísérleti adatpillanatkép készítése; nem állít vissza vagy módosít játékvilágot."
+      }
     },
     {
       "id": "admin.multi-agent-experiments.get",
@@ -5764,7 +6296,15 @@
           "method": "POST",
           "path": "/api/admin/multi-agent-experiments"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt résztvevők közös világban párhuzamos önálló munkaciklust kezdhetnek. Engedélyezett képességeik valós pénz-, tárgy- és játékállapot-változást okozhatnak.",
+        "evidence": "Legalább két külön online játékos-döntéshozó, pontos paraméterprofil és seed, továbbá a közös környezet indítás előtti ellenőrzése szükséges.",
+        "notChanged": "Ez nem elszigetelt szimuláció vagy visszaállítható szervermentés. Nem biztosít automatikus társadalmi sikert vagy teljes reprodukálhatóságot.",
+        "recovery": "A futó feladatok a karaktereknél, az önálló működés a vezérlőnél leállítható. A megtörtént átadásoknak nincs általános visszavonása.",
+        "retry": "Előbb keresd meg az új futást és résztvevői eredményeit. Néma vagy megszakadt válasz után ne indíts azonnal új kísérletet."
+      }
     },
     {
       "id": "admin.experiment-parameter-profiles.get",
@@ -5838,7 +6378,11 @@
           "method": "POST",
           "path": "/api/admin/experiment-parameter-profiles"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Változatlan paraméterverzió rögzítése; élő alkalmazása külön jóváhagyás."
+      }
     },
     {
       "id": "admin.experiment-parameter-profiles-item-item.apply-market.post",
@@ -5875,7 +6419,15 @@
           "method": "POST",
           "path": "/api/admin/experiment-parameter-profiles/:id/:id/apply-market"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott kísérleti profil pontos verziójának értékei az élő világ megfelelő tapasztalatipont-, újramegjelenési, piaci vagy késztermékszabályába kerülnek.",
+        "evidence": "A profilazonosító, verzió, ellenőrzött értékek és az aktív világmódosítás alapján ellenőriz a backend.",
+        "notChanged": "Nem állítja vissza a korábban megszerzett XP-t, végrehajtott kereskedést vagy már futó újramegjelenési időzítőket.",
+        "recovery": "Korábbi profil új alkalmazásával vagy megfelelő szabálymentés visszaállításával a későbbi szabály módosítható. A korábbi játékbeli következmények megmaradnak.",
+        "retry": "Ellenőrizd a kért és az aktív világmódosítás állapotát, valamint az alkalmazott profil verzióját."
+      }
     },
     {
       "id": "admin.experiment-parameter-profiles-item-item.apply-xp.post",
@@ -5912,7 +6464,15 @@
           "method": "POST",
           "path": "/api/admin/experiment-parameter-profiles/:id/:id/apply-xp"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott kísérleti profil pontos verziójának értékei az élő világ megfelelő tapasztalatipont-, újramegjelenési, piaci vagy késztermékszabályába kerülnek.",
+        "evidence": "A profilazonosító, verzió, ellenőrzött értékek és az aktív világmódosítás alapján ellenőriz a backend.",
+        "notChanged": "Nem állítja vissza a korábban megszerzett XP-t, végrehajtott kereskedést vagy már futó újramegjelenési időzítőket.",
+        "recovery": "Korábbi profil új alkalmazásával vagy megfelelő szabálymentés visszaállításával a későbbi szabály módosítható. A korábbi játékbeli következmények megmaradnak.",
+        "retry": "Ellenőrizd a kért és az aktív világmódosítás állapotát, valamint az alkalmazott profil verzióját."
+      }
     },
     {
       "id": "admin.experiment-parameter-profiles-item-item.apply-respawn.post",
@@ -5949,7 +6509,15 @@
           "method": "POST",
           "path": "/api/admin/experiment-parameter-profiles/:id/:id/apply-respawn"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott kísérleti profil pontos verziójának értékei az élő világ megfelelő tapasztalatipont-, újramegjelenési, piaci vagy késztermékszabályába kerülnek.",
+        "evidence": "A profilazonosító, verzió, ellenőrzött értékek és az aktív világmódosítás alapján ellenőriz a backend.",
+        "notChanged": "Nem állítja vissza a korábban megszerzett XP-t, végrehajtott kereskedést vagy már futó újramegjelenési időzítőket.",
+        "recovery": "Korábbi profil új alkalmazásával vagy megfelelő szabálymentés visszaállításával a későbbi szabály módosítható. A korábbi játékbeli következmények megmaradnak.",
+        "retry": "Ellenőrizd a kért és az aktív világmódosítás állapotát, valamint az alkalmazott profil verzióját."
+      }
     },
     {
       "id": "admin.economy-events.get",
@@ -6181,7 +6749,81 @@
           "method": "POST",
           "path": "/api/control-plane/servers/:id/migrate"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt kezelt világ saját engine- és gateway-folyamatai elindulnak.",
+        "evidence": "A mentett szerververzió, elkülönített portok, aktuális állapotverzió és kérésazonosító alapján ellenőriz a felügyelet.",
+        "notChanged": "Nem hoz létre másik világot, nem módosít más szerverfolyamatot és nem írja felül a mentést.",
+        "recovery": "A Saját szervereim oldalon Leállítás kérhető. Hibás indulásnál a műveleti állapot és privát napló ad támpontot.",
+        "retry": "A tartós műveletazonosító és szerverállapot alapján ellenőrizd az eredményt. Ne indíts párhuzamos második kérést.",
+        "variantField": "path",
+        "variants": {
+          "start": {
+            "mode": "required",
+            "changes": "A kijelölt kezelt világ saját engine- és gateway-folyamatai elindulnak.",
+            "evidence": "A mentett szerververzió, elkülönített portok, aktuális állapotverzió és kérésazonosító alapján ellenőriz a felügyelet.",
+            "notChanged": "Nem hoz létre másik világot, nem módosít más szerverfolyamatot és nem írja felül a mentést.",
+            "recovery": "A Saját szervereim oldalon Leállítás kérhető. Hibás indulásnál a műveleti állapot és privát napló ad támpontot.",
+            "retry": "A tartós műveletazonosító és szerverállapot alapján ellenőrizd az eredményt. Ne indíts párhuzamos második kérést.",
+            "approveLabel": "Világ indítása"
+          },
+          "stop": {
+            "mode": "required",
+            "changes": "A kijelölt világ saját folyamatai leállnak; a hozzá kapcsolódó karakterek kapcsolata megszűnik.",
+            "evidence": "A szerver saját igazolt folyamatai és az aktuális állapotverzió alapján ellenőriz a felügyelet.",
+            "notChanged": "Nem archiválja vagy törli a világot; a külön adminfelület elérhető marad.",
+            "recovery": "Az Indítás gombbal újraindítható a kezelt világ.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás.",
+            "approveLabel": "Világ leállítása"
+          },
+          "restart": {
+            "mode": "required",
+            "changes": "A kijelölt világ saját folyamatai leállnak, majd újraindulnak; a játékoskapcsolatok megszakadhatnak.",
+            "evidence": "Az igazolt szerverfolyamatok, mentett verzió és aktuális állapotverzió alapján ellenőriz a felügyelet.",
+            "notChanged": "Nem másik mentést tölt vissza és nem indít másik világot.",
+            "recovery": "Hibás újraindulásnál a szerver állapotát és a tartós művelethibát vizsgáld meg. Az újraindítás nem fordít vissza játékbeli lépéseket.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás.",
+            "approveLabel": "Világ újraindítása"
+          },
+          "archive": {
+            "mode": "required",
+            "changes": "A világ leáll, és archivált állapotba kerül. Az archivált világ ebből a felületből többé nem indítható el.",
+            "evidence": "A kiválasztott kezelt szerver, aktuális állapotverzió és tulajdonosi jogosultság alapján ellenőriz a felügyelet.",
+            "notChanged": "A világ mentései és naplói megmaradnak; ez nem végleges fájltörlés.",
+            "recovery": "Ehhez jelenleg nincs visszaaktiválási gomb. Csak dokumentált helyi helyreállítást vagy új világ létrehozását tervezd, az eredeti adatok megőrzésével.",
+            "retry": "Frissítsd a szerverkártyát és a műveleti állapotot. Archivált állapotnál ne próbáld az Indítást ismételni.",
+            "approveLabel": "Archiválás jóváhagyása"
+          },
+          "backup": {
+            "mode": "required",
+            "changes": "A világ szabályosan leáll, majd ellenőrzött teljes mentés készül. A világ leállítva marad.",
+            "evidence": "A kiválasztott világ saját folyamatai, aktuális állapotverziója és az ellenőrzött offline fájlok alapján készül mentés.",
+            "notChanged": "Nem indítja vissza a világot és nem állít vissza régebbi állapotot. A titoktár értékei nem exportálódnak másik gépre.",
+            "recovery": "A mentés elkészülte és ellenőrzése után külön Indítás kérhető. Sikertelen mentést ne használj visszaállításhoz.",
+            "retry": "A mentéslistát és a művelet eredményét ellenőrizd; a már elkészült mentés helyett ne készíts vakon újabbat.",
+            "approveLabel": "Leállítás és mentés"
+          },
+          "restore": {
+            "mode": "required",
+            "changes": "A világ leáll, a jelenlegi állapotról mentés készül, majd a kiválasztott ellenőrzött mentés adatai kerülnek vissza. A világ leállítva marad.",
+            "evidence": "A pontos mentésazonosító, a mentés ellenőrzött tartalma és a szerver aktuális állapotverziója alapján ellenőriz a felügyelet.",
+            "notChanged": "A titoktár változatlan marad. Ez a kiválasztott világ adatvisszaállítása, nem másik szerver módosítása.",
+            "recovery": "A visszaállítás előtti mentésből lehetséges ellenőrzött visszatérés. Helyreállítást igénylő hibánál indítás előtt a karbantartási naplót kell rendezni.",
+            "retry": "A tartós műveleti és szerverállapotot olvasd vissza. RECOVERY_REQUIRED hibánál ne kérj újabb vak visszaállítást vagy indítást.",
+            "approveLabel": "Mentés visszaállítása"
+          },
+          "migrate": {
+            "mode": "required",
+            "changes": "A világ leáll, ellenőrzött mentés készül, majd a kiválasztott forrásverzióra migrál. Leállítva marad.",
+            "evidence": "A célverzió, a világ saját fájljai, előzetes mentése és aktuális állapotverziója alapján ellenőriz a felügyelet.",
+            "notChanged": "Nem indítja vissza automatikusan a világot és nem exportálja másik gépre a titkokat.",
+            "recovery": "Sikertelen migráció után a mentés és karbantartási napló alapján a felügyelet visszagörgethet; befejezetlen helyreállítást előbb rendezni kell.",
+            "retry": "Ellenőrizd a tényleges forrásverziót és a tartós műveleteredményt. Csak rendezett állapotból kérj új migrációt.",
+            "approveLabel": "Migráció jóváhagyása"
+          }
+        }
+      }
     },
     {
       "id": "control.servers.get",
@@ -6261,7 +6903,15 @@
           "method": "POST",
           "path": "/api/control-plane/servers"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Új, elkülönített helyi világ készül a választott névvel, forrásverzióval és világsablonnal.",
+        "evidence": "A név, támogatott verzió/sablon és az egyedi kérésazonosító alapján készíti elő a felügyelet.",
+        "notChanged": "Nem indul automatikusan engine, bot vagy AI; más szerver adata nem másolódik át.",
+        "recovery": "Az elkészült világ a saját kártyáján archiválható. Félkész előkészítésnél a tartós művelet állapotát ellenőrizd.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "control.servers-item.grants-account.get",
@@ -6335,7 +6985,16 @@
           "method": "PUT",
           "path": "/api/control-plane/servers/:id/grants/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt fiók adott szerverhez tartozó hozzáférése a megadott szerepkörre vagy tulajdonjogra változik. Teljes tulajdonjog más fiókok és beállítások kezelésére is jogosít.",
+        "evidence": "A kijelölt fiók, szerver és kifejezett szerepkör-/tulajdonjog-döntés alapján ellenőriz a backend. Az utolsó tulajdonos védelme továbbra is szerveroldali.",
+        "notChanged": "Nem mozgat játékbeli vagyont és nem hoz létre új fiókot. A már elvégzett adminműveleteket a visszavonás nem fordítja vissza.",
+        "recovery": "A megmaradó tulajdonos új, auditált szerepkör-módosítást végezhet. Hozzáférés elvesztése esetén másik jogosult tulajdonos segítsége kell.",
+        "retry": "Frissítsd a hozzáféréslistát; ellenőrizd a tényleges szerepkört, mielőtt újra módosítanád.",
+        "approveLabel": "Szerverhozzáférés módosítása"
+      }
     },
     {
       "id": "control.status.get",
@@ -6558,7 +7217,11 @@
           "path": "/api/admin/population-memory/:id/transfer"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.society.dashboard.events-item.get",
@@ -6723,7 +7386,11 @@
           "path": "/api/admin/society/xp-baseline"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.society.xp-execution-item.get",
@@ -6787,7 +7454,11 @@
           "path": "/api/admin/society/xp-execution/:id"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.population-entry.apply.post",
@@ -6819,7 +7490,11 @@
           "path": "/api/admin/population-entry/apply"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.population-entry.preview.post",
@@ -6851,7 +7526,11 @@
           "path": "/api/admin/population-entry/preview"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.population-demographics.get",
@@ -7105,7 +7784,11 @@
           "path": "/api/admin/population-estates/:id/inheritance"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.world-director.preview.post",
@@ -7142,7 +7825,11 @@
           "method": "POST",
           "path": "/api/admin/world-director/preview"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Determininsztikus, auditált előnézet; nem küld eseményt a világba."
+      }
     },
     {
       "id": "admin.world-director.templates.get",
@@ -7253,7 +7940,15 @@
           "method": "POST",
           "path": "/api/admin/world-director/cycles"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A világesemény ütemezése megváltozik, vagy a megadott seed/cikluskulcs tartós kézbesítési sorba kerül. Aktív automatikával és engine-módosítással később játékbeli jelzés jelenhet meg.",
+        "evidence": "A jóváhagyott sablonkészlet, seed, cikluskulcs és mentett ütemezés alapján ellenőriz a backend.",
+        "notChanged": "A sorba állítás nem azonos a kézbesítés bizonyítékával; az előnézet önmagában nem módosítja a világot.",
+        "recovery": "Az automatikus ütemezés kikapcsolható, de ez nem általános törlése a már sorba állított vagy kézbesített eseményeknek.",
+        "retry": "A cikluskulcs és kézbesítési napló állapotát ellenőrizd. Új cikluskulcs új eseményt jelenthet."
+      }
     },
     {
       "id": "admin.world-director.config.put",
@@ -7290,7 +7985,15 @@
           "method": "PUT",
           "path": "/api/admin/world-director/config"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A világesemény ütemezése megváltozik, vagy a megadott seed/cikluskulcs tartós kézbesítési sorba kerül. Aktív automatikával és engine-módosítással később játékbeli jelzés jelenhet meg.",
+        "evidence": "A jóváhagyott sablonkészlet, seed, cikluskulcs és mentett ütemezés alapján ellenőriz a backend.",
+        "notChanged": "A sorba állítás nem azonos a kézbesítés bizonyítékával; az előnézet önmagában nem módosítja a világot.",
+        "recovery": "Az automatikus ütemezés kikapcsolható, de ez nem általános törlése a már sorba állított vagy kézbesített eseményeknek.",
+        "retry": "A cikluskulcs és kézbesítési napló állapotát ellenőrizd. Új cikluskulcs új eseményt jelenthet."
+      }
     },
     {
       "id": "admin.properties.reconcile.post",
@@ -7327,7 +8030,34 @@
           "method": "POST",
           "path": "/api/admin/properties/reconcile"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A félbemaradt vásárlás kézi döntése szerint a vevő tulajdonossá válik, vagy az ingatlan felszabadul.",
+        "evidence": "A pontos tranzakcióazonosító és a tényleges játékosmentésben ellenőrzött pénzterhelés alapján dönthetsz. Az indoklás nem helyettesíti ezt a bizonyítékot.",
+        "notChanged": "Nem von le újabb pénzt és nem térít vissza pénzt. A terhelés megtörténtnek jelölése önmagában nem terhelési bizonyíték.",
+        "recovery": "Ez jóváhagyott egyeztetés; automatikus ellenirányú pénzművelet nincs. Téves döntést csak az eredeti bizonylatok alapján lehet helyben rendezni.",
+        "retry": "A tranzakció és az ingatlan tartós állapotát olvasd vissza. Lezárt tranzakció helyett ne hozz létre új, kitalált vásárlást.",
+        "variantField": "resolution",
+        "variants": {
+          "commit-debited": {
+            "mode": "required",
+            "changes": "Az ellenőrzött, már megtörtént terhelés alapján a vevő tulajdonossá válik. Új pénzlevonás nincs.",
+            "evidence": "A pontos tranzakcióazonosító és a tényleges játékosmentésben ellenőrzött pénzterhelés alapján dönthetsz. Az indoklás nem helyettesíti ezt a bizonyítékot.",
+            "notChanged": "Nem von le újabb pénzt és nem térít vissza pénzt. A terhelés megtörténtnek jelölése önmagában nem terhelési bizonyíték.",
+            "recovery": "Ez jóváhagyott egyeztetés; automatikus ellenirányú pénzművelet nincs. Téves döntést csak az eredeti bizonylatok alapján lehet helyben rendezni.",
+            "retry": "A tranzakció és az ingatlan tartós állapotát olvasd vissza. Lezárt tranzakció helyett ne hozz létre új, kitalált vásárlást."
+          },
+          "release-unpaid": {
+            "mode": "required",
+            "changes": "A ki nem fizetett vásárlás foglalása felszabadul. Pénzvisszafizetés nincs.",
+            "evidence": "A pontos tranzakcióazonosító és a tényleges játékosmentésben ellenőrzött pénzterhelés alapján dönthetsz. Az indoklás nem helyettesíti ezt a bizonyítékot.",
+            "notChanged": "Nem von le újabb pénzt és nem térít vissza pénzt. A terhelés megtörténtnek jelölése önmagában nem terhelési bizonyíték.",
+            "recovery": "Ez jóváhagyott egyeztetés; automatikus ellenirányú pénzművelet nincs. Téves döntést csak az eredeti bizonylatok alapján lehet helyben rendezni.",
+            "retry": "A tranzakció és az ingatlan tartós állapotát olvasd vissza. Lezárt tranzakció helyett ne hozz létre új, kitalált vásárlást."
+          }
+        }
+      }
     },
     {
       "id": "admin.properties-item.reset.post",
@@ -7364,7 +8094,15 @@
           "method": "POST",
           "path": "/api/admin/properties/:id/reset"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott ingatlan fejlesztői visszaállítással felszabadulhat; a meglévő tulajdonosi állapot változik.",
+        "evidence": "A kiválasztott ingatlan, az online vevő, a tényleges ár/fedezet és az ingatlan aktuális állapota alapján ellenőriz a backend.",
+        "notChanged": "Nem fizet vissza GP-t és nem bizonyítja, hogy a korábbi vásárlás pénzügyileg rendeződött.",
+        "recovery": "Téves vásárlásnak nincs általános automatikus visszafizetése. Csak a valódi bizonylatok alapján kérj egyeztetést.",
+        "retry": "Előbb ellenőrizd a vevő mentését, az ingatlant és a függő tranzakciókat. Ne kérj új vásárlást, amíg a korábbi kimenetele nem ismert."
+      }
     },
     {
       "id": "admin.properties-item.purchase.post",
@@ -7401,7 +8139,15 @@
           "method": "POST",
           "path": "/api/admin/properties/:id/purchase"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Az ingatlan tulajdonosa vagy vásárlási állapota a választott művelet szerint módosulhat; valódi vásárlásnál a vevő GP-je terhelhető.",
+        "evidence": "A kiválasztott ingatlan, az online vevő, a tényleges ár/fedezet és az ingatlan aktuális állapota alapján ellenőriz a backend.",
+        "notChanged": "A fejlesztői visszaállítás nem térít vissza coinokat. A tulajdon átírása nem bizonyít korábbi pénzterhelést.",
+        "recovery": "Téves vásárlásnak nincs általános automatikus visszafizetése. Csak a valódi bizonylatok alapján kérj egyeztetést.",
+        "retry": "Előbb ellenőrizd a vevő mentését, az ingatlant és a függő tranzakciókat. Ne kérj új vásárlást, amíg a korábbi kimenetele nem ismert."
+      }
     },
     {
       "id": "admin.properties.get",
@@ -7512,7 +8258,15 @@
           "method": "POST",
           "path": "/api/admin/engine/restart"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott helyi játékszerver-folyamat újraindul; az online karakterek kapcsolata megszakadhat, és az új szabályok aktiválódhatnak.",
+        "evidence": "A kiválasztott szerver ellenőrzött engine-folyamata és a mentett konfiguráció alapján jár el a felügyelet.",
+        "notChanged": "A külön admin control plane és gateway nem ennek a műveletnek a leállítási célja. A restart nem jelent régi mentésre visszaállítást.",
+        "recovery": "Ha az indulás hibás, a folyamatállapotot és a privát naplót kell ellenőrizni; szükség esetén korábbi konfigurációt külön visszaállítani.",
+        "retry": "Előbb várd meg az állapotellenőrzést és nézd meg az új engine-folyamatot; ne kérj párhuzamos újraindítást."
+      }
     },
     {
       "id": "admin.world-genesis-item.external-trade-observe.get",
@@ -7576,7 +8330,11 @@
           "path": "/api/admin/world-genesis/:id/external-trade/observe"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.world-mods.backups.get",
@@ -7650,7 +8408,11 @@
           "method": "POST",
           "path": "/api/admin/world-mods/backups"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Szabálykonfiguráció másolatának rögzítése; nem aktivál új szabályt."
+      }
     },
     {
       "id": "admin.world-genesis.start.post",
@@ -7682,7 +8444,11 @@
           "path": "/api/admin/world-genesis/start"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.world-genesis.preview.post",
@@ -7714,7 +8480,11 @@
           "path": "/api/admin/world-genesis/preview"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.world-genesis-item.integrity.get",
@@ -7778,7 +8548,11 @@
           "path": "/api/admin/world-genesis/:id/reset"
         }
       ],
-      "followup": "26.7"
+      "followup": "26.7",
+      "review": {
+        "mode": "blocked",
+        "reason": "Ehhez még nincs felületi végrehajtás. Bekötésekor előbb műveletspecifikus jóváhagyási leírás kell."
+      }
     },
     {
       "id": "admin.world-genesis.runs.get",
@@ -7879,7 +8653,15 @@
           "method": "PUT",
           "path": "/api/admin/world-mods/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A világ kért szabálykonfigurációja vagy a kiválasztott korábbi szabálymentés kerül alkalmazásra; az azonnal újratölthető részek aktiválódhatnak.",
+        "evidence": "Az aktuális állapotverzió, a módosítás érvényes paraméterei, függőségei és visszaállításnál a kiválasztott mentés alapján ellenőriz a backend.",
+        "notChanged": "Nem teljes szervermentés visszaállítása. Az újraindítást vagy migrációt igénylő szabályok ettől még nem feltétlenül aktívak.",
+        "recovery": "Módosítás/visszaállítás előtt szabálymentés készül. A kezelőablak Konfigurációmentések részéből korábbi állapot választható; ez a megtörtént gazdasági hatásokat nem fordítja vissza.",
+        "retry": "Olvasd vissza a kért és aktív állapotot. Elavult állapotverziónál frissíts, ne ismételd változtatás nélkül a mentést."
+      }
     },
     {
       "id": "admin.world-mods.backups-item.restore.post",
@@ -7916,7 +8698,15 @@
           "method": "POST",
           "path": "/api/admin/world-mods/backups/:id/restore"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A világ kért szabálykonfigurációja vagy a kiválasztott korábbi szabálymentés kerül alkalmazásra; az azonnal újratölthető részek aktiválódhatnak.",
+        "evidence": "Az aktuális állapotverzió, a módosítás érvényes paraméterei, függőségei és visszaállításnál a kiválasztott mentés alapján ellenőriz a backend.",
+        "notChanged": "Nem teljes szervermentés visszaállítása. Az újraindítást vagy migrációt igénylő szabályok ettől még nem feltétlenül aktívak.",
+        "recovery": "Módosítás/visszaállítás előtt szabálymentés készül. A kezelőablak Konfigurációmentések részéből korábbi állapot választható; ez a megtörtént gazdasági hatásokat nem fordítja vissza.",
+        "retry": "Olvasd vissza a kért és aktív állapotot. Elavult állapotverziónál frissíts, ne ismételd változtatás nélkül a mentést."
+      }
     },
     {
       "id": "admin.world-mods.get",
@@ -7990,7 +8780,15 @@
           "method": "POST",
           "path": "/api/admin/world-mods/reload"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "Csak az újratöltésre alkalmas világmódosítások aktív konfigurációja frissül az engine-ben.",
+        "evidence": "A kért konfiguráció, az aktív engine-verzió és az egyes módosítások újratöltési képessége alapján ellenőriz a backend.",
+        "notChanged": "Az újraindítást, migrációt vagy visszagörgetést igénylő módosítások aktív állapota változatlan maradhat.",
+        "recovery": "Szükség esetén korábbi szabálymentést válassz, majd annak aktiválását külön ellenőrizd. A korábbi játékesemények megmaradnak.",
+        "retry": "A kért és aktív állapotot és a függő módosításokat ellenőrizd, mielőtt ismét újratöltenél."
+      }
     },
     {
       "id": "admin.businesses-item.employments.post",
@@ -8027,7 +8825,15 @@
           "method": "POST",
           "path": "/api/admin/businesses/:id/employments"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kiválasztott dolgozó új munkaköri jogviszonyt kap a vállalkozásnál, a megadott díjazással és elvárt képességgel.",
+        "evidence": "A kiválasztott vállalkozás, dolgozó vagy javaslat és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A jogviszony vagy szabály mentése önmagában nem bizonyít teljesített munkát és nem fizet automatikus bért.",
+        "recovery": "A létrejött jogviszony a vállalkozásnál külön Lezárás művelettel szüntethető meg. Az addig megtörtént munkát és díjazást ez nem fordítja vissza.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.businesses-item.employments-item.put",
@@ -8064,7 +8870,15 @@
           "method": "PUT",
           "path": "/api/admin/businesses/:id/employments/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A kijelölt dolgozó adott munkaköri jogviszonya lezárul; az arra épülő új munkamegbízások jogosultsága változik.",
+        "evidence": "A kiválasztott vállalkozás, dolgozó vagy javaslat és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A jogviszony vagy szabály mentése önmagában nem bizonyít teljesített munkát és nem fizet automatikus bért.",
+        "recovery": "A lezárt jogviszony helyett új foglalkoztatás hozható létre. A korábbi munkát és elszámolást nem írja át.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.businesses-item.put",
@@ -8101,7 +8915,15 @@
           "method": "PUT",
           "path": "/api/admin/businesses/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A vállalkozás állapota, dolgozója vagy jóváhagyott működési szabálya módosul. Jóváhagyott szabály alapján később munkamegbízások is létrejöhetnek.",
+        "evidence": "A kiválasztott vállalkozás, dolgozó vagy javaslat és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A jogviszony vagy szabály mentése önmagában nem bizonyít teljesített munkát és nem fizet automatikus bért.",
+        "recovery": "A szünetelő vállalkozás újra aktiválható. A lezárt vállalkozás csak olvasható, nem nyitható újra; lezáráskor az alkalmazotti jogviszonyok és üzleti szabályok is lezárulnak.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+      }
     },
     {
       "id": "admin.business-role-definitions.get",
@@ -8207,7 +9029,11 @@
           "method": "POST",
           "path": "/api/admin/businesses"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "Vállalkozás alapadatainak rögzítése; nem fizet automatikus bért."
+      }
     },
     {
       "id": "admin.businesses-item.policies-item.put",
@@ -8244,7 +9070,34 @@
           "method": "PUT",
           "path": "/api/admin/businesses/:id/policies/:id"
         }
-      ]
+      ],
+      "review": {
+        "mode": "required",
+        "changes": "A vállalkozás állapota, dolgozója vagy jóváhagyott működési szabálya módosul. Jóváhagyott szabály alapján később munkamegbízások is létrejöhetnek.",
+        "evidence": "A kiválasztott vállalkozás, dolgozó vagy javaslat és az aktuális állapotverzió alapján ellenőriz a backend.",
+        "notChanged": "A jogviszony vagy szabály mentése önmagában nem bizonyít teljesített munkát és nem fizet automatikus bért.",
+        "recovery": "Lezárt jogviszony helyett új jogviszony kellhet. Lezárt vállalkozás nem feltétlenül aktiválható újra; a lezárás előtt ellenőrizd a nyitott munkákat.",
+        "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás.",
+        "variantField": "decision",
+        "variants": {
+          "approve": {
+            "mode": "required",
+            "changes": "A kijelölt üzleti javaslat jóváhagyott működési szabállyá válik, és a vállalkozás későbbi munkamegbízásait befolyásolja.",
+            "evidence": "A kiválasztott vállalkozás, dolgozó vagy javaslat és az aktuális állapotverzió alapján ellenőriz a backend.",
+            "notChanged": "A jogviszony vagy szabály mentése önmagában nem bizonyít teljesített munkát és nem fizet automatikus bért.",
+            "recovery": "Lezárt jogviszony helyett új jogviszony kellhet. Lezárt vállalkozás nem feltétlenül aktiválható újra; a lezárás előtt ellenőrizd a nyitott munkákat.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          },
+          "reject": {
+            "mode": "required",
+            "changes": "A kijelölt üzleti javaslat elutasításra kerül; ebből a javaslatból nem lesz aktív működési szabály.",
+            "evidence": "A kiválasztott vállalkozás, dolgozó vagy javaslat és az aktuális állapotverzió alapján ellenőriz a backend.",
+            "notChanged": "A jogviszony vagy szabály mentése önmagában nem bizonyít teljesített munkát és nem fizet automatikus bért.",
+            "recovery": "Lezárt jogviszony helyett új jogviszony kellhet. Lezárt vállalkozás nem feltétlenül aktiválható újra; a lezárás előtt ellenőrizd a nyitott munkákat.",
+            "retry": "Hiba vagy megszakadt válasz után előbb frissítsd az érintett állapotot és nézd meg a naplót. Ne következtess a válasz hiányából arra, hogy nem történt módosítás."
+          }
+        }
+      }
     },
     {
       "id": "admin.agents-item.business-policy-proposals.post",
@@ -8281,7 +9134,12 @@
           "method": "POST",
           "path": "/api/admin/agents/:id/business-policy-proposals"
         }
-      ]
+      ],
+      "review": {
+        "mode": "direct",
+        "reason": "A megadott üzleti javaslat rögzítése; nem modellhívás, nem aktiválja a javaslatot és nem indít munkát."
+      }
     }
-  ]
+  ],
+  "reviewSchemaVersion": 1
 }

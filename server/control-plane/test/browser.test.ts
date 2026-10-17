@@ -3,6 +3,7 @@ import { mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import puppeteer from 'puppeteer';
+import { approveOperation } from '../../gateway/admin/test-review-helper.js';
 import { createControlPlane } from '../service.js';
 import { controlPlaneConfig } from '../config.js';
 import { readAdminLlmSettings } from '../../gateway/admin/llm-settings.js';
@@ -33,6 +34,7 @@ test('maintenance UI backs up, selects a snapshot, restores and migrates with vi
         const click = async (text: string) => {
             await page.waitForFunction(label => Array.from(document.querySelectorAll('.server-card button')).some(button => button.textContent === label && !(button as HTMLButtonElement).disabled), {}, text);
             await page.evaluate(label => (Array.from(document.querySelectorAll('.server-card button')).find(button => button.textContent === label) as HTMLButtonElement).click(), text);
+            if (text !== 'Mentések betöltése') await approveOperation(page);
         };
         await click('Mentés készítése'); await page.waitForFunction(() => document.getElementById('lifecycle-message')!.textContent === 'A művelet befejeződött.');
         await page.waitForFunction(() => !document.querySelector('.server-card button:disabled'));
@@ -163,6 +165,7 @@ test('two admin tabs keep independent mandatory contexts, settings and an explic
             (form.elements.namedItem('model') as HTMLInputElement).value = 'changed-only-b';
             (form.elements.namedItem('reason') as HTMLInputElement).value = 'context test'; form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         });
+        await approveOperation(b);
         await b.waitForFunction(() => document.querySelector('#toast')?.textContent?.includes('elmentve'));
         expect(writes).toEqual([ids[1]!]); expect(settings[0]!.config.model).toBe('model-0');
         expect(await a.$eval('#llm-settings-form [name="model"]', element => (element as HTMLInputElement).value)).toBe('model-0');
@@ -200,15 +203,17 @@ test('server creation and lifecycle actions show visible progress, failures and 
         await page.waitForSelector('#server-create:not([hidden])');
         await page.type('#server-create-form [name="name"]', 'Böngészős világ');
         await page.select('#server-create-form [name="template"]', 'closed-economy'); await page.click('#server-create-form button');
+        await approveOperation(page);
         const waitState = (state: string) => page.waitForFunction(text => Array.from(document.querySelectorAll('.server-card > p')).some(element => element.textContent === text), {}, state);
         await waitState('Leállítva'); await page.waitForSelector('.server-card [data-action="start"]:not(:disabled)');
-        await page.click('.server-card [data-action="start"]'); await waitState('Fut');
+        await page.click('.server-card [data-action="start"]'); await approveOperation(page); await waitState('Fut');
         await page.waitForSelector('.server-card [data-action="restart"]:not(:disabled)'); await page.click('.server-card [data-action="restart"]');
+        await approveOperation(page);
         await page.waitForFunction(() => document.querySelector('#lifecycle-message')?.textContent === 'A művelet befejeződött.');
-        await page.waitForSelector('.server-card [data-action="stop"]:not(:disabled)'); await page.click('.server-card [data-action="stop"]'); await waitState('Leállítva');
-        failStart = true; await page.waitForSelector('.server-card [data-action="start"]:not(:disabled)'); await page.click('.server-card [data-action="start"]'); await waitState('Műveleti hiba');
+        await page.waitForSelector('.server-card [data-action="stop"]:not(:disabled)'); await page.click('.server-card [data-action="stop"]'); await approveOperation(page); await waitState('Leállítva');
+        failStart = true; await page.waitForSelector('.server-card [data-action="start"]:not(:disabled)'); await page.click('.server-card [data-action="start"]'); await approveOperation(page); await waitState('Műveleti hiba');
         expect(await page.$eval('#lifecycle-message', element => element.textContent)).not.toContain('private fixture detail');
-        await page.waitForSelector('.server-card [data-action="archive"]:not(:disabled)'); await page.click('.server-card [data-action="archive"]'); await waitState('Archiválva');
+        await page.waitForSelector('.server-card [data-action="archive"]:not(:disabled)'); await page.click('.server-card [data-action="archive"]'); await approveOperation(page); await waitState('Archiválva');
         expect(await page.$$('.server-card button')).toHaveLength(0);
         await mkdir(join(import.meta.dir, '../../../.local/verification'), { recursive: true });
         await page.setViewport({ width: 1440, height: 1100 }); await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-4-lifecycle-desktop.png'), fullPage: true });
@@ -247,7 +252,7 @@ test('owner can create an account, grant/revoke access, and a non-owner can log 
             const row = Array.from(document.querySelectorAll('#account-list li')).find(row => row.textContent?.startsWith('ui-guest ·'))!;
             (row.querySelector('button') as HTMLButtonElement).click();
         });
-        await waitOwnership(false); await toggleGuest(); await waitOwnership(true); await toggleGuest(); await waitOwnership(false);
+        await waitOwnership(false); await toggleGuest(); await approveOperation(page); await waitOwnership(true); await toggleGuest(); await approveOperation(page); await waitOwnership(false);
         await page.setViewport({ width: 1024, height: 1000 });
         await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-2-owner-accounts.png'), fullPage: true });
         expect((await page.cookies()).find(cookie => cookie.name === 'rs-control-session')?.httpOnly).toBe(true);

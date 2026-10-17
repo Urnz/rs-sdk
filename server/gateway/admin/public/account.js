@@ -1,8 +1,9 @@
 'use strict';
 const byId = id => document.getElementById(id);
 let accountSession;
-function message(text, error = false) { byId('account-message').textContent = text; byId('account-message').dataset.error = String(error); }
+function message(text, error = false) { byId('account-message').textContent = text; byId('account-message').dataset.error = String(error && text !== 'A műveletet nem indítottuk el.'); }
 async function accountApi(path, data, method = 'POST') {
+    if (data !== undefined && path !== 'login') await (await import('./operation-review.js')).reviewMutation('/api/control-plane/' + path, method, data);
     const headers = {};
     if (data !== undefined) {
         headers['Content-Type'] = 'application/json'; headers['X-Admin-Request'] = 'rs-sdk-admin';
@@ -41,8 +42,7 @@ async function loadAccount() {
         label.textContent = `${account.username} · ${account.ownsLocalServer ? 'tulajdonos' : 'nincs szerverhozzáférés'}`;
         button.type = 'button'; button.textContent = account.ownsLocalServer ? 'Tulajdonjog visszavonása' : 'Tulajdonjog megadása';
         button.addEventListener('click', async () => {
-            const action = account.ownsLocalServer ? 'visszavonod' : 'megadod';
-            if (!confirm(`Biztosan ${action} ${account.username} teljes tulajdonosi jogosultságát a helyi szerverhez?`)) return;
+
             button.disabled = true;
             try { await accountApi(`accounts/${account.id}/ownership`, { granted: !account.ownsLocalServer }, 'PUT'); await loadAccount(); message('A jogosultság frissült.'); }
             catch (error) { message(error.message, true); } finally { button.disabled = false; }

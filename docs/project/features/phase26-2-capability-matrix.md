@@ -4,6 +4,11 @@
 backend–frontend kapcsolatok ellenőrzése. A helyi/private emulator adminjára
 vonatkozik; hivatalos RuneScape szolgáltatáshoz nem kapcsolódik.
 
+Az alábbi verzió- és bizonyítékszámok a 26.2 elfogadáskori, 1.0.0-s
+állapotot rögzítik. A 26.3-ban a mátrix 1.1.0-ra bővült a
+[műveleti jóváhagyási szabályokkal](phase26-3-operation-reviews.md);
+a műveletek és ismert felületi hiányok száma változatlan.
+
 ## Használat
 
 A szerver fejlécében válaszd a **Műveletek keresése** hivatkozást. A korlátozott

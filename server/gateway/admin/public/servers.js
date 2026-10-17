@@ -9,6 +9,7 @@ const lifecycleMessage = document.getElementById('lifecycle-message');
 const stateLabels = { provisioning: 'Létrehozás folyamatban', stopped: 'Leállítva', starting: 'Indítás folyamatban', running: 'Fut', stopping: 'Leállítás folyamatban', restarting: 'Újraindítás folyamatban', archiving: 'Archiválás folyamatban', archived: 'Archiválva', failed: 'Műveleti hiba', maintenance: 'Karbantartás folyamatban' };
 function lifecycleStatus(text, error = false) { lifecycleMessage.textContent = text; lifecycleMessage.dataset.error = String(error); }
 async function lifecycleApi(path, data) {
+    if (data) await (await import('./operation-review.js')).reviewMutation('/api/control-plane/servers' + path, 'POST', data);
     const headers = {};
     if (data) {
         const sessionResponse = await fetch('/api/control-plane/session', { cache: 'no-store' });
@@ -43,7 +44,8 @@ async function mutate(path, data) {
         const { operation } = await lifecycleApi(path, data);
         lifecycleStatus('A művelet elindult; az eredményre várunk…');
         await update(); return await watchOperation(operation);
-    } catch (error) { lifecycleStatus(`${error.message} A kérés kimenetele bizonytalan lehet; ellenőrizd a szerver állapotát.`, true); }
+    } catch (error) { lifecycleStatus(['REVIEW_CANCELLED', 'REVIEW_NOT_SENT'].includes(error.code) ? error.message
+        : `${error.message} A kérés kimenetele bizonytalan lehet; ellenőrizd a szerver állapotát.`, error.code !== 'REVIEW_CANCELLED'); }
     finally { mutationPending = false; await update(); }
 }
 function card(server) {
@@ -75,7 +77,7 @@ function card(server) {
             const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.dataset.action = action; button.disabled = mutationPending;
             const requestKey = crypto.randomUUID();
             button.addEventListener('click', async () => {
-                if (action === 'archive' && !confirm('A szerver leáll és archiválva marad. A mentések és naplók megmaradnak; az archivált szerver nem indítható újra. Folytatod?')) return;
+
                 button.disabled = true;
                 try { await mutate(`/${server.id}/${action}`, { requestKey, expectedRevision: server.managed.revision }); }
                 finally { button.disabled = false; }
@@ -85,9 +87,7 @@ function card(server) {
     if (server.role === 'owner' && server.managed?.maintenanceAvailable && ['stopped', 'running', 'failed'].includes(server.managed.state)) {
         const maintenance = document.createElement('div');
         const run = async (action, extra = {}) => {
-            if (!confirm(action === 'restore' ? 'A világ leáll, a jelenlegi állapotról mentés készül, majd a kiválasztott mentés áll vissza. A titoktár változatlan marad. Folytatod?'
-                : action === 'migrate' ? 'A világ leáll, ellenőrzött mentés készül, majd frissül a forrásverzió. Leállítva marad; indítás előtt ellenőrizd az eredményt. Folytatod?'
-                : 'A világ szabályosan leáll és ellenőrzött mentés készül. Leállítva marad. Folytatod?')) return;
+
             await mutate(`/${server.id}/${action}`, { requestKey: crypto.randomUUID(), expectedRevision: server.managed.revision, ...extra });
         };
         const backup = document.createElement('button'); backup.type = 'button'; backup.textContent = 'Mentés készítése'; backup.disabled = mutationPending;

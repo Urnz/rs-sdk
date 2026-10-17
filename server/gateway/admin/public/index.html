@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>RS Agent Admin</title>
     <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="operation-review.css">
 </head>
 <body>
     <a class="skip-navigation" href="#admin-view-title">Ugrás a tartalomra</a>
@@ -561,7 +562,7 @@
             <label>Jelszó <span class="muted">(ha nincs helyben elmentve)</span><input name="password" type="password" autocomplete="new-password"></label>
             <label>Szerver<input name="server" value="localhost:8888" required></label>
             <label>Indoklás<input name="reason" value="Kézi admin spawn" required></label>
-            <label class="check"><input name="rememberCredentials" type="checkbox"> A jelszó mentése kizárólag a helyi, gitből kizárt bot.env fájlba</label>
+            <label class="check"><input name="rememberCredentials" type="checkbox"> A jelszó megjegyzése a Windows titoktárban</label>
             <p class="dialog-note">A jelszó nem jelenik meg a botlistában és nem kerül az auditnaplóba.</p>
             <div class="dialog-actions"><button type="button" class="button ghost dialog-close">Mégse</button><button class="button primary" value="submit">Indítás</button></div>
         </form>

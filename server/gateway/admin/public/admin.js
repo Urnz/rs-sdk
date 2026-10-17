@@ -2,6 +2,7 @@ import { mountSocietyDashboard } from './society-dashboard.js';
 import { mountConnectionStatus } from './connection-status.js';
 import { contextHeaders, serverId, tokenKey } from './server-context.js';
 import { mountAdminNavigation } from './navigation.js';
+import { reviewMutation, reviewCancelledMessage, formatReviewParameters } from './operation-review.js';
 
 mountConnectionStatus(document.querySelector('#connection-status'));
 
@@ -76,12 +77,15 @@ const levelForXp = xp => {
 const xpForLevel = level => level <= 1 ? 0 : xpThresholds[Math.min(97, level - 2)];
 
 async function api(path, options = {}) {
+    contextHeaders(options.headers);
+    await reviewMutation(path, options.method || 'GET', options.body, options.reviewContext);
     const headers = contextHeaders(options.headers);
     if (options.mutation && state.controlSession) headers['X-Control-CSRF'] = state.controlSession.csrfToken;
     if (options.body) headers['Content-Type'] = 'application/json';
     if (options.mutation) headers['X-Admin-Request'] = 'rs-sdk-admin';
     if (state.token) headers.Authorization = `Bearer ${state.token}`;
-    const response = await fetch(path, { ...options, headers });
+    const { reviewContext, ...requestOptions } = options;
+    const response = await fetch(path, { ...requestOptions, headers });
     if (response.ok && response.headers.get('X-Control-Server-ID') !== serverId) throw new Error('A válasz szerverkontextusa nem igazolt.');
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -103,6 +107,7 @@ async function api(path, options = {}) {
 }
 
 function toast(message, error = false) {
+    if (message === reviewCancelledMessage) error = false;
     const element = $('#toast');
     element.textContent = message;
     element.classList.toggle('error', error);
@@ -1777,6 +1782,7 @@ async function saveWorldMod(button) {
     const reason = card.querySelector('[data-world-mod-reason]').value.trim();
     if (!reason) throw new Error('A módosításhoz indoklás szükséges.');
     const result = await api(`/api/admin/world-mods/${encodeURIComponent(modId)}`, {
+        reviewContext: { configuration: mod.settings.map(setting => ({ label: setting.label, value: config[setting.key] })) },
         method: 'PUT', mutation: true,
         body: JSON.stringify({ expectedRevision: state.worldMods.revision, enabled: card.querySelector('[data-world-mod-enabled]').checked, config, reason })
     });
@@ -1816,7 +1822,7 @@ document.addEventListener('click', async event => {
             const form = $('#offline-editor-form');
             const reason = form.elements.reason.value.trim();
             if (!username || !reason) throw new Error('A visszaállításhoz indoklás szükséges.');
-            if (!confirm('Biztosan visszaállítod ezt a mentést? A jelenlegi állapotról előtte automatikus másolat készül.')) return;
+
             await api(`/api/admin/bots/${encodeURIComponent(username)}/offline-save/restore`, {
                 method: 'POST', mutation: true,
                 body: JSON.stringify({ backupId: button.dataset.backupId, expectedSavedAt: form.elements.expectedSavedAt.value, reason })
@@ -1842,7 +1848,7 @@ document.addEventListener('click', async event => {
             const version = button.dataset.profileVersion;
             const reason = prompt('Az XP-profil alkalmazásának indoklása:', `Kísérleti XP-profil alkalmazása: ${profileId}@${version}`);
             if (!reason?.trim()) return;
-            if (!confirm(`${profileId}@${version} XP-szorzói hot reloaddal bekerülnek az élő engine-be. Folytatod?`)) return;
+
             button.disabled = true;
             try {
                 const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-xp`, {
@@ -1856,7 +1862,7 @@ document.addEventListener('click', async event => {
             const version = button.dataset.profileVersion;
             const reason = prompt('A respawnprofil alkalmazásának indoklása:', `Kísérleti respawnprofil alkalmazása: ${profileId}@${version}`);
             if (!reason?.trim()) return;
-            if (!confirm(`${profileId}@${version} respawnidői hot reloaddal bekerülnek az élő engine-be. A már futó timerek nem változnak. Folytatod?`)) return;
+
             button.disabled = true;
             try {
                 const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-respawn`, {
@@ -1870,7 +1876,7 @@ document.addEventListener('click', async event => {
             const version = button.dataset.profileVersion;
             const reason = prompt('A piaci árprofil alkalmazásának indoklása:', `Kísérleti piaci árprofil alkalmazása: ${profileId}@${version}`);
             if (!reason?.trim()) return;
-            if (!confirm(`${profileId}@${version} bolti vételi és eladási árai hot reloaddal bekerülnek az élő engine-be. Folytatod?`)) return;
+
             button.disabled = true;
             try {
                 const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-market`, {
@@ -1884,7 +1890,7 @@ document.addEventListener('click', async event => {
             const version = button.dataset.profileVersion;
             const reason = prompt('A késztermékérték-profil alkalmazásának indoklása:', `Kísérleti késztermékérték-profil alkalmazása: ${profileId}@${version}`);
             if (!reason?.trim()) return;
-            if (!confirm(`${profileId}@${version} késztermékértékei hot reloaddal bekerülnek az élő kísérleti környezetbe. Folytatod?`)) return;
+
             button.disabled = true;
             try {
                 const result = await api(`/api/admin/experiment-parameter-profiles/${encodeURIComponent(profileId)}/${encodeURIComponent(version)}/apply-finished-products`, {
@@ -1910,7 +1916,7 @@ document.addEventListener('click', async event => {
             const propertyId = button.dataset.propertyId;
             const reason = prompt('A fejlesztői reset indoklása:', 'Phase 9 tesztingatlan felszabadítása');
             if (!reason?.trim()) return;
-            if (!confirm(`Biztosan felszabadítod ezt az ingatlant: ${propertyId}? A művelet nem térít vissza coinokat.`)) return;
+
             await api(`/api/admin/properties/${encodeURIComponent(propertyId)}/reset`, {
                 method: 'POST', mutation: true,
                 body: JSON.stringify({ expectedVersion: Number(button.dataset.propertyVersion), reason: reason.trim() })
@@ -1921,13 +1927,9 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'property-reconcile') {
             const transactionId = button.dataset.transactionId;
             const resolution = button.dataset.resolution;
-            const debited = resolution === 'commit-debited';
             const reason = prompt('A pending tranzakció egyeztetésének indoklása:', 'Crash utáni kézi állapotegyeztetés');
             if (!reason?.trim()) return;
-            const warning = debited
-                ? 'A döntés tulajdonossá teszi a vevőt, de nem von le újabb coinokat.'
-                : 'A döntés felszabadítja az ingatlant, és nem térít vissza coinokat.';
-            if (!confirm(`${warning}\n\nCsak a játékos mentésének ellenőrzése után folytasd.`)) return;
+
             await api('/api/admin/properties/reconcile', {
                 method: 'POST', mutation: true,
                 body: JSON.stringify({ transactionId, resolution, reason: reason.trim() })
@@ -1973,7 +1975,7 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'economic-offer-update') {
             const action = button.dataset.offerAction;
             const labels = { accept: 'elfogadás', decline: 'elutasítás', withdraw: 'visszavonás' };
-            if (action === 'accept' && !confirm('Az elfogadás változatlan feltételekkel aktív szerződést hoz létre, és az institution által ígért GP-t előre lefoglalja a treasuryben. Folytatod?')) return;
+
             const note = action === 'accept' ? 'Az ajánlat elfogadva.'
                 : prompt('Megjegyzés:', action === 'decline' ? 'Az ajánlat elutasítva.' : 'Az ajánlat visszavonva.');
             if (note === null) return;
@@ -2009,10 +2011,7 @@ document.addEventListener('click', async event => {
         }
         if (button.dataset.action === 'economic-contract-resolve') {
             const resolution = button.dataset.resolution;
-            const warning = resolution === 'cancelled'
-                ? 'A törlés csak teljesítés nélküli szerződésnél engedélyezett, és minden nyitott fedezetet visszaad. Folytatod?'
-                : 'A meghiúsítás végleges. A már teljesített átadásokat nem fordítja vissza, csak a nyitott fedezetet oldja fel. Folytatod?';
-            if (!confirm(warning)) return;
+
             const reason = prompt('Kötelező admin audit indoklás:', resolution === 'cancelled'
                 ? 'A felek közös megegyezéssel, teljesítés előtt törölték a szerződést.'
                 : 'A szerződés részben vagy egészben meghiúsult.');
@@ -2141,7 +2140,7 @@ document.addEventListener('click', async event => {
             toast('A treasury-egyenleg frissült.'); await refreshAgents();
         }
         if (button.dataset.action === 'player-action-start') {
-            if (!confirm('Egyszer használható approval létrehozása és a skill azonnali indítása?')) return;
+
             const reason = prompt('Az indítás auditindoklása:', 'Elfogadott player-megbízás végrehajtása');
             if (!reason?.trim()) return;
             await api(`/api/admin/player-actions/${encodeURIComponent(button.dataset.requestId)}/approve-and-start`, {
@@ -2175,7 +2174,7 @@ document.addEventListener('click', async event => {
             const agent = state.agents.find(entry => entry.identity.agentId === button.dataset.agentId);
             if (!agent) throw new Error('Az agent már nem található.');
             const eligible = agent.retention.eligibleCount;
-            if (!eligible || !confirm(`${eligible} elévült, nem hivatkozott emlék végleges törlése?`)) return;
+            if (!eligible) return;
             const reason = prompt('A törlés indoklása:', 'Elévült, nem hivatkozott episodic emlékek törlése');
             if (!reason?.trim()) return;
             const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/episodes/prune`, {
@@ -2195,7 +2194,7 @@ document.addEventListener('click', async event => {
             const grant = state.skillGrants.find(entry => entry.grantId === button.dataset.grantId);
             if (!grant || !grant.active) throw new Error('A jogosultság már nem aktív.');
             const reason = prompt('A jogosultság visszavonásának indoklása:', 'Skill-hozzáférés visszavonása');
-            if (!reason?.trim() || !confirm(`Visszavonod a(z) ${grant.resourceId} jogosultságot ${grant.agentId} agenttől?`)) return;
+            if (!reason?.trim()) return;
             await api(`/api/admin/skill-grants/${encodeURIComponent(grant.grantId)}/revoke`, {
                 method: 'POST', mutation: true,
                 body: JSON.stringify({ expectedRevision: grant.revision, reason: reason.trim() })
@@ -2218,8 +2217,7 @@ document.addEventListener('click', async event => {
         }
         if (button.dataset.action?.startsWith('autonomy-global-')) {
             const action = button.dataset.action.slice('autonomy-global-'.length);
-            if (action === 'emergency-stop'
-                && !confirm('A globális vészleállítás megszakítja a látható autonóm LLM- és skill-futásokat. Folytatod?')) return;
+
             const reason = prompt(action === 'emergency-stop'
                 ? 'A globális vészleállítás indoklása:' : 'A globális folytatás felülvizsgálati indoklása:',
             action === 'emergency-stop' ? 'Operátori vészleállítás' : 'A vészhelyzet felülvizsgálva');
@@ -2267,7 +2265,7 @@ document.addEventListener('click', async event => {
         if (button.dataset.action === 'agent-autonomous-cycle') {
             const reason = prompt('Az autonóm ciklus indoklása:', 'Korlátozott autonóm agent-ciklus kézi tesztje');
             if (!reason?.trim()) return;
-            if (!confirm('Ez a kérés az aktuális AI-policy alapján valódi allowlistelt skillt is elindíthat. Folytatod?')) return;
+
             button.disabled = true;
             try {
                 const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/autonomous-cycle`, {
@@ -2286,12 +2284,13 @@ document.addEventListener('click', async event => {
             const message = hasSkill
                 ? 'A teljes célhierarchia létrejön, és az egzakt skillverzió azonnal elindul a kapcsolt playeren. Folytatod?'
                 : 'A teljes célhierarchia egyetlen tranzakcióban létrejön. Folytatod?';
-            if (!confirm(message)) return;
+
             const reason = prompt('A céljavaslat jóváhagyásának indoklása:', 'LLM célhierarchia admin jóváhagyása');
             if (!reason?.trim()) return;
             button.disabled = true;
             try {
                 const response = await api(`/api/admin/goal-proposals/${encodeURIComponent(button.dataset.proposalId)}/approve-and-start`, {
+                    reviewContext: { operationSummary: message },
                     method: 'POST', mutation: true, body: JSON.stringify({
                         expectedRevision: Number(button.dataset.proposalRevision), reason: reason.trim()
                     })
@@ -2315,7 +2314,7 @@ document.addEventListener('click', async event => {
             if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) throw new Error('A paramétereknek JSON objektumnak kell lenniük.');
             const reason = prompt('A draft próba indoklása:', 'Skill Builder draft elkülönített élő tesztje');
             if (!reason?.trim()) return;
-            if (!confirm(`A NEM ELLENŐRZÖTT draft ténylegesen elindul a(z) ${testBotUsername.trim()} boton. Ezt a botot kifejezetten tesztbotnak jelölted ki?`)) return;
+
             await api(`/api/admin/capability-gaps/${encodeURIComponent(button.dataset.gapId)}/trials`, {
                 method: 'POST', mutation: true, body: JSON.stringify({ testBotUsername: testBotUsername.trim(),
                     targetVersion: targetVersion.trim(), parameters, reason: reason.trim(), acknowledgeDraftRisk: true })
@@ -2340,7 +2339,7 @@ document.addEventListener('click', async event => {
             }
             const reason = prompt('A draft futtatásának auditindoklása:', 'Phase 12 bevételtermelő skill izolált élő próbája');
             if (!reason?.trim()) return;
-            if (!confirm(`A NEM ELLENŐRZÖTT ${draft.reference} valódi műveleteket végez és tárgyakat adhat el a(z) ${username.trim()} boton. Folytatod?`)) return;
+
             button.disabled = true;
             try {
                 await api(`/api/admin/skill-drafts/${encodeURIComponent(draft.reference)}/run`, {
@@ -2356,7 +2355,7 @@ document.addEventListener('click', async event => {
             if (!trial) throw new Error('A próba már nem található.');
             const reason = prompt('Az új tesztfutás indoklása:', 'Második független draft bizonyíték gyűjtése');
             if (!reason?.trim()) return;
-            if (!confirm(`A draft újra elindul a(z) ${trial.testBotUsername} kijelölt tesztboton. Folytatod?`)) return;
+
             await api(`/api/admin/skill-trials/${trial.trialId}/run`, { method: 'POST', mutation: true,
                 body: JSON.stringify({ reason: reason.trim(), acknowledgeDraftRisk: true }) });
             toast('Az új draft tesztfutás elindult.'); await refreshCapabilityGaps(); await refresh();
@@ -2382,7 +2381,7 @@ document.addEventListener('click', async event => {
                 `Draft: ${approval.draft.id}@${approval.draft.version}`,
                 `Létrejövő shared verzió: ${approval.promoted.id}@${approval.promoted.version}`,
                 `Tesztbot: ${approval.testBotUsername}`,
-                `Pontos paraméterek: ${JSON.stringify(approval.parameters)}`,
+                `Pontos paraméterek: ${formatReviewParameters(approval.parameters)}`,
                 `Élő evidence runok (${approval.evidenceRunIds.length}): ${approval.evidenceRunIds.join(', ')}`,
                 `Verifier ellenőrzések: ${passedChecks.length}/${approval.verificationChecks.length} sikeres`,
                 `Approval digest: ${approval.digest}`,
@@ -2391,8 +2390,9 @@ document.addEventListener('click', async event => {
                 'Ez önmagában NEM teszi autonóm allowlistessé és nem indít el botot.',
                 'Átnézted és publikálod pontosan ezt az összeállítást?'
             ].join('\n');
-            if (!confirm(approvalSummary)) return;
+
             await api(`/api/admin/skill-trials/${trial.trialId}/publish`, { method: 'POST', mutation: true,
+                reviewContext: { publicationSummary: approvalSummary },
                 body: JSON.stringify({ reason: reason.trim(), confirmHumanApproval: true,
                     approvalDigest: approval.digest }) });
             toast('A verified skill publikálva; a várakozó agentek újratervezhetnek.');
@@ -2400,7 +2400,7 @@ document.addEventListener('click', async event => {
         }
         if (button.dataset.action === 'skill-trial-cancel') {
             const reason = prompt('A draft próba elvetésének indoklása:', 'A draft további javítást igényel');
-            if (!reason?.trim() || !confirm('Elveted ezt a próbát és a gapet visszateszed draft állapotba?')) return;
+            if (!reason?.trim()) return;
             await api(`/api/admin/skill-trials/${button.dataset.trialId}/cancel`, { method: 'POST', mutation: true,
                 body: JSON.stringify({ reason: reason.trim() }) });
             toast('A próba elvetve; a gap ismét draft állapotban van.'); await refreshCapabilityGaps();
@@ -2410,7 +2410,7 @@ document.addEventListener('click', async event => {
             const reason = prompt(execute ? 'A planner döntés végrehajtásának indoklása:' : 'A planner dry-run indoklása:',
                 execute ? 'Agent planner döntés kézi végrehajtása' : 'Agent planner kézi előnézete');
             if (!reason?.trim()) return;
-            if (execute && !confirm('A planner által kiválasztott verified skill ténylegesen elindul az online boton. Folytatod?')) return;
+
             button.disabled = true;
             try {
                 const response = await api(`/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/plan`, {
@@ -2784,7 +2784,8 @@ $('#experiment-parameter-profile-form').addEventListener('submit', async event =
                 origin: form.elements.origin.value, parameters, reason: form.elements.reason.value }) });
         await refreshExperimentParameterProfiles();
         toast('A változtathatatlan paraméterprofil elkészült.');
-    } finally { button.disabled = false; }
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
 });
 $('#multi-agent-experiment-form').addEventListener('submit', async event => {
     event.preventDefault();
@@ -2794,7 +2795,7 @@ $('#multi-agent-experiment-form').addEventListener('submit', async event => {
     if (agentIds.length < 2) { toast('Legalább két online player-agentet válassz.', true); return; }
     const [parameterProfileId, parameterProfileVersion] = form.elements.parameterProfile.value.split('@');
     if (!parameterProfileId || !parameterProfileVersion) { toast('Válassz exact paraméterprofilt.', true); return; }
-    if (!confirm(`${agentIds.length} agent párhuzamos autonóm ciklusa indulhat el valódi skillekkel. Folytatod?`)) return;
+
     const button = $('#start-multi-agent-experiment');
     button.disabled = true;
     try {
@@ -2804,7 +2805,8 @@ $('#multi-agent-experiment-form').addEventListener('submit', async event => {
                 parameterProfileId, parameterProfileVersion }) });
         toast(`A kísérlet elindult: ${response.experiment.experimentId}.`);
         await refreshMultiAgentExperiments();
-    } finally { button.disabled = false; }
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
 });
 $('#add-calibration-candidate').addEventListener('click', addCalibrationCandidate);
 addCalibrationCandidate();
@@ -2868,7 +2870,8 @@ $('#multi-agent-comparison-form').addEventListener('submit', async event => {
             })] : ['Nincs idősoros aktivitási adat.'])
         ].join('\n');
         toast('A kontrollált összehasonlítás elkészült.');
-    } finally { button.disabled = false; }
+    } catch (error) { toast(error.message, true); }
+    finally { button.disabled = false; }
 });
 $('#reload-economic-contracts').addEventListener('click', () => refreshEconomicContracts()
     .then(() => toast('A gazdasági ajánlatok és szerződések frissítve.')).catch(error => toast(error.message, true)));
@@ -2960,8 +2963,7 @@ $('#world-director-config-form').addEventListener('submit', async event => {
     const form = event.currentTarget;
     const values = new FormData(form);
     const enabled = values.get('enabled') === 'on';
-    if (enabled && !state.worldDirectorConfig?.enabled
-        && !confirm('Az automatikus World Director tartós ciklusokat hoz létre, és aktív engine mod esetén globális játéküzeneteket küld. Bekapcsolod?')) return;
+
     const reason = prompt('A World Director konfiguráció auditindoklása:', 'World Director szerverbeállítások frissítése');
     if (!reason?.trim()) return;
     const button = $('#save-world-director-config');
@@ -2982,7 +2984,7 @@ $('#queue-world-event').addEventListener('click', async () => {
     const seed = String(values.get('seed') || '').trim();
     const cycleKey = String(values.get('cycleKey') || '').trim();
     if (!seed || !cycleKey) return toast('A seed és a cikluskulcs kötelező.', true);
-    if (!confirm(`A(z) ${cycleKey} ciklus inert eseményét tartósan az outboxba helyezzük. Ez még nem módosítja a játékvilágot. Folytatod?`)) return;
+
     const reason = prompt('A tartós ciklus auditindoklása:', 'World Director ciklus kézi sorba állítása');
     if (!reason?.trim()) return;
     const button = $('#queue-world-event');
@@ -3004,15 +3006,12 @@ $('#llm-settings-form').addEventListener('submit', async event => {
     const removeApiKey = values.get('removeApiKey') === 'on';
     if (apiKey && removeApiKey) return toast('A kulcs egyszerre nem cserélhető és törölhető.', true);
     const automaticReplanning = values.get('automaticReplanning') === 'on';
-    if (automaticReplanning && !state.llmSettings?.config.automaticReplanning
-        && !confirm('Az automatikus újratervezés valódi API-hívásokat és költséget okozhat jelentős játékeseményeknél. Biztosan bekapcsolod?')) return;
+
     const skillBuilderEnabled = values.get('skillBuilderEnabled') === 'on';
-    if (skillBuilderEnabled && !state.llmSettings?.config.skillBuilder.enabled
-        && !confirm('A Skill Builder nyitott capability gapekből automatikusan OpenAI-hívással draftokat készít, ami költséget okozhat. Biztosan bekapcsolod?')) return;
+
     const provider = String(values.get('provider'));
     const autonomousExecutionEnabled = values.get('autonomousExecutionEnabled') === 'on';
-    if (autonomousExecutionEnabled && !state.llmSettings?.config.autonomousExecution.enabled
-        && !confirm('Az allowlistelt skillek jelentős események után admin kattintás nélkül ténylegesen elindulhatnak. Biztosan bekapcsolod?')) return;
+
     const autonomousAllowedSkills = String(values.get('autonomousAllowedSkills') || '')
         .split(/\r?\n/).map(value => value.trim()).filter(Boolean).map(reference => {
             if (reference.startsWith('{')) return JSON.parse(reference);
@@ -3020,8 +3019,7 @@ $('#llm-settings-form').addEventListener('submit', async event => {
             if (separator < 1) throw new Error(`Érvénytelen autonóm skillhivatkozás: ${reference}`);
             return { id: reference.slice(0, separator), version: reference.slice(separator + 1) };
         });
-    if (JSON.stringify(autonomousAllowedSkills) !== JSON.stringify(state.llmSettings?.config.autonomousExecution.allowedSkills ?? [])
-        && !confirm('Az autonóm skill-authorizáció módosítása tényleges műveleti jogot szűkíthet vagy bővíthet. Jóváhagyod az új exact envelope mentését?')) return;
+
     const reasoningEffort = String(values.get('reasoningEffort') || '');
     const config = {
         schemaVersion: 1,

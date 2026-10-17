@@ -177,3 +177,113 @@ backend–frontend paritás: 33 dokumentált hiány nyitott a 26.7 alatt, és az
 összes workflow teljes futásidejű elfogadását sem helyettesíti a forrásaudit.
 A 26.3 veszélyes műveletek magyarázata és a 26.4 hosszú műveleti visszajelzések
 nem készültek el ebben a körben. Következő feladat: **26.3**.
+
+## 26.3 – Veszélyes műveletek áttekintése és jóváhagyása (2026-10-17)
+
+Elkészült a közös, beküldés előtti áttekintő a tulajdonosi admin,
+szerverlifecycle és fiókműveletekhez. A konkrét szerver/célpont, beküldött
+azonosítók és állapotverzió mellett öt kötelező magyarázat jelenik meg:
+változás, ellenőrizendő adat/bizonyíték, nem bekövetkező hatás,
+helyreállítás és biztonságos újrapróbálás.
+
+A capability-mátrix **1.1.0** verzióra bővült (`reviewSchemaVersion: 1`).
+A 91 módosító bejegyzésből **64** jóváhagyási policyt, **16** indokolt közvetlen
+kezelést, **11** továbbra is hiányzó UI-végrehajtási határt kapott. Az akció,
+döntés vagy payload szerinti változatok pontosítják a hatást: például
+előnézet/végrehajtás, megszüntetés/meghiúsítás, fizetett/nem fizetett ingatlan
+és a hét szerverlifecycle-akció. Az azonnali cél előre engedélyezett autonóm
+munkát is kiválthat, ezért jóváhagyási változatot kapott; más időtávok
+közvetlenül rögzíthetők.
+
+**31** korábbi natív `confirm()` helyett egy közös áttekintés működik, dupla
+megerősítés nélkül. Az indoklást és paramétert bekérő `prompt()` mezők
+megmaradtak. A publikálási összeállítás futás-/ellenőrzési bizonyítékai nem
+tűntek el; a közös ablakban láthatók, a backend pedig változatlanul ellenőrzi
+az approval digestet és emberi jóváhagyási mezőt.
+
+A Mégse és Escape nem indít módosító kérést; a felső Mégse kezdőfókuszt kap,
+a kitöltött űrlap megmarad. A jelszó-/API-kulcsmezők értéke rejtett,
+ismert titokmezőnevű publikálási paraméterek maszkoltak. A dinamikus tartalom
+szövegként renderelődik. Egy második egyidejű áttekintés, az útmutató hibája,
+hiányzó policy vagy a megváltozott oldal/szerver blokkolja a kliens beküldését.
+Ez UX-kapu, nem a szerveroldali jogosultságellenőrzés helyettesítése.
+
+[Használat és részletes határok](features/phase26-3-operation-reviews.md).
+
+### Kiválasztott ellenőrzési kör
+
+Érintett modul: `server/gateway/admin/public` és a csak tesztoldali
+capability-audit. Megváltozott határ: a három meglévő kliens beküldése és
+az új jóváhagyási ablak, illetve a capability-mátrix magyarázati szerződése.
+Fogyasztók: a gateway és a control plane statikus felülete, korábbi
+szerver-/fiók-/kétlapos beállítási Chrome-workflowk.
+
+A modul teljes érintett admin/control-plane körét, a módosított UI-határok
+célzott böngészős/szerződéses tesztjeit, root typechecket és formázást
+választottuk. Jogosultsági vagy CSRF-szabály, gazdasági/persistence-alap,
+runtime-függőség, engine/webclient és tesztfelderítés nem változott, ezért
+teljes `verify:full` és engine/webclient typecheck nem volt indokolt.
+
+### Eredmények és exact naplók
+
+- **Célzott induló szerződés: 7/7 PASS, exit 0, 1,614 s.**
+  `.local/verification/20261017-170604-457-phase26-3-contract.log`.
+- **Új jóváhagyási és korábbi control-plane Chrome-határok: 7/7 PASS;
+  root typecheck PASS, exit 0, 71,520 s.** Parancs:
+  `bun test server/gateway/admin/operation-review-browser.test.ts server/control-plane/test/browser.test.ts server/control-plane/test/security-browser.test.ts && bun run typecheck`.
+  `.local/verification/20261017-170636-805-phase26-3-browser.log` és
+  azonos nevű `.result.json`.
+- **Egyszeri széles érintett kör: 432 PASS / 1 FAIL / 0 skip,
+  exit 1, 102,406 s.** Parancs:
+  `bun test server/gateway/admin server/control-plane/test && bun run typecheck && bun run format:check`.
+  A parancslánc a teszthibánál megállt; ebben a láncban typecheck/format
+  nem futott. `.local/verification/20261017-171143-289-phase26-3-affected.log`
+  és azonos nevű `.result.json`.
+- A hiba az új teszt beállításában volt: az alap 800 px böngészőméret mobil
+  menüt aktivált, miközben a kibővített kísérlet-megszakítási próba az asztali
+  oldalsó hivatkozásra kattintott. Explicit 1440 px kezdőméretet kapott;
+  a külön 390 px mobilos ablakpróba megmaradt. Assertion és UI-viselkedés
+  nem lett kikapcsolva vagy a teszt kedvéért módosítva.
+- **Javítás utáni végső érintett kör: 8/8 PASS, root TypeScript és formázás
+  PASS, exit 0, 19,072 s.** Parancs:
+  `bun test server/gateway/admin/operation-review-browser.test.ts server/gateway/admin/capability-matrix.test.ts && bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-171426-690-phase26-3-final.log` és azonos
+  nevű `.result.json`. Az időközben pontosított változatleírások és a második
+  egyidejű áttekintés próbája is ebben az állapotban szerepel.
+
+A 433 külön érintett tesztesethez a széles és végső célzott kör együtt ad
+sikeres bizonyítékot. A széles parancs eredeti hibás exitje megmarad; ez nem
+zöld egybefüggő kapu és nem teljes regressziós PASS. A többi 432 sikeres esetet
+nem ismételtük, mert a javítás a frissen bővített teszt kezdőméretét érintette.
+
+Az új Chrome-eset valós control-plane login és szintetikus gateway mellett
+ellenőrzi a tényleges karakterindítás beküldés előtti megállását, megszakítását,
+a titokmezők rejtését, űrlapmegőrzést és dupla kattintás egyszeri továbbítását.
+Lefedi a kísérleti jóváhagyás megszakítását, a szövegként megjelenő ellenséges
+HTML-t, a párhuzamos ablak elutasítását, az Escape-et, a kontextusváltást és a
+hibás útmutató betöltése utáni újrapróbálást. A backend többi régi
+üzleti/jogosultsági assertionje és a publikálási bizonyíték-kapuk megmaradtak.
+
+A forrásaudit az összes módosító bejegyzés besorolását, az öt magyarázat
+teljességét és a natív confirmok eltűnését ellenőrzi. Külön szemantikus
+regresszió védi az archiválás visszaaktiválási hiányát, titoktár-megőrzést,
+publikálás/automatikus engedély szétválasztását, végleges emléktörlést és az
+eredeti pénzügyi elszámolás újrapróbálásának határát.
+
+**Vizuális QA:** az új áttekintés 1440 px és 390 px méretben képen átnézve;
+`.local/verification/phase26-3-review-desktop.png` és
+`phase26-3-review-mobile.png`. A felső címet és megszakítást, szövegtörést,
+görgethető tartalmat és látható végrehajtási feliratot ellenőriztük.
+
+**Dokumentáció és stagingelt fájlok:** 47 helyi dokumentációhivatkozás
+feloldható. A végső formázó PASS, exit 0, **1,618 s**:
+`.local/verification/20261017-171836-539-phase26-3-docs.log` és azonos nevű
+`.result.json`. Ehhez a dokumentációs lezáráshoz nem ismételtünk runtime-kört.
+
+### Elfogadási határ
+
+A 26.3 lezárható. A 33 korábbi felületi hiány és a 26.7 teljes paritási
+audit változatlanul nyitott. A kísérleti űrlap szükséges catch ága elkészült,
+hogy a megszakítás ne kezeletlen promise-hiba legyen; ez nem a 26.4 minden
+hosszú műveletre és néma kísérleti indításra vonatkozó elfogadása.
+Következő feladat: **26.4**.

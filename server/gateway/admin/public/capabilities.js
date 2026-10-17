@@ -34,6 +34,7 @@ function render() {
         for (const [label, value] of [['Szükséges hozzáférés', item.access], ['Állapot követése', item.state], ['Eredmény', item.result], ['Hiba esetén', item.error]])
             list.append(node('dt', label), node('dd', value));
         details.append(list); card.append(details);
+        if (item.review?.mode === 'required') card.append(node('p', 'Végrehajtás előtt külön áttekintés mutatja a pontos változást, az ellenőrzött adatokat és a helyreállítás lehetőségét.'));
         const technical = node('details', ''); technical.append(node('summary', 'Technikai azonosító'));
         for (const operation of item.operations) technical.append(node('p', `${operation.method} ${operation.path}`));
         technical.append(node('code', item.id));

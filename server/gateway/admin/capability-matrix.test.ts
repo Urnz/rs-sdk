@@ -81,3 +81,30 @@ test('documented gateway roles agree with the actual authorization gate for ever
         }
     } finally { identities.close(); }
 });
+
+test('every exposed mutation has a reviewed decision policy and native confirm prompts cannot bypass it', () => {
+    expect(matrix.reviewSchemaVersion).toBe(1);
+    const mutations = matrix.capabilities.filter(item => item.methods[0] !== 'GET');
+    expect(mutations).toHaveLength(91);
+    expect(mutations.filter(item => item.review?.mode === 'required')).toHaveLength(64);
+    expect(mutations.filter(item => item.review?.mode === 'direct')).toHaveLength(16);
+    expect(mutations.filter(item => item.review?.mode === 'blocked')).toHaveLength(11);
+    for (const name of ['admin.js', 'account.js', 'servers.js']) {
+        const source = sources[`server/gateway/admin/public/${name}`]!;
+        expect(source).not.toMatch(/\bconfirm\(/);
+        expect(source).toContain('reviewMutation(');
+    }
+    const broken = structuredClone(matrix);
+    broken.capabilities.find(item => item.review?.mode === 'required')!.review!.recovery = '';
+    expect(auditCapabilityMatrix(broken, actual).problems.some(problem => problem.startsWith('Incomplete review recovery:'))).toBe(true);
+});
+
+test('high-risk descriptions retain their distinct irreversible, financial and publication boundaries', () => {
+    const get = (route: string) => matrix.capabilities.find(item => item.route === route && item.methods[0] !== 'GET')!.review!;
+    expect(get('/api/control-plane/servers/:id/:id').variants!.archive!.changes).toContain('többé nem indítható');
+    expect(get('/api/control-plane/servers/:id/:id').variants!.restore!.notChanged).toContain('titoktár változatlan');
+    expect(get('/api/admin/skill-trials/:id/publish').notChanged).toContain('Nem kerül automatikusan az autonóm engedélylistára');
+    expect(get('/api/admin/agents/:id/episodes/prune').recovery).toContain('nem vonható vissza');
+    expect(get('/api/admin/economic-contracts/:id/settle').retry).toContain('Új jutalmat vagy másik szerződést ne hozz létre');
+    expect(get('/api/admin/bots/:id').recovery).toContain('nincs admin-visszaállítógomb');
+});
