@@ -7,20 +7,17 @@
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+    <a class="skip-navigation" href="#admin-view-title">Ugrás a tartalomra</a>
     <header class="topbar">
         <div>
             <p class="eyebrow">OSRS AGENT SOCIETY</p>
-            <h1>Bot adminisztráció</h1>
+            <h1>Szerver kezelése</h1>
             <p class="muted">Kiválasztott szerver: <strong id="server-context-name"></strong> · <code id="server-context-id"></code></p>
             <p id="last-refresh" class="muted">Adatok betöltése…</p>
         </div>
         <div class="header-actions">
             <a id="control-servers-link" class="button secondary" href="servers.html" hidden>Saját szervereim</a>
             <a id="control-account-link" class="button secondary" href="account.html" hidden>Fiók és jogosultságok</a>
-            <button id="world-admin-button" class="button world-admin-button">World Admin</button>
-            <button id="world-map-button" class="button map-button">Élő világtérkép</button>
-            <button id="snapshot-button" class="button secondary">Kísérleti snapshot</button>
-            <button id="new-bot-button" class="button primary">+ Bot spawn</button>
         </div>
     </header>
 
@@ -30,15 +27,56 @@
             <div class="connection-services"><span data-connection-gateway></span><span data-connection-engine></span></div>
             <p data-connection-detail></p>
         </section>
-        <nav class="admin-tabs" role="tablist" aria-label="Admin nézetek">
-            <button class="admin-tab active" role="tab" aria-selected="true" data-action="admin-tab" data-tab="bots">Botok</button>
-            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="economy">Gazdaság</button>
-            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="skills">Agent skillek</button>
-            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="agents">Agentek</button>
-            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="experiments">Kísérletek</button>
-            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="society">Társadalom</button>
-            <button class="admin-tab" role="tab" aria-selected="false" data-action="admin-tab" data-tab="llm">AI beállítások</button>
+        <div class="admin-workspace">
+        <nav id="admin-navigation" class="admin-navigation" aria-label="Szerver kezelési területei">
+            <div class="navigation-group"><h2>Napi felügyelet</h2>
+                <a class="admin-tab" href="#overview" data-tab="overview" data-description="Válassz feladatot az alábbi területek közül. Minden itt végzett művelet a fejlécben megnevezett szerverhez tartozik.">Áttekintés</a>
+                <a class="admin-tab" href="#bots" data-tab="bots" data-description="Indíts vagy állíts le játékbeli karaktereket (botokat), nézd meg az állapotukat, és rendelj hozzájuk feladatot. A nevükre kattintva megnyílik a részletes adatlap.">Karakterek</a>
+                <a class="admin-tab" href="#agents" data-tab="agents" data-description="Állítsd be a karakterek tartós személyiségét, céljait, emlékeit és önálló döntéseit. Az agent a döntéshozó: egy játékos szerepű agent egy bothoz kapcsolódik, de a bot leállítása után is megmarad.">Célok és önálló működés</a>
+                <a class="admin-tab" href="#map" data-tab="map" data-description="Keresd meg a karaktereket a térképen, vagy figyeld meg élőben a környezetüket. Az élő nézethez elérhető játékszerver szükséges.">Élő térkép</a>
+            </div>
+            <div class="navigation-group"><h2>Gazdaság és társadalom</h2>
+                <a class="admin-tab" href="#economy" data-tab="economy" data-description="Kövesd a pénz, a tárgykészletek és a termelés változását. A gazdasági eseménylistát karakter és eseménytípus szerint szűrheted.">Pénz és készletek</a>
+                <a class="admin-tab" href="#businesses" data-tab="businesses" data-description="Hozz létre vállalkozást, rendelj hozzá tulajdonost és ingatlant, majd kezeld az alkalmazottakat és a munkamegbízásokat. Ehhez először tartós döntéshozókat kell létrehoznod.">Vállalkozások és munka</a>
+                <a class="admin-tab" href="#contracts" data-tab="contracts" data-description="Rögzíts két fél közötti ajánlatot, kövesd az elfogadását és ellenőrizd a teljesítés bizonyítékait. Az ajánlat elfogadása önmagában még nem jelent kifizetést.">Ajánlatok és szerződések</a>
+                <a class="admin-tab" href="#society" data-tab="society" data-description="Vizsgáld a társadalom állapotát egy megadott időszakban és résztvevői körben, majd nyisd meg a mutatók mögötti forráseseményeket. A hiányzó mérési adat külön jelölést kap.">Társadalmi mutatók</a>
+            </div>
+            <div class="navigation-group"><h2>Kipróbálás és fejlesztés</h2>
+                <a class="admin-tab" href="#skills" data-tab="skills" data-description="Ellenőrizd a karakterek feladatfutásait, próbálj ki fejlesztés alatt álló képességeket, és vizsgáld meg a hiányzó képességekre készült javaslatokat. A skill egy végrehajtható képesség; a draft még ellenőrzésre vár.">Képességek és próbák</a>
+                <a class="admin-tab" href="#experiments" data-tab="experiments" data-description="Állíts össze résztvevőket és paraméterprofilt egy közös világban végzett kísérlethez, majd keresd vissza a futás eredményeit. A kísérleti pillanatkép adatfelvétel, nem visszaállítható szervermentés.">Kísérletek</a>
+            </div>
+            <div class="navigation-group"><h2>Világ és beállítások</h2>
+                <a class="admin-tab" href="#world" data-tab="world" data-description="Kezeld a játékszabályokat, a módosításokat és az ingatlanokat. A szerver indítása, leállítása és teljes mentése a Saját szervereim oldalon érhető el.">Világszabályok és ingatlanok</a>
+                <a class="admin-tab" href="#world-events" data-tab="world-events" data-description="Nézd meg előre a lehetséges világeseményeket, állítsd be az ütemezésüket, és kövesd a kézbesítésüket. Az előnézet még nem küld eseményt a játékvilágba.">Világesemények</a>
+                <a class="admin-tab" href="#llm" data-tab="llm" data-description="Válassz AI-szolgáltatót és modellt, állíts be hozzáférési kulcsot, költségkeretet és működési korlátokat. A karakterek céljait és az önálló működés kapcsolóját a Célok és önálló működés alatt találod.">AI és költségkeret</a>
+            </div>
         </nav>
+        <div class="admin-content">
+        <label class="mobile-navigation" for="admin-view-select">Kezelési terület<select id="admin-view-select"></select></label>
+        <header class="view-heading">
+            <p id="admin-view-group" class="eyebrow">NAPI FELÜGYELET</p>
+            <h2 id="admin-view-title" tabindex="-1">Áttekintés</h2>
+            <p id="admin-view-description" class="muted"></p>
+        </header>
+        <section class="panel overview-panel" data-admin-tab-panel="overview">
+            <div class="panel-heading"><h2>Első lépések ezen a szerveren</h2></div>
+            <ol class="getting-started">
+                <li><a href="#bots">Indíts egy karaktert</a>, majd ellenőrizd, hogy online lett-e.</li>
+                <li><a href="#agents">Adj neki célt</a>: hozz létre egy játékos szerepű döntéshozót, és kapcsold a karakterhez.</li>
+                <li><a href="#llm">Ellenőrizd az AI beállításait és a keretét</a>, mielőtt önálló döntéseket engedélyezel.</li>
+                <li><a href="#agents">Kapcsold be az önálló működést</a>, majd kövesd a döntési naplót és a <a href="#skills">feladatfutásokat</a>.</li>
+            </ol>
+            <p class="agent-intro">Ha a szerver áll, a fejlécben lévő Saját szervereim oldalon indíthatod el. A kapcsolat állapota fent látható. Az egyes műveletekhez szükséges jogosultságot a szerver ellenőrzi.</p>
+        </section>
+        <section data-admin-tab-panel="overview" aria-label="Mit szeretnél tenni?"><div id="workflow-cards" class="workflow-cards"></div></section>
+        <section class="panel" data-admin-tab-panel="map" hidden>
+            <div class="panel-heading"><h2>Karakterek megfigyelése</h2><button id="world-map-button" class="button map-button">Élő világtérkép megnyitása</button></div>
+            <p class="workflow-note">A térképen kiválaszthatsz egy karaktert és követheted a helyzetét. Egyetlen karakter részleteihez a <a href="#bots">Karakterek</a> listában nyisd meg az adatlapját vagy az élő megfigyelést.</p>
+        </section>
+        <section class="panel" data-admin-tab-panel="world" hidden>
+            <div class="panel-heading"><h2>Játékszabályok és ingatlankatalógus</h2><button id="world-admin-button" class="button world-admin-button">Szabályok és ingatlanok megnyitása</button></div>
+            <p class="workflow-note">A kezelőablakban módosíthatod a világ beállításait, megnyithatod az ingatlanokat és visszakeresheted a konfiguráció mentéseit. Egyes szabályok azonnal, mások a játékszerver újraindítása után lépnek életbe.</p>
+        </section>
 
         <section id="society-dashboard" class="panel society-dashboard" data-admin-tab-panel="society" hidden>
             <div class="panel-heading"><div><p class="eyebrow">TÁRSADALOM</p><h2>Mutatók és forrásesemények</h2></div><span class="count-pill">Csak olvasás</span></div>
@@ -124,10 +162,10 @@
             </div>
         </section>
 
-        <section class="panel" data-admin-tab-panel="bots">
+        <section class="panel" data-admin-tab-panel="bots" hidden>
             <div class="panel-heading table-heading">
                 <div><p class="eyebrow">BOTKATALÓGUS</p><h2>Minden bot</h2></div>
-                <span id="visible-count" class="count-pill">0 / 0</span>
+                <div class="agent-heading-actions"><span id="visible-count" class="count-pill">0 / 0</span><button id="new-bot-button" class="button primary">+ Karakter indítása</button></div>
             </div>
             <div class="filters">
                 <label class="wide">Keresés<input id="search-filter" type="search" placeholder="Név, skill vagy aktivitás"></label>
@@ -157,7 +195,7 @@
 
         <section class="panel" data-admin-tab-panel="skills" hidden>
             <div class="panel-heading">
-                <div><p class="eyebrow">AGENT SKILLEK</p><h2>Legutóbbi futások</h2></div>
+                <div><p class="eyebrow">VÉGREHAJTOTT FELADATOK</p><h2>Legutóbbi képességfutások</h2></div>
                 <span id="skill-run-count" class="count-pill">0 futás</span>
             </div>
             <div class="table-scroll scrollable-list skill-history-list" role="region" aria-label="Agent skill futások görgethető táblázata" tabindex="0">
@@ -173,20 +211,35 @@
             </div>
             <p class="agent-intro">Ezek nem verified skillek és autonóm agent nem használhatja őket. A kézi indítás valódi játékállapotot módosít, ezért külön tesztbotot, paraméter-ellenőrzést és megerősítést kér.</p>
             <div id="skill-draft-list" class="capability-gap-list scroll-region" role="region" aria-label="Fejlesztési draft skillek" tabindex="0"><p class="empty">Betöltés…</p></div>
+            <section class="capability-gap-section">
+                <div class="panel-heading table-heading">
+                    <div><p class="eyebrow">KÉPESSÉGFEJLESZTÉS</p><h3>Hiányzó képességek</h3></div>
+                    <span id="capability-gap-count" class="count-pill">0 gap</span>
+                </div>
+                <p class="agent-intro">Azonos hiányra több agent feliratkozik; a gap csak egyszer kerül a későbbi Skill Builder munkasorába.</p>
+                <div id="capability-gap-list" class="capability-gap-list scroll-region" role="region" aria-label="Capability gap munkasor" tabindex="0"><p class="empty">Betöltés…</p></div>
+                <div class="panel-heading table-heading skill-trial-heading">
+                    <div><p class="eyebrow">ELKÜLÖNÍTETT TESZTBOT</p><h3>Draft próbák és publikálás</h3></div>
+                    <span id="skill-trial-count" class="count-pill">0 próba</span>
+                </div>
+                <p class="agent-intro">A draft kizárólag az itt kijelölt tesztboton indulhat. Két egyező sikeres futás után verifier-jelentés készül; a publikálás külön emberi jóváhagyás.</p>
+                <div id="skill-trial-list" class="capability-gap-list scroll-region" role="region" aria-label="Draft skill próbák" tabindex="0"><p class="empty">Betöltés…</p></div>
+            </section>
+
         </section>
 
         <section class="panel agent-panel" data-admin-tab-panel="agents" hidden>
             <div class="panel-heading table-heading">
-                <div><p class="eyebrow">PERSISTENT AGENT STATE</p><h2>Identitások és célok</h2></div>
+                <div><p class="eyebrow">TARTÓS DÖNTÉSHOZÓK</p><h2>Személyiségek és célok</h2></div>
                 <div class="agent-heading-actions"><span id="agent-count" class="count-pill">0 agent</span>
                     <button id="new-agent-button" class="button primary">+ Agent létrehozása</button></div>
             </div>
-            <p class="agent-intro">Az identitás a botsessiontől független. A planner csak friss élő állapotból, ismert verified skillből és aktív azonnali célból indíthat műveletet.</p>
+            <p class="agent-intro">A döntéshozó személyisége, céljai és emlékei a karakter leállítása után is megmaradnak. Önálló feladatot friss játékállapot, aktív közvetlen cél és már megtanult, ellenőrzött képesség alapján indíthat.</p>
             <section id="autonomy-control" class="skill-access-admin" aria-live="polite">
-                <div class="agent-section-heading"><div><p class="eyebrow">AUTONOMY CONTROL</p><h3>Betöltés…</h3></div></div>
+                <div class="agent-section-heading"><div><p class="eyebrow">ÖNÁLLÓ MŰKÖDÉS VEZÉRLÉSE</p><h3>Betöltés…</h3></div></div>
             </section>
             <section class="skill-access-admin" aria-live="polite">
-                <div class="agent-section-heading"><div><p class="eyebrow">AUTONOMY STATUS</p><h3>Queue-k, lease-ek és progressz</h3></div></div>
+                <div class="agent-section-heading"><div><p class="eyebrow">ÖNÁLLÓ MŰKÖDÉS</p><h3>Várakozó feladatok és előrehaladás</h3></div></div>
                 <div id="autonomy-dashboard" class="autonomy-dashboard"><p class="empty">Betöltés…</p></div>
             </section>
             <section class="skill-access-admin">
@@ -204,13 +257,23 @@
             <div id="agent-list" class="agent-list scrollable-list" role="region" aria-label="Persistent agentek" tabindex="0">
                 <p class="empty">Betöltés…</p>
             </div>
+            <section class="capability-gap-section">
+                <div class="panel-heading table-heading">
+                    <div><p class="eyebrow">AUTONÓM ÉLETCIKLUS</p><h3>Események és döntési eredmények</h3></div>
+                    <div class="llm-settings-actions"><span id="llm-replan-count" class="count-pill">0 esemény</span>
+                        <button id="reload-llm-replans" type="button" class="button ghost">Napló frissítése</button></div>
+                </div>
+                <p class="agent-intro">Itt követheted, mi váltott ki új döntést, mit javasolt az AI, és melyik feladatfutás indult el. A részletes bejegyzések a tartós naplóban is megmaradnak.</p>
+                <div id="llm-replan-list" class="capability-gap-list scroll-region" role="region" aria-label="Autonóm újratervezési események" tabindex="0"><p class="empty">Betöltés…</p></div>
+            </section>
+
         </section>
 
         <section class="panel agent-panel" data-admin-tab-panel="experiments" hidden>
             <div class="panel-heading table-heading">
-                <div><p class="eyebrow">12. FÁZIS · MULTI-AGENT GAZDASÁG</p><h2>Seedelt közös-világ kísérletek</h2></div>
+                <div><p class="eyebrow">ÖSSZEHASONLÍTHATÓ FUTÁSOK</p><h2>Közös világban végzett kísérletek</h2></div>
                 <div class="agent-heading-actions"><span id="multi-agent-experiment-count" class="count-pill">0 futás</span>
-                    <button id="reload-multi-agent-experiments" class="button ghost" type="button">Frissítés</button></div>
+                    <button id="reload-multi-agent-experiments" class="button ghost" type="button">Frissítés</button><button id="snapshot-button" class="button secondary">Kísérleti pillanatkép</button></div>
             </div>
             <p class="agent-intro">Egy futás legalább két, külön exact avatarhoz kötött online player-agent autonóm ciklusát indítja párhuzamosan. A seed, a résztvevősorrend, a döntések és az indítás előtti/utáni közös gazdasági pillanatkép tartósan megmarad.</p>
             <details class="agent-section" open>
@@ -284,6 +347,9 @@
                 <div><p class="eyebrow">TARTÓS FUTÁSNAPLÓ</p><h3>Kohorszok és agentenkénti eredmények</h3></div>
             </div>
             <div id="multi-agent-experiment-list" class="capability-gap-list scroll-region" role="region" aria-label="Multi-agent kísérletek" tabindex="0"><p class="empty">Betöltés…</p></div>
+        </section>
+
+        <section class="panel" data-admin-tab-panel="contracts" hidden>
             <div class="panel-heading table-heading skill-trial-heading">
                 <div><p class="eyebrow">AJÁNLATOK ÉS SZERZŐDÉSEK</p><h3>Kétoldalú gazdasági megállapodások</h3></div>
                 <div class="agent-heading-actions"><span id="economic-contract-count" class="count-pill">0 szerződés</span>
@@ -322,8 +388,11 @@
             </details>
             <div id="economic-offer-list" class="capability-gap-list scroll-region" role="region" aria-label="Gazdasági ajánlatok" tabindex="0"><p class="empty">Betöltés…</p></div>
             <div id="economic-contract-list" class="capability-gap-list scroll-region" role="region" aria-label="Aktív szerződések" tabindex="0"><p class="empty">Betöltés…</p></div>
+        </section>
+
+        <section class="panel" data-admin-tab-panel="businesses" hidden>
             <div class="panel-heading table-heading skill-trial-heading">
-                <div><p class="eyebrow">BUSINESS MANAGER</p><h3>Vállalkozások és foglalkoztatás</h3></div>
+                <div><p class="eyebrow">VÁLLALKOZÁSOK</p><h3>Vállalkozások és foglalkoztatás</h3></div>
                 <div class="agent-heading-actions"><span id="business-count" class="count-pill">0 vállalkozás</span>
                     <button id="reload-businesses" class="button ghost" type="button">Frissítés</button></div>
             </div>
@@ -346,9 +415,48 @@
             <div id="business-list" class="capability-gap-list scroll-region" role="region" aria-label="Vállalkozások" tabindex="0"><p class="empty">Betöltés…</p></div>
         </section>
 
+        <section class="panel" data-admin-tab-panel="world-events" hidden>
+            <section class="capability-gap-section">
+                <div class="panel-heading table-heading">
+                    <div><p class="eyebrow">VILÁGESEMÉNYEK</p><h3>Megismételhető esemény-előnézet</h3></div>
+                    <span id="world-event-template-count" class="count-pill">0 sablon</span>
+                </div>
+                <p class="llm-settings-intro">Az előnézet nem módosíthatja a játékvilágot. Azonos seed, cikluskulcs és jóváhagyott sablonkészlet mindig ugyanazt az egzakt eseményverziót választja.</p>
+                <form id="world-director-config-form" class="llm-settings-form">
+                    <div class="llm-form-grid">
+                        <label class="check llm-toggle"><input name="enabled" type="checkbox"> Automatikus ciklusok és engine-kézbesítés</label>
+                        <label>Szerver seed<input name="seed" maxlength="128" required></label>
+                        <label>UTC epoch<input name="epoch" maxlength="40" required></label>
+                        <label>Intervallum percben<input name="intervalMinutes" type="number" min="5" max="10080" step="1" required></label>
+                    </div>
+                    <p class="dialog-note">Az esemény játékbeli megjelenéséhez a <a href="#world">Világszabályok és ingatlanok</a> kezelőablakában a „World Director világjelzések” módosítást is engedélyezni kell. A módosítás a következő 30 másodperces feldolgozási ciklustól él.</p>
+                    <button id="save-world-director-config" class="button primary" type="submit">Világesemények beállításainak mentése</button>
+                </form>
+                <form id="world-director-preview-form" class="llm-settings-form">
+                    <div class="llm-form-grid">
+                        <label>Kísérleti seed<input name="seed" maxlength="128" required value="osrs-economy-default"></label>
+                        <label>Cikluskulcs<input name="cycleKey" maxlength="128" required value="day:1"></label>
+                    </div>
+                    <div class="dialog-actions">
+                        <button id="preview-world-event" class="button primary" type="submit">Esemény előnézete</button>
+                        <button id="queue-world-event" class="button ghost" type="button">Tartós ciklus sorba állítása</button>
+                    </div>
+                </form>
+                <pre id="world-director-preview-result" class="llm-preview">Még nem választottunk eseményt.</pre>
+                <div id="world-event-template-list" class="capability-gap-list scroll-region" role="region" aria-label="Jóváhagyott World Director sablonok" tabindex="0"><p class="empty">Betöltés…</p></div>
+                <div class="panel-heading table-heading skill-trial-heading">
+                    <div><p class="eyebrow">KÉZBESÍTÉSI NAPLÓ</p><h3>Ciklusok és kézbesítési állapot</h3></div>
+                    <span id="world-director-cycle-count" class="count-pill">0 ciklus</span>
+                </div>
+                <p id="world-director-config-status" class="agent-intro">Konfiguráció betöltése…</p>
+                <div id="world-director-cycle-list" class="capability-gap-list scroll-region" role="region" aria-label="World Director ciklusnapló" tabindex="0"><p class="empty">Betöltés…</p></div>
+            </section>
+
+        </section>
+
         <section class="panel llm-settings-panel" data-admin-tab-panel="llm" hidden>
             <div class="panel-heading table-heading">
-                <div><p class="eyebrow">SZERVERBEÁLLÍTÁSOK</p><h2>LLM stratégiai planner</h2></div>
+                <div><p class="eyebrow">SZERVERBEÁLLÍTÁSOK</p><h2>AI-szolgáltató és döntési korlátok</h2></div>
                 <div class="llm-settings-actions"><span id="llm-config-source" class="count-pill">Betöltés…</span>
                     <button id="reload-llm-settings" type="button" class="button ghost">Újratöltés</button></div>
             </div>
@@ -421,7 +529,7 @@
                         <label>Új kulcs <span class="muted">(hagyd üresen, ha nem változtatod)</span><input name="apiKey" type="password" autocomplete="new-password" minlength="20" maxlength="512" placeholder="A meglévő kulcs soha nem olvasható vissza"></label>
                         <label class="check danger-check"><input name="removeApiKey" type="checkbox"> Helyben mentett API-kulcs törlése</label>
                     </div>
-                    <p class="dialog-note">A kulcs a gitből kizárt, szerverhez tartozó helyi titokfájlba kerül. Az admin API és a böngésző csak az állapotát látja, az értékét nem.</p>
+                    <p class="dialog-note">A kulcsot a Windows titoktár tárolja. Az admin API és a böngésző csak az állapotát látja, az értékét nem.</p>
                 </fieldset>
                 <label>Mentés indoklása<input name="reason" maxlength="240" value="LLM szerverbeállítások frissítése" required></label>
                 <div class="llm-save-row">
@@ -429,70 +537,14 @@
                     <button id="save-llm-settings" class="button primary" type="submit">AI beállítások mentése</button>
                 </div>
             </form>
-            <section class="capability-gap-section">
-                <div class="panel-heading table-heading">
-                    <div><p class="eyebrow">AUTONÓM ÉLETCIKLUS</p><h3>Események és döntési eredmények</h3></div>
-                    <div class="llm-settings-actions"><span id="llm-replan-count" class="count-pill">0 esemény</span>
-                        <button id="reload-llm-replans" type="button" class="button ghost">Napló frissítése</button></div>
-                </div>
-                <p class="agent-intro">A lista az event gate döntését, a planner eredményét és az automatikus skillindítás futásazonosítóját mutatja. A teljes bejegyzés tartós JSONL auditban marad.</p>
-                <div id="llm-replan-list" class="capability-gap-list scroll-region" role="region" aria-label="Autonóm újratervezési események" tabindex="0"><p class="empty">Betöltés…</p></div>
-            </section>
-            <section class="capability-gap-section">
-                <div class="panel-heading table-heading">
-                    <div><p class="eyebrow">SKILL BUILDER MUNKASOR</p><h3>Capability gapek</h3></div>
-                    <span id="capability-gap-count" class="count-pill">0 gap</span>
-                </div>
-                <p class="agent-intro">Azonos hiányra több agent feliratkozik; a gap csak egyszer kerül a későbbi Skill Builder munkasorába.</p>
-                <div id="capability-gap-list" class="capability-gap-list scroll-region" role="region" aria-label="Capability gap munkasor" tabindex="0"><p class="empty">Betöltés…</p></div>
-                <div class="panel-heading table-heading skill-trial-heading">
-                    <div><p class="eyebrow">ELKÜLÖNÍTETT TESZTBOT</p><h3>Draft próbák és publikálás</h3></div>
-                    <span id="skill-trial-count" class="count-pill">0 próba</span>
-                </div>
-                <p class="agent-intro">A draft kizárólag az itt kijelölt tesztboton indulhat. Két egyező sikeres futás után verifier-jelentés készül; a publikálás külön emberi jóváhagyás.</p>
-                <div id="skill-trial-list" class="capability-gap-list scroll-region" role="region" aria-label="Draft skill próbák" tabindex="0"><p class="empty">Betöltés…</p></div>
-            </section>
-            <section class="capability-gap-section">
-                <div class="panel-heading table-heading">
-                    <div><p class="eyebrow">WORLD DIRECTOR</p><h3>Determinisztikus esemény-előnézet</h3></div>
-                    <span id="world-event-template-count" class="count-pill">0 sablon</span>
-                </div>
-                <p class="llm-settings-intro">Az előnézet nem módosíthatja a játékvilágot. Azonos seed, cikluskulcs és jóváhagyott sablonkészlet mindig ugyanazt az egzakt eseményverziót választja.</p>
-                <form id="world-director-config-form" class="llm-settings-form">
-                    <div class="llm-form-grid">
-                        <label class="check llm-toggle"><input name="enabled" type="checkbox"> Automatikus ciklusok és engine-kézbesítés</label>
-                        <label>Szerver seed<input name="seed" maxlength="128" required></label>
-                        <label>UTC epoch<input name="epoch" maxlength="40" required></label>
-                        <label>Intervallum percben<input name="intervalMinutes" type="number" min="5" max="10080" step="1" required></label>
-                    </div>
-                    <p class="dialog-note">Az engine csak akkor jeleníti meg az eseményt, ha a World Adminban a „World Director világjelzések” mod is aktív. A módosítás a következő 30 másodperces gateway-ciklustól él.</p>
-                    <button id="save-world-director-config" class="button primary" type="submit">World Director beállítások mentése</button>
-                </form>
-                <form id="world-director-preview-form" class="llm-settings-form">
-                    <div class="llm-form-grid">
-                        <label>Kísérleti seed<input name="seed" maxlength="128" required value="osrs-economy-default"></label>
-                        <label>Cikluskulcs<input name="cycleKey" maxlength="128" required value="day:1"></label>
-                    </div>
-                    <div class="dialog-actions">
-                        <button id="preview-world-event" class="button primary" type="submit">Esemény előnézete</button>
-                        <button id="queue-world-event" class="button ghost" type="button">Tartós ciklus sorba állítása</button>
-                    </div>
-                </form>
-                <pre id="world-director-preview-result" class="llm-preview">Még nem választottunk eseményt.</pre>
-                <div id="world-event-template-list" class="capability-gap-list scroll-region" role="region" aria-label="Jóváhagyott World Director sablonok" tabindex="0"><p class="empty">Betöltés…</p></div>
-                <div class="panel-heading table-heading skill-trial-heading">
-                    <div><p class="eyebrow">TARTÓS OUTBOX</p><h3>Ciklusok és kézbesítési állapot</h3></div>
-                    <span id="world-director-cycle-count" class="count-pill">0 ciklus</span>
-                </div>
-                <p id="world-director-config-status" class="agent-intro">Konfiguráció betöltése…</p>
-                <div id="world-director-cycle-list" class="capability-gap-list scroll-region" role="region" aria-label="World Director ciklusnapló" tabindex="0"><p class="empty">Betöltés…</p></div>
-            </section>
         </section>
 
         <section class="panel stock-panel" data-admin-tab-panel="economy" hidden>
             <div class="panel-heading"><div><p class="eyebrow">KÉSZLETEK</p><h2>Legnagyobb itemállományok</h2></div></div>
             <div id="item-stock" class="stock-grid scroll-region" role="region" aria-label="Itemkészletek görgethető listája" tabindex="0"></div>
         </section>
+        </div>
+        </div>
     </main>
 
     <aside id="profile-drawer" class="drawer" aria-hidden="true">
@@ -836,7 +888,7 @@
     <dialog id="world-admin-dialog" class="world-admin-dialog">
         <div class="world-admin-shell">
             <div class="dialog-heading">
-                <div><p class="eyebrow">MODOLÁSI KERETRENDSZER</p><h2>World Admin</h2></div>
+                <div><p class="eyebrow">VILÁGBEÁLLÍTÁSOK</p><h2>Játékszabályok és ingatlanok</h2></div>
                 <div class="world-admin-heading-actions">
                     <button id="hot-reload-mods-button" type="button" class="button hot-reload">Hot reload</button>
                     <button id="restart-engine-button" type="button" class="button engine-restart">Engine újraindítása</button>

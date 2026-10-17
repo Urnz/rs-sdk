@@ -349,7 +349,7 @@ instabillá vagy önfenntartóvá.
   full két régi időkorlátos hibája külön és a 21 megmaradt csomagban pótolva,
   nem zöld full exitként feltüntetve. Az alapmód továbbra is loopback HTTP.
   [Használat, migráció és rollback](features/phase25-9-remote-admin-security.md).
-  [Ellenőrzések és mért idők](PHASE25_PROGRESS.md). Következő feladat: 26.1.
+  [Ellenőrzések és mért idők](PHASE25_PROGRESS.md). Az admin UX a 26. fázisban folytatódik.
 
 Elfogadási feltétel: egy bejelentkezett felhasználó két, egymástól teljesen
 elkülönített szervert létrehoz, külön beállít, elindít és leállít úgy, hogy az
@@ -357,9 +357,15 @@ admin control plane mindkét engine leállítása közben is elérhető marad.
 
 ## 26. Fázis – admin UX és backend–frontend képességparitás
 
-- [ ] A teljes adminfelület információs architektúráját felhasználói célok és
+- [x] A teljes adminfelület információs architektúráját felhasználói célok és
   végrehajtható workflowk szerint átszervezni; a belső backend-domainnevek ne
   legyenek a felület megértésének előfeltételei.
+  **26.1 – elkészült (2026-10-17):** feladatorientált Áttekintés és első lépések,
+  négy navigációs csoport, 13 nézet, saját helyre került vállalkozások,
+  szerződések, képességpróbák és világesemények. Nézetenként rövid magyarázat,
+  közvetlen link, Vissza/Előre működés, mobilválasztó és billentyűzetes elérés.
+  [Használat és határok](features/phase26-1-admin-workflows.md),
+  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: 26.2.
 - [ ] Verziózott capability-mátrixban minden támogatott backend-művelethez
   felületi belépési pontot, jogosultságot, előfeltételt, állapotot, eredményt és
   hibamegjelenítést rendelni; az árva backend- és frontend-képességeket teszttel

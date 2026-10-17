@@ -16,7 +16,7 @@
 body { margin: 0; background: radial-gradient(circle at 20% -10%, #283221 0, transparent 30%), var(--bg); color: var(--text); font: 14px/1.5 Inter, Segoe UI, sans-serif; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
-.topbar { max-width: 1500px; margin: auto; padding: 34px 28px 22px; display: flex; justify-content: space-between; gap: 20px; align-items: end; }
+.topbar { max-width: 1700px; margin: auto; padding: 34px 28px 22px; display: flex; justify-content: space-between; gap: 20px; align-items: end; }
 h1, h2, h3 { margin: 0; letter-spacing: -.025em; }
 h1 { font-size: clamp(28px, 4vw, 44px); }
 h2 { font-size: 20px; }
@@ -25,16 +25,52 @@ h3 { font-size: 17px; }
 .muted { color: var(--muted); }
 .topbar .muted { margin: 6px 0 0; }
 .header-actions, .dialog-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-main { max-width: 1500px; margin: auto; padding: 0 28px 60px; }
+main { max-width: 1700px; margin: auto; padding: 0 28px 60px; }
 .connection-status { margin-bottom: 14px; padding: 15px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
 .connection-status[hidden] { display: none; }
 .connection-status[data-gateway="unavailable"], .connection-status[data-engine="unavailable"] { border-color: var(--gold); }
 .connection-services { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); margin-top: 5px; }
 .connection-status p { margin: 5px 0 0; color: var(--muted); }
-.admin-tabs { display: flex; gap: 7px; padding: 6px; margin-bottom: 14px; overflow-x: auto; background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
-.admin-tab { flex: none; padding: 9px 16px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px; font-weight: 750; }
+.skip-navigation { position: fixed; top: -100px; left: 16px; z-index: 100; padding: 12px; color: var(--text); background: var(--panel); }
+.skip-navigation:focus { top: 12px; }
+.admin-workspace { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; }
+.admin-navigation { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; padding: 14px 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.navigation-group + .navigation-group { margin-top: 18px; }
+.navigation-group h2 { margin: 0 10px 6px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.admin-tab { display: block; padding: 9px 10px; color: var(--text); border-radius: 8px; font-weight: 650; text-decoration: none; }
 .admin-tab:hover { color: var(--text); background: var(--panel-2); }
 .admin-tab.active { color: #15140d; background: var(--gold); }
+.admin-content { min-width: 0; }
+.view-heading { padding: 6px 0 10px; }
+.view-heading h2 { font-size: 28px; }
+.view-heading p { max-width: 90ch; margin-bottom: 0; }
+.mobile-navigation { display: none; }
+.workflow-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+.workflow-card { padding: 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.workflow-card h3 { color: var(--gold); margin-bottom: 14px; }
+.workflow-card a { display: inline-block; font-size: 16px; font-weight: 650; }
+.workflow-card p { margin: 4px 0 16px; color: var(--muted); }
+.workflow-card p:last-child { margin-bottom: 0; }
+.admin-content a { color: #e9c779; text-underline-offset: 3px; }
+.admin-content a:hover { color: #fff; }
+.admin-workspace :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.getting-started { padding: 0 28px 0 42px; }
+.getting-started li { margin: 12px 0; }
+.workflow-note { margin: 20px; color: var(--muted); }
+@media (max-width: 1250px) { .admin-content .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+    .admin-workspace { grid-template-columns: minmax(0, 1fr); }
+    .admin-navigation { display: none; }
+    .mobile-navigation { display: grid; gap: 6px; margin-bottom: 18px; color: var(--muted); }
+    .mobile-navigation select { width: 100%; min-height: 44px; }
+}
+@media (max-width: 620px) {
+    .topbar, main { padding-left: 16px; padding-right: 16px; }
+    .workflow-cards { grid-template-columns: minmax(0, 1fr); }
+    .admin-content .panel-heading { flex-wrap: wrap; }
+    .admin-content .agent-heading-actions { flex-wrap: wrap; }
+    .admin-content .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 [data-admin-tab-panel][hidden] { display: none !important; }
 .summary-grid { display: grid; grid-template-columns: repeat(6, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
 .metric, .panel { background: color-mix(in srgb, var(--panel) 94%, transparent); border: 1px solid var(--border); box-shadow: var(--shadow); }

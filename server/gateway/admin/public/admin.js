@@ -1,6 +1,7 @@
 import { mountSocietyDashboard } from './society-dashboard.js';
 import { mountConnectionStatus } from './connection-status.js';
 import { contextHeaders, serverId, tokenKey } from './server-context.js';
+import { mountAdminNavigation } from './navigation.js';
 
 mountConnectionStatus(document.querySelector('#connection-status'));
 
@@ -38,7 +39,7 @@ const state = {
     worldDirectorOutbox: [],
     worldDirectorConfig: null,
     skillTrials: [],
-    adminTab: 'bots',
+    adminTab: 'overview',
     sort: { key: 'status', direction: 1 },
     selected: null,
     offlineEditing: null,
@@ -113,21 +114,20 @@ function toast(message, error = false) {
 const societyDashboard = mountSocietyDashboard(document.querySelector('#society-dashboard'), api);
 
 function selectAdminTab(tab) {
-    if (!['bots', 'economy', 'skills', 'agents', 'experiments', 'society', 'llm'].includes(tab)) return;
+    if (!document.querySelector(`[data-admin-tab-panel="${tab}"]`)) return;
     state.adminTab = tab;
-    document.querySelectorAll('.admin-tab').forEach(button => {
-        const selected = button.dataset.tab === tab;
-        button.classList.toggle('active', selected);
-        button.setAttribute('aria-selected', String(selected));
-    });
     document.querySelectorAll('[data-admin-tab-panel]').forEach(panel => {
         panel.hidden = panel.dataset.adminTabPanel !== tab;
     });
     if (tab === 'experiments') void Promise.all([
-        refreshMultiAgentExperiments(), refreshExperimentParameterProfiles(), refreshEconomicContracts(), refreshBusinesses()
+        refreshMultiAgentExperiments(), refreshExperimentParameterProfiles()
     ])
         .catch(error => toast(error.message, true));
     if (tab === 'skills') void refreshSkillDrafts().catch(error => toast(error.message, true));
+    if (tab === 'agents') void Promise.all([refreshAgents(), refreshLlmReplans()]).catch(error => toast(error.message, true));
+    if (tab === 'contracts') void Promise.all([refreshAgents(), refreshEconomicContracts()]).catch(error => toast(error.message, true));
+    if (tab === 'businesses') void Promise.all([refreshAgents(), refreshBusinesses()]).catch(error => toast(error.message, true));
+    if (tab === 'world-events') void refreshWorldDirector().catch(error => toast(error.message, true));
     if (tab === 'society') void societyDashboard.prepare();
 }
 
@@ -1621,7 +1621,7 @@ async function refresh() {
         $('#last-refresh').textContent = `Frissítve: ${new Date(data.generatedAt).toLocaleTimeString('hu-HU')} · automatikus frissítés 5 másodpercenként`;
         renderSummary(); renderTable(); renderSkillRuns(); renderEconomyEvents(); renderAgents(); renderSkillLearning();
         renderMultiAgentCandidates();
-        if (state.adminTab === 'llm') await refreshWorldDirector();
+        if (state.adminTab === 'world-events') await refreshWorldDirector();
         if (state.adminTab === 'experiments') await refreshMultiAgentExperiments();
         if ($('#world-map-dialog').open) renderWorldMapBots();
         drawChart(history.snapshots);
@@ -2423,7 +2423,6 @@ document.addEventListener('click', async event => {
                 await refresh();
             } finally { button.disabled = false; }
         }
-        if (button.dataset.action === 'admin-tab') selectAdminTab(button.dataset.tab);
         if (button.dataset.action === 'stop-skill') {
             const reason = prompt(`${name} agent skilljének leállítási oka:`, 'Kézi agent-skill leállítás');
             if (!reason) return;
@@ -3210,7 +3209,7 @@ async function bootstrapAdmin() {
     renderExperimentParameterProfiles(bootstrap[11].profiles);
 }
 let bootstrapped = false;
-selectAdminTab('bots');
+mountAdminNavigation(selectAdminTab);
 async function refreshCycle() {
     try {
         if (!bootstrapped) { await bootstrapAdmin(); bootstrapped = true; }

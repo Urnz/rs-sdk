@@ -90,7 +90,8 @@ test('full admin browser survives absent services and bootstraps after gateway r
         await Promise.all([page.waitForNavigation(), page.click('.server-card a')]);
         await page.setViewport({ width: 1440, height: 1000 });
         await page.waitForSelector('#connection-status[data-gateway="unavailable"][data-engine="unavailable"]');
-        expect(await page.$eval('h1', element => element.textContent)).toBe('Bot adminisztráció');
+        expect(await page.$eval('h1', element => element.textContent)).toBe('Szerver kezelése');
+        await page.click('#admin-navigation [data-tab="map"]');
         await page.click('#world-map-button');
         expect(await page.$eval('#world-map-dialog', element => (element as HTMLDialogElement).open)).toBe(false);
         expect(await page.$eval('#toast', element => element.textContent)).toContain('gateway');
