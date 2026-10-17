@@ -417,10 +417,20 @@ admin control plane mindkét engine leállítása közben is elérhető marad.
   megtartják a szerverkontextust. **19/19 érintett teszt**, root TypeScript
   és format PASS; végső mobil/asztali finomítás után a célzott Chrome-próba
   is PASS. [Használat és határok](features/phase26-5-contextual-guides.md),
-  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: **26.6**.
-- [ ] A kritikus admin-workflowkat böngészős end-to-end és API/UI contract
+  [ellenőrzési napló](PHASE26_PROGRESS.md).
+- [x] A kritikus admin-workflowkat böngészős end-to-end és API/UI contract
   tesztekkel lefedni, beleértve az üres, betöltési, siker-, részleges és
   hibaállapotokat.
+  **26.6 – elkészült (2026-10-17):** hat új Chrome-próba valódi gateway
+  API-kezelőkkel, ideiglenes adatbázisokkal: profil, világszabály, AI-beállítás,
+  esemény, publikálás, ajánlat/vállalkozás. Betöltés, üres állapot, tartós
+  siker, részleges aktiválás, hibás input, revízió- és bizonyítékütközés.
+  Javítva a világszabály-mentést megállító hiányzó változó és egy navigációs
+  teszt DOM-időzítése. Széles érintett kör: **442 PASS / 1 navigációs FAIL**;
+  javítás után **3/3 ismételt navigációs próba**, root TypeScript és format
+  PASS. Ez nem egybefüggő zöld teljes regressziós kapu.
+  [Lefedettség és határok](features/phase26-6-workflow-contracts.md),
+  [ellenőrzési napló](PHASE26_PROGRESS.md). Következő feladat: **26.7**.
 - [ ] Az egységesítés végén használhatósági, hozzáférhetőségi, reszponzív és
   capability-paritási auditot futtatni, majd minden feltárt hiányt lezárni.
 

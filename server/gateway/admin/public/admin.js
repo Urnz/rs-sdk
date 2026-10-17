@@ -1784,6 +1784,8 @@ async function openWorldAdmin() {
 async function saveWorldMod(button) {
     const card = button.closest('[data-mod-id]');
     const modId = card.dataset.modId;
+    const mod = state.worldMods?.mods.find(entry => entry.id === modId);
+    if (!mod) throw new Error('A kijelölt világszabály már nem található. Frissítsd a kezelőt, majd ellenőrizd újra a módosítást.');
     const config = {};
     card.querySelectorAll('[data-mod-setting]').forEach(input => {
         const type = input.dataset.settingType;

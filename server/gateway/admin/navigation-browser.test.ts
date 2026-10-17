@@ -81,7 +81,9 @@ test('owner workflows stay discoverable, correctly grouped and server-bound acro
         }))).toBe(true);
         await page.$eval('#multi-agent-experiment-form [name="seed"]', element => { (element as HTMLInputElement).value = 'Retained seed'; });
         await page.click('#admin-navigation [data-tab="experiments"]');
-        await page.click('.workflow-help summary'); await page.click('.workflow-help summary');
+        await page.waitForSelector('[data-guide="experiments"] summary');
+        await page.locator('[data-guide="experiments"] summary').click();
+        await page.locator('[data-guide="experiments"] summary').click();
         expect(await page.$eval('#multi-agent-experiment-form [name="seed"]', element => (element as HTMLInputElement).value)).toBe('Retained seed');
         await page.click('.workflow-help a[href$="#agents"]');
         await page.waitForSelector('[data-guide="agents"]');

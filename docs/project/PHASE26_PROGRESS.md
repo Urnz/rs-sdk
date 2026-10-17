@@ -472,3 +472,111 @@ exit 0, 1,661 s. Napló:
 A 26.5 lezárható. A 31 korábbi capability-hiány változatlanul a 26.7
 paritási auditban nyitott; a következő feladat a **26.6 kritikus
 admin-workflowk böngészős és API/UI szerződéses lefedése**.
+
+## 26.6 – Kritikus workflowk API/UI szerződése (2026-10-17)
+
+Hat új Chrome-eset készült a tényleges control-plane és gateway API-kezelők
+között. A profil űrlapjától a valódi tárolóig, az AI-konfiguráció számaitól
+a mentett felülbírálásig, a világszabály jóváhagyásától a részleges
+aktiválásig és a revízióütközésig, az esemény-előnézettől az idempotens
+sorba állításig, a publikálási lenyomattól a verified fájlig, valamint
+az ajánlati/vállalkozási űrlaptól a tartós rekordig járják végig a folyamatot.
+
+Az üres és betöltési állapotot késleltetett profilválasz ellenőrzi;
+helytelen JSON nem küld írást. A siker valódi, újratöltés után is látható
+eredmény. A részleges állapotnál a konfiguráció elmentődik, az aktiválás
+sikertelen, az ok és teendő megmarad. A hibák közé tartozik a nem érvényes
+modell, változtathatatlan profilverzió, elavult revízió és közben megváltozott
+publikálási bizonyíték. A sikertelen ellenőrzésű próbához nincs publikálógomb.
+
+Minden eset külön Bun gyermekfolyamatot és saját `rs-admin-contract-*`
+temp gyökeret kap. A tesztútvonalak és a memóriabeli titoktár adaptere
+csak a gyermekben él; más teszt modulregiszterére nincs hatása. A statikus
+UI a checkoutból olvasott, a konfigurációk ismert másolatai, az adatbázisok,
+az audit és a publikált tesztképesség kizárólag a temp gyökérbe írhatók.
+A böngésző/gyermek leállítása és a gyökérrel ellenőrzött rekurzív cleanup
+kezelt. A hiányzó játékkomponensek üres adapterek; bot, AI-provider,
+valódi titoktár és gazdasági kifizetés nem indul.
+
+**Megtartott határ:** a publikálás előkészített, szintetikus verifier-
+jelentést használ; az élő bizonyítékképzés nem ebben a böngészőtesztben fut.
+A kézbesítési hiba/siker a valódi outbox lease API-jával léptetett,
+nem tényleges engine-workerrel. A pénzmozgások atomi domain-szabályainak
+meglévő tesztjei változatlanok.
+
+### Javított hibák
+
+A világszabály Mentés gombjában a jóváhagyási összefoglaló a nem definiált
+`mod` változót használta. A gomb így a kérés előtt `mod is not defined`
+hibával megállt. Most a kijelölt azonosítóhoz tartozó aktuális szabályt
+oldja fel, hiány esetén érthető frissítési teendőt ad. A böngészőteszt
+ellenőrzi a konkrét beállításnevet/értéket, a PUT-ot, a mentett revíziót,
+a megmaradó aktiválási hibát és az újabb konfiguráció védelmét.
+
+A széles körben egy korábbi navigációs teszt a hashváltás közben lecserélt
+súgó DOM-elemére kattintott. A teszt most az új nézet konkrét súgóját várja,
+és frissen feloldott, stabil elemet kereső locatorral kattint. Termék-
+viselkedés, assertion és időlimit nem lett a hiba elfedésére módosítva.
+
+[Részletes lefedettség, korábbi kritikus tesztek és korlátok](features/phase26-6-workflow-contracts.md).
+
+### Kiválasztott kör és végső eredmények
+
+Érintett modul: admin felület világszabály-mentése, Chrome-szerződéscsomag
+és a navigációs teszt. Határok: valódi űrlap/HTTP/tároló szerződés,
+jóváhagyás, állapotmegjelenítés, izolált konfiguráció/titokadapter,
+control-plane proxy és szerverkontextus. Indokolt az admin/control-plane
+modulcsomag és a root TypeScript. Szerveroldali API, auth/jogosultsági kapu,
+tartós adatmodell, gazdasági alap, engine vagy runtime-függőség nem
+változott; teljes `verify:full`, engine-/webclient-typecheck nem indokolt.
+
+- **Öt valódi API/UI folyamat és root TypeScript/format: 5/5 PASS,
+  exit 0, 52,681 s.**
+  `bun test server/gateway/admin/admin-workflow-contract-browser.test.ts && bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-211421-767-phase26-6-contracts-final.log`
+  és azonos nevű `.result.json`.
+- **Kereskedelmi kiegészítés: 1/1 PASS, exit 0, 3,698 s.**
+  `bun test server/gateway/admin/admin-workflow-contract-browser.test.ts -t "commercial forms"`.
+  `.local/verification/20261017-211841-500-phase26-6-commerce-pass.log`
+  és azonos nevű `.result.json`.
+- **Széles érintett kör: 442 PASS / 1 FAIL / 0 skip, exit 1,
+  157,264 s.** A hat új szerződéses eset mind sikeres. A hiba a fent leírt
+  navigációs DOM-időzítés volt. A lánc itt megállt, a typecheck és format
+  ebben a láncban nem futott.
+  `bun test server/gateway/admin server/control-plane/test && bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-211924-222-phase26-6-affected.log`
+  és azonos nevű `.result.json`.
+- **Navigáció javítás után három külön futásban 3/3 PASS; root TypeScript
+  és format PASS, exit 0, 52,710 s.**
+  `foreach ($attempt in 1..3) { bun test server/gateway/admin/navigation-browser.test.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }; bun run typecheck && bun run format:check`.
+  `.local/verification/20261017-212314-956-phase26-6-navigation-final.log`
+  és azonos nevű `.result.json`. A három futás ugyanannak az egy
+  navigációs esetnek az ismétlése, nem három új külön teszt.
+
+A 443 külön teszthez a széles és a végső javított kör együtt ad sikeres
+bizonyítékot. A széles parancs hibás exitjét nem írjuk át zöldnek, és ez
+nem teljes regressziós PASS. A másik 442 sikeres esetet a kizárólagos
+navigációs tesztjavítás után nem ismételtük.
+
+### Korai diagnosztika megőrzése
+
+A kezdeti API/UI kör két hibás újratöltési tesztfeltétele az azonos URL
+hash-navigációjából adódott; a segéd most valódi újratöltést kér.
+A következő kör a tényleges világszabály-mentési hibánál állt meg, és a
+globális tesztidőtúllépés után másodlagos Chrome-profil cleanup EBUSY is
+naplózott. A rövidített, diagnosztikus várakozás megmutatta a `mod`
+hibát; a termékhiba javítása után az öt eset és a typecheck sikerült.
+Naplók: `20261017-211057-734-phase26-6-contracts-first.log`,
+`20261017-211236-829-phase26-6-contracts-fixed.log`,
+`20261017-211349-025-phase26-6-world-debug.log`.
+
+A kereskedelmi fixture felépítésekor hiányzó játékosnév, üres botfelügyeleti
+lista, üres beépített katalóguskönyvtár és statikus hagyatéki policy pótlása
+volt szükséges. Az ajánlat/vállalkozás létrehozása a meglévő policy szerint
+közvetlen; az elutasítás kér külön áttekintést. A teszt ezt követi, és a
+közvetlen lépésnél a váratlan jóváhagyási ablak hiányát is ellenőrzi.
+A hibás korai `phase26-6-commerce*` naplók megmaradtak; a végső egyedi és
+széles körben ez a folyamat is sikeres. Assertion nem lett kihagyva.
+
+A 26.6 lezárható. Következő: **26.7 használhatósági, hozzáférhetőségi,
+reszponzív és capability-paritási audit**, a 31 ismert felületi hiánnyal.
