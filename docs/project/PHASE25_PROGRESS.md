@@ -3,7 +3,6 @@
 ## 25.9 – privát HTTPS, session és szerepkörök (2026-10-17)
 
 **Elkészült a privát Windows-admin támogatott körben; TASKS 25.9 `[x]`.**
-Helyi production aktiválás eredménye még rögzítendő.
 
 Explicit, privát címre kötött HTTPS mód készült kanonikus origin/Host
 ellenőrzéssel. A kulcs a külön controller identity-könyvtár OS-vault
@@ -72,6 +71,22 @@ Ellenőrzési indok és eredmény:
   `20261017-160153-042-phase25-9-reviewed-publication-audit.log`.
   Két új jelölt ugyanaz a szándékosan elutasított, kitalált `.invalid` URL;
   kézzel minősített fixture, nem hozzáférési adat. A repo nyilvános marad.
+- A statement-lezárási javítás utáni **végső natív HTTPS**, format és teljes
+  publikációs audit **PASS, 11,098 s**:
+  `20261017-160948-400-phase25-9-final-native-security.log`.
+- **Helyi aktiválás PASS, 4,039 s**, a `7ced9cf28` forráscommitból:
+  nulla aktív kezelt világ, privát konzisztens identity/registry/WAL backup,
+  identity **v2**, registry **v3**, admin readiness és védett API-k.
+  A fiókok/jelszóhash-ek, tulajdonosi kötések és korábbi audit sorok pontos
+  hash-egyezése igazolt, a régi sessionök visszavonva, új szerepkör nem kitalált.
+  A **14 megjegyzett bot** metaadatai megmaradtak, plaintext titok **0**,
+  provider nincs konfigurálva:
+  `20261017-161027-218-phase25-9-local-activation.log`.
+
+A helyi példány továbbra is csak loopback HTTP; távoli HTTPS-hez az explicit
+konfiguráció és saját megbízható tanúsítvány szükséges. Bot vagy társadalmi
+hangolási futás nem indult; `.canvas.tsx` nem készült. Következő TASKS pont:
+**26.1**, az admin információs architektúra és felhasználói workflowk.
 
 ## 25.8 – felügyelet, mentés és helyreállítás (2026-10-17)
 
