@@ -35,6 +35,7 @@ async function portsFree(ports: number[]) {
 export class LocalManagedRuntime implements ManagedRuntime {
     readonly version: string;
     private base: string;
+    private readonly runTokens = new Map<string, { generation: string; value: Promise<string | null> }>();
     constructor(private source: string, base: string, private identityFile: string) {
         this.source = resolve(source); this.base = resolve(base);
         const result = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: source, stdout: 'pipe', stderr: 'ignore', windowsHide: true });
@@ -123,7 +124,14 @@ export class LocalManagedRuntime implements ManagedRuntime {
     private async run(server: ManagedServer): Promise<Run | null> {
         try { const stored = JSON.parse(await readFile(join(this.directory(server), 'runtime.json'), 'utf8'));
             if (stored.token || stored.secretStore !== 'windows-credential-manager') throw failure('SECRET_MIGRATION_REQUIRED', 'A korábbi futási token titoktár-migrációt igényel.');
-            const run = { ...stored, token: await new ServerSecretStore(join(this.directory(server), 'workspace')).get('worker-control-token') } as Run;
+            if (!/^[a-f0-9-]{36}$/.test(stored.generation)) throw new Error();
+            let cached = this.runTokens.get(server.serverId);
+            if (!cached || cached.generation !== stored.generation) {
+                const value = new ServerSecretStore(join(this.directory(server), 'workspace')).get('worker-control-token');
+                cached = { generation: stored.generation, value }; this.runTokens.set(server.serverId, cached);
+                value.catch(() => { if (this.runTokens.get(server.serverId)?.value === value) this.runTokens.delete(server.serverId); });
+            }
+            const run = { ...stored, token: await cached.value } as Run;
             if (JSON.stringify(run.ports) !== JSON.stringify(server.ports) || !/^[a-f0-9]{64}$/.test(run.token) || !/^[a-f0-9-]{36}$/.test(run.generation)) throw new Error();
             return run;
         } catch (error) {

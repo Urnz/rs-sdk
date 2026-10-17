@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { link, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { migrateWorkspaceSecrets } from './secret-migration.js';
@@ -63,4 +63,16 @@ test('bot children receive connection data without provider, admin, worker or lo
     expect(publicBotEnvironment({ PATH: 'synthetic-path', SERVER: 'localhost:8888', OPENAI_API_KEY: 'synthetic',
         ADMIN_TOKEN: 'synthetic', ENGINE_ADMIN_TOKEN: 'synthetic', MANAGED_CONTROL_TOKEN: 'synthetic', ENGINE_LOGIN_PRIVATE_KEY: 'synthetic' }))
         .toEqual({ PATH: 'synthetic-path', SERVER: 'localhost:8888' });
+});
+
+test('migration rejects a shared plaintext source before writing a vault entry', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'rs-secret-alias-')), store = memoryStore();
+    try {
+        await mkdir(join(root, '.local/admin/secrets'), { recursive: true });
+        const original = join(root, 'other-source'); await writeFile(original, 'synthetic-provider-original');
+        await link(original, join(root, '.local/admin/secrets/openai-api-key.txt'));
+        await expect(migrateWorkspaceSecrets(root, store)).rejects.toThrow('aliases');
+        expect(await store.status('openai-api-key')).toBe(false);
+        expect(await readFile(original, 'utf8')).toBe('synthetic-provider-original');
+    } finally { await rm(root, { recursive: true, force: true }); }
 });

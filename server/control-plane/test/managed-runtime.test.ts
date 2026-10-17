@@ -10,6 +10,35 @@ import { assertManagedModuleRoot, managedBotEnvironment, managedContext } from '
 import { assertPrivateInstanceTree } from '../instance-files.js';
 import { ServerSecretStore } from '../secret-store.js';
 
+test('worker credential rotation follows the persisted generation and never reuses the previous worker token', async () => {
+    const temporary = await mkdtemp(join(tmpdir(), 'managed-worker-vault-'));
+    const id = `srv-${randomUUID()}`, workspace = join(temporary, id, 'workspace');
+    await mkdir(workspace, { recursive: true });
+    const store = new ServerSecretStore(workspace);
+    let generation = randomUUID(), token = 'a'.repeat(64);
+    const listeners = Array.from({ length: 6 }, (_, index) => Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(req) {
+        return req.headers.get('Authorization') === `Bearer ${token}`
+            ? Response.json({ id, role: index === 4 ? 'engine' : 'gateway', generation, ready: true, stopping: false })
+            : new Response(null, { status: 401 });
+    } }));
+    const runtime = new LocalManagedRuntime(resolve(import.meta.dir, '../../..'), temporary, join(temporary, 'identity.sqlite'));
+    const server: ManagedServer = { serverId: id, creatorId: 'fixture', version: runtime.version, template: 'classic', ports: listeners.map(listener => listener.port!), state: 'running', revision: 1, error: null };
+    const persist = async () => {
+        await store.set('worker-control-token', token);
+        await writeFile(join(temporary, id, 'runtime.json'), JSON.stringify({ generation, ports: server.ports, secretStore: 'windows-credential-manager' }));
+    };
+    try {
+        await persist();
+        expect(await runtime.connection(server)).toEqual({ gateway: true, engine: true });
+        token = 'b'.repeat(64); generation = randomUUID(); await persist();
+        expect(await runtime.connection(server)).toEqual({ gateway: true, engine: true });
+        expect(await runtime.inspect(server)).toBe('running');
+    } finally {
+        listeners.forEach(listener => listener.stop(true)); await store.delete('worker-control-token');
+        await rm(temporary, { recursive: true, force: true });
+    }
+}, 20000);
+
 test('runtime rejects path/version/template substitutions before any filesystem provisioning', async () => {
     const temporary = await mkdtemp(join(tmpdir(), 'managed-runtime-validation-'));
     const runtime = new LocalManagedRuntime(resolve(import.meta.dir, '../../..'), temporary, join(temporary, 'identity.sqlite'));
