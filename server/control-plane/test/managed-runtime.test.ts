@@ -163,3 +163,29 @@ test('mutable world state refuses junctions and hard links to a sibling world', 
         expect(await readFile(join(sibling, 'sentinel.txt'), 'utf8')).toBe('sibling state');
     } finally { await rm(temporary, { recursive: true, force: true }); }
 });
+
+test('migration refuses missing or reverse ancestry before changing a world', async () => {
+    const temporary = await mkdtemp(join(tmpdir(), 'migration-ancestry-'));
+    const runtime = new LocalManagedRuntime(resolve(import.meta.dir, '../../..'), temporary, join(temporary, 'identity.sqlite'));
+    const server: ManagedServer = { serverId: `srv-${randomUUID()}`, creatorId: 'fixture', version: 'f'.repeat(40), template: 'classic', ports: [22000,22001,22002,22003,22004,22005], state: 'stopped', revision: 1, error: null };
+    try {
+        await expect(runtime.migrate(server, runtime.version, randomUUID())).rejects.toMatchObject({ code: 'VERSION_UNSUPPORTED' });
+        expect(existsSync(join(temporary, server.serverId))).toBe(false);
+    } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
+test('missing child shutdown proof prevents a new generation and preserves all worker metadata', async () => {
+    const temporary = await mkdtemp(join(tmpdir(), 'managed-quiescence-'));
+    const runtime = new LocalManagedRuntime(resolve(import.meta.dir, '../../..'), temporary, join(temporary, 'identity.sqlite'));
+    const id = `srv-${randomUUID()}`, workspace = join(temporary, id, 'workspace'); await mkdir(workspace, { recursive: true });
+    const probes = Array.from({ length: 6 }, () => Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: () => new Response('reserved') }));
+    const ports = probes.map(probe => probe.port!); probes.forEach(probe => probe.stop(true));
+    const server: ManagedServer = { serverId: id, creatorId: 'fixture', version: runtime.version, template: 'classic', ports, state: 'failed', revision: 1, error: null };
+    const metadata = JSON.stringify({ generation: randomUUID(), ports, secretStore: 'windows-credential-manager', quiescenceRequired: true }), file = join(temporary, id, 'runtime.json');
+    const store = new ServerSecretStore(workspace);
+    try {
+        await store.set('worker-control-token', 'c'.repeat(64)); await writeFile(file, metadata);
+        await expect(runtime.start(server)).rejects.toMatchObject({ code: 'CHILD_RECOVERY_REQUIRED' });
+        expect(await readFile(file, 'utf8')).toBe(metadata);
+    } finally { await store.delete('worker-control-token'); await rm(temporary, { recursive: true, force: true }); }
+}, 10000);

@@ -98,12 +98,19 @@ export class LocalManagedRuntime implements ManagedRuntime {
     }
     async migrate(server: ManagedServer, version: string, operationId: string) {
         if (version !== this.version || version === server.version) throw failure('VERSION_UNSUPPORTED', 'Csak az aktuális, eltérő helyi forrásverzióra lehet migrálni.');
+        const ancestry = Bun.spawnSync(['git', 'merge-base', '--is-ancestor', server.version, version], { cwd: this.source, stdout: 'ignore', stderr: 'ignore', windowsHide: true });
+        if (ancestry.exitCode) throw failure('VERSION_UNSUPPORTED', 'Csak igazolt elődverzióból történő előrelépés támogatott; visszaállításhoz válassz világmentést.');
         const dir = this.directory(server), workspace = join(dir, 'workspace'), stage = join(dir, `stage-${operationId}`);
         await verifyInstanceBinding(workspace, instanceBinding(server));
         // Plaintext legacy sources are changed only after every reserved port is already free.
         if (!await portsFree(server.ports)) throw failure('MIGRATION_REQUIRES_STOP', 'A régi világot migráció előtt külön állítsd le.');
         await this.quiescent(server);
         await migrateWorkspaceSecrets(workspace, new ServerSecretStore(workspace), {}, { offlineSourceUpgrade: true });
+        const prepared = await readJson(join(dir, 'prepared.json')), loginKey = await new ServerSecretStore(workspace).get('engine-login-key');
+        const publicPemBefore = await readFile(join(workspace, 'server/engine/data/config/public.pem'), 'utf8');
+        if (!loginKey || prepared.publicKeySha256 !== createHash('sha256').update(publicPemBefore).digest('hex')
+            || !createPublicKey(loginKey).export({ type: 'spki', format: 'der' }).equals(createPublicKey(publicPemBefore).export({ type: 'spki', format: 'der' })))
+            throw failure('INSTANCE_KEY_MISMATCH', 'A migrálandó világ login-kulcskötése nem igazolható.');
         await this.maintenance(server).backup(server, operationId);
         await mkdir(stage, { mode: 0o700 });
         const archive = join(dir, `upgrade-${operationId}.tar`);
