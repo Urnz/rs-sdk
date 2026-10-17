@@ -328,12 +328,19 @@ instabillá vagy önfenntartóvá.
   Helyben 14 botjelszó migrálva, admin readiness és plaintext-utóellenőrzés PASS.
   Más OS backendje és régi pinnelt világ forrásmigrációja nincs késznek állítva.
   [Működés és migráció](features/phase25-7-os-secret-store.md),
-  [ellenőrzések](PHASE25_PROGRESS.md). Következő feladat: 25.8 felügyelet és helyreállítás.
-- [ ] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,
+  [ellenőrzések](PHASE25_PROGRESS.md). A forrásmigráció a 25.8-ban készült el.
+- [x] Folyamatfelügyeletet, health checket, ütközésmentes portfoglalást,
   migrációt, backupot és hibából visszaállást készíteni.
-  **25.8 – folyamatban:** tartós karbantartási intent, offline ellenőrzött
-  világmentés, staging/rollback és felügyelet; a végső technikai ellenőrzés nyitott.
+  **25.8 – elkészült helyi Windows / izolációs v1 világokhoz:** hitelesített
+  folyamatfelügyelet, kizárólagos admin-lease, biztonságos port-/processindítás,
+  tartós karbantartási intent, ellenőrzött offline mentés, forrásmigráció és rollback.
+  A 25.6→25.8 natív migráció, vault-/SQLite-megőrzés, restore, engine-hiba utáni
+  újraindítás és archiválás PASS; a helyi admin registry v3-on egészséges.
+  Az egyszeri teljes kapu régi Windows temp-teardown EBUSY hibáját és a célzott
+  sikeres pótlást külön dokumentáltuk. Ismeretlen árva gyermek automatikus
+  kilövése, más gépre titokexport és nem izolált régi világ migrációja nem támogatott.
   [Működés és helyreállítási határok](features/phase25-8-runtime-recovery.md).
+  [Ellenőrzések és mért idők](PHASE25_PROGRESS.md). Következő feladat: 25.9.
 - [ ] Későbbi távoli eléréshez TLS-t, CSRF-védelmet, rate limitet, session-kezelést
   és szerepköralapú engedélyezést bevezetni.
 

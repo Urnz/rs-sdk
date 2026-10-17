@@ -1,5 +1,110 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.8 – felügyelet, mentés és helyreállítás (2026-10-17)
+
+**Elkészült a helyi Windows / izolációs v1 támogatott körben; TASKS 25.8 `[x]`.**
+
+Elkészült a hitelesített engine/gateway felügyelet, három egymást követő
+hiba után auditált hibastátusszal, explicit újraindítási úttal. Windows
+named-pipe lease zárja ki a kettős adminfelügyeletet. A logikai portfoglalást
+indítás előtti OS-portellenőrzés egészíti ki; idegen folyamatot nem öl meg.
+
+A tulajdonosi adminfelületen elérhető a világmentés, mentésválasztás és
+visszaállítás, valamint az aktuális pinnelt forrásra migráció. Ezek szabályos
+offline műveletek, idempotens request key-jel és revízióval. A mentés teljes
+fájlleltárral/hash-ekkel ellenőrzött, titkot nem exportál. A forráscsere külön
+stagingben készül, tartós naplóval és SQL-eredményből eldöntött rollbackkel.
+Registry v3 additív karbantartási intent, változatlan identity v1/domain-sémák.
+
+A natív próbák két valódi Windows-hibát tártak fel: a gyermekben örökölt
+portfoglalás beragasztotta a gateway portját, az örökölt admin HTTP-listener
+pedig akadályozta volna az admin újraindulását. Az új indító explicit natív
+handle-engedélylistája csak standard I/O-t ad át. Hibánál a launcher saját
+Process-handle-t állít le; sikeres hitelesített readiness után átad és kilép.
+Mindkét worker újraindítása és az admin portjának élő workerek melletti
+újrakötése regressziós tesztet kapott. Ismeretlen/árva gyermekfolyamatot a
+rendszer nem adoptál PID alapján; hiányzó gateway-lezárási igazolásnál zárt
+helyreállítási hibát ad.
+
+[Használat, mentési/migrációs korlát és rollback](features/phase25-8-runtime-recovery.md).
+A 25.9 távoli TLS/RBAC külön feladat marad.
+
+Ellenőrzések és költség:
+
+- Első célzott kapu **30 PASS, 53,564 s**, admin böngészős backup/restore/
+  migráció, életciklus, secret-migráció, root típus és formázás:
+  `20261017-113736-693-phase25-8-focused-gate.log`.
+- Az új registry és közös migrációs határ indokolta az **egyszeri** teljes
+  regressziót. Format + root/engine/webclient típus **PASS**; a root kör
+  **1252 PASS / 1 FAIL / 0 skip**, **204,942 s**. A régi account-böngészőteszt
+  lezárásakor tempkönyvtár-törlés `EBUSY`, nem funkcionális assertion hibája:
+  `20261017-114119-647-full.log`. Ezt nem nevezzük zöld teljes kapunak.
+- Az érintett account-eset célzott pótlása és a meg nem futott **30 csomag
+  659 tesztje PASS**, majd a korábbi három Windows-folyamateset is PASS;
+  együtt **663 PASS / 0 FAIL / 0 skip, 159,499 s**:
+  `20261017-114814-590-phase25-8-remaining-and-windows.log`.
+- Végső érintett control-plane kör **51 PASS / 1 FAIL, 47,013 s**:
+  ugyanaz az intermittáló account-teardown `EBUSY`. A HTTP-kiszolgáló leállása
+  megvárt; a második hibát is megőrizzük. Az account-eset külön ismét PASS a
+  `20261017-115717-529-phase25-8-final-windows-and-typecheck.log` elején.
+  Az új/módosított modulok funkcionális tesztjei mind sikeresek; a teljes
+  regressziót és a változatlan sikeres domaincsomagokat nem ismételtük.
+- Snapshot-leltár: **15 349 bejegyzés**, korlátozott 16-os I/O, azonos teljes
+  integritási tartalommal. Helyi mérések: könyvtárankénti soros bejárással
+  **32,117 s**, globálisan korlátozott párhuzamos I/O-val **0,650 s**. A mérés
+  cache-/terhelésfüggő, nem általános sebességígéret. A 9 akkori mentési teszt
+  és root típus **PASS, 21,566 s**:
+  `20261017-114933-215-phase25-8-snapshot-parallel.log`.
+- Későbbi két új runtime-eset (elődverzió és hiányzó child-lezárási igazolás)
+  **PASS** az összesen **17 sikeres** maintenance/runtime teszt között:
+  `20261017-114750-525-phase25-8-snapshot-timing-fixed.log`.
+  A hiányzó workspace-et helyreállító új crash-határ esete a végső érintett
+  körben szintén PASS.
+- A javított Windows indító / élő kétworkeres admin-port újrakötés **PASS**,
+  root típus, teljes PowerShell segéd/szintaxis és format **PASS, 34,875 s**:
+  `20261017-120253-545-phase25-8-explicit-handles.log`.
+  A launcher saját gyermekének abortja és szóközös útvonal külön **PASS**, root
+  típussal **16,906 s**: `20261017-120416-466-phase25-8-launch-abort.log`.
+- Korábbi natív kísérletek megőrizve: a lassú leltár miatt offline állapotban
+  megszakított próba **195,872 s**, majd a migráción átjutó, portöröklésnél
+  elbukó próba **119,274 s**. A Windows-hibákhoz a kis reprodukció és a
+  regressziós próbák szolgáltatták a javítás bizonyítékát; nincs timeoutemelés
+  vagy funkcionális assertion gyengítése.
+- Publikáció előtti audit **PASS, 3,463 s**: **744 változott szövegfájl,
+  0 változott bináris, 0 blokkoló jelölt, 0 új személyes commit-metaadat**.
+  `20261017-120529-585-phase25-8-publication-audit.log`. A repo nyilvános marad
+  a felhasználó korábbi döntése szerint; régi elfogadott commit-email változatlan.
+- **Végső natív elfogadás PASS, 258,832 s** az `9815bea16` forráscommitból:
+  valódi 25.6→25.8 migráció, legacy jelszó/login-kulcs ellenőrzött OS-importja,
+  változatlan kulcs és világkötés, valódi engine/gateway indítás, új vezérlőpéldány
+  csatlakozása változatlan engine PID/generációhoz, szabályos offline backup,
+  SQLite-adat **42→99→visszaállított 42**, újraindítás, csak az azonosított
+  próbavilág engine-ének leállítása, három sikertelen health check, explicit
+  restart és archiválás. Három ellenőrzött mentés maradt, majd minden próba-
+  folyamat leállt és a próba vault-bejegyzései törlődtek.
+  `20261017-120437-591-phase25-8-native-verified-launcher.log`.
+- Összesen **1915 külön root/domain tesztesethez** van PASS-bizonyíték a teljes
+  és célzott/pótló futásokból; az egyszeri full hibás exitje továbbra is látható.
+  A **5 külön Windows-folyamateset** is PASS-bizonyítékot kapott. A későbbi,
+  behatárolt Windows-launcher/snapshot javításokhoz csak az érintett kört és
+  natív próbát futtattuk újra, teljes regressziót nem.
+- **Helyi aktiválás PASS, 4,045 s**: nulla aktív production kezelt világ,
+  privát konzisztens identity/registry/WAL backup után registry **v3**,
+  identity **v1**, admin readiness és védett API-k. A **14 megjegyzett bot**
+  metadata megmaradt, plaintext titok **0**, provider nincs konfigurálva.
+  `20261017-120938-926-phase25-8-local-activation.log`.
+- Próbaállomány-takarítás **PASS, 86,393 s**: a három szintetikus világ,
+  staging/retired/snapshot másolatai és az abortált próba vault-slotjai eltűntek;
+  a közös függőség-junctionök külön, rekurzió nélkül kerültek lecsatolásra.
+  A wrapper- és workerdiagnosztika privát helyi naplóban megmaradt.
+  `20261017-121117-087-phase25-8-fixture-cleanup.log`.
+  Végső publikációs audit és format **PASS, 1,586 s**:
+  `20261017-121253-685-phase25-8-final-publish-gate.log`.
+
+A teljes kör EBUSY temp-teardown instabilitása külön infrastruktúra-follow-up;
+nem a világmentésből való visszaállítás hibája. Sem assertiont, sem timeoutot
+nem gyengítettünk. Nincs `.canvas.tsx` artifact és nem indult hangolási kísérlet.
+
 ## 25.7 – Windows OS-titoktár (2026-10-17)
 
 A providerkulcs, megjegyzett botjelszó és az új kezelt világ login privát

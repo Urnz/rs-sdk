@@ -16,7 +16,7 @@ fájlonkénti SHA-256-ot, verziót és világkötést tartalmazza. A forrás és
 leltára egyaránt ellenőrzött. Félkész mentés `.partial`, nem választható ki.
 Visszaállítás előtt a **jelenlegi** állapotról is új mentés készül.
 
-A titkok nem kerülnek mentésbe: a kompatibilis régi plaintext források előbb
+A rendszer által kezelt titkok nem kerülnek mentésbe: a kompatibilis régi plaintext források előbb
 ellenőrzötten az OS-titoktárba importálódnak. A mentés ezért ugyanazon gép,
 OS-fiók és kanonikus világútvonal helyreállítására szolgál. Nem hordozható
 export és nem az OS-titoktár katasztrófa utáni mentése. Korábban felülírt
