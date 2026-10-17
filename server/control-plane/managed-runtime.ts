@@ -11,6 +11,7 @@ import { InstanceMaintenance, instanceBinding, type WorldBackup } from './instan
 import { readJson, dependencyTrees, atomicJson, inventory } from './instance-snapshots.js';
 import { migrateWorkspaceSecrets } from '../gateway/admin/secret-migration.js';
 import { reservePorts } from './runtime-leases.js';
+import { spawnManagedProcess } from './managed-process.js';
 
 export const worldTemplates = [
     { id: 'classic', label: 'Klasszikus bolti gazdaság', shopEconomyMode: 'legacy', xpRate: 25 },
@@ -301,15 +302,17 @@ export class LocalManagedRuntime implements ManagedRuntime {
             ENGINE_ADMIN_URL: `http://127.0.0.1:${server.ports[1]}`, ENGINE_PUBLIC_URL: `http://127.0.0.1:${server.ports[1]}/mapview/`,
             LOGIN_SERVER: 'false', FRIEND_SERVER: 'false', LOGGER_SERVER: 'false', EASY_STARTUP: 'false', WEBSITE_REGISTRATION: 'false',
             BUILD_STARTUP: 'false', BUILD_LIVE_RELOAD: 'false', NODE_SHOP_ECONOMY_MODE: template.shopEconomyMode, NODE_XPRATE: String(template.xpRate) });
-        const children: ReturnType<typeof Bun.spawn>[] = [];
+        const children: ReturnType<typeof spawnManagedProcess>[] = [];
         try {
+            // Windows Bun children inherit open socket handles. Release every probe before
+            // spawning either worker; otherwise the engine would retain the gateway's lease.
+            // SQL reservations still serialize managed worlds; a foreign bind fails startup closed.
+            await leases.release();
             for (const role of ['engine', 'gateway'] as const) {
                 if (role === 'gateway') { runMetadata.quiescenceRequired = true; await atomicJson(join(dir, 'runtime.json'), runMetadata); }
-                // Keep the other worker's ports reserved until that worker is about to bind.
-                await leases.release(role === 'engine' ? server.ports.slice(1, 5) : [server.ports[0]!, server.ports[5]!]);
-                const child = Bun.spawn([process.execPath, '--no-env-file', join(workspace, 'server/control-plane/managed-worker.ts')], {
-                    cwd: join(workspace, 'server', role), env: { ...environment, ...(role === 'engine' ? { ENGINE_LOGIN_PRIVATE_KEY: loginKey } : {}), MANAGED_ROLE: role, MANAGED_CONTROL_PORT: String(server.ports[role === 'engine' ? 4 : 5]) },
-                    stdout: Bun.file(join(dir, `${role}.out.log`)), stderr: Bun.file(join(dir, `${role}.err.log`)), windowsHide: true });
+                const child = spawnManagedProcess({ executable: process.execPath, worker: join(workspace, 'server/control-plane/managed-worker.ts'),
+                    cwd: join(workspace, 'server', role), environment: { ...environment, ...(role === 'engine' ? { ENGINE_LOGIN_PRIVATE_KEY: loginKey } : {}), MANAGED_ROLE: role, MANAGED_CONTROL_PORT: String(server.ports[role === 'engine' ? 4 : 5]) },
+                    stdout: join(dir, `${role}.out.log`), stderr: join(dir, `${role}.err.log`), launchError: join(dir, `${role}.launch.err.log`) });
                 children.push(child);
                 const deadline = Date.now() + 60000;
                 while (true) {
@@ -319,11 +322,14 @@ export class LocalManagedRuntime implements ManagedRuntime {
                     await Bun.sleep(200);
                 }
             }
+            for (const child of children) await child.release();
         } catch (error) {
-            for (const child of children) if (child.exitCode === null) child.kill();
+            // Released launchers no longer hold a Process handle. Stop only workers that
+            // authenticate this generation, then abort any still-owned startup handles.
+            try { await this.stop(server); } catch { /* unresolved children remain quarantined by the missing shutdown proof */ }
+            for (const child of children) if (child.exitCode === null) await child.kill();
             await Promise.all(children.map(child => child.exited));
-            // No admin action can reach a world until start succeeds, so these startup children have no admitted bot/skill work.
-            await atomicJson(join(dir, 'gateway-quiesced.json'), { id: server.serverId, generation: run.generation }); throw error;
+            throw error;
         }
         } finally { await leases.release(); }
     }

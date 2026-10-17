@@ -25,7 +25,7 @@ export class InstanceMaintenance {
         const partial = join(root, `${id}.partial`);
         await mkdir(partial, { mode: 0o700 });
         const prepared = await readJson(join(this.dir, 'prepared.json'));
-        if (JSON.stringify(prepared.binding) !== JSON.stringify(instanceBinding(server))) throw new Error('Prepared backup binding mismatch.');
+        if (prepared.isolationVersion !== 1 || JSON.stringify(prepared.binding) !== JSON.stringify(instanceBinding(server))) throw new Error('Prepared backup binding mismatch.');
         const files = await inventory(workspace);
         await copyInventory(workspace, join(partial, 'workspace'), files);
         // Also detect changes to source files while copying; callers must have stopped all owned writers.
@@ -39,7 +39,7 @@ export class InstanceMaintenance {
         const manifest = await readJson(join(path, 'manifest.json')) as BackupManifest;
         if (manifest.schemaVersion !== 1 || manifest.id !== id || !/^[a-f0-9]{40}$/.test(manifest.version)
             || JSON.stringify(manifest.binding) !== JSON.stringify(instanceBinding({ ...server, version: manifest.version }))
-            || JSON.stringify(manifest.prepared.binding) !== JSON.stringify(manifest.binding)
+            || manifest.prepared.isolationVersion !== 1 || JSON.stringify(manifest.prepared.binding) !== JSON.stringify(manifest.binding)
             || JSON.stringify(await inventory(join(path, 'workspace'))) !== JSON.stringify(manifest.files)) throw new Error('Backup integrity or world binding mismatch.');
         return manifest;
     }

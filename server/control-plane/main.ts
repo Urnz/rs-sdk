@@ -25,10 +25,13 @@ try {
     await lifecycle.idle();
     const server = Bun.serve({ hostname: '127.0.0.1', port: config.port, maxRequestBodySize: 16 * 1024 * 1024, fetch: createControlPlane(config, identities, fetch, registry, lifecycle) });
     log(`[Control plane] http://127.0.0.1:${server.port}/admin/`);
-    const supervisor = setInterval(() => { void lifecycle.supervise().catch(() => log('[Control plane] Supervisor check failed; private state retained.')); }, 10000);
+    let supervision: Promise<void> | undefined;
+    const supervisor = setInterval(() => {
+        if (!supervision) supervision = lifecycle.supervise().catch(() => log('[Control plane] Supervisor check failed; private state retained.')).finally(() => { supervision = undefined; });
+    }, 10000);
     let shuttingDown = false;
     for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, async () => {
-        if (shuttingDown) return; shuttingDown = true; clearInterval(supervisor); server.stop(true);
-        await lifecycle.idle(); registry.close(); identities.close(); process.exit(0);
+        if (shuttingDown) return; shuttingDown = true; clearInterval(supervisor); await server.stop(true);
+        await supervision; await lifecycle.idle(); registry.close(); identities.close(); process.exit(0);
     });
 } catch (error) { writerLease?.close(); log(error instanceof Error ? error.message : 'Control plane startup failed'); process.exitCode = 1; }

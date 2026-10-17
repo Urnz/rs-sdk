@@ -39,7 +39,17 @@ A HTTP-kiszolgálás a startup-rekonciliáció befejezése után indul.
 
 Windows named-pipe lease kizárja, hogy ugyanazt a registryt két admin
 felügyelje. A registry egyedi portfoglalásait az indítás OS-portlease-szel
-egészíti ki, amelyet szerepenként közvetlenül a worker indítása előtt enged el.
+egészíti ki, amelyet az ellenőrzések/titoktári lépések után, közvetlenül az első
+worker indítása előtt teljesen elenged. A Windows Bun gyermekfolyamata örökli
+a Node TCP-listenerek handle-jeit; szerepenkénti átadás beragasztaná a második
+worker portjait az elsőbe. A két worker és az admin HTTP-portjának újbóli
+kötését külön Windows-regresszió ellenőrzi.
+Az indító ezért explicit Windows `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`
+engedélylistával csak stdin/stdout/stderr handle-t ad át. A rövid életű,
+stdin-protokollos launcher a saját natív Process-handle-jét a hitelesített
+readiness elfogadásáig tartja; hibánál azt állítja le, sikeres átadás után kilép.
+A worker így az admin újraindítása mellett is futhat, annak portját nem tartja
+nyitva. A privát környezet stdin-en érkezik, parancssorba vagy naplóba nem kerül.
 Az OS kötés az utolsó döntő határ: idegen folyamat közbeékelődésekor az indítás
 hibázik, kizárólag a saját gyermekhandle-jeit takarítja el. PID vagy foglalt
 port alapján nem öl idegen folyamatot, és nem cserél automatikusan végpontot.

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -64,7 +64,7 @@ test('snapshot traversal and filesystem aliases fail closed without following th
     } finally { await rm(f.dir, { recursive: true, force: true }); }
 });
 
-test('source migration swap recovers both rename boundaries and restores the previous prepared binding', async () => {
+test('source migration swap restores the previous prepared binding after installation', async () => {
     const f = await fixture(), id = randomUUID(), stage = join(f.dir, `stage-${id}`);
     try {
         await copyInventory(f.workspace, stage, await inventory(f.workspace));
@@ -74,6 +74,18 @@ test('source migration swap recovers both rename boundaries and restores the pre
         await new InstanceMaintenance(f.dir, async () => {}).recover(true);
         expect(JSON.parse(await readFile(join(f.dir, 'prepared.json'), 'utf8')).binding.version).toBe(f.server.version);
         expect(await readFile(join(f.workspace, '.local/save'), 'utf8')).toBe('original world state');
+    } finally { await rm(f.dir, { recursive: true, force: true }); }
+});
+
+test('a crash between retiring the workspace and installing the stage restores the missing workspace', async () => {
+    const f = await fixture(), id = randomUUID();
+    try {
+        const before = JSON.parse(await readFile(join(f.dir, 'prepared.json'), 'utf8'));
+        await atomicJson(join(f.dir, 'maintenance.json'), { schemaVersion: 1, operationId: id, before, after: { binding: instanceBinding({ ...f.server, version: 'b'.repeat(40) }) } });
+        await rename(f.workspace, join(f.dir, `retired-${id}`));
+        await new InstanceMaintenance(f.dir, async () => {}).recover(true);
+        expect(await readFile(join(f.workspace, '.local/save'), 'utf8')).toBe('original world state');
+        expect(JSON.parse(await readFile(join(f.dir, 'prepared.json'), 'utf8'))).toEqual(before);
     } finally { await rm(f.dir, { recursive: true, force: true }); }
 });
 

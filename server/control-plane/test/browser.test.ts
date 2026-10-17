@@ -45,7 +45,7 @@ test('maintenance UI backs up, selects a snapshot, restores and migrates with vi
         expect(registry.lifecycle.managed(created.serverId)!.version).toBe(runtime.version);
         await page.setViewport({ width: 390, height: 844 });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(errors).toEqual([]);
-    } finally { await browser?.close(); await manager.idle(); admin.stop(true); registry.close(); identities.close(); }
+    } finally { await browser?.close(); await manager.idle(); await admin.stop(true); registry.close(); identities.close(); }
 }, 30000);
 
 test('full admin browser survives absent services and bootstraps after gateway recovery without reloading', async () => {
@@ -114,7 +114,7 @@ test('full admin browser survives absent services and bootstraps after gateway r
         gateway.stop(true); gateway = undefined;
         await page.waitForSelector('#connection-status[data-gateway="unavailable"]', { timeout: 10000 });
         expect((await fetch(new URL('/admin/', admin.url), { redirect: 'manual' })).status).toBe(303); expect(errors).toEqual([]);
-    } finally { await browser?.close(); gateway?.stop(true); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }
+    } finally { await browser?.close(); gateway?.stop(true); await admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true }); }
 }, 40000);
 
 test('two admin tabs keep independent mandatory contexts, settings and an explicit offline shell', async () => {
@@ -177,7 +177,7 @@ test('two admin tabs keep independent mandatory contexts, settings and an explic
         await a.setViewport({ width: 1440, height: 1050 }); await a.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-6-server-context-desktop.png'), fullPage: true });
         await b.setViewport({ width: 390, height: 844 }); await b.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-6-server-context-mobile.png'), fullPage: true });
         expect(await b.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true); expect(errors).toEqual([]);
-    } finally { await browser?.close(); await manager.idle(); admin.stop(true); registry.close(); identities.close(); }
+    } finally { await browser?.close(); await manager.idle(); await admin.stop(true); registry.close(); identities.close(); }
 }, 40000);
 
 test('server creation and lifecycle actions show visible progress, failures and retained archives in Chrome', async () => {
@@ -213,7 +213,7 @@ test('server creation and lifecycle actions show visible progress, failures and 
         await page.setViewport({ width: 1440, height: 1100 }); await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-4-lifecycle-desktop.png'), fullPage: true });
         await page.setViewport({ width: 390, height: 844 }); await page.screenshot({ path: join(import.meta.dir, '../../../.local/verification/phase25-4-lifecycle-mobile.png'), fullPage: true });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    } finally { await browser?.close(); await manager.idle(); admin.stop(true); registry.close(); identities.close(); }
+    } finally { await browser?.close(); await manager.idle(); await admin.stop(true); registry.close(); identities.close(); }
 }, 40000);
 
 test('owner can create an account, grant/revoke access, and a non-owner can log in without backend privileges', async () => {
@@ -259,5 +259,5 @@ test('owner can create an account, grant/revoke access, and a non-owner can log 
         expect(await page.$eval('#owner-management', element => (element as HTMLElement).hidden)).toBe(true);
         expect(await page.evaluate(async () => (await fetch('/api/admin/config', { headers: { 'X-Control-Server-ID': 'local-default' } })).status)).toBe(404);
         expect(errors).toEqual([]);
-    } finally { await browser?.close(); admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
+    } finally { await browser?.close(); await admin.stop(true); registry.close(); identities.close(); await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }); }
 }, 40000);
