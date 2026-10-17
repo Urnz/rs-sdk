@@ -50,6 +50,7 @@ function card(server) {
     const article = document.createElement('article'), title = document.createElement('h2'), summary = document.createElement('p');
     article.className = 'server-card'; article.dataset.serverId = server.id; title.textContent = server.name;
     article.append(title, summary);
+    const role = document.createElement('p'); role.textContent = `Szerepkör: ${{ owner: 'tulajdonos', operator: 'üzemeltető', viewer: 'néző' }[server.role] || 'ismeretlen'}`; article.append(role);
     if (server.managed) {
         summary.textContent = stateLabels[server.managed.state] || 'Ismeretlen állapot';
         if (server.managed.state === 'running' && server.managed.observedState !== 'running') summary.textContent = 'A folyamat futása jelenleg nem igazolható.';
@@ -67,8 +68,9 @@ function card(server) {
         article.append(services);
     } else summary.textContent = 'A szerver adminfelülete még nincs csatlakoztatva.';
     const footer = document.createElement('footer');
-    if (server.managed && ['stopped', 'running', 'failed'].includes(server.managed.state)) {
+    if (server.managed && ['owner', 'operator'].includes(server.role) && ['stopped', 'running', 'failed'].includes(server.managed.state)) {
         for (const [action, label] of [['start', 'Indítás'], ['stop', 'Leállítás'], ['restart', 'Újraindítás'], ['archive', 'Archiválás']]) {
+            if (action === 'archive' && server.role !== 'owner') continue;
             if (action === 'start' && server.managed.state === 'running' || ['stop', 'restart'].includes(action) && server.managed.state === 'stopped') continue;
             const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.dataset.action = action; button.disabled = mutationPending;
             const requestKey = crypto.randomUUID();
@@ -80,7 +82,7 @@ function card(server) {
             }); footer.append(button);
         }
     }
-    if (server.managed?.maintenanceAvailable && ['stopped', 'running', 'failed'].includes(server.managed.state)) {
+    if (server.role === 'owner' && server.managed?.maintenanceAvailable && ['stopped', 'running', 'failed'].includes(server.managed.state)) {
         const maintenance = document.createElement('div');
         const run = async (action, extra = {}) => {
             if (!confirm(action === 'restore' ? 'A világ leáll, a jelenlegi állapotról mentés készül, majd a kiválasztott mentés áll vissza. A titoktár változatlan marad. Folytatod?'
@@ -113,6 +115,9 @@ function card(server) {
         if (server.connection?.gateway.state === 'unavailable') {
             const hint = document.createElement('small'); hint.textContent = 'A felület leállított játékszerver mellett is megnyitható.'; footer.append(hint);
         }
+    }
+    if (server.role === 'owner') {
+        const grants = document.createElement('a'); grants.href = `/admin/account.html?serverId=${server.id}`; grants.textContent = 'Hozzáférések kezelése'; footer.append(grants);
     }
     article.append(footer); return article;
 }

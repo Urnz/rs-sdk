@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib/local-runtime.ps1')
 $adminStateRoot = [IO.Path]::GetFullPath($StateDirectory)
 $adminStatePath = Join-Path $adminStateRoot 'runtime.json'
+$adminOrigin = if ($env:CONTROL_PLANE_HTTPS_ORIGIN) { $env:CONTROL_PLANE_HTTPS_ORIGIN.TrimEnd('/') } else { "http://127.0.0.1:$Port" }
 New-Item -ItemType Directory -Force -Path $adminStateRoot | Out-Null
 $adminOperationLock = [IO.File]::Open((Join-Path $adminStateRoot 'operation.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
 try {
@@ -14,7 +15,9 @@ try {
         if ($existingAdmin.schemaVersion -ne 1) { throw 'Unsupported admin runtime state; no process was changed.' }
         if (Test-LocalManagedProcess $existingAdmin) {
             if ([int]$existingAdmin.port -ne $Port) { throw 'The admin already runs on another port.' }
-            Write-Output "Admin already running: http://127.0.0.1:$Port/admin/"
+            $existingAdminOrigin = if ($existingAdmin.PSObject.Properties['origin']) { $existingAdmin.origin } else { "http://127.0.0.1:$($existingAdmin.port)" }
+            if ($existingAdminOrigin -ne $adminOrigin) { throw 'The admin already runs with another origin; stop it before changing transport.' }
+            Write-Output "Admin already running: $adminOrigin/admin/"
             exit 0
         }
     }
@@ -32,13 +35,16 @@ try {
         # The service writes its own private log, so a captured launcher can reach EOF immediately.
         $adminProcess = Start-Process -FilePath (Get-BunExecutable) -ArgumentList @('run', 'server/control-plane/main.ts') `
             -WorkingDirectory (Get-LocalRepoRoot) -WindowStyle Hidden -PassThru
-        $adminState = [ordered]@{ schemaVersion = 1; pid = $adminProcess.Id; startedAtUtc = $adminProcess.StartTime.ToUniversalTime().ToString('o'); port = $Port }
+        $adminState = [ordered]@{ schemaVersion = 1; pid = $adminProcess.Id; startedAtUtc = $adminProcess.StartTime.ToUniversalTime().ToString('o'); port = $Port; origin = $adminOrigin }
         $adminState | ConvertTo-Json | Set-Content -LiteralPath $adminStatePath -Encoding utf8
         Wait-LocalCondition -Description 'independent admin /health' -TimeoutSeconds 15 -Condition {
             if ($adminProcess.HasExited) { throw 'The admin process exited; inspect its private log.' }
-            (Test-LocalHttp -Uri "http://127.0.0.1:$Port/health" -ExpectedContentType 'application/json').healthy
+            if ($env:CONTROL_PLANE_HTTPS_ORIGIN) {
+                & (Get-BunExecutable) run server/control-plane/readiness.ts *> $null
+                $LASTEXITCODE -eq 0
+            } else { (Test-LocalHttp -Uri "http://127.0.0.1:$Port/health" -ExpectedContentType 'application/json').healthy }
         }
-        Write-Output "Admin ready: http://127.0.0.1:$Port/admin/"
+        Write-Output "Admin ready: $adminOrigin/admin/"
     } catch {
         if ($adminProcess -and -not $adminProcess.HasExited) { Stop-Process -Id $adminProcess.Id -ErrorAction SilentlyContinue }
         if (Test-Path -LiteralPath $adminStatePath) { Remove-Item -LiteralPath $adminStatePath -Force }

@@ -12,9 +12,12 @@ export class LifecycleManager {
     constructor(private registry: ServerRegistry, private identities: IdentityStore, private runtime: ManagedRuntime) {}
     catalog() { return { versions: [{ id: this.runtime.version, label: `Helyi LostCity · ${this.runtime.version.slice(0, 8)}` }],
         templates: worldTemplates.map(({ id, label }) => ({ id, label })) }; }
-    private owned(actor: string, id: string) {
+    private owned(actor: string, id: string, access: 'read' | 'operate' | 'owner' = 'owner') {
         const server = this.registry.lifecycle.managed(id);
-        if (!server || !this.identities.owns(actor, id)) throw new IdentityError(404, 'SERVER_NOT_FOUND', 'A kezelt szerver nem található.');
+        const role = this.identities.role(actor, id);
+        if (!server || !role) throw new IdentityError(404, 'SERVER_NOT_FOUND', 'A kezelt szerver nem található.');
+        if (access === 'owner' && role !== 'owner' || access === 'operate' && role === 'viewer')
+            throw new IdentityError(403, 'ROLE_REQUIRED', 'Ehhez a szerverművelethez magasabb jogosultság szükséges.');
         return server;
     }
     async view(id: string) {
@@ -28,7 +31,7 @@ export class LifecycleManager {
     }
     async backups(actor: string, id: string) { const server = this.owned(actor, id); return this.runtime.backups ? this.runtime.backups(server) : []; }
     async connection(actor: string, id: string) {
-        const server = this.owned(actor, id);
+        const server = this.owned(actor, id, 'read');
         if (server.state !== 'running') return { gateway: false, engine: false };
         if (this.runtime.connection) return this.runtime.connection(server);
         const running = await this.runtime.inspect(server) === 'running';
@@ -36,7 +39,7 @@ export class LifecycleManager {
     }
     operation(actor: string, id: string) {
         const operation = this.registry.lifecycle.operation(id);
-        if (!operation || !this.identities.owns(actor, operation.serverId)) throw new IdentityError(404, 'OPERATION_NOT_FOUND', 'A művelet nem található.');
+        if (!operation || !this.identities.role(actor, operation.serverId)) throw new IdentityError(404, 'OPERATION_NOT_FOUND', 'A művelet nem található.');
         return { id: operation.id, serverId: operation.serverId, action: operation.action, state: operation.state, error: operation.error };
     }
     create(actor: string, data: Record<string, unknown>) {
@@ -51,7 +54,7 @@ export class LifecycleManager {
         this.launch(operation); return this.operation(actor, operation.id);
     }
     action(actor: string, id: string, action: string, data: Record<string, unknown>) {
-        this.owned(actor, id);
+        this.owned(actor, id, ['start', 'stop', 'restart'].includes(action) ? 'operate' : 'owner');
         if (!['start', 'stop', 'restart', 'archive', 'backup', 'restore', 'migrate'].includes(action)) throw new IdentityError(404, 'ACTION_NOT_FOUND', 'Ismeretlen szerverművelet.');
         const payload: { backupId?: string; targetVersion?: string } = {};
         if (['backup', 'restore', 'migrate'].includes(action) && !this.runtime.backup) throw new IdentityError(409, 'MAINTENANCE_UNAVAILABLE', 'A runtime nem támogat karbantartást.');

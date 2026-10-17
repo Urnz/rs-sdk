@@ -120,7 +120,7 @@ export class LocalManagedRuntime implements ManagedRuntime {
         await this.command(['git', 'archive', '--format=tar', `--output=${archive}`, version], this.source, join(dir, 'upgrade-archive.err.log'));
         await this.command(['tar', '-xf', archive, '-C', stage, '--exclude=AGENTS.md', '--exclude=GEMINI.md'], this.source, join(dir, 'upgrade-extract.err.log'));
         await inventory(stage); // Reject source aliases before replacing any extracted mutable tree.
-        for (const relative of ['server/control-plane/secret-store.ts', 'server/control-plane/managed-worker.ts', 'server/control-plane/instance-context.ts'])
+        for (const relative of ['server/control-plane/secret-store.ts', 'server/control-plane/managed-worker.ts', 'server/control-plane/instance-context.ts', 'server/control-plane/authorization.ts'])
             if (!existsSync(join(stage, relative))) throw failure('VERSION_UNSUPPORTED', 'A célverzió nem támogatja a kezelt, titoktárhoz kötött világot.');
         for (const relative of ['package.json', 'server/engine/package.json', 'server/webclient/package.json']) {
             const before = JSON.parse(await readFile(join(workspace, relative), 'utf8')), after = JSON.parse(await readFile(join(stage, relative), 'utf8'));
@@ -275,8 +275,9 @@ export class LocalManagedRuntime implements ManagedRuntime {
         const dir = this.directory(server), workspace = join(dir, 'workspace');
         await this.quiescent(server);
         if (!existsSync(join(workspace, 'server/control-plane/secret-store.ts'))
+            || !existsSync(join(workspace, 'server/control-plane/authorization.ts'))
             || !(await readFile(join(workspace, 'server/control-plane/managed-worker.ts'), 'utf8')).includes('gateway-quiesced.json'))
-            throw failure('VERSION_UPGRADE_REQUIRED', 'A korábbi világ forrásmigrációt igényel a titoktár használatához.');
+            throw failure('VERSION_UPGRADE_REQUIRED', 'A korábbi világ forrásmigrációt igényel az identity v2, szerepkörök és titoktár használatához.');
         await verifyInstanceBinding(workspace, { id: server.serverId, version: server.version, template: server.template, ports: server.ports });
         const publicKey = createPublicKey(await readFile(join(workspace, 'server/engine/data/config/public.pem')));
         const manifest = JSON.parse(await readFile(join(dir, 'prepared.json'), 'utf8'));

@@ -32,6 +32,7 @@ test('runtime releases every Windows TCP lease before spawning either worker and
     await writeFile(join(workspace, '.local/instance.json'), JSON.stringify({ schemaVersion: 1, binding: instanceBinding(server), workspace }));
     await writeFile(join(dir, id, 'prepared.json'), JSON.stringify({ binding: instanceBinding(server), isolationVersion: 1, publicKeySha256: createHash('sha256').update(publicPem).digest('hex') }));
     await writeFile(join(workspace, 'server/control-plane/secret-store.ts'), '// synthetic vault capability');
+    await writeFile(join(workspace, 'server/control-plane/authorization.ts'), '// synthetic role capability');
     await writeFile(join(workspace, 'server/control-plane/managed-worker.ts'), `
         import {writeFile} from 'node:fs/promises';import {resolve} from 'node:path';
         const role=process.env.MANAGED_ROLE,id=process.env.CONTROL_PLANE_SERVER_ID,generation=process.env.MANAGED_GENERATION;

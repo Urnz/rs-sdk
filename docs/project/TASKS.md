@@ -340,9 +340,16 @@ instabillá vagy önfenntartóvá.
   sikeres pótlást külön dokumentáltuk. Ismeretlen árva gyermek automatikus
   kilövése, más gépre titokexport és nem izolált régi világ migrációja nem támogatott.
   [Működés és helyreállítási határok](features/phase25-8-runtime-recovery.md).
-  [Ellenőrzések és mért idők](PHASE25_PROGRESS.md). Következő feladat: 25.9.
-- [ ] Későbbi távoli eléréshez TLS-t, CSRF-védelmet, rate limitet, session-kezelést
+  [Ellenőrzések és mért idők](PHASE25_PROGRESS.md).
+- [x] Későbbi távoli eléréshez TLS-t, CSRF-védelmet, rate limitet, session-kezelést
   és szerepköralapú engedélyezést bevezetni.
+  **25.9 elkészült (2026-10-17):** privát HTTPS/OS-vault, session-visszavonás,
+  szerverenkénti viewer/operator/owner és közös proxy/gateway kapu elkészült;
+  1925 root/domain esethez PASS-bizonyíték, 6 Windows-eset PASS. Az egyszeri
+  full két régi időkorlátos hibája külön és a 21 megmaradt csomagban pótolva,
+  nem zöld full exitként feltüntetve. Az alapmód továbbra is loopback HTTP.
+  [Használat, migráció és rollback](features/phase25-9-remote-admin-security.md).
+  [Ellenőrzések és mért idők](PHASE25_PROGRESS.md). Következő feladat: 26.1.
 
 Elfogadási feltétel: egy bejelentkezett felhasználó két, egymástól teljesen
 elkülönített szervert létrehoz, külön beállít, elindít és leállít úgy, hogy az

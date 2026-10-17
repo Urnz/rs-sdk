@@ -7,7 +7,7 @@ h2 { font-size: 1.2rem; }
 .eyebrow { font-size: .75rem; letter-spacing: .12em; color: #a9c9ed; }
 form, label { display: grid; gap: 8px; }
 form { gap: 18px; }
-input { width: 100%; padding: 12px; border: 1px solid #8192a9; border-radius: 6px; background: #10151c; color: inherit; font: inherit; }
+input, select { width: 100%; padding: 12px; border: 1px solid #8192a9; border-radius: 6px; background: #10151c; color: inherit; font: inherit; }
 button { padding: 10px 16px; border: 1px solid #9ec9ff; border-radius: 6px; background: #244c7e; color: #fff; font: inherit; cursor: pointer; }
 button:disabled { opacity: .6; cursor: wait; }
 a { color: #b3d5ff; }

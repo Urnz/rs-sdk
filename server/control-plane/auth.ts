@@ -7,9 +7,8 @@ export function sessionToken(req: Request) {
     const matches = (req.headers.get('cookie') ?? '').split(';').map(part => part.trim()).filter(part => part.startsWith(sessionCookieName + '='));
     return matches.length === 1 ? matches[0]!.slice(sessionCookieName.length + 1) : null;
 }
-export function sessionCookie(token: string, clear = false) {
-    // HTTP is permitted only on loopback; remote/TLS deployment remains a separate phase.
-    return `${sessionCookieName}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${clear ? 0 : sessionLifetimeSeconds}`;
+export function sessionCookie(token: string, clear = false, secure = false) {
+    return `${sessionCookieName}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${clear ? 0 : sessionLifetimeSeconds}${secure ? '; Secure' : ''}`;
 }
 export function requireSession(req: Request, store: IdentityStore, owner = false) {
     const token = sessionToken(req), session = store.session(token);
@@ -42,22 +41,32 @@ export async function body(req: Request): Promise<Record<string, unknown>> {
 }
 export async function accountRoute(req: Request, store: IdentityStore): Promise<Response> {
     const path = new URL(req.url).pathname;
+    const secure = new URL(req.url).protocol === 'https:';
     try {
         if (path === '/api/control-plane/login' && req.method === 'POST') {
             if (req.headers.get('origin') !== new URL(req.url).origin || req.headers.get('x-admin-request') !== 'rs-sdk-admin')
                 throw new IdentityError(403, 'SAME_ORIGIN_REQUIRED', 'Helyi, azonos eredetű bejelentkezés szükséges.');
             const data = await body(req), login = await store.login(data.username, data.password);
-            return json({ account: login.account }, 200, { 'Set-Cookie': sessionCookie(login.token) });
+            const previousToken = sessionToken(req);
+            if (store.session(previousToken)?.account.id === login.account.id) store.logout(previousToken!);
+            return json({ account: login.account }, 200, { 'Set-Cookie': sessionCookie(login.token, false, secure) });
         }
         const session = requireSession(req, store);
         if (path === '/api/control-plane/session' && req.method === 'GET') return json({ account: session.account,
-            expiresAt: session.expiresAt, csrfToken: csrfFor(session.token), ownsLocalServer: store.owns(session.account.id) });
+            expiresAt: session.expiresAt, csrfToken: csrfFor(session.token), ownsLocalServer: store.owns(session.account.id), localRole: store.role(session.account.id) });
         if (path === '/api/control-plane/logout' && req.method === 'POST') {
-            store.logout(session.token); return json({ loggedOut: true }, 200, { 'Set-Cookie': sessionCookie('', true) });
+            store.logout(session.token); return json({ loggedOut: true }, 200, { 'Set-Cookie': sessionCookie('', true, secure) });
         }
         if (path === '/api/control-plane/password' && req.method === 'POST') {
             const data = await body(req); await store.changePassword(session.account.id, data.currentPassword, data.password);
-            return json({ loggedOut: true }, 200, { 'Set-Cookie': sessionCookie('', true) });
+            return json({ loggedOut: true }, 200, { 'Set-Cookie': sessionCookie('', true, secure) });
+        }
+        if (path === '/api/control-plane/sessions' && req.method === 'GET') return json({ sessions: store.sessions(session.account.id, session.token) });
+        const revoke = /^\/api\/control-plane\/sessions\/([a-f0-9-]{36})$/.exec(path);
+        if (revoke && req.method === 'DELETE') {
+            const current = store.sessions(session.account.id, session.token).find(row => row.id === revoke[1])?.current;
+            store.revokeSession(session.account.id, revoke[1]!);
+            return json({ revoked: true }, 200, current ? { 'Set-Cookie': sessionCookie('', true, secure) } : {});
         }
         if (path === '/api/control-plane/accounts') {
             requireSession(req, store, true);

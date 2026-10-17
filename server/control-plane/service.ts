@@ -1,11 +1,13 @@
 import { serveAdminAsset } from '../gateway/admin/assets.js';
 import { localOrigin, type ControlPlaneConfig } from './config.js';
-import { accountRoute, authError, body, json, requireSession, sessionCookieName } from './auth.js';
+import { accountRoute, authError, body, json, requireSession, sessionCookieName, sessionToken } from './auth.js';
 import type { IdentityStore } from './identity-store.js';
 import { IdentityError, localServerId } from './identity-store.js';
 import type { RegisteredServer, ServerRegistry } from './server-registry.js';
 import type { LifecycleManager } from './lifecycle-manager.js';
 import { pageServerContext, requestServerContext, serverContextHeader } from './server-context.js';
+import { requireDomainAccess } from './authorization.js';
+import { RequestBudget } from './request-budget.js';
 
 type Fetcher = (url: URL, init: RequestInit) => Promise<Response>;
 export interface BackendState { state: 'available' | 'unavailable'; httpStatus: number | null }
@@ -14,10 +16,11 @@ const allowedHeaders = ['accept', 'content-type', 'authorization', 'x-admin-toke
 /** A separate HTTP owner. Identity state is independent of every game/domain database. */
 export function createControlPlane(config: ControlPlaneConfig, identities: IdentityStore, fetcher: Fetcher = fetch, registry?: ServerRegistry, lifecycle?: LifecycleManager) {
     const gateway = localOrigin(config.gatewayOrigin), engine = localOrigin(config.engineOrigin);
+    const budget = new RequestBudget();
     for (const timeout of [config.probeTimeoutMs, config.proxyTimeoutMs]) if (!Number.isInteger(timeout) || timeout < 1 || timeout > 120000) throw new Error('Invalid backend timeout');
     type Target = { id: string; name: string; gateway: string; engine: string; managed: boolean };
     function target(actor: string, id: string): Target {
-        if (!identities.owns(actor, id)) throw new IdentityError(404, 'SERVER_NOT_FOUND', 'A szerver nem található.');
+        if (!identities.role(actor, id)) throw new IdentityError(404, 'SERVER_NOT_FOUND', 'A szerver nem található.');
         const registered = registry?.get(id);
         if (id === localServerId && (!registry || registered?.gatewayOrigin === gateway && registered.engineOrigin === engine))
             return { id, name: registered?.name ?? 'Helyi szerver', gateway, engine, managed: false };
@@ -49,10 +52,10 @@ export function createControlPlane(config: ControlPlaneConfig, identities: Ident
         })().finally(() => { pending.delete(key); }));
         return pending.get(key)!;
     }
-    async function serverView(server: RegisteredServer) {
+    async function serverView(server: RegisteredServer, actor: string) {
         const connected = server.id === localServerId && server.gatewayOrigin === gateway && server.engineOrigin === engine;
         const managed = !!lifecycle && !!registry?.lifecycle.managed(server.id);
-        return { id: server.id, name: server.name, registeredAt: server.registeredAt,
+        return { id: server.id, name: server.name, registeredAt: server.registeredAt, role: identities.role(actor, server.id),
             adminUrl: connected || managed ? `/admin/index.html?serverId=${server.id}` : null,
             connection: connected ? await status({ id: server.id, name: server.name, gateway, engine, managed: false }, '') : null,
             ...(lifecycle ? { managed: await lifecycle.view(server.id) } : {}) };
@@ -62,6 +65,15 @@ export function createControlPlane(config: ControlPlaneConfig, identities: Ident
             const session = requireSession(req, identities);
             if (!registry) return json({ error: 'A szerverregiszter nem érhető el.', code: 'REGISTRY_UNAVAILABLE' }, 503);
             const path = new URL(req.url).pathname;
+            const grants = /^\/api\/control-plane\/servers\/(local-default|srv-[a-f0-9-]{36})\/grants(?:\/([a-f0-9-]{36}))?$/.exec(path);
+            if (grants) {
+                if (!registry.get(grants[1]!)) throw new IdentityError(404, 'SERVER_NOT_FOUND', 'A szerver nem található.');
+                if (req.method === 'GET' && !grants[2]) return json({ accounts: identities.grants(session.account.id, grants[1]!) });
+                if (req.method === 'PUT' && grants[2]) {
+                    const data = await body(req); identities.setRole(session.account.id, grants[2], grants[1]!, data.role); return json({ updated: true });
+                }
+                return json({ error: 'Method not allowed' }, 405);
+            }
             if (lifecycle) {
                 if (path === '/api/control-plane/servers/catalog' && req.method === 'GET') return json(lifecycle.catalog());
                 const operation = /^\/api\/control-plane\/servers\/operations\/([a-f0-9-]{36})$/.exec(path);
@@ -74,19 +86,20 @@ export function createControlPlane(config: ControlPlaneConfig, identities: Ident
             }
             if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
             if (path === '/api/control-plane/servers') {
-                const visible = registry.visibleTo(id => identities.owns(session.account.id, id));
-                return json({ schemaVersion: 1, servers: await Promise.all(visible.map(serverView)) });
+                const visible = registry.visibleTo(id => !!identities.role(session.account.id, id));
+                return json({ schemaVersion: 1, servers: await Promise.all(visible.map(server => serverView(server, session.account.id))) });
             }
             const id = path.slice('/api/control-plane/servers/'.length);
             const server = registry.get(id);
-            if (!server || !identities.owns(session.account.id, id)) return json({ error: 'A szerver nem található.', code: 'SERVER_NOT_FOUND' }, 404);
-            return json({ server: await serverView(server) });
+            if (!server || !identities.role(session.account.id, id)) return json({ error: 'A szerver nem található.', code: 'SERVER_NOT_FOUND' }, 404);
+            return json({ server: await serverView(server, session.account.id) });
         } catch (error) { return error instanceof IdentityError ? authError(error)
             : json({ error: 'A szerverregiszter nem olvasható. Ellenőrizd a helyi admin naplóját.', code: 'REGISTRY_UNAVAILABLE' }, 503); }
     }
-    return async (req: Request): Promise<Response> => {
+    const handle = async (req: Request): Promise<Response> => {
         const url = new URL(req.url);
-        if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return json({ error: 'Local admin origin required' }, 403);
+        if (config.transport ? url.origin !== config.transport.origin : url.protocol !== 'http:' || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return json({ error: 'Configured admin origin required' }, 403);
+        if (req.headers.has('host') && req.headers.get('host') !== url.host) return json({ error: 'Invalid Host' }, 403);
         const origin = req.headers.get('origin');
         if ((origin && origin !== url.origin) || req.headers.get('sec-fetch-site') === 'cross-site') return json({ error: 'Same-origin request required' }, 403);
         if (url.pathname === '/health') return req.method === 'GET' ? json({ service: 'rs-sdk-control-plane', ready: true }) : json({ error: 'Method not allowed' }, 405);
@@ -131,13 +144,16 @@ export function createControlPlane(config: ControlPlaneConfig, identities: Ident
                 }
                 catch (error) { return authError(error); }
             }
-            const response = await serveAdminAsset(url, frameEngine);
+            const assetUrl = new URL(url);
+            if (url.pathname === '/admin/index.html' && identities.role(session.account.id, pageServerContext(url)) !== 'owner') assetUrl.pathname = '/admin/observations.html';
+            const response = await serveAdminAsset(assetUrl, frameEngine);
             if (req.method === 'HEAD' && response) return new Response(null, { status: response.status, headers: response.headers });
             return response ?? new Response('Not found', { status: 404 });
         }
         if (!url.pathname.startsWith('/api/admin/') && url.pathname !== '/api/control-plane/status') return json({ error: 'Not found' }, 404);
         let selected: Target;
-        try { selected = target(session.account.id, requestServerContext(req)); }
+        try { selected = target(session.account.id, requestServerContext(req));
+            if (url.pathname.startsWith('/api/admin/')) requireDomainAccess(identities, session.account.id, selected.id, req); }
         catch (error) { return authError(error); }
         try {
             if (url.pathname === '/api/control-plane/status') return req.method === 'GET' ? json(await status(selected, session.account.id)) : json({ error: 'Method not allowed' }, 405);
@@ -168,5 +184,23 @@ export function createControlPlane(config: ControlPlaneConfig, identities: Ident
             return mutation ? json({ error: 'A gateway válasza nem érkezett meg. A művelet kimenetele ismeretlen; ellenőrizd az állapotot és az auditnaplót újrapróbálás előtt.', code: 'GATEWAY_OUTCOME_UNKNOWN' }, 503)
                 : json({ error: 'A gateway nem elérhető. Az adminfelület működik; állítsd helyre a helyi gateway kapcsolatát.', code: 'GATEWAY_UNAVAILABLE' }, 503);
         }
+    };
+    return async (req: Request, connection: string | { requestIP(req: Request): { address: string } | null } = 'unresolved'): Promise<Response> => {
+        const socketAddress = typeof connection === 'string' ? connection : connection.requestIP(req)?.address ?? 'unresolved';
+        const path = new URL(req.url).pathname, mutation = !['GET', 'HEAD'].includes(req.method);
+        let rateLimited = !budget.take(`ip:${socketAddress}`, 1200)
+            || mutation && !budget.take(`mutate:${socketAddress}`, 60)
+            || path === '/api/control-plane/login' && !budget.take(`login:${socketAddress}`, 10);
+        if (!rateLimited && mutation) {
+            const account = identities.session(sessionToken(req))?.account;
+            if (account) rateLimited = !budget.take(`actor:${account.id}`, 60);
+        }
+        let response: Response;
+        if (rateLimited) response = json({ code: 'RATE_LIMIT', error: 'Túl sok admin kérés; várj egy percet.' }, 429, { 'Retry-After': '60' });
+        else response = await handle(req);
+        response.headers.set('Referrer-Policy', 'no-referrer');
+        response.headers.set('X-Frame-Options', 'DENY');
+        if (config.transport) response.headers.set('Strict-Transport-Security', 'max-age=31536000');
+        return response;
     };
 }

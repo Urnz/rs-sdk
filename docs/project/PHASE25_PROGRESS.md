@@ -1,5 +1,78 @@
 # Phase 25 – több-szerveres admin vezérlőközpont
 
+## 25.9 – privát HTTPS, session és szerepkörök (2026-10-17)
+
+**Elkészült a privát Windows-admin támogatott körben; TASKS 25.9 `[x]`.**
+Helyi production aktiválás eredménye még rögzítendő.
+
+Explicit, privát címre kötött HTTPS mód készült kanonikus origin/Host
+ellenőrzéssel. A kulcs a külön controller identity-könyvtár OS-vault
+névterében él, fájlos/környezeti HTTP fallback nélkül; a háttérindító is
+tanúsítványt ellenőrizve próbálja a TLS-listenert. A gateway/engine helyi
+backend marad. CSRF minden mutációra, HTTPS Secure cookie/HSTS, socket-IP és
+fiók szerinti korlát, 8 órás/legfeljebb 10 session, saját sessionek listázása
+és azonnali visszavonása a fiókoldalon.
+
+Szerverenkénti viewer/operator/owner támogatás, élő jogellenőrzéssel.
+A néző megfigyelőoldalt és szűk domain GET-engedélylistát kap; az üzemeltető
+kezelt világ start/stop/restart jogot; a karbantartás, titokkal kapcsolatos GET,
+új route és jogkezelés owner-only. A központi proxy és közvetlen gateway
+ugyanazt az engedélylistát alkalmazza. A kártyák és a fiókoldal a szerverhez
+kötött szerepkört mutatják/kezelik. Új fiók nem kap automatikus szerverjogot.
+
+Identity **v1→v2**: fiók/hash/tulajdon/audit/loginbudget megmarad, sessionök
+egyszeri auditált visszavonása és additív szerepkör/session-metaadat. Registry
+v3 és domain sémák változatlanok. Régi pinnelt gateway indítása explicit
+forrásfrissítést kér; a régi readonly séma nem kap kompatibilitási megkerülést.
+[Konfiguráció, használat és rollback](features/phase25-9-remote-admin-security.md).
+
+Ellenőrzési indok és eredmény:
+
+- A közös identity-migráció és több modult átfogó auth/RBAC a
+  `VERIFICATION_POLICY.md` alapján egyszeri teljes `verify:full` indok.
+  Ez a kör helyi read-only packed-cache HTTP-forrással futott, bot és hangolás nélkül.
+- Az egyszeri teljes kör: format + root/engine/webclient típus PASS;
+  **1568 PASS / 2 FAIL / 0 skip, 425,282 s**, exit 1:
+  `20261017-160019-195-full.log`. A root csomag **1266/1266 PASS**;
+  a társadalmi benchmark-export **5,508 s / 5 s** és a natív XP-összevetés
+  **18,426 s / 15 s** régi időkorlátja miatt a lánc megállt. A feladat nem
+  változtatta e két modul kódját vagy assertionjeit. Nem zöld full exit.
+- Csak e két eset külön, sorosan és a még nem futott **21 csomag** pótlása:
+  **357 PASS / 0 FAIL / 0 skip, 55,962 s**:
+  `20261017-160749-866-phase25-9-isolated-and-remaining.log`.
+  A két célzott eset **4,040 s**, illetve **13,286 s**, az eredeti időkorláton
+  belül PASS. Összesen **1925 külön root/domain esethez** PASS-bizonyíték;
+  a teljes kör és pótlás együtt **481,244 s**, nem összeadva a beágyazott
+  wrapper idejét. Nincs ismételt teljes kör vagy timeoutemelés.
+- A javított identity/security/lifecycle/account kör **28 PASS / 0 FAIL /
+  0 skip, 14,688 s**:
+  `20261017-155947-126-phase25-9-finalize-identity-statements.log`.
+- Natív Windows HTTPS: valódi privát bind/listener, OS-vault import, a
+  forráskulcs fájljának törlése utáni indítás, SAN/kulcsegyezés/lejárat,
+  megbízható és ismeretlen CA, Secure session, CSRF, logout, nincs HTTP fallback.
+  Külön Node TLS-kliens igazolta: TLS 1.2 sikeres, TLS 1.1 elutasított.
+  A teljes hat Windows-folyamateset és root típus/PowerShell/format
+  **6 PASS / 0 FAIL / 0 skip, 72,075 s**:
+  `20261017-155902-386-phase25-9-windows-and-quality.log`.
+- Az új böngészős owner→viewer kiosztás, nézői mobil oldal, spectate-tiltás,
+  másik böngészősession visszavonása és élő jogvisszavonás PASS az első
+  közös célzott futásban: `20261017-155248-892-phase25-9-focused-gate.log`.
+- A korai körök Windows `EBUSY` hibát tártak fel a WAL-olvasós lezárásnál;
+  a szigorú SQLite-close külön reprodukálta a nyitott statementeket.
+  Minden kiadott statement explicit finalizálása után az érintett régi és
+  új tesztek is PASS, GC-re vagy assertion/timeout lazításra nem építünk.
+  A sikertelen körök megmaradtak: `phase25-9-security-initial`,
+  `phase25-9-focused-gate`, `phase25-9-affected-gate`, `phase25-9-identity-close`.
+- Az első TLS-próba .NET fixture API-hibája javítva. A Bun kliens
+  `maxVersion` opciója nem szolgált megbízható protokollpróbaként, ezért a
+  változatlan elutasítási követelményt külön Node kliens ellenőrzi.
+  A korábbi sikertelen naplók: `phase25-9-native-tls`, `phase25-9-focused-gate`.
+- Publikációs audit **PASS, 1,078 s**: **757 változott szövegfájl,
+  0 bináris, 0 blokkoló, 0 új személyes commit-metaadat**:
+  `20261017-160153-042-phase25-9-reviewed-publication-audit.log`.
+  Két új jelölt ugyanaz a szándékosan elutasított, kitalált `.invalid` URL;
+  kézzel minősített fixture, nem hozzáférési adat. A repo nyilvános marad.
+
 ## 25.8 – felügyelet, mentés és helyreállítás (2026-10-17)
 
 **Elkészült a helyi Windows / izolációs v1 támogatott körben; TASKS 25.8 `[x]`.**
