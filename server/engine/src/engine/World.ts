@@ -3,13 +3,16 @@ import { executeWitnessInspection, loadWitnessInspectionPolicy, type WitnessInsp
 import { getWitnessInspectionStore, type EngineWitnessInspectionReceipt } from '#/mods/WitnessInspectionStore.js';
 import { getThievingEvidenceStore } from '#/mods/ThievingEvidenceStore.js';
 import { recordPlayerHealthHeartbeat } from '#/mods/PlayerHealthEvidenceStore.js';
+import { closeNativeFoodTick } from '#/mods/NativeFoodDeliveryRuntime.js';
+import { recordNativeFoodOpening } from '#/mods/NativeFoodOpening.js';
 import { tickPopulationDeaths, populationAvatarRestricted, populationAvatarIsFinite } from '#/mods/PopulationDeathRuntime.js';
 import { executeCheckpointDetection, executeCheckpointSearch, loadEngineCheckpointConfiguration,
     type CheckpointDetectionCommand, type CheckpointSearchCommand } from '#/mods/CheckpointInspection.js';
 import { getCheckpointEvidenceStore, type EngineCheckpointDetectionRecord,
     type EngineCheckpointInspectionRecord } from '#/mods/CheckpointEvidenceStore.js';
 import { anonymousVisualDigest, witnessContinuityTracker } from '#/mods/WitnessContinuity.js';
-import { playerSaveStore } from '#/engine/market/MarketStore.js';
+import { playerSaveStore, ensurePlayerSaveStore } from '#/engine/market/MarketStore.js';
+import { creditNativePlayerReward } from '#/mods/NativePlayerReward.js';
 // stdlib
 import fs from 'fs';
 import { randomUUID } from 'node:crypto';
@@ -138,6 +141,10 @@ import { getWorldDirectorEventStore, type EngineWorldDirectorEvent,
     type EngineWorldDirectorEventRecord } from '#/mods/WorldDirectorEventStore.js';
 import { getPlayerCustodyStore, type PlayerCustodyOrder,
     type PlayerCustodyRecord } from '#/mods/PlayerCustodyStore.js';
+import { tickNativeKitchen } from '#/mods/NativeKitchenRuntime.js';
+import { tickNativeHousing, refreshNativeHousing } from '#/mods/NativeHousingRuntime.js';
+import { tickNativeCommerce } from '#/mods/NativeCommerceRuntime.js';
+import { tickNativeFoodSkills } from '#/mods/NativeFoodSkillRuntime.js';
 
 // Managed worlds receive their private login key from the OS vault through the parent pipe/environment.
 // Legacy local engines retain the public upstream demonstration key until explicitly migrated.
@@ -679,7 +686,7 @@ class World {
             const drift: number = Math.max(0, start - this.nextTick);
 
             try { tickPopulationDeaths(this.currentTick); }
-            catch (error) { printError(`Population death authority unavailable: ${String(error)}`); }
+            catch (error) { console.error('Population death authority unavailable:', error); }
             for (const player of this.playerLoop.all()) {
                 try { player.populationFinite = populationAvatarIsFinite(player.username);
                     player.populationTerminal ||= populationAvatarRestricted(player.username);
@@ -692,6 +699,7 @@ class World {
             // world processing
             // - world queue
             // - npc hunt
+            refreshNativeHousing();
             this.processWorld();
 
             // client input
@@ -709,6 +717,10 @@ class World {
             this.processAdminPropertyPurchases();
             this.processAdminPlayerRewards();
             this.processAdminPlayerEscrows();
+            tickNativeKitchen();
+            tickNativeCommerce();
+            tickNativeHousing();
+            tickNativeFoodSkills();
             this.processAdminPlayerCustodies();
             this.processAdminWorldDirectorEvents();
             this.processAdminPlayerLogouts();
@@ -914,6 +926,8 @@ class World {
                 );
             }
 
+            try { closeNativeFoodTick(this.currentTick); }
+            catch (error) { console.error('[NativeFood] Closed-tick source blocked:', error); }
             this.currentTick++;
             try { recordPlayerHealthHeartbeat(); }
             catch (error) { console.error('[PopulationHealth] Engine source heartbeat failed:', error); }
@@ -1360,11 +1374,7 @@ class World {
                     reject('player-offline', 'The rewarded player must be online.');
                     continue;
                 }
-                const reward = getPlayerRewardStore().credit(command.settlementId, player.username, command.amount, {
-                    balance: () => player.invTotal(InvType.INV, 995),
-                    credit: amount => player.invAdd(InvType.INV, 995, amount),
-                    remove: amount => player.invDel(InvType.INV, 995, amount)
-                });
+                const reward = creditNativePlayerReward(ensurePlayerSaveStore(), getPlayerRewardStore(), player, command.settlementId, command.amount);
                 player.addSessionLog(LoggerEventType.MODERATOR,
                     `Player action reward: ${command.amount} coins`, command.settlementId);
                 player.messageGame(`Megbízási díj: ${command.amount.toLocaleString('en-GB')} coins.`);
@@ -1779,6 +1789,11 @@ class World {
                 }
                 const afterPlayer = PlayerLoading.load(username, new Packet(persisted), null);
                 const after = this.adminSaveSummary(afterPlayer, fs.statSync(savePath).mtime.toISOString());
+                try {
+                    recordNativeFoodOpening({ source: 'engine.offline-save', operationId: `offline-save:${command.commandId}`,
+                        actor: `player:${username}`, payload: { before: saveValueSnapshot(before), after: saveValueSnapshot(planned) } },
+                    PlayerLoading.load(username, new Packet(original), null), afterPlayer, persisted);
+                } catch (error) { console.warn('Native food opening source gap:', error); }
                 command.resolve({
                     ok: true,
                     commandId: command.commandId,
@@ -2132,7 +2147,7 @@ class World {
                     player.clearWaypoints();
                     continue;
                 }
-                if (player.populationTerminal) continue;
+                if (player.populationTerminal || player.populationSleeping) continue;
                 if (player.delayed && this.currentTick >= player.delayedUntil) player.delayed = false;
 
                 // - resume suspended script
@@ -2143,24 +2158,24 @@ class World {
                 // - primary queue
                 // - weak queue
                 player.processQueues();
-                if (player.populationTerminal) continue;
+                if (player.populationTerminal || player.populationSleeping) continue;
                 if (!player.loggingOut) {
                     // - timers
                     player.processTimers(PlayerTimerType.NORMAL);
-                    if (player.populationTerminal) continue;
+                    if (player.populationTerminal || player.populationSleeping) continue;
                     // - soft timers
                     player.processTimers(PlayerTimerType.SOFT);
-                    if (player.populationTerminal) continue;
+                    if (player.populationTerminal || player.populationSleeping) continue;
                 }
                 // - engine queue
                 player.processEngineQueue();
-                if (player.populationTerminal) continue;
+                if (player.populationTerminal || player.populationSleeping) continue;
                 // Update target facing
                 player.setFaceEntity();
                 // - interactions
                 // - movement
                 player.processInteraction();
-                if (player.populationTerminal) continue;
+                if (player.populationTerminal || player.populationSleeping) continue;
                 if (!player.busy() && !player.delayed && !player.loggingOut) player.recoverItems();
                 if (Environment.GE_ENABLED) tickExchange(player);
 
@@ -2229,7 +2244,7 @@ class World {
                     queueDiscardable = false;
                     break;
                 }
-                if (player.canAccess() && player.engineQueue.head() === null && queueDiscardable) {
+                if ((player.canAccess() || player.populationSleeping) && player.engineQueue.head() === null && queueDiscardable) {
                     const script = ScriptProvider.getByTriggerSpecific(ServerTriggerType.LOGOUT, -1, -1);
                     if (!script) {
                         printError('LOGOUT TRIGGER IS BROKEN!');

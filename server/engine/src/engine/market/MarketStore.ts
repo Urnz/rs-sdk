@@ -2,6 +2,7 @@ import { Database } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import Environment from '#/util/Environment.js';
 import { dirname } from 'node:path';
+import { OwnedDatabase } from '../../io/OwnedDatabase.js';
 
 export const MAX_GP = 2_147_483_647;
 export const OFFER_SLOTS = 6;
@@ -62,7 +63,7 @@ export class MarketStore {
     readonly db: Database;
     constructor(path: string) {
         if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
-        this.db = new Database(path, { create: true, strict: true });
+        this.db = new OwnedDatabase(path, { create: true, strict: true });
         this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
             CREATE TABLE IF NOT EXISTS accounts(owner TEXT PRIMARY KEY, save BLOB NOT NULL);
             CREATE TABLE IF NOT EXISTS offers(

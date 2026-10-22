@@ -1,3 +1,4 @@
+import { isSocietyKitchenRoute } from '../sdk/society-food.js';
 import {
     SKILL_SCHEMA_VERSION,
     type SkillArguments,
@@ -13,8 +14,8 @@ import {
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const OPERATION_NAMES = new Set<SkillOperationName>([
-    'walk-to', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
-    'gather-loc', 'gather-npc', 'thieve-pickpocket', 'thieve-lockpick', 'thieve-container',
+    'walk-to', 'travel-to-site', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
+    'gather-loc', 'gather-npc', 'food-gather', 'food-cook', 'food-consume', 'thieve-pickpocket', 'thieve-lockpick', 'thieve-container',
     'thieve-property-entry', 'smith-at-anvil', 'open-shop', 'buy-from-shop',
     'sell-to-shop', 'close-shop', 'trade-give-item', 'trade-receive-item', 'open-bank', 'deposit-item',
     'withdraw-item', 'close-bank', 'wait-ticks'
@@ -25,6 +26,7 @@ const CONDITION_NAMES = new Set<SkillConditionName>([
 ]);
 const OPERATION_ARGUMENTS: Record<SkillOperationName, { allowed: string[]; required: string[] }> = {
     'walk-to': { allowed: ['x', 'z', 'tolerance'], required: ['x', 'z'] },
+    'travel-to-site': { allowed: ['site'], required: ['site'] },
     'wait-for-area': { allowed: ['x', 'z', 'tolerance', 'timeoutMs'], required: ['x', 'z'] },
     'talk-to-npc': { allowed: ['name', 'match'], required: ['name'] },
     'navigate-dialog': { allowed: ['choices', 'maxSteps', 'timeoutMs'], required: ['choices'] },
@@ -32,6 +34,10 @@ const OPERATION_ARGUMENTS: Record<SkillOperationName, { allowed: string[]; requi
     'interact-npc': { allowed: ['name', 'match', 'option'], required: ['name'] },
     'gather-loc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs', 'maxRetargets'], required: ['name', 'item'] },
     'gather-npc': { allowed: ['name', 'match', 'option', 'item', 'skill', 'timeoutMs', 'maxRetargets'], required: ['name', 'item'] },
+    'food-gather': { allowed: ['item', 'itemId', 'amount', 'sourceId', 'timeoutMs'], required: ['item', 'itemId', 'amount', 'sourceId', 'timeoutMs'] },
+    'food-cook': { allowed: ['item', 'itemId', 'amount', 'kitchenRunId', 'batchId', 'heatX', 'heatZ', 'timeoutMs'],
+        required: ['item', 'itemId', 'amount', 'kitchenRunId', 'batchId', 'heatX', 'heatZ', 'timeoutMs'] },
+    'food-consume': { allowed: ['item', 'itemId', 'amount', 'slot', 'timeoutMs'], required: ['item', 'itemId', 'amount', 'slot', 'timeoutMs'] },
     'thieve-pickpocket': { allowed: ['name', 'match', 'option', 'timeoutMs'], required: ['name'] },
     'thieve-lockpick': { allowed: ['name', 'match', 'option', 'x', 'z', 'timeoutMs'], required: ['name', 'x', 'z'] },
     'thieve-container': { allowed: ['name', 'match', 'option', 'x', 'z', 'timeoutMs'], required: ['name', 'x', 'z'] },
@@ -144,6 +150,10 @@ function validateParameter(name: string, value: unknown, issues: string[]): valu
     if (value.minimum !== undefined && typeof value.minimum !== 'number') issues.push(`${path}.minimum must be a number`);
     if (value.maximum !== undefined && typeof value.maximum !== 'number') issues.push(`${path}.maximum must be a number`);
     if (value.default !== undefined && typeof value.default !== value.type) issues.push(`${path}.default must match its declared type`);
+    if (value.verification !== undefined && (value.verification !== 'native-invocation'
+        || !['kitchen-run', 'batch-id'].includes(name) || value.type !== 'string' || value.required !== true || value.default !== undefined)) {
+        issues.push(`${path}.verification may only mark a required native kitchen run/batch string binding`);
+    }
     if (Array.isArray(value.enum) && value.enum.some(entry => typeof entry !== value.type)) issues.push(`${path}.enum values must match the declared type`);
     if (value.type !== 'number' && (value.minimum !== undefined || value.maximum !== undefined)) issues.push(`${path} may only use minimum/maximum for numbers`);
     if (typeof value.minimum === 'number' && typeof value.maximum === 'number' && value.minimum > value.maximum) issues.push(`${path}.minimum cannot exceed maximum`);
@@ -160,6 +170,22 @@ function validateStep(value: unknown, parameters: Record<string, SkillParameterD
         if (!OPERATION_NAMES.has(value.operation as SkillOperationName)) issues.push(`${path}.operation is not allowed`);
         else validateArgumentShape(value.arguments, OPERATION_ARGUMENTS[value.operation as SkillOperationName], `${path}.arguments`, issues);
         validateArguments(value.arguments, parameters, `${path}.arguments`, issues);
+        if (String(value.operation).startsWith('food-')
+            && ((value.maxAttempts ?? 1) !== 1 || (value.onFailure ?? 'stop') !== 'stop')) {
+            issues.push(`${path} food operations require one attempt and stop on failure`);
+        }
+        if (value.operation === 'travel-to-site' && ((value.maxAttempts ?? 1) !== 1 || (value.onFailure ?? 'stop') !== 'stop')) {
+            issues.push(`${path} travel requires one attempt and stop on failure`);
+        }
+        if (String(value.operation).startsWith('food-') && isRecord(value.arguments)) {
+            const args = value.arguments, consume = value.operation === 'food-consume';
+            if (args.amount !== 1 || args.itemId !== (consume ? 379 : 377) || args.item !== (consume ? 'Lobster' : 'Raw lobster')
+                || !Number.isSafeInteger(args.timeoutMs) || Number(args.timeoutMs) < 100 || Number(args.timeoutMs) > 60_000
+                || (value.operation === 'food-gather' && args.sourceId !== 'musa-point-lobster')
+                || (value.operation === 'food-cook' && !isSocietyKitchenRoute(args.heatX, args.heatZ))) {
+                issues.push(`${path} food operations require the exact lobster item, single batch, route and bounded timeout`);
+            }
+        }
         if (value.operation === 'navigate-dialog' && isRecord(value.arguments)) {
             const choices = value.arguments.choices;
             if (!Array.isArray(choices) || choices.length === 0 || choices.length > 20
@@ -273,6 +299,26 @@ export function validateSkillDefinition(value: unknown): SkillDefinition {
     });
     if (!Array.isArray(value.steps) || value.steps.length === 0 || value.steps.length > 100) issues.push('steps must contain 1-100 steps');
     else value.steps.forEach((step, index) => validateStep(step, parameters, `steps[${index}]`, issues, 0));
+
+    for (const [name, spec] of Object.entries(parameters)) if (spec.verification === 'native-invocation') {
+        let uses = 0;
+        const contains = (input: unknown): boolean => isRecord(input) ? input.parameter === name || Object.values(input).some(contains)
+            : Array.isArray(input) && input.some(contains);
+        const inspect = (steps: unknown[]) => { for (const input of steps) {
+            if (!isRecord(input)) continue;
+            if (input.kind === 'repeat') {
+                if (contains(input.until)) issues.push(`native invocation ${name} cannot control a repeat`);
+                if (Array.isArray(input.steps)) inspect(input.steps);
+            } else if (isRecord(input.arguments)) for (const [key, argument] of Object.entries(input.arguments)) if (contains(argument)) {
+                uses++;
+                if (input.kind !== 'operation' || input.operation !== 'food-cook' || key !== (name === 'kitchen-run' ? 'kitchenRunId' : 'batchId')
+                    || !isRecord(argument) || Object.keys(argument).length !== 1 || argument.parameter !== name)
+                    issues.push(`native invocation ${name} may only bind its exact food-cook argument`);
+            }
+        } };
+        if (Array.isArray(value.steps)) inspect(value.steps);
+        if (!uses || contains(value.preconditions)) issues.push(`native invocation ${name} requires an exact food-cook use without precondition control`);
+    }
 
     if (issues.length > 0) throw new SkillValidationError([...new Set(issues)]);
     return value as unknown as SkillDefinition;

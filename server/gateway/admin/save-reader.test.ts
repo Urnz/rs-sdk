@@ -162,6 +162,10 @@ describe('admin agent skill catalog', () => {
             'workflow.varrock.bronze-dagger-bank-cycle',
             'workflow.varrock.bronze-dagger-handoff'
         ]);
+        expect(drafts.filter(draft => draft.id.startsWith('procedure.food.'))).toEqual([]);
+        expect(drafts.map(draft => draft.id)).not.toContain('procedure.travel.native-sites');
+        await expect(resolveAdminSkill('procedure.travel.native-sites@1.0.0', { localRoot }))
+            .resolves.toMatchObject({ definition: { status: 'verified' } });
         await expect(resolveAdminDraftSkill('fishing.karamja.lobster-to-general-store@0.1.0'))
             .rejects.toThrow('draft');
         await expect(resolveAdminDraftSkill('mining.varrock-east.copper-to-general-store@0.1.0'))

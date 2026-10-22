@@ -4,6 +4,8 @@ import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import type { LlmReplanEvent, LlmReplanEventType } from '../../../llm-runtime/events.js';
 import type { BoundSimulationEventStamp, SimulationClockStore } from '../../../simulation-clock/index.js';
+import { advanceEconomicObserver, ECONOMIC_OBSERVER_POLICY, type EconomicObservation,
+    type EconomicObserverState } from '../../../agent-state/economic-context.js';
 
 export type ReplanInboxStatus = 'pending' | 'claimed' | 'completed' | 'discarded';
 
@@ -32,6 +34,7 @@ interface InboxRow {
     simulation_sequence: number | null; simulation_time: string | null;
     simulation_engine_tick: number | null; simulation_profile_digest: string | null;
     simulation_clock_status: 'running' | 'paused' | null; simulation_clock_revision: number | null;
+    simulation_wall_time: string | null;
 }
 
 export interface ReplanInboxSimulationClock {
@@ -77,14 +80,14 @@ function payloadForDigest(event: LlmReplanEvent): string {
 
 function record(row: InboxRow): ReplanInboxRecord {
     const requiredStampValues = [row.simulation_clock_id, row.simulation_sequence, row.simulation_time,
-        row.simulation_profile_digest, row.simulation_clock_status, row.simulation_clock_revision];
+        row.simulation_profile_digest, row.simulation_clock_status, row.simulation_clock_revision, row.simulation_wall_time];
     const hasStamp = requiredStampValues.some(value => value !== null);
     if (hasStamp && requiredStampValues.some(value => value === null)) {
         throw new Error(`Replan inbox simulation stamp is incomplete for ${row.event_id}`);
     }
     const simulationStamp = row.simulation_clock_id === null ? null : {
         clockId: row.simulation_clock_id, domain: 'replan-inbox', sourceId: row.payload_digest,
-        sourceDigest: row.payload_digest, sequence: row.simulation_sequence!, wallTime: row.created_at,
+        sourceDigest: row.payload_digest, sequence: row.simulation_sequence!, wallTime: row.simulation_wall_time!,
         simulationTime: row.simulation_time!, engineTick: row.simulation_engine_tick,
         status: row.simulation_clock_status!, profileDigest: row.simulation_profile_digest!,
         revision: row.simulation_clock_revision!
@@ -114,7 +117,7 @@ export class ReplanInboxStore {
 
     private migrate(): void {
         const version = Number((this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version);
-        if (version > 2) throw new Error(`Replan inbox schema ${version} is newer than supported version 2`);
+        if (version > 4) throw new Error(`Replan inbox schema ${version} is newer than supported version 4`);
         if (version < 1) {
             const transaction = this.database.transaction(() => {
                 this.database.run(`CREATE TABLE replan_inbox (
@@ -150,9 +153,51 @@ export class ReplanInboxStore {
             });
             transaction.immediate();
         }
+        if (version < 3) {
+            this.database.transaction(() => {
+                this.database.run('ALTER TABLE replan_inbox ADD COLUMN simulation_wall_time TEXT');
+                // Version 2 exposed created_at as its wall stamp. Preserve that
+                // historical representation; never invent a recovered source time.
+                this.database.run('UPDATE replan_inbox SET simulation_wall_time=created_at WHERE simulation_clock_id IS NOT NULL');
+                this.database.run('PRAGMA user_version = 3');
+            }).immediate();
+        }
+        if (version < 4) {
+            this.database.transaction(() => {
+                this.database.run(`CREATE TABLE economic_observer_cursor(
+                    agent_id TEXT NOT NULL,binding TEXT NOT NULL,policy TEXT NOT NULL,state_json TEXT NOT NULL,
+                    PRIMARY KEY(agent_id,binding,policy))`);
+                this.database.run('PRAGMA user_version = 4');
+            }).immediate();
+        }
     }
 
     close(): void { this.database.close(true); }
+
+    /** Cursor/latches/cooldown and inbox admission share one SQLite commit. A crash
+     * cannot acknowledge a source change without its durable wakeup. No model call here. */
+    observeEconomy(observation: EconomicObservation): ReplanInboxRecord | null {
+        let admitted: ReplanInboxRecord | null = null;
+        this.database.transaction(() => {
+            const row = this.database.query(`SELECT state_json FROM economic_observer_cursor
+                WHERE agent_id=?1 AND binding=?2 AND policy=?3`).get(observation.agentId, observation.binding,
+                ECONOMIC_OBSERVER_POLICY.version) as { state_json: string } | null;
+            const previous = row ? JSON.parse(row.state_json) as EconomicObserverState : null;
+            const { state, reasons } = advanceEconomicObserver(observation, previous);
+            let record: ReplanInboxRecord | null = null;
+            if (reasons.length) {
+                record = this.enqueue({ eventId: crypto.randomUUID(), agentId: observation.agentId,
+                    type: 'significant-economic-change', sourceKey: `observer:${state.policy}:${state.binding}:${state.sequence}`,
+                    occurredAt: observation.observedAt,
+                    summary: `Observer-scoped economic change (${state.policy}): ${reasons.slice(0, 8).join(', ').slice(0, 800)}. `
+                        + `${reasons.length} condition(s); refresh scoped context.` }, observation.observedAt).record;
+            }
+            this.database.run('INSERT OR REPLACE INTO economic_observer_cursor VALUES(?1,?2,?3,?4)',
+                [observation.agentId, observation.binding, state.policy, JSON.stringify(state)]);
+            admitted = record;
+        }).immediate();
+        return admitted;
+    }
 
     get(eventId: string): ReplanInboxRecord | null {
         const row = this.getRow(eventId);
@@ -163,17 +208,26 @@ export class ReplanInboxStore {
         return this.database.query('SELECT * FROM replan_inbox WHERE event_id = ?1').get(eventId) as InboxRow | null;
     }
 
+    /** Stamp delayed/replayed delivery at the observed clock head. The source
+     * event retains its original occurredAt; recovery must not rewind time. */
+    private simulationBindingTime(now: string): string {
+        if (!this.simulationClock) return now;
+        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
+        if (!clock) throw new Error('Replan simulation clock is unavailable');
+        return Date.parse(now) < Date.parse(clock.lastObservedWallTime) ? clock.lastObservedWallTime : now;
+    }
+
     private withSimulationStamp(row: InboxRow, digest: string, now: string): ReplanInboxRecord {
         if (row.simulation_clock_id !== null || !this.simulationClock) return record(row);
-        const stamp = this.simulationClock.store.bindEvent({ clockId: this.simulationClock.clockId,
-            domain: 'replan-inbox', sourceId: digest, sourceDigest: digest, wallTime: now,
+        const stamp = this.simulationClock.store.bindEventAtHead({ clockId: this.simulationClock.clockId,
+            domain: 'replan-inbox', sourceId: digest, sourceDigest: digest, wallTime: this.simulationBindingTime(now),
             engineTick: this.simulationClock.engineTick?.() }).stamp;
         this.database.run(`UPDATE replan_inbox SET simulation_clock_id=?2,simulation_sequence=?3,
             simulation_time=?4,simulation_engine_tick=?5,simulation_profile_digest=?6,
-            simulation_clock_status=?7,simulation_clock_revision=?8
+            simulation_clock_status=?7,simulation_clock_revision=?8,simulation_wall_time=?9
             WHERE event_id=?1 AND simulation_clock_id IS NULL`,
         [row.event_id, stamp.clockId, stamp.sequence, stamp.simulationTime, stamp.engineTick,
-            stamp.profileDigest, stamp.status, stamp.revision]);
+            stamp.profileDigest, stamp.status, stamp.revision, stamp.wallTime]);
         return record(this.getRow(row.event_id)!);
     }
 
@@ -212,8 +266,8 @@ export class ReplanInboxStore {
             if (prior.payload_digest !== digest) throw new Error('Replan source key was reused with a different payload');
             return { created: false, record: this.withSimulationStamp(prior, digest, now) };
         }
-        const stamp = this.simulationClock?.store.bindEvent({ clockId: this.simulationClock.clockId,
-            domain: 'replan-inbox', sourceId: digest, sourceDigest: digest, wallTime: now,
+        const stamp = this.simulationClock?.store.bindEventAtHead({ clockId: this.simulationClock.clockId,
+            domain: 'replan-inbox', sourceId: digest, sourceDigest: digest, wallTime: this.simulationBindingTime(now),
             engineTick: this.simulationClock.engineTick?.() }).stamp ?? null;
         let outcome: { created: boolean; record: ReplanInboxRecord } | null = null;
         const transaction = this.database.transaction(() => {
@@ -231,12 +285,12 @@ export class ReplanInboxStore {
                 (event_id, agent_id, event_type, source_key, payload, payload_digest, status, attempt,
                 next_attempt_at, lease_owner, lease_expires_at, terminal_outcome, last_error, created_at, updated_at, revision,
                 simulation_clock_id,simulation_sequence,simulation_time,simulation_engine_tick,
-                simulation_profile_digest,simulation_clock_status,simulation_clock_revision)
+                simulation_profile_digest,simulation_clock_status,simulation_clock_revision,simulation_wall_time)
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'pending', 0, ?7, NULL, NULL, NULL, NULL, ?7, ?7, 1,
-                    ?8,?9,?10,?11,?12,?13,?14)`,
+                    ?8,?9,?10,?11,?12,?13,?14,?15)`,
             [event.eventId, event.agentId, event.type, event.sourceKey, JSON.stringify(event), digest, now,
                 stamp?.clockId ?? null, stamp?.sequence ?? null, stamp?.simulationTime ?? null,
-                stamp?.engineTick ?? null, stamp?.profileDigest ?? null, stamp?.status ?? null, stamp?.revision ?? null]);
+                stamp?.engineTick ?? null, stamp?.profileDigest ?? null, stamp?.status ?? null, stamp?.revision ?? null, stamp?.wallTime ?? null]);
             outcome = { created: true, record: this.get(event.eventId)! };
         });
         transaction.immediate();

@@ -4,8 +4,10 @@ import { societyMinimumDigest } from '../society-minimum/policy.js';
 import { evaluateSocietyObservations, validateEvaluationScope, societyEvaluationContract,
     type EvaluationScope, type SocietyObservations } from './evaluation.js';
 import { reportSelfSufficiency, type SelfSufficiencyOptions } from './report.js';
+import { reportNativeIntegration } from './integration-report.js';
+import type { NativeIntegrationOptions } from './integration-sources.js';
 
-export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions }
+export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions; nativeIntegration?: NativeIntegrationOptions }
 
 /** Read-only native facade. No uploaded observations, migration, clock advance or experiment dispatch. */
 export function reportSocietyEvaluation(query: EvaluationScope, options: SocietyEvaluationOptions) {
@@ -15,6 +17,7 @@ export function reportSocietyEvaluation(query: EvaluationScope, options: Society
 /** Internal native collection, also used for exact receipt drill-down. No supplied report JSON. */
 export function collectSocietyEvaluation(query: EvaluationScope, options: SocietyEvaluationOptions) {
     const scope = validateEvaluationScope(query);
+    const integration = options.nativeIntegration && scope.actorAgentIds.length === 4 ? reportNativeIntegration(scope, options.nativeIntegration) : null;
     const selfSufficiency = reportSelfSufficiency(scope, options);
     const economic = collectEconomicRiskEvidence({ from: scope.fromSimulationTime, to: scope.toSimulationTime, basis: 'simulation',
         clockId: scope.clockId, clockProfileDigest: scope.clockProfileDigest }, options.dependencies);
@@ -48,6 +51,7 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
     const definition = { schemaVersion: 1, artifactKind: 'native-society-multi-objective-report',
         measurementStatus: observedObjectives ? 'partial-observed-channels' : 'inconclusive', scope,
         evidenceAuthority: 'native-readers-with-partial-coverage', contract: societyEvaluationContract(), calculation, sources,
+        nativeIntegration: integration,
         metricScopes: { specialization: 'selected-registered-responsible-agents-in-observed-production',
             systemicRisk: 'all-observed-agent-and-business-withdrawals-against-observed-world-production',
             selfSufficiency: 'explicit-selected-actors; partial-observations-without-complete-demand-or-origin-history' },

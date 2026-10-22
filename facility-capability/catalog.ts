@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 import type {
     FacilityAccessKind,
@@ -77,7 +77,10 @@ export function validateFacilityCapabilityCatalog(value: unknown, knownPropertyI
 }
 export function loadDefaultFacilityCapabilityCatalog(): FacilityCapabilityCatalog {
     const root = join(import.meta.dir, '..', 'config');
-    const properties = JSON.parse(readFileSync(join(root, 'properties.json'), 'utf8')) as { properties: Array<{ propertyId: string }> };
-    return validateFacilityCapabilityCatalog(JSON.parse(readFileSync(join(root, 'facility-capabilities.json'), 'utf8')) as unknown,
+    return loadFacilityCapabilityCatalog(join(root, 'facility-capabilities.json'));
+}
+export function loadFacilityCapabilityCatalog(path: string): FacilityCapabilityCatalog {
+    const properties = JSON.parse(readFileSync(join(dirname(path), 'properties.json'), 'utf8')) as { properties: Array<{ propertyId: string }> };
+    return validateFacilityCapabilityCatalog(JSON.parse(readFileSync(path, 'utf8')) as unknown,
         new Set(properties.properties.map(property => property.propertyId)));
 }

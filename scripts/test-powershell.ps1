@@ -96,4 +96,6 @@ try {
 & (Join-Path $PSScriptRoot 'test-invoke-verification.ps1')
 if ($LASTEXITCODE -ne 0) { throw 'A verification wrapper célzott tesztjei hibásak.' }
 
+& (Join-Path $PSScriptRoot 'test-society-work-brief.ps1')
+
 Write-Host 'Minden PowerShell segéd szintaktikailag érvényes, a fixture és Thieving worker állapotpróbák megfeleltek.'

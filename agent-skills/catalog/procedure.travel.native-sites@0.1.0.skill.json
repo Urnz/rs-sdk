@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.travel.native-sites",
+  "version": "0.1.0",
+  "name": "Travel to a native society site",
+  "description": "Bounded local/private travel to the kitchen, fishing pier or housing, including at most one normal 30 GP ferry crossing.",
+  "status": "draft",
+  "tags": ["procedure", "travel", "society"],
+  "parameters": {
+    "site": { "type": "string", "description": "Exact native destination.", "required": true, "enum": ["kitchen", "pier", "housing"] }
+  },
+  "provenance": {
+    "authorKind": "agent", "authorId": "si-a15-capability-builder", "createdAt": "2026-10-21T23:30:00.000Z",
+    "notes": "Requires independent live routes, exact-parameter verification and human publication approval. SDK observations alone are not economic receipts."
+  },
+  "sharing": { "visibility": "shared" },
+  "limits": { "timeoutMs": 360000, "maxOperations": 1 },
+  "preconditions": [],
+  "steps": [{ "kind": "operation", "id": "travel", "operation": "travel-to-site", "arguments": { "site": { "parameter": "site" } }, "maxAttempts": 1 }]
+}

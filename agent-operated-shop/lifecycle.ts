@@ -66,7 +66,7 @@ export class AgentOperatedShopLifecycle {
 
     settleStock(input:{operationId:string;kind:'sale'|'procurement';policyId:string;decision:BusinessStockDecision;
         stockEvidence:StockMovementEvidence;stockSettlementId:string;moneyEvidence:CommittedMoneyEvidence;
-        acquisitionDecision:SaleChannelDecision|null},
+        acquisitionDecision:SaleChannelDecision|null;nativeReservation?:{id:string;bindingDigest:string}},
         verifyStock:StockMovementEvidenceVerifier,verifyMoney:MoneyEvidenceVerifier,
         now=new Date().toISOString()):AgentShopOperation {
         const policy=this.policies.policies.find(value=>value.policyId===input.policyId);
@@ -92,9 +92,10 @@ export class AgentOperatedShopLifecycle {
             stockSettlementId:id(input.stockSettlementId,'stockSettlementId'),moneySettlementId:input.moneyEvidence.settlementId,
             reservationId:input.moneyEvidence.reservationId,workOrderId:null,amountGp,authorizationDigest:authorization.authorizationDigest,
             ...(input.acquisitionDecision?{acquisitionDecisionDigest:input.acquisitionDecision.decisionDigest}:{}),
+            ...(input.nativeReservation?{nativeReservation:input.nativeReservation}:{}),
             sourceRef:input.moneyEvidence.sourceRef};let current=this.plan(input.operationId,request,now);
         const stock=new BusinessStockSettlementStore(this.businessPath);
-        try {if(current.status==='planned'){stock.apply(request.stockSettlementId,authorization,now);
+        try {if(current.status==='planned'){stock.apply(request.stockSettlementId,authorization,now,input.nativeReservation);
             current=this.advance(current.operationId,'stock-committed',now)}}catch(error){this.fail(current.operationId,error,now);throw error}
         finally{stock.close()}
         const treasury=new InstitutionTreasuryStore(this.treasuryPath);

@@ -104,6 +104,7 @@ export default class Player extends PathingEntity {
     /** Permanent engine death latch, also used by every script opcode boundary. */
     populationTerminal = false;
     populationFinite = false;
+    populationSleeping = false;
     static readonly DESIGN_BODY_COLORS: number[][] = [
         [6798, 107, 10283, 16, 4797, 7744, 5799, 4634, 33697, 22433, 2983, 54193],
         [8741, 12, 64030, 43162, 7735, 8404, 1701, 38430, 24094, 10153, 56621, 4783, 1341, 16578, 35003, 25239],
@@ -722,7 +723,7 @@ export default class Player extends PathingEntity {
     // ----
 
     updateMovement(): boolean {
-        if (this.populationTerminal) { this.clearWaypoints(); return false; }
+        if (this.populationTerminal || this.populationSleeping) { this.clearWaypoints(); return false; }
         // players cannot walk if they have a modal open *and* something in their queue, confirmed as far back as 2005
         if (this.moveClickRequest && this.busy() && (this.queue.head() != null || this.engineQueue.head() != null)) {
             return false;
@@ -878,7 +879,7 @@ export default class Player extends PathingEntity {
     }
 
     canAccess() {
-        if (this.populationTerminal) return false;
+        if (this.populationTerminal || this.populationSleeping) return false;
         if (World.shutdown) {
             // once the world has gone past shutting down, no protection rules apply
             return true;
@@ -1301,7 +1302,7 @@ export default class Player extends PathingEntity {
     }
 
     processInteraction() {
-        if (this.populationTerminal) return;
+        if (this.populationTerminal || this.populationSleeping) return;
         this.followX = this.lastStepX;
         this.followZ = this.lastStepZ;
         this.nextTarget = null;
@@ -2229,7 +2230,7 @@ export default class Player extends PathingEntity {
     // ----
 
     runScript(script: ScriptState, protect: boolean = false, force: boolean = false) {
-        if (this.populationTerminal) return ScriptState.ABORTED;
+        if (this.populationTerminal || this.populationSleeping) return ScriptState.ABORTED;
         if (!force && protect && (this.protect || this.delayed)) {
             // can't get protected access, bye-bye
             // printDebug('No protected access:', script.script.name, protect, this.protect);

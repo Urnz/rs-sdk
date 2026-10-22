@@ -6,6 +6,7 @@ import { businessGenesisInventoryDigest, loadWorldGenesisProfileCatalog, validat
     validateWorldGenesisResult, validateWorldGenesisJsonValue, type GenesisAssetAllocation,
     type WorldGenesisJsonValue, type WorldGenesisResult } from '../../../world-genesis/index.js';
 import { AgentStateStore, type AgentStateSimulationClock } from '../../../agent-state/store.js';
+import { initializePopulationNeeds, type PopulationNeedsOptions } from './needs-runtime.js';
 import { loadPopulationLifecyclePolicyCatalog, loadPopulationWorldProfileBindingCatalog,
     resolvePopulationGenesis, type PopulationGenesisMember,
     type PopulationLifecyclePolicy } from '../../../population-lifecycle/index.js';
@@ -48,6 +49,7 @@ export interface LocalPopulationGenesisOptions {
     policyCatalogPath?:string;
     bindingCatalogPath?:string;
     integrityDbPath?:string;
+    needs?: PopulationNeedsOptions;
 }
 
 function businessCall<T>(callback:(store:BusinessManagerStore)=>T):T { const store=new BusinessManagerStore(businessManagerDbPath);
@@ -473,6 +475,12 @@ export class LocalLostCityWorldGenesisAdapter implements WorldGenesisAdminAdapte
                 allocationId: property.allocationId, propertyId: property.propertyId,
                 expectedVersion: property.beforeVersion, owner: property.owner });
             propertyReceipts.push(response.assignment as unknown as WorldGenesisJsonValue);
+        }
+        if (this.populationOptions?.needs && population.policy) {
+            const store = this.populationStore();
+            try { for (const member of population.members) initializePopulationNeeds(this.populationOptions.needs,
+                store.getPopulationMember(member.agentId)!, this.populationOptions.simulationClock, 'genesis'); }
+            finally { store.close(); }
         }
         return { schemaVersion: 2, players: playerReceipts, properties: propertyReceipts,
             businesses:businessReceipts,treasuries:treasuryReceipts,businessStock:stockReceipts,

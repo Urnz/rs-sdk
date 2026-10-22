@@ -6,7 +6,7 @@ import { CapabilityGapStore, type CapabilityGap, type SkillBuilderClaimPolicy } 
 
 export const SKILL_BUILDER_OPERATIONS: readonly SkillOperationName[] = [
     'walk-to', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
-    'gather-loc', 'gather-npc', 'smith-at-anvil', 'open-shop', 'buy-from-shop', 'sell-to-shop',
+    'gather-loc', 'gather-npc', 'food-gather', 'food-cook', 'food-consume', 'smith-at-anvil', 'open-shop', 'buy-from-shop', 'sell-to-shop',
     'close-shop', 'trade-give-item', 'trade-receive-item', 'open-bank', 'deposit-item', 'withdraw-item',
     'close-bank', 'wait-ticks'
 ];

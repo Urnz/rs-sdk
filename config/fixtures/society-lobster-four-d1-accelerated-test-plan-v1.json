@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "planId": "society-lobster-four-d1-accelerated-test",
+  "fixtureDigest": "fc0f56797a1746909aaee75ce425c11ed209a6fc8d61ce44c78de8937a34baec",
+  "durationMinutes": 90,
+  "restartAfterMinutes": 45,
+  "recoveryDeadlineMinutes": 5,
+  "snapshotIntervalSeconds": 60,
+  "providerCalls": 0,
+  "minimumConsumesPerAvatar": 2,
+  "minimumInternalConsumesPerAvatar": 1,
+  "minimumSatisfiedDemandBasisPoints": 9500,
+  "minimumBuyerSellerRelations": 3,
+  "minimumActorDependencies": 2,
+  "plannedInputShortage": {
+    "startsAfterMinutes": 15,
+    "endsAfterMinutes": 20
+  },
+  "bedWindows": [
+    {
+      "agentId": "sicook",
+      "startsAfterMinutes": 5,
+      "endsAfterMinutes": 25
+    },
+    {
+      "agentId": "sifisher",
+      "startsAfterMinutes": 25,
+      "endsAfterMinutes": 45
+    },
+    {
+      "agentId": "sicourier",
+      "startsAfterMinutes": 50,
+      "endsAfterMinutes": 75
+    }
+  ]
+}

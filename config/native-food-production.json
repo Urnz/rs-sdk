@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "runId": "si-lobster-bootstrap-v1",
+  "foodChainId": "lobster",
+  "recipeId": "food.cook-lobster",
+  "recipeVersion": "1.0.0",
+  "sources": [
+    {
+      "sourceId": "musa-point-lobster",
+      "npcDebugName": "0_45_49_rarefish",
+      "minX": 2880,
+      "maxX": 2943,
+      "minZ": 3136,
+      "maxZ": 3199,
+      "level": 0,
+      "quantity": 32
+    }
+  ]
+}

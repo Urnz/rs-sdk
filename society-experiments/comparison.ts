@@ -63,13 +63,13 @@ function protocol(state:LongState){
 }
 function readSide({state,deps}:Side){
     check(state.status==='completed' && !state.active,'Comparison requires successfully completed long programs');
-    verifyLongExperimentBacking(state,deps);
+    // Use the just-verified source objects for this read. A later comparison reads and verifies afresh.
+    const native=verifyLongExperimentBacking(state,deps);
     const buckets=longExperimentCoverage(state);
     check(buckets.length>0 && buckets.every(row=>row.observedCompleteCohortWave),'Comparison lacks complete evaluation bucket coverage');
-    const native=deps.getWaves?.(state.settled.map(row=>row.claim.experimentId));
     const waves=new Map<string,MultiAgentExperimentRun>();
     for(const row of state.settled){
-        const wave=native?native.get(row.claim.experimentId):deps.getWave(row.claim.experimentId);
+        const wave=native.get(row.claim.experimentId);
         check(wave && digest(wave)===row.event.receipt!.digest,'Native comparison backing changed during read');
         check(wave.status==='completed' && wave.environmentDigest===state.definition.environmentDigest
             && wave.parameterProfileDigest===state.definition.plan.parameterProfileDigest,'Comparison wave binding differs');

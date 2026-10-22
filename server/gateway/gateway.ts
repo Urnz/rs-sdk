@@ -17,6 +17,7 @@ import { loadPopulationAgePolicy } from '../../population-lifecycle/age.js';
 import { loadHealthPolicy, runPopulationHealthCycle } from '../../population-health/index.js';
 import { populationHealthDbPath, populationHealthPolicyPath, populationHealthEngineEvidencePath, repoRoot } from './admin/paths.js';
 import { assertLocalAvatarCanAct, reconcilePopulationDeaths } from './admin/population-death-runtime.js';
+import { populationNeedsOptions, runPopulationNeedsCycle } from './admin/needs-runtime.js';
 import { defaultEstateRuntimeOptions } from './admin/population-estate-runtime.js';
 import { runPopulationEstateCycle } from '../../population-estate/runtime.js';
 import { loadPopulationMortalityPolicy } from '../../population-lifecycle/mortality.js';
@@ -82,11 +83,14 @@ const populationHealthAgePolicy = loadPopulationAgePolicy(`${repoRoot}/config/po
 const populationHealthPolicy = loadHealthPolicy(populationHealthPolicyPath);
 const populationDeathMortalityPolicy = loadPopulationMortalityPolicy(`${repoRoot}/config/population-mortality-policy.json`);
 const populationEstateOptions = defaultEstateRuntimeOptions();
+const populationNeeds = populationNeedsOptions(repoRoot);
 const populationHealthTimer = setInterval(() => {
     let store: AgentStateStore | null = null;
     try {
         store = new AgentStateStore(agentStateDbPath, replanSimulationClock);
         reconcilePopulationDeaths(store, populationHealthEngineEvidencePath, populationHealthAgePolicy, populationDeathMortalityPolicy);
+        try { runPopulationNeedsCycle(store, replanSimulationClock, populationNeeds, populationHealthEngineEvidencePath); }
+        catch (error) { console.error('[PopulationNeeds] Cycle blocked:', error); }
         try { const estate = runPopulationEstateCycle(populationEstateOptions);
             if (estate.authorityErrors.length) console.error('[PopulationEstate] Authority blocked:', estate.authorityErrors.join('; ')); }
         catch (error) { console.error('[PopulationEstate] Cycle failed closed:', error); }
@@ -106,7 +110,7 @@ const populationHealthTimer = setInterval(() => {
 }, 10000);
 populationHealthTimer.unref?.();
 const worldGenesisAdapter = new LocalLostCityWorldGenesisAdapter(undefined,
-    { agentPath: agentStateDbPath, simulationClock: replanSimulationClock });
+    { agentPath: agentStateDbPath, simulationClock: replanSimulationClock, needs: populationNeeds });
 function recordPlayerPresence(username: string, presence: 'online' | 'offline'): void {
     try {
         simulationClockRuntime.store.recordPlayerPresence(simulationClockRuntime.clockId,
@@ -749,6 +753,17 @@ const SyncModule = {
                 return;
             }
 
+            if (message.action?.type === 'societyFood') {
+                try {
+                    const { executeLocalFoodSkill } = await import('./admin/native-food-skills.js');
+                    const result = await executeLocalFoodSkill(sdkSession.targetUsername, message.action.request);
+                    this.sendToSDK(sdkSession, { type: 'sdk_action_result', actionId: message.actionId, result });
+                } catch (error) {
+                    this.sendToSDK(sdkSession, { type: 'sdk_action_result', actionId: message.actionId,
+                        result: { success: false, message: String(error), reason: 'food-source-rejected', phase: 'observation' } });
+                }
+                return;
+            }
             botSession.currentActionId = message.actionId || null;
             this.sendToBot(botSession, {
                 type: 'action',
@@ -1029,6 +1044,7 @@ const agentAutonomySupervisor = new GatewayAgentAutonomySupervisor(agentReplanCo
         const state = simulationClockRuntime.store.getPlayerTimeState(simulationClockRuntime.clockId, username);
         return state ? playerTimeCapabilities(state) : null;
     },
+    sleeping: username => simulationClockRuntime.store.getPlayerTimeState(simulationClockRuntime.clockId, username)?.rest === 'sleeping',
     nextEvent: (agentId, now) => {
         const store = new ReplanInboxStore(replanInboxDbPath);
         try { return store.nextClaimableForAgent(agentId, now)?.event ?? null; }
@@ -1116,7 +1132,7 @@ const runAgentAutonomySupervisor = async (startup = false) => {
         recoverGoalEvents: () => recoverGoalEventWakeups(replanInboxDbPath, agentStateDbPath,
             replanSimulationClock),
         recoverDomainEvents: () => recoverDomainEventWakeups(replanInboxDbPath,
-            { simulationClock: replanSimulationClock }, properties ?? []),
+            { simulationClock: replanSimulationClock, gatewayBots: adminGatewayBots(), now }, properties ?? []),
         reconcileEnrollments: isStartup => agentAutonomySupervisor.tick(now, isStartup)
     });
     for (const result of report.markers) {

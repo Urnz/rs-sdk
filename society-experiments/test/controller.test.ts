@@ -148,6 +148,7 @@ async function completeFixture(f:Awaited<ReturnType<typeof fixture>>,extraFirstB
     f.at(1440);return stepLongExperiment(f.plan.sessionId,f.store,f.deps);
 }
 
+// Git/archive/SQLite roundtrips need a bounded I/O budget above the default 5-second unit-test budget.
 test('benchmark result restores native Phase12, clock and XP evidence into an isolated workspace',async()=>{
     const f=await fixture({xpSnapshot:true,xpExecution:true,diminishingXp:false});
     await startLongExperiment(f.plan,f.store,f.deps);await stepLongExperiment(f.plan.sessionId,f.store,f.deps);
@@ -182,7 +183,7 @@ test('benchmark result restores native Phase12, clock and XP evidence into an is
     expect(verifySocietyArchive(bundle).digest).toBe(manifest.digest);
     mutate(join(restored,'workspace/.local/admin/xp-execution.sqlite'),"DELETE FROM xp_execution_event WHERE sequence=2");
     expect(()=>readBenchmarkReport(join(restored,'workspace'),f.plan)).toThrow();
-});
+},30000);
 test('native bindings fix seed, finite founders, generated attribute inputs, all policies and exact starting avatar/goals',async()=>{
     const f=await fixture();try{const state=await startLongExperiment(f.plan,f.store,f.deps);
         expect(state.definition.binding.genesis.seed).toBe('long-native-seed');expect(state.definition.binding.attributeInputs).toHaveLength(4);
@@ -191,6 +192,7 @@ test('native bindings fix seed, finite founders, generated attribute inputs, all
         await expect(startLongExperiment({...f.plan,label:'Conflicting plan'},f.store,f.deps)).rejects.toThrow('already bound');
     }finally{f.close();}
 });
+// Keep real FULL-synchronous databases, 192 dispatches and all backing checks; allow bounded disk headroom.
 test('native completed day pairs yield bounded, traceable descriptive XP comparisons and reject confounded evidence',async()=>{
     const c=await fixture({sessionId:'xp-control',diminishingXp:false,xpPerMinute:2,xpSnapshot:true,xpExecution:true}),
         t=await fixture({sessionId:'xp-treatment',diminishingXp:true,xpPerMinute:1,xpSnapshot:true,xpExecution:true});
@@ -207,7 +209,10 @@ test('native completed day pairs yield bounded, traceable descriptive XP compari
         expect(report.buckets[0]!.treatmentMinusControl!.totalXpDelta).toBe(-1);
         expect(report.buckets[0]!.control.evidence[0]!.terminalRunIds).toHaveLength(4);
         const {digest:reportDigest,...artifact}=report;expect(reportDigest).toBe(digest(artifact));
-        expect(readLongExperimentComparison(request,options)).toEqual(report);
+        let nativeReads=0;
+        const measured=(deps:LongExperimentDependencies)=>({...deps,getWave:(id:string)=>{nativeReads++;return deps.getWave(id);}});
+        expect(readLongExperimentComparison(request,{...options,controlDependencies:measured(c.deps),treatmentDependencies:measured(t.deps)})).toEqual(report);
+        expect(nativeReads).toBe(48); // One fresh native read per wave, with every backing/tamper check retained.
         expect(report.causalEffectEstablished).toBeFalse();expect(report.provesSelfSufficiency).toBeFalse();
         expect(report.engineRandomStreamSeeded).toBeFalse();
         expect(report.xpRepetitionState.status).toBe('matching-empty-native-snapshots');
@@ -236,7 +241,7 @@ test('native completed day pairs yield bounded, traceable descriptive XP compari
         mutate(t.experimentPath,"UPDATE multi_agent_experiment SET seed='forged' WHERE experiment_id=(SELECT experiment_id FROM multi_agent_experiment LIMIT 1)");
         expect(()=>readLongExperimentComparison(request,options)).toThrow('backing');
     }finally{c.close();t.close();}
-},15000);
+},30000);
 test('unequal native bucket sampling stays inconclusive and withholds overall deltas',async()=>{
     const c=await fixture({sessionId:'unequal-control',diminishingXp:false}),t=await fixture({sessionId:'unequal-treatment',diminishingXp:true});
     try{

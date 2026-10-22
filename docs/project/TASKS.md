@@ -28,6 +28,9 @@ a kiválasztott kör, indok, eredmény és időtartam kerül a progress fájlba.
 
 Ez megőrzött nyitott feladat, nem új Phase 22 követelmény. Az archiválás
 nem jelent új elfogadást; a többi 15–21. fázisbeli eredmény az archívumban van.
+Az SI-A14 food-integrációs részhez végrehajtható
+[audit–teszt hozzárendelés](AUTONOMOUS_PROTO_SOCIETY_AUDIT.md) készült;
+a teljes 15.1 továbbra is nyitott.
 
 ## 22. Fázis – tulajdonvédelem, bűnözés és igazságszolgáltatás
 

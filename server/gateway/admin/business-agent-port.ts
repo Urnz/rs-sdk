@@ -6,6 +6,7 @@ import type { AgentControlProfile } from '../../../agent-state/types.js';
 import { agentStateDbPath, businessManagerDbPath } from './paths.js';
 import { BusinessManagerStore, type Business, type BusinessPolicyMode,
     type BusinessPolicyProposal } from './business-manager.js';
+import { businessRoleAllowsSkill } from '../../../business-roles/index.js';
 
 export interface ProposeBusinessPolicyInput {
     proposalId: string;
@@ -90,6 +91,10 @@ export function validateBusinessPlayerActionForAgent(agentId: string,
         const employment = business.employments.find(item => item.status === 'active'
             && item.workerAgentId === assigneeAgentId);
         if (!employment) throw new Error('Player agent is not an active employee of this business');
+        const role = businesses.listRoleDefinitions().find(role => role.roleDefinitionId === employment.roleDefinitionId);
+        if (!role || !businessRoleAllowsSkill(role, requestedSkill, employment.requiredSkill)) {
+            throw new Error('Player work skill is not allowed by the active employment role');
+        }
         if (rewardGp !== employment.wageGp) {
             throw new Error('Player work reward must equal the active employment wage');
         }

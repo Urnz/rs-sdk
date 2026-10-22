@@ -14,6 +14,10 @@ import type { ManagedServer } from '../lifecycle-store.js';
 import type { ManagedRuntime } from '../managed-runtime.js';
 import { createControlPlane } from '../service.js';
 import { controlPlaneConfig } from '../config.js';
+import { FoodNeedsPersistence } from '../../../food-loop/needs-persistence.js';
+import { loadFoodLoopCatalog } from '../../../food-loop/catalog.js';
+import { loadNeedsPolicyCatalog, loadNeedsDynamicsPolicyCatalog } from '../../../needs/config.js';
+import { SimulationClockStore } from '../../../simulation-clock/store.js';
 
 async function fixture() {
     const dir = await mkdtemp(join(tmpdir(), 'world-maintenance-')), workspace = join(dir, 'workspace');
@@ -36,6 +40,40 @@ test('verified backup restores exact world files and empty directories, retainin
         expect(await inventory(f.workspace)).not.toEqual(expect.arrayContaining([expect.objectContaining({ path: 'extra' })]));
         await f.maintenance.recover(false);
         expect(await readFile(join(f.dir, `retired-${operation}`, '.local/save'), 'utf8')).toBe('changed world state');
+    } finally { await rm(f.dir, { recursive: true, force: true }); }
+});
+
+test('stopped-world backup and restore preserve the shared needs/food database and its clock together', async () => {
+    const f = await fixture(), backupId = randomUUID();
+    const config = join(import.meta.dir, '../../../config');
+    const policy = loadNeedsPolicyCatalog(join(config, 'needs-policies.json')).policies[0]!;
+    const dynamics = loadNeedsDynamicsPolicyCatalog(join(config, 'needs-dynamics-policies.json'), policy).policies[0]!;
+    const catalog = loadFoodLoopCatalog(join(config, 'food-loops.json'));
+    const at = '2030-01-01T00:00:00.000Z', later = '2030-01-01T01:00:00.000Z';
+    const paths = (root: string) => ({ clock: join(root, '.local/simulation/clock.sqlite'), food: join(root, '.local/simulation/food-needs.sqlite') });
+    const open = (root: string) => new FoodNeedsPersistence(paths(root).food, policy, dynamics, catalog);
+    try {
+        await mkdir(join(f.workspace, '.local/simulation'));
+        let clock = new SimulationClockStore(paths(f.workspace).clock);
+        const initial = clock.create({ clockId: 'world', profile: { schemaVersion: 1, profileId: 'normal', version: '1.0.0',
+            seed: 'backup-test', rate: { simulationMilliseconds: 1, wallMilliseconds: 1 } }, wallTime: at, simulationTime: at });
+        const binding = { worldId: f.server.serverId, actorId: 'alice', playerId: 'alice', lifecycleId: 'life-1', clockId: 'world',
+            clockProfileDigest: initial.profileDigest, worldProfileDigest: 'a'.repeat(64), lifecyclePolicyDigest: 'b'.repeat(64) };
+        let persistence = open(f.workspace);
+        const admitted = persistence.needs.initialize({ binding, clock: clock.observe('world', at), history: [], playerTime: null,
+            admission: { kind: 'genesis', evidenceId: 'genesis', evidenceDigest: 'c'.repeat(64) } });
+        persistence.close(); clock.close();
+        const backup = await f.maintenance.backup(f.server, backupId);
+        expect(backup).toBeTruthy();
+        clock = new SimulationClockStore(paths(f.workspace).clock); persistence = open(f.workspace);
+        const advanced = persistence.needs.advance({ binding, clock: clock.observe('world', later), history: [], playerTime: null, expectedRevision: 1 });
+        persistence.close(); clock.close();
+        const operation = randomUUID(); await f.maintenance.restore(f.server, backupId, operation);
+        persistence = open(f.workspace);
+        expect(persistence.needs.get(binding)).toEqual(admitted); expect(persistence.food.list()).toEqual([]); persistence.close();
+        clock = new SimulationClockStore(paths(f.workspace).clock); expect(clock.get('world')!.lastSimulationTime).toBe(at); clock.close();
+        persistence = open(join(f.dir, `retired-${operation}`));
+        expect(persistence.needs.get(binding)).toEqual(advanced); persistence.close();
     } finally { await rm(f.dir, { recursive: true, force: true }); }
 });
 

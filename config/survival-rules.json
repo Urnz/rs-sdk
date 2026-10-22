@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "policyId": "day-survival",
+  "version": "1.0.0",
+  "gameDaySimulationMilliseconds": 86400000,
+  "hungerUnitsPerGameDay": 2400,
+  "hungryAfterGameDays": 1,
+  "fatalDeficitGameDays": 7,
+  "normalMealGameDays": 1
+}

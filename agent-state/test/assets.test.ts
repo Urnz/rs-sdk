@@ -90,7 +90,8 @@ describe('asset portfolio resolver', () => {
         expect(portfolio.properties.map(item => item.propertyId)).toEqual(['varrock.east-workshop']);
         expect(portfolio.financialPosition).toEqual({ receivablesGp: 4_000, liabilitiesGp: 32_000,
             openCommitmentReceivablesGp: 0, openCommitmentLiabilitiesGp: 32_000 });
-        const context = buildDecisionContext(store.getSnapshot('ferrye14')!, { assets: portfolio, maxCharacters: 1200 });
+        const context = buildDecisionContext(store.getSnapshot('ferrye14')!, { assets: portfolio,
+            now: portfolio.observedAt, maxCharacters: 1200 });
         expect(context).toContain('Current assets');
         expect(context).toContain('68000 gp');
         expect(context).toContain('varrock.east-workshop');

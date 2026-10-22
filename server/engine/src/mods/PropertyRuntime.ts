@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { housingTenantAccess } from './HousingAccess.js';
 import { loadPropertyCatalog, type PropertyCatalog, type PropertyDefinition, type PropertyEntryPoint,
     type PropertyStateEntry } from './Properties.js';
 import {
@@ -82,6 +83,7 @@ export class PropertyRuntime {
         const roles = property.permissions.enter;
         if (roles.includes('everyone') || roles.includes('eligible-player')) return true;
         if (isAdmin && roles.includes('admin')) return true;
+        if (roles.includes('visitor') && housingTenantAccess(property.propertyId, username.toLowerCase())) return true;
         return roles.includes('owner') && property.state.owner?.kind === 'player'
             && property.state.owner.id === username.toLowerCase();
     }

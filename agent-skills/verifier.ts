@@ -28,6 +28,8 @@ export interface SkillVerificationOptions {
     minimumSuccessfulRuns?: number;
     now?: string;
     resolveDefinition?: SkillDefinitionResolver;
+    /** Trusted backend must reopen canonical food sources; uploaded operation data is insufficient. */
+    verifyFoodEvidence?: (run: SkillRunResult) => boolean;
 }
 
 export const SKILL_VERIFIER_ID = 'deterministic-skill-verifier';
@@ -144,9 +146,36 @@ export function verifyAndPromoteSkill(
             && event.skill.id === draft.id && event.skill.version === draft.version
             && Date.parse(event.timestamp) >= Date.parse(draft.provenance.createdAt))
     ), 'Every evidence item must be a completed, attributed live run with executed operations.');
-    check('matching-parameters', uniqueEvidence.length >= minimumSuccessfulRuns
-        && uniqueEvidence.every(run => sameParameters(run.parameters, parameters)),
-    'Every live run must record the same resolved parameters used by verification.');
+    const invocationKeys = new Set(Object.entries(draft.parameters).filter(([, spec]) => spec.verification === 'native-invocation').map(([key]) => key));
+    const functionalParameters = (values: Record<string, string | number | boolean>) => Object.fromEntries(Object.entries(values)
+        .filter(([key]) => !invocationKeys.has(key)));
+    check('matching-parameters', uniqueEvidence.length >= minimumSuccessfulRuns && uniqueEvidence.every(run => {
+        try { return !!run.parameters && sameParameters(resolveSkillParameters(draft, run.parameters), run.parameters)
+            && sameParameters(functionalParameters(run.parameters), functionalParameters(parameters)); } catch { return false; }
+    }), invocationKeys.size ? 'Functional parameters must match; native kitchen run/batch bindings require independent source verification.'
+        : 'Every live run must record the same resolved parameters used by verification.');
+
+    const containsFood = (steps: SkillStep[], seen = new Set<string>()): boolean => steps.some(step => {
+        if (step.kind === 'operation') return step.operation.startsWith('food-');
+        if (step.kind === 'repeat') return containsFood(step.steps, seen);
+        const key = skillReferenceKey(step.skill); if (seen.has(key)) return false; seen.add(key);
+        const child = options.resolveDefinition?.(step.skill);
+        return child ? containsFood(validateSkillDefinition(child).steps, seen) : false;
+    });
+    if (containsFood(draft.steps)) {
+        const actionIds = uniqueEvidence.flatMap(run => run.events.filter(event => event.type === 'step.succeeded'
+            && event.operation?.startsWith('food-')).map(event => {
+                const receipt = event.data?.receipt as { action?: { actionId?: string } } | undefined;
+                return receipt?.action?.actionId ?? '';
+            }));
+        check('independent-native-food', actionIds.length >= minimumSuccessfulRuns && actionIds.every(Boolean)
+            && new Set(actionIds).size === actionIds.length,
+        'Independent food trials require distinct canonical native action receipts.');
+        let sourcesVerified = false;
+        try { sourcesVerified = !!options.verifyFoodEvidence && uniqueEvidence.length >= minimumSuccessfulRuns
+            && uniqueEvidence.every(run => options.verifyFoodEvidence!(run)); } catch { /* Failed source validation is a failed verifier check. */ }
+        check('native-food-sources', sourcesVerified, 'Every food trial must reopen its exact durable intent and canonical native source.');
+    }
 
     const passed = checks.every(item => item.passed);
     const report: SkillVerificationReport = {

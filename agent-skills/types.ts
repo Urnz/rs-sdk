@@ -28,6 +28,8 @@ export interface SkillParameterDefinition {
     enum?: Array<string | number | boolean>;
     minimum?: number;
     maximum?: number;
+    /** Only exact native kitchen run/batch bindings may differ between independent verification trials. */
+    verification?: 'native-invocation';
 }
 
 export interface SkillProvenance {
@@ -50,6 +52,7 @@ export interface SkillLimits {
 
 export type SkillOperationName =
     | 'walk-to'
+    | 'travel-to-site'
     | 'wait-for-area'
     | 'talk-to-npc'
     | 'navigate-dialog'
@@ -57,6 +60,9 @@ export type SkillOperationName =
     | 'interact-npc'
     | 'gather-loc'
     | 'gather-npc'
+    | 'food-gather'
+    | 'food-cook'
+    | 'food-consume'
     | 'thieve-pickpocket'
     | 'thieve-lockpick'
     | 'thieve-container'
@@ -144,10 +150,13 @@ export interface SkillOperationResult {
     message: string;
     code?: string;
     data?: Record<string, unknown>;
+    /** An uncertain or committed partial economic outcome must never be blindly repeated. */
+    retryable?: boolean;
 }
 
 export interface SkillRuntime {
-    execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal): Promise<SkillOperationResult>;
+    execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal,
+        context?: import('../sdk/society-food').SocietyFoodContext): Promise<SkillOperationResult>;
     test(condition: SkillConditionName, args: Record<string, unknown>, signal: AbortSignal): Promise<boolean>;
 }
 

@@ -11,6 +11,12 @@ import { createPopulationDeathEvidence } from '../../../../population-lifecycle/
 import { loadPopulationWorldProfileBindingCatalog } from '../../../../population-lifecycle/config.js';
 import { engineHealthRuntime, type EngineHealthDamage } from './PlayerHealthEvidenceStore.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
+import { assertManagedModuleRoot, managedContext } from '../../../control-plane/instance-context.js';
+import { FOOD_ITEM, FOOD_POLICY, foodDigest, type NativeFoodContext } from './NativeFoodConsumptionStore.js';
+import { createPopulationStarvationDeath } from '../../../../population-lifecycle/starvation.js';
+import { loadSurvivalProfile } from '../../../../needs/survival.js';
+import { resolve } from 'node:path';
+import type { AgentPopulationMember } from '../../../../agent-state/types.js';
 
 const root = new URL('../../../../', import.meta.url);
 const path = (relative: string) => fileURLToPath(new URL(relative, root));
@@ -34,10 +40,14 @@ function getRuntime() {
     }
     return runtime ??= openRuntime();
 }
-function clockObservation(engineTick: number): SimulationClockObservation {
-    const local = getRuntime()!; const prior = local.shared.store.get(local.shared.clockId)!;
-    return local.shared.store.observe(local.shared.clockId,
-        new Date(Math.max(Date.now(), Date.parse(prior.lastObservedWallTime))).toISOString(), engineTick);
+function clockObservation(engineTick?: number): SimulationClockObservation {
+    const local = getRuntime()!;
+    return local.shared.store.observeNow(local.shared.clockId, engineTick);
+}
+export function populationFoodTickClock(engineTick: number): SimulationClockObservation | null {
+    const local = getRuntime();
+    if (!local || !local.agents.listPopulationMembers().length) return null;
+    return clockObservation(engineTick);
 }
 function memberFor(username: string) {
     const local = getRuntime();
@@ -59,6 +69,30 @@ function memberFor(username: string) {
     return member;
 }
 
+/** Native food uses the existing population identity and clock authorities, never a caller-supplied receipt. */
+export function populationFoodContext(username: string, actionId: string, slot: number, engineTick: number): NativeFoodContext | null {
+    assertManagedModuleRoot(fileURLToPath(root));
+    const member = memberFor(username);
+    if (!member) return null;
+    if (populationAvatarRestricted(username)) throw new Error('Terminal population avatar cannot consume food');
+    const clock = clockObservation(engineTick);
+    if (loadSurvivalProfile(fileURLToPath(root))) {
+        const local = getRuntime()!;
+        admitPopulationStarvation(member, clock, engineHealthRuntime(), local.age, local.mortality, starvationOptions());
+        if (engineHealthRuntime().deathFor(username)) throw new Error('Starved population avatar cannot act');
+    }
+    if (clock.clockId !== member.simulationClock.clockId || clock.profileDigest !== member.simulationClock.profileDigest)
+        throw new Error('Native food population clock mismatch');
+    return { action: { actionId, worldId: managedContext()?.id ?? `local:${foodDigest(fileURLToPath(root))}`,
+        actorId: member.agentId, username, lifecycleId: foodDigest({ agentId: member.agentId,
+            createdAt: member.characterLifecycle.createdAt, origin: member.characterLifecycle.origin,
+            createdAtSimulationTime: member.characterLifecycle.createdAtSimulationTime,
+            sourceResultId: member.sourceResultId, sourceResultDigest: member.sourceResultDigest,
+            worldProfile: member.worldProfile, lifecyclePolicy: member.lifecyclePolicy, simulationClock: member.simulationClock }),
+        itemId: FOOD_ITEM, quantity: 1, slot, policyDigest: foodDigest(FOOD_POLICY),
+        clockId: clock.clockId, clockProfileDigest: clock.profileDigest }, clock };
+}
+
 export function admitNaturalPopulationDeaths(agents: AgentStateStore, clock: SimulationClockObservation,
     source: PlayerHealthEvidenceStore, age: PopulationAgePolicy, mortality: PopulationMortalityPolicy): number {
     let admitted = 0;
@@ -72,6 +106,21 @@ export function admitNaturalPopulationDeaths(agents: AgentStateStore, clock: Sim
     }
     return admitted;
 }
+export function admitPopulationStarvation(member: AgentPopulationMember, clock: SimulationClockObservation,
+    source: PlayerHealthEvidenceStore, age: PopulationAgePolicy, mortality: PopulationMortalityPolicy,
+    options: Parameters<typeof createPopulationStarvationDeath>[0]): boolean {
+    if (source.deathFor(member.playerUsername) || member.status !== 'active' || member.characterLifecycle.status !== 'active') return false;
+    const event = createPopulationStarvationDeath(options, member, clock, age);
+    if (!event) return false;
+    const natural = evaluatePopulationMortality(member, clock, age, mortality);
+    if (natural.candidate?.due && natural.candidate.atSimulationTime <= event.atSimulationTime) return false;
+    source.bindFiniteAvatar(member); source.recordStarvationDeath(event); return true;
+}
+function starvationOptions() {
+    const workspace = fileURLToPath(root);
+    return { workspace, worldId: managedContext()?.id ?? `local:${foodDigest(workspace)}`,
+        checkpointPath: resolve(workspace, 'server/engine', process.env.PLAYER_CHECKPOINT_DATABASE ?? process.env.GE_DATABASE ?? 'data/player-checkpoints.sqlite') };
+}
 export function populationAvatarIsFinite(username: string): boolean { return !!memberFor(username); }
 
 /** Called before any world/client/NPC execution. Offline members are included. */
@@ -83,6 +132,7 @@ export function tickPopulationDeaths(engineTick: number): void {
             for (const candidate of local.agents.listPopulationMembers()) {
                 const member = memberFor(candidate.playerUsername)!;
                 if (!member) throw new Error('Population member disappeared');
+                if (loadSurvivalProfile(fileURLToPath(root))) admitPopulationStarvation(member, clock, source, local.age, local.mortality, starvationOptions());
             }
             admitNaturalPopulationDeaths(local.agents, clock, source, local.age, local.mortality);
         }
@@ -94,6 +144,11 @@ export function populationAvatarRestricted(username: string): boolean {
     if (failed) return true;
     if (engineHealthRuntime().deathFor(username)) return true;
     const member = memberFor(username);
+    if (member && member.status === 'active' && member.characterLifecycle.status === 'active' && loadSurvivalProfile(fileURLToPath(root))) {
+        const local = getRuntime()!;
+        admitPopulationStarvation(member, clockObservation(), engineHealthRuntime(), local.age, local.mortality, starvationOptions());
+        if (engineHealthRuntime().deathFor(username)) return true;
+    }
     return !!member && (member.status !== 'active' || member.characterLifecycle.status !== 'active');
 }
 

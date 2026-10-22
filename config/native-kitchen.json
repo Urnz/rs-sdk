@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "recipeId": "food.cook-lobster",
+  "recipeVersion": "1.0.0",
+  "facilityId": "karamja.fishing-hut.utility",
+  "capabilityId": "cooking.heat-source",
+  "heat": { "debugName": "loc_2729", "x": 2926, "z": 3180, "level": 0 }
+}

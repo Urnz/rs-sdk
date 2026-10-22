@@ -6,7 +6,7 @@ import { generatePopulationEntry, populationEntryId, populationEntryDigest, vali
     type PopulationEntryEnvironment, type PopulationEntryPlan, type PopulationEntryReceipt } from '../population-lifecycle/entry.js';
 import { installPopulationEntrySchema, readPopulationEntry, verifyPopulationEntryHistory } from './population-entry.js';
 import { PlayerHealthEvidenceStore } from '../server/engine/src/mods/PlayerHealthEvidenceStore.js';
-import { createPopulationDeathEvidence, populationDeathMembershipDigest, validatePopulationDeathEvidence,
+import { createPopulationDeathEvidence, createStarvationDeathEvidence, populationDeathMembershipDigest, validatePopulationDeathEvidence,
     type PopulationDeathRecord } from '../population-lifecycle/death.js';
 import { healthDigest } from '../population-health/policy.js';
 import { installMemoryArchiveSchema, verifyMemoryHistory, archivePopulationMemory, readPopulationMemoryArchive } from './memory-archive.js';
@@ -37,6 +37,8 @@ import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalEvent, type A
     type SetAgentEconomicActorLink, type SetAgentRelationship, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
 import { createSkillParameterBinding } from './skill-binding.js';
+import { installLivelihoodJournal, readLivelihoodJournal, writeLivelihoodJournal,
+    type LivelihoodJournalEntry } from './livelihood.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
     normalizeActorKey, normalizeEconomicActorId, normalizeSkillReference, validateCreateCommitment, validateCreateEpisode,
     validateCreateKnowledge, validateIdentityPatch, validateRelationship, validateSkillKnowledgeStatus,
@@ -384,6 +386,7 @@ export class AgentStateStore {
             return statement;
         } });
         try {
+            this.database.run('PRAGMA busy_timeout=5000');
             this.database.run('PRAGMA foreign_keys = ON');
             if (readOnly) {
                 const version = (this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version;
@@ -400,6 +403,45 @@ export class AgentStateStore {
             this.close();
             throw error;
         }
+    }
+
+    listLivelihoodJournal(agentId: string): LivelihoodJournalEntry[] {
+        if (!this.readOnly) installLivelihoodJournal(this.database);
+        let entries!: LivelihoodJournalEntry[];
+        this.database.transaction(() => { entries = readLivelihoodJournal(this.database, normalizeAgentId(agentId)); }).deferred();
+        return entries;
+    }
+
+    /** Borrow the existing enrollment lease for a bilateral native operation, never another controller. */
+    claimLivelihoodParticipant(actorId: string, peerId: string, actionId: string, now = new Date().toISOString()): void {
+        this.database.transaction(() => {
+            const actor = this.getAutonomyEnrollment(actorId), peer = this.getAutonomyEnrollment(peerId);
+            const owner = `livelihood:${normalizeAgentId(actionId)}`;
+            if (!actor || actor.status !== 'running' || !actor.leaseExpiresAt || actor.leaseExpiresAt <= now
+                || actor.policyId !== 'society-livelihood' || actor.policyVersion !== '1.0.0' || actorId === peerId
+                || this.getAutonomyControl().emergencyStop || !peer || peer.policyId !== actor.policyId || peer.policyVersion !== actor.policyVersion)
+                throw new Error('Bilateral routine needs exact live enrollments');
+            if (peer.status === 'running' && peer.leaseOwner === owner && peer.leaseExpiresAt && peer.leaseExpiresAt > now) return;
+            if (peer.status !== 'desired') throw new Error('Routine participant is busy, paused or quarantined');
+            if (peer.failureCount > 0 && peer.nextWakeupAt && peer.nextWakeupAt > now)
+                throw new Error('Routine participant backoff has not expired');
+            const due = this.setAutonomyEnrollment(peerId, peer.revision, { ...peer, nextWakeupAt: now }, now);
+            this.claimAutonomyEnrollment(peerId, due.revision, owner, actor.leaseExpiresAt, now);
+        }).immediate();
+    }
+
+    releaseLivelihoodParticipants(actionId: string, now = new Date().toISOString()): void {
+        this.database.transaction(() => {
+            for (const peer of this.listAutonomyEnrollments('running').filter(e => e.leaseOwner === `livelihood:${actionId}`))
+                this.setAutonomyEnrollment(peer.agentId, peer.revision, { ...peer, status: 'desired', leaseOwner: null,
+                    leaseExpiresAt: null, nextWakeupAt: new Date(Date.parse(now) + 30000).toISOString() }, now);
+        }).immediate();
+    }
+
+    writeLivelihoodJournal(entry: LivelihoodJournalEntry, expectedRevision: number | null): LivelihoodJournalEntry {
+        if (!this.getIdentity(entry.agentId)) throw new Error('Livelihood agent is unavailable');
+        installLivelihoodJournal(this.database);
+        return writeLivelihoodJournal(this.database, entry, expectedRevision);
     }
 
     close(): void {
@@ -428,7 +470,7 @@ export class AgentStateStore {
             occurredAt: row.occurred_at })).digest('hex');
         const wallTime = row.occurred_at < clock.lastObservedWallTime
             ? clock.lastObservedWallTime : row.occurred_at;
-        const stamp = this.simulationClock.store.bindEvent({ clockId: this.simulationClock.clockId,
+        const stamp = this.simulationClock.store.bindEventAtHead({ clockId: this.simulationClock.clockId,
             domain: 'agent-goal-event', sourceId, sourceDigest, wallTime,
             engineTick: this.simulationClock.engineTick?.() }).stamp;
         this.database.run(`UPDATE agent_goal_event SET simulation_clock_id=?2,
@@ -466,11 +508,7 @@ export class AgentStateStore {
 
     private observeSimulationTime(wallTime: string): string {
         if (!this.simulationClock) throw new Error('Character lifecycle requires the shared simulation clock');
-        const clock = this.simulationClock.store.get(this.simulationClock.clockId);
-        if (!clock) throw new Error(`Simulation clock ${this.simulationClock.clockId} does not exist`);
-        const canonical = new Date(wallTime).toISOString();
-        const bindingWallTime = canonical < clock.lastObservedWallTime ? clock.lastObservedWallTime : canonical;
-        return this.simulationClock.store.observe(this.simulationClock.clockId, bindingWallTime,
+        return this.simulationClock.store.observeAtHead(this.simulationClock.clockId, wallTime,
             this.simulationClock.engineTick?.()).simulationTime;
     }
 
@@ -831,7 +869,9 @@ export class AgentStateStore {
             if (!clock || clock.clockId !== record.clock.clockId || clock.profileDigest !== record.clock.profileDigest
                 || clock.lastSimulationTime < record.clock.simulationTime || record.recordedAt < member.createdAt)
                 throw new Error('Population death clock/source binding is invalid');
-            const expected = createPopulationDeathEvidence(member, record.clock, agePolicy, mortalityPolicy,
+            const expected = record.cause.kind === 'starvation'
+                ? createStarvationDeathEvidence(member, record.clock, agePolicy, record.cause, record.atSimulationTime)
+                : createPopulationDeathEvidence(member, record.clock, agePolicy, mortalityPolicy,
                 record.cause.kind === 'engine-hp-zero' ? { damageEventId: record.cause.damageEventId,
                     sessionId: record.cause.sessionId, engineTick: record.cause.engineTick } : undefined);
             const { sequence: _sequence, eventDigest: _digest, ...event } = record;
@@ -1487,6 +1527,26 @@ export class AgentStateStore {
         });
         transaction.immediate();
         return result;
+    }
+
+    notePlayerActionRunReconciliation(requestId: string, responseNote: string,
+        now = new Date().toISOString()): AgentPlayerActionRequest {
+        const current = this.getPlayerActionRequest(requestId);
+        if (!current) throw new Error('Player action request does not exist');
+        const note = responseNote.trim().slice(0, 500);
+        if (current.status === 'running' && current.responseNote !== note) this.database.run(`UPDATE agent_player_action_request
+            SET response_note=?2,updated_at=?3,revision=revision+1 WHERE request_id=?1 AND status='running'`, [requestId, note, now]);
+        return this.getPlayerActionRequest(requestId)!;
+    }
+
+    failUnstartedPlayerAction(requestId: string, responseNote: string, now = new Date().toISOString()): AgentPlayerActionRequest {
+        const current = this.getPlayerActionRequest(requestId);
+        if (!current || current.runId || current.settlementId || !['pending', 'accepted', 'approved'].includes(current.status)
+            || !Number.isFinite(Date.parse(now))) throw new Error('Only unstarted player work may expire before dispatch');
+        this.database.run(`UPDATE agent_player_action_request SET status='failed',response_note=?2,updated_at=?3,
+            resolved_at=?3,revision=revision+1 WHERE request_id=?1 AND revision=?4 AND run_id IS NULL AND settlement_id IS NULL`,
+        [requestId, responseNote.trim().slice(0, 500), now, current.revision]);
+        return this.getPlayerActionRequest(requestId)!;
     }
 
     completePlayerActionSettlement(settlementId: string, responseNote: string,

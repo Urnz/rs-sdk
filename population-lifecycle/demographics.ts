@@ -152,7 +152,8 @@ export function buildPopulationDemographics(input: { clock: SimulationClockObser
             members: ages.filter(value => value !== null && stageAt(value).stageId === stage.stageId).length })) }) : unavailable(sourceIssues);
     const deathMetrics = deaths ? verified({ total: windowDeaths.length,
         natural: windowDeaths.filter(death => death.cause.kind === 'natural-mortality').length,
-        lethal: windowDeaths.filter(death => death.cause.kind === 'engine-hp-zero').length }) : unavailable(sourceIssues);
+        lethal: windowDeaths.filter(death => death.cause.kind === 'engine-hp-zero').length,
+        starvation: windowDeaths.filter(death => death.cause.kind === 'starvation').length }) : unavailable(sourceIssues);
     const holders = (skills: Array<{ id: string; version: string }>, specialism: DemographicPolicy['specialisms'][number]) =>
         skills.some(skill => specialism.skills.some(required => required.id === skill.id && required.version === skill.version));
     const lost = new Map<string, Array<{ id: string; version: string }>>();

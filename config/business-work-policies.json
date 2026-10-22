@@ -5,9 +5,40 @@
       "policyId": "lumbridge-general-store.shop-clerk.v1",
       "businessId": "lumbridge-general-store",
       "roleDefinitionId": "business.shop-clerk.v1",
-      "requiredSkill": { "id": "trade.lumbridge.give-item", "version": "1.0.0" },
+      "requiredSkill": {
+        "id": "trade.lumbridge.give-item",
+        "version": "1.0.0"
+      },
       "propertyId": "lumbridge-general-store",
       "facilityCapability": "retail.counter",
+      "minimumMinutes": 1,
+      "maximumMinutes": 480,
+      "paymentCondition": "verified-completion"
+    },
+    {
+      "policyId": "karamja-kitchen.cook.v1",
+      "businessId": "karamja-kitchen",
+      "roleDefinitionId": "business.cook.v1",
+      "requiredSkill": {
+        "id": "procedure.food.cook-lobster",
+        "version": "0.1.0"
+      },
+      "propertyId": "karamja.fishing-hut",
+      "facilityCapability": "cooking.heat-source",
+      "minimumMinutes": 1,
+      "maximumMinutes": 480,
+      "paymentCondition": "verified-completion"
+    },
+    {
+      "policyId": "karamja-kitchen.delivery.v1",
+      "businessId": "karamja-kitchen",
+      "roleDefinitionId": "business.delivery.v1",
+      "requiredSkill": {
+        "id": "trade.lumbridge.give-item",
+        "version": "1.0.0"
+      },
+      "propertyId": "karamja.fishing-hut",
+      "facilityCapability": "storage.secure",
       "minimumMinutes": 1,
       "maximumMinutes": 480,
       "paymentCondition": "verified-completion"

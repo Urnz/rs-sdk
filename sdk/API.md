@@ -256,6 +256,7 @@
 
 | Signature | Description |
 |---|---|
+| `async sendSocietyFood(request: import('./society-food').SocietyFoodRequest): Promise<ActionResult>` | Bounded local food operation; success requires a source-verified native receipt. |
 | `async sendWalk(x: number, z: number, running: boolean = true): Promise<ActionResult>` | Send walk command to coordinates. |
 | `async sendInteractLoc(x: number, z: number, locId: number, option: number = 1): Promise<ActionResult>` | Interact with a location (tree, rock, door, etc). |
 | `async sendInteractNpc(npcIndex: number, option: number = 1): Promise<ActionResult>` | Interact with an NPC by index and option. |

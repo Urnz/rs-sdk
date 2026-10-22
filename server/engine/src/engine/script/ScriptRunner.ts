@@ -27,6 +27,7 @@ import ScriptState from '#/engine/script/ScriptState.js';
 import World from '#/engine/World.js';
 import Environment from '#/util/Environment.js';
 import { printError, printWarning } from '#/util/Logger.js';
+import { finishNativeFoodProductionSegment } from '#/mods/NativeFoodProduction.js';
 
 export type CommandHandler = (state: ScriptState) => void;
 export type CommandHandlers = {
@@ -153,6 +154,10 @@ export default class ScriptRunner {
                 state.opcount++;
 
                 const opcode = opcodes[++state.pc];
+                if (state.nativeFoodProductionStage && (state.script.name !== '[label,cook_item]'
+                    || (opcode >= 100 && opcode !== ScriptOpcode.INV_ADD))) {
+                    throw new Error('Native cooking crossed its synchronous input/output boundary');
+                }
                 const handler = ScriptRunner.HANDLERS[opcode];
                 if (!handler) {
                     throw new Error(`Unhandled command ${ScriptOpcodeNameMap.get(opcode) ?? opcode}`);
@@ -161,6 +166,7 @@ export default class ScriptRunner {
                 handler(state);
             }
 
+            finishNativeFoodProductionSegment(state);
             if (Environment.node.debugProfile) {
                 const time: number = (performance.now() * 1000 - start) | 0;
                 if (time > 1000) {
@@ -173,6 +179,7 @@ export default class ScriptRunner {
                 }
             }
         } catch (err: any) {
+            state.nativeFoodProductionStage = null; // No input was spent if a native output never committed.
             // print the last opcode executed
             if (state.pc >= 0 && state.pc < state.script.opcodes.length) {
                 const opcode = state.script.opcodes[state.pc];

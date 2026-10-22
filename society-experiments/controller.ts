@@ -63,12 +63,14 @@ export function longExperimentCoverage(state:LongState){
 export function verifyLongExperimentBacking(state:LongState,deps:LongExperimentDependencies){
     const stamps=state.history.flatMap(event=>event.stamp?[event.stamp]:[]);
     if(deps.verifyStamps)deps.verifyStamps(stamps);else for(const stamp of stamps)deps.verifyStamp(stamp);
-    const waves=deps.getWaves?.(state.settled.map(row=>row.claim.experimentId));
+    const ids=state.settled.map(row=>row.claim.experimentId);
+    const waves=deps.getWaves?.(ids)??new Map(ids.map(id=>[id,deps.getWave(id)]));
     const executions:XpExecutionReport[]=[];
-    for(const row of state.settled){const native=waves?waves.get(row.claim.experimentId):deps.getWave(row.claim.experimentId);check(native && digest(native)===row.event.receipt!.digest,'Native Phase 12 settlement backing differs');
+    for(const row of state.settled){const native=waves.get(row.claim.experimentId);check(native && digest(native)===row.event.receipt!.digest,'Native Phase 12 settlement backing differs');
         if(native.xpExecution)executions.push(native.xpExecution);}
     if(executions.length){if(deps.verifyXpExecutions)deps.verifyXpExecutions(executions);
         else{check(deps.verifyXpExecution,'Native XP execution backing verifier unavailable');for(const report of executions)deps.verifyXpExecution(report);}}
+    return waves;
 }
 export async function stepLongExperiment(id:string,store:LongExperimentStore,deps:LongExperimentDependencies){
     const state=store.get(id);check(state,'Long experiment does not exist');

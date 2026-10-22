@@ -3,15 +3,33 @@ import type { SimulationClockObservation } from '../simulation-clock/types.js';
 import { healthDigest, healthInteger, healthObject, healthTime } from '../population-health/policy.js';
 import { evaluatePopulationAge, type PopulationAgePolicy } from './age.js';
 import { evaluatePopulationMortality, type PopulationMortalityPolicy } from './mortality.js';
+import { survivalRulesV1 } from '../needs/survival.js';
 
 export type PopulationDeathCause = { kind: 'engine-hp-zero'; damageEventId: string; sessionId: string; engineTick: number }
-    | { kind: 'natural-mortality'; candidateId: string; mortalityPolicyDigest: string };
+    | { kind: 'natural-mortality'; candidateId: string; mortalityPolicyDigest: string }
+    | { kind: 'starvation'; survivalPolicyDigest: string; nutritionEvidenceDigest: string; admittedAt: string; deficitSimulationMilliseconds: number };
 export interface PopulationDeathEvidence {
     schemaVersion: 1; eventId: string; agentId: string; playerUsername: string; membershipDigest: string;
     memberRevision: number; lifecycleRevision: number; clock: SimulationClockObservation;
     atSimulationTime: string; recordedAt: string; cause: PopulationDeathCause; agePolicyDigest: string;
 }
 export interface PopulationDeathRecord extends PopulationDeathEvidence { sequence: number; eventDigest: string }
+
+/** Rebuilds the envelope of an engine-attested nutrition proof. Callers still
+ * need the read-only engine authority to project it into a terminal lifecycle. */
+export function createStarvationDeathEvidence(member: AgentPopulationMember, clock: SimulationClockObservation,
+    age: PopulationAgePolicy, cause: Extract<PopulationDeathCause, { kind: 'starvation' }>, atSimulationTime: string): PopulationDeathEvidence {
+    evaluatePopulationAge(member, clock, age);
+    const rules = survivalRulesV1();
+    if (member.status !== 'active' || member.characterLifecycle.status !== 'active' || cause.survivalPolicyDigest !== healthDigest(rules)
+        || cause.admittedAt < member.joinedAtSimulationTime
+        || Date.parse(atSimulationTime) - Date.parse(cause.admittedAt) < rules.gameDaySimulationMilliseconds * rules.fatalDeficitGameDays)
+        throw new Error('Starvation death policy/admission differs');
+    const membershipDigest = populationDeathMembershipDigest(member);
+    return validatePopulationDeathEvidence({ schemaVersion: 1, eventId: `population-death-${healthDigest({ membershipDigest, cause })}`,
+        agentId: member.agentId, playerUsername: member.playerUsername, membershipDigest, memberRevision: member.revision,
+        lifecycleRevision: member.characterLifecycle.revision, clock, atSimulationTime, recordedAt: clock.wallTime, cause, agePolicyDigest: age.digest });
+}
 
 /** No observation-derived age or mutable status/revision enters the immutable identity digest. */
 export function populationDeathMembershipDigest(member: AgentPopulationMember): string {
@@ -70,6 +88,11 @@ export function validatePopulationDeathEvidence(raw: unknown): PopulationDeathEv
         const cause = healthObject(rawCause, ['kind','candidateId','mortalityPolicyDigest'], 'Natural death cause');
         if (typeof cause.candidateId !== 'string' || !/^natural-mortality-[a-f0-9]{32}$/.test(cause.candidateId)
             || !digest(cause.mortalityPolicyDigest)) throw new Error('Natural death cause is invalid');
+    } else if (rawCause?.kind === 'starvation') {
+        const cause = healthObject(rawCause, ['kind', 'survivalPolicyDigest', 'nutritionEvidenceDigest', 'admittedAt', 'deficitSimulationMilliseconds'], 'Starvation death cause');
+        if (!digest(cause.survivalPolicyDigest) || !digest(cause.nutritionEvidenceDigest) || typeof cause.admittedAt !== 'string'
+            || healthTime(cause.admittedAt) > healthTime(item.atSimulationTime as string)
+            || cause.deficitSimulationMilliseconds !== 7 * 86400000) throw new Error('Starvation death proof is invalid');
     } else throw new Error('Unsupported death cause');
     if (item.eventId !== `population-death-${healthDigest({ membershipDigest: item.membershipDigest, cause: item.cause })}`)
         throw new Error('Population death event id conflict');

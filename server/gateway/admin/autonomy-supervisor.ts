@@ -5,6 +5,7 @@ import type { AgentReplanCoordinator, ReplanRecord } from './replan-coordinator.
 import type { LlmReplanEvent } from '../../../llm-runtime/events.js';
 import type { PlayerTimeCapabilities } from '../../../simulation-clock/types.js';
 import { agentStateDbPath } from './paths.js';
+import { isLivelihoodPolicy } from './livelihood-policy.js';
 
 export interface GatewayAgentAutonomySupervisorOptions {
     agentPath?: string;
@@ -19,6 +20,7 @@ export interface GatewayAgentAutonomySupervisorOptions {
         status?: 'adopted' | 'starting' | 'spawned' | 'controller-conflict' | 'failed' }>;
     nextEvent?: (agentId: string, now: string) => LlmReplanEvent | null;
     timeCapabilities?: (username: string) => PlayerTimeCapabilities | null;
+    sleeping?: (username: string) => boolean;
 }
 
 export interface AutonomySupervisorResult {
@@ -54,7 +56,7 @@ export function autonomyFailureFingerprint(record: ReplanRecord): string | null 
     if (!record.error && (!status || !RETRY_FAILURE_STATUSES.has(status))) return null;
     const decision = record.outcome?.decision as { kind?: unknown; skill?: { id?: unknown; version?: unknown } } | undefined;
     const payload = {
-        eventType: record.event.type,
+        eventType: decision?.kind === 'livelihood' ? 'livelihood' : record.event.type,
         status,
         decisionKind: typeof decision?.kind === 'string' ? decision.kind : null,
         skill: typeof decision?.skill?.id === 'string' && typeof decision.skill.version === 'string'
@@ -81,6 +83,7 @@ export class GatewayAgentAutonomySupervisor {
         status?: 'adopted' | 'starting' | 'spawned' | 'controller-conflict' | 'failed' }>) | null;
     private readonly nextEvent: ((agentId: string, now: string) => LlmReplanEvent | null) | null;
     private readonly timeCapabilities: ((username: string) => PlayerTimeCapabilities | null) | null;
+    private readonly sleeping: (username: string) => boolean;
     private ticking = false;
 
     constructor(private readonly coordinator: AgentReplanCoordinator,
@@ -96,6 +99,7 @@ export class GatewayAgentAutonomySupervisor {
         this.ensureAvatar = options.ensureAvatar ?? null;
         this.nextEvent = options.nextEvent ?? null;
         this.timeCapabilities = options.timeCapabilities ?? null;
+        this.sleeping = options.sleeping ?? (() => false);
         if (!Number.isInteger(this.leaseMs) || this.leaseMs < 5_000 || this.leaseMs > 60 * 60_000) {
             throw new Error('Autonomy lease duration must be between 5 seconds and 60 minutes');
         }
@@ -118,6 +122,8 @@ export class GatewayAgentAutonomySupervisor {
             const preferred = new Map<string, LlmReplanEvent>();
             const due = useStore(this.agentPath, store => store.listAutonomyEnrollments('desired'))
                 .filter(item => {
+                    // Queued offers/goal events cannot defeat a routine's bounded retry interval.
+                    if (isLivelihoodPolicy(item) && item.nextWakeupAt && Date.parse(item.nextWakeupAt) > Date.parse(now)) return false;
                     const event = this.nextEvent?.(item.agentId, now);
                     if (event) preferred.set(item.agentId, event);
                     return !!event || !item.nextWakeupAt || Date.parse(item.nextWakeupAt) <= Date.parse(now);
@@ -167,7 +173,11 @@ export class GatewayAgentAutonomySupervisor {
 
     private async runDue(enrollment: AgentAutonomyEnrollment, now: string,
         startup: boolean, preferredEvent?: LlmReplanEvent): Promise<AutonomySupervisorResult> {
-        if (enrollment.policyId !== this.policy.id || enrollment.policyVersion !== this.policy.version) {
+        const latest = useStore(this.agentPath, store => store.getAutonomyEnrollment(enrollment.agentId));
+        if (!latest || latest.status !== 'desired' || latest.revision !== enrollment.revision)
+            return { agentId: enrollment.agentId, status: 'skipped', reason: 'Enrollment changed since the due-work snapshot.' };
+        if (!isLivelihoodPolicy(enrollment)
+            && (enrollment.policyId !== this.policy.id || enrollment.policyVersion !== this.policy.version)) {
             return { agentId: enrollment.agentId, status: 'skipped',
                 reason: `Unsupported autonomy policy ${enrollment.policyId}@${enrollment.policyVersion}.` };
         }
@@ -211,7 +221,8 @@ export class GatewayAgentAutonomySupervisor {
         }
         if (avatar) {
             const time = this.timeCapabilities?.(avatar);
-            if (time && !time.physicalExecutionAllowed) {
+            if (time && !time.physicalExecutionAllowed
+                && !(isLivelihoodPolicy(enrollment) && this.sleeping(avatar))) {
                 const nextWakeupAt = new Date(Date.parse(now) + this.retryMs).toISOString();
                 useStore(this.agentPath, store => store.setAutonomyEnrollment(claimable.agentId,
                     claimable.revision, { ...claimable, nextWakeupAt }, now));
@@ -239,6 +250,15 @@ export class GatewayAgentAutonomySupervisor {
             const record = await this.coordinator.submit(event, now);
             return this.settle(record, now);
         } catch (error) {
+            // A failed coordinator admission must not strand an idle avatar for
+            // an entire lease. Submitted native intents remain in their durable
+            // journal and are reconciled before the next action is selected.
+            const current = useStore(this.agentPath, store => store.getAutonomyEnrollment(enrollment.agentId));
+            if (current?.status === 'running' && current.leaseOwner === this.leaseOwner
+                && (!avatar || !this.activeSkill(avatar))) {
+                useStore(this.agentPath, store => store.releaseAutonomyLease(current.agentId, current.revision,
+                    this.leaseOwner, new Date(Date.parse(now) + this.retryMs).toISOString(), now));
+            }
             return { agentId: enrollment.agentId, status: 'failed',
                 reason: error instanceof Error ? error.message : String(error) };
         }

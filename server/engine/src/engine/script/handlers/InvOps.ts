@@ -15,8 +15,11 @@ import { CommandHandlers } from '#/engine/script/ScriptRunner.js';
 import { CategoryTypeValid, check, CoordValid, DurationValid, InvTypeValid, NumberNotNull, ObjStackValid, ObjTypeValid } from '#/engine/script/ScriptValidators.js';
 import World from '#/engine/World.js';
 import { WealthEventType } from '#/server/logger/WealthEventType.js';
+import { handleNativeFoodProduction } from '#/mods/NativeFoodProduction.js';
+import { handleNativeTravelFare } from '#/mods/NativeTravelFare.js';
+import { captureFoodTrade, commitFoodTrade, type FoodTradeWitness } from '#/mods/NativeFoodTrade.js';
 
-type PendingCommittedTrade = { from:string;to:string;fromItems:WealthEventItem[];fromValue:number };
+type PendingCommittedTrade = { from:string;to:string;fromItems:WealthEventItem[];fromValue:number; food: FoodTradeWitness | null };
 const pendingCommittedTrades = new WeakMap<object,PendingCommittedTrade>();
 
 const InvOps: CommandHandlers = {
@@ -72,6 +75,8 @@ const InvOps: CommandHandlers = {
         if (!invType.dummyinv && objType.dummyitem !== 0) {
             throw new Error(`dummyitem in non-dummyinv: ${objType.debugname} -> ${invType.debugname}`);
         }
+
+        if (handleNativeFoodProduction(state, 'add', invType.id, objType.id, count)) return;
 
         const player = state.activePlayer;
         const overflow = count - player.invAdd(invType.id, objType.id, count);
@@ -141,7 +146,9 @@ const InvOps: CommandHandlers = {
             throw new Error(`$inv requires protected access: ${invType.debugname}`);
         }
 
-        state.activePlayer.invDel(invType.id, objType.id, count);
+        if (!handleNativeFoodProduction(state, 'del', invType.id, objType.id, count)
+            && !handleNativeTravelFare(state, invType.id, objType.id, count))
+            state.activePlayer.invDel(invType.id, objType.id, count);
     }),
 
     // inv write
@@ -160,6 +167,11 @@ const InvOps: CommandHandlers = {
         }
 
         state.activePlayer.invDelSlot(invType.id, slot);
+        const food = state.nativeFoodConsumption;
+        if (food && state.script.name === '[label,consume_effect_stat]' && state.activePlayer.username === food.username
+            && invType.id === food.inventoryId && slot === food.slot && obj.id === food.itemId && obj.count === 1) {
+            food.deletions++;
+        }
     }),
 
     // https://x.com/JagexAsh/status/1679942100249464833
@@ -409,6 +421,9 @@ const InvOps: CommandHandlers = {
             throw new Error('inv is null');
         }
 
+        const foodTrade = fromInvType.debugname === 'tradeoffer' && !secondary
+            ? captureFoodTrade(fromPlayer, toPlayer, from, state.nativeFoodTradePorts?.identity) : null;
+
         let fromTotal = 0;
         // Holds a record of the wealth for logging only
         const fromLogs: Map<number, WealthEventItem & { cost: number }> = new Map();
@@ -494,13 +509,17 @@ const InvOps: CommandHandlers = {
             }
             // The opposite offer is still only a request here. Do not create a
             // payment receipt until the following .both_moveinv moved it too.
-            pendingCommittedTrades.set(state,{from:fromPlayer.username,to:toPlayer.username,fromItems,fromValue:fromTotal});
+            pendingCommittedTrades.set(state,{from:fromPlayer.username,to:toPlayer.username,fromItems,fromValue:fromTotal,food:foodTrade});
         } else if (fromInvType.debugname === 'tradeoffer') {
             const pending=pendingCommittedTrades.get(state);pendingCommittedTrades.delete(state);
             if(!pending||pending.from!==toPlayer.username||pending.to!==fromPlayer.username)
                 throw new Error('trade commit is missing its first inventory movement');
-            if(pending.fromItems.length>0||fromItems.length>0)recordTrade({tick:World.currentTick,from:pending.from,to:pending.to,
-                fromItems:pending.fromItems,toItems:fromItems,fromValue:pending.fromValue,toValue:fromTotal});
+            if(pending.fromItems.length>0||fromItems.length>0) {
+                const trade = (state.nativeFoodTradePorts?.record ?? recordTrade)({tick:World.currentTick,from:pending.from,to:pending.to,
+                    fromItems:pending.fromItems,toItems:fromItems,fromValue:pending.fromValue,toValue:fromTotal});
+                commitFoodTrade(pending.food, trade, toPlayer, fromPlayer, from,
+                    state.nativeFoodTradePorts?.market, state.nativeFoodTradePorts?.checkpoint);
+            }
         }
     }),
 

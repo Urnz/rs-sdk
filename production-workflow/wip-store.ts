@@ -11,6 +11,13 @@ import { businessRoleHasPermission, loadDefaultBusinessRoleCatalog, resolveBusin
 import { compileProductionWorkflow } from './planner.js';
 import { productionWorkflowCatalogDigest } from './catalog.js';
 import type { CompiledProductionWorkflow, ProductionItemQuantity, ProductionWorkflowCatalog } from './types.js';
+import { initializeNativeKitchenWip, prepareNativeKitchenWip, readNativeKitchenWip, writeNativeKitchenWip,
+    type NativeKitchenIntent, type NativeKitchenBinding } from './native-kitchen-wip.js';
+import type { FacilityCapabilityCatalog } from '../facility-capability/types.js';
+import type { FacilityGrantVerifier } from '../facility-capability/authorization.js';
+import { NativeKitchenResultSource } from './native-kitchen-source.js';
+import { foodDigest as foodNativeDigest } from '../server/engine/src/mods/NativeFoodConsumptionStore.js';
+import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
 
 const ID = /^[a-z0-9][a-z0-9._:-]{1,127}$/, DIGEST = /^[0-9a-f]{64}$/;
 export interface ProductionInputAllocation { itemId: number; count: number; storageId: string | null }
@@ -39,11 +46,13 @@ function quantities(values:ProductionItemQuantity[]):ProductionItemQuantity[]{re
 export class ProductionWorkInProgressStore {
     private readonly database:Database;
     private readonly productionClock:ProductionClockBinder|undefined;
+    private nativeSettlement = false;
     constructor(path:string,private readonly catalog:ProductionWorkflowCatalog,
         private readonly roles:BusinessRoleCatalog=loadDefaultBusinessRoleCatalog(),clockBinder?:ProductionClockBinder|false){
         const{digest,...definition}=catalog;if(digest!==productionWorkflowCatalogDigest(definition))
             throw new Error('Production workflow catalog digest mismatch');
-        mkdirSync(dirname(path),{recursive:true});this.database=new Database(path,{create:true,strict:true});
+        mkdirSync(dirname(path),{recursive:true});this.database=new OwnedDatabase(path,{create:true,strict:true});
+        this.database.run('PRAGMA busy_timeout=5000');
         this.productionClock=clockBinder===false?undefined:clockBinder??(resolve(path).toLowerCase()===resolve(nativeBusinessProductionPath).toLowerCase()
             ?(facts,factsDigest)=>bindNativeEconomicEvent({domain:'business-production',sourceId:productionSourceId(facts.evidence.operationId),
                 sourceDigest:factsDigest,wallTime:facts.recordedAt}):undefined);
@@ -51,9 +60,73 @@ export class ProductionWorkInProgressStore {
             if(this.database.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='business_production_evidence_schema'").get()){
                 const schema=this.database.query('SELECT version FROM business_production_evidence_schema WHERE singleton=1').get() as{version:number}|null;
                 if(schema?.version!==1)throw new Error('Unsupported production evidence schema');}
-            this.migrate();initializeProductionEvidence(this.database)}
+            this.migrate();initializeProductionEvidence(this.database);initializeNativeKitchenWip(this.database)}
         catch(error){this.close();throw error}}
     close():void{(this.database as Database & {clearQueryCache():void}).clearQueryCache();this.database.close(true)}
+    reserveNativeKitchen(reservation: ReserveProductionRun, intent: NativeKitchenIntent, facilities: FacilityCapabilityCatalog,
+        at: string, verify: FacilityGrantVerifier) {
+        let binding!: NativeKitchenBinding;
+        this.database.transaction(() => {
+            if (reservation.runId !== intent.runId) throw new Error('Native kitchen reservation ID differs');
+            this.reserve(reservation, at);
+            binding = prepareNativeKitchenWip(this.database, this.catalog, facilities, intent, at, verify);
+        }).immediate();
+        return binding;
+    }
+    nativeKitchen(runId: string) { return readNativeKitchenWip(this.database).find(row => row.binding.intent.runId === runId) ?? null; }
+    bindNativeKitchenSkill(runId: string, id: string, digest: string): void {
+        this.database.transaction(() => {
+            const row = this.nativeKitchen(runId); if (!row) throw new Error('Native kitchen run absent');
+            if (row.skillInvocation) {
+                if (row.skillInvocation.id !== id || row.skillInvocation.digest !== digest) throw new Error('Native kitchen receipt is bound to another skill run');
+                return;
+            }
+            if (row.phase !== 'prepared') throw new Error('A completed kitchen receipt cannot become a new skill trial');
+            writeNativeKitchenWip(this.database, { ...row, skillInvocation: { id, digest } });
+        }).immediate();
+    }
+    revokeNativeKitchen(runId: string): void {
+        this.database.transaction(() => { const row = this.nativeKitchen(runId); if (!row) throw new Error('Native kitchen run absent');
+            writeNativeKitchenWip(this.database, { ...row, revoked: true }); }).immediate();
+    }
+    settleNativeKitchen(runId: string, source: NativeKitchenResultSource): ProductionRunState {
+        return source.snapshot(() => {
+        let settled!: ProductionRunState;
+        this.database.transaction(() => {
+            const row = this.nativeKitchen(runId); if (!row) throw new Error('Native kitchen run absent');
+            const result = source.result(row.binding);
+            if (!['returned-output', 'returned-input'].includes(result.phase)) throw new Error('Native kitchen custody has not returned');
+            if (row.nativeDigest) { if (row.nativeDigest !== result.digest) throw new Error('Native kitchen settlement source differs'); settled = this.get(runId)!; return; }
+            const intent = row.binding.intent, now = result.clock.wallTime;
+            this.nativeSettlement = true;
+            try {
+                if (result.phase === 'returned-input') {
+                    writeNativeKitchenWip(this.database, { ...row, phase: 'cancelled', nativeDigest: result.digest });
+                    this.cancelReserved(runId, now);
+                } else if (result.receipt?.outcome === 'cooked') {
+                    const receipt = result.receipt;
+                    writeNativeKitchenWip(this.database, { ...row, phase: 'completed', nativeDigest: result.digest });
+                    this.completeStep(runId, intent.stepId, { operationId: `native:${intent.actionId}`, runId, stepId: intent.stepId,
+                        status: 'completed', inputs: receipt.inputs, outputs: receipt.outputs, sourceEvidenceDigest: foodNativeDigest(receipt), occurredAt: receipt.clock.wallTime }, () => true, now);
+                    this.completeRun(runId, intent.targetStorageId, now);
+                } else if (result.receipt?.outcome === 'burnt') {
+                    // The physical raw unit is spent. Burn never calls the successful cooked-step finalizer.
+                    writeNativeKitchenWip(this.database, { ...row, phase: 'burnt', nativeDigest: result.digest });
+                    const changed = this.database.run('UPDATE business_production_material SET count=0 WHERE run_id=?1 AND item_id=377 AND count=1', [runId]);
+                    if (changed.changes !== 1) throw new Error('Burnt native WIP material differs');
+                    this.database.run(`INSERT INTO business_inventory VALUES(?1,381,1,1,?2)
+                        ON CONFLICT(business_id,item_id) DO UPDATE SET count=count+1,revision=revision+1,updated_at=excluded.updated_at`, [intent.businessId, now]);
+                    this.database.run("UPDATE business_production_run SET status='running',updated_at=?2 WHERE run_id=?1", [runId, now]);
+                } else throw new Error('Native kitchen output is not a completed physical result');
+            } finally { this.nativeSettlement = false; }
+            settled = this.get(runId)!;
+        }).immediate();
+        return settled;
+        });
+    }
+    private guardNative(runId: string): void {
+        if (!this.nativeSettlement && this.nativeKitchen(runId)) throw new Error('Native kitchen WIP requires physical custody recovery');
+    }
     get(runIdInput:string):ProductionRunState|null{const row=this.database.query('SELECT * FROM business_production_run WHERE run_id=?1')
         .get(identifier(runIdInput,'runId')) as RunRow|null;return row?state(row):null}
     reserve(input:ReserveProductionRun,now=new Date().toISOString()):ProductionRunState{
@@ -72,7 +145,8 @@ export class ProductionWorkInProgressStore {
         if(existing){const row=this.run(runId);if(row.request_digest!==requestDigest)throw new Error('Production run id was reused');return existing}
         if(allocations.some(allocation=>allocation.storageId===null))this.requirePermission(businessId,actorAgentId,'inventory','issue');
         const transaction=this.database.transaction(()=>{this.database.run(
-                `INSERT INTO business_production_run VALUES(?1,?2,?3,?4,?5,?6,'reserved',?7,?8,?9,?10,?10)`,
+                `INSERT INTO business_production_run(run_id,operation_id,business_id,actor_agent_id,workflow_id,workflow_version,status,
+                    catalog_digest,plan_json,request_digest,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,'reserved',?7,?8,?9,?10,?10)`,
                 [runId,operationId,businessId,actorAgentId,input.workflowId,input.workflowVersion,this.catalog.digest,
                     JSON.stringify(plan),requestDigest,now]);
             for(const allocation of allocations){if(allocation.storageId){
@@ -89,6 +163,7 @@ export class ProductionWorkInProgressStore {
         });transaction.immediate();return this.get(runId)!}
     completeStep(runIdInput:string,stepIdInput:string,evidence:ProductionStepEvidence,verify?:ProductionStepVerifier,
         recordedAt=new Date().toISOString()):ProductionRunState{
+        this.guardNative(runIdInput);
         const runId=identifier(runIdInput,'runId'),stepId=identifier(stepIdInput,'stepId'),row=this.run(runId),
             plan=JSON.parse(row.plan_json) as CompiledProductionWorkflow,step=plan.steps.find(value=>value.stepId===stepId);
         if(!step||evidence.runId!==runId||evidence.stepId!==stepId||evidence.status!=='completed'
@@ -134,12 +209,13 @@ export class ProductionWorkInProgressStore {
             readProductionEvidence(this.database);
         });transaction.immediate();return this.get(runId)!}
     completeRun(runIdInput:string,targetStorageIdInput:string|null,now=new Date().toISOString()):ProductionRunState{
+        this.guardNative(runIdInput);
         const runId=identifier(runIdInput,'runId'),row=this.run(runId),plan=JSON.parse(row.plan_json) as CompiledProductionWorkflow;
         if(row.status==='completed')return state(row);if(row.status!=='running')throw new Error('Production run is not running');
         const completed=Number((this.database.query('SELECT COUNT(*) count FROM business_production_step WHERE run_id=?1')
             .get(runId) as {count:number}).count);if(completed!==plan.steps.length)throw new Error('Production run steps are incomplete');
         const target=targetStorageIdInput===null?null:identifier(targetStorageIdInput,'targetStorageId'),lots=this.materials(runId),totals=new Map<number,number>();
-        this.requirePermission(row.business_id,row.actor_agent_id,target?'storage':'inventory',target?'deposit':'receive');
+        if (!this.nativeSettlement) this.requirePermission(row.business_id,row.actor_agent_id,target?'storage':'inventory',target?'deposit':'receive');
         lots.forEach(lot=>{if(lot.count>0)totals.set(lot.item_id,(totals.get(lot.item_id)??0)+lot.count)});
         if(JSON.stringify([...totals].sort(([a],[b])=>a-b).map(([id,count])=>({itemId:id,quantity:count})))
             !==JSON.stringify(plan.finalOutputs))throw new Error('Production final WIP does not match compiled workflow');
@@ -158,6 +234,7 @@ export class ProductionWorkInProgressStore {
             this.database.run(`UPDATE business_production_run SET status='completed',updated_at=?2 WHERE run_id=?1`,[runId,now]);
         });transaction.immediate();return this.get(runId)!}
     cancelReserved(runIdInput:string,now=new Date().toISOString()):ProductionRunState{const runId=identifier(runIdInput,'runId'),row=this.run(runId);
+        this.guardNative(runIdInput);
         if(row.status==='cancelled')return state(row);if(row.status!=='reserved')throw new Error('Only an unstarted production run can be cancelled');
         const transaction=this.database.transaction(()=>{for(const lot of this.materials(runId)){if(lot.origin_step_id!==null||lot.count===0)continue;
                 if(lot.source_storage_id)this.database.run(`INSERT INTO business_storage_item VALUES(?1,?2,?3,?4,1,?5)

@@ -7,6 +7,7 @@ import { loadPopulationAgePolicy } from '../../../population-lifecycle/age.js';
 import { loadPopulationLifecyclePolicyCatalog, loadPopulationWorldProfileBindingCatalog } from '../../../population-lifecycle/config.js';
 import { loadWorldGenesisProfileCatalog } from '../../../world-genesis/config.js';
 import { PlayerHealthEvidenceStore } from '../../engine/src/mods/PlayerHealthEvidenceStore.js';
+import { initializePopulationNeeds, populationNeedsOptions, type PopulationNeedsOptions } from './needs-runtime.js';
 import { agentStateDbPath, botsDir, playerSavesDir, populationHealthEngineEvidencePath, repoRoot } from './paths.js';
 
 export interface PopulationEntryAdminOptions {
@@ -18,10 +19,12 @@ export interface PopulationEntryAdminOptions {
     configDirectory: string;
     onlineUsernames: string[];
     simulationClock: AgentStateSimulationClock;
+    needs?: PopulationNeedsOptions;
 }
 export function populationEntryDefaults(simulationClock: AgentStateSimulationClock): PopulationEntryAdminOptions {
     return { agentPath: agentStateDbPath, enginePath: populationHealthEngineEvidencePath, accountPath: join(repoRoot, 'server/engine/db.sqlite'), playerSavesPath: playerSavesDir,
-        botsPath: botsDir, configDirectory: join(repoRoot, 'config'), onlineUsernames: [], simulationClock };
+        botsPath: botsDir, configDirectory: join(repoRoot, 'config'), onlineUsernames: [], simulationClock,
+        needs: populationNeedsOptions(repoRoot) };
 }
 export function loadPopulationEntryEnvironment(directory: string): PopulationEntryEnvironment {
     return { policy: loadPopulationEntryPolicy(join(directory, 'population-entry-policy.json')),
@@ -60,6 +63,13 @@ export function runAdminPopulationEntry(options: PopulationEntryAdminOptions, re
                 throw new Error('Population entry avatar already exists or has terminal history');
         };
         if (!prior) for (const item of plan.entrants) assertUnused(item.identity.playerUsername!);
-        return apply ? agents.applyPopulationEntry(request, environment, apply.expectedPlanDigest, apply.reason, assertUnused, now) : plan;
+        if (!apply) return plan;
+        const receipt = agents.applyPopulationEntry(request, environment, apply.expectedPlanDigest, apply.reason, assertUnused, now);
+        if (options.needs) for (const entrant of plan.entrants) {
+            const member = agents.getPopulationMember(entrant.identity.agentId)!;
+            if (member.status === 'active' && member.characterLifecycle.status === 'active')
+                initializePopulationNeeds(options.needs, member, options.simulationClock, 'admission');
+        }
+        return receipt;
     } finally { accountLookup?.finalize(); accounts?.close(true); engine?.close(); agents.close(); }
 }

@@ -12,6 +12,8 @@ export const SOCIETY_INTEGRITY_SOURCES = ['engine.offline-save', 'engine.player-
 export type IntegritySource = typeof SOCIETY_INTEGRITY_SOURCES[number];
 export interface IntegrityMutation { source: IntegritySource; operationId: string; actor: string; payload: unknown }
 export interface IntegrityStamp { clockId: string; profileDigest: string; simulationTime: string; wallTime: string }
+export interface FoodMutationOrigin { origin: 'bootstrap' | 'import'; runId: string; resultDigest: string;
+    clockId: string; profileDigest: string; sourceDigest: string }
 export interface IntegrityCompensation {coinsBefore:number;coinsAfter:number;nativeStatus:'rejected'}
 export interface IntegrityRun { runId: string; resultDigest: string; result: WorldGenesisResult; genesisAppliedAtSimulationTime:string;
     invalidateOnInjection: boolean; status: 'bootstrapping' | 'observing' | 'reset'; invalidated: boolean }
@@ -51,6 +53,29 @@ export function saveCreatesValue(before:Parameters<typeof saveValueSnapshot>[0],
 /** A write-ahead integrity journal. Pending cross-store operations never certify a clean run. */
 export class SocietyIntegrityStore {
     private readonly db: Database;
+    /** Existing single-use bootstrap permit or committed intervention, never an inferred opening balance. */
+    foodMutationOrigin(input: IntegrityMutation): FoodMutationOrigin | null {
+        this.verify(); const mutation = mutationKey(input);
+        if (mutation.source !== 'engine.offline-save') return null;
+        const proofs: FoodMutationOrigin[] = [];
+        for (const row of this.db.query('SELECT * FROM integrity_run').all() as RunRow[]) {
+            const run = this.run(row);
+            const permit = this.db.query('SELECT mutation_digest,consumed FROM integrity_permit WHERE run_id=?1 AND operation_id=?2')
+                .get(run.runId, mutation.operationId) as { mutation_digest: string; consumed: number } | null;
+            const event = this.db.query('SELECT payload,status FROM integrity_event WHERE run_id=?1 AND event_id=?2')
+                .get(run.runId, mutation.operationId) as { payload: string; status: string } | null;
+            const origin: FoodMutationOrigin['origin'] | null = permit?.consumed === 1 && permit.mutation_digest === digest(mutation) ? 'bootstrap'
+                : event?.status === 'committed' && JSON.parse(event.payload).kind === 'runtime-injection'
+                    && digest(JSON.parse(event.payload).mutation) === digest(mutation) ? 'import' : null;
+            if (origin) {
+                const facts = { origin, runId: run.runId, resultDigest: run.resultDigest, clockId: run.result.simulationClock.clockId,
+                    profileDigest: run.result.simulationClock.profileDigest };
+                proofs.push({ ...facts, sourceDigest: digest({ ...facts, mutation }) });
+            }
+        }
+        if (proofs.length > 1) throw new Error('Food opening belongs to multiple society runs');
+        return proofs[0] ?? null;
+    }
     constructor(path: string, readOnly=false) {
         if(!readOnly)mkdirSync(dirname(path), { recursive: true });
         this.db = new Database(path, readOnly?{readonly:true,strict:true}:{create:true,strict:true});

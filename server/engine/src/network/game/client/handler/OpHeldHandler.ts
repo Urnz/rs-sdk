@@ -8,6 +8,12 @@ import ClientGameMessageHandler from '#/network/game/client/ClientGameMessageHan
 import OpHeld from '#/network/game/client/model/OpHeld.js';
 import { LoggerEventType } from '#/server/logger/LoggerEventType.js';
 import Environment from '#/util/Environment.js';
+import { ensurePlayerSaveStore } from '#/engine/market/MarketStore.js';
+import { executeNativeFoodAction, nativeFoodActionId } from '#/mods/NativeFoodConsumption.js';
+import { FOOD_ITEM } from '#/mods/NativeFoodConsumptionStore.js';
+import { populationFoodContext } from '#/mods/PopulationDeathRuntime.js';
+import World from '#/engine/World.js';
+import { getSharedPlayerEscrowAuthority } from '#/mods/SharedPlayerEscrowAuthority.js';
 
 export default class OpHeldHandler extends ClientGameMessageHandler<OpHeld> {
     handle(message: OpHeld, player: Player): boolean {
@@ -65,7 +71,12 @@ export default class OpHeldHandler extends ClientGameMessageHandler<OpHeld> {
         const trigger: ServerTriggerType = ServerTriggerType.OPHELD1 + (message.op - 1);
         const script = ScriptProvider.getByTrigger(trigger, obj.id, obj.category);
         if (script) {
-            player.executeScript(ScriptRunner.init(script, player), true);
+            const food = objId === FOOD_ITEM && message.op === 1
+                ? populationFoodContext(player.username, nativeFoodActionId(), slot, World.currentTick) : null;
+            if (food) {
+                getSharedPlayerEscrowAuthority(); // Preserve the existing legacy escrow migration preflight.
+                executeNativeFoodAction(ensurePlayerSaveStore(), player, food);
+            } else player.executeScript(ScriptRunner.init(script, player), true);
         } else if (Environment.node.debug) {
             player.messageGame(`No trigger for [${ServerTriggerType.toString(trigger)},${obj.debugname}]`);
         }

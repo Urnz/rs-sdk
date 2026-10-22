@@ -59,9 +59,9 @@ describe('versioned production recipes and workflows', () => {
         const catalog = loadDefaultProductionWorkflowCatalog();
         const raw = { schemaVersion: catalog.schemaVersion, recipes: catalog.recipes, workflows: catalog.workflows };
         const unknown = structuredClone(raw);
-        unknown.workflows[0]!.steps[0]!.recipe.version = '2.0.0';
+        unknown.workflows.find(row => row.workflowId === 'food.cooked-shrimp')!.steps[0]!.recipe.version = '2.0.0';
         expect(() => validateProductionWorkflowCatalog(unknown)).toThrow('unknown recipe version');
-        const cyclic = structuredClone(raw), steps = cyclic.workflows[1]!.steps;
+        const cyclic = structuredClone(raw), steps = cyclic.workflows.find(row => row.workflowId === 'tools.bronze-pickaxe')!.steps;
         steps[0]!.dependsOn = ['forge'];
         expect(() => validateProductionWorkflowCatalog(cyclic)).toThrow('dependency cycle');
     });

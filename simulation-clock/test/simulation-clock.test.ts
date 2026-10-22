@@ -24,6 +24,53 @@ function profile(rate = 1, id = 'normal'): SimulationClockProfile {
         rate: { simulationMilliseconds: rate, wallMilliseconds: 1 } };
 }
 
+test('a concurrent native writer holds the clock briefly without turning an ordinary observation into a lock failure', async () => {
+    const path = databasePath(), store = new SimulationClockStore(path), wall = '2026-10-21T10:00:00.000Z';
+    store.create({ clockId: 'world', profile: profile(), wallTime: wall, simulationTime: wall });
+    const script = join(path, '..', 'hold-clock.ts');
+    writeFileSync(script, "import {Database} from 'bun:sqlite'; const db=new Database(process.argv[2]); db.run('BEGIN IMMEDIATE'); console.log('locked'); await Bun.sleep(200); db.run('COMMIT'); db.close(true);\n");
+    const child = Bun.spawn([process.execPath, script, path], { stdout: 'pipe', stderr: 'pipe' });
+    try {
+        const reader = child.stdout.getReader();
+        const first = await reader.read(); expect(new TextDecoder().decode(first.value)).toContain('locked');
+        reader.releaseLock();
+        expect(store.observe('world', '2026-10-21T10:00:01.000Z').simulationTime).toBe('2026-10-21T10:00:01.000Z');
+        expect(await child.exited).toBe(0);
+    } finally { child.kill(); await child.exited; store.close(); }
+});
+
+test('live observations acquire the writer before selecting time while explicit regressions and prior clock segments stay rejected', () => {
+    const store = new SimulationClockStore(databasePath()), wall = new Date(Date.now() + 1000).toISOString();
+    try {
+        store.create({ clockId: 'world', profile: profile(), wallTime: wall, simulationTime: wall });
+        const live = store.observeNow('world', 42);
+        expect(live.wallTime).toBe(wall); expect(live.engineTick).toBe(42);
+        expect(() => store.observe('world', new Date(Date.parse(wall) - 1).toISOString())).toThrow('regression');
+        store.pause('world', store.get('world')!.revision, new Date(Date.parse(wall) + 1000).toISOString());
+        expect(() => store.observeThrough('world', wall)).toThrow('current clock segment');
+    } finally { store.close(); }
+});
+
+test('event admission and lifecycle observations clamp only after a competing writer advances the clock head', async () => {
+    for (const operation of ['event', 'observation']) {
+        const path = databasePath(), store = new SimulationClockStore(path), wall = '2026-10-21T10:00:00.000Z';
+        store.create({ clockId: 'world', profile: profile(), wallTime: wall, simulationTime: wall });
+        const script = join(path, '..', 'advance-head.ts');
+        writeFileSync(script, "import {Database} from 'bun:sqlite'; const db=new Database(process.argv[2]); db.run('BEGIN IMMEDIATE'); db.run('UPDATE simulation_clock SET last_observed_wall_ms=?1,last_simulation_ms=?1', [Date.parse('2026-10-21T10:00:05.000Z')]); console.log('locked'); await Bun.sleep(200); db.run('COMMIT'); db.close(true);\n");
+        const child = Bun.spawn([process.execPath, script, path], { stdout: 'pipe', stderr: 'pipe' });
+        try {
+            const reader = child.stdout.getReader();
+            expect(new TextDecoder().decode((await reader.read()).value)).toContain('locked'); reader.releaseLock();
+            const input = { clockId: 'world', domain: 'test', sourceId: 'delayed', sourceDigest: 'a'.repeat(64), wallTime: wall };
+            const bound = operation === 'event' ? store.bindEventAtHead(input).stamp : store.observeAtHead('world', wall);
+            expect(bound.wallTime).toBe('2026-10-21T10:00:05.000Z');
+            expect(() => store.bindEvent({ ...input, sourceId: 'strict' })).toThrow('regression');
+            expect(() => store.observe('world', wall)).toThrow('regression');
+            expect(await child.exited).toBe(0);
+        } finally { child.kill(); await child.exited; store.close(); }
+    }
+});
+
 describe('simulation clock profile', () => {
     test('is exact, versioned and reproducibly digested', () => {
         const value = validateSimulationClockProfile(profile(60, 'accelerated'));
@@ -38,6 +85,18 @@ describe('simulation clock profile', () => {
 });
 
 describe('persistent simulation clock', () => {
+    test('v5 sleep history survives the additive recovery migration without rewriting any prior digest', () => {
+        const path = databasePath(), store = new SimulationClockStore(path);
+        store.create({ clockId: 'world', profile: profile(), wallTime: '2026-10-19T00:00:00.000Z', simulationTime: '2030-01-01T00:00:00.000Z' });
+        store.recordPlayerPresence('world', 'tenant', 'online', '2026-10-19T00:00:00.000Z');
+        store.startPlayerSleep('world', 'tenant', { sleeperKind: 'npc-agent', sleepPlaceId: 'bed-1', access: { kind: 'bed-entitlement',
+            evidenceId: 'lease-1', sourceDigest: 'a'.repeat(64), validUntilSimulationTime: '2030-01-02T00:00:00.000Z' } }, '2026-10-19T00:00:01.000Z');
+        const history = store.getPlayerTimeHistory('world', 'tenant'); store.close();
+        const db = new Database(path); db.run('ALTER TABLE simulation_player_time_state DROP COLUMN sleep_recovery_basis_points'); db.run('PRAGMA user_version=5'); db.close(true);
+        const migrated = new SimulationClockStore(path);
+        try { expect(migrated.getPlayerTimeHistory('world', 'tenant')).toEqual(history); expect(migrated.getPlayerTimeState('world', 'tenant')).toEqual(history.at(-1)!.state); }
+        finally { migrated.close(); }
+    });
     test('initializes once from config and requires explicit profile reconfiguration', () => {
         const path = databasePath();
         const configPath = join(path, '..', 'clock.json');
@@ -223,7 +282,8 @@ describe('persistent simulation clock', () => {
         const migrated = new SimulationClockStore(path);
         migrated.close();
         let inspected = new Database(path);
-        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(4);
+        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(6);
+        inspected.run('DROP TABLE simulation_player_time_history');
         inspected.run('DROP TABLE simulation_player_time_state');
         inspected.run('PRAGMA user_version = 2');
         inspected.close();
@@ -231,8 +291,8 @@ describe('persistent simulation clock', () => {
         expect(upgraded.listPlayerTimeStates('world')).toEqual([]);
         upgraded.close();
         inspected = new Database(path);
-        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(4);
-        inspected.run('PRAGMA user_version = 5');
+        expect((inspected.query('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(6);
+        inspected.run('PRAGMA user_version = 7');
         inspected.close();
         expect(() => new SimulationClockStore(path)).toThrow('newer than supported');
     });

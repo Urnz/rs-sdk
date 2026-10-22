@@ -43,6 +43,9 @@ export interface AutonomousExecutionFailure {
 export function classifyAutonomousExecutionFailure(code: string | undefined,
     detail: string): AutonomousExecutionFailure {
     const value = `${code ?? ''} ${detail}`.toLowerCase();
+    if (/food-uncertain|food-source-rejected|food-context-required|trade-uncertain|travel-ferry-unconfirmed|travel-interrupted/.test(value))
+        return { gapKind: 'context', disposition: 'authorization' };
+    if (/food-burnt/.test(value)) return { gapKind: 'input-shortage', disposition: 'acquire-input' };
     if (/parameter|binding|digest|exact persisted .*source|unknown argument|missing required/.test(value)) {
         return { gapKind: 'parameter-binding', disposition: 'authorization' };
     }

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "verified",
+  "tags": [
+    "procedure",
+    "food",
+    "society",
+    "native"
+  ],
+  "provenance": {
+    "authorKind": "system",
+    "authorId": "deterministic-skill-verifier",
+    "createdAt": "2026-10-21T17:46:02.577Z",
+    "derivedFrom": {
+      "id": "procedure.food.cook-lobster",
+      "version": "0.2.0"
+    },
+    "notes": "Automatically promoted from procedure.food.cook-lobster@0.2.0; evidence runs: 8efaa044-3cd5-463b-a4f8-582d997c2d2f, ec770002-73fa-4d7d-a4b7-c830d24cc5f0."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "id": "procedure.food.cook-lobster",
+  "name": "Cook one reserved lobster at the native Brimhaven range",
+  "description": "Travels to the configured heat and processes the exact reserved WIP batch through protected custody; burnt and pending results fail.",
+  "parameters": {
+    "kitchen-run": {
+      "type": "string",
+      "description": "Exact existing Business kitchen run.",
+      "required": true,
+      "verification": "native-invocation"
+    },
+    "batch-id": {
+      "type": "string",
+      "description": "Exact batch from the reserved kitchen binding.",
+      "required": true,
+      "verification": "native-invocation"
+    }
+  },
+  "limits": {
+    "timeoutMs": 90000,
+    "maxOperations": 2
+  },
+  "preconditions": [
+    {
+      "condition": "inventory-free-slots-at-least",
+      "arguments": {
+        "slots": 1
+      }
+    },
+    {
+      "condition": "skill-level-at-least",
+      "arguments": {
+        "skill": "Cooking",
+        "level": 40
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-heat",
+      "operation": "walk-to",
+      "arguments": {
+        "x": 2815,
+        "z": 3161,
+        "tolerance": 1
+      }
+    },
+    {
+      "kind": "operation",
+      "id": "cook",
+      "operation": "food-cook",
+      "arguments": {
+        "item": "Raw lobster",
+        "itemId": 377,
+        "amount": 1,
+        "kitchenRunId": {
+          "parameter": "kitchen-run"
+        },
+        "batchId": {
+          "parameter": "batch-id"
+        },
+        "heatX": 2814,
+        "heatZ": 3161,
+        "timeoutMs": 60000
+      }
+    }
+  ]
+}

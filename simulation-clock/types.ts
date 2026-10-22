@@ -1,5 +1,5 @@
 export const SIMULATION_CLOCK_SCHEMA_VERSION = 1 as const;
-export const SIMULATION_CLOCK_STORE_SCHEMA_VERSION = 4 as const;
+export const SIMULATION_CLOCK_STORE_SCHEMA_VERSION = 6 as const;
 
 export type SimulationClockStatus = 'running' | 'paused';
 
@@ -82,6 +82,7 @@ export interface SleepAccessEvidence {
 }
 
 export interface StartPlayerSleepInput {
+    fatigueRecoveryMultiplierBasisPoints?: number;
     sleeperKind: SleeperKind;
     sleepPlaceId: string;
     access: SleepAccessEvidence;
@@ -110,4 +111,12 @@ export interface PlayerTimeCapabilities {
     physicalExecutionAllowed: boolean;
     offlineDelegationAllowed: false;
     reason: string;
+}
+
+/** Durable mode changes, committed with the player-time authority. Migration starts at the known revision. */
+export interface PlayerTimeHistoryEntry {
+    state: PlayerTimeState;
+    profileDigest: string;
+    previousDigest: string | null;
+    digest: string;
 }

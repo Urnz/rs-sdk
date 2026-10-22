@@ -31,7 +31,7 @@ export function runPopulationHealthCycle(agents: AgentStateStore, shared: AgentS
         blockCurrentObservation = () => { for (const member of members) health.advance(context(member.agentId), false); };
         const clockState = shared.store.get(shared.clockId);
         if (!clockState) throw new Error('Population health requires the shared clock');
-        shared.store.observe(shared.clockId, now < clockState.lastObservedWallTime ? clockState.lastObservedWallTime : now);
+        shared.store.observeThrough(shared.clockId, now < clockState.lastObservedWallTime ? clockState.lastObservedWallTime : now);
         if (!existsSync(options.engineEvidencePath)) {
             for (const member of members) {
                 // No new domain state is synthesized from a missing source.

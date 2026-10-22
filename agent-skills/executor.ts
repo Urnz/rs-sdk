@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type {
     SkillCallStep,
     SkillDefinition,
@@ -141,7 +141,9 @@ export class SkillExecutor {
                 }
             };
             preflight(definition, parameters, [skillReferenceKey(reference)]);
-            emit({ type: 'skill.started', message: `Starting ${definition.name}` });
+            const parametersDigest = createHash('sha256').update(JSON.stringify(Object.entries(parameters)
+                .sort(([left], [right]) => left.localeCompare(right)))).digest('hex');
+            emit({ type: 'skill.started', message: `Starting ${definition.name}`, data: { parametersDigest, parameters } });
 
             const checkAbort = () => {
                 if (!controller.signal.aborted) return;
@@ -160,15 +162,16 @@ export class SkillExecutor {
                     }
                     operations++;
                     emit({ type: 'step.started', stepId, operation: step.operation, attempt });
-                    const result = await this.runtime.execute(step.operation, args, controller.signal);
+                    const result = await this.runtime.execute(step.operation, args, controller.signal,
+                        { runId, skill: reference, stepId, parametersDigest });
                     checkAbort();
                     if (result.success) {
                         emit({ type: 'step.succeeded', stepId, operation: step.operation, attempt, code: result.code, message: result.message, data: result.data });
                         return;
                     }
                     emit({ type: 'step.failed', stepId, operation: step.operation, attempt, code: result.code, message: result.message, data: result.data });
-                    if (attempt === attempts) {
-                        if (step.onFailure === 'continue') return;
+                    if (attempt === attempts || result.retryable === false) {
+                        if (step.onFailure === 'continue' && result.retryable !== false) return;
                         throw new SkillRunError('failed', result.code ?? 'operation-failed', result.message, stepId);
                     }
                 }

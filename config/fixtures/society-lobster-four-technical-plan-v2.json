@@ -1,0 +1,38 @@
+{
+  "protocol": "society-integration-technical-v2",
+  "fixtureDigest": "c03ff2ddd88b0bc76cb5d96093cc1975a60eb7503e4a0cb379af2259b7dc5066",
+  "targetGameDays": 3,
+  "maximumWallMinutes": 16,
+  "observationIntervalSeconds": 15,
+  "restartAfterGameDays": 1.5,
+  "recoveryDeadlineSeconds": 300,
+  "providerCalls": 0,
+  "importsAfterBootstrap": 0,
+  "manualUnplannedGoals": 0,
+  "physicsClockScale": 1,
+  "needsClockRate": {
+    "simulationMilliseconds": 288,
+    "wallMilliseconds": 1
+  },
+  "interpretation": "technical-mechanics-with-measured-livelihood-outcome",
+  "accelerationScope": "world-clock-only-no-dynamic-parity-claim",
+  "requiredMechanisms": [
+    "native-gather",
+    "business-procurement",
+    "native-cook",
+    "business-sale",
+    "native-consume",
+    "once-only-needs-relief",
+    "cook-wage",
+    "delivery-wage",
+    "native-rent",
+    "physical-bed-sleep",
+    "logout-return",
+    "input-shortage",
+    "funds-shortage",
+    "bed-capacity",
+    "in-flight-restart",
+    "result-restore"
+  ],
+  "digest": "6e03772a6686ec5fdc666a8c82d4c56fba6b10aa554cc6b10d04e64352bb7f5b"
+}

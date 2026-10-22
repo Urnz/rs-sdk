@@ -2,6 +2,36 @@
 
 Állapotdátum: 2026-09-08
 
+## 15.1 – Végrehajtható regressziós hozzárendelés, SI-A14 (2026-10-19)
+
+A lenti audit történeti baseline. A food-integráció restart- és
+forrásbizonyítási részéhez most közös natív tesztjegyzék tartozik:
+[SI-A14 exact esetek és határok](SI_A14_NATIVE_RESTART_ACCEPTANCE.md).
+A belépő `server/gateway/admin/society-integration-acceptance.test.ts`, a
+child-nevek `SI-A14 <caseId>`, az összes ID egyetlen futtatható jegyzéke
+`society-integration/acceptance.ts`. Exact futások:
+[progress](SOCIETY_INTEGRATION_PROGRESS.md).
+
+- Terminal journal → goal/progress → következő wake-up: `crash-goal-update`;
+  SQL-tranzakcióhiba és valódi új folyamat után egyetlen sikeres progress.
+- Accepted work/reservation tartóssága: `crash-reservation`,
+  `crash-native-commit`, `crash-suspended-cook`, `crash-domain-apply`.
+- Dupla reward/settlement kizárása: `crash-wage-commit`,
+  `wage-checkpoint-rollback`, `wage-projection-failure`,
+  `wage-source-missing`, `wage-receipt-tamper`.
+- Typed gazdasági partner/ár/jog és natív proof:
+  `too-high-price`, `wrong-partner`, `wrong-tenant`,
+  `receipt-replay-tamper`, `missing-source`, `uncertain-trade`.
+- Tartós routine recovery és kiesési backoff: `crash-rent-commit`,
+  `crash-routine-update`, `engine-unavailable`, `gateway-unavailable`.
+- Véges input/cash és tényleges élettani következmény: `happy`,
+  `empty-input`, `empty-gp`, `full-inventory`, `burnt-batch`, `death-during-work`.
+
+Ez a 15.1 megőrzött feladat részleges, újabb hozzárendelése. Nem zárja le a
+teljes auditot, a gateway/bot ownership élő újraadoptálását, az intézményi/LLM
+autonómiát vagy a 60–90 perces élő soakot. A publication/arrival/transport/
+idő/már megkezdett műszak teszthatárai explicit maradnak.
+
 ## Hatókör és módszer
 
 Az audit a 0–14. fázis dokumentációját és a tényleges futási útvonalakat vizsgálta.

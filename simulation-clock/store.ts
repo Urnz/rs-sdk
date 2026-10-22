@@ -1,4 +1,5 @@
 import { Database } from 'bun:sqlite';
+import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { simulationClockProfileDigest, validateSimulationClockProfile } from './profile.js';
@@ -7,7 +8,7 @@ import { SIMULATION_CLOCK_SCHEMA_VERSION, SIMULATION_CLOCK_STORE_SCHEMA_VERSION,
     type SimulationClockObservation, type SimulationClockProfile, type SimulationClockState,
     type SimulationClockStatus, type SimulationEventStamp, type PlayerPresence,
     type PlayerRestState, type PlayerSleepContext, type PlayerTimeCapabilities,
-    type PlayerTimeState, type StartPlayerSleepInput } from './types.js';
+    type PlayerTimeState, type PlayerTimeHistoryEntry, type StartPlayerSleepInput } from './types.js';
 
 type ClockRow = { clock_id: string; profile_json: string; profile_digest: string; status: SimulationClockStatus;
     anchor_wall_ms: number; anchor_simulation_ms: number; last_observed_wall_ms: number;
@@ -19,7 +20,11 @@ type PlayerTimeRow = { clock_id: string; player_id: string; presence: PlayerPres
     offline_delegation: 'disabled'; presence_changed_at: string; rest_changed_at: string;
     updated_at: string; updated_wall_time: string; revision: number; sleeper_kind: string | null;
     sleep_place_id: string | null; sleep_access_kind: string | null; sleep_access_evidence_id: string | null;
-    sleep_access_source_digest: string | null; sleep_access_valid_until: string | null };
+    sleep_access_source_digest: string | null; sleep_access_valid_until: string | null; sleep_recovery_basis_points: number | null };
+
+export function playerTimeHistoryDigest(value: Omit<PlayerTimeHistoryEntry, 'digest'>): string {
+    return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
 
 function clockId(value: string): string {
     const normalized = value.trim().toLowerCase();
@@ -70,7 +75,7 @@ function sleepKey(value: string, label: string): string {
 function sleepInput(value: StartPlayerSleepInput, simulationTime: string): StartPlayerSleepInput {
     if (!value || typeof value !== 'object' || (value.sleeperKind !== 'npc-agent'
         && value.sleeperKind !== 'human-player')) throw new Error('Sleeper kind is invalid');
-    if (Object.keys(value).sort().join(',') !== 'access,sleepPlaceId,sleeperKind') {
+    if (Object.keys(value).filter(k => k !== 'fatigueRecoveryMultiplierBasisPoints').sort().join(',') !== 'access,sleepPlaceId,sleeperKind') {
         throw new Error('Sleep admission fields are invalid');
     }
     if (!value.access || (value.access.kind !== 'physical-presence'
@@ -82,13 +87,15 @@ function sleepInput(value: StartPlayerSleepInput, simulationTime: string): Start
     if (value.sleeperKind === 'human-player' && value.access.kind !== 'bed-entitlement') {
         throw new Error('Human player sleep requires a bed entitlement');
     }
+    if (value.fatigueRecoveryMultiplierBasisPoints !== undefined && (!Number.isSafeInteger(value.fatigueRecoveryMultiplierBasisPoints)
+        || value.fatigueRecoveryMultiplierBasisPoints < 0 || value.fatigueRecoveryMultiplierBasisPoints > 100000)) throw new Error('Sleep recovery effect is invalid');
     const sourceDigest = eventDigest(value.access.sourceDigest);
     const validUntilSimulationTime = value.access.validUntilSimulationTime === null ? null
         : timestamp(value.access.validUntilSimulationTime, 'Sleep access expiry').iso;
     if (validUntilSimulationTime !== null && validUntilSimulationTime < simulationTime) {
         throw new Error('Sleep access evidence has expired');
     }
-    return { sleeperKind: value.sleeperKind, sleepPlaceId: sleepKey(value.sleepPlaceId, 'Sleep place id'),
+    return { ...(value.fatigueRecoveryMultiplierBasisPoints !== undefined ? { fatigueRecoveryMultiplierBasisPoints: value.fatigueRecoveryMultiplierBasisPoints } : {}), sleeperKind: value.sleeperKind, sleepPlaceId: sleepKey(value.sleepPlaceId, 'Sleep place id'),
         access: { kind: value.access.kind, evidenceId: sleepKey(value.access.evidenceId, 'Sleep access evidence id'),
             sourceDigest, validUntilSimulationTime } };
 }
@@ -150,6 +157,7 @@ function playerTimeState(row: PlayerTimeRow): PlayerTimeState {
     const sleepContext: PlayerSleepContext | null = row.rest === 'sleeping' && row.sleeper_kind
         && row.sleep_place_id && row.sleep_access_kind && row.sleep_access_evidence_id
         && row.sleep_access_source_digest ? {
+            ...(row.sleep_recovery_basis_points != null ? { fatigueRecoveryMultiplierBasisPoints: row.sleep_recovery_basis_points } : {}),
             sleeperKind: row.sleeper_kind as PlayerSleepContext['sleeperKind'],
             sleepPlaceId: row.sleep_place_id,
             access: { kind: row.sleep_access_kind as PlayerSleepContext['access']['kind'],
@@ -179,6 +187,7 @@ export class SimulationClockStore {
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
         try {
+            this.database.run('PRAGMA busy_timeout=5000');
             this.migrate();
             this.database.run('PRAGMA journal_mode = WAL');
         } catch (error) {
@@ -231,6 +240,17 @@ export class SimulationClockStore {
         return result;
     }
 
+    /** Live observation timestamps are selected after acquiring the shared writer
+     * lock. Explicit historical observe() calls retain their regression guard. */
+    observeNow(inputClockId: string, inputEngineTick?: number): SimulationClockObservation {
+        const id = clockId(inputClockId); let result!: SimulationClockObservation;
+        this.database.transaction(() => {
+            const row = this.requireRow(id), at = Math.max(Date.now(), row.last_observed_wall_ms);
+            result = this.observe(id, new Date(at).toISOString(), inputEngineTick);
+        }).immediate();
+        return result;
+    }
+
     nextEventStamp(inputClockId: string, wallTime: string, inputEngineTick?: number): SimulationEventStamp {
         const id = clockId(inputClockId);
         const wall = timestamp(wallTime, 'Event wall time');
@@ -254,6 +274,28 @@ export class SimulationClockStore {
      * A crash after this commit and before the caller's own commit can safely replay the
      * same source identity and digest without consuming a second sequence.
      */
+    /** Admission time may predate a concurrently advanced head. Preserve the
+     * event's own timestamp separately and clamp its binding under the writer lock. */
+    bindEventAtHead(input: BindSimulationEventInput): { created: boolean; stamp: BoundSimulationEventStamp } {
+        const id = clockId(input.clockId), wall = timestamp(input.wallTime, 'Simulation event binding wall time');
+        let result!: { created: boolean; stamp: BoundSimulationEventStamp };
+        this.database.transaction(() => {
+            const current = this.requireRow(id);
+            result = this.bindEvent({ ...input, wallTime: new Date(Math.max(wall.milliseconds, current.last_observed_wall_ms)).toISOString() });
+        }).immediate();
+        return result;
+    }
+
+    observeAtHead(inputClockId: string, wallTime: string, inputEngineTick?: number): SimulationClockObservation {
+        const id = clockId(inputClockId), wall = timestamp(wallTime, 'Observation wall time');
+        let result!: SimulationClockObservation;
+        this.database.transaction(() => {
+            const current = this.requireRow(id);
+            result = this.observe(id, new Date(Math.max(wall.milliseconds, current.last_observed_wall_ms)).toISOString(), inputEngineTick);
+        }).immediate();
+        return result;
+    }
+
     bindEvent(input: BindSimulationEventInput): { created: boolean; stamp: BoundSimulationEventStamp } {
         const id = clockId(input.clockId);
         const domain = eventKey(input.domain, 'Simulation event domain', 64);
@@ -342,6 +384,50 @@ export class SimulationClockStore {
             inputEngineTick, input);
     }
 
+    getPlayerTimeHistory(inputClockId: string, inputPlayerId: string): PlayerTimeHistoryEntry[] {
+        const rows = this.database.query(`SELECT entry_json FROM simulation_player_time_history
+            WHERE clock_id=?1 AND player_id=?2 ORDER BY revision`)
+            .all(clockId(inputClockId), playerId(inputPlayerId)) as { entry_json: string }[];
+        let previous: PlayerTimeHistoryEntry | null = null;
+        return rows.map(row => {
+            const entry = JSON.parse(row.entry_json) as PlayerTimeHistoryEntry;
+            const { digest, ...body } = entry;
+            if (digest !== playerTimeHistoryDigest(body) || entry.state.clockId !== clockId(inputClockId)
+                || entry.state.playerId !== playerId(inputPlayerId)
+                || entry.previousDigest !== (previous?.digest ?? null)
+                || (previous && (entry.state.revision !== previous.state.revision + 1
+                    || entry.state.updatedAt < previous.state.updatedAt))) throw new Error('Player time history is corrupt');
+            previous = entry;
+            return entry;
+        });
+    }
+
+    /** Project an authority watermark only within the current profile/status segment; never rewind the clock. */
+    observeThrough(inputClockId: string, confirmedWallTime: string): SimulationClockObservation {
+        const id = clockId(inputClockId), at = timestamp(confirmedWallTime, 'Confirmed wall time').milliseconds;
+        let result!: SimulationClockObservation;
+        this.database.transaction(() => {
+            const row = this.requireRow(id);
+            if (at >= row.last_observed_wall_ms) { result = this.observe(id, confirmedWallTime); return; }
+            if (at < row.anchor_wall_ms) throw new Error('Confirmed time precedes the current clock segment');
+            const segment = { ...row, last_observed_wall_ms: row.anchor_wall_ms, last_simulation_ms: row.anchor_simulation_ms };
+            result = observation(row, at, projected(segment, at), null);
+        }).immediate();
+        return result;
+    }
+
+    private appendPlayerTimeHistory(id: string, player: string, profileDigest: string): void {
+        const state = this.getPlayerTimeState(id, player)!;
+        const last = this.database.query(`SELECT entry_json FROM simulation_player_time_history
+            WHERE clock_id=?1 AND player_id=?2 ORDER BY revision DESC LIMIT 1`).get(id, player) as { entry_json: string } | null;
+        const previous = last ? JSON.parse(last.entry_json) as PlayerTimeHistoryEntry : null;
+        if (previous?.state.revision === state.revision) return;
+        const body = { state, profileDigest, previousDigest: previous?.digest ?? null };
+        const entry = { ...body, digest: playerTimeHistoryDigest(body) };
+        this.database.run('INSERT INTO simulation_player_time_history VALUES(?1,?2,?3,?4)',
+            [id, player, state.revision, JSON.stringify(entry)]);
+    }
+
     private transitionPlayerTime(inputClockId: string, inputPlayerId: string,
         field: 'presence' | 'rest', value: PlayerPresence | PlayerRestState,
         wallTime: string, inputEngineTick?: number, sleepAdmission?: StartPlayerSleepInput): PlayerTimeState {
@@ -391,10 +477,15 @@ export class SimulationClockStore {
                     || existing.access.kind !== admission.access.kind
                     || existing.access.evidenceId !== admission.access.evidenceId
                     || existing.access.sourceDigest !== admission.access.sourceDigest
-                    || existing.access.validUntilSimulationTime !== admission.access.validUntilSimulationTime) {
+                    || existing.access.validUntilSimulationTime !== admission.access.validUntilSimulationTime
+                    || existing.fatigueRecoveryMultiplierBasisPoints !== admission.fatigueRecoveryMultiplierBasisPoints) {
                     throw new Error('Sleeping state already has different access evidence; wake before changing beds');
                 }
             }
+            if (admission || (field === 'rest' && value === 'awake')) this.database.run(
+                'UPDATE simulation_player_time_state SET sleep_recovery_basis_points=?3 WHERE clock_id=?1 AND player_id=?2',
+                [id, player, admission?.fatigueRecoveryMultiplierBasisPoints ?? null]);
+            this.appendPlayerTimeHistory(id, player, clock.profile_digest);
         });
         transaction.immediate();
         return this.getPlayerTimeState(id, player)!;
@@ -536,5 +627,23 @@ export class SimulationClockStore {
             });
             migration.immediate();
         }
+        if (version < 5) {
+            this.database.transaction(() => {
+                this.database.run(`CREATE TABLE simulation_player_time_history (
+                    clock_id TEXT NOT NULL,player_id TEXT NOT NULL,revision INTEGER NOT NULL,
+                    entry_json TEXT NOT NULL,PRIMARY KEY(clock_id,player_id,revision),
+                    FOREIGN KEY(clock_id,player_id) REFERENCES simulation_player_time_state(clock_id,player_id))`);
+                const rows = this.database.query('SELECT clock_id,player_id FROM simulation_player_time_state').all() as
+                    { clock_id: string; player_id: string }[];
+                for (const row of rows) this.appendPlayerTimeHistory(row.clock_id, row.player_id,
+                    this.get(row.clock_id)!.profileDigest);
+                this.database.run('PRAGMA user_version = 5');
+            }).immediate();
+        }
+        if (version < 6) this.database.transaction(() => {
+            const columns = this.database.query('PRAGMA table_info(simulation_player_time_state)').all() as { name: string }[];
+            if (!columns.some(c => c.name === 'sleep_recovery_basis_points')) this.database.run('ALTER TABLE simulation_player_time_state ADD COLUMN sleep_recovery_basis_points INTEGER');
+            this.database.run('PRAGMA user_version=6');
+        }).immediate();
     }
 }

@@ -39,6 +39,24 @@ afterEach(() => {
 });
 
 describe('terminal skill journal recovery', () => {
+    test('a compact terminal journal retains its food-uncertain classification without a step event', async () => {
+        const paths = setup(), s = new AgentStateStore(paths.agentPath), skill = { id: 'procedure.food.gather-lobster', version: '1.0.0' };
+        try {
+            s.createGoal('ferrye14', { goalId: 'life-food', horizon: 'life', title: 'Live' });
+            s.createGoal('ferrye14', { goalId: 'career-food', parentGoalId: 'life-food', horizon: 'long-term', title: 'Food' });
+            s.createGoal('ferrye14', { goalId: 'current-food', parentGoalId: 'career-food', horizon: 'current', title: 'Gather' });
+            s.createGoal('ferrye14', { goalId: 'food', parentGoalId: 'current-food', horizon: 'immediate', title: 'One attempt', skill,
+                execution: { policy: 'one-shot', binding: { sourceKind: 'goal', sourceId: 'food', parameters: {} } } });
+            s.recordDecision('ferrye14', s.getControlProfile('ferrye14')!.revision, { decisionId: 'decision.food', trigger: 'event' });
+            s.recordSkillDispatch({ runId: run().runId, decisionId: 'decision.food', agentId: 'ferrye14', goalId: 'food', skill,
+                binding: s.getGoalExecution('food')!.binding, policyId: 'private-local-default', policyVersion: '1.0.0' });
+        } finally { s.close(); }
+        await recoverSkillTerminalWakeups(paths.inboxPath, { agentPath: paths.agentPath,
+            loadRuns: async () => [run({ skill, status: 'failed', reason: 'food-uncertain', message: 'Native outcome is uncertain.', events: [] })] });
+        const read = new AgentStateStore(paths.agentPath);
+        try { expect(read.getSkillRunOutcome(run().runId)).toMatchObject({ status: 'failed', classification: 'authorization' }); }
+        finally { read.close(); }
+    });
     test('enqueues an exact terminal wakeup once for the running enrollment across repeated scans', async () => {
         const paths = setup();
         const options = { agentPath: paths.agentPath, loadRuns: async () => [run()] };

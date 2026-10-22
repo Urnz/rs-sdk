@@ -1167,6 +1167,11 @@ export class BotSDK {
         }
     }
 
+    /** Bounded local food operation; success requires a source-verified native receipt. */
+    async sendSocietyFood(request: import('./society-food').SocietyFoodRequest): Promise<ActionResult> {
+        return this.sendAction({ type: 'societyFood', request, reason: 'SDK' });
+    }
+
     /** Send walk command to coordinates. */
     async sendWalk(x: number, z: number, running: boolean = true): Promise<ActionResult> {
         return this.sendAction({ type: 'walkTo', x, z, running, reason: 'SDK' });

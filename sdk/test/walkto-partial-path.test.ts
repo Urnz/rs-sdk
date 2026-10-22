@@ -123,3 +123,63 @@ describe('walkTo() partial paths', () => {
         expect(queries()).toBe(0);
     });
 });
+
+describe('walkTo() observed final arrival', () => {
+    async function delayedWalk(tolerance: number, moves: boolean) {
+        const sdk = Object.create(BotSDK.prototype) as BotSDK;
+        let tick = 0, x = 3153, z = 3427, sends = 0;
+        const listeners = new Set<(state: any) => void>();
+        const timers: ReturnType<typeof setTimeout>[] = [];
+        const state = () => ({
+            tick, player: { worldX: x, worldZ: z, level: 0, animId: -1 },
+            dialog: { isOpen: false, options: [], isWaiting: false },
+            interface: { isOpen: false }, shop: { isOpen: false }, bank: { isOpen: false },
+            nearbyLocs: [], gameMessages: [], inventory: [],
+        });
+        const frame = (nextX: number) => {
+            x = nextX; tick++;
+            for (const listener of [...listeners]) listener(state());
+        };
+        Object.assign(sdk, {
+            getState: state,
+            getNearbyLocs: () => [],
+            isDoorTemporarilyBlocked: () => false,
+            waitForTicks: async () => {},
+            onStateUpdate: (listener: (state: any) => void) => {
+                listeners.add(listener);
+                return () => listeners.delete(listener);
+            },
+            sendFindPath: async () => ({ success: true, reachedDestination: true, waypoints: [{ x: 3160, z, level: 0 }] }),
+            sendWalk: async () => {
+                sends++;
+                // A transport acknowledgement precedes all server frames.
+                timers.push(setTimeout(() => frame(moves ? 3158 : x), 1));
+                timers.push(setTimeout(() => frame(moves ? 3160 : x), 30));
+                return { success: true };
+            },
+        });
+        const bot = new BotActions(sdk);
+        (bot as any).helpers.tryOpenBlockingDoor = async () => false;
+        try {
+            const result = await bot.walkTo(3160, z, tolerance);
+            return { result, x, sends };
+        } finally {
+            timers.forEach(clearTimeout);
+        }
+    }
+
+    for (const tolerance of [0, 1]) {
+        test(`waits past a near-target frame for arrival within ${tolerance} tiles`, async () => {
+            const actual = await delayedWalk(tolerance, true);
+            expect(actual.result.success).toBe(true);
+            expect(actual.x).toBe(3160);
+            expect(actual.sends).toBe(1);
+        });
+    }
+
+    test('acknowledgements without movement cannot establish arrival', async () => {
+        const actual = await delayedWalk(0, false);
+        expect(actual.result.success).toBe(false);
+        expect(actual.x).toBe(3153);
+    });
+});

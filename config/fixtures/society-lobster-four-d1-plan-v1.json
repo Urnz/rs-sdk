@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "planId": "society-lobster-four-d1-v1",
+  "fixtureDigest": "dfb9ee0b8ddbd2b103d257bf6e735f4cfac7b8ca969a8916004cd94fc46d6b33",
+  "durationMinutes": 90,
+  "restartAfterMinutes": 45,
+  "recoveryDeadlineMinutes": 5,
+  "snapshotIntervalSeconds": 60,
+  "providerCalls": 0,
+  "minimumConsumesPerAvatar": 2,
+  "minimumInternalConsumesPerAvatar": 1,
+  "minimumSatisfiedDemandBasisPoints": 9500,
+  "minimumBuyerSellerRelations": 3,
+  "minimumActorDependencies": 2,
+  "plannedInputShortage": { "startsAfterMinutes": 15, "endsAfterMinutes": 20 },
+  "bedWindows": [
+    { "agentId": "sicook", "startsAfterMinutes": 5, "endsAfterMinutes": 25 },
+    { "agentId": "sifisher", "startsAfterMinutes": 25, "endsAfterMinutes": 45 },
+    { "agentId": "sicourier", "startsAfterMinutes": 50, "endsAfterMinutes": 75 }
+  ]
+}

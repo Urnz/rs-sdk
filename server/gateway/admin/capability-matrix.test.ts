@@ -18,7 +18,7 @@ test('versioned matrix accounts for every discovered backend declaration, routin
     expect(matrix.capabilities.filter(item => item.coverage === 'missing')).toHaveLength(0);
     expect(matrix.capabilities.filter(item => item.coverage === 'available')).toHaveLength(155);
     expect(matrix.capabilities.filter(item => item.coverage === 'infrastructure')).toHaveLength(1);
-    expect(matrix.capabilities.flatMap(item => item.operations)).toHaveLength(171);
+    expect(matrix.capabilities.flatMap(item => item.operations)).toHaveLength(173);
 });
 
 test('orphan backend, orphan frontend and unsupported UI claims produce concrete failures', () => {

@@ -447,10 +447,28 @@ export class InstitutionTreasuryStore {
         return this.getReservation(reservationId)!;
     }
 
+    releaseCancelledFood(reservationId:string,settlementId:string,verify:()=>boolean,
+        now=new Date().toISOString()):TreasuryReservation {
+        this.database.transaction(()=>{
+            const current=this.getReservation(reservationId);
+            if(!reservationId.startsWith('food.')||!current||(current.settlementId!==null&&current.settlementId!==settlementId)||!verify())
+                throw new Error('Food funding cancellation requires exact native no-trade proof');
+            if(current.status==='released')return;if(current.status!=='reserved')throw new Error('Committed food funding cannot be refunded');
+            const updated=this.database.run(`UPDATE institution_treasury SET reserved_gp=reserved_gp-?3,revision=revision+1,updated_at=?4
+                WHERE actor_kind=?1 AND actor_id=?2 AND reserved_gp>=?3`,[current.kind,current.actorId,current.amountGp,now]);
+            if(updated.changes!==1)throw new Error('Food treasury changed during cancellation');
+            this.database.run("UPDATE institution_treasury_reservation SET status='released',updated_at=?2 WHERE reservation_id=?1",[reservationId,now]);
+        }).immediate();return this.getReservation(reservationId)!;
+    }
+
     release(reservationId: string, now = new Date().toISOString()): TreasuryReservation | null {
         const transaction = this.database.transaction(() => {
             const current = this.getReservation(reservationId);
             if (!current || current.status !== 'reserved') return;
+            // Shift IDs belong to the WorkStore outbox. Contracts bind IDs already at funding,
+            // and keep their own funded/settling cancellation gate in EconomicContractStore.
+            if (current.settlementId && (current.reservationId.startsWith('shift.') || current.reservationId.startsWith('food.')))
+                throw new Error('A bound treasury settlement requires reconciliation and cannot be blindly released');
             const updated = this.database.run(`UPDATE institution_treasury SET reserved_gp = reserved_gp - ?3,
                 revision = revision + 1, updated_at = ?4 WHERE actor_kind = ?1 AND actor_id = ?2 AND reserved_gp >= ?3`,
             [current.kind, current.actorId, current.amountGp, now]);

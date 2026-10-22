@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { finishAdminPlayerActionRun } from './agent-state.js';
+import type { BusinessWorkRuntimeOptions } from './business-work-runtime.js';
 
 export interface SkillTerminalRecoveryOptions {
     agentPath?: string;
@@ -25,6 +26,7 @@ export interface SkillTerminalRecoveryOptions {
     capabilityGapPath?: string;
     economicContractsPath?: string;
     simulationClock?: ReplanInboxSimulationClock;
+    businessWork?: BusinessWorkRuntimeOptions;
 }
 
 export interface OrphanedSkillRecoveryResult {
@@ -95,7 +97,7 @@ export async function recoverSkillTerminalWakeups(inboxPath: string,
                         const status = skillMatches && parametersMatch ? run.status : 'failed';
                         const failure = status === 'completed' || !skillMatches || !parametersMatch ? null
                             : classifyAutonomousExecutionFailure(
-                                run.events.findLast(event => event.type === 'step.failed')?.code, detail);
+                                run.events.findLast(event => event.type === 'step.failed')?.code ?? run.reason, detail);
                         const classification = status === 'completed' ? 'completed'
                             : (!skillMatches || !parametersMatch) ? 'authorization' : failure!.disposition;
                         const recorded = agentStore.recordSkillRunOutcome(run.runId, status, classification, detail, run.finishedAt);
@@ -129,7 +131,8 @@ export async function recoverSkillTerminalWakeups(inboxPath: string,
                     effectiveRun.status === 'completed',
                     effectiveRun.message || effectiveRun.reason || effectiveRun.status,
                     options.agentPath ?? agentStateDbPath,
-                    effectiveRun.status === 'completed' ? randomUUID() : null);
+                    effectiveRun.status === 'completed' ? randomUUID() : null,
+                    { ...options.businessWork, ...(options.skillRunRoot ? { runRoot: options.skillRunRoot } : {}) });
                 if (workOrder) result.reconciledWorkOrderRunIds.push(effectiveRun.runId);
                 const queued = store.enqueue(terminalEvent(enrollment.agentId, effectiveRun), run.finishedAt);
                 (queued.created ? result.createdEventIds : result.existingEventIds).push(queued.record.event.eventId);

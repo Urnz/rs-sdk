@@ -80,10 +80,17 @@ describe('society bootstrap and runtime integrity',()=>{
         source.authorize(f.result.resultId,edit);expect(()=>source.finishBootstrap(f.result.resultId)).toThrow('incomplete');source.close();
         expect(()=>withSocietyValueMutation({...edit,payload:{before,after:{...after,coins:101}}},()=>undefined,f.boundary)).toThrow('permit');
         withSocietyValueMutation(edit,()=>undefined,f.boundary);
+        const foodOrigin = new SocietyIntegrityStore(f.path, true);
+        expect(foodOrigin.foodMutationOrigin(edit)).toMatchObject({ origin: 'bootstrap', runId: f.result.resultId, clockId: 'world' });
+        expect(foodOrigin.foodMutationOrigin({ ...edit, payload: { before, after: { ...after, coins: 999 } } })).toBeNull();
+        foodOrigin.close();
         expect(()=>withSocietyValueMutation(edit,()=>undefined,f.boundary)).toThrow('single-use');
         const finish=new SocietyIntegrityStore(f.path);finish.finishBootstrap(f.result.resultId);finish.close();
         expect(f.report().injectionCount).toBe(0);
         withSocietyValueMutation({...edit,operationId:'offline-save:later'},()=>undefined,f.boundary);
+        const importedOrigin = new SocietyIntegrityStore(f.path, true);
+        expect(importedOrigin.foodMutationOrigin({ ...edit, operationId: 'offline-save:later' })).toMatchObject({ origin: 'import' });
+        importedOrigin.close();
         expect(f.report().injectionCount).toBe(1);
     });
     test('inventory relocation and value removal are not free value; positive GP, items and XP are',()=>{

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "profileId": "society-native-sites-v1",
+  "kitchen": {
+    "heat": { "debugName": "loc_2728", "x": 2814, "z": 3161, "level": 0 },
+    "propertyLocation": { "x": 2815, "z": 3161, "level": 0, "region": "Brimhaven" }
+  },
+  "housing": {
+    "bedDebugName": "brownbed",
+    "beds": [
+      { "bedSlotId": "falador.south-house.bed-1", "x": 2973, "z": 3330, "level": 0 },
+      { "bedSlotId": "falador.south-house.bed-2", "x": 2973, "z": 3332, "level": 0 }
+    ],
+    "landlordPosition": { "x": 2972, "z": 3330, "level": 0 }
+  }
+}

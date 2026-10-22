@@ -31,6 +31,49 @@ afterEach(() => {
 });
 
 describe('gateway autonomy supervisor', () => {
+    test('a peer borrowed by earlier due work is not reclaimed from the stale due snapshot', async () => {
+        const path = setup(), now = '2026-09-08T08:00:00.000Z';
+        const store = new AgentStateStore(path);
+        try {
+            const actor = store.getAutonomyEnrollment('ferrye14')!;
+            store.setAutonomyEnrollment(actor.agentId, actor.revision, { ...actor, policyId: 'society-livelihood' }, now);
+            store.createIdentity({ agentId: 'wave34', playerUsername: 'wave34', displayName: 'Peer',
+                background: 'Bilateral operation peer.', personalityTraits: ['careful'] });
+            store.createAutonomyEnrollment('wave34', { status: 'desired', policyId: 'society-livelihood', policyVersion: '1.0.0' }, now);
+        } finally { store.close(); }
+        const events: string[] = [];
+        const supervisor = new GatewayAgentAutonomySupervisor(coordinator(async event => {
+            events.push(event.agentId);
+            const during = new AgentStateStore(path);
+            try { during.claimLivelihoodParticipant('ferrye14', 'wave34', 'routine.borrowed', now); } finally { during.close(); }
+            return { timestamp: now, event, gate: { accepted: true, reason: 'accepted', nextAllowedAt: now },
+                outcome: { runId: event.eventId, status: 'waiting', reason: 'Native exchange pending.' }, error: null };
+        }), { agentPath: path, leaseOwner: 'gateway:test' });
+        expect(await supervisor.tick(now)).toMatchObject([{ agentId: 'ferrye14', status: 'released' },
+            { agentId: 'wave34', status: 'skipped', reason: 'Enrollment changed since the due-work snapshot.' }]);
+        expect(events).toEqual(['ferrye14']);
+        const reopened = new AgentStateStore(path);
+        try { expect(reopened.getAutonomyEnrollment('wave34')).toMatchObject({ status: 'running', leaseOwner: 'livelihood:routine.borrowed' }); }
+        finally { reopened.close(); }
+    });
+    test('a coordinator admission exception releases only its own idle lease for bounded journal reconciliation', async () => {
+        for (const active of [false, true]) {
+            const path = setup();
+            // The initial admission is idle; only the failure path observes an
+            // execution which may already have crossed its dispatch boundary.
+            let checks = 0;
+            const guarded = new GatewayAgentAutonomySupervisor(coordinator(async () => {
+                throw new Error('Concurrent clock admission failed');
+            }), { agentPath: path, leaseOwner: 'gateway:test', activeSkill: () => ++checks > 1 && active ? { status: 'running' } : null });
+            expect((await guarded.tick('2026-09-08T08:00:00.000Z'))[0]?.status).toBe('failed');
+            const store = new AgentStateStore(path);
+            try {
+                expect(store.getAutonomyEnrollment('ferrye14')).toMatchObject(active
+                    ? { status: 'running', leaseOwner: 'gateway:test' }
+                    : { status: 'desired', leaseOwner: null, nextWakeupAt: '2026-09-08T08:00:30.000Z' });
+            } finally { store.close(); }
+        }
+    });
     test('claims due startup work and releases a non-executing result with bounded retry', async () => {
         const path = setup();
         const events: LlmReplanEvent[] = [];

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "status": "draft",
+  "tags": [
+    "procedure",
+    "food",
+    "society",
+    "native"
+  ],
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "society-food-builder",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "notes": "Requires two independent live trials, deterministic verifier and the existing publication approval. Isolated native integration tests are not live publication evidence."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "id": "procedure.food.gather-lobster",
+  "name": "Gather one native lobster",
+  "description": "Attempts one bounded native lobster gathering action at the configured Musa Point source; only a correlated native receipt proves success.",
+  "parameters": {},
+  "limits": {
+    "timeoutMs": 15000,
+    "maxOperations": 1
+  },
+  "preconditions": [
+    {
+      "condition": "inventory-free-slots-at-least",
+      "arguments": {
+        "slots": 1
+      }
+    },
+    {
+      "condition": "skill-level-at-least",
+      "arguments": {
+        "skill": "Fishing",
+        "level": 40
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "gather",
+      "operation": "food-gather",
+      "arguments": {
+        "item": "Raw lobster",
+        "itemId": 377,
+        "amount": 1,
+        "sourceId": "musa-point-lobster",
+        "timeoutMs": 10000
+      }
+    }
+  ]
+}

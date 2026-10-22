@@ -2,7 +2,7 @@ import { readFile, stat } from 'node:fs/promises';
 import type { AdminItem, AdminSkill, OfflineSaveSnapshot } from './types';
 
 const SAVE_MAGIC = 0x2004;
-const MAX_SAVE_VERSION = 7;
+const MAX_SAVE_VERSION = 8;
 const INVENTORY = 93;
 const EQUIPMENT = 94;
 const BANK = 95;
@@ -139,6 +139,11 @@ export async function readPlayerSave(path: string): Promise<OfflineSaveSnapshot>
     const fileStat = await stat(path);
     const bytes = new Uint8Array(await readFile(path));
     const savedAt = fileStat.mtime.toISOString();
+    return parsePlayerSaveBytes(bytes, savedAt);
+}
+
+/** Decode an authoritative native checkpoint without creating a save file or using its mtime as simulation time. */
+export function parsePlayerSaveBytes(bytes: Uint8Array, savedAt: string, requireCompleteAssetContainers = false): OfflineSaveSnapshot {
     try {
         if (bytes.length < 8) throw new Error('Save file is too short');
         const storedCrc = new DataView(bytes.buffer, bytes.byteOffset + bytes.length - 4, 4).getUint32(0, false);
@@ -182,9 +187,23 @@ export async function readPlayerSave(path: string): Promise<OfflineSaveSnapshot>
             const capacity = version >= 5 ? reader.u16() : (type === INVENTORY ? 28 : type === EQUIPMENT ? 14 : 496);
             if (capacity < 0 || capacity > 2048) throw new Error(`Invalid inventory capacity ${capacity}`);
             const items = readInventory(reader, capacity);
+            if (requireCompleteAssetContainers && items.length && ![INVENTORY, EQUIPMENT, BANK].includes(type))
+                throw new Error(`Unclassified persisted asset container ${type}`);
             if (type === INVENTORY) inventory = items;
             if (type === EQUIPMENT) equipment = items;
             if (type === BANK) bank = items;
+        }
+
+        if (version >= 8) {
+            const afkZones = reader.u8();
+            for (let index = 0; index < afkZones; index++) reader.i32();
+            reader.u16(); // last AFK zone
+            reader.u8(); // chat modes
+            reader.u64(); // last login time
+            // Recovery assets need native capacity-aware placement. Never silently omit
+            // them from an authoritative holdings snapshot or guess their destination.
+            if (reader.u16() !== 0) throw new Error('Save has pending recovery assets; native recovery is required');
+            if (reader.position !== bytes.length - 4) throw new Error('Save has unexpected trailing data');
         }
 
         const enabledSkills = skills.filter((_, index) => index !== 18 && index !== 19);

@@ -64,6 +64,22 @@
         "knowledge": [{ "kind": "verified-procedure", "id": "facility.workshop-bellows", "version": "1.0.0" }],
         "entitlements": [{ "kind": "employment", "scopeId": "smithing.basic-forging" }]
       }
+    },
+    {
+      "recipeId": "food.cook-lobster",
+      "version": "1.0.0",
+      "name": "Cook lobster",
+      "inputs": [{ "itemId": 377, "quantity": 1 }],
+      "outputs": [{ "itemId": 379, "quantity": 1 }],
+      "durationSimulationMinutes": 1,
+      "executionSkill": { "id": "production.cook-item", "version": "1.0.0" },
+      "requirements": {
+        "personalSkills": [{ "skillName": "Cooking", "minimumLevel": 40 }],
+        "facilityCapabilities": ["cooking.heat-source"],
+        "tools": [],
+        "knowledge": [],
+        "entitlements": [{ "kind": "explicit", "scopeId": "cooking.heat-source" }]
+      }
     }
   ],
   "workflows": [
@@ -91,6 +107,12 @@
         { "stepId": "forge-tool", "recipe": { "id": "smithing.forge-bronze-pickaxe", "version": "1.0.0" }, "batches": 1, "dependsOn": ["smelt"] },
         { "stepId": "assemble-upgrade", "recipe": { "id": "facility.assemble-bronze-bellows", "version": "1.0.0" }, "batches": 1, "dependsOn": ["forge-tool"] }
       ]
+    },
+    {
+      "workflowId": "food.cooked-lobster",
+      "version": "1.0.0",
+      "name": "Single-step cooked lobster",
+      "steps": [{ "stepId": "cook", "recipe": { "id": "food.cook-lobster", "version": "1.0.0" }, "batches": 1, "dependsOn": [] }]
     }
   ]
 }

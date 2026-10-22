@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { buildWorldGenesisConfiguration, buildWorldGenesisResult, loadWorldGenesisProfileCatalog,
@@ -15,6 +15,7 @@ import { SocietyIntegrityStore } from '../../../society-integrity/store.js';
 import type { AdminPropertyList } from './properties.js';
 import type { OfflineSaveSummary } from './offline-editor.js';
 import { loadPopulationEntryEnvironment } from './population-entry.js';
+import { populationNeedsOptions, readPopulationNeeds } from './needs-runtime.js';
 
 const directories: string[] = [];
 afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }); });
@@ -181,8 +182,12 @@ describe('local LostCity world genesis adapter', () => {
             playerUsername:name,displayName:name,background:'Finite genesis member.',personalityTraits:['steady']},
         '2026-09-14T10:00:00.000Z');
         agents.close();
+        mkdirSync(join(directory, 'config'));
+        for (const file of ['needs-policies.json', 'needs-dynamics-policies.json', 'food-loops.json'])
+            cpSync(join(import.meta.dir, '../../../config', file), join(directory, 'config', file));
+        const needs = populationNeedsOptions(directory);
         const adapter=new LocalLostCityWorldGenesisAdapter(local.dependencies,
-            {agentPath,simulationClock:{store:clock,clockId:'world'},integrityDbPath:join(directory,'society-integrity.sqlite')});
+            {agentPath,simulationClock:{store:clock,clockId:'world'},integrityDbPath:join(directory,'society-integrity.sqlite'),needs});
         expect(await previewAdminWorldGenesis(genesis,adapter)).toMatchObject({preview:{ok:true}});
         const applied=await startAdminWorldGenesis(genesis,genesis.resultDigest,adapter,location,
             '2026-09-14T10:01:00.000Z');
@@ -194,6 +199,9 @@ describe('local LostCity world genesis adapter', () => {
         integrity.close();
         agents=new AgentStateStore(agentPath,{store:clock,clockId:'world'});
         expect(agents.listPopulationMembers('active')).toHaveLength(4);
+        for (const member of agents.listPopulationMembers('active'))
+            expect(readPopulationNeeds(needs, member)).toMatchObject({ status: 'initialized', state: {
+                revision: 1, admission: { kind: 'genesis', evidenceId: genesis.resultId } } });
         expect(agents.getSnapshot('alice-agent')?.populationMember).toMatchObject({status:'active',
             sourceResultDigest:genesis.resultDigest,worldProfile:{profileId:'mature-society'},
             lifecyclePolicy:{kind:'finite'}});

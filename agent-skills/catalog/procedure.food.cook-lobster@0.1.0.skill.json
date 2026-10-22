@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "status": "draft",
+  "tags": [
+    "procedure",
+    "food",
+    "society",
+    "native"
+  ],
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "society-food-builder",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "notes": "Requires two independent live trials, deterministic verifier and the existing publication approval. Isolated native integration tests are not live publication evidence."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "id": "procedure.food.cook-lobster",
+  "name": "Cook one reserved Business lobster",
+  "description": "Travels to the configured heat and processes the exact reserved WIP batch through protected custody; burnt and pending results fail.",
+  "parameters": {
+    "kitchen-run": {
+      "type": "string",
+      "description": "Exact existing Business kitchen run.",
+      "required": true,
+      "verification": "native-invocation"
+    },
+    "batch-id": {
+      "type": "string",
+      "description": "Exact batch from the reserved kitchen binding.",
+      "required": true,
+      "verification": "native-invocation"
+    }
+  },
+  "limits": {
+    "timeoutMs": 90000,
+    "maxOperations": 2
+  },
+  "preconditions": [
+    {
+      "condition": "inventory-free-slots-at-least",
+      "arguments": {
+        "slots": 1
+      }
+    },
+    {
+      "condition": "skill-level-at-least",
+      "arguments": {
+        "skill": "Cooking",
+        "level": 40
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "walk-heat",
+      "operation": "walk-to",
+      "arguments": {
+        "x": 2925,
+        "z": 3180,
+        "tolerance": 1
+      }
+    },
+    {
+      "kind": "operation",
+      "id": "cook",
+      "operation": "food-cook",
+      "arguments": {
+        "item": "Raw lobster",
+        "itemId": 377,
+        "amount": 1,
+        "kitchenRunId": {
+          "parameter": "kitchen-run"
+        },
+        "batchId": {
+          "parameter": "batch-id"
+        },
+        "heatX": 2926,
+        "heatZ": 3180,
+        "timeoutMs": 60000
+      }
+    }
+  ]
+}

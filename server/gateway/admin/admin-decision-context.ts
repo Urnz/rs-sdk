@@ -51,7 +51,8 @@ export function buildAdminDecisionContext(input: AdminDecisionContextInput): Adm
     if (input.profile.role === 'player') {
         const observedAt = input.gateway ? new Date(input.gateway.lastStateReceivedAt).toISOString()
             : input.bot?.lastActivityAt ?? input.bot?.saveSavedAt ?? null;
-        const fresh = live && Date.parse(input.generatedAt) - input.gateway!.lastStateReceivedAt <= 5_000;
+        const age = input.gateway ? Date.parse(input.generatedAt) - input.gateway.lastStateReceivedAt : Number.NaN;
+        const fresh = live && age >= 0 && age <= 5_000;
         provenance.push({ source: live ? 'engine-live-state' : input.bot ? 'canonical-player-save' : 'player-state',
             observedAt, freshness: fresh ? 'fresh' : input.bot ? 'stale' : 'unavailable' });
         const inventory = live?.inventory ?? input.bot?.inventory ?? [];
@@ -60,12 +61,12 @@ export function buildAdminDecisionContext(input: AdminDecisionContextInput): Adm
         const skills = live?.skills ?? input.bot?.skills ?? [];
         if (!live && !input.bot) blockers.push('player-state');
         if (live && !input.gateway?.bankKnown && !input.bot) blockers.push('bank-state');
-        const coins = input.bot?.coins ?? [...inventory, ...bank].filter(item => item.id === 995)
+        const coins = [...inventory, ...bank].filter(item => item.id === 995)
             .reduce((total, item) => total + item.count, 0);
         sections.push(`Player operational state (${fresh ? 'fresh live' : input.bot ? 'saved/stale' : 'unavailable'}; observed ${observedAt ?? 'unknown'}):\n`
             + `- Position: ${live?.player ? `${live.player.worldX},${live.player.worldZ},${live.player.level}`
                 : input.bot?.position ? `${input.bot.position.x},${input.bot.position.z},${input.bot.position.level}` : 'unavailable'}\n`
-            + `- Coins: ${live || input.bot ? coins : 'unavailable'} gp\n- Inventory item-id/count/slot: ${items(inventory, 28)}\n`
+            + `- Coins: ${fresh ? coins : 'unknown'} gp\n- Inventory item-id/count/slot: ${items(inventory, 28)}\n`
             + `- Equipment item-id/count/slot: ${items(equipment, 14)}\n`
             + `- Bank (${live && input.gateway?.bankKnown ? 'known live' : input.bot ? 'save' : live ? 'not observed this session' : 'unavailable'}): ${items(bank, 80)}\n`
             + `- Skills: ${skills.slice(0, 24).map(skill => `${skill.name}=${skill.experience}`).join(', ') || 'unavailable'}`);

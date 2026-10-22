@@ -9,6 +9,8 @@ import { SkillLibrary } from './library';
 import { SkillExecutor } from './executor';
 import { RsSdkSkillRuntime } from './rs-sdk-runtime';
 import { FileSkillRunJournal } from './journal';
+import { createHash } from 'node:crypto';
+import { resolveSkillParameters } from './validation.js';
 import type { SkillRunResult, SkillRuntimeAuthorization } from './types';
 
 const args = process.argv.slice(2);
@@ -76,6 +78,27 @@ const run = await runScript(async ({ bot, sdk }) => {
         ? registry.get({ id: requested.slice(0, separator), version: requested.slice(separator + 1) }, botName)
         : registry.getLatest(requested, { visibleToAgentId: botName });
     if (!registered) throw new Error(`Skill not found: ${requested}`);
+    const actualRunId = runId ?? crypto.randomUUID(), resolved = resolveSkillParameters(registered.definition, parameters);
+    const journal = new FileSkillRunJournal(join(process.cwd(), '.local', 'agent-skills', 'runs'));
+    const fresh = await journal.start({ runId: actualRunId, username: botName.toLowerCase(),
+        skill: { id: registered.definition.id, version: registered.definition.version }, checksum: registered.checksum,
+        parameters: resolved, parametersDigest: createHash('sha256').update(JSON.stringify(Object.entries(resolved)
+            .sort(([left], [right]) => left.localeCompare(right)))).digest('hex') });
+    const prior = await journal.load(actualRunId);
+    if (prior) {
+        const priorDigest = createHash('sha256').update(JSON.stringify(Object.entries(prior.parameters ?? {})
+            .sort(([left], [right]) => left.localeCompare(right)))).digest('hex');
+        const expectedDigest = createHash('sha256').update(JSON.stringify(Object.entries(resolved)
+            .sort(([left], [right]) => left.localeCompare(right)))).digest('hex');
+        if (prior.username !== botName.toLowerCase() || prior.skill.id !== registered.definition.id
+            || prior.skill.version !== registered.definition.version || priorDigest !== expectedDigest)
+            throw new Error('Prior skill outcome identity/parameters differ');
+        if (prior.status !== 'completed') throw new Error(`Prior skill outcome requires reconciliation: ${prior.reason}`);
+        return prior;
+    }
+    const recoverableFood = registered.definition.steps.some(step => step.kind === 'operation' && step.operation.startsWith('food-'))
+        && registered.definition.steps.every(step => step.kind === 'operation' && (step.operation.startsWith('food-') || step.operation === 'walk-to'));
+    if (!fresh && !recoverableFood) throw new Error('Interrupted skill run requires reconciliation before another dispatch');
 
     const markerDirectory = join(process.cwd(), '.local', 'admin', 'active-skills');
     const markerPath = join(markerDirectory, `${botName.toLowerCase()}.json`);
@@ -83,7 +106,7 @@ const run = await runScript(async ({ bot, sdk }) => {
         username: botName,
         skillId: registered.definition.id,
         version: registered.definition.version,
-        runId: runId ?? `pending-${crypto.randomUUID()}`,
+        runId: actualRunId,
         startedAt: new Date().toISOString(),
         heartbeatAt: new Date().toISOString(),
         progressAt: new Date().toISOString(),
@@ -107,7 +130,7 @@ const run = await runScript(async ({ bot, sdk }) => {
     try {
         result = await new SkillExecutor(new RsSdkSkillRuntime(bot, sdk, runtimeAuthorization), reference =>
             registry.get(reference, botName)?.definition ?? null).execute(registered.definition, {
-            runId,
+            runId: actualRunId,
             parameters,
             allowDraft,
             onEvent: event => {
@@ -125,7 +148,7 @@ const run = await runScript(async ({ bot, sdk }) => {
         await markerWrite.catch(() => undefined);
         await unlink(markerPath).catch(() => undefined);
     }
-    const journalPath = await new FileSkillRunJournal(join(process.cwd(), '.local', 'agent-skills', 'runs')).save(result);
+    const journalPath = await journal.save(result);
     console.log(`[skill] audit saved: ${journalPath}`);
     console.log(JSON.stringify(result, null, 2));
     if (result.status !== 'completed') throw new Error(`Skill ended with ${result.status}: ${result.reason}`);

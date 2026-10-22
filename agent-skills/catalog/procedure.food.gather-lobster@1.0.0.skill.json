@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "verified",
+  "tags": [
+    "procedure",
+    "food",
+    "society",
+    "native"
+  ],
+  "provenance": {
+    "authorKind": "system",
+    "authorId": "deterministic-skill-verifier",
+    "createdAt": "2026-10-21T17:47:51.417Z",
+    "derivedFrom": {
+      "id": "procedure.food.gather-lobster",
+      "version": "0.1.0"
+    },
+    "notes": "Automatically promoted from procedure.food.gather-lobster@0.1.0; evidence runs: 7c30489a-57d3-47f6-b4f9-9d7daab747d2, cb80c6b5-aced-4aa7-971c-35e0c479b913, 2c640f88-0de7-404c-b2d0-b21b6fccdae3, fdbf42f7-af13-4f52-b1ec-241023f0677b, edccdbd7-5892-4900-9057-f0a5590c3180, d6daa5e9-5eb8-4aee-bdd6-09e9b4c4691b, 61dfd10c-599c-4680-9172-28130d313f37, 43cb6f49-4603-4506-a15d-77c8542c31d8."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "id": "procedure.food.gather-lobster",
+  "name": "Gather one native lobster",
+  "description": "Attempts one bounded native lobster gathering action at the configured Musa Point source; only a correlated native receipt proves success.",
+  "parameters": {},
+  "limits": {
+    "timeoutMs": 15000,
+    "maxOperations": 1
+  },
+  "preconditions": [
+    {
+      "condition": "inventory-free-slots-at-least",
+      "arguments": {
+        "slots": 1
+      }
+    },
+    {
+      "condition": "skill-level-at-least",
+      "arguments": {
+        "skill": "Fishing",
+        "level": 40
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "gather",
+      "operation": "food-gather",
+      "arguments": {
+        "item": "Raw lobster",
+        "itemId": 377,
+        "amount": 1,
+        "sourceId": "musa-point-lobster",
+        "timeoutMs": 10000
+      }
+    }
+  ]
+}

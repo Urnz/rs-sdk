@@ -168,6 +168,7 @@ export class WorldDirectorStore {
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
         try {
+            this.database.run('PRAGMA busy_timeout = 5000');
             this.migrate();
             this.database.run('PRAGMA journal_mode = WAL');
             this.database.run('PRAGMA foreign_keys = ON');

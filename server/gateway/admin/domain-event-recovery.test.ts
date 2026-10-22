@@ -66,6 +66,23 @@ function setup(status: 'desired' | 'paused' = 'desired') {
 }
 
 describe('durable domain event wakeup recovery', () => {
+    test('real income cessation recovers through the observer exactly once without a duplicate employment event', () => {
+        const value = setup();
+        recoverDomainEventWakeups(value.inboxPath, { ...value.paths, now: '2026-09-08T10:08:00.000Z' });
+        const businesses = new BusinessManagerStore(value.paths.businessPath);
+        businesses.endEmployment('varrock-forge', '11111111-1111-4111-8111-111111111111', 1, '2026-09-08T10:09:00.000Z');
+        businesses.close();
+        const paths = { ...value.paths, now: '2026-09-08T10:09:00.000Z' };
+        recoverDomainEventWakeups(value.inboxPath, paths);
+        recoverDomainEventWakeups(value.inboxPath, paths);
+        const inbox = new ReplanInboxStore(value.inboxPath);
+        try {
+            const records = inbox.listForAgent('worker');
+            expect(records.filter(r => r.event.sourceKey.startsWith('observer:'))).toHaveLength(1);
+            expect(records.filter(r => r.event.sourceKey.includes('business-employment:')
+                && r.event.sourceKey.includes('revision:2'))).toHaveLength(0);
+        } finally { inbox.close(); }
+    });
     test('rebuilds relevant economic, player-action, business and property events exactly once', () => {
         const value = setup();
         const property = { propertyId: 'forge-property', displayName: 'Forge', description: 'Workshop', type: 'shop',

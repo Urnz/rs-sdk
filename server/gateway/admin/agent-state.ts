@@ -1,6 +1,7 @@
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { AgentStateStore, type AgentStateSimulationClock } from '../../../agent-state/store.js';
+import { isLivelihoodPolicy } from './livelihood-policy.js';
 import { loadPopulationAgePolicy, type PopulationAgePolicy } from '../../../population-lifecycle/age.js';
 import { loadPopulationMortalityPolicy, type PopulationMortalityPolicy } from '../../../population-lifecycle/mortality.js';
 import { reconcilePopulationDeaths } from './population-death-runtime.js';
@@ -9,6 +10,7 @@ import { runPopulationEstateCycle, type EstateRuntimeOptions } from '../../../po
 import { loadHealthPolicy, runPopulationHealthCycle, type PopulationHealthRuntimeOptions } from '../../../population-health/index.js';
 import { populationHealthDbPath, populationHealthPolicyPath, populationHealthEngineEvidencePath } from './paths.js';
 import { buildDecisionContext } from '../../../agent-state/context.js';
+import { readEconomicObservation } from './economic-observer-source.js';
 import { resolveAgentAssets } from '../../../agent-state/assets.js';
 import { planNextAction } from '../../../agent-state/planner.js';
 import { episodicQueryFromSnapshot, retrieveEpisodicMemory, retrieveSemanticMemory,
@@ -35,6 +37,10 @@ import { EconomicContractStore } from './economic-contracts.js';
 import { buildAdminDecisionContext } from './admin-decision-context.js';
 import { loadCrimeKnowledge, type CrimeKnowledgePaths, type CrimeKnowledgeSnapshot } from './crime-knowledge.js';
 import type { GatewayBotSnapshot } from './types.js';
+import { workDigest, workUuid, type NativeWorkTarget } from '../../../business-work/index.js';
+import { validateCreatePlayerActionRequest } from '../../../agent-state/validation.js';
+import { assertCookTarget, assertWorkRequest, businessWorkNeedsRecovery, nativeWorkCompletion, nativeWorkReward, useBusinessWork, workTradeCursor,
+    type BusinessWorkRuntimeOptions } from './business-work-runtime.js';
 
 function useStore<T>(path: string, callback: (store: AgentStateStore) => T,
     simulationClock?: AgentStateSimulationClock): T {
@@ -241,6 +247,9 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
                 + `workload capacity ${populationHealth.workloadCapacityBasisPoints}/10000. Treatment needs verified clinical evidence.`
             : '\nInjury health is unobserved/unavailable; stored values are historical. Do not assume the character is healthy.' : '';
         const baseContext = `${buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 6000,
+            economicObservation: readEconomicObservation(identity.agentId, { agentPath: path,
+                contractsPath: assetSources.economicContractsPath, simulationClock: assetSources.simulationClock,
+                gatewayBots: assetSources.gatewayBots, now: generatedAt }),
             controlProfile,
             playerActionRequests,
             episodicMemories: relevantEpisodes.map(result => result.episode),
@@ -262,6 +271,8 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             populationHealth,
             controlProfile,
             autonomyEnrollment,
+            livelihoodProgress: isLivelihoodPolicy(autonomyEnrollment)
+                ? store.listLivelihoodJournal(identity.agentId).slice(-10).reverse() : [],
             business,
             economicOffers: relevantOffers,
             economicContracts: relevantContracts,
@@ -339,6 +350,10 @@ export function updateAdminAgentControlProfile(agentId: string, expectedRevision
 
 export function createAdminPlayerActionRequest(requesterAgentId: string,
     input: CreateAgentPlayerActionRequest, path = agentStateDbPath) {
+    if (input.requestId.startsWith('shift.')) throw new Error('Shift requests must be created from their Business work order');
+    if ((input.rewardGp ?? 0) > 0 && (input.skill.id === 'procedure.food.cook-lobster'
+        || (input.skill.id === 'trade.lumbridge.give-item' && String(input.parameters?.['item-name']).toLowerCase() === 'lobster')))
+        throw new Error('Paid native food work requires an exact Business work order');
     const profile = useStore(path, store => store.getControlProfile(requesterAgentId));
     if (!profile || profile.role !== 'institution') throw new Error('A megbízónak institution agentnek kell lennie.');
     if (profile.subjectKind === 'business') {
@@ -359,11 +374,72 @@ export function createAdminPlayerActionRequest(requesterAgentId: string,
     }
 }
 
+/** Resumable outbox: bind first, reserve once, then materialize the existing player-action queue. */
+export function createAdminBusinessWorkRequest(workOrderId: string, requesterAgentId: string,
+    parameters: NonNullable<CreateAgentPlayerActionRequest['parameters']>,
+    target: { kind: 'cook'; kitchenRunId: string; batchId: string } | { kind: 'delivery'; recipient: string },
+    path = agentStateDbPath, options: BusinessWorkRuntimeOptions = {}, now = new Date().toISOString()) {
+    const order = useBusinessWork(path, options, work => work.get(workOrderId));
+    if (!order) throw new Error('Business work order does not exist');
+    if (order.status === 'cancelled') throw new Error('Business work order is cancelled');
+    const existing = useBusinessWork(path, options, work => work.binding(workOrderId));
+    if (!existing) useBusinessWork(path, options, work => work.assertAuthorized(workOrderId));
+    const authority = validateBusinessPlayerActionForAgent(requesterAgentId,
+        { assigneeAgentId: order.workerAgentId, skill: order.skill, rewardGp: order.wageGp }, path);
+    if (authority.employment.employmentId !== order.employmentId || authority.business.businessId !== order.businessId)
+        throw new Error('Work order Business/employment differs');
+    const username = useStore(path, store => {
+        const identity = store.getIdentity(order.workerAgentId), profile = store.getControlProfile(order.workerAgentId);
+        if (!identity?.playerUsername || identity.playerUsername !== profile?.avatarPlayerUsername || profile.role !== 'player')
+            throw new Error('Work order requires its exact player-avatar');
+        return identity.playerUsername;
+    });
+    let native: NativeWorkTarget;
+    if (target.kind === 'cook') {
+        if (order.roleDefinitionId !== 'business.cook.v1' || order.skill.id !== 'procedure.food.cook-lobster'
+            || parameters['kitchen-run'] !== target.kitchenRunId || parameters['batch-id'] !== target.batchId)
+            throw new Error('Cooking work requires exact role, skill and native parameters');
+        native = target;
+    } else if (target.kind === 'delivery') {
+        const recipient = target.recipient.toLowerCase();
+        if (!/^[a-z0-9]{1,12}$/.test(recipient) || recipient === username || order.roleDefinitionId !== 'business.delivery.v1'
+            || order.skill.id !== 'trade.lumbridge.give-item' || parameters.recipient !== recipient
+            || parameters['item-name'] !== 'Lobster' || parameters.amount !== 1)
+            throw new Error('Delivery work requires exact role, recipient and one cooked lobster');
+        native = { kind: 'delivery', recipient, itemId: 379, quantity: 1,
+            ...(existing?.target.kind === 'delivery' ? existing.target : workTradeCursor(path, options)) };
+    } else throw new Error('Native work target is invalid');
+    const request = validateCreatePlayerActionRequest({ requestId: `shift.${workDigest(workOrderId).slice(0, 48)}`,
+        assigneeAgentId: order.workerAgentId, skill: order.skill, parameters, rewardGp: order.wageGp,
+        objective: `Complete Business shift ${workOrderId}.` });
+    const candidate = { schemaVersion: 1 as const, workOrderId, requesterAgentId, username, request, target: native,
+        settlementId: workUuid(`business-shift:${workOrderId}`), runId: null };
+    if (!existing) assertCookTarget(path, options, candidate);
+    const binding = useBusinessWork(path, options, work => work.bindRequest(candidate, now));
+    const current = useStore(path, store => store.getPlayerActionRequest(binding.request.requestId));
+    if (current) { assertWorkRequest(binding, current); return current; }
+    if (now > order.scheduledEnd) throw new Error('Business work order shift has expired');
+    const held = useTreasury(path, store => store.reserve('business', order.businessId, binding.request.requestId, order.wageGp, now));
+    if (held.reservation.status !== 'reserved' || held.reservation.settlementId)
+        throw new Error('Business work reservation requires reconciliation before request creation');
+    // A crash here retains the reservation; this exact binding is the recovery outbox.
+    return useStore(path, store => store.createPlayerActionRequest(requesterAgentId, binding.request, now));
+}
+
+function boundRequest(requestId: string, path: string, options: BusinessWorkRuntimeOptions) {
+    // Legacy queues need no Business schema side effects when their database is absent.
+    if (!existsSync(businessManagerPathFor(path))) return null;
+    return useBusinessWork(path, options, work => work.bindings().find(b => b.request.requestId === requestId) ?? null);
+}
+
 export function updateAdminPlayerActionRequest(requestId: string, actorAgentId: string,
     expectedRevision: number, status: AgentPlayerActionManualStatus,
     responseNote: string, path = agentStateDbPath) {
+    const binding = boundRequest(requestId, path, {});
     const request = useStore(path, store => store.setPlayerActionRequestStatus(requestId, actorAgentId,
         expectedRevision, status, responseNote));
+    if (binding && (status === 'rejected' || status === 'cancelled'))
+        useBusinessWork(path, {}, work => work.cancelBoundRequest(binding.workOrderId));
     if (request.rewardGp > 0 && (status === 'rejected' || status === 'cancelled')) {
         useTreasury(path, store => store.release(request.requestId));
     }
@@ -377,9 +453,20 @@ export function approveAdminPlayerActionRequest(requestId: string, actorAgentId:
 }
 
 export function startAdminPlayerActionRequest(requestId: string, actorAgentId: string,
-    expectedRevision: number, approvalId: string, runId: string, path = agentStateDbPath) {
+    expectedRevision: number, approvalId: string, runId: string, path = agentStateDbPath,
+    options: BusinessWorkRuntimeOptions = {}, now = new Date().toISOString()) {
+    const binding = boundRequest(requestId, path, options);
+    if (binding) {
+        const request = useStore(path, store => store.getPlayerActionRequest(requestId)!);
+        assertWorkRequest(binding, request);
+        if (request.status !== 'approved' || request.revision !== expectedRevision || request.assigneeAgentId !== actorAgentId
+            || request.approvalId !== approvalId || !request.approvalExpiresAt || now >= request.approvalExpiresAt)
+            throw new Error('Bound work approval is invalid or expired');
+        validateBusinessPlayerActionForAgent(binding.requesterAgentId, request, path);
+        useBusinessWork(path, options, work => work.bindRun(binding.workOrderId, runId, now));
+    }
     return useStore(path, store => store.startApprovedPlayerAction(requestId, actorAgentId,
-        expectedRevision, approvalId, runId));
+        expectedRevision, approvalId, runId, now));
 }
 
 export interface DelegatedBusinessPlayerActionResult {
@@ -394,7 +481,7 @@ export interface DelegatedBusinessPlayerActionResult {
  * The derived approval can be consumed by exactly one run id.
  */
 export function delegateBusinessPlayerAction(requestId: string, runId: string, path = agentStateDbPath,
-    now = new Date().toISOString()): DelegatedBusinessPlayerActionResult {
+    now = new Date().toISOString(), options: BusinessWorkRuntimeOptions = {}): DelegatedBusinessPlayerActionResult {
     const initial = useStore(path, store => store.getPlayerActionRequest(requestId));
     if (!initial) throw new Error('Delegated player-action work order does not exist');
     const recordedAuthority = /^Delegated by approved policy ([a-z0-9._-]+) and employment ([a-z0-9-]+)\.$/i
@@ -430,7 +517,7 @@ export function delegateBusinessPlayerAction(requestId: string, runId: string, p
             throw new Error('Player-action has a different approval and cannot use delegated authorization');
         }
         request = startAdminPlayerActionRequest(request.requestId, request.assigneeAgentId, request.revision,
-            approvalId, runId, path);
+            approvalId, runId, path, options, now);
     }
     if (request.status !== 'running' || request.runId !== runId) {
         throw new Error('Delegated player-action authorization is invalid or already used');
@@ -440,9 +527,37 @@ export function delegateBusinessPlayerAction(requestId: string, runId: string, p
 }
 
 export function finishAdminPlayerActionRun(runId: string, completed: boolean, responseNote: string,
-    path = agentStateDbPath, settlementId: string | null = null) {
+    path = agentStateDbPath, settlementId: string | null = null, options: BusinessWorkRuntimeOptions = {},
+    now = new Date().toISOString()) {
+    const binding = existsSync(businessManagerPathFor(path))
+        ? useBusinessWork(path, options, work => work.bindings().find(b => b.runId === runId) ?? null) : null;
+    if (binding) {
+        const request = useStore(path, store => store.getPlayerActionRequest(binding.request.requestId)!);
+        assertWorkRequest(binding, request);
+        if (request.status !== 'running') return request;
+        try {
+            const order = useBusinessWork(path, options, work => work.get(binding.workOrderId)!);
+            if (order.wageStatus === 'unearned') {
+                const evidence = nativeWorkCompletion(path, binding, request, options);
+                useBusinessWork(path, options, work => work.completeBound(order.workOrderId, evidence, () => true));
+            }
+            return useStore(path, store => store.finishPlayerActionRun(runId, true, 'Native Business shift completed; wage earned.',
+                now, binding.settlementId));
+        } catch (error) {
+            const order = useBusinessWork(path, options, work => work.get(binding.workOrderId)!);
+            if (order.wageStatus !== 'unearned') throw error;
+            if (now > order.scheduledEnd) {
+                useBusinessWork(path, options, work => work.expire(order.workOrderId, now));
+                const failed = useStore(path, store => store.finishPlayerActionRun(runId, false,
+                    `Shift expired without verified native completion: ${String(error)}`, now));
+                useTreasury(path, store => store.release(binding.request.requestId)); return failed;
+            }
+            return useStore(path, store => store.notePlayerActionRunReconciliation(request.requestId,
+                `Native work reconciliation pending: ${String(error)}`, now));
+        }
+    }
     const request = useStore(path, store => store.finishPlayerActionRun(runId, completed, responseNote,
-        new Date().toISOString(), settlementId));
+        now, settlementId));
     if (request?.status === 'failed' && request.rewardGp > 0) {
         useTreasury(path, store => store.release(request.requestId));
     }
@@ -451,23 +566,23 @@ export function finishAdminPlayerActionRun(runId: string, completed: boolean, re
 
 export async function reconcileAdminPlayerActionRun(runId: string, fallbackCompleted: boolean,
     fallbackNote: string, path = agentStateDbPath, runRoot?: string,
-    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward) {
+    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward, options: BusinessWorkRuntimeOptions = {}) {
     const run = await readSkillRun(runId, runRoot);
     const completed = run ? run.status === 'completed' : fallbackCompleted;
     const note = run
         ? `${run.skill.id}@${run.skill.version}: ${run.status}. ${run.message || run.reason || `Skill run ${run.status}.`}`
         : fallbackNote;
     const request = finishAdminPlayerActionRun(runId, completed, note, path,
-        completed ? crypto.randomUUID() : null);
+        completed ? crypto.randomUUID() : null, { ...options, ...(runRoot ? { runRoot } : {}) });
     return request?.status === 'settling'
-        ? settleAdminPlayerActionReward(request.settlementId!, path, rewarder) : request;
+        ? settleAdminPlayerActionReward(request.settlementId!, path, rewarder, options) : request;
 }
 
 export async function settleAdminPlayerActionReward(settlementId: string, path = agentStateDbPath,
-    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward) {
+    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward, options: BusinessWorkRuntimeOptions = {}) {
     const state = useStore(path, store => {
         const request = store.getPlayerActionRequestBySettlementId(settlementId);
-        if (!request || request.status !== 'settling') throw new Error('Nincs függőben lévő player-action elszámolás.');
+        if (!request || !['settling', 'completed'].includes(request.status)) throw new Error('Nincs függőben lévő player-action elszámolás.');
         const identity = store.getIdentity(request.assigneeAgentId);
         const profile = store.getControlProfile(request.assigneeAgentId);
         const requester = store.getControlProfile(request.requesterAgentId);
@@ -480,22 +595,44 @@ export async function settleAdminPlayerActionReward(settlementId: string, path =
         }
         return { request, username: profile.avatarPlayerUsername, requester };
     });
+    const binding = boundRequest(state.request.requestId, path, options);
+    let alreadyPaid = false;
+    if (binding) {
+        assertWorkRequest(binding, state.request);
+        const order = useBusinessWork(path, options, work => work.get(binding.workOrderId)!);
+        if (order.wageStatus === 'unearned' || order.status !== 'completed') throw new Error('Native shift wage has not been earned');
+        if (state.requester.subjectKind !== 'business' || state.requester.subjectId !== order.businessId)
+            throw new Error('Native wage Business subject binding differs');
+        alreadyPaid = order.wageStatus === 'paid';
+        if (state.username !== binding.username) throw new Error('Native wage avatar binding differs');
+    } else if (state.request.status !== 'settling') return state.request;
     try {
         const treasuryActorId = treasuryActorIdForAgent(state.request.requesterAgentId, state.requester, path);
-        useTreasury(path, store => {
+        const reservation = useTreasury(path, store => {
             if (!store.getReservation(state.request.requestId)) {
                 store.reserve(state.requester.subjectKind as InstitutionKind,
                     treasuryActorId, state.request.requestId, state.request.rewardGp);
             }
-            store.bindSettlement(state.request.requestId, settlementId);
+            return store.bindSettlement(state.request.requestId, settlementId);
         });
+        if (reservation.kind !== state.requester.subjectKind || reservation.actorId !== treasuryActorId
+            || reservation.amountGp !== state.request.rewardGp) throw new Error('Wage treasury reservation source differs');
         const integrityPayment={settlementId,username:state.username,amountGp:state.request.rewardGp,
             reservationId:state.request.requestId,treasuryPath:institutionTreasuryPathFor(path)};
         bindSocietyInternalPayment(integrityPayment,'reserve');
-        const receipt = await rewarder(state.username, state.request.rewardGp, settlementId);
+        let nativeReceipt = binding ? nativeWorkReward(path, binding, options) : null;
+        if (binding && !nativeReceipt && (alreadyPaid || reservation.status === 'committed'))
+            throw new Error('Previously paid native wage receipt is missing; reconciliation required');
+        const receipt = nativeReceipt ? null : await rewarder(state.username, state.request.rewardGp, settlementId);
+        if (binding) {
+            nativeReceipt = nativeWorkReward(path, binding, options);
+            if (!nativeReceipt) throw new Error('Native engine wage receipt is missing; reservation retained');
+        }
         useTreasury(path, store => store.commit(state.request.requestId, settlementId));
         bindSocietyInternalPayment(integrityPayment,'commit');
-        const balance = receipt.reward ? ` (${receipt.reward.coinsBefore} → ${receipt.reward.coinsAfter} gp)` : '';
+        if (binding) useBusinessWork(path, options, work => work.settleBoundWage(binding.workOrderId, settlementId, () => !!nativeReceipt));
+        const reward = nativeReceipt ?? receipt?.reward;
+        const balance = reward ? ` (${reward.coinsBefore} → ${reward.coinsAfter} gp)` : '';
         return useStore(path, store => store.completePlayerActionSettlement(settlementId,
             `Jutalom kifizetve: ${state.request.rewardGp} gp${balance}.`));
     } catch (error) {
@@ -514,21 +651,61 @@ export interface PlayerActionSettlementRecoveryResult {
 
 /** Bounded restart/periodic recovery; the persisted settlement id is always reused. */
 export async function recoverAdminPlayerActionSettlements(path = agentStateDbPath,
-    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward):
+    rewarder: typeof requestEnginePlayerReward = requestEnginePlayerReward, options: BusinessWorkRuntimeOptions = {}):
     Promise<PlayerActionSettlementRecoveryResult> {
+    const bindings = existsSync(businessManagerPathFor(path)) ? useBusinessWork(path, options, work =>
+        useStore(path, agents => useTreasury(path, treasury => work.bindings().filter(binding => businessWorkNeedsRecovery(
+            work.get(binding.workOrderId)!, agents.getPlayerActionRequest(binding.request.requestId),
+            treasury.getReservation(binding.request.requestId)?.status === 'reserved', binding.runId, new Date().toISOString())).slice(0, 100)))) : [];
+    const bindingErrors: PlayerActionSettlementRecoveryResult['errors'] = [];
+    for (const binding of bindings.slice(0, 100)) {
+        try {
+            let request = useStore(path, store => store.getPlayerActionRequest(binding.request.requestId));
+            const order = useBusinessWork(path, options, work => work.get(binding.workOrderId)!);
+            const now = new Date().toISOString();
+            if (request && ['failed', 'rejected', 'cancelled'].includes(request.status)) {
+                if (order.status !== 'cancelled') {
+                    if (!binding.runId) useBusinessWork(path, options, work => work.cancelBoundRequest(order.workOrderId, now));
+                    else if (now > order.scheduledEnd) useBusinessWork(path, options, work => work.expire(order.workOrderId, now));
+                    else throw new Error('Failed native work requires reconciliation before cancelling its running shift');
+                }
+                useTreasury(path, store => store.release(binding.request.requestId)); continue;
+            }
+            if (now > order.scheduledEnd && order.wageStatus === 'unearned' && (!request || !request.runId)) {
+                if (order.status !== 'cancelled') useBusinessWork(path, options, work => work.expire(order.workOrderId, now));
+                if (request && ['pending', 'accepted', 'approved'].includes(request.status))
+                    useStore(path, store => store.failUnstartedPlayerAction(request!.requestId, 'Business shift expired before dispatch.', now));
+                useTreasury(path, store => store.release(binding.request.requestId)); continue;
+            }
+            if (!request) request = createAdminBusinessWorkRequest(binding.workOrderId, binding.requesterAgentId,
+                binding.request.parameters, binding.target, path, options);
+            assertWorkRequest(binding, request);
+            if (binding.runId && request.status === 'approved' && request.approvalId) request = startAdminPlayerActionRequest(request.requestId,
+                request.assigneeAgentId, request.revision, request.approvalId, binding.runId, path, options);
+            if (binding.runId && request.status === 'running') finishAdminPlayerActionRun(binding.runId, false,
+                'Business shift restart reconciliation.', path, null, options);
+        } catch (error) { bindingErrors.push({ settlementId: binding.settlementId, message: String(error).slice(0, 500) }); }
+    }
     const settlementIds = useStore(path, store => store.listIdentities()
         .flatMap(identity => store.listPlayerActionRequests(identity.agentId, 'outgoing'))
         .filter(request => request.status === 'settling' && request.settlementId)
         .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt)
             || left.requestId.localeCompare(right.requestId))
         .slice(0, 100).map(request => request.settlementId!));
+    // Crash after request completion but before the WorkStore paid projection is repaired forward.
+    for (const binding of bindings.slice(0, 100)) {
+        const order = useBusinessWork(path, options, work => work.get(binding.workOrderId)!);
+        const request = useStore(path, store => store.getPlayerActionRequest(binding.request.requestId));
+        if (order.wageStatus === 'earned' && request?.status === 'completed' && !settlementIds.includes(binding.settlementId))
+            settlementIds.push(binding.settlementId);
+    }
     const result: PlayerActionSettlementRecoveryResult = {
-        attemptedSettlementIds: [], completedSettlementIds: [], errors: []
+        attemptedSettlementIds: [], completedSettlementIds: [], errors: bindingErrors
     };
     for (const settlementId of settlementIds) {
         result.attemptedSettlementIds.push(settlementId);
         try {
-            await settleAdminPlayerActionReward(settlementId, path, rewarder);
+            await settleAdminPlayerActionReward(settlementId, path, rewarder, options);
             result.completedSettlementIds.push(settlementId);
         } catch (error) {
             result.errors.push({ settlementId,

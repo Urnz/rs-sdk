@@ -2,6 +2,7 @@ import type { AgentAssetPortfolio, AgentControlProfile, AgentEpisode, AgentKnowl
     AgentPlayerActionRequest, AgentSnapshot, GoalHorizon } from './types.js';
 import type { SocialMemoryEntry } from './retrieval.js';
 import { buildAgentControlContext } from './control.js';
+import { buildEconomicContext, type EconomicObservation } from './economic-context.js';
 
 const LABELS: Record<GoalHorizon, string> = {
     life: 'Life goal', 'long-term': 'Long-term goals', current: 'Current goals', immediate: 'Immediate tasks'
@@ -30,6 +31,7 @@ export function buildCoreIdentity(snapshot: AgentSnapshot, maxCharacters = 1600)
 }
 
 export interface DecisionContextOptions {
+    economicObservation?: EconomicObservation;
     now?: string;
     maxCharacters?: number;
     workingMemoryMaxAgeMs?: number;
@@ -53,6 +55,10 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     const now = Date.parse(options.now ?? new Date().toISOString());
     if (Number.isNaN(now)) throw new Error('Decision context now must be an ISO timestamp');
     const parts = [buildCoreIdentity(snapshot, Math.min(maxCharacters, 8000))];
+    if (options.economicObservation) {
+        if (options.economicObservation.agentId !== snapshot.identity.agentId) throw new Error('Economic context observer differs');
+        parts.push(buildEconomicContext(options.economicObservation, options.now ?? new Date(now).toISOString()));
+    }
     if (options.controlProfile) parts.push(buildAgentControlContext(options.controlProfile));
     const activeRequests = options.playerActionRequests?.filter(item => ['pending', 'accepted', 'approved', 'running', 'settling']
         .includes(item.status)).slice(0, 12);
@@ -72,8 +78,11 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     }
     if (options.assets) {
         const assets = options.assets;
+        const moneyAge = assets.money ? now - Date.parse(assets.money.observedAt) : Number.NaN;
+        const moneyFresh = !!assets.money && assets.money.freshness === 'fresh' && moneyAge >= 0
+            && (assets.money.source === 'treasury' || moneyAge <= 5000);
         const lines = [assets.money
-            ? `Money: ${assets.money.balanceGp} gp (${assets.money.source}, ${assets.money.freshness}; observed ${assets.money.observedAt})`
+            ? `Money: ${moneyFresh ? `${assets.money.balanceGp} gp` : 'unknown'} (${assets.money.source}, ${moneyFresh ? 'fresh' : 'stale'}; observed ${assets.money.observedAt})`
             : 'Money: unavailable'];
         lines.push(...assets.properties.slice(0, 12).map(item =>
             `Property ${item.propertyId}: ${item.displayName} (${item.type}, ${item.region}; owner ${item.owner.kind}:${item.owner.id})`));

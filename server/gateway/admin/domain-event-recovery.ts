@@ -6,6 +6,8 @@ import { EconomicContractStore, type EconomicContract } from './economic-contrac
 import { GovernancePolicyStore } from './governance-policy.js';
 import { GovernanceStore } from './governance.js';
 import { ReplanInboxStore } from './replan-inbox.js';
+import { readEconomicObservation } from './economic-observer-source.js';
+import type { GatewayBotSnapshot } from './types.js';
 import type { ReplanInboxSimulationClock } from './replan-inbox.js';
 import { WorldDirectorStore } from './world-director-runtime.js';
 import { BUILTIN_WORLD_EVENT_TEMPLATES } from './world-director.js';
@@ -14,6 +16,9 @@ import { agentStateDbPath, businessManagerDbPath, economicContractsDbPath, gover
     worldDirectorDbPath } from './paths.js';
 
 export interface DomainWakeupPaths {
+    workspace?: string;
+    gatewayBots?: ReadonlyMap<string, GatewayBotSnapshot>;
+    now?: string;
     agentPath?: string;
     businessPath?: string;
     contractsPath?: string;
@@ -164,6 +169,13 @@ export function recoverDomainEventWakeups(inboxPath: string, paths: DomainWakeup
     const result = { scanned: events.length, created: 0, existing: 0 };
     try {
         for (const event of events) inbox.enqueue(event, event.occurredAt).created ? result.created++ : result.existing++;
+        for (const enrollment of enrollments) {
+            const admitted = inbox.observeEconomy(readEconomicObservation(enrollment.agentId, { agentPath,
+                businessPath: paths.businessPath, contractsPath: paths.contractsPath, workspace: paths.workspace,
+                simulationClock: paths.simulationClock, gatewayBots: paths.gatewayBots,
+                now: paths.now ?? new Date().toISOString() }));
+            if (admitted) { result.scanned++; result.created++; }
+        }
         return result;
     } finally { inbox.close(); }
 }
@@ -172,6 +184,8 @@ function collectBusinessEvents(events: LlmReplanEvent[], enrolled: Map<string, E
     agents: AgentStateStore, business: Business): void {
     for (const employment of business.employments) {
         const worker = enrolled.get(employment.workerAgentId); if (!worker) continue;
+        // Cessation is admitted by the observer cursor, once, with the current context.
+        if (employment.status === 'ended') continue;
         add(events, worker.enrollment, 'business-work-available',
             `business-employment:${employment.employmentId}:revision:${employment.revision}`, employment.updatedAt,
             `Employment ${employment.employmentId} is ${employment.status} at ${business.businessId}.`);

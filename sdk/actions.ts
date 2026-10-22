@@ -1212,7 +1212,11 @@ export class BotActions {
                     }
                 }
 
-                const result = await this.helpers.walkStepToward(wp.x, wp.z, 2, pos);
+                // The final step must wait for the caller's arrival radius.
+                // Resolving two tiles early can replan and report "stuck"
+                // while the original walk is still reaching an exact target.
+                const stepTolerance = wp.x === x && wp.z === z ? Math.min(2, tolerance) : 2;
+                const result = await this.helpers.walkStepToward(wp.x, wp.z, stepTolerance, pos);
                 const deadMidStep = diedEnRoute();
                 if (deadMidStep) return deadMidStep;
                 if (distTo(result.pos) <= tolerance) return { success: true, message: 'Arrived' };

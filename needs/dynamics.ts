@@ -1,3 +1,4 @@
+import { applyHousingFatigueRecoveryRate } from '../housing/effects.js';
 import { createHash } from 'node:crypto';
 import type { PlayerPresence, PlayerRestState, SimulationClockObservation } from '../simulation-clock/types.js';
 import { needsStateDigest, validateNeedsPolicy, validateNeedsState } from './profile.js';
@@ -124,7 +125,7 @@ function selectedRate(ruleValue: NeedRateRule, presence: PlayerPresence, rest: P
 
 export function advanceNeedsFromClock(stateValue: NeedsState, observation: SimulationClockObservation,
     presence: PlayerPresence, rest: PlayerRestState, needsPolicyValue: NeedsPolicyDefinition | NeedsPolicy,
-    dynamicsValue: NeedsDynamicsPolicyDefinition | NeedsDynamicsPolicy): NeedsTransition {
+    dynamicsValue: NeedsDynamicsPolicyDefinition | NeedsDynamicsPolicy, sleepRecoveryBasisPoints = 10000): NeedsTransition {
     const needsPolicy = resolveNeedsPolicy(needsPolicyValue);
     const state = resolveState(stateValue, needsPolicy), dynamics = resolveDynamics(dynamicsValue, needsPolicy);
     if (observation.clockId !== state.clockId) throw new Error('Simulation clock does not match needs state');
@@ -140,13 +141,17 @@ export function advanceNeedsFromClock(stateValue: NeedsState, observation: Simul
     }
     const deltas = state.values.map(current => {
         const definition = needsPolicy.needs.find(need => need.needId === current.needId)!;
-        const ratePerSimulationHour = selectedRate(dynamics.rules.find(item => item.needId === current.needId)!,
+        let ratePerSimulationHour = selectedRate(dynamics.rules.find(item => item.needId === current.needId)!,
             presence, rest);
+        if (current.needId === 'fatigue' && rest === 'sleeping' && ratePerSimulationHour < 0) ratePerSimulationHour = applyHousingFatigueRecoveryRate(ratePerSimulationHour,
+            { tierId: 'sleep', fatigueRecoveryMultiplierBasisPoints: sleepRecoveryBasisPoints, privateStorageSlots: 0, theftProtectionBasisPoints: 0 });
         const numerator = current.remainderNumerator + elapsedSimulationMilliseconds * ratePerSimulationHour;
         const requestedDelta = Math.trunc(numerator / RATE_DENOMINATOR);
         const unclamped = current.value + requestedDelta;
         const after = Math.max(definition.minimumValue, Math.min(definition.maximumValue, unclamped));
-        const remainderNumerator = after === unclamped ? numerator - requestedDelta * RATE_DENOMINATOR : 0;
+        const outwardAtBound = (after === definition.minimumValue && numerator < 0)
+            || (after === definition.maximumValue && numerator > 0);
+        const remainderNumerator = after === unclamped && !outwardAtBound ? numerator - requestedDelta * RATE_DENOMINATOR : 0;
         return { value: { needId: current.needId, value: after, remainderNumerator },
             delta: { needId: current.needId, before: current.value, ratePerSimulationHour,
                 appliedDelta: after - current.value, after } };

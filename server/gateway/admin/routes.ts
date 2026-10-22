@@ -1,9 +1,13 @@
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { verifyFoodSkillRunSources } from './native-food-skills.js';
+import { draftTrialAuthorization, foodTrialParameters, matchesFoodTrialParameters } from '../../../agent-skills/food-trials.js';
 import { SocietyIntegrityStore } from '../../../society-integrity/store.js';
 import { societyIntegrityDbPath } from '../../../society-integrity/runtime.js';
 import { reportSelfSufficiency, reportSocietyEvaluation, societyEvaluationContract, type MetricSourcePaths } from '../../../society-metrics/index.js';
 import { reportSocietyDashboard, readSocietyDashboardEvent, SocietyDashboardError } from '../../../society-metrics/dashboard.js';
+import { reportNativeIntegration, readNativeIntegrationEvidence, NativeIntegrationError } from '../../../society-metrics/integration-report.js';
+import { nativeIntegrationOptions, type NativeIntegrationOptions } from '../../../society-metrics/integration-sources.js';
 import { observeExternalTrade, reportExternalTrade, defaultExternalTradeOptions, type ExternalTradeOptions } from '../../../external-trade/runtime.js';
 import { reportEconomicDependencies, reportEconomicRisk, type DependencyOptions } from '../../../economic-dependency/index.js';
 import { readLongExperimentReport, readLongExperimentComparison } from '../../../society-experiments/runtime.js';
@@ -46,6 +50,7 @@ import {
     createAdminGoalProposal,
     createAdminAgentKnowledge,
     createAdminPlayerActionRequest,
+    createAdminBusinessWorkRequest,
     approveAdminPlayerActionRequest,
     finishAdminPlayerActionRun,
     listAdminAgents,
@@ -117,6 +122,7 @@ import { acceptFundedEconomicOffer, recordAndSettleEconomicContractEvidence,
 import { BusinessManagerStore, type BusinessPolicyMode, type BusinessStatus,
     type EmploymentRole } from './business-manager.js';
 import { proposeBusinessPolicyForAgent } from './business-agent-port.js';
+import { useBusinessWork } from './business-work-runtime.js';
 import { businessManagerDbPath, economicContractsDbPath } from './paths.js';
 import { loadWorldGenesisProfileCatalog, type WorldGenesisResult } from '../../../world-genesis/index.js';
 import { populationEntryDefaults, runAdminPopulationEntry, type PopulationEntryAdminOptions } from './population-entry.js';
@@ -141,6 +147,7 @@ export interface AdminRouteContext {
     selfSufficiencySources?: MetricSourcePaths;
     externalTradeOptions?: ExternalTradeOptions;
     dependencyGraphOptions?: DependencyOptions;
+    nativeIntegrationOptions?: NativeIntegrationOptions;
     longExperimentJournalPath?: string;
     longExperimentDependencies?: LongExperimentDependencies;
     populationEstateOptions?: EstateRuntimeOptions;
@@ -245,13 +252,8 @@ async function loadTrialVerificationReport(trial: SkillTrial): Promise<SkillVeri
         `${trial.verificationReportId}.json`), 'utf8')) as SkillVerificationReport;
 }
 
-function sameTrialParameters(left: unknown, right: SkillTrial['parameters']): boolean {
-    if (!left || typeof left !== 'object' || Array.isArray(left)) return false;
-    const entries = (value: object) => Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
-    return JSON.stringify(entries(left)) === JSON.stringify(entries(right));
-}
-
 async function collectTrialEvidence(trial: SkillTrial): Promise<SkillRunResult[]> {
+    const draft = await loadTrialDraft(trial);
     const files = (await readdir(skillRunsDir).catch(() => [])).filter(file => /^[0-9a-f-]{36}\.json$/i.test(file));
     const runs = await Promise.all(files.slice(0, 2_000).map(async file => {
         try {
@@ -262,7 +264,7 @@ async function collectTrialEvidence(trial: SkillTrial): Promise<SkillRunResult[]
             return run.runId === file.slice(0, -5) && run.username?.toLowerCase() === trial.testBotUsername
                 && run.skill?.id === trial.draft.id && run.skill.version === trial.draft.version
                 && run.status === 'completed' && typeof startedAt === 'string' && startedAt >= trial.createdAt
-                && sameTrialParameters(run.parameters, trial.parameters) ? run : null;
+                && matchesFoodTrialParameters(draft, run.parameters, trial.parameters) ? run : null;
         } catch { return null; }
     }));
     return runs.filter((run): run is SkillRunResult => !!run)
@@ -723,6 +725,16 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
         if (req.method === 'GET' && longExperimentMatch) return json(readLongExperimentReport(longExperimentMatch[1]!,context.longExperimentJournalPath,context.longExperimentDependencies));
         if (req.method === 'GET' && url.pathname === '/api/admin/society/evaluation/contract')
             return json(societyEvaluationContract());
+        const integrationEvent = url.pathname.match(/^\/api\/admin\/society\/integration\/evidence\/([^/]+)$/);
+        if (req.method === 'GET' && (url.pathname === '/api/admin/society/integration' || integrationEvent)) {
+            const query = { fromSimulationTime: url.searchParams.get('from') ?? '', toSimulationTime: url.searchParams.get('to') ?? '',
+                clockId: url.searchParams.get('clockId') ?? '', clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '',
+                actorAgentIds: url.searchParams.getAll('actor') };
+            const options = context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot);
+            try { return json(integrationEvent ? readNativeIntegrationEvidence(query, options, url.searchParams.get('snapshot') ?? '', decodeURIComponent(integrationEvent[1]!))
+                : reportNativeIntegration(query, options)); }
+            catch (error) { if (error instanceof NativeIntegrationError) return json({ error: error.message }, error.status); throw error; }
+        }
         const dashboardEvent = url.pathname.match(/^\/api\/admin\/society\/dashboard\/events\/([^/]+)$/);
         if (req.method === 'GET' && (url.pathname === '/api/admin/society/dashboard' || dashboardEvent)) {
             const query = { fromSimulationTime: url.searchParams.get('from') ?? '', toSimulationTime: url.searchParams.get('to') ?? '',
@@ -736,17 +748,20 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 itemId: numeric('itemId'), region: url.searchParams.get('region') ?? undefined, metric: url.searchParams.get('metric') ?? undefined,
                 eventFrom: url.searchParams.get('eventFrom') ?? undefined, eventTo: url.searchParams.get('eventTo') ?? undefined,
                 offset: numeric('offset'), limit: numeric('limit'), snapshot: url.searchParams.get('snapshot') ?? undefined };
-            const options = { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions };
+            const options = { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions,
+                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot) };
             try {
                 return json(dashboardEvent ? readSocietyDashboardEvent(query, filters, decodeURIComponent(dashboardEvent[1]!), options)
                     : reportSocietyDashboard(query, filters, options));
-            } catch (error) { if (error instanceof SocietyDashboardError) return json({ error: error.message }, error.status); throw error; }
+            } catch (error) { if (error instanceof SocietyDashboardError || error instanceof NativeIntegrationError) return json({ error: error.message }, error.status); throw error; }
         }
         if (req.method === 'GET' && url.pathname === '/api/admin/society/evaluation') {
-            return json(reportSocietyEvaluation({ fromSimulationTime: url.searchParams.get('from') ?? '',
+            try { return json(reportSocietyEvaluation({ fromSimulationTime: url.searchParams.get('from') ?? '',
                 toSimulationTime: url.searchParams.get('to') ?? '', clockId: url.searchParams.get('clockId') ?? '',
                 clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '', actorAgentIds: url.searchParams.getAll('actor') },
-            { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions }));
+            { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions,
+                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot) })); }
+            catch (error) { if (error instanceof NativeIntegrationError) return json({ error: error.message }, error.status); throw error; }
         }
         if (req.method === 'GET' && url.pathname === '/api/admin/society/self-sufficiency') {
             return json(reportSelfSufficiency({ fromSimulationTime: url.searchParams.get('from') ?? '',
@@ -1362,7 +1377,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const parameters = validateAdminSkillParameters(draft.definition, body.parameters);
             try {
                 const process = await context.supervisor.startSkill(username, draft.definition.id + '@'
-                    + draft.definition.version, parameters, { allowDraft: true });
+                    + draft.definition.version, parameters, { allowDraft: true, runtimeAuthorization: draftTrialAuthorization(draft.definition) });
                 await appendAudit({ operator: 'local-admin', action: 'skill-draft.run', username, reason,
                     success: true, after: { reference: requested, checksum: draft.checksum, parameters, process } });
                 return json({ ok: true, draft: { reference: requested, checksum: draft.checksum }, process }, 202);
@@ -1398,7 +1413,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             liveGap = await gaps.transition(liveGap.gapId, liveGap.revision, 'live-trial');
             try {
                 const process = await context.supervisor.startSkill(username,
-                    `${draft.id}@${draft.version}`, parameters, { allowDraft: true });
+                    `${draft.id}@${draft.version}`, parameters, { allowDraft: true, runtimeAuthorization: draftTrialAuthorization(draft) });
                 trial = await trials.transition(trial.trialId, trial.revision, 'running');
                 await appendAudit({ operator: 'local-admin', action: 'skill-trial.create', username, reason, success: true,
                     after: { trial, process } });
@@ -1423,8 +1438,9 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const draft = await loadTrialDraft(trial);
             const bot = (await catalog()).find(entry => entry.username === trial.testBotUsername);
             if (!bot || bot.status !== 'active' || !bot.hasCredentials || bot.currentSkill) throw new Error('A próba kijelölt tesztbotja nem áll készen.');
+            const invocationParameters = foodTrialParameters(draft, trial.parameters, body.nativeBindings);
             const process = await context.supervisor.startSkill(trial.testBotUsername,
-                `${draft.id}@${draft.version}`, trial.parameters, { allowDraft: true });
+                `${draft.id}@${draft.version}`, invocationParameters, { allowDraft: true, runtimeAuthorization: draftTrialAuthorization(draft) });
             const updated = await trials.transition(trial.trialId, trial.revision, 'running', {
                 verificationReportId: null, verificationChecks: []
             });
@@ -1439,7 +1455,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const reason = text(body, 'reason', true);
             const trials = new SkillTrialStore(skillTrialsPath);
             const trial = await trials.get(trialVerifyMatch[1]);
-            if (!trial || !['running', 'verification-failed'].includes(trial.status)) throw new Error('Ez a próba nem ellenőrizhető.');
+            if (!trial || !['running', 'verification-failed', 'verification-passed'].includes(trial.status)) throw new Error('Ez a próba nem ellenőrizhető.');
             const draft = await loadTrialDraft(trial);
             const evidence = await collectTrialEvidence(trial);
             const verificationLibrary = new SkillLibrary(new SkillRegistry(), new FileSkillStore(agentSkillsLocalDir));
@@ -1448,6 +1464,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const report = verifyAndPromoteSkill(draft, evidence, {
                 targetVersion: trial.targetVersion,
                 parameters: trial.parameters,
+                verifyFoodEvidence: run => verifyFoodSkillRunSources(repoRoot, run),
                 resolveDefinition: reference => verificationLibrary.registry
                     .get(reference, 'admin-trial-runner')?.definition ?? null
             });
@@ -1477,6 +1494,11 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             }
             const promoted = report.promoted;
             if (!promoted) throw new Error('A verifier-jelentésből hiányzik a publikálható skill.');
+            if (report.checks.some(check => check.id === 'native-food-sources')) {
+                const evidence = await collectTrialEvidence(trial);
+                if (evidence.length !== report.evidenceRunIds.length || evidence.some(run => !report.evidenceRunIds.includes(run.runId)
+                    || !verifyFoodSkillRunSources(repoRoot, run))) throw new Error('A natív food bizonyíték megváltozott a publikálás előtt.');
+            }
             const path = await new FileSkillStore(agentSkillsLocalDir).save(promoted, {
                 actorKind: 'system', actorId: SKILL_VERIFIER_ID
             });
@@ -1712,7 +1734,17 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 body.parameters && typeof body.parameters === 'object' && !Array.isArray(body.parameters)
                     ? body.parameters as Record<string, unknown> : {});
             try {
-                const request = createAdminPlayerActionRequest(requesterAgentId, {
+                const workOrderId = text(body, 'workOrderId');
+                if (workOrderId) {
+                    const order = useBusinessWork(agentStateDbPath, {}, work => work.get(workOrderId));
+                    if (!order || order.workerAgentId !== assigneeAgentId || order.skill.id !== candidate.definition.id
+                        || order.skill.version !== candidate.definition.version || order.wageGp !== Number(body.rewardGp ?? 0))
+                        throw new Error('Business shift does not match the requested worker, skill or wage');
+                }
+                const request = workOrderId ? createAdminBusinessWorkRequest(workOrderId, requesterAgentId, parameters,
+                    candidate.definition.id === 'procedure.food.cook-lobster'
+                        ? { kind: 'cook', kitchenRunId: String(parameters['kitchen-run']), batchId: String(parameters['batch-id']) }
+                        : { kind: 'delivery', recipient: String(parameters.recipient) }) : createAdminPlayerActionRequest(requesterAgentId, {
                     requestId: crypto.randomUUID(), assigneeAgentId,
                     skill: { id: candidate.definition.id, version: candidate.definition.version },
                     parameters, objective: text(body, 'objective', true), rewardGp: Number(body.rewardGp ?? 0)

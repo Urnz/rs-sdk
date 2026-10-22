@@ -1,4 +1,8 @@
 import { timingSafeEqual } from 'node:crypto';
+import { enqueueNativeHousing } from '#/mods/NativeHousingRuntime.js';
+import { enqueueNativeCommerce } from '#/mods/NativeCommerceRuntime.js';
+import { enqueueNativeKitchen } from '#/mods/NativeKitchenRuntime.js';
+import { enqueueNativeFoodSkill } from '#/mods/NativeFoodSkillRuntime.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import World, {
@@ -73,6 +77,10 @@ function authorized(req: Request): boolean {
 export async function handleInternalAdminRequest(req: Request, url: URL): Promise<Response | null> {
     const backupListMatch = url.pathname.match(/^\/api\/internal\/admin\/offline-backups\/([a-zA-Z0-9]{1,12})$/);
     const knownPath = url.pathname === '/api/internal/admin/teleport'
+        || url.pathname === '/api/internal/admin/native-housing'
+        || url.pathname === '/api/internal/admin/native-food-commerce'
+        || url.pathname === '/api/internal/admin/native-kitchen'
+        || url.pathname === '/api/internal/admin/native-food-skill'
         || url.pathname === '/api/internal/admin/witness-inspection'
         || url.pathname === '/api/internal/admin/checkpoint/search'
         || url.pathname === '/api/internal/admin/checkpoint/detection'
@@ -158,6 +166,34 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
     const commandId = typeof body.commandId === 'string' ? body.commandId.trim() : '';
     const validCommandId = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(commandId);
     if (!validCommandId) return json({ error: 'Invalid admin command identity' }, 400);
+
+    if (url.pathname === '/api/internal/admin/native-food-skill') {
+        if (Object.keys(body).sort().join(',') !== 'actionId,commandId,operation,slot,sourceId,username')
+            return json({ error: 'Invalid typed native food request' }, 400);
+        const { commandId: _commandId, ...command } = body;
+        const result = await enqueueNativeFoodSkill(command as unknown as import('../../mods/NativeFoodSkill.js').NativeFoodSkillCommand);
+        return json(result, result.ok ? 200 : 409);
+    }
+
+    if (url.pathname === '/api/internal/admin/native-housing') {
+        if (Object.keys(body).sort().join(',') !== 'commandId,operation,operationId') return json({ error: 'Invalid typed housing request' }, 400);
+        const result = await enqueueNativeHousing({ operation: body.operation as 'pay' | 'cancel' | 'sleep' | 'wake', operationId: body.operationId as string });
+        return json(result, result.ok ? 200 : 409);
+    }
+
+    if (url.pathname === '/api/internal/admin/native-food-commerce') {
+        if (Object.keys(body).sort().join(',') !== 'commandId,operation,operationId') return json({ error: 'Invalid typed native commerce request' }, 400);
+        const result = await enqueueNativeCommerce({ operation: body.operation as 'execute' | 'cancel', operationId: body.operationId as string });
+        return json(result, result.ok ? 200 : 409);
+    }
+
+    if (url.pathname === '/api/internal/admin/native-kitchen') {
+        if (Object.keys(body).sort().join(',') !== 'commandId,operation,runId' || typeof body.runId !== 'string'
+            || !/^[a-z0-9][a-z0-9._:-]{1,127}$/.test(body.runId) || !['issue', 'process', 'return'].includes(String(body.operation)))
+            return json({ error: 'Invalid typed native kitchen request' }, 400);
+        const result = await enqueueNativeKitchen({ operation: body.operation as 'issue' | 'process' | 'return', runId: body.runId });
+        return json(result, result.ok ? 200 : 409);
+    }
 
     if (url.pathname === '/api/internal/admin/witness-inspection') {
         if (!body || Array.isArray(body) || Object.keys(body).sort().join(',') !== 'commandId,eventId,observerUsername,targetPlayerSlot'

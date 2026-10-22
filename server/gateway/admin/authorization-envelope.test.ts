@@ -27,6 +27,24 @@ function grant(operation: Operation): AutonomousSkillAuthorization {
 }
 
 describe('autonomous authorization envelope', () => {
+    test('native travel reserves the possible 30 GP fee for every bounded crossing and needs an exact site grant', () => {
+        const definition: SkillDefinition = { schemaVersion: 1, id: 'procedure.travel.native-sites', version: '1.0.0',
+            name: 'Travel', description: 'Bounded travel.', status: 'verified', tags: ['travel'], preconditions: [],
+            limits: { timeoutMs: 360000, maxOperations: 2 }, sharing: { visibility: 'shared' },
+            provenance: { authorKind: 'human', authorId: 'fixture', createdAt: '2026-10-22T00:00:00.000Z' }, parameters: {
+            site: { type: 'string', description: 'site', required: true, enum: ['pier', 'housing', 'kitchen'] }
+        }, steps: [{ kind: 'operation', id: 'travel', operation: 'travel-to-site', arguments: { site: { parameter: 'site' } } }] };
+        const authorization: AutonomousSkillAuthorization = { id: definition.id, version: definition.version, risk: 'routine',
+            parameters: { site: { oneOf: ['pier', 'housing', 'kitchen'] } }, operations: ['travel-to-site'], maxGpPerRun: 30, maxGpPerDay: 90 };
+        expect(evaluateAuthorizationEnvelope(authorization, definition, { site: 'pier' })).toMatchObject({ allowed: true, reservedGp: 30 });
+        expect(evaluateAuthorizationEnvelope({ ...authorization, maxGpPerRun: 0 }, definition, { site: 'pier' }).allowed).toBe(false);
+        expect(evaluateAuthorizationEnvelope(authorization, definition, { site: 'arbitrary' }).allowed).toBe(false);
+        expect(evaluateAuthorizationEnvelope({ ...authorization, operations: undefined }, definition, { site: 'pier' }).allowed).toBe(false);
+        definition.steps = [{ kind: 'repeat', id: 'twice', maxIterations: 2,
+            until: { condition: 'inventory-full', arguments: {} }, steps: definition.steps }];
+        expect(evaluateAuthorizationEnvelope(authorization, definition, { site: 'pier' }).allowed).toBe(false);
+        expect(evaluateAuthorizationEnvelope({ ...authorization, maxGpPerRun: 60 }, definition, { site: 'pier' })).toMatchObject({ allowed: true, reservedGp: 60 });
+    });
     test('allows routine reviewed defaults but rejects an unconstrained override', () => {
         expect(evaluateAuthorizationEnvelope(grant('gather-loc'), skill('gather-loc'),
             { amount: 1, item: 'Hammer', partner: 'Worker1' }).allowed).toBeTrue();

@@ -55,4 +55,21 @@ describe('isolated draft skill trial store', () => {
         });
         expect(retried).toMatchObject({ status: 'running', verificationReportId: null, verificationChecks: [] });
     });
+
+    test('reverification replaces the report and revision before publication and can revoke a previous pass', async () => {
+        const trials = await store();
+        const trial = await trials.create({ gapId: 'gap-bbbbbbbbbbbbbbbbbbbb',
+            draft: { id: 'fish.lobster', version: '0.1.0' }, targetVersion: '1.0.0', testBotUsername: 'Trialbot', parameters: {} });
+        const running = await trials.transition(trial.trialId, trial.revision, 'running');
+        const passed = await trials.transition(trial.trialId, running.revision, 'verification-passed', {
+            verificationReportId: '11111111-1111-4111-8111-111111111111' });
+        const refreshed = await trials.transition(trial.trialId, passed.revision, 'verification-passed', {
+            verificationReportId: '22222222-2222-4222-8222-222222222222' });
+        expect(refreshed.verificationReportId).not.toBe(passed.verificationReportId);
+        await expect(trials.transition(trial.trialId, passed.revision, 'published')).rejects.toThrow('changed');
+        const revoked = await trials.transition(trial.trialId, refreshed.revision, 'verification-failed', {
+            verificationReportId: '33333333-3333-4333-8333-333333333333',
+            verificationChecks: [{ id: 'native-source', passed: false, message: 'Source no longer verifies.' }] });
+        await expect(trials.transition(trial.trialId, revoked.revision, 'published')).rejects.toThrow('Invalid');
+    });
 });

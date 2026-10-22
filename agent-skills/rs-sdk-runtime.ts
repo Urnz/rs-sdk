@@ -1,5 +1,6 @@
 import type { BotActions } from '../sdk/actions';
 import type { BotSDK } from '../sdk';
+import { travelToSocietySite } from './society-travel.js';
 import type {
     SkillConditionName,
     SkillOperationName,
@@ -102,11 +103,47 @@ export class RsSdkSkillRuntime implements SkillRuntime {
         private readonly authorization?: SkillRuntimeAuthorization
     ) {}
 
-    async execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal): Promise<SkillOperationResult> {
+    async execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal,
+        context?: import('../sdk/society-food').SocietyFoodContext): Promise<SkillOperationResult> {
         if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
         const authorizationFailure = this.authorize(operation, args);
         if (authorizationFailure) return authorizationFailure;
         switch (operation) {
+            case 'travel-to-site':
+                return travelToSocietySite(this.bot, this.sdk, args.site, signal, () => {
+                    if (!this.authorization || this.authorization.maxGpPerRun - this.spentGp < 30) return false;
+                    // Reserve the full possible fee before any dialog. Uncertainty never restores this run's budget.
+                    this.spentGp += 30; return true;
+                });
+            case 'food-gather':
+            case 'food-cook':
+            case 'food-consume': {
+                if (!context) return { success: false, message: 'Food operation requires an executor run binding',
+                    code: 'food-context-required', retryable: false };
+                const { validateSocietyFoodRequest } = await import('../sdk/society-food.js');
+                const request = validateSocietyFoodRequest({ operation, args, context });
+                const deadline = Date.now() + Number(args.timeoutMs);
+                for (let poll = 0; poll < 120 && Date.now() < deadline; poll++) {
+                    const denied = this.authorize(operation, args);
+                    if (denied) return { ...denied, retryable: false };
+                    let result;
+                    try { result = await withAbort(this.sdk.sendSocietyFood(request), signal); }
+                    catch { return { success: false, message: 'Food dispatch interrupted; reconcile the same run before further action',
+                        code: 'food-uncertain', retryable: false, data: { context } }; }
+                    if (result.data?.status !== 'waiting') {
+                        const terminal = result.phase === 'completion' && result.data?.status === 'terminal'
+                            && result.data.receipt && /^[a-f0-9]{64}$/.test(result.data.receiptDigest)
+                            && JSON.stringify(result.data.context) === JSON.stringify(context);
+                        return { success: result.success && !!terminal, message: result.success && !terminal
+                            ? 'Dispatch success lacks a correlated native source outcome' : result.message,
+                        code: !terminal && result.reason !== 'food-source-rejected' ? 'food-uncertain' : result.reason,
+                        data: result.data, retryable: false };
+                    }
+                    await withAbort(new Promise(resolve => setTimeout(resolve, 250)), signal);
+                }
+                return { success: false, message: 'Food outcome is pending; reconcile the same run without a new action',
+                    code: 'food-uncertain', retryable: false, data: { context } };
+            }
             case 'walk-to': {
                 const x = numberArg(args, 'x', undefined, 0, 16_383);
                 const z = numberArg(args, 'z', undefined, 0, 16_383);
@@ -362,13 +399,13 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                         retryOnBusy: true
                     }
                 );
-                return normalized(result, {
+                return { ...normalized({ ...result, success: result.success && !result.possiblyDropped?.length }, {
                     partner: result.partner ?? args.player,
                     gave: result.gave,
                     received: result.received,
                     possiblyDropped: result.possiblyDropped,
                     inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
-                });
+                }), code: result.success && !result.possiblyDropped?.length ? undefined : 'trade-uncertain', retryable: false };
             }
             case 'trade-receive-item': {
                 const before = snapshotInventory(this.sdk);
@@ -385,13 +422,13 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                         retryOnBusy: true
                     }
                 );
-                return normalized(result, {
+                return { ...normalized({ ...result, success: result.success && !result.possiblyDropped?.length }, {
                     partner: result.partner ?? args.player,
                     gave: result.gave,
                     received: result.received,
                     possiblyDropped: result.possiblyDropped,
                     inventoryDelta: inventoryDelta(before, snapshotInventory(this.sdk))
-                });
+                }), code: result.success && !result.possiblyDropped?.length ? undefined : 'trade-uncertain', retryable: false };
             }
             case 'open-bank':
                 return normalized(await this.bot.openBank(numberArg(args, 'timeoutMs', 10_000, 100, 60_000)));
@@ -523,6 +560,10 @@ export class RsSdkSkillRuntime implements SkillRuntime {
 
     private authorize(operation: SkillOperationName, args: Record<string, unknown>): SkillOperationResult | null {
         const authorization = this.authorization;
+        if (operation.startsWith('food-') && (!authorization || !authorization.itemNames.includes(String(args.item).toLowerCase())
+            || (operation === 'food-cook' && !authorization.itemNames.includes('lobster')))) {
+            return { success: false, message: 'Food operation requires an explicit exact-item runtime grant', code: 'authorization-item' };
+        }
         if (!authorization) return null;
         if (!authorization.operations.includes(operation)) {
             return { success: false, message: `${operation} is outside the runtime authorization`,
@@ -535,7 +576,7 @@ export class RsSdkSkillRuntime implements SkillRuntime {
             return { success: false, message: `${operation} exceeds the runtime quantity limit`,
                 code: 'authorization-quantity' };
         }
-        const itemValue = operation === 'trade-give-item' || operation === 'trade-receive-item' ? args.item
+        const itemValue = operation.startsWith('food-') || operation === 'trade-give-item' || operation === 'trade-receive-item' ? args.item
             : ['buy-from-shop', 'sell-to-shop', 'deposit-item', 'withdraw-item'].includes(operation) ? args.name : undefined;
         if (itemValue !== undefined && (typeof itemValue !== 'string'
             || (authorization.itemNames.length > 0

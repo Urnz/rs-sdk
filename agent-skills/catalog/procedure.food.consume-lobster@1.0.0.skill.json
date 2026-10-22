@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "status": "verified",
+  "tags": [
+    "procedure",
+    "food",
+    "society",
+    "native"
+  ],
+  "provenance": {
+    "authorKind": "system",
+    "authorId": "deterministic-skill-verifier",
+    "createdAt": "2026-10-21T17:46:37.091Z",
+    "derivedFrom": {
+      "id": "procedure.food.consume-lobster",
+      "version": "0.1.0"
+    },
+    "notes": "Automatically promoted from procedure.food.consume-lobster@0.1.0; evidence runs: 26ffa738-f94d-4ec3-be1d-e00f67d41239, 84fe942e-9e75-4ecb-b8f2-a088a4cba66d."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "id": "procedure.food.consume-lobster",
+  "name": "Consume one native lobster",
+  "description": "Consumes the exact cooked item and slot through native content; HP gain is not required and only the canonical consumption receipt proves use.",
+  "parameters": {
+    "slot": {
+      "type": "number",
+      "description": "Exact current lobster inventory slot.",
+      "required": true,
+      "minimum": 0,
+      "maximum": 27
+    }
+  },
+  "limits": {
+    "timeoutMs": 15000,
+    "maxOperations": 1
+  },
+  "preconditions": [
+    {
+      "condition": "inventory-contains",
+      "arguments": {
+        "name": "Lobster",
+        "match": "exact",
+        "amount": 1
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "consume",
+      "operation": "food-consume",
+      "arguments": {
+        "item": "Lobster",
+        "itemId": 379,
+        "amount": 1,
+        "slot": {
+          "parameter": "slot"
+        },
+        "timeoutMs": 10000
+      }
+    }
+  ]
+}

@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Database } from 'bun:sqlite';
-import { loadDefaultBusinessRoleCatalog,resolveBusinessRole,type BusinessRoleCatalog } from '../business-roles/index.js';
+import { OwnedDatabase as Database } from '../server/engine/src/io/OwnedDatabase.js';
+import { migrateWorkBindings, readWorkBindings, writeWorkBinding, workDigest, type BusinessWorkBinding } from './binding.js';
+import { businessRoleAllowsSkill,loadDefaultBusinessRoleCatalog,resolveBusinessRole,type BusinessRoleCatalog } from '../business-roles/index.js';
 
 export interface SkillRef{id:string;version:string}
 export interface BusinessWorkPolicy{policyId:string;businessId:string;roleDefinitionId:string;requiredSkill:SkillRef;
@@ -60,12 +61,11 @@ export function validateBusinessWorkPolicyCatalog(value:unknown):BusinessWorkPol
 export function loadDefaultBusinessWorkPolicyCatalog():BusinessWorkPolicyCatalog{const catalog=validateBusinessWorkPolicyCatalog(JSON.parse(
     readFileSync(join(import.meta.dir,'..','config','business-work-policies.json'),'utf8')) as unknown),roles=loadDefaultBusinessRoleCatalog();
     for(const policy of catalog.policies){const role=resolveBusinessRole(roles,policy.roleDefinitionId);if(role.legacyProjection!=='worker')
-        throw new Error(`Business work policy ${policy.policyId} must target a worker role`);if(!roles.verifiedSkillKeys.includes(
-            `${policy.requiredSkill.id}@${policy.requiredSkill.version}`))throw new Error(`Business work policy ${policy.policyId} skill is not verified`)}return catalog}
+        throw new Error(`Business work policy ${policy.policyId} must target a worker role`);}return catalog}
 
 export class BusinessWorkStore{private readonly database:Database;constructor(path:string,private readonly catalog:BusinessWorkPolicyCatalog=
     loadDefaultBusinessWorkPolicyCatalog(),private readonly roles:BusinessRoleCatalog=loadDefaultBusinessRoleCatalog()){
-    this.database=new Database(path,{create:true,strict:true});this.database.run('PRAGMA foreign_keys = ON');
+    this.database=new Database(path,{create:true,strict:true});try{this.database.run('PRAGMA busy_timeout=5000');this.database.run('PRAGMA foreign_keys = ON');
     this.database.run(`CREATE TABLE IF NOT EXISTS business_facility_entitlement(entitlement_id TEXT PRIMARY KEY,business_id TEXT NOT NULL,
         property_id TEXT NOT NULL,facility_capability TEXT NOT NULL,valid_from TEXT NOT NULL,valid_until TEXT,created_at TEXT NOT NULL,
         UNIQUE(business_id,property_id,facility_capability,valid_from))`);
@@ -74,7 +74,7 @@ export class BusinessWorkStore{private readonly database:Database;constructor(pa
         property_id TEXT NOT NULL,facility_capability TEXT NOT NULL,wage_gp INTEGER NOT NULL,scheduled_start TEXT NOT NULL,scheduled_end TEXT NOT NULL,
         status TEXT NOT NULL CHECK(status IN('scheduled','running','completed','cancelled')),actual_minutes INTEGER,evidence_id TEXT UNIQUE,
         wage_status TEXT NOT NULL CHECK(wage_status IN('unearned','earned','paid')),wage_settlement_id TEXT UNIQUE,
-        created_at TEXT NOT NULL,updated_at TEXT NOT NULL)`)}close():void{this.database.close(true)}
+        created_at TEXT NOT NULL,updated_at TEXT NOT NULL)`);migrateWorkBindings(this.database)}catch(error){this.database.close(true);throw error}}close():void{this.database.close(true)}
     grantEntitlement(input:Omit<FacilityEntitlement,'createdAt'>,now=new Date().toISOString()):FacilityEntitlement{
         const entitlement={entitlementId:id(input.entitlementId,'entitlementId'),businessId:id(input.businessId,'businessId'),
             propertyId:id(input.propertyId,'propertyId'),facilityCapability:id(input.facilityCapability,'facilityCapability'),
@@ -91,23 +91,27 @@ export class BusinessWorkStore{private readonly database:Database;constructor(pa
             throw new Error('Work order shift duration is outside policy');const employment=this.database.query(`SELECT * FROM business_employment
             WHERE employment_id=?1 AND business_id=?2 AND status='active'`).get(employmentId,policy.businessId) as Record<string,unknown>|null;
         if(!employment||employment.role_definition_id!==policy.roleDefinitionId)throw new Error('Work order requires an active exact-role employment');
-        resolveBusinessRole(this.roles,String(employment.role_definition_id));if(employment.required_skill_id&&
+        const role=resolveBusinessRole(this.roles,String(employment.role_definition_id));if(!this.roles.verifiedSkillKeys.includes(`${policy.requiredSkill.id}@${policy.requiredSkill.version}`))throw new Error('Work order skill is not verified');
+        if(!businessRoleAllowsSkill(role,policy.requiredSkill,employment.required_skill_id?{id:String(employment.required_skill_id),version:String(employment.required_skill_version)}:null))throw new Error('Work order skill is not allowed by role');if(employment.required_skill_id&&
             (employment.required_skill_id!==policy.requiredSkill.id||employment.required_skill_version!==policy.requiredSkill.version))
             throw new Error('Work order skill does not match employment');this.requireEntitlement(policy,scheduledStart,scheduledEnd);
-        this.database.run(`INSERT INTO business_work_order VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,
+        this.database.run(`INSERT INTO business_work_order(work_order_id,policy_id,business_id,employment_id,worker_agent_id,role_definition_id,skill_id,skill_version,property_id,facility_capability,wage_gp,scheduled_start,scheduled_end,status,actual_minutes,evidence_id,wage_status,wage_settlement_id,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,
             'scheduled',NULL,NULL,'unearned',NULL,?14,?14)`,
-            [workOrderId,policy.policyId,policy.businessId,employmentId,employment.worker_agent_id,employment.role_definition_id,
-                policy.requiredSkill.id,policy.requiredSkill.version,policy.propertyId,policy.facilityCapability,employment.wage_gp,
+            [workOrderId,policy.policyId,policy.businessId,employmentId,String(employment.worker_agent_id),String(employment.role_definition_id),
+                policy.requiredSkill.id,policy.requiredSkill.version,policy.propertyId,policy.facilityCapability,Number(employment.wage_gp),
                 scheduledStart,scheduledEnd,now]);return this.get(workOrderId)!}
-    start(workOrderId:string,now=new Date().toISOString()):BusinessWorkOrder{const order=this.required(workOrderId);if(order.status==='running')return order;
+    start(workOrderId:string,now=new Date().toISOString()):BusinessWorkOrder{const order=this.required(workOrderId);
+        if(this.binding(workOrderId))throw new Error('Bound work requires its exact player-action start');if(order.status==='running')return order;
         if(order.status!=='scheduled'||now<order.scheduledStart||now>order.scheduledEnd)throw new Error('Work order is outside its scheduled shift');
-        this.database.run(`UPDATE business_work_order SET status='running',updated_at=?2 WHERE work_order_id=?1 AND status='scheduled'`,[workOrderId,now]);
-        return this.get(workOrderId)!}
-    expire(workOrderId:string,now=new Date().toISOString()):BusinessWorkOrder{const order=this.required(workOrderId);
-        if(order.status==='cancelled')return order;if(order.status!=='running'||now<=order.scheduledEnd)
-            throw new Error('Only an expired running work order can be cancelled');this.database.run(`UPDATE business_work_order
-            SET status='cancelled',updated_at=?2 WHERE work_order_id=?1 AND status='running'`,[workOrderId,now]);return this.get(workOrderId)!}
+        return this.boundMutation(workOrderId,()=>{this.assertAuthorized(workOrderId);
+            this.database.run(`UPDATE business_work_order SET status='running',updated_at=?2 WHERE work_order_id=?1 AND status='scheduled'`,[workOrderId,now]);
+            return this.get(workOrderId)!})}
+    expire(workOrderId:string,now=new Date().toISOString()):BusinessWorkOrder{const order=this.required(workOrderId);this.binding(workOrderId);
+        if(order.status==='cancelled')return order;if(!['scheduled','running'].includes(order.status)||now<=order.scheduledEnd)
+            throw new Error('Only an expired running work order can be cancelled');return this.boundMutation(workOrderId,()=>{
+                this.database.run(`UPDATE business_work_order SET status='cancelled',updated_at=?2 WHERE work_order_id=?1`,[workOrderId,now]);return this.get(workOrderId)!})}
     complete(workOrderId:string,evidence:WorkCompletionEvidence,verify?:WorkEvidenceVerifier):BusinessWorkOrder{const order=this.required(workOrderId);
+        if(!this.boundWrite&&this.binding(workOrderId))throw new Error('Bound work requires native completion reconciliation');
         if(order.status==='completed'){if(order.evidenceId!==evidence.evidenceId)throw new Error('Completed work order evidence differs');return order}
         if(!verify||!verify(evidence))throw new Error('Work completion evidence is not trusted');if(order.status!=='running'||evidence.workOrderId!==order.workOrderId
             ||evidence.businessId!==order.businessId||evidence.workerAgentId!==order.workerAgentId||evidence.skill.id!==order.skill.id
@@ -119,6 +123,7 @@ export class BusinessWorkStore{private readonly database:Database;constructor(pa
             WHERE work_order_id=?1 AND status='running'`,[order.workOrderId,minutes,evidence.evidenceId,evidence.completedAt]);return this.get(workOrderId)!}
     settleWage(workOrderId:string,settlementIdInput:string,verify?:(order:BusinessWorkOrder,settlementId:string)=>boolean,
         now=new Date().toISOString()):BusinessWorkOrder{const order=this.required(workOrderId),settlementId=id(settlementIdInput,'settlementId');
+        if(!this.boundWrite&&this.binding(workOrderId))throw new Error('Bound work requires engine receipt reconciliation');
         if(order.wageStatus==='paid'){if(order.wageSettlementId!==settlementId)throw new Error('Work order wage settlement differs');return order}
         if(order.status!=='completed'||order.wageStatus!=='earned'||!verify||!verify(order,settlementId))
             throw new Error('Work order wage requires a trusted exact settlement');this.database.run(`UPDATE business_work_order
@@ -126,6 +131,58 @@ export class BusinessWorkStore{private readonly database:Database;constructor(pa
         [order.workOrderId,settlementId,now]);return this.get(workOrderId)!}
     get(workOrderIdInput:string):BusinessWorkOrder|null{const row=this.database.query('SELECT * FROM business_work_order WHERE work_order_id=?1')
         .get(id(workOrderIdInput,'workOrderId')) as Record<string,unknown>|null;return row?workOrder(row):null}
+    private boundWrite=false;
+    bindings():BusinessWorkBinding[]{let result!:BusinessWorkBinding[];this.database.transaction(()=>{result=readWorkBindings(this.database)}).deferred();return result}
+    binding(workOrderId:string):BusinessWorkBinding|null{return this.bindings().find(b=>b.workOrderId===workOrderId)??null}
+    cancelBoundRequest(workOrderId:string,now=new Date().toISOString()):BusinessWorkOrder{
+        const binding=this.binding(workOrderId),order=this.required(workOrderId);
+        if(!binding||binding.runId||order.wageStatus!=='unearned')throw new Error('Only unstarted bound work can be cancelled');
+        if(order.status==='cancelled')return order;
+        if(order.status!=='scheduled')throw new Error('Bound work has already started');
+        return this.boundMutation(workOrderId,()=>{this.database.run("UPDATE business_work_order SET status='cancelled',updated_at=?2 WHERE work_order_id=?1",[workOrderId,now]);return this.required(workOrderId)})}
+    bindRequest(binding:BusinessWorkBinding,now=new Date().toISOString()):BusinessWorkBinding{
+        let result!:BusinessWorkBinding;this.database.transaction(()=>{result=(()=>{
+            const existing=this.binding(binding.workOrderId);
+            if(existing){if(workDigest({...existing,runId:null})!==workDigest({...binding,runId:null}))throw new Error('Work request binding differs');return existing}
+            const order=this.assertAuthorized(binding.workOrderId);
+            if(order.status!=='scheduled'||now>order.scheduledEnd||order.wageGp<1||binding.runId!==null
+                ||binding.request.assigneeAgentId!==order.workerAgentId||binding.request.rewardGp!==order.wageGp
+                ||workDigest(binding.request.skill)!==workDigest(order.skill))throw new Error('Work request does not match scheduled order');
+            const anchor=workDigest(binding);
+            this.database.run('UPDATE business_work_order SET binding_digest=?2 WHERE work_order_id=?1',[order.workOrderId,anchor]);
+            writeWorkBinding(this.database,binding);return binding;
+        })()}).immediate();return result}
+    bindRun(workOrderId:string,runId:string,now=new Date().toISOString()):BusinessWorkOrder{
+        if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(runId))throw new Error('Work run id is invalid');
+        let result!:BusinessWorkOrder;this.database.transaction(()=>{result=(()=>{
+            const binding=this.binding(workOrderId);if(!binding)throw new Error('Work request binding is missing');
+            if(binding.runId){if(binding.runId!==runId)throw new Error('Work shift is already bound to another run');return this.required(workOrderId)}
+            const order=this.assertAuthorized(workOrderId);
+            if(order.status!=='scheduled'||now<order.scheduledStart||now>=order.scheduledEnd)throw new Error('Work order is outside its scheduled shift');
+            this.database.run("UPDATE business_work_order SET status='running',updated_at=?2 WHERE work_order_id=?1",[workOrderId,now]);
+            writeWorkBinding(this.database,{...binding,runId});return this.required(workOrderId);
+        })()}).immediate();return result}
+    completeBound(workOrderId:string,evidence:WorkCompletionEvidence,verify:WorkEvidenceVerifier):BusinessWorkOrder{
+        const binding=this.binding(workOrderId);if(!binding?.runId)throw new Error('Native work has no bound run');
+        return this.boundMutation(workOrderId,()=>this.complete(workOrderId,evidence,verify))}
+    settleBoundWage(workOrderId:string,settlementId:string,verify:(order:BusinessWorkOrder,settlementId:string)=>boolean,
+        now=new Date().toISOString()):BusinessWorkOrder{
+        if(this.binding(workOrderId)?.settlementId!==settlementId)throw new Error('Bound work settlement differs');
+        return this.boundMutation(workOrderId,()=>this.settleWage(workOrderId,settlementId,verify,now))}
+    assertAuthorized(workOrderId:string):BusinessWorkOrder{
+        const order=this.required(workOrderId),policy=this.policy(order.policyId);
+        const employment=this.database.query("SELECT * FROM business_employment WHERE employment_id=?1 AND status='active'").get(order.employmentId) as Record<string,unknown>|null;
+        const business=this.database.query("SELECT * FROM business WHERE business_id=?1 AND status='active'").get(order.businessId) as Record<string,unknown>|null;
+        const required=employment?.required_skill_id?{id:String(employment.required_skill_id),version:String(employment.required_skill_version)}:null;
+        if(!business||business.property_id!==order.propertyId||!employment||employment.business_id!==order.businessId
+            ||employment.worker_agent_id!==order.workerAgentId||employment.role_definition_id!==order.roleDefinitionId||employment.wage_gp!==order.wageGp
+            ||policy.businessId!==order.businessId||policy.roleDefinitionId!==order.roleDefinitionId||workDigest(policy.requiredSkill)!==workDigest(order.skill)
+            ||!this.roles.verifiedSkillKeys.includes(`${order.skill.id}@${order.skill.version}`)
+            ||!businessRoleAllowsSkill(resolveBusinessRole(this.roles,order.roleDefinitionId),order.skill,required))throw new Error('Work order exact role/skill employment authority changed');
+        this.requireEntitlement(policy,order.scheduledStart,order.scheduledEnd);return order}
+    private boundMutation<T>(workOrderId:string,mutate:()=>T):T{
+        let result!:T;this.database.transaction(()=>{const binding=this.binding(workOrderId);this.boundWrite=true;
+            try{result=mutate();if(binding)writeWorkBinding(this.database,binding)}finally{this.boundWrite=false}}).immediate();return result}
     private required(workOrderId:string):BusinessWorkOrder{const order=this.get(workOrderId);if(!order)throw new Error('Business work order does not exist');return order}
     private policy(policyId:string):BusinessWorkPolicy{if(this.catalog.digest!==digest({schemaVersion:this.catalog.schemaVersion,policies:this.catalog.policies}))
         throw new Error('Business work policy catalog digest mismatch');const policy=this.catalog.policies.find(value=>value.policyId===policyId);

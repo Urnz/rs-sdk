@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
-import type { MarketStore } from '#/engine/market/MarketStore.js';
+interface EscrowCheckpointDatabase { db: Database; checkpoint(owner: string, save: Uint8Array, enroll?: boolean): void }
 
 export interface PlayerEscrowItem {
     id: number;
@@ -58,7 +58,7 @@ interface EscrowRow {
     created_at: string; updated_at: string; error: string | null;
 }
 interface EscrowAuditRow { escrow_id: string; operation: PlayerEscrowCheckpointCommand['operation'];
-    row_digest: string; previous_hash: string; entry_hash: string; occurred_at: string }
+    row_digest: string; previous_hash: string; entry_hash: string; occurred_at: string; business_binding_digest?: string | null }
 
 const MAX_STACK = 2_147_483_647;
 const ZERO_HASH = '0'.repeat(64);
@@ -126,13 +126,17 @@ function isoTimestamp(value: string): string {
 
 export class PlayerInventoryEscrowStore {
     private readonly database: Database;
-    private readonly sharedMarket: MarketStore | null;
+    private readonly sharedMarket: EscrowCheckpointDatabase | null;
     private atomicMutation = false;
 
-    constructor(pathOrMarket: string | MarketStore) {
+    constructor(pathOrMarket: string | EscrowCheckpointDatabase, readOnly = false) {
         this.sharedMarket = typeof pathOrMarket === 'string' ? null : pathOrMarket;
         if (typeof pathOrMarket === 'string') mkdirSync(dirname(pathOrMarket), { recursive: true });
         this.database = this.sharedMarket?.db ?? new Database(pathOrMarket as string, { create: true, strict: true });
+        if (readOnly) {
+            if (!this.sharedMarket || !this.verifySharedAuditChain()) throw new Error('Readonly shared escrow audit is invalid');
+            return;
+        }
         this.database.run(`CREATE TABLE IF NOT EXISTS player_inventory_escrow (
             escrow_id TEXT PRIMARY KEY, username TEXT NOT NULL, assets_json TEXT NOT NULL,
             status TEXT NOT NULL CHECK (status IN ('pending', 'held', 'releasing', 'released', 'rejected', 'reconcile')),
@@ -147,6 +151,11 @@ export class PlayerInventoryEscrowStore {
             sequence INTEGER PRIMARY KEY AUTOINCREMENT, escrow_id TEXT NOT NULL,
             operation TEXT NOT NULL, row_digest TEXT NOT NULL, previous_hash TEXT NOT NULL,
             entry_hash TEXT NOT NULL, occurred_at TEXT NOT NULL)`);
+        if (this.sharedMarket) {
+            this.addColumn('player_inventory_escrow_audit', 'business_binding_digest', 'TEXT');
+            this.database.run(`CREATE TABLE IF NOT EXISTS player_inventory_escrow_business_binding(
+                escrow_id TEXT PRIMARY KEY,binding_digest TEXT NOT NULL)`);
+        }
     }
 
     private addColumn(table: string, column: string, declaration: string): void {
@@ -169,14 +178,19 @@ export class PlayerInventoryEscrowStore {
         const audit = this.database.query('SELECT * FROM player_inventory_escrow_audit ORDER BY sequence')
             .all() as EscrowAuditRow[];
         const latest = new Map<string, string>();
+        const purposes = new Map<string, string>();
         let previous = ZERO_HASH;
         for (const entry of audit) {
             const payload = { escrowId: entry.escrow_id, operation: entry.operation,
-                rowDigest: entry.row_digest, occurredAt: entry.occurred_at };
+                rowDigest: entry.row_digest, occurredAt: entry.occurred_at,
+                ...(entry.business_binding_digest ? { businessBindingDigest: entry.business_binding_digest } : {}) };
             if (entry.previous_hash !== previous || entry.entry_hash !== hash({ previous, payload })) return false;
             previous = entry.entry_hash;
             latest.set(entry.escrow_id, entry.row_digest);
+            if (entry.business_binding_digest) purposes.set(entry.escrow_id, entry.business_binding_digest);
         }
+        const bindings = this.database.query('SELECT * FROM player_inventory_escrow_business_binding').all() as { escrow_id: string; binding_digest: string }[];
+        if (bindings.length !== purposes.size || bindings.some(row => purposes.get(row.escrow_id) !== row.binding_digest)) return false;
         const rows = this.database.query('SELECT * FROM player_inventory_escrow').all() as EscrowRow[];
         return latest.size === rows.length && rows.every(row => latest.get(row.escrow_id) === rowDigest(row));
     }
@@ -193,10 +207,13 @@ export class PlayerInventoryEscrowStore {
         const previous = (this.database.query(`SELECT entry_hash FROM player_inventory_escrow_audit
             ORDER BY sequence DESC LIMIT 1`).get() as { entry_hash: string } | null)?.entry_hash ?? ZERO_HASH;
         const payload = { escrowId, operation, rowDigest: digest, occurredAt };
+        const purpose = this.database.query('SELECT binding_digest FROM player_inventory_escrow_business_binding WHERE escrow_id=?1')
+            .get(escrowId) as { binding_digest: string } | null;
+        const boundPayload = { ...payload, ...(purpose ? { businessBindingDigest: purpose.binding_digest } : {}) };
         this.database.run(`INSERT INTO player_inventory_escrow_audit
-            (escrow_id,operation,row_digest,previous_hash,entry_hash,occurred_at)
-            VALUES(?1,?2,?3,?4,?5,?6)`,
-        [escrowId, operation, digest, previous, hash({ previous, payload }), occurredAt]);
+            (escrow_id,operation,row_digest,previous_hash,entry_hash,occurred_at,business_binding_digest)
+            VALUES(?1,?2,?3,?4,?5,?6,?7)`,
+        [escrowId, operation, digest, previous, hash({ previous, payload: boundPayload }), occurredAt, purpose?.binding_digest ?? null]);
     }
 
     /**
@@ -204,7 +221,7 @@ export class PlayerInventoryEscrowStore {
      * The live engine must not use this until legacy escrow migration and a checkpoint authority exist.
      */
     mutateWithCheckpoint(command: PlayerEscrowCheckpointCommand, wallet: PlayerInventoryEscrowWallet,
-        account: PlayerEscrowCheckpoint, now = new Date().toISOString()): PlayerInventoryEscrowRecord {
+        account: PlayerEscrowCheckpoint, now = new Date().toISOString(), businessBindingDigest?: string): PlayerInventoryEscrowRecord {
         if (!this.sharedMarket) throw new Error('Escrow checkpoint requires a shared player save database');
         const affectedUsername = command.operation === 'commit' ? command.payeeUsername : command.username;
         if (account.owner !== exactUsername(account.owner)
@@ -215,6 +232,14 @@ export class PlayerInventoryEscrowStore {
             let value!: PlayerInventoryEscrowRecord;
             this.database.transaction(() => {
                 if (!this.verifySharedAuditChain()) throw new Error('Shared player escrow audit chain is invalid');
+                const binding = this.database.query('SELECT binding_digest FROM player_inventory_escrow_business_binding WHERE escrow_id=?1')
+                    .get(command.escrowId) as { binding_digest: string } | null;
+                if (binding && binding.binding_digest !== businessBindingDigest) throw new Error('Business custody requires its exact native WIP authority');
+                if (businessBindingDigest) {
+                    if (!/^[0-9a-f]{64}$/.test(businessBindingDigest)) throw new Error('Invalid Business custody binding');
+                    if (!binding && command.operation !== 'hold') throw new Error('Business custody binding is absent');
+                    if (!binding) this.database.run('INSERT INTO player_inventory_escrow_business_binding VALUES(?1,?2)', [command.escrowId, businessBindingDigest]);
+                }
                 mutationStarted = true;
                 this.atomicMutation = true;
                 let result: PlayerInventoryEscrowRecord;

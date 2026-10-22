@@ -9,6 +9,9 @@ import ScriptFile from '#/engine/script/ScriptFile.js';
 import ScriptPointer, { ScriptPointerNameMap } from '#/engine/script/ScriptPointer.js';
 import ServerTriggerType from '#/engine/script/ServerTriggerType.js';
 import { toInt32 } from '#/util/Numbers.js';
+import type { NativeFoodProductionPorts, NativeFoodProductionStage } from '#/mods/NativeFoodProduction.js';
+import type { NativeFoodTradePorts } from '#/mods/NativeFoodTrade.js';
+import type { NativeTravelFarePorts } from '#/mods/NativeTravelFare.js';
 
 export interface GosubStackFrame {
     script: ScriptFile;
@@ -37,6 +40,15 @@ export default class ScriptState {
     trigger: ServerTriggerType;
     execution = ScriptState.RUNNING;
     executionHistory: number[] = [];
+    /** Engine-owned witness for the allowlisted synchronous native food operation. */
+    nativeFoodConsumption: { username: string; itemId: number; slot: number; inventoryId: number; deletions: number } | null = null;
+    nativeFoodProductionActionId: string | null = null;
+    nativeFoodProductionStage: NativeFoodProductionStage | null = null;
+    /** Trusted engine/test ports; never populated from a client packet or model response. */
+    nativeFoodProductionPorts: NativeFoodProductionPorts | null = null;
+    nativeFoodTradePorts: NativeFoodTradePorts | null = null;
+    nativeTravelFareId: string | null = null;
+    nativeTravelFarePorts: NativeTravelFarePorts | null = null;
 
     pc = -1; // program counter
     opcount = 0; // number of opcodes executed

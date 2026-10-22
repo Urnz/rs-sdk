@@ -39,6 +39,7 @@ export class PlayerHealthEvidenceStore {
             const statement = Reflect.apply(target,receiver,args); this.statements.add(statement); return statement;
         }});
         try {
+            this.database.run('PRAGMA busy_timeout=5000');
             const schemaVersion = (this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version;
             if (schemaVersion > 2 || (readOnly && schemaVersion < 1)) throw new Error('Engine health schema is unsupported');
             if (!readOnly) {
@@ -83,6 +84,12 @@ export class PlayerHealthEvidenceStore {
         if (!row || row.protocol !== 1) return false;
         const observed = healthTime(row.observed_at);
         return observed <= now + 5000 && observed >= now - 30000;
+    }
+    confirmedThrough(at: string): string | null {
+        if (!this.isReady(at)) return null;
+        const row = this.database.query("SELECT observed_at FROM engine_health_producer WHERE producer_id='local-engine'")
+            .get() as { observed_at: string };
+        return row.observed_at < at ? row.observed_at : at;
     }
     verify(): void {
         let previous = ZERO;
@@ -190,6 +197,10 @@ export class PlayerHealthEvidenceStore {
     }
     recordNaturalDeath(event: PopulationDeathEvidence): void {
         if (this.readOnly || event.cause.kind !== 'natural-mortality') throw new Error('Only engine natural mortality can create this death');
+        this.database.transaction(() => { this.verify(); this.insertDeath(event); this.verify(); }).immediate();
+    }
+    recordStarvationDeath(event: PopulationDeathEvidence): void {
+        if (this.readOnly || event.cause.kind !== 'starvation') throw new Error('Only engine starvation can create this death');
         this.database.transaction(() => { this.verify(); this.insertDeath(event); this.verify(); }).immediate();
     }
     list(afterSequence = 0, limit = 1000): EngineHealthDamageRecord[] {

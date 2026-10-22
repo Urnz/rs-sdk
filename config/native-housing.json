@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "housingUnitId": "falador.south-house.main",
+  "beds": [
+    { "bedSlotId": "falador.south-house.bed-1", "x": 2970, "z": 3330, "level": 0 },
+    { "bedSlotId": "falador.south-house.bed-2", "x": 2970, "z": 3330, "level": 1 }
+  ]
+}

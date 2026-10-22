@@ -4,6 +4,16 @@ Minden parancsot a repozitórium gyökeréből futtass PowerShellben. A segédek
 az általuk létrehozott és PID + indulási idő alapján azonosított folyamatokat
 állítják le.
 
+## Társadalmi fejlesztés folytatása
+
+- `pwsh -NoProfile -File scripts/get-society-work-brief.ps1` – következő nyitott
+  SI-task és legfeljebb öt korábbi ellenőrzés fejléce, runtime-indítás nélkül.
+  `-TaskId SI-B01` explicit taskot választ; `-RecentChecks 0` kihagyja a fejléceket.
+- Belépő: [rövid átadás](../docs/project/SOCIETY_DEVELOPMENT_HANDOFF.md),
+  [munkarend és archívum-tooling feladat](../docs/project/SOCIETY_DEVELOPMENT_WORKFLOW.md).
+- Célzott helperpróbák: `pwsh -NoProfile -File scripts/test-society-work-brief.ps1`;
+  a meglévő `test:powershell` is futtatja őket.
+
 ## Helyi stack
 
 - `bun run local:start` – a normál helyi profil: autentikált gateway, engine,

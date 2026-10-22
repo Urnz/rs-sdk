@@ -51,6 +51,8 @@ function canonical(value: unknown): unknown {
 function hash(value: unknown): string {
     return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 }
+/** Shared content digest; a regression bundle is never a live experiment acceptance bundle. */
+export { hash as acceptanceEvidenceDigest };
 
 function sourceRevision(): string | null {
     try {

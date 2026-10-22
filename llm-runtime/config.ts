@@ -18,7 +18,7 @@ const ROUTINE_OPERATIONS: SkillOperationName[] = ['walk-to', 'wait-for-area', 't
     'interact-loc', 'interact-npc', 'gather-loc', 'gather-npc', 'smith-at-anvil', 'open-shop', 'sell-to-shop',
     'close-shop', 'open-bank', 'deposit-item', 'withdraw-item', 'close-bank', 'wait-ticks'];
 const OPERATIONS = new Set<SkillOperationName>([
-    ...ROUTINE_OPERATIONS, 'buy-from-shop', 'trade-give-item', 'trade-receive-item',
+    ...ROUTINE_OPERATIONS, 'travel-to-site', 'food-gather', 'food-cook', 'food-consume', 'buy-from-shop', 'trade-give-item', 'trade-receive-item',
     'thieve-pickpocket', 'thieve-lockpick', 'thieve-container', 'thieve-property-entry'
 ]);
 const RIGHTS_VIOLATION_OPERATIONS = new Set<SkillOperationName>([

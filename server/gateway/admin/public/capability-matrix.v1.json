@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "version": "1.3.0",
-  "reviewedAt": "2026-10-18",
+  "version": "1.3.1",
+  "reviewedAt": "2026-10-19",
   "evidence": [
     {
       "id": "015c81cbdd2b526b3ac3612c",
@@ -86,6 +86,12 @@
       "file": "server/gateway/admin/routes.ts",
       "kind": "guard",
       "text": "req.method === 'GET' && url.pathname === '/api/admin/economic-contracts'"
+    },
+    {
+      "id": "0880e32bcac76587a0a8dbfd",
+      "file": "server/gateway/admin/routes.ts",
+      "kind": "guard",
+      "text": "req.method === 'GET' && (url.pathname === '/api/admin/society/integration' || integrationEvent)"
     },
     {
       "id": "08a27ce4c4e2ba11971a5676",
@@ -614,6 +620,12 @@
       "file": "server/gateway/admin/public/admin.js",
       "kind": "frontend",
       "text": "[\"api\", `/api/admin/agents/${encodeURIComponent(button.dataset.agentId)}/autonomy/${action}`, 'POST']"
+    },
+    {
+      "id": "37ecc78edfc83fbbbffcccaf",
+      "file": "server/gateway/admin/routes.ts",
+      "kind": "backend",
+      "text": "'/api/admin/society/integration'"
     },
     {
       "id": "3887cbbd83d25952dd9d4a37",
@@ -1522,6 +1534,12 @@
       "text": "req.method === 'PUT' && worldModMatch?.[1]"
     },
     {
+      "id": "828935b12b2bde14a4db0147",
+      "file": "server/gateway/admin/public/society-dashboard.js",
+      "kind": "frontend",
+      "text": "[\"request\", `/api/admin/society/integration/evidence/${encodeURIComponent(button.dataset.societyNative)}?${params}`, \"GET\"]"
+    },
+    {
       "id": "82fc7773bd60ce48efa9ab3e",
       "file": "server/gateway/admin/routes.ts",
       "kind": "backend",
@@ -1634,6 +1652,12 @@
       "file": "server/gateway/admin/public/management-workflows.js",
       "kind": "frontend",
       "text": "[\"api\", `/api/admin/society/xp-baseline?${new URLSearchParams(splitNames(data.cohort).map(player => ['player', player]))}`, \"GET\"]"
+    },
+    {
+      "id": "8bdc7927461726a8e9e2464a",
+      "file": "server/gateway/admin/routes.ts",
+      "kind": "backend",
+      "text": "/^\\/api\\/admin\\/society\\/integration\\/evidence\\/([^/]+)$/"
     },
     {
       "id": "8bf3a042856aad73f848ab8d",
@@ -8024,10 +8048,13 @@
       "route": "/api/admin/society/dashboard",
       "area": "Társadalmi mutatók",
       "backend": [
-        "0fcb93656ae928650dfc22a0"
+        "0fcb93656ae928650dfc22a0",
+        "37ecc78edfc83fbbbffcccaf",
+        "8bdc7927461726a8e9e2464a"
       ],
       "frontend": [
-        "b5c92c8d95f2ec69672446eb"
+        "b5c92c8d95f2ec69672446eb",
+        "828935b12b2bde14a4db0147"
       ],
       "methods": [
         "GET"
@@ -8035,7 +8062,7 @@
       "access": "Tulajdonos, üzemeltető vagy néző; csak olvasás.",
       "prerequisites": "Időablak, közös szimulációs óra és résztvevői kör szükséges. A hiányzó forrásokból nem képződik kitalált mérés.",
       "state": "A riport státuszsora, lefedettsége és eseménylistája jelzi a betöltést és az eredményt.",
-      "result": "Mutatók, lefedettség vagy az eredeti forrásesemény részlete jelenik meg.",
+      "result": "Mutatók, lefedettség vagy az eredeti forrásesemény részlete jelenik meg. A natív integrációs riport és snapshot-digesthez kötött eredeti bizonyíték a dashboardon olvasható és exportálható.",
       "error": "A riport státuszsora leírja a hibát; az óraadatok frissíthetők, az időablak és a résztvevők javíthatók.",
       "coverage": "available",
       "entry": {
@@ -8054,6 +8081,14 @@
         {
           "method": "GET",
           "path": "/api/admin/society/dashboard"
+        },
+        {
+          "method": "GET",
+          "path": "/api/admin/society/integration"
+        },
+        {
+          "method": "GET",
+          "path": "/api/admin/society/integration/evidence/:id"
         }
       ]
     },

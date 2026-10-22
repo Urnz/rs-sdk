@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { withSocietyValueMutation, nativeSocietyValuePaths, nativeSocietyPathMatches, type IntegrityBoundary } from '../../../../society-integrity/runtime.js';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import { createHash } from 'node:crypto';
 
 export type PlayerRewardStatus = 'pending' | 'committed' | 'rejected';
 
@@ -44,10 +45,10 @@ function record(row: RewardRow): PlayerRewardRecord {
 export class PlayerRewardStore {
     private readonly database: Database;
 
-    constructor(path: string, private integrityBoundary?:IntegrityBoundary|false) {
+    constructor(path: string, private integrityBoundary?:IntegrityBoundary|false, private borrowedDatabase?: Database) {
         if(this.integrityBoundary===undefined && !nativeSocietyPathMatches(path,nativeSocietyValuePaths.reward))this.integrityBoundary=false;
-        mkdirSync(dirname(path), { recursive: true });
-        this.database = new Database(path, { create: true, strict: true });
+        if (!borrowedDatabase) mkdirSync(dirname(path), { recursive: true });
+        this.database = borrowedDatabase ?? new Database(path, { create: true, strict: true });
         this.database.run(`CREATE TABLE IF NOT EXISTS player_action_reward (
             settlement_id TEXT PRIMARY KEY,
             username TEXT NOT NULL,
@@ -61,6 +62,7 @@ export class PlayerRewardStore {
     }
 
     close(): void {
+        if (this.borrowedDatabase) return;
         (this.database as Database & { clearQueryCache(): void }).clearQueryCache();
         this.database.close(true);
     }
@@ -69,6 +71,25 @@ export class PlayerRewardStore {
         const row = this.database.query(`SELECT * FROM player_action_reward
             WHERE settlement_id = ?1`).get(settlementId) as RewardRow | null;
         return row ? record(row) : null;
+    }
+
+    /** Forward projection of a committed canonical checkpoint receipt; never credits a wallet. */
+    projectCheckpoint(source: PlayerRewardStore, settlementId: string): PlayerRewardRecord {
+        const canonical = source.get(settlementId), prior = this.get(settlementId);
+        if (!canonical || canonical.status !== 'committed' || canonical.coinsBefore === null || canonical.coinsAfter === null
+            || canonical.coinsAfter - canonical.coinsBefore !== canonical.amount) throw new Error('Canonical reward checkpoint proof unavailable');
+        if (prior && JSON.stringify(prior) !== JSON.stringify(canonical)) throw new Error('Legacy reward projection differs; reconciliation required');
+        this.database.run('CREATE TABLE IF NOT EXISTS player_action_reward_checkpoint(settlement_id TEXT PRIMARY KEY,receipt_digest TEXT NOT NULL)');
+        const proof = createHash('sha256').update(JSON.stringify({ username: canonical.username, amount: canonical.amount, status: canonical.status,
+            coinsBefore: canonical.coinsBefore, coinsAfter: canonical.coinsAfter })).digest('hex');
+        this.database.transaction(() => {
+            if (!prior) this.database.run(`INSERT INTO player_action_reward VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)`,
+                [canonical.settlementId, canonical.username, canonical.amount, canonical.status, canonical.coinsBefore, canonical.coinsAfter, canonical.createdAt, canonical.updatedAt, canonical.error]);
+            const marker = this.database.query('SELECT receipt_digest FROM player_action_reward_checkpoint WHERE settlement_id=?1').get(settlementId) as { receipt_digest: string } | null;
+            if (marker && marker.receipt_digest !== proof) throw new Error('Reward checkpoint projection marker differs');
+            this.database.run('INSERT OR IGNORE INTO player_action_reward_checkpoint VALUES(?1,?2)', [settlementId, proof]);
+        }).immediate();
+        return canonical;
     }
 
     credit(settlementId: string, usernameInput: string, amount: number, wallet: PlayerRewardWallet,

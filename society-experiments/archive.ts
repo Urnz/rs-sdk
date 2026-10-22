@@ -179,3 +179,6 @@ export function restoreSocietyArchive(bundle: string, outputPath: string) {
         publish(stage, output); return manifest;
     } catch (error) { if (existsSync(stage)) discard(stage, dirname(output)); throw error; }
 }
+
+/** Shared filesystem guards for other offline protocols. Long-experiment validation remains unchanged. */
+export const offlineArchiveIO = { safePath, plain, ancestors, fileHash, command, under, newStage, discard, publish, sqliteIntegrity };

@@ -1,5 +1,6 @@
 import type { AutonomousParameterLimit, AutonomousSkillAuthorization } from '../../../llm-runtime/types.js';
 import type { SkillArguments, SkillDefinition, SkillOperationName, SkillStep, SkillValue } from '../../../agent-skills/types.js';
+import { SOCIETY_TRAVEL_SITES } from '../../../agent-skills/society-travel.js';
 
 export interface AuthorizationEnvelopeResult {
     allowed: boolean;
@@ -13,9 +14,9 @@ const ROUTINE_OPERATIONS: SkillOperationName[] = ['walk-to', 'wait-for-area', 't
 const NAMED_ITEM_OPERATIONS = new Set<SkillOperationName>(['buy-from-shop', 'sell-to-shop', 'deposit-item',
     'withdraw-item', 'trade-give-item', 'trade-receive-item']);
 
-function operations(steps: readonly SkillStep[]): Array<{ operation: SkillOperationName; arguments: SkillArguments }> {
-    return steps.flatMap(step => step.kind === 'operation' ? [{ operation: step.operation, arguments: step.arguments }]
-        : step.kind === 'repeat' ? operations(step.steps) : []);
+function operations(steps: readonly SkillStep[], multiplier = 1): Array<{ operation: SkillOperationName; arguments: SkillArguments; multiplier: number }> {
+    return steps.flatMap(step => step.kind === 'operation' ? [{ operation: step.operation, arguments: step.arguments, multiplier }]
+        : step.kind === 'repeat' ? operations(step.steps, multiplier * step.maxIterations) : []);
 }
 
 function resolve(value: SkillValue | undefined, parameters: Record<string, string | number | boolean>): unknown {
@@ -62,6 +63,12 @@ export function evaluateAuthorizationEnvelope(authorization: AutonomousSkillAuth
         if (!allowedOperations.includes(step.operation)) {
             return { allowed: false, reason: `Operation ${step.operation} is outside the authorization envelope.`, reservedGp: 0 };
         }
+        if (step.operation === 'travel-to-site') {
+            const site = resolve(step.arguments.site, parameters);
+            if (typeof site !== 'string' || !Object.hasOwn(SOCIETY_TRAVEL_SITES, site))
+                return { allowed: false, reason: 'Travel requires an exact native site.', reservedGp: 0 };
+            maximumSpend += 30 * step.multiplier;
+        }
         const amountValue = resolve(step.arguments.amount, parameters);
         const quantity = amountValue === -1 ? Math.min(28, maxQuantity) : amountValue;
         if (typeof quantity === 'number' && (!Number.isSafeInteger(quantity) || quantity < 0
@@ -71,6 +78,10 @@ export function evaluateAuthorizationEnvelope(authorization: AutonomousSkillAuth
         const itemValue = resolve(step.arguments.item ?? (NAMED_ITEM_OPERATIONS.has(step.operation)
             ? step.arguments.name : undefined), parameters);
         const item = typeof itemValue === 'string' ? itemValue.trim().toLowerCase() : null;
+        if (step.operation.startsWith('food-') && (!item || !itemNames.includes(item)
+            || quantity !== 1 || (step.operation === 'food-cook' && !itemNames.includes('lobster')))) {
+            return { allowed: false, reason: 'Food operations require an explicit exact-item single-batch authorization.', reservedGp: 0 };
+        }
         if (itemNames.length > 0 && item && !itemNames.includes(item)) {
             return { allowed: false, reason: `Item ${itemValue} is outside the authorization envelope.`, reservedGp: 0 };
         }

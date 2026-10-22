@@ -18,15 +18,17 @@ function event(row: EventRow): FoodConsumptionEconomicEvent { return { eventId: 
 
 export class FoodConsumptionStore {
     private readonly database: Database;
-    constructor(path: string, private readonly catalog: FoodLoopCatalog) {
+    private readonly ownsDatabase: boolean;
+    constructor(path: string | Database, private readonly catalog: FoodLoopCatalog) {
         const { digest, ...definition } = catalog;
         if (digest !== foodLoopCatalogDigest(definition)) throw new Error('Food loop catalog digest mismatch');
-        mkdirSync(dirname(path), { recursive: true });
-        this.database = new Database(path, { create: true, strict: true });
+        this.ownsDatabase = typeof path === 'string';
+        if (typeof path === 'string') mkdirSync(dirname(path), { recursive: true });
+        this.database = typeof path === 'string' ? new Database(path, { create: true, strict: true }) : path;
         this.database.run('PRAGMA foreign_keys = ON');
         this.migrate();
     }
-    close(): void { this.database.close(true); }
+    close(): void { if (this.ownsDatabase) this.database.close(true); }
     record(closure: ClosedFoodLoop): FoodConsumptionEconomicEvent {
         const { digest, ...definition } = closure;
         if (!/^[0-9a-f]{64}$/.test(digest) || digest !== foodLoopClosureDigest(definition)) {
@@ -35,6 +37,9 @@ export class FoodConsumptionStore {
         if (closure.catalogDigest !== this.catalog.digest) throw new Error('Food loop closure uses another catalog');
         const chain = this.catalog.chains.find(item => item.foodChainId === closure.foodChainId);
         if (!chain) throw new Error('Food loop closure references an unknown chain');
+        if (this.database.query("SELECT 1 FROM sqlite_master WHERE name='native_food_receipt_use'").get()
+            && closure.receiptIds.some(id => this.database.query('SELECT 1 FROM native_food_receipt_use WHERE action_id=?1')
+                .get(id.replace(/^native:/, '')))) throw new Error('Native consumption receipt already applied; lineage needs its own projection');
         const existing = this.database.query('SELECT * FROM food_consumption_event WHERE closure_id=?1')
             .get(closure.closureId) as EventRow | null;
         if (existing) {

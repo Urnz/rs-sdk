@@ -7,6 +7,7 @@ import { SkillRegistry } from './registry';
 import { FileSkillStore } from './store';
 import { FileSkillVerificationJournal } from './verifier';
 import type { SkillRunResult } from './types';
+import { verifyFoodSkillRunSources } from '../server/gateway/admin/native-food-skills.js';
 
 const args = process.argv.slice(2);
 const positional = args.filter(arg => !arg.startsWith('--'));
@@ -50,7 +51,7 @@ for (const runId of runIds) {
     evidence.push(run);
 }
 const outcome = await library.promoteAgentDraft(registered.definition, evidence, {
-    targetVersion, parameters
+    targetVersion, parameters, verifyFoodEvidence: run => verifyFoodSkillRunSources(process.cwd(), run)
 });
 const reportPath = await new FileSkillVerificationJournal(join(root, 'verifications')).save(outcome.report);
 console.log(JSON.stringify({ ...outcome, reportPath }, null, 2));

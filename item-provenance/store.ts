@@ -66,15 +66,40 @@ function claim(row: ClaimRow): ItemRestitutionClaim { return { claimId: row.clai
 
 export class ItemProvenanceStore {
     private readonly database: Database;
-    constructor(path: string, private readonly policy: ItemProvenancePolicyCatalog) {
+    constructor(path: string, private readonly policy: ItemProvenancePolicyCatalog, readOnly = false) {
         const { digest, ...definition } = policy;
         if (digest !== itemProvenancePolicyDigest(definition)) throw new Error('Item provenance policy digest mismatch');
-        mkdirSync(dirname(path), { recursive: true });
-        this.database = new Database(path, { create: true, strict: true });
-        try { this.database.run('PRAGMA foreign_keys = ON'); this.migrate(); }
+        if (!readOnly) mkdirSync(dirname(path), { recursive: true });
+        this.database = new Database(path, readOnly ? { readonly: true, strict: true } : { create: true, strict: true });
+        try { if (readOnly) {
+            if ((this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version !== 3)
+                throw new Error('Unsupported readonly item provenance schema');
+            if (!this.verifyAuditChain()) throw new Error('Item provenance audit is invalid');
+        } else { this.database.run('PRAGMA foreign_keys = ON'); this.migrate(); } }
         catch (error) { this.database.close(true); throw error; }
     }
     close(): void { this.database.close(true); }
+    /** Native food quantity ancestry never clears the existing stolen-title history. */
+    foodSourceGate(sources: Array<{ sourceRecordId: string; sourceEvidenceDigest: string }>): 'stolen' | 'not-established' {
+        if (!this.verifyAuditChain()) throw new Error('Item provenance audit is invalid');
+        for (const source of sources) {
+            const rows = this.database.query(`SELECT asset_id FROM item_provenance_event
+                WHERE source_record_id=?1 AND source_evidence_digest=?2 AND asset_id IS NOT NULL`)
+                .all(source.sourceRecordId, source.sourceEvidenceDigest) as { asset_id: string }[];
+            for (const row of rows) {
+                const asset = this.getAsset(row.asset_id);
+                if (asset?.theftHistoryCount) return 'stolen';
+            }
+            const transformations = this.database.query('SELECT * FROM item_transformation WHERE source_record_id=?1')
+                .all(source.sourceRecordId) as TransformationRow[];
+            for (const row of transformations) {
+                const record = this.getTransformation(row.transformation_id)!;
+                if (record.evidence.sourceEvidenceDigest === source.sourceEvidenceDigest
+                    && record.outputAssetIds.some(assetId => this.getAsset(assetId)?.theftHistoryCount)) return 'stolen';
+            }
+        }
+        return 'not-established';
+    }
     getAsset(assetIdInput: string): ItemProvenanceAsset | null { const row = this.database.query(
         'SELECT * FROM item_provenance_asset WHERE asset_id=?1').get(id(assetIdInput, 'assetId')) as AssetRow | null;
         return row ? asset(row) : null; }

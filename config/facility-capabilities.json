@@ -20,7 +20,8 @@
       "businessId": null,
       "capabilities": [
         { "capabilityId": "storage.secure", "capacityUnits": 28 },
-        { "capabilityId": "cooking.commercial-kitchen", "capacityUnits": 2 }
+        { "capabilityId": "cooking.commercial-kitchen", "capacityUnits": 2 },
+        { "capabilityId": "cooking.heat-source", "capacityUnits": 1 }
       ],
       "allowedAccessKinds": ["employment", "lease", "contract", "explicit"]
     }

@@ -31,10 +31,14 @@ import { evaluateAuthorizationEnvelope } from './authorization-envelope.js';
 import type { EconomicContract } from './economic-contracts.js';
 import type { AgentSkillRunOutcome } from '../../../agent-state/types.js';
 import type { ReplanInboxSimulationClock } from './replan-inbox.js';
+import { isLivelihoodPolicy, LIVELIHOOD_POLICY } from './livelihood-policy.js';
+import { runLivelihoodReplan, type LivelihoodPorts } from './livelihood-runtime.js';
+import { createLivelihoodPorts } from './livelihood-sources.js';
+import { dispatchLivelihoodSkill } from './livelihood-dispatch.js';
 
 let appendTail: Promise<void> = Promise.resolve();
 
-const ROUTINE_AUTONOMOUS_OPERATIONS: SkillOperationName[] = ['walk-to', 'wait-for-area', 'talk-to-npc',
+export const ROUTINE_AUTONOMOUS_OPERATIONS: SkillOperationName[] = ['walk-to', 'wait-for-area', 'talk-to-npc',
     'navigate-dialog', 'interact-loc', 'interact-npc', 'gather-loc', 'gather-npc', 'smith-at-anvil',
     'open-shop', 'sell-to-shop', 'close-shop', 'open-bank', 'deposit-item', 'withdraw-item', 'close-bank',
     'wait-ticks'];
@@ -88,6 +92,7 @@ export interface GatewayAgentReplanOptions {
     replanInboxPath?: string | null;
     requiredAutonomyLeaseOwner?: string;
     simulationClock?: ReplanInboxSimulationClock;
+    livelihoodPorts?: LivelihoodPorts;
 }
 
 export function evaluateAutonomousSkillPolicy(config: LlmAutonomousExecutionConfig,
@@ -141,8 +146,11 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
     options: GatewayAgentReplanOptions = {}): AgentReplanCoordinator {
     const agentPath = options.agentPath ?? agentStateDbPath;
     const gapPath = options.capabilityGapPath ?? capabilityGapsPath;
+    const livelihoodPorts = options.livelihoodPorts ?? createLivelihoodPorts({ agentPath, gatewayBots,
+        activeSkill: username => supervisor.activeSkillSnapshot(username),
+        simulationClock: options.simulationClock, skillCatalog: options.skillCatalog });
     const listAgents = () => listAdminAgents(agentPath, { skillCatalog: options.skillCatalog,
-        gatewayBots: gatewayBots() });
+        gatewayBots: gatewayBots(), simulationClock: options.simulationClock });
     const dependencies: AgentReplanCoordinatorDependencies = {
         resolveAgentId: async playerUsername => useStore(store => store.listIdentities()
             .find(identity => identity.playerUsername === playerUsername.toLowerCase())?.agentId ?? null, agentPath),
@@ -172,6 +180,19 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                     return { runId: event.eventId, status: 'skipped',
                         reason: AUTONOMY_LEASE_OWNER_MISMATCH_REASON };
                 }
+            }
+            const routine = useStore(store => store.getAutonomyEnrollment(agentId), agentPath);
+            if (routine?.policyId === LIVELIHOOD_POLICY.id && !isLivelihoodPolicy(routine))
+                return { runId: event.eventId, status: 'input-required', reason: 'Unsupported livelihood policy version.' };
+            if (isLivelihoodPolicy(routine)) {
+                // Manual events cannot bypass routine admission or enter the generic LLM fallback.
+                if (!routine || routine.status !== 'running' || !routine.leaseExpiresAt
+                    || Date.parse(routine.leaseExpiresAt) <= Date.now()
+                    || (options.requiredAutonomyLeaseOwner && routine.leaseOwner !== options.requiredAutonomyLeaseOwner)
+                    || useStore(store => store.getAutonomyControl().emergencyStop, agentPath))
+                    return { runId: event.eventId, status: 'skipped', reason: 'Livelihood requires a live supervisor lease.' };
+                return runLivelihoodReplan(agentId, event, { agentPath, ports: livelihoodPorts,
+                    dispatchSkill: entry => dispatchLivelihoodSkill(entry, supervisor, gatewayBots, { ...options, agentPath }) });
             }
             const initial = await listAgents();
             const agent = initial.agents.find(entry => entry.identity.agentId === agentId);

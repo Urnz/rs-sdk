@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
+import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
 import { loadDefaultBusinessRoleCatalog } from '../business-roles/index.js';
 
 export interface SkillRef{id:string;version:string}
@@ -67,11 +68,12 @@ export function validateBusinessStockPolicyCatalog(value:unknown):BusinessStockP
         throw new Error('Business stock policies must be unique');const definition={schemaVersion:1 as const,policies};
     return {...definition,digest:hash(definition)}}
 
-export function loadDefaultBusinessStockPolicyCatalog():BusinessStockPolicyCatalog{const catalog=validateBusinessStockPolicyCatalog(
-    JSON.parse(readFileSync(join(import.meta.dir,'..','config','business-stock-policies.json'),'utf8')) as unknown);
+export function loadBusinessStockPolicyCatalog(path:string):BusinessStockPolicyCatalog{const catalog=validateBusinessStockPolicyCatalog(
+    JSON.parse(readFileSync(path,'utf8')) as unknown);
     const verified=new Set(loadDefaultBusinessRoleCatalog().verifiedSkillKeys);for(const policy of catalog.policies)
         for(const skill of [...policy.procurement.verifiedSkills,...policy.sales.verifiedSkills])if(!verified.has(`${skill.id}@${skill.version}`))
             throw new Error(`Business stock policy ${policy.policyId} references an unverified skill`);return catalog}
+export function loadDefaultBusinessStockPolicyCatalog():BusinessStockPolicyCatalog{return loadBusinessStockPolicyCatalog(join(import.meta.dir,'..','config','business-stock-policies.json'))}
 export function decideBusinessStock(policy:BusinessStockPolicy,catalog:BusinessStockPolicyCatalog,observedStock:number):BusinessStockDecision{
     integer(observedStock,'observedStock');if(!catalog.policies.some(value=>value.policyId===policy.policyId)||catalog.digest!==hash({schemaVersion:catalog.schemaVersion,policies:catalog.policies}))
         throw new Error('Business stock policy evidence mismatch');const base={policyId:policy.policyId,businessId:policy.businessId,
@@ -97,17 +99,39 @@ export function authorizeStockMovement(policy:BusinessStockPolicy,decision:Busin
             itemId:policy.itemId,quantity:evidence.quantity,direction:evidence.direction,evidence,decisionDigest:decision.decisionDigest};
     return {...base,authorizationDigest:hash(base)}}
 
-export class BusinessStockSettlementStore{private readonly database:Database;constructor(path:string){this.database=new Database(path,{create:true,strict:true});
+export class BusinessStockSettlementStore{private readonly database:Database;private readonly ownsDatabase:boolean;
+    constructor(path:string|Database){this.ownsDatabase=typeof path==='string';this.database=typeof path==='string'?new OwnedDatabase(path,{create:true,strict:true}):path;
+    this.database.run('PRAGMA busy_timeout=5000');
     this.database.run(`CREATE TABLE IF NOT EXISTS business_stock_settlement(settlement_id TEXT PRIMARY KEY,business_id TEXT NOT NULL,
         item_id INTEGER NOT NULL,quantity INTEGER NOT NULL,direction TEXT NOT NULL,evidence_id TEXT NOT NULL UNIQUE,
-        authorization_digest TEXT NOT NULL,created_at TEXT NOT NULL)`)}close():void{this.database.close(true)}
-    apply(settlementId:string,authorization:AuthorizedStockMovement,now=new Date().toISOString()):BusinessStockSettlement{
+        authorization_digest TEXT NOT NULL,created_at TEXT NOT NULL)`);
+    this.database.run(`CREATE TABLE IF NOT EXISTS business_stock_native_reservation(reservation_id TEXT PRIMARY KEY,
+        business_id TEXT NOT NULL,item_id INTEGER NOT NULL,quantity INTEGER NOT NULL,binding_digest TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN('held','committed','cancelled')),settlement_id TEXT UNIQUE)`)}close():void{if(this.ownsDatabase)this.database.close(true)}
+    reserveNative(reservationId:string,businessId:string,itemId:number,quantity:number,bindingDigest:string,now:string):void{
+        this.database.transaction(()=>{const prior=this.database.query('SELECT * FROM business_stock_native_reservation WHERE reservation_id=?1').get(reservationId) as Record<string,unknown>|null;
+            if(prior){if(prior.business_id!==businessId||prior.item_id!==itemId||prior.quantity!==quantity||prior.binding_digest!==bindingDigest)throw new Error('Native stock reservation differs');return}
+            if(!ID.test(reservationId)||!Number.isSafeInteger(quantity)||quantity<1||!Number.isSafeInteger(itemId)||!/^[a-f0-9]{64}$/.test(bindingDigest))throw new Error('Invalid native stock reservation');
+            const removed=this.database.run(`UPDATE business_inventory SET count=count-?3,revision=revision+1,updated_at=?4 WHERE business_id=?1 AND item_id=?2 AND count>=?3`,[businessId,itemId,quantity,now]);
+            if(removed.changes!==1)throw new Error('Business sale stock is insufficient');
+            this.database.run("INSERT INTO business_stock_native_reservation VALUES(?1,?2,?3,?4,?5,'held',NULL)",[reservationId,businessId,itemId,quantity,bindingDigest]);}).immediate()}
+    cancelNative(reservationId:string,bindingDigest:string,now:string):void{this.database.transaction(()=>{
+        const row=this.database.query('SELECT * FROM business_stock_native_reservation WHERE reservation_id=?1').get(reservationId) as {business_id:string;item_id:number;quantity:number;binding_digest:string;status:string}|null;
+        if(!row||row.binding_digest!==bindingDigest||row.status==='committed')throw new Error('Native stock cannot be refunded');if(row.status==='cancelled')return;
+        this.database.run(`INSERT INTO business_inventory VALUES(?1,?2,?3,1,?4) ON CONFLICT(business_id,item_id) DO UPDATE SET count=count+excluded.count,revision=revision+1,updated_at=excluded.updated_at`,[row.business_id,row.item_id,row.quantity,now]);
+        this.database.run("UPDATE business_stock_native_reservation SET status='cancelled' WHERE reservation_id=?1",[reservationId]);}).immediate()}
+    apply(settlementId:string,authorization:AuthorizedStockMovement,now=new Date().toISOString(),nativeReservation?:{id:string;bindingDigest:string}):BusinessStockSettlement{
         if(!ID.test(settlementId)||authorization.authorizationDigest!==hash({...authorization,authorizationDigest:undefined}))
             throw new Error('Stock movement authorization is invalid');const existing=this.database.query('SELECT * FROM business_stock_settlement WHERE settlement_id=?1')
             .get(settlementId) as Record<string,unknown>|null;if(existing){if(existing.authorization_digest!==authorization.authorizationDigest)
             throw new Error('Stock settlement id was reused');return {settlementId,businessId:String(existing.business_id),itemId:Number(existing.item_id),
                 quantity:Number(existing.quantity),direction:existing.direction as StockDirection,evidenceId:String(existing.evidence_id),createdAt:String(existing.created_at)}}
-        const transaction=this.database.transaction(()=>{if(authorization.direction==='procurement')this.database.run(`INSERT INTO business_inventory
+        const transaction=this.database.transaction(()=>{if(nativeReservation){
+            const row=this.database.query('SELECT * FROM business_stock_native_reservation WHERE reservation_id=?1').get(nativeReservation.id) as Record<string,unknown>|null;
+            if(authorization.direction!=='sale'||!row||row.status!=='held'||row.binding_digest!==nativeReservation.bindingDigest
+                ||row.business_id!==authorization.businessId||row.item_id!==authorization.itemId||row.quantity!==authorization.quantity)throw new Error('Native sale reservation is not payable');
+            this.database.run("UPDATE business_stock_native_reservation SET status='committed',settlement_id=?2 WHERE reservation_id=?1",[nativeReservation.id,settlementId]);
+        }else if(authorization.direction==='procurement')this.database.run(`INSERT INTO business_inventory
             VALUES(?1,?2,?3,1,?4) ON CONFLICT(business_id,item_id) DO UPDATE SET count=count+excluded.count,revision=revision+1,
             updated_at=excluded.updated_at`,[authorization.businessId,authorization.itemId,authorization.quantity,now]);else{const result=this.database.run(
             `UPDATE business_inventory SET count=count-?3,revision=revision+1,updated_at=?4 WHERE business_id=?1 AND item_id=?2 AND count>=?3`,

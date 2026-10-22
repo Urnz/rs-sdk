@@ -21,10 +21,7 @@
         "mayHire": true,
         "mayDismiss": true,
         "mayDelegate": true,
-        "assignableRoleDefinitionIds": [
-          "business.worker.v1",
-          "business.shop-clerk.v1"
-        ]
+        "assignableRoleDefinitionIds": ["business.worker.v1", "business.shop-clerk.v1", "business.cook.v1", "business.delivery.v1"]
       }
     },
     {
@@ -68,6 +65,52 @@
         "pricing": ["inspect", "propose"],
         "contracts": ["inspect"],
         "logistics": ["inspect"]
+      },
+      "hiringPolicy": {
+        "mayHire": false,
+        "mayDismiss": false,
+        "mayDelegate": false,
+        "assignableRoleDefinitionIds": []
+      }
+    },
+    {
+      "roleDefinitionId": "business.cook.v1",
+      "name": "Kitchen worker",
+      "legacyProjection": "worker",
+      "skillPolicy": {
+        "mode": "employment-required-only",
+        "verifiedSkills": []
+      },
+      "permissions": {
+        "inventory": ["inspect", "receive", "issue"],
+        "storage": ["inspect", "deposit", "withdraw"],
+        "treasury": [],
+        "pricing": ["inspect"],
+        "contracts": ["inspect"],
+        "logistics": ["inspect", "operate"]
+      },
+      "hiringPolicy": {
+        "mayHire": false,
+        "mayDismiss": false,
+        "mayDelegate": false,
+        "assignableRoleDefinitionIds": []
+      }
+    },
+    {
+      "roleDefinitionId": "business.delivery.v1",
+      "name": "Food delivery worker",
+      "legacyProjection": "worker",
+      "skillPolicy": {
+        "mode": "employment-required-only",
+        "verifiedSkills": []
+      },
+      "permissions": {
+        "inventory": ["inspect", "receive", "issue"],
+        "storage": ["inspect", "deposit", "withdraw"],
+        "treasury": [],
+        "pricing": ["inspect"],
+        "contracts": ["inspect"],
+        "logistics": ["inspect", "operate"]
       },
       "hiringPolicy": {
         "mayHire": false,

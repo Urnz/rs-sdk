@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "society-lobster-four",
+  "version": "1.2.0",
+  "seed": "si-m1-lobster-four-v1",
+  "worldBuild": "lostcity-local-v1",
+  "clock": {
+    "schemaVersion": 1,
+    "clockId": "world",
+    "initialSimulationTime": "2001-01-01T00:00:00.000Z",
+    "profile": {
+      "schemaVersion": 1,
+      "profileId": "day-survival-live",
+      "version": "1.0.0",
+      "seed": "si-m1-lobster-four-v1",
+      "rate": {
+        "simulationMilliseconds": 24,
+        "wallMilliseconds": 1
+      }
+    }
+  },
+  "protocol": {
+    "maximumWallMinutes": 90,
+    "llmCalls": 0,
+    "externalImports": "forbidden-after-bootstrap",
+    "nativeHarvest": 32,
+    "regeneration": "none",
+    "minimumInternalFood": 8
+  },
+  "skills": [
+    {
+      "id": "procedure.food.consume-lobster",
+      "version": "0.1.0",
+      "definitionDigest": "98f44dd619be22ddbbde7e99b0be2b5077a2fcec690c24e58b26fc6eb159d47e"
+    },
+    {
+      "id": "procedure.food.gather-lobster",
+      "version": "0.1.0",
+      "definitionDigest": "09a3ff008147c3687d1ee2fb6e8c68babec8e0e9dad35f93f6b56548f850d833"
+    },
+    {
+      "id": "procedure.food.cook-lobster",
+      "version": "0.2.0",
+      "definitionDigest": "08b935432c153d28ca5de2af1963a49c779ca24dca18b328403ea9eb5b30f597"
+    },
+    {
+      "id": "trade.lumbridge.give-item",
+      "version": "1.0.0",
+      "definitionDigest": "a1e4e4c8fa5fbdc0bfc3f2e7daa65da05d652f5d8af4cd6c942fccb05ad4f443"
+    }
+  ],
+  "avatars": [
+    {
+      "agentId": "sifisher",
+      "username": "sifisher",
+      "capabilities": [
+        "gather",
+        "consume",
+        "sell-raw"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 2924,
+        "z": 3179,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 40,
+        "Cooking": 1
+      },
+      "tools": [
+        {
+          "itemId": 301,
+          "count": 1
+        }
+      ],
+      "knownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.food.gather-lobster"
+      ]
+    },
+    {
+      "agentId": "sicook",
+      "username": "sicook",
+      "capabilities": [
+        "cook",
+        "consume",
+        "commerce"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 2925,
+        "z": 3180,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 1,
+        "Cooking": 40
+      },
+      "tools": [],
+      "knownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.food.cook-lobster"
+      ]
+    },
+    {
+      "agentId": "sicourier",
+      "username": "sicourier",
+      "capabilities": [
+        "delivery",
+        "consume"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 3222,
+        "z": 3218,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 1,
+        "Cooking": 1
+      },
+      "tools": [],
+      "knownSkills": [
+        "procedure.food.consume-lobster",
+        "trade.lumbridge.give-item"
+      ]
+    },
+    {
+      "agentId": "silessor",
+      "username": "silessor",
+      "capabilities": [
+        "housing",
+        "consume",
+        "buy-food"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 2972,
+        "z": 3330,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 1,
+        "Cooking": 1
+      },
+      "tools": [],
+      "knownSkills": [
+        "procedure.food.consume-lobster"
+      ]
+    }
+  ],
+  "kitchen": {
+    "businessId": "karamja-kitchen",
+    "institutionAgentId": "si-kitchen-mind",
+    "propertyId": "karamja.fishing-hut",
+    "treasuryGp": 1000,
+    "rawOpening": 0,
+    "cookedOpening": 0,
+    "rawUnitPriceGp": 20,
+    "cookedUnitPriceGp": 40,
+    "cookWageGp": 25,
+    "deliveryWageGp": 25,
+    "cookAgentId": "sicook",
+    "courierAgentId": "sicourier",
+    "ownerAgentId": "silessor"
+  },
+  "housing": {
+    "propertyId": "falador.south-house",
+    "landlordAgentId": "silessor",
+    "maximumConcurrentTenants": 2,
+    "rentGp": 500
+  },
+  "digest": "58f5d55accd3be4f31203db0e2c8a9a4768cdd1b33113c5e8d14783477e4bdd5",
+  "survival": {
+    "mode": "live",
+    "rulesDigest": "8c21e0b015a9fbe884f6e7e2043c4579adb0c59ea7837549844ed09409ac3dd2"
+  },
+  "nativeSiteProfile": {
+    "profileId": "society-native-sites-v1",
+    "digest": "f28d6e6249df0a8576635d20fdf00b91cad010ee1f95cb9bd3bdd2f829d74136"
+  }
+}

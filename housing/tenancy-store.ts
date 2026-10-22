@@ -3,6 +3,8 @@ import { Database } from 'bun:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { housingUnitCatalogDigest } from './units.js';
+import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
+import { readRentJournal, rentIds, type NativeRentOrder } from './native-rent.js';
 import type { BedAccessEntitlement, HousingTenancy, HousingTenancyStatus,
     HousingUnitCatalog, RentPaymentEvidence } from './types.js';
 
@@ -37,19 +39,48 @@ function digest(value: unknown): string {
 
 export class HousingTenancyStore {
     private readonly database: Database;
-    constructor(path: string, private readonly catalog: HousingUnitCatalog) {
+    private readonly ownsDatabase: boolean;
+    private prepaidMutation = false;
+    constructor(path: string | Database, private readonly catalog: HousingUnitCatalog) {
         const { digest: supplied, ...definition } = catalog;
         if (supplied !== housingUnitCatalogDigest(definition)) throw new Error('Housing unit catalog digest does not match');
-        mkdirSync(dirname(path), { recursive: true });
-        this.database = new Database(path, { create: true, strict: true });
+        this.ownsDatabase = typeof path === 'string';
+        if (typeof path === 'string') mkdirSync(dirname(path), { recursive: true });
+        this.database = typeof path === 'string' ? new OwnedDatabase(path, { create: true, strict: true }) : path;
+        try {
         this.database.run('PRAGMA foreign_keys = ON');
         this.migrate();
+        if (!this.database.query("SELECT 1 FROM sqlite_master WHERE name='housing_tenancy_audit_head'").get()) this.database.transaction(() => {
+            this.database.run('CREATE TABLE housing_tenancy_audit_head(id INTEGER PRIMARY KEY CHECK(id=1),sequence INTEGER NOT NULL,hash TEXT NOT NULL)');
+            const rows = this.database.query('SELECT entry_hash FROM housing_tenancy_audit ORDER BY sequence').all() as { entry_hash: string }[];
+            this.database.run('INSERT INTO housing_tenancy_audit_head VALUES(1,?1,?2)', [rows.length, rows.at(-1)?.entry_hash ?? ZERO]);
+        }).immediate();
+        if (!this.verifyAuditChain().valid) throw new Error('Tenancy audit invalid');
+        this.database.run(`CREATE TABLE IF NOT EXISTS housing_prepaid_period(tenancy_id TEXT PRIMARY KEY REFERENCES housing_tenancy(tenancy_id),
+            payment_id TEXT NOT NULL UNIQUE,source_digest TEXT NOT NULL)`);
         const persisted = this.database.query('SELECT catalog_digest FROM housing_tenancy_meta WHERE singleton=1')
             .get() as { catalog_digest: string };
         if (persisted.catalog_digest !== catalog.digest) this.database.run(
             'UPDATE housing_tenancy_meta SET catalog_digest=?1 WHERE singleton=1', [catalog.digest]);
+        } catch (error) { if (this.ownsDatabase) this.database.close(true); throw error; }
     }
-    close(): void { this.database.close(true); }
+    close(): void { if (this.ownsDatabase) this.database.close(true); }
+    /** Native backend capability; proof must be reopened from the canonical bilateral payment source. */
+    createPaidPeriod(input: { tenancyId: string; housingUnitId: string; bedSlotId: string; tenantAgentId: string; startsAtSimulationTime: string },
+        evidence: RentPaymentEvidence, verify: () => boolean): HousingTenancy {
+        this.database.transaction(() => {
+            if (!verify()) throw new Error('Prepaid rent needs canonical payment proof');
+            const unit = this.catalog.units.find(u => u.housingUnitId === input.housingUnitId);
+            if (!unit || evidence.amountGp !== unit.rentGpPerPeriod || !/^[a-f0-9]{64}$/.test(evidence.sourceDigest)) throw new Error('Prepaid rent terms differ');
+            const prior = this.database.query('SELECT * FROM housing_prepaid_period WHERE tenancy_id=?1').get(input.tenancyId) as { payment_id: string; source_digest: string } | null;
+            if (prior) { if (prior.payment_id !== evidence.paymentId || prior.source_digest !== evidence.sourceDigest) throw new Error('Prepaid rent id reused'); return; }
+            this.prepaidMutation = true;
+            try { this.create({ ...input, periodCount: 1 }); } finally { this.prepaidMutation = false; }
+            this.database.run('INSERT INTO housing_prepaid_period VALUES(?1,?2,?3)', [input.tenancyId, evidence.paymentId, evidence.sourceDigest]);
+            this.database.run('INSERT INTO housing_rent_payment VALUES(?1,?2,?3,?4,?5)', [evidence.paymentId, input.tenancyId, evidence.amountGp, evidence.sourceDigest, evidence.occurredAtSimulationTime]);
+            this.audit('rent-prepaid', input.tenancyId, evidence.occurredAtSimulationTime, evidence);
+        }).immediate(); return this.require(input.tenancyId);
+    }
     get(tenancyId: string): HousingTenancy | null {
         const row = this.database.query('SELECT * FROM housing_tenancy WHERE tenancy_id=?1')
             .get(id(tenancyId, 'Tenancy id')) as Row | null;
@@ -81,6 +112,12 @@ export class HousingTenancyStore {
             return existing;
         }
         const transaction = this.database.transaction(() => {
+            if (tenancyId.startsWith('rent.') && !this.prepaidMutation) throw new Error('Native rent tenancy requires paid admission');
+            if (this.database.query("SELECT 1 FROM sqlite_master WHERE name='housing_native_schema'").get()
+                && readRentJournal<NativeRentOrder>(this.database, 'housing_native').some(o => ['reserved', 'active'].includes(o.phase)
+                    && (o.binding.intent.bedSlotId === bedId || o.binding.intent.tenant.agentId === tenantId)
+                    && (!this.prepaidMutation || rentIds(o.binding.intent.operationId).tenancyId !== tenancyId)))
+                throw new Error('Bed slot or tenant is reserved by native rent');
             const occupied = this.database.query(`SELECT tenancy_id FROM housing_tenancy
                 WHERE (housing_unit_id=?1 AND bed_slot_id=?2 OR tenant_agent_id=?3)
                 AND status IN ('active','arrears') LIMIT 1`).get(unitId, bedId, tenantId);
@@ -100,6 +137,15 @@ export class HousingTenancyStore {
         const current = this.require(tenancyIdInput), through = time(throughSimulationTime, 'Rent assessment time');
         if (through.milliseconds < Date.parse(current.startsAtSimulationTime)) throw new Error('Rent assessment predates tenancy');
         if (current.status === 'ended') return current;
+        if (this.database.query('SELECT 1 FROM housing_prepaid_period WHERE tenancy_id=?1').get(current.tenancyId)) {
+            if (through.milliseconds >= Date.parse(current.endsAtSimulationTime) && current.status !== 'expired') {
+                this.database.transaction(() => {
+                    this.database.run("UPDATE housing_tenancy SET status='expired',revision=revision+1 WHERE tenancy_id=?1", [current.tenancyId]);
+                    this.audit('prepaid-expired', current.tenancyId, through.iso, {});
+                }).immediate();
+            }
+            return this.require(current.tenancyId);
+        }
         const periodMs = current.rentPeriodSimulationMinutes * 60_000;
         let due = Date.parse(current.nextRentDueAtSimulationTime), charges = 0;
         const end = Date.parse(current.endsAtSimulationTime), limit = Math.min(through.milliseconds, end);
@@ -163,6 +209,7 @@ export class HousingTenancyStore {
     bedEntitlement(tenancyIdInput: string, atSimulationTime: string): BedAccessEntitlement | null {
         const current = this.require(tenancyIdInput), at = time(atSimulationTime, 'Entitlement time');
         if (current.status !== 'active' || current.arrearsGp !== 0
+            || at.milliseconds < Date.parse(current.startsAtSimulationTime)
             || at.milliseconds >= Date.parse(current.endsAtSimulationTime)
             || at.milliseconds >= Date.parse(current.nextRentDueAtSimulationTime)) return null;
         const validUntil = Date.parse(current.endsAtSimulationTime) < Date.parse(current.nextRentDueAtSimulationTime)
@@ -181,12 +228,14 @@ export class HousingTenancyStore {
                 !== row.entry_hash) return { valid: false, entries: rows.length, headHash: head };
             head = row.entry_hash;
         }
-        return { valid: true, entries: rows.length, headHash: head };
+        const anchor = this.database.query('SELECT sequence,hash FROM housing_tenancy_audit_head WHERE id=1').get() as { sequence: number; hash: string } | null;
+        return { valid: !!anchor && anchor.sequence === rows.length && anchor.hash === head, entries: rows.length, headHash: head };
     }
     private require(input: string): HousingTenancy {
         const found = this.get(input); if (!found) throw new Error('Unknown tenancy'); return found;
     }
     private audit(action: string, tenancyId: string, at: string, detail: unknown): void {
+        if (!this.verifyAuditChain().valid) throw new Error('Tenancy audit invalid');
         const last = this.database.query(`SELECT entry_hash FROM housing_tenancy_audit
             ORDER BY sequence DESC LIMIT 1`).get() as { entry_hash: string } | null;
         const previousHash = last?.entry_hash ?? ZERO, payload = { action, tenancyId, at, detail };
@@ -195,6 +244,8 @@ export class HousingTenancyStore {
             (action,tenancy_id,occurred_at,payload_json,previous_hash,entry_hash)
             VALUES(?1,?2,?3,?4,?5,?6)`,
         [action, tenancyId, at, JSON.stringify(payload), previousHash, entryHash]);
+        const count = this.database.query('SELECT COUNT(*) AS n FROM housing_tenancy_audit').get() as { n: number };
+        this.database.run('UPDATE housing_tenancy_audit_head SET sequence=?1,hash=?2 WHERE id=1', [count.n, entryHash]);
     }
     private migrate(): void {
         const version = Number((this.database.query('PRAGMA user_version').get() as { user_version: number }).user_version);

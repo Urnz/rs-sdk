@@ -37,6 +37,15 @@ export function mountSocietyDashboard(root, api) {
         $('#society-scope-caption').textContent = `Megjelenített riport: ${data.scope.fromSimulationTime} → ${data.scope.toSimulationTime} · kohorsz: ${data.scope.actorAgentIds.join(', ')} · snapshot: ${data.snapshot}`;
         $('#society-coverage').hidden = false;
         $('#society-coverage-body').innerHTML = `<p>Időben nem elhelyezhető forrásesemények: ${escape(data.sourceCoverage.unplaced)}. A teljes populáció lefedettsége nem igazolt.</p>
+            ${data.evaluation.nativeIntegration ? `<details open><summary>Négyavataros natív integráció</summary>
+                <p>Éhség-nevező: ${escape(data.evaluation.nativeIntegration.needs.internalHungerRelief.status)} · vagyonmérleg: ${escape(data.evaluation.nativeIntegration.balances.status)}</p>
+                <pre>${json({ needs: data.evaluation.nativeIntegration.needs, reconciliation: data.evaluation.nativeIntegration.reconciliation,
+                    wages: data.evaluation.nativeIntegration.wages, sleep: data.evaluation.nativeIntegration.sleep,
+                    balances: data.evaluation.nativeIntegration.balances, custody: data.evaluation.nativeIntegration.custody,
+                    graph: data.evaluation.nativeIntegration.dependencyGraph, sources: data.evaluation.nativeIntegration.sources })}</pre>
+                <p>A teljes eseménylista és minden forrásrekord szerepel a JSON-exportban. Az alábbi lista legfeljebb az első 100 rekordot mutatja.</p>
+                <button type="button" class="button small" data-society-action="native-export">Natív integrációs JSON letöltése</button>
+                ${data.evaluation.nativeIntegration.evidence.slice(0, 100).map(row => `<button type="button" class="button small" data-society-native="${escape(row.id)}">${escape(row.channel)} · ${escape(row.recordId)}</button>`).join('')}</details>` : ''}
             <details><summary>Forrásállapotok és tartalomkötések</summary><pre>${json(data.evaluation.sources)}</pre></details>
             <details><summary>Hiányzó adatforrások</summary><pre>${json(data.evaluation.unavailableReasons)}</pre></details>
             <details><summary>Legnagyobb megfigyelt kiesések</summary><pre>${json(data.worstWithdrawals)}</pre></details>
@@ -108,6 +117,23 @@ export function mountSocietyDashboard(root, api) {
         const button = event.target.closest('button'); if (!button || !root.contains(button)) return;
         if (button.dataset.societyAction === 'clock') { await prepare(true); return; }
         if (busy || !view) return;
+        if (button.dataset.societyAction === 'native-export' && view.evaluation.nativeIntegration) {
+            const report = view.evaluation.nativeIntegration, link = document.createElement('a');
+            const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
+            link.href = url; link.download = `society-integration-${report.digest.slice(0, 12)}.json`;
+            link.click(); URL.revokeObjectURL(url); return;
+        }
+        if (button.dataset.societyNative && view.evaluation.nativeIntegration) {
+            const ticket = sequence; detailController?.abort(); const ownController = new AbortController(); detailController = ownController;
+            const detail = $('#society-detail'); detail.hidden = false; detail.textContent = 'Natív integrációs bizonylat ellenőrzése…';
+            const params = new URLSearchParams(base); params.set('snapshot', view.evaluation.nativeIntegration.digest);
+            try {
+                const data = await request(`/api/admin/society/integration/evidence/${encodeURIComponent(button.dataset.societyNative)}?${params}`, ownController.signal);
+                if (ticket !== sequence || ownController !== detailController || ownController.signal.aborted) return;
+                detail.innerHTML = `<h3>Natív integrációs forrásrekord</h3><pre>${json(data)}</pre>`;
+            } catch (error) { if (ticket === sequence && ownController === detailController && error.name !== 'AbortError') { clear(); status(error.message, true); } }
+            return;
+        }
         if (button.dataset.societyMetric) { filters.elements.namedItem('metric').value = button.dataset.societyMetric; await applyFilters({ eventFrom: null, eventTo: null }); }
         if (button.dataset.societyFrom) await applyFilters({ eventFrom: button.dataset.societyFrom, eventTo: button.dataset.societyTo });
         if (button.dataset.societyAction === 'reset-filters') { filters.reset(); await applyFilters({ eventFrom: null, eventTo: null }); }

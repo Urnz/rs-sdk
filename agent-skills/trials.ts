@@ -35,7 +35,7 @@ const STATUS_TRANSITIONS: Record<SkillTrialStatus, readonly SkillTrialStatus[]> 
     ready: ['running', 'cancelled'],
     running: ['running', 'verification-passed', 'verification-failed', 'cancelled'],
     'verification-failed': ['running', 'verification-passed', 'verification-failed', 'cancelled'],
-    'verification-passed': ['published', 'cancelled'],
+    'verification-passed': ['verification-passed', 'verification-failed', 'published', 'cancelled'],
     published: [], cancelled: []
 };
 

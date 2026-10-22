@@ -10,13 +10,88 @@
       "maximumStock": 12,
       "procurement": {
         "maxUnitPriceGp": 10,
-        "verifiedSkills": [{ "id": "shopping.lumbridge.buy-hammers", "version": "1.0.0" }]
+        "verifiedSkills": [
+          {
+            "id": "shopping.lumbridge.buy-hammers",
+            "version": "1.0.0"
+          }
+        ]
       },
-      "pricing": { "mode": "fixed", "saleUnitPriceGp": 5 },
+      "pricing": {
+        "mode": "fixed",
+        "saleUnitPriceGp": 5
+      },
       "sales": {
         "minimumReserve": 2,
         "maxUnitsPerSettlement": 5,
-        "verifiedSkills": [{ "id": "trade.lumbridge.give-item", "version": "1.0.0" }]
+        "verifiedSkills": [
+          {
+            "id": "trade.lumbridge.give-item",
+            "version": "1.0.0"
+          }
+        ]
+      }
+    },
+    {
+      "policyId": "karamja-kitchen.raw-lobster.v1",
+      "businessId": "karamja-kitchen",
+      "itemId": 377,
+      "minimumStock": 0,
+      "targetStock": 8,
+      "maximumStock": 28,
+      "procurement": {
+        "maxUnitPriceGp": 20,
+        "verifiedSkills": [
+          {
+            "id": "trade.lumbridge.give-item",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "pricing": {
+        "mode": "fixed",
+        "saleUnitPriceGp": 25
+      },
+      "sales": {
+        "minimumReserve": 0,
+        "maxUnitsPerSettlement": 8,
+        "verifiedSkills": [
+          {
+            "id": "trade.lumbridge.give-item",
+            "version": "1.0.0"
+          }
+        ]
+      }
+    },
+    {
+      "policyId": "karamja-kitchen.cooked-lobster.v1",
+      "businessId": "karamja-kitchen",
+      "itemId": 379,
+      "minimumStock": 0,
+      "targetStock": 8,
+      "maximumStock": 28,
+      "procurement": {
+        "maxUnitPriceGp": 30,
+        "verifiedSkills": [
+          {
+            "id": "trade.lumbridge.give-item",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "pricing": {
+        "mode": "fixed",
+        "saleUnitPriceGp": 40
+      },
+      "sales": {
+        "minimumReserve": 0,
+        "maxUnitsPerSettlement": 8,
+        "verifiedSkills": [
+          {
+            "id": "trade.lumbridge.give-item",
+            "version": "1.0.0"
+          }
+        ]
       }
     }
   ]
