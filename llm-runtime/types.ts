@@ -89,7 +89,20 @@ export interface AllowedAgentSkill extends AgentSkillReference {
     description: string;
 }
 
-export type LlmPlanningMode = 'execute-immediate-goal' | 'derive-immediate-goal';
+export type LlmPlanningMode = 'execute-immediate-goal' | 'derive-immediate-goal' | 'choose-player-strategy';
+
+/** Server-enumerated executable attempts. The model selects an id, never supplies authority or parameters. */
+export interface PlayerStrategyAlternative {
+    optionId: string;
+    skill: AgentSkillReference;
+    parameters: Record<string, string | number | boolean>;
+    purpose: 'acquire-input' | 'earn-income' | 'produce' | 'self-care';
+    costGp: number;
+    rewardGp: number | null;
+    risk: string;
+    requirements: string[];
+    evidence: string[];
+}
 
 export interface LlmGoalSummary {
     goalId: string;
@@ -105,6 +118,7 @@ export interface ProposedAgentGoal extends Omit<LlmGoalSummary, 'horizon'> {
 }
 
 export interface LlmPlanningInput {
+    alternatives?: readonly PlayerStrategyAlternative[];
     agentId: string;
     mode: LlmPlanningMode;
     goal: { goalId: string; title: string; description: string };
@@ -117,6 +131,7 @@ export interface LlmPlanningInput {
 }
 
 export interface LlmProviderRequest {
+    alternatives?: readonly PlayerStrategyAlternative[];
     runId: string;
     agentId: string;
     model: string;
@@ -153,6 +168,11 @@ export interface LlmProvider {
 }
 
 export type LlmDecision = {
+    kind: 'choose-alternative';
+    goalId: string;
+    optionId: string;
+    reason: string;
+} | {
     kind: 'execute-skill';
     goalId: string;
     skill: AgentSkillReference;

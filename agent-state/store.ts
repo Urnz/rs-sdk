@@ -40,6 +40,9 @@ import { createSkillParameterBinding } from './skill-binding.js';
 import { installStateGoalSchema, evaluateStateObjective, STATE_GOAL_POLICY,
     type StateObjective, type StateGoalEvaluation } from './state-objectives.js';
 import type { EconomicObservation } from './economic-context.js';
+import { installPlayerStrategySchema, readPlayerStrategy, PLAYER_STRATEGY_POLICY,
+    type PlayerStrategyRequest, type PlayerStrategyRun } from './player-strategy.js';
+import type { LlmPlanResult } from '../llm-runtime/types.js';
 import { installLivelihoodJournal, readLivelihoodJournal, writeLivelihoodJournal,
     type LivelihoodJournalEntry } from './livelihood.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
@@ -1804,6 +1807,55 @@ export class AgentStateStore {
                     && evaluation.observed_at >= terminal.occurred_at ? { needsReplan: true } : {}) } } : {}) };
     }
 
+    getPlayerStrategy(eventId: string): PlayerStrategyRun | null { return readPlayerStrategy(this.database, eventId); }
+
+    playerStrategyOperationalSpend(agentId: string, now: string, eventId: string): number {
+        return (this.database.query(`SELECT COALESCE(SUM(operational_budget_gp),0) total FROM agent_decision_ledger
+            WHERE agent_id=?1 AND substr(occurred_at,1,10)=?2 AND decision_id!=?3`).get(agentId,now.slice(0,10),eventId) as {total:number}).total;
+    }
+
+    preparePlayerStrategy(request: PlayerStrategyRequest, profileRevision: number, llmCostMicros: number,
+        proposalId: string, now: string): PlayerStrategyRun {
+        this.database.transaction(() => {
+            const prior = this.getPlayerStrategy(request.event.eventId);
+            if (prior) {
+                if (prior.request.agentId !== request.agentId || prior.request.event.sourceKey !== request.event.sourceKey)
+                    throw new Error('Strategy event identity collision');
+                return;
+            }
+            const cooling = this.database.query(`SELECT 1 FROM agent_player_strategy WHERE agent_id=?1 AND next_eligible_at>?2`)
+                .get(request.agentId, now);
+            if (cooling) throw new Error('Player strategy cooldown is active');
+            this.recordDecision(request.agentId, profileRevision, { decisionId: request.event.eventId, trigger: 'event',
+                contextDigest: request.contextDigest, llmCostMicros }, now);
+            this.database.run(`INSERT INTO agent_player_strategy VALUES (?1,?2,?3,'prepared',NULL,?4,NULL,NULL,'',?5)`,
+                [request.event.eventId, request.agentId, JSON.stringify(request), proposalId,
+                    new Date(Date.parse(now) + PLAYER_STRATEGY_POLICY.cooldownMs).toISOString()]);
+        }).immediate();
+        return this.getPlayerStrategy(request.event.eventId)!;
+    }
+
+    claimPlayerStrategyInference(eventId: string): boolean {
+        return this.database.run(`UPDATE agent_player_strategy SET status='inferring' WHERE event_id=?1 AND status='prepared'`,
+            [eventId]).changes === 1;
+    }
+
+    finishPlayerStrategyInference(eventId: string, plan: LlmPlanResult): PlayerStrategyRun {
+        const current = this.getPlayerStrategy(eventId);
+        if (!current || current.status !== 'inferring' || plan.runId !== eventId || plan.agentId !== current.request.agentId)
+            throw new Error('Strategy inference has no matching durable claim');
+        const selected = plan.status === 'proposed' && plan.decision?.kind === 'choose-alternative'
+            && current.request.options.some(o => o.optionId === (plan.decision as { optionId: string }).optionId);
+        this.database.run(`UPDATE agent_player_strategy SET status=?2,plan_json=?3,reason=?4 WHERE event_id=?1 AND status='inferring'`,
+            [eventId, selected ? 'decided' : 'waiting', JSON.stringify(plan), plan.reason.slice(0,1000)]);
+        return this.getPlayerStrategy(eventId)!;
+    }
+
+    waitPlayerStrategy(eventId: string, reason: string): void {
+        this.database.run(`UPDATE agent_player_strategy SET status='waiting',reason=?2
+            WHERE event_id=?1 AND status NOT IN ('adopted','dispatched')`, [eventId, reason.slice(0,1000)]);
+    }
+
     /** Called only by trusted gateway adapters, never with model/client-supplied observations. */
     evaluateGoalStates(agentId: string, observation: EconomicObservation, now = new Date().toISOString()): void {
         const transaction = this.database.transaction(() => {
@@ -1836,6 +1888,7 @@ export class AgentStateStore {
     adoptImmediateGoalProposal(proposalId: string, expectedRevision: number, input: {
         decisionId: string; binding: AgentSkillDispatch['binding']; scopeDigest: string;
         reservedGp: number; dailyLimitGp: number; policyId: string; policyVersion: string;
+        leaseOwner?: string;
     }, now = new Date().toISOString()): AgentGoal {
         let adoptedGoal: AgentGoal | null = null;
         const transaction = this.database.transaction(() => {
@@ -1852,6 +1905,7 @@ export class AgentStateStore {
             const enrollment = this.getAutonomyEnrollment(proposal.agentId);
             if (this.getAutonomyControl().emergencyStop || !enrollment || enrollment.status !== 'running'
                 || !enrollment.leaseExpiresAt || enrollment.leaseExpiresAt <= now
+                || (input.leaseOwner && enrollment.leaseOwner !== input.leaseOwner)
                 || enrollment.policyId !== input.policyId || enrollment.policyVersion !== input.policyVersion)
                 throw new Error('Plan adoption requires the current live autonomy policy lease');
             const age = Date.parse(now) - Date.parse(parent.stateEvaluation?.observedAt ?? '');
@@ -1866,6 +1920,17 @@ export class AgentStateStore {
                 && (g.parentGoalId === parent.goalId || parent.objective!.purpose !== 'self-care'));
             const replaceable = occupied.filter(g => g.parentGoalId === parent.goalId && g.stateEvaluation?.needsReplan
                 && g.stateEvaluation.result === 'unsatisfied' && g.stateEvaluation.digest === parent.stateEvaluation!.digest);
+            const strategy = this.getPlayerStrategy(proposal.runId);
+            if (strategy?.status === 'decided' && strategy.proposalId === proposalId
+                && strategy.request.parent.goalId === parent.goalId && strategy.request.parent.revision === parent.revision
+                && strategy.plan?.decision?.kind === 'choose-alternative') {
+                const selected = strategy.request.options.find(o => o.optionId === (strategy.plan!.decision as { optionId: string }).optionId);
+                if (selected?.skill.id !== proposal.skill.id || selected.skill.version !== proposal.skill.version
+                    || selected.binding.digest !== input.binding.digest) throw new Error('Strategy choice differs from adopted skill/binding');
+                const previous = occupied.find(g => g.goalId === strategy.request.replaces?.goalId
+                    && g.revision === strategy.request.replaces.revision && g.parentGoalId === parent.goalId);
+                if (previous && !replaceable.some(g => g.goalId === previous.goalId)) replaceable.push(previous);
+            }
             if (occupied.length !== replaceable.length || replaceable.length > 1)
                 throw new Error('An active immediate plan already occupies this scope');
             for (const previous of replaceable) {
@@ -1888,6 +1953,8 @@ export class AgentStateStore {
             this.database.run(`UPDATE agent_goal_proposal SET status='completed',updated_at=?2,resolved_at=?2,
                 response_note='Bounded immediate plan adopted; goal satisfaction requires native evidence',revision=revision+1
                 WHERE proposal_id=?1`, [proposalId, now]);
+            if (strategy?.status === 'decided') this.database.run(`UPDATE agent_player_strategy SET status='adopted',goal_id=?2
+                WHERE event_id=?1 AND status='decided'`, [proposal.runId, created.goalId]);
             adoptedGoal = created;
         });
         transaction.immediate();
@@ -1966,6 +2033,11 @@ export class AgentStateStore {
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
             [runId, decisionId, agentId, goalId, skill.id, skill.version, binding.sourceKind, binding.sourceId,
                 JSON.stringify(binding.parameters), binding.digest, input.policyId, input.policyVersion, now]);
+            const strategy = this.getPlayerStrategy(decisionId);
+            if (strategy) {
+                if (strategy.status !== 'adopted' || strategy.goalId !== goalId) throw new Error('Strategy dispatch is not bound to its adopted plan');
+                this.database.run(`UPDATE agent_player_strategy SET status='dispatched',run_id=?2 WHERE event_id=?1`, [decisionId, runId]);
+            }
         });
         transaction.immediate();
         return this.getSkillDispatch(runId)!;
@@ -3224,6 +3296,9 @@ export class AgentStateStore {
         }
         if (version < 26) {
             this.database.transaction(() => { installStateGoalSchema(this.database); this.database.run('PRAGMA user_version=26'); }).immediate();
+        }
+        if (version < 27) {
+            this.database.transaction(() => { installPlayerStrategySchema(this.database); this.database.run('PRAGMA user_version=27'); }).immediate();
         }
     }
 }

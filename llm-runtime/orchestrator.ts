@@ -24,6 +24,15 @@ function parseDecision(output: unknown, input: LlmPlanningInput): LlmDecision {
     if (goalId !== input.goal.goalId) throw new Error('Model selected a goal outside the approved planning request');
     const reason = text(value.reason, 'reason');
     if (value.decision === 'abstain') return { kind: 'abstain', goalId, reason };
+    if (input.mode === 'choose-player-strategy') {
+        if (value.decision !== 'select_alternative' || typeof value.alternativeId !== 'string'
+            || !input.alternatives?.some(item => item.optionId === value.alternativeId))
+            throw new Error('Model selected an unavailable strategy alternative');
+        if (value.tool != null || (Array.isArray(value.goals) && value.goals.length > 0)
+            || Object.hasOwn(value, 'parameters') || Object.hasOwn(value, 'authorization'))
+            throw new Error('A strategy selection cannot author tools, parameters, goals or authority');
+        return { kind: 'choose-alternative', goalId, optionId: value.alternativeId, reason };
+    }
     if (value.decision === 'propose_goal_plan') {
         if (input.mode !== 'derive-immediate-goal') throw new Error('Model proposed goals while an immediate goal is active');
         const anchor = input.goalHierarchy.find(item => item.goalId === input.goal.goalId);
@@ -122,6 +131,10 @@ function planningInputError(input: LlmPlanningInput): string | null {
         return 'Untrusted input exceeds its count or character limit';
     }
     if (input.allowedSkills.length > 100) return 'Allowed skill list exceeds 100 entries';
+    if (input.mode === 'choose-player-strategy' && (!input.alternatives?.length || input.alternatives.length > 12
+        || new Set(input.alternatives.map(o => o.optionId)).size !== input.alternatives.length
+        || input.alternatives.some(o => !input.allowedSkills.some(s => s.id === o.skill.id && s.version === o.skill.version))))
+        return 'Strategy alternatives must be bounded, unique and reference allowed skills';
     if (input.goalHierarchy.length === 0 || input.goalHierarchy.length > 100) return 'Goal hierarchy count is invalid';
     return null;
 }
@@ -234,6 +247,7 @@ export class LlmOrchestrator {
             agentId: input.agentId,
             model: this.config.model,
             mode: input.mode,
+            ...(input.alternatives ? { alternatives: structuredClone(input.alternatives) } : {}),
             goal: input.goal,
             goalHierarchy: input.goalHierarchy.map(item => ({ ...item })),
             trustedContext: input.trustedContext,
@@ -243,7 +257,7 @@ export class LlmOrchestrator {
                 description: 'Execute one reviewed high-level skill after explicit approval.',
                 allowedSkills: input.allowedSkills.map(item => ({ ...item }))
             }],
-            instruction: `${SAFETY_INSTRUCTION}\n\nSimulation role:\n${this.config.plannerPrompt}`,
+            instruction: `${SAFETY_INSTRUCTION}\nIn choose-player-strategy mode compare the supplied alternatives, needs, costs, risks and individual preferences. Select exactly one option id with {decision:"select_alternative",goalId,alternativeId,reason,goals:[],tool:null}, or abstain. Do not invent a replacement, parameters, authority or income.\n\nSimulation role:\n${this.config.plannerPrompt}`,
             maxOutputTokens: this.config.limits.maxOutputTokens,
             ...(this.config.reasoningEffort ? { reasoningEffort: this.config.reasoningEffort } : {})
         };
@@ -293,6 +307,10 @@ export class LlmOrchestrator {
                     proposedGoals: decision.goals.map(goal => `${goal.horizon}:${goal.goalId}`),
                     skill: decision.skill ? `${decision.skill.id}@${decision.skill.version}` : null
                 });
+                return this.result(input, runId, started, 'proposed', decision.reason, usage, decision);
+            }
+            if (decision.kind === 'choose-alternative') {
+                await this.emit(input, runId, 'decision.proposed', { goalId: decision.goalId, optionId: decision.optionId });
                 return this.result(input, runId, started, 'proposed', decision.reason, usage, decision);
             }
             if (this.config.limits.maxToolCalls < 1) {

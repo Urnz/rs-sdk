@@ -14,8 +14,8 @@ import { AgentStateStore } from '../../../agent-state/store.js';
 import type { LlmReplanEvent } from '../../../llm-runtime/events.js';
 import { delegateBusinessPlayerAction, finishAdminPlayerActionRun, listAdminAgents,
     startAdminPlayerActionRequest } from './agent-state.js';
-import { runAdminLlmDryRun } from './llm-dry-run.js';
-import { agentStateDbPath, capabilityGapsPath, llmReplanLogPath } from './paths.js';
+import { runAdminLlmDryRun, type AdminLlmDryRunOptions } from './llm-dry-run.js';
+import { agentStateDbPath, capabilityGapsPath, llmReplanLogPath, repoRoot } from './paths.js';
 import { CapabilityGapStore } from '../../../agent-skills/capability-gaps.js';
 import { AgentReplanCoordinator, type AgentReplanCoordinatorDependencies,
     AUTONOMY_LEASE_OWNER_MISMATCH_REASON, type ReplanOutcome, type ReplanRecord } from './replan-coordinator.js';
@@ -40,6 +40,11 @@ import { isLivelihoodPolicy, LIVELIHOOD_POLICY } from './livelihood-policy.js';
 import { runLivelihoodReplan, type LivelihoodPorts } from './livelihood-runtime.js';
 import { createLivelihoodPorts } from './livelihood-sources.js';
 import { dispatchLivelihoodSkill } from './livelihood-dispatch.js';
+import { runPlayerStrategy } from './player-strategy-runtime.js';
+import type { PlayerStrategySources } from './player-strategy-options.js';
+import { buildCoreIdentity } from '../../../agent-state/context.js';
+import { buildEconomicContext } from '../../../agent-state/economic-context.js';
+import { join } from 'node:path';
 
 let appendTail: Promise<void> = Promise.resolve();
 
@@ -85,6 +90,7 @@ export function contractObligationCandidates(agentId: string,
 }
 
 export interface GatewayAgentReplanOptions {
+    strategyPlanning?: Pick<AdminLlmDryRunOptions, 'provider' | 'queue' | 'budget' | 'audit'>;
     agentPath?: string;
     capabilityGapPath?: string;
     llmConfigPath?: string;
@@ -201,8 +207,22 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 if (!config.automaticReplanning) return { runId: event.eventId, status: 'skipped',
                     reason: 'Automatic replanning is disabled.' };
                 const durableEnrollment = useStore(store => store.getAutonomyEnrollment(agentId), agentPath);
+                const savedStrategy = useStore(store => store.getPlayerStrategy(event.eventId), agentPath);
+                if (savedStrategy && ['waiting','inferring','dispatched'].includes(savedStrategy.status)) {
+                    if (savedStrategy.status === 'dispatched') {
+                        const outcome = useStore(store => store.getSkillRunOutcome(savedStrategy.runId!),agentPath);
+                        return { runId:savedStrategy.runId!,status:outcome?.status ?? 'executing',
+                            reason:outcome?.detail ?? 'The exact strategy already has its durable dispatch.' };
+                    }
+                    return {runId:event.eventId,status:'bounded-wait',reason:savedStrategy.reason || 'Prior inference is uncertain; replay cannot call the provider again.'};
+                }
+                const strategyEvent = ['significant-economic-change','skill-failed','skill-finished','autonomy-startup','autonomy-idle'].includes(event.type);
+                const urgentStrategy = urgentSelfCareGoal(current, now);
+                const strategyParent = savedStrategy ? current.goals.find(g => g.goalId === savedStrategy.request.parent.goalId)
+                    : strategyEvent ? urgentStrategy ?? current.goals.filter(g => g.status === 'active'
+                    && g.horizon === 'current' && g.objective).sort((a,b) => b.priority-a.priority || a.goalId.localeCompare(b.goalId))[0] : null;
                 const template = durableEnrollment
-                    ? selectAllowedGoalTemplate(current.goals, durableEnrollment) : null;
+                    && !strategyParent ? selectAllowedGoalTemplate(current.goals, durableEnrollment) : null;
                 if (template) {
                     useStore(store => store.createGoal(agentId, { ...template.goal,
                         parentGoalId: template.parentGoalId }, now), agentPath, options.simulationClock);
@@ -221,7 +241,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 const immediate = (urgent && failedGoal?.parentGoalId !== urgent.goalId ? null : failedGoal)
                     ?? selectImmediateGoal(current, event.selectionSeed, now);
                 let alternative: { id: string; version: string } | undefined;
-                if (terminalOutcome && immediate && (!urgent || failedGoal?.parentGoalId === urgent.goalId)) {
+                if (!strategyParent && terminalOutcome && immediate && (!urgent || failedGoal?.parentGoalId === urgent.goalId)) {
                     const failed = new Set(useStore(store => store.listFailedSkillReferencesForGoal(
                         immediate.goalId), agentPath).map(skill => `${skill.id}@${skill.version}`));
                     const known = current.knownSkills.filter(item => item.status === 'known' || item.status === 'preferred');
@@ -264,11 +284,11 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                     ? 'scheduled' : 'event';
                 const profileRevision = current.controlProfile.revision;
                 const contextDigest = createHash('sha256').update(current.decisionContext).digest('hex');
-                useStore(store => store.recordDecision(agentId, profileRevision, {
+                if (!strategyParent) useStore(store => store.recordDecision(agentId, profileRevision, {
                     decisionId: event.eventId, trigger, llmCostMicros: expectedCost,
                     operationalBudgetGp: 0, contextDigest
                 }, now), agentPath);
-                if (failureFallback) return failureFallback;
+                if (!strategyParent && failureFallback) return failureFallback;
                 const dispatch = async (goalId: string, candidate: Awaited<ReturnType<typeof resolveAdminSkillForAgent>>,
                     candidates: AutonomousSkillParameterCandidate[], decisionId: string) => {
                     const policy = evaluateAutonomousSkillPolicy(config.autonomousExecution, candidate.definition);
@@ -322,6 +342,59 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                         throw error;
                     }
                 };
+                if (strategyParent) return runPlayerStrategy(event, {
+                    requiredLeaseOwner: options.requiredAutonomyLeaseOwner,
+                    agentPath, simulationClock: options.simulationClock, gaps: new CapabilityGapStore(gapPath),
+                    read: async () => {
+                        const at = new Date().toISOString();
+                        const freshObservation = readEconomicObservation(agentId, { agentPath, gatewayBots: gatewayBots(),
+                            now: at, simulationClock: options.simulationClock });
+                        useStore(store => store.evaluateGoalStates(agentId, freshObservation, at), agentPath, options.simulationClock);
+                        const view = (await listAgents()).agents.find(a => a.identity.agentId === agentId)!;
+                        const parent = view.goals.find(g => g.goalId === strategyParent.goalId && g.status === 'active');
+                        if (!parent) throw new Error('Strategy parent became inactive');
+                        const freshGateway = [...gatewayBots().entries()].find(([name]) => name.toLowerCase() === avatar)?.[1];
+                        if (!freshGateway?.state || freshGateway.status !== 'active') throw new Error('Strategy avatar went offline');
+                        const latestConfig = (await loadLlmRuntimeConfig(options.llmConfigPath ? {
+                            defaultConfigPath: options.llmConfigPath, overrideConfigPath: `${options.llmConfigPath}.override`
+                        } : {})).config;
+                        if (!latestConfig.automaticReplanning) throw new Error('Automatic strategy replanning is disabled');
+                        const definitions = await Promise.allSettled(view.catalogSkills.slice(0,100).map(s => resolveAdminSkillForAgent(
+                            `${s.id}@${s.version}`, agentId, options.skillCatalog)));
+                        let sourceAreas: PlayerStrategySources['sourceAreas'] = [];
+                        try { sourceAreas = JSON.parse(await readFile(join(agentPath === agentStateDbPath ? repoRoot : dirname(agentPath),
+                            'config/native-food-production.json'), 'utf8')).sources; } catch { /* Unknown source is not executable. */ }
+                        const excludedSkills = useStore(store => {
+                            return view.goals.filter(g => g.parentGoalId === parent.goalId).flatMap(g => {
+                                const last = store.getGoalExecution(g.goalId)?.lastRunId;
+                                const outcome = last ? store.getSkillRunOutcome(last) : null;
+                                // Input acquisition may repair a precondition. Recheck fresh inputs instead of suppressing the skill forever.
+                                return g.skill && outcome && outcome.classification !== 'completed' && outcome.classification !== 'acquire-input'
+                                    && Date.parse(at)-Date.parse(outcome.occurredAt)<60000 ? [`${g.skill.id}@${g.skill.version}`] : [];
+                            });
+                        },agentPath);
+                        return { snapshot: view, profile: view.controlProfile, parent, world: freshGateway.state,
+                            observedAt: new Date(freshGateway.lastStateReceivedAt).toISOString(), now: at,
+                            definitions: definitions.flatMap(r => r.status === 'fulfilled' ? [r.value.definition] : []),
+                            config: latestConfig.autonomousExecution, incoming: view.incomingPlayerActions,
+                            spentGp: useStore(s => s.playerStrategyOperationalSpend(agentId,at,event.eventId),agentPath),
+                            sourceAreas, excludedSkills, trustedContext: `${buildCoreIdentity(view,2000)}\n`
+                                + `Approved state objective: ${JSON.stringify(parent.objective)}\n`
+                                + buildEconomicContext(freshObservation,at),
+                            blockers: view.decisionContextBlockers, maxLlmCostMicros: latestConfig.limits.maxCostMicros };
+                    },
+                    plan: async (context, request) => {
+                        const view = (await listAgents()).agents.find(a => a.identity.agentId === agentId)!;
+                        const result = await runAdminLlmDryRun(view,view.catalogSkills,{ ...options.strategyPlanning,
+                            now: new Date().toISOString(), runId:event.eventId, automatic:true, requireAuthoritativeContext:true,
+                            configPath:options.llmConfigPath, untrustedText:[event.summary.slice(0,1000)],
+                            strategy:{parentGoalId:request.parent.goalId,alternatives:request.options.map(({binding,...o}) => o),
+                                trustedContext:context.trustedContext} });
+                        return result.plan;
+                    },
+                    dispatch: async (goalId, definition, binding, decisionId) => dispatch(goalId,{ definition } as Awaited<ReturnType<typeof resolveAdminSkillForAgent>>,
+                        [{...binding,skill:{id:definition.id,version:definition.version}}],decisionId)
+                });
                 if (immediate) {
                     const deterministic = await resolveLearnAndPlan(agentId, immediate, current.catalogSkills,
                         current.knownSkills, { now, agentPath, catalog: options.skillCatalog,

@@ -1,5 +1,37 @@
 # Társadalmi integráció – implementációs eredmények
 
+## SI-B03 – Player-stratégia és tartós modellválasztás – 2026-10-23
+
+**Kész; következő SI-B04, az még nem indult.**
+[Szerződés, konzervatív preflight-lefedettség, migráció és ellenőrzési index](SI_B03_PLAYER_STRATEGY.md).
+Legfeljebb 12, saját megfigyelésből és exact reviewed Skill[]/grantből
+összeállított resource/acquisition/work lehetőség. A modell ID-t választ;
+nem írhat hozzá eszközt, paramétert vagy authorityt. Az egyéni preferencia,
+igény, költség és kockázat bounded contextben szerepel. A chat kimarad a
+stratégiai trusted contextből; az eseményszöveg untrusted adat.
+
+AgentState v27: saját stratégia-receipt. Trigger/context/policy, validated
+model choice, parent revision, proposal, adott goal és run összekötött;
+replay nem hív újra providert és nem indít még egy taskot. Tartós 60 s-os
+cooldown, zero-option wait és tényleges procedure-hiányra idempotens gap.
+Input pótlása után a régi skill friss precondition alapján újra választható.
+Inference közben megváltozott source/grant/lease-owner vagy halál fail-closed.
+
+`20261023-143925-685-si-b03-consumers-and-native`: **106 PASS / 1 új gateway
+assertion FAIL**, 13,443 s. A javított közvetlen határok és natív SI-B02/B03:
+`20261023-144305-800-si-b03-final-runtime-types`, **32 PASS + root/engine TS +
+format**, 37,017 s. Utolsó lease/death védelmi pontosítás után:
+`20261023-144529-990-si-b03-lease-state-final`, **29 PASS + root/engine TS +
+format**, 36,875 s. A sikeres változatlan fogyasztók nem futottak mind újra;
+a számsorok átfednek, a korábbi FAIL-ek logjai megmaradnak.
+
+Két controlled executor út és valódi ended employment→gateway→model→dispatch
+igazolt. A külön SDK/packed engine próba a modell által választott native
+gather raw outputját és későbbi főzés/state-teljesülést igazolja; a második
+shop opció ott preflight fixture, nem natív vásárlási bizonylat.
+**Full nem futott**; élő világ/provider, új publication és SI-B06/SI-M1/SI-M2
+autonóm eredmény nem következik ezekből a mechanikai próbákból.
+
 ## SI-B02 – Állapotcél és korlátos tervelfogadás – 2026-10-23
 
 **Kész; következő SI-B03, az még nem indult.**

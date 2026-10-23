@@ -19,6 +19,19 @@ function provider(fetch: OpenAIFetch) {
 }
 
 describe('OpenAI Responses provider', () => {
+    test('transports bounded strategy alternatives and the exact id-selection schema', async () => {
+        const alternative={optionId:'option.visible',skill:{id:'mining',version:'1.0.0'},parameters:{},purpose:'produce' as const,
+            costGp:0,rewardGp:null,risk:'routine',requirements:['owned-tool'],evidence:['own-live']};
+        let body:any;
+        const fetch:OpenAIFetch=async(_url,init)=>{body=JSON.parse(String(init?.body));return new Response(JSON.stringify({
+            output_text:JSON.stringify({decision:'select_alternative',goalId:'wealth',alternativeId:alternative.optionId,goals:[],tool:null,reason:'Compare bounded choices'}),
+            usage:{input_tokens:0,output_tokens:0}}));};
+        await provider(fetch).complete({...request,mode:'choose-player-strategy',alternatives:[alternative]},new AbortController().signal);
+        expect(JSON.parse(body.input).alternatives).toEqual([alternative]);
+        expect(body.text.format.schema.properties.decision.enum).toContain('select_alternative');
+        expect(body.text.format.schema.required).toContain('alternativeId');
+    });
+
     test('sends a non-stored structured request and converts usage into the configured cost', async () => {
         let sent: RequestInit | undefined;
         const fetch = async (_input: string | URL | Request, init?: RequestInit) => {

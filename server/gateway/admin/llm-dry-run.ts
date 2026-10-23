@@ -5,7 +5,7 @@ import { validateLlmRuntimeConfig } from '../../../llm-runtime/config.js';
 import { ScriptedMockProvider } from '../../../llm-runtime/mock-provider.js';
 import { createOpenAIProvider, OpenAIResponsesProvider } from '../../../llm-runtime/openai-provider.js';
 import { LlmOrchestrator } from '../../../llm-runtime/orchestrator.js';
-import { buildLlmPlanningInput } from '../../../llm-runtime/planning.js';
+import { buildLlmPlanningInput, type BuildLlmPlanningInputOptions } from '../../../llm-runtime/planning.js';
 import { InferenceQueue } from '../../../llm-runtime/queue.js';
 import { SqliteInferenceQueueClaimStore } from '../../../llm-runtime/inference-queue-store.js';
 import { LlmDailyBudgetStore } from '../../../llm-runtime/budget.js';
@@ -30,6 +30,7 @@ export function setAdminLlmEmergencyStop(active: boolean): void {
 }
 
 export interface AdminLlmDryRunOptions {
+    strategy?: BuildLlmPlanningInputOptions['strategy'];
     now?: string;
     runId?: string;
     configPath?: string;
@@ -72,6 +73,10 @@ function words(value: string): Set<string> {
 }
 
 function mockResponse(agent: AdminAgentView, request: LlmProviderRequest): LlmProviderResponse {
+    if (request.mode === 'choose-player-strategy') return { output: { decision: 'select_alternative',
+        goalId: request.goal.goalId, alternativeId: request.alternatives?.[0]?.optionId,
+        tool: null, goals: [], reason: 'Deterministic mock fixture selected the first enumerated alternative; this is not a live LLM result.' },
+        usage: { costMicros: 0 } };
     const anchor = agent.goals.find(goal => goal.goalId === request.goal.goalId)!;
     const assigned = anchor.skill && request.tools[0].allowedSkills.find(skill => skill.id === anchor.skill!.id
         && skill.version === anchor.skill!.version);
@@ -139,9 +144,10 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
     }
     const config = configured.provider === 'mock' ? { ...configured, enabled: true } : configured;
     const input = buildLlmPlanningInput(agent, {
+        strategy: options.strategy,
         availableSkills: skills.map(skill => ({ id: skill.id, version: skill.version,
             name: skill.name, description: skill.description })),
-        trustedContext: agent.decisionContext,
+        trustedContext: options.strategy?.trustedContext ?? agent.decisionContext,
         context: {
             now: options.now,
             maxCharacters: 4000,
@@ -153,7 +159,7 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         untrustedText: [...agent.decisionUntrustedText, ...(options.untrustedText ?? [])],
         runId: options.runId
     });
-    if (options.automatic && options.capabilityGapStore) {
+    if (options.automatic && options.capabilityGapStore && !options.strategy) {
         const pending = await options.capabilityGapStore.findPending(input.agentId, input.goal.goalId);
         if (pending) {
             const reason = `Capability gap ${pending.gapId} is still ${pending.status}; automatic LLM planning is paused.`;

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { AgentStateStore } from '../../../agent-state/store.js';
+import { AGENT_STATE_SCHEMA_VERSION } from '../../../agent-state/types.js';
 import { STATE_GOAL_POLICY, evaluateStateObjective, type StateObjective } from '../../../agent-state/state-objectives.js';
 import type { EconomicObservation } from '../../../agent-state/economic-context.js';
 import { selectImmediateGoal } from '../../../agent-state/planner.js';
@@ -294,14 +295,15 @@ test('self-care overrides higher-priority work at the next skill boundary, then 
 
 test('v25 upgrade/reopen preserves legacy run goals; failed additive migration is atomic and future schema fails closed', () => {
     const f = setup(); f.store.close();
-    let sql = new Database(f.path); sql.run('DROP TABLE agent_plan_adoption'); sql.run('DROP TABLE agent_state_evaluation');
+    let sql = new Database(f.path); sql.run('DROP TABLE agent_player_strategy'); sql.run('DROP TABLE agent_plan_adoption'); sql.run('DROP TABLE agent_state_evaluation');
     sql.run('DROP TABLE agent_state_objective'); sql.run('PRAGMA user_version=25'); sql.close();
     let s = openStore(f.path); expect(s.getGoal('buffer')?.objective).toBeUndefined(); s.close();
-    sql = new Database(f.path); expect(sql.query('PRAGMA user_version').get()).toEqual({ user_version: 26 });
+    sql = new Database(f.path); expect(sql.query('PRAGMA user_version').get()).toEqual({ user_version: AGENT_STATE_SCHEMA_VERSION });
+    sql.run('DROP TABLE agent_player_strategy');
     sql.run('DROP TABLE agent_plan_adoption'); sql.run('DROP TABLE agent_state_evaluation'); sql.run('DROP TABLE agent_state_objective');
     sql.run('CREATE TABLE agent_plan_adoption(dummy TEXT)'); sql.run('PRAGMA user_version=25'); sql.close();
     expect(() => openStore(f.path)).toThrow();
     sql = new Database(f.path); expect(sql.query('PRAGMA user_version').get()).toEqual({ user_version: 25 });
     expect(sql.query("SELECT name FROM sqlite_master WHERE name='agent_state_objective'").get()).toBeNull();
-    sql.run('PRAGMA user_version=27'); sql.close(); expect(() => openStore(f.path)).toThrow();
+    sql.run(`PRAGMA user_version=${AGENT_STATE_SCHEMA_VERSION+1}`); sql.close(); expect(() => openStore(f.path)).toThrow();
 });

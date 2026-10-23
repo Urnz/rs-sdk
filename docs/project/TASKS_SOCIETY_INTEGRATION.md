@@ -24,8 +24,8 @@ a korabeli állapotot jelölik. A részletek: [kalibráció](SOCIETY_REALISM_CAL
 [natív bizonyítékok, mért autonóm eredmény és restore](SI_A15_TECHNICAL_RESULT.md).
 Az eredeti D1/SI-M1 gazdasági/túlélési PASS továbbra sincs igazolva.
 Az SI-C09 későbbi, nyitott feladat; nem történt karaktermentő paraméterhangolás.
-**Fejezetzárás: az SI-A technikai fejezet kész. SI-B01–SI-B02 elkészült;
-a következő feladat az SI-B03.** [Állapotcél és korlátos tervelfogadás](SI_B02_STATE_GOALS.md).
+**Fejezetzárás: az SI-A technikai fejezet kész. SI-B01–SI-B03 elkészült;
+a következő feladat az SI-B04.** [Player-stratégia és ellenőrzési korlátok](SI_B03_PLAYER_STRATEGY.md).
 A továbblépés feltétele az elfogadott SI-A15
 v2 technikai bizonyíték, nem az eredeti D1/SI-M1 túlélési PASS vagy az SI-C09.
 Új munkamenethez: [rövid átadás](SOCIETY_DEVELOPMENT_HANDOFF.md) és
@@ -686,7 +686,7 @@ A következő autonóm baseline és az alábbi mechanikai kapuk miatt a státusz
 ## 6. SI-B – stratégiai autonómia a már integrált világban
 
 **Fázisbelépés teljesült: SI-A15 v2 technikai igazolása elfogadva.
-SI-B01–SI-B02 kész, SI-B03 elkezdhető; SI-B03–SI-B06 még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
+SI-B01–SI-B03 kész, SI-B04 elkezdhető; SI-B04–SI-B06 még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
 belépési feltétele. Az SI-A mért ellátási kudarcai megmaradnak kiinduló
 eredményként. Az SI-B-ben külön kell bizonyítani, hogy az agent észlelt
 változást, lehetőségek közül választott, és a következményt visszaértékelte;
@@ -753,7 +753,7 @@ nem indult. SI-B03 és SI-B06 élő E2E nem történt. Következő: SI-B03.
 
 ### SI-B03 – Player-stratégia: beszerzés, más munka vagy más termelési út
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G02/G08, RUNTIME.
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P1; G02/G08, RUNTIME.
 - **Cél és indok:** egy bevételi út elvesztése után az agent maga válasszon alternatívát.
 - **Meglévő:** LLM-provider/orchestrator, ismert verified skillök,
   acquire-input/input-required fallback, identity traits/values.
@@ -772,6 +772,13 @@ nem indult. SI-B03 és SI-B06 élő E2E nem történt. Következő: SI-B03.
 - **Perzisztencia/hiba:** a kiváltó esemény, context/policy, validált döntés és
   terv ID összekötött; retry nem duplikál feladatot vagy providerfoglalást.
 - **Kockázat:** magas; az előre bekódolt helyettesítés LLM-választásnak tűnhet.
+
+2026-10-23: [implementáció, támogatott preflight-határ, migráció/rollback és bizonyíték](SI_B03_PLAYER_STRATEGY.md)
+kész. A modell explicit observer-opciók közül választ, nem actor-név alapján.
+Resource/beszerzési és jóváhagyott munkaút, inputhiány/wait/capability-gap,
+provider/plan/dispatch dedup, tartós cooldown és natív state-következmény célzottan
+igazolt; root/engine TS és formázás PASS. Full és élő provider/világ nem futott;
+SI-B06 stratégiai E2E nem állítható. Következő: SI-B04.
 
 ### SI-B04 – Institution-agent stratégiai döntési admissionje
 

@@ -13,7 +13,8 @@ export interface OpenAIResponsesProviderOptions {
 const PLAN_SCHEMA = {
     type: 'object', additionalProperties: false,
     properties: {
-        decision: { type: 'string', enum: ['select_skill', 'propose_goal_plan', 'abstain'] },
+        decision: { type: 'string', enum: ['select_skill', 'propose_goal_plan', 'select_alternative', 'abstain'] },
+        alternativeId: { anyOf: [{ type: 'string', maxLength: 80 }, { type: 'null' }] },
         goalId: { type: 'string', minLength: 1, maxLength: 200 },
         goals: { type: 'array', maxItems: 3, items: {
             type: 'object', additionalProperties: false,
@@ -39,7 +40,7 @@ const PLAN_SCHEMA = {
         }] },
         reason: { type: 'string', minLength: 1, maxLength: 1000 }
     },
-    required: ['decision', 'goalId', 'goals', 'tool', 'reason']
+    required: ['decision', 'goalId', 'goals', 'tool', 'reason', 'alternativeId']
 } as const;
 
 function outputText(value: Record<string, unknown>): string {
@@ -88,7 +89,8 @@ export class OpenAIResponsesProvider implements LlmProvider {
                 instructions: request.instruction,
                 input: JSON.stringify({ agentId: request.agentId, mode: request.mode, goal: request.goal,
                     goalHierarchy: request.goalHierarchy, trustedContext: request.trustedContext,
-                    untrustedText: request.untrustedText, allowedSkills: request.tools[0].allowedSkills }),
+                    untrustedText: request.untrustedText, allowedSkills: request.tools[0].allowedSkills,
+                    ...(request.alternatives ? { alternatives: request.alternatives } : {}) }),
                 text: { format: { type: 'json_schema', name: 'agent_plan', strict: true, schema: PLAN_SCHEMA } },
                 max_output_tokens: request.maxOutputTokens,
                 ...(request.reasoningEffort ? { reasoning: { effort: request.reasoningEffort } } : {})

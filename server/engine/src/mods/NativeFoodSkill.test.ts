@@ -79,6 +79,8 @@ import { ScriptedMockProvider } from '../../../../llm-runtime/mock-provider.js';
 import { MemoryLlmAuditSink } from '../../../../llm-runtime/audit.js';
 import { validateLlmRuntimeConfig } from '../../../../llm-runtime/config.js';
 import type { GatewayBotSnapshot } from '../../../gateway/admin/types.js';
+import { runPlayerStrategy, type PlayerStrategyContext } from '../../../gateway/admin/player-strategy-runtime.js';
+import { CapabilityGapStore } from '../../../../agent-skills/capability-gaps.js';
 
 const root = resolve(import.meta.dir, '../../../..'), pack = resolve(import.meta.dir, '../../data/pack');
 const dirs: string[] = [], stores: MarketStore[] = [];
@@ -266,6 +268,77 @@ test('SI-B02 model plan → adoption → native raw output does not satisfy cook
     expect(agents.getGoal(adopted.goalId)?.status).toBe('completed');
     expect(agents.getGoal('food')).toMatchObject({ status: 'active', stateEvaluation: { result: 'satisfied' } });
 }, 15000);
+
+test('SI-B03 model choice between resource paths → SDK native outcome → state evaluation', async () => {
+    const f=kitchen(), agentPath=join(f.dir,'strategy-agents.sqlite'), agentId='abstract-node', start=new Date().toISOString();
+    f.inv.add(995,20); f.market.checkpoint('prodtest',f.player.save(false),true);
+    const agents=new AgentStateStore(agentPath); closers.push(()=>agents.close());
+    const gather={...definition('gather'),status:'verified' as const};
+    // The alternative shop view/definition is a controlled preflight fixture, not a native shop receipt.
+    const purchase=validateSkillDefinition({schemaVersion:1,id:'fixture.food.purchase',version:'1.0.0',status:'verified',
+        name:'Acquire one observed cooked food',description:'One bounded purchase',tags:[],parameters:{},
+        sharing:{visibility:'shared'},provenance:{authorKind:'human',authorId:'fixture',createdAt:start},
+        limits:{maxOperations:1,timeoutMs:1000},preconditions:[],steps:[{kind:'operation',id:'buy',operation:'buy-from-shop',
+            arguments:{name:'Lobster',match:'exact',amount:1}}]});
+    const definitions=[gather,purchase];
+    agents.createIdentity({agentId,playerUsername:'prodtest',displayName:'Local planner',background:'Independent resource planning',personalityTraits:['careful']},start);
+    agents.createGoal(agentId,{goalId:'life',horizon:'life',title:'Live'},start);
+    agents.createGoal(agentId,{goalId:'strategy',parentGoalId:'life',horizon:'long-term',title:'Resources'},start);
+    agents.createGoal(agentId,{goalId:'reserve',parentGoalId:'strategy',horizon:'current',title:'Cooked food reserve',objective:{policy:'si-b02.v1',
+        mode:'maintain',purpose:'livelihood',predicates:[{kind:'food-reserve-at-least',value:1}]}},start);
+    for(const d of definitions) agents.setSkillKnowledge(agentId,d,'known',null,start);
+    agents.createAutonomyEnrollment(agentId,{status:'desired',policyId:'private-local-default',policyVersion:'1.0.0'},start);
+    agents.claimAutonomyEnrollment(agentId,1,'native-strategy',new Date(Date.parse(start)+60000).toISOString(),start);
+    const profile=agents.getControlProfile(agentId)!;
+    agents.setControlProfile(agentId,profile.revision,{...profile,dailyOperationalBudgetGp:100},start);
+    const event={eventId:'native-strategy',agentId,type:'significant-economic-change' as const,sourceKey:'fixture-resource-change',
+        occurredAt:start,summary:'Resource situation changed'};
+    const read=async ():Promise<PlayerStrategyContext>=>{
+        const now=new Date().toISOString(), type=NpcType.get(f.npc.type);
+        const world={tick:World.currentTick,player:{name:'prodtest',isDead:false,worldX:f.player.x,worldZ:f.player.z,level:f.player.level},
+            inventory:f.inv.items.flatMap((i,slot)=>i?[{slot,id:i.id,name:ObjType.get(i.id).name,count:i.count,optionsWithIndex:[]}]:[]),
+            skills:[{name:'Fishing',baseLevel:f.player.baseLevels[PlayerStat.FISHING]}],
+            nearbyLocs:[],nearbyNpcs:[{id:f.npc.type,name:type.name,reachable:true,
+                optionsWithIndex:(type.op??[]).flatMap((text,index)=>text?[{text,opIndex:index+1}]:[])}],
+            shop:{isOpen:true,shopItems:[{id:379,name:'Lobster',count:2,buyPrice:2,sellPrice:1}]}} as unknown as import('../../../../sdk/types.js').BotWorldState;
+        const gateway={username:'prodtest',status:'active',state:world,lastStateReceivedAt:Date.parse(now)} as unknown as GatewayBotSnapshot;
+        agents.evaluateGoalStates(agentId,readEconomicObservation(agentId,{agentPath,workspace:f.dir,now,gatewayBots:new Map([['prodtest',gateway]])}),now);
+        const previous=agents.getWorkingMemory(agentId);
+        agents.setWorkingMemory(agentId,previous?.revision??null,{summary:'At native lobster source',observedAt:now},now);
+        return {snapshot:agents.getSnapshot(agentId)!,profile:agents.getControlProfile(agentId)!,parent:agents.getGoal('reserve')!,world,observedAt:now,now,
+            definitions,incoming:[],spentGp:0,maxLlmCostMicros:0,blockers:[],trustedContext:'Need one cooked-food portion. Native raw food requires processing.',
+            sourceAreas:JSON.parse(readFileSync(join(f.dir,'config/native-food-production.json'),'utf8')).sources,
+            config:{enabled:true,maxOperations:1,maxTimeoutMs:15000,allowedSkills:[{...gather,operations:['food-gather'],itemNames:['raw lobster'],maxQuantity:1},
+                {...purchase,risk:'shop-buy',operations:['buy-from-shop'],itemNames:['lobster'],maxQuantity:1,maxUnitPriceGp:5,maxGpPerRun:5,maxGpPerDay:100}]}};
+    };
+    let calls=0;
+    const result=await runPlayerStrategy(event,{agentPath,read,gaps:new CapabilityGapStore(join(f.dir,'strategy-gaps.json')),
+        plan:async(context,request)=>new LlmOrchestrator(validateLlmRuntimeConfig({schemaVersion:1,enabled:true,provider:'mock',model:'scripted',
+            limits:{maxDurationMs:1000,maxModelRequests:1,maxToolCalls:1,maxCostMicros:0,maxOutputTokens:1000}}),
+        new ScriptedMockProvider([input=>{calls++;expect(input.alternatives).toHaveLength(2);
+            return {output:{decision:'select_alternative',goalId:'reserve',alternativeId:input.alternatives!.find(o=>o.skill.id===gather.id)!.optionId,
+                goals:[],tool:null,reason:'Choose the observed production path and retain cash for later needs'},usage:{costMicros:0}};}]),
+        new MemoryLlmAuditSink()).plan(buildLlmPlanningInput(context.snapshot,{context:{now:context.now},runId:event.eventId,
+            availableSkills:definitions,strategy:{parentGoalId:'reserve',alternatives:request.options.map(({binding,...o})=>o)}})),
+        dispatch:async(goalId,d,binding,decisionId)=>{
+            const runId=randomUUID();agents.recordSkillDispatch({runId,decisionId,agentId,goalId,skill:d,binding,policyId:'private-local-default',policyVersion:'1.0.0'});
+            JavaRandom.setSeed(4096);f.player.setVar(VarPlayerType.getId('action_delay'),World.currentTick);
+            await sdkHarness(f,async sdk=>{const runtime=new RsSdkSkillRuntime({} as BotActions,sdk,grant);runtime.test=async()=>true;
+                const outcome=await new SkillExecutor(runtime).execute(d,{runId,parameters:binding.parameters});
+                expect(outcome.status).toBe('completed');
+                expect(outcome.events.find(e=>e.type==='step.succeeded')?.data).toMatchObject({receipt:{outcome:'raw-gained'}});
+                agents.recordSkillRunOutcome(runId,'completed','completed','Canonical native gathering receipt');});
+            await read();return {runId,status:'completed',reason:'Native attempt complete'};
+        }});
+    if(result.status!=='completed')throw new Error(result.reason);
+    const record=agents.getPlayerStrategy(event.eventId)!;
+    expect(calls).toBe(1);expect(record.status).toBe('dispatched');
+    expect(agents.getGoal(record.goalId!)).toMatchObject({status:'active',stateEvaluation:{result:'unsatisfied'}});
+    expect(f.inv.getItemCount(377)).toBe(1);
+    const cooked=f.cook();expect(f.receipt(cooked)?.outcome).toBe('cooked');await read();
+    expect(agents.getGoal(record.goalId!)?.status).toBe('completed');
+    expect(agents.getGoal('reserve')?.status).toBe('active');
+},15000);
 
 test('executor → real SDK socket → gateway adapter → packed gathering correlates one immutable receipt', async () => {
     const f = kitchen(); JavaRandom.setSeed(4096); f.player.setVar(VarPlayerType.getId('action_delay'), World.currentTick);

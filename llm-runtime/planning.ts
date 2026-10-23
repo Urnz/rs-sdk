@@ -2,8 +2,10 @@ import { buildDecisionContext, type DecisionContextOptions } from '../agent-stat
 import type { AgentSnapshot } from '../agent-state/types.js';
 import { urgentSelfCareGoal, selectImmediateGoal } from '../agent-state/planner.js';
 import type { AllowedAgentSkill, LlmPlanningInput } from './types.js';
+import type { PlayerStrategyAlternative } from './types.js';
 
 export interface BuildLlmPlanningInputOptions {
+    strategy?: { parentGoalId: string; alternatives: readonly PlayerStrategyAlternative[]; trustedContext?: string };
     availableSkills: readonly AllowedAgentSkill[];
     context?: DecisionContextOptions;
     untrustedText?: readonly string[];
@@ -14,6 +16,8 @@ export interface BuildLlmPlanningInputOptions {
 export function buildLlmPlanningInput(snapshot: AgentSnapshot,
     options: BuildLlmPlanningInputOptions): LlmPlanningInput {
     const active = snapshot.goals.filter(item => item.status === 'active');
+    if (options.strategy && !active.some(g => g.goalId === options.strategy!.parentGoalId && g.horizon === 'current' && g.objective))
+        throw new Error('Strategy planning requires the exact active current state objective');
     const depth = { life: 0, 'long-term': 1, current: 2, immediate: 3 } as const;
     const urgent = urgentSelfCareGoal(snapshot, options.context?.now);
     const immediate = urgent ? active.find(item => item.horizon === 'immediate' && item.parentGoalId === urgent.goalId
@@ -22,7 +26,8 @@ export function buildLlmPlanningInput(snapshot: AgentSnapshot,
     const replan = active.filter(g => g.horizon === 'immediate' && g.stateEvaluation?.needsReplan)
         .sort((a, b) => b.priority - a.priority || a.goalId.localeCompare(b.goalId))[0];
     const parent = replan ? active.find(g => g.goalId === replan.parentGoalId) : null;
-    const goal = immediate ?? urgent ?? parent ?? active.filter(g => g.horizon !== 'immediate').sort((left, right) => depth[right.horizon] - depth[left.horizon]
+    const goal = (options.strategy ? active.find(g => g.goalId === options.strategy!.parentGoalId && g.horizon === 'current' && g.objective) : null)
+        ?? immediate ?? urgent ?? parent ?? active.filter(g => g.horizon !== 'immediate').sort((left, right) => depth[right.horizon] - depth[left.horizon]
         || right.priority - left.priority || left.goalId.localeCompare(right.goalId))[0];
     if (!goal) throw new Error(`Agent ${snapshot.identity.agentId} has no active strategic goal`);
 
@@ -45,7 +50,8 @@ export function buildLlmPlanningInput(snapshot: AgentSnapshot,
 
     return {
         agentId: snapshot.identity.agentId,
-        mode: immediate ? 'execute-immediate-goal' : 'derive-immediate-goal',
+        mode: options.strategy ? 'choose-player-strategy' : immediate ? 'execute-immediate-goal' : 'derive-immediate-goal',
+        ...(options.strategy ? { alternatives: options.strategy.alternatives } : {}),
         goal: { goalId: goal.goalId, title: goal.title, description: goal.description },
         goalHierarchy: active.sort((left, right) => depth[left.horizon] - depth[right.horizon]
             || right.priority - left.priority || left.goalId.localeCompare(right.goalId)).map(item => ({
