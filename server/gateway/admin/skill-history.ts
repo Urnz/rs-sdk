@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { SkillEvent, SkillRunStatus } from '../../../agent-skills/types';
-import { skillRunsDir } from './paths';
+import type { SkillEvent, SkillRunStatus } from '../../../agent-skills/types.js';
+import { skillRunsDir } from './paths.js';
 
 export interface AdminSkillRun {
     runId: string;

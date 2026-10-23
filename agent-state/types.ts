@@ -1,7 +1,7 @@
 import type { BoundSimulationEventStamp } from '../simulation-clock/types.js';
 import type { StateObjective, StateGoalEvaluation } from './state-objectives.js';
 
-export const AGENT_STATE_SCHEMA_VERSION = 28 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 29 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';

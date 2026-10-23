@@ -17,8 +17,10 @@ import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { finishAdminPlayerActionRun } from './agent-state.js';
 import type { BusinessWorkRuntimeOptions } from './business-work-runtime.js';
+import {assertCooperationContractRunEvidence,type CooperationNativeEvidence} from './economic-cooperation-evidence.js';
 
 export interface SkillTerminalRecoveryOptions {
+    cooperationNativeEvidence?:CooperationNativeEvidence;
     agentPath?: string;
     skillRunRoot?: string;
     loadRuns?: () => Promise<AdminSkillRun[]>;
@@ -110,6 +112,7 @@ export async function recoverSkillTerminalWakeups(inboxPath: string,
                                 agentStore.getControlProfile(identity.agentId)?.avatarPlayerUsername ?? null]));
                             const contracts = new EconomicContractStore(contractPath);
                             try {
+                                assertCooperationContractRunEvidence(contracts,dispatch.binding.sourceId,dispatch.agentId,effectiveRun,options.cooperationNativeEvidence);
                                 contracts.recordRunEvidence(dispatch.binding.sourceId, dispatch.agentId,
                                     effectiveRun, avatars, run.finishedAt);
                             } finally { contracts.close(); }

@@ -686,7 +686,7 @@ A következő autonóm baseline és az alábbi mechanikai kapuk miatt a státusz
 ## 6. SI-B – stratégiai autonómia a már integrált világban
 
 **Fázisbelépés teljesült: SI-A15 v2 technikai igazolása elfogadva.
-SI-B01–SI-B04 kész, SI-B05 elkezdhető; SI-B05–SI-B06 még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
+SI-B01–SI-B05 kész, SI-B06 elkezdhető; stratégiai/valós-provideres elfogadása még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
 belépési feltétele. Az SI-A mért ellátási kudarcai megmaradnak kiinduló
 eredményként. Az SI-B-ben külön kell bizonyítani, hogy az agent észlelt
 változást, lehetőségek közül választott, és a következményt visszaértékelte;
@@ -811,7 +811,7 @@ publication nem futott. Default grantlista üres. Következő: SI-B05.
 
 ### SI-B05 – Együttműködés kezdeményezése typed gazdasági akciókkal
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G02/G03, ECON/RUNTIME.
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P1; G02/G03, ECON/RUNTIME.
 - **Cél és indok:** munka/kereskedelmi partner ne csak fixtureben kiosztott kapcsolat legyen.
 - **Meglévő:** offer/contract/employment és commitment domainek, Business-port;
   a player toolkészlet nem teljes önálló gazdasági kezdeményezőfelület.
@@ -829,6 +829,15 @@ publication nem futott. Default grantlista üres. Következő: SI-B05.
 - **Perzisztencia/hiba:** stable offer/contract/request ID, pending pénzügyi
   vállalás nem veszhet el; duplicate event nem két ajánlat/szerződés.
 - **Kockázat:** magas; szabad LLM-szöveg helyett végrehajtható gazdasági vállalás létrehozása.
+
+2026-10-23: [typed együttműködés, támogatott feltételek, migráció és ellenőrzési index](SI_B05_ECONOMIC_COOPERATION.md)
+kész. Saját kapcsolatból partnerkeresés, korlátos offer/work-proposal és külön
+címzetti acceptance/rejection; privát trust, existing funded contract/escrow,
+stabil ID és restart-safe outbox. A native service feltétel egy exact natív
+meghívás; ACK/journal nem teljesítés. Kontrollált modellválasztás→SDK→packed
+engine→natív receipt→egyszeri finite díj igazolt. 125-ös zárókör + root/engine
+TS/format PASS; full és élő provider/világ nem futott. Default grantlista üres.
+Következő: SI-B06; SI-M2 valós-provideres PASS továbbra sincs.
 
 ### SI-B06 – Stratégiai autonómia elfogadás, SI-M2 kapu
 

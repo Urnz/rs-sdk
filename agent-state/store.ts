@@ -43,6 +43,7 @@ import type { EconomicObservation } from './economic-context.js';
 import { installPlayerStrategySchema, readPlayerStrategy, PLAYER_STRATEGY_POLICY,
     type PlayerStrategyRequest, type PlayerStrategyRun } from './player-strategy.js';
 import type { LlmPlanResult } from '../llm-runtime/types.js';
+import {installEconomicActionSchema,readEconomicAction,type EconomicActionRequest,type EconomicActionRun} from './economic-action.js';
 import { installInstitutionStrategySchema, readInstitutionStrategy,
     type InstitutionStrategyRequest, type InstitutionStrategyRun } from './institution-strategy.js';
 import { installLivelihoodJournal, readLivelihoodJournal, writeLivelihoodJournal,
@@ -1816,6 +1817,46 @@ export class AgentStateStore {
             WHERE agent_id=?1 AND substr(occurred_at,1,10)=?2 AND decision_id!=?3`).get(agentId,now.slice(0,10),eventId) as {total:number}).total;
     }
 
+    getEconomicAction(eventId:string):EconomicActionRun|null{return readEconomicAction(this.database,eventId);}
+    pendingEconomicAction(agentId:string):EconomicActionRun|null{
+        const r=this.database.query("SELECT event_id FROM agent_economic_action WHERE agent_id=?1 AND status IN ('prepared','inferring','decided','applying') ORDER BY rowid LIMIT 1")
+            .get(normalizeAgentId(agentId)) as {event_id:string}|null;return r?this.getEconomicAction(r.event_id):null;
+    }
+    assertEconomicActionAuthority(request:EconomicActionRequest,owner?:string,now=new Date().toISOString()):void{
+        const p=this.getControlProfile(request.agentId),e=this.getAutonomyEnrollment(request.agentId);
+        if(!p||p.revision!==request.profileRevision||!['player','institution'].includes(p.role)||p.role==='institution'&&p.subjectKind!=='business'
+            ||p.role==='player'&&(!p.avatarPlayerUsername||this.getIdentity(request.agentId)?.playerUsername!==p.avatarPlayerUsername)
+            ||this.getAutonomyControl().emergencyStop||!e||e.status!=='running'||e.policyId!==request.policyId||e.policyVersion!==request.policyVersion
+            ||!e.leaseExpiresAt||Date.parse(e.leaseExpiresAt)<=Date.parse(now)||owner&&e.leaseOwner!==owner)throw new Error('Economic actor/profile/lease/stop authority changed');
+        this.assertCharacterCanAct(request.agentId);
+    }
+    prepareEconomicAction(request:EconomicActionRequest,maxCostMicros:number,owner?:string):EconomicActionRun{
+        this.database.transaction(()=>{
+            const prior=this.getEconomicAction(request.eventId);if(prior){if(prior.request.agentId!==request.agentId||prior.request.sourceKey!==request.sourceKey)throw new Error('Economic event collision');return;}
+            this.assertEconomicActionAuthority(request,owner,request.observedAt);
+            if(this.database.query("SELECT 1 FROM agent_economic_action WHERE agent_id=?1 AND (next_eligible_at>?2 OR status IN ('prepared','inferring','decided','applying'))").get(request.agentId,request.observedAt))
+                throw new Error('Economic action cooldown or unresolved decision is active');
+            const admitted=this.recordDecision(request.agentId,request.profileRevision,{decisionId:request.eventId,trigger:'event',llmCostMicros:maxCostMicros,contextDigest:request.binding},request.observedAt);
+            this.database.run("INSERT INTO agent_economic_action VALUES(?1,?2,?3,'prepared',NULL,'',?4,NULL)",[request.eventId,request.agentId,
+                JSON.stringify({...request,profileRevision:admitted.profile.revision}),new Date(Date.parse(request.observedAt)+Math.max(60000,admitted.profile.decisionIntervalMs)).toISOString()]);
+        }).immediate();return this.getEconomicAction(request.eventId)!;
+    }
+    claimEconomicInference(eventId:string):boolean{return this.database.run("UPDATE agent_economic_action SET status='inferring' WHERE event_id=?1 AND status='prepared'",[eventId]).changes===1;}
+    finishEconomicInference(eventId:string,plan:LlmPlanResult):EconomicActionRun{
+        const r=this.getEconomicAction(eventId);if(!r||r.status!=='inferring'||plan.runId!==eventId||plan.agentId!==r.request.agentId)throw new Error('Economic inference identity differs');
+        const selected=plan.status==='proposed'&&plan.decision?.kind==='choose-alternative'&&r.request.input.economicAlternatives?.some(o=>o.optionId===(plan.decision as {optionId:string}).optionId);
+        this.database.run("UPDATE agent_economic_action SET status=?2,plan_json=?3,reason=?4 WHERE event_id=?1 AND status='inferring'",
+            [eventId,selected?'decided':['failed','stopped'].includes(plan.status)?'inferring':'waiting',JSON.stringify(plan),plan.reason.slice(0,1000)]);return this.getEconomicAction(eventId)!;
+    }
+    beginEconomicApplication(eventId:string,costGp:number,dailyLimit:number,owner?:string):void{
+        this.database.transaction(()=>{const r=this.getEconomicAction(eventId);if(!r||!['decided','applying'].includes(r.status))throw new Error('Economic action not applicable');
+            this.assertEconomicActionAuthority(r.request,owner);this.reserveDecisionOperationalBudget(eventId,costGp,dailyLimit);
+            this.database.run("UPDATE agent_economic_action SET status='applying' WHERE event_id=?1 AND status='decided'",[eventId]);}).immediate();
+    }
+    settleEconomicAction(eventId:string,status:'applied'|'waiting',reason:string,result:string|null=null):void{
+        this.database.run("UPDATE agent_economic_action SET status=?2,reason=?3,result_json=?4 WHERE event_id=?1 AND status IN ('prepared','decided','applying')",[eventId,status,reason.slice(0,1000),result]);
+    }
+
     getInstitutionStrategy(eventId: string): InstitutionStrategyRun | null {
         return readInstitutionStrategy(this.database, eventId);
     }
@@ -3375,6 +3416,9 @@ export class AgentStateStore {
         }
         if (version < 28) {
             this.database.transaction(() => { installInstitutionStrategySchema(this.database); this.database.run('PRAGMA user_version=28'); }).immediate();
+        }
+        if (version < 29) {
+            this.database.transaction(() => { installEconomicActionSchema(this.database); this.database.run('PRAGMA user_version=29'); }).immediate();
         }
     }
 }

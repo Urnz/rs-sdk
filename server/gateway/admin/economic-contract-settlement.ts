@@ -9,8 +9,10 @@ import { requestEnginePlayerEscrow, type EnginePlayerEscrowResult } from './play
 import { requestEnginePlayerReward, type EnginePlayerRewardResult } from './player-rewards.js';
 import { bindSocietyInternalPayment } from './society-integrity.js';
 import { agentStateDbPath, economicContractsDbPath, institutionTreasuryDbPath } from './paths.js';
+import {assertCooperationContractRunEvidence,type CooperationNativeEvidence} from './economic-cooperation-evidence.js';
 
 export interface EconomicContractSettlementOptions {
+    nativeEvidence?:CooperationNativeEvidence;
     contractsPath?: string;
     agentPath?: string;
     treasuryPath?: string;
@@ -328,6 +330,7 @@ export async function recordAndSettleEconomicContractEvidence(contractId: string
     options: EconomicContractSettlementOptions = {}): Promise<EconomicContractEvidenceOutcome> {
     const contracts = new EconomicContractStore(options.contractsPath ?? economicContractsDbPath);
     try {
+        assertCooperationContractRunEvidence(contracts,contractId,actorAgentId,run,options.nativeEvidence);
         contracts.recordRunEvidence(contractId, actorAgentId, run, avatarByAgentId, options.now);
     } finally { contracts.close(); }
     try {

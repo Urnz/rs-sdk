@@ -1,5 +1,45 @@
 # Társadalmi integráció – implementációs eredmények
 
+## SI-B05 – Typed, önkéntes gazdasági együttműködés – 2026-10-23
+
+**Kész; következő SI-B06, az nem indult.**
+[Szerződés, támogatott gazdasági/service kör, migráció/rollback és bizonyíték](SI_B05_ECONOMIC_COOPERATION.md).
+Saját kapcsolatokból partnerkeresés, typed offer/work-proposal és címzetti
+acceptance/rejection az existing supervisor/inbox/queue/decision ledgerben.
+Role-specific LLM-séma csak validált optionId-t enged. Feltétel, partner,
+own trust, GP/item-risk, fedezet, revision és TTL ellenőrzött; nincs forced
+consent, automatikus employment, új credit/adó vagy globális reputation.
+
+AgentState v29 saját decision receipt, contract DB saját v1 immutable offer
+origin; stabil offer/contract/escrow ID. Bizonytalan inference nem ismételhető,
+applying outboxot új supervisor-event az eredeti döntéssel folytatja.
+Szolgáltatás: egy exact native invocation, külön canonical receipt gate-tel.
+Elfogadott kötelezettség B03 preflightolt `contract-obligation` opciója lehet;
+idézett reward nem realizált jövedelem. Default cooperation grantlista üres.
+
+Első fixture-kör: `20261023-210746-144-si-b05-first-action-boundary`, 16 actorKey
+fixture FAIL, 4,191 s; közös validator lazítása helyett meglévő karakterkészlet.
+`20261023-210813-488-si-b05-action-types`: 16 PASS, root TS FAIL, 62,565 s;
+UUID-paraméter annotáció javítva. `20261023-211235-889-si-b05-native-first`:
+egy import-fixture FAIL, 16,890 s. `20261023-211330-862-si-b05-native-consent`:
+native/root TS PASS, engine TS FAIL, 118,028 s; vékony treasury-path boundary,
+NodeNext importok és fixture remove-API javítva. A korábbi hibák nem PASS-ok.
+
+`20261023-211954-118-si-b05-consumers-native-types`: 20 PASS / 1 gateway fixture
+FAIL, 9,632 s; `inGame`/combat állapot pótolva. Nem ismétlődött minden jó eset.
+`20261023-212201-424-si-b05-final-consumers`: **125 PASS + root/engine TS +
+format**, 159,810 s: 3 érintett saját eset, 121 közvetlen fogyasztó 13 fájlban,
+egy új SDK/packed native eset. `20261023-212655-312-si-b05-origin-audit`:
+**PASS**, 0,689 s; saját contract-origin v1 upgrade/reopen/replay/collision,
+immutable audit, atomikus rollback és future séma. A számsorok átfednek.
+
+Native: külön modell-döntésű önkéntes work offer és acceptance, fake journal
+megtagadása, valódi SDK gather/native raw-gained receipt, egyszeri 5 GP finite
+reward és 25→20 GP treasury. A gather nem Businessbe szállított input vagy
+készétel. Player asset-trade a meglévő escrow fixture-ben, default/expiry/retry
+is igazolt. **Full, élő provider/világ, költés és publication nem futott.**
+Ez mechanikai bizonyíték; SI-B06/SI-M2 gazdasági/valós-provideres PASS nincs.
+
 ## SI-B04 – Avatarless Business stratégiai admission – 2026-10-23
 
 **Kész; következő SI-B05, az nem indult.**

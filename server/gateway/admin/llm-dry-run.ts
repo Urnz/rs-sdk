@@ -30,6 +30,7 @@ export function setAdminLlmEmergencyStop(active: boolean): void {
 }
 
 export interface AdminLlmDryRunOptions {
+    economicInput?: LlmPlanningInput;
     businessInput?: LlmPlanningInput;
     strategy?: BuildLlmPlanningInputOptions['strategy'];
     now?: string;
@@ -74,6 +75,8 @@ function words(value: string): Set<string> {
 }
 
 function mockResponse(agent: AdminAgentView, request: LlmProviderRequest): LlmProviderResponse {
+    if(request.mode==='choose-economic-action') return {output:{decision:'select_economic_action',goalId:request.goal.goalId,
+        alternativeId:request.economicAlternatives?.[0]?.optionId,tool:null,goals:[],reason:'Deterministic economic fixture; not live LLM evidence.'},usage:{costMicros:0}};
     if (request.mode === 'choose-business-policy') return { output: { decision: 'select_business_policy',
         goalId: request.goal.goalId, alternativeId: request.businessAlternatives?.[0]?.optionId,
         tool: null, goals: [], reason: 'Deterministic institution mock fixture; not a live LLM result.' }, usage: { costMicros: 0 } };
@@ -150,7 +153,10 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
     if (options.businessInput && (agent.controlProfile.role !== 'institution' || agent.controlProfile.subjectKind !== 'business'
         || agent.controlProfile.avatarPlayerUsername || options.businessInput.agentId !== agent.identity.agentId
         || options.businessInput.mode !== 'choose-business-policy')) throw new Error('Exact avatarless Business planning authority required');
-    const input = options.businessInput ?? buildLlmPlanningInput(agent, {
+    if(options.economicInput && (options.economicInput.agentId!==agent.identity.agentId || options.economicInput.mode!=='choose-economic-action'
+        || options.economicInput.cooperationRole!==agent.controlProfile.role || !['player','institution'].includes(agent.controlProfile.role)
+        || agent.controlProfile.role==='institution' && agent.controlProfile.subjectKind!=='business')) throw new Error('Exact economic actor role required');
+    const input = options.economicInput ?? options.businessInput ?? buildLlmPlanningInput(agent, {
         strategy: options.strategy,
         availableSkills: skills.map(skill => ({ id: skill.id, version: skill.version,
             name: skill.name, description: skill.description })),
@@ -166,7 +172,7 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         untrustedText: [...agent.decisionUntrustedText, ...(options.untrustedText ?? [])],
         runId: options.runId
     });
-    if (options.automatic && options.capabilityGapStore && !options.strategy && !options.businessInput) {
+    if (options.automatic && options.capabilityGapStore && !options.strategy && !options.businessInput && !options.economicInput) {
         const pending = await options.capabilityGapStore.findPending(input.agentId, input.goal.goalId);
         if (pending) {
             const reason = `Capability gap ${pending.gapId} is still ${pending.status}; automatic LLM planning is paused.`;

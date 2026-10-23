@@ -81,6 +81,12 @@ import { validateLlmRuntimeConfig } from '../../../../llm-runtime/config.js';
 import type { GatewayBotSnapshot } from '../../../gateway/admin/types.js';
 import { runPlayerStrategy, type PlayerStrategyContext } from '../../../gateway/admin/player-strategy-runtime.js';
 import { CapabilityGapStore } from '../../../../agent-skills/capability-gaps.js';
+import {runEconomicCooperation} from '../../../gateway/admin/economic-cooperation-runtime.js';
+import {EconomicContractStore} from '../../../gateway/admin/economic-contracts.js';
+import {recordAndSettleEconomicContractEvidence} from '../../../gateway/admin/economic-contract-settlement.js';
+import type {CooperationPolicy} from '../../../gateway/admin/economic-cooperation-policy.js';
+import type {AdminSkillRun} from '../../../gateway/admin/skill-history.js';
+import {institutionTreasuryPathFor as cooperationTreasuryPath} from '../../../gateway/admin/treasury-paths.js';
 
 const root = resolve(import.meta.dir, '../../../..'), pack = resolve(import.meta.dir, '../../data/pack');
 const dirs: string[] = [], stores: MarketStore[] = [];
@@ -268,6 +274,58 @@ test('SI-B02 model plan → adoption → native raw output does not satisfy cook
     expect(agents.getGoal(adopted.goalId)?.status).toBe('completed');
     expect(agents.getGoal('food')).toMatchObject({ status: 'active', stateEvaluation: { result: 'satisfied' } });
 }, 15000);
+
+test('SI-B05 voluntary work offer → separate model consent → SDK native skill proof → finite reward',async()=>{
+    const f=kitchen(),agentPath=join(f.dir,'.local/economy/agents.sqlite'),contractsPath=join(f.dir,'contracts.sqlite'),policyPath=join(f.dir,'cooperation.json');
+    const s=new AgentStateStore(agentPath);closers.push(()=>s.close());const skill={...definition('gather'),status:'verified' as const};
+    s.createIdentity({agentId:'kitchen-mind',displayName:'Kitchen',background:'Independent Business',personalityTraits:['careful'],controlProfile:{role:'institution',subjectKind:'business',subjectId:'fish-kitchen',
+        decisionIntervalMs:60000,maxDecisionsPerDay:10,dailyLlmBudgetMicros:0,dailyOperationalBudgetGp:25}});
+    s.createIdentity({agentId:'worker',playerUsername:'prodtest',displayName:'Worker',background:'Voluntary native service',personalityTraits:['independent']});
+    s.setSkillKnowledge('worker',skill,'known',null);
+    for(const id of ['kitchen-mind','worker']){s.createAutonomyEnrollment(id,{status:'desired',policyId:'private-local-default',policyVersion:'1.0.0'});
+        s.claimAutonomyEnrollment(id,1,'native-cooperation',new Date(Date.now()+600000).toISOString());}
+    s.setRelationship('kitchen-mind',null,{actorKey:'agent.worker',displayName:'Worker',trust:30});
+    s.setRelationship('worker',null,{actorKey:'agent.kitchen-mind',displayName:'Kitchen',trust:20});
+    const treasuryPath=cooperationTreasuryPath(agentPath),treasury=new InstitutionTreasuryStore(treasuryPath);treasury.setBalance('business','fish-kitchen',1,25);treasury.close();
+    const pay={gp:5,items:[],service:null},service={gp:0,items:[],service:'one-native-invocation',skill:{id:skill.id,version:skill.version}};
+    const policy:CooperationPolicy={schemaVersion:1,grants:['kitchen-mind','worker'].map(id=>({agentId:id,role:id==='worker'?'player':'institution',subjectKind:id==='worker'?'player':'business',
+        subjectId:id==='worker'?'prodtest':'fish-kitchen',policyId:'private-local-default',policyVersion:'1.0.0',minimumTrust:0,maxGpPerAction:5,maxGpPerDay:10,maxItemUnits:0,maxTtlMs:300000,
+        templates:[{templateId:'gather-shift',kind:'work',title:'Voluntary lobster input work',summary:'Pay only for canonical native gathering',ttlMs:300000,
+            ownProvides:id==='worker'?service:pay,partnerProvides:id==='worker'?pay:service}]}))};writeFileSync(policyPath,JSON.stringify(policy));
+    let modelCalls=0;const opts={agentPath,contractsPath,policyPath,requiredLeaseOwner:'native-cooperation',maxLlmCostMicros:0,
+        playerState:()=>({observedAt:new Date().toISOString(),world:{player:{name:'prodtest',isDead:false},inventory:[]} as unknown as import('../../../../sdk/types.js').BotWorldState}),
+        plan:async(input:import('../../../../llm-runtime/types.js').LlmPlanningInput)=>new LlmOrchestrator(validateLlmRuntimeConfig({schemaVersion:1,enabled:true,provider:'mock',model:'scripted',
+            limits:{maxDurationMs:1000,maxModelRequests:1,maxToolCalls:1,maxCostMicros:0,maxOutputTokens:1000}}),new ScriptedMockProvider([request=>{
+                modelCalls++;const choice=request.economicAlternatives!.find(a=>a.action===(request.agentId==='worker'?'accept-offer':'propose-work'))!;
+                return {output:{decision:'select_economic_action',goalId:request.goal.goalId,alternativeId:choice.optionId,tool:null,goals:[],reason:'Independent bounded cooperation choice'},usage:{costMicros:0}};
+            }]),new MemoryLlmAuditSink()).plan(input)};
+    const event=(agentId:string)=>({agentId,eventId:randomUUID(),sourceKey:`own:${agentId}:work`,type:'significant-economic-change' as const,occurredAt:new Date().toISOString(),summary:'Own work opportunity'});
+    const proposal=event('kitchen-mind');expect((await runEconomicCooperation('kitchen-mind',proposal,opts))?.status).toBe('completed');
+    let contracts=new EconomicContractStore(contractsPath);expect(contracts.listContracts()).toHaveLength(0);contracts.close();
+    expect((await runEconomicCooperation('worker',event('worker'),opts))?.status).toBe('completed');
+    contracts=new EconomicContractStore(contractsPath);const contract=contracts.listContracts()[0]!;contracts.close();
+    const avatars=new Map([['kitchen-mind',null],['worker','prodtest']]);
+    const sources={workspace:f.dir,worldId:'fixture-world',checkpointPath:f.path,businessPath:f.businessPath};
+    const fake:AdminSkillRun={runId:randomUUID(),username:'prodtest',skill,status:'completed',reason:'ACK',message:'No native proof',operations:1,durationMs:1,parameters:{},
+        startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),events:[]};
+    await expect(recordAndSettleEconomicContractEvidence(contract.contractId,'worker',fake,avatars,{agentPath,contractsPath,treasuryPath,nativeEvidence:sources})).rejects.toThrow('canonical native');
+    const original=f.ports.identity;f.ports.identity=(...args)=>{const value=original(...args);return value?{...value,clock:{...value.clock,wallTime:new Date().toISOString()}}:null;};
+    let terminal:AdminSkillRun|undefined;
+    JavaRandom.setSeed(4096);f.player.setVar(VarPlayerType.getId('action_delay'),World.currentTick);
+    await sdkHarness(f,async sdk=>{const runtime=new RsSdkSkillRuntime({} as BotActions,sdk,grant);runtime.test=async()=>true;
+        const result=await new SkillExecutor(runtime).execute(skill,{runId:randomUUID()});expect(result.status).toBe('completed');
+        terminal={...result,username:'prodtest',startedAt:result.events[0]!.timestamp,finishedAt:result.events.at(-1)!.timestamp};});
+    const rewards=new PlayerRewardStore(f.path,false,f.market.db);closers.push(()=>rewards.close());let credits=0;
+    const rewarder=async(username:string,amount:number,settlementId:string)=>{let receipt:ReturnType<PlayerRewardStore['credit']>;
+        f.market.db.transaction(()=>{receipt=rewards.credit(settlementId,username,amount,{balance:()=>f.inv.getItemCount(995),credit:n=>{credits++;f.inv.add(995,n);return n;},remove:n=>f.inv.remove(995,n)});
+            f.market.checkpoint(username,f.player.save(false),true);}).immediate();
+        return {ok:true,commandId:randomUUID(),username,amount,settlementId,reward:{status:'committed' as const,coinsBefore:receipt!.coinsBefore!,coinsAfter:receipt!.coinsAfter!}};};
+    const settlement={agentPath,contractsPath,treasuryPath,nativeEvidence:sources,rewarder};
+    const paid=await recordAndSettleEconomicContractEvidence(contract.contractId,'worker',terminal!,avatars,settlement);
+    expect(paid.contract.status).toBe('fulfilled');await recordAndSettleEconomicContractEvidence(contract.contractId,'worker',terminal!,avatars,settlement);
+    await runEconomicCooperation('kitchen-mind',proposal,opts);expect(modelCalls).toBe(2);expect(credits).toBe(1);expect(f.inv.getItemCount(995)).toBe(5);expect(f.inv.getItemCount(377)).toBe(1);
+    const reopened=new InstitutionTreasuryStore(treasuryPath);expect(reopened.get('business','fish-kitchen')?.balanceGp).toBe(20);reopened.close();
+},15000);
 
 test('SI-B03 model choice between resource paths → SDK native outcome → state evaluation', async () => {
     const f=kitchen(), agentPath=join(f.dir,'strategy-agents.sqlite'), agentId='abstract-node', start=new Date().toISOString();

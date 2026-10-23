@@ -93,6 +93,12 @@ export function applyBusinessPolicyChoiceForAgent(agentId: string, grant: Instit
     finally{businesses.close();}
 }
 
+export function validateBusinessCooperationForAgent(agentId:string,amountGp:number,agentPath=agentStateDbPath):void {
+    const profile=businessAuthority(agentId,agentPath),business=inspectBusinessForAgent(agentId,agentPath);
+    if(profile.avatarPlayerUsername||business.status!=='active'||!Number.isSafeInteger(amountGp)||amountGp<0||amountGp>profile.dailyOperationalBudgetGp)
+        throw new Error('Business cooperation requires an active exact subject and bounded treasury obligation');
+}
+
 export function validateBusinessPlayerActionForAgent(agentId: string,
     input: BusinessPlayerActionPolicyInput, agentPath = agentStateDbPath,
     businessPath = businessManagerPathFor(agentPath)) {

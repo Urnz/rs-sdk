@@ -49,9 +49,8 @@ function useStore<T>(path: string, callback: (store: AgentStateStore) => T,
     finally { store.close(); }
 }
 
-export function institutionTreasuryPathFor(path = agentStateDbPath): string {
-    return path === agentStateDbPath ? institutionTreasuryDbPath : join(dirname(path), 'institution-treasury.sqlite');
-}
+import {institutionTreasuryPathFor} from './treasury-paths.js';
+export {institutionTreasuryPathFor} from './treasury-paths.js';
 
 function treasuryActorIdForAgent(agentId: string, profile: AgentControlProfile, path: string): string {
     return profile.subjectKind === 'faction'

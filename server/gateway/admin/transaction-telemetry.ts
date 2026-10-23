@@ -3,9 +3,9 @@ import { mkdirSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Database } from 'bun:sqlite';
-import type { SkillEvent, SkillOperationName } from '../../../agent-skills/types';
-import { economyEventsDbPath, skillRunsDir } from './paths';
-import type { BoundSimulationEventStamp, SimulationClockStore } from '../../../simulation-clock';
+import type { SkillEvent, SkillOperationName } from '../../../agent-skills/types.js';
+import { economyEventsDbPath, skillRunsDir } from './paths.js';
+import type { BoundSimulationEventStamp, SimulationClockStore } from '../../../simulation-clock/index.js';
 
 export type EconomyEventKind = 'production' | 'consumption' | 'shop-buy' | 'shop-sell' | 'player-trade' | 'bank-transfer';
 

@@ -148,11 +148,11 @@ test('Business policy and stock selection commit atomically; audit edits, projec
     expect(()=>selectedBusinessStockCatalog(loadDefaultBusinessStockPolicyCatalog(),f.businessPath)).toThrow('schema');
 });
 test('v27 upgrade/reopen and own-table conflict rollback preserve existing agents and goals',()=>{
-    const f=fixture();let db=new Database(f.path);db.run('DROP TABLE agent_institution_strategy');db.run('PRAGMA user_version=27');db.close();
+    const f=fixture();let db=new Database(f.path);db.run('DROP TABLE agent_economic_action');db.run('DROP TABLE agent_institution_strategy');db.run('PRAGMA user_version=27');db.close();
     expect(f.use(s=>s.getIdentity('kitchen-mind')?.agentId)).toBe('kitchen-mind');
     f.use(s=>expect(s.getInstitutionStrategy('absent')).toBeNull());
     db=new Database(f.path);expect(db.query('PRAGMA user_version').get()).toEqual({user_version:AGENT_STATE_SCHEMA_VERSION});
-    db.run('DROP TABLE agent_institution_strategy');db.run('CREATE TABLE agent_institution_strategy(dummy TEXT)');db.run('PRAGMA user_version=27');db.close();
+    db.run('DROP TABLE agent_economic_action');db.run('DROP TABLE agent_institution_strategy');db.run('CREATE TABLE agent_institution_strategy(dummy TEXT)');db.run('PRAGMA user_version=27');db.close();
     expect(()=>new AgentStateStore(f.path)).toThrow();db=new Database(f.path);expect(db.query('PRAGMA user_version').get()).toEqual({user_version:27});
     expect(db.query('SELECT count(*) n FROM agent_identity').get()).toEqual({n:1});db.run(`PRAGMA user_version=${AGENT_STATE_SCHEMA_VERSION+1}`);db.close();
     expect(()=>new AgentStateStore(f.path)).toThrow();

@@ -89,7 +89,10 @@ export interface AllowedAgentSkill extends AgentSkillReference {
     description: string;
 }
 
-export type LlmPlanningMode = 'execute-immediate-goal' | 'derive-immediate-goal' | 'choose-player-strategy' | 'choose-business-policy';
+export type LlmPlanningMode = 'execute-immediate-goal' | 'derive-immediate-goal' | 'choose-player-strategy' | 'choose-business-policy' | 'choose-economic-action';
+
+export interface EconomicActionAlternative { optionId: string; action: 'propose-offer'|'propose-work'|'accept-offer'|'decline-offer';
+    partnerAgentId: string; costGp: number; description: string; terms: unknown }
 
 export interface BusinessStrategyAlternative {
     optionId: string;
@@ -125,6 +128,8 @@ export interface ProposedAgentGoal extends Omit<LlmGoalSummary, 'horizon'> {
 }
 
 export interface LlmPlanningInput {
+    economicAlternatives?: readonly EconomicActionAlternative[];
+    cooperationRole?: 'player'|'institution';
     businessAlternatives?: readonly BusinessStrategyAlternative[];
     alternatives?: readonly PlayerStrategyAlternative[];
     agentId: string;
@@ -139,6 +144,8 @@ export interface LlmPlanningInput {
 }
 
 export interface LlmProviderRequest {
+    economicAlternatives?: readonly EconomicActionAlternative[];
+    cooperationRole?: 'player'|'institution';
     businessAlternatives?: readonly BusinessStrategyAlternative[];
     alternatives?: readonly PlayerStrategyAlternative[];
     runId: string;
@@ -150,7 +157,7 @@ export interface LlmProviderRequest {
     trustedContext: string;
     untrustedText: readonly string[];
     tools: readonly [{
-        name: 'execute_skill' | 'select_business_policy';
+        name: 'execute_skill' | 'select_business_policy' | 'select_economic_action';
         description: string;
         allowedSkills: readonly AllowedAgentSkill[];
     }];

@@ -8,8 +8,10 @@ import type { LlmAutonomousExecutionConfig } from '../../../llm-runtime/types.js
 import { evaluateAutonomousSkillPolicy } from './autonomous-skill-policy.js';
 import { evaluateAuthorizationEnvelope } from './authorization-envelope.js';
 import { bindAutonomousSkillParameters, type AutonomousSkillParameterCandidate } from './autonomous-skill-binding.js';
+import type {EconomicContract} from './economic-contracts.js';
 
 export interface PlayerStrategySources {
+    contracts?:readonly EconomicContract[];
     snapshot: AgentSnapshot;
     profile: AgentControlProfile;
     parent: AgentGoal;
@@ -55,6 +57,14 @@ export function buildPlayerStrategyOptions(input: PlayerStrategySources): Pick<P
             && r.status === 'approved' && !!r.approvalId && !!r.approvalExpiresAt && r.approvalExpiresAt > input.now
             && r.skill.id === d.id && r.skill.version === d.version).map(r => ({ sourceKind: 'work-order',
                 sourceId: r.requestId, skill: r.skill, parameters: r.parameters }));
+        for(const c of input.contracts??[]){
+            if(c.status!=='active')continue;
+            const own=c.partyAAgentId===snapshot.identity.agentId?'a':c.partyBAgentId===snapshot.identity.agentId?'b':null;
+            if(!own||own==='a'&&c.partyASatisfied||own==='b'&&c.partyBSatisfied)continue;
+            const term=own==='a'?c.partyAProvides:c.partyBProvides;
+            if(term.service&&term.skill?.id===d.id&&term.skill.version===d.version)
+                sources.push({sourceKind:'contract-obligation',sourceId:c.contractId,skill:term.skill,parameters:{}});
+        }
         if (!sources.length) sources.push({ sourceKind: 'approved-policy', sourceId: PLAYER_STRATEGY_POLICY.version,
             skill: d, parameters: d.steps.some(s => s.kind === 'operation' && s.operation === 'food-consume')
                 ? { slot: inventory.find(i => i.id === 379)?.slot } : {} });
@@ -82,7 +92,7 @@ export function buildPlayerStrategyOptions(input: PlayerStrategySources): Pick<P
                     if (!valid) throw new Error(`Unmet native precondition: ${pre.condition}`);
                     requirements.push(pre.condition);
                 }
-                let purpose: StrategyOption['purpose'] | null = source.sourceKind === 'work-order' ? 'earn-income' : null;
+                let purpose: StrategyOption['purpose'] | null = ['work-order','contract-obligation'].includes(source.sourceKind) ? 'earn-income' : null;
                 const evidence = [`own-live:${input.observedAt}`, `reviewed:${ref}`, `grant:${stateDigest(policy.authorization)}`];
                 for (const step of operations(d.steps)) {
                     const arg = (key: string) => resolve(step.args[key], params), op = step.operation;
@@ -122,9 +132,11 @@ export function buildPlayerStrategyOptions(input: PlayerStrategySources): Pick<P
                 }
                 if (!purpose) continue;
                 const parameters = canonicalSkillParameters(binding.parameters), request = input.incoming.find(r => r.requestId === source.sourceId);
+                const contract=source.sourceKind==='contract-obligation'?input.contracts?.find(c=>c.contractId===source.sourceId):null;
+                const quotedReward=contract?(contract.partyAAgentId===snapshot.identity.agentId?contract.partyBProvides.gp:contract.partyAProvides.gp):null;
                 options.push({ optionId: `option.${stateDigest({ skill: {id:d.id,version:d.version}, binding }).slice(0,32)}`,
                     skill: { id:d.id,version:d.version }, parameters, binding, purpose, costGp: envelope.reservedGp,
-                    rewardGp: request?.rewardGp ?? null, risk: policy.authorization!.risk ?? 'routine',
+                    rewardGp: request?.rewardGp ?? quotedReward, risk: policy.authorization!.risk ?? 'routine',
                     requirements: requirements.slice(0,5), evidence: evidence.slice(0,5) });
             } catch (error) { unavailable.push({ skill: ref,kind,reason: String(error instanceof Error ? error.message : error).slice(0,200) }); }
         }

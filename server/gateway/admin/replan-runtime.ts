@@ -47,6 +47,8 @@ import { buildEconomicContext } from '../../../agent-state/economic-context.js';
 import { join } from 'node:path';
 import { runInstitutionStrategy } from './institution-strategy-runtime.js';
 import type { BusinessWorkRuntimeOptions } from './business-work-runtime.js';
+import {runEconomicCooperation} from './economic-cooperation-runtime.js';
+import type {EconomicContractSettlementOptions} from './economic-contract-settlement.js';
 
 let appendTail: Promise<void> = Promise.resolve();
 
@@ -92,6 +94,8 @@ export function contractObligationCandidates(agentId: string,
 }
 
 export interface GatewayAgentReplanOptions {
+    cooperationPolicyPath?:string;
+    cooperationSettlement?:EconomicContractSettlementOptions;
     institutionPolicyPath?: string;
     institutionWorkOptions?: BusinessWorkRuntimeOptions;
     strategyPlanning?: Pick<AdminLlmDryRunOptions, 'provider' | 'queue' | 'budget' | 'audit'>;
@@ -171,6 +175,14 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                     defaultConfigPath:options.llmConfigPath,overrideConfigPath:`${options.llmConfigPath}.override-missing`
                 } : {});
                 if (!configured.config.automaticReplanning) return {runId:event.eventId,status:'skipped',reason:'Automatic replanning is disabled.'};
+                const cooperation=await runEconomicCooperation(agentId,event,{agentPath,policyPath:options.cooperationPolicyPath,
+                    requiredLeaseOwner:options.requiredAutonomyLeaseOwner,maxLlmCostMicros:configured.config.limits.maxCostMicros,
+                    settlement:options.cooperationSettlement,plan:async input=>{
+                        const view=(await listAgents()).agents.find(a=>a.identity.agentId===agentId);if(!view)throw new Error('Economic actor disappeared');
+                        return (await runAdminLlmDryRun(view,[],{...options.strategyPlanning,economicInput:input,automatic:true,
+                            configPath:options.llmConfigPath,runId:input.runId})).plan;
+                    }});
+                if(cooperation)return cooperation;
                 return runInstitutionStrategy(agentId,event,{agentPath,policyPath:options.institutionPolicyPath,
                     workOptions:options.institutionWorkOptions,requiredLeaseOwner:options.requiredAutonomyLeaseOwner,
                     maxLlmCostMicros:configured.config.limits.maxCostMicros,
@@ -229,6 +241,18 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 } : {})).config;
                 if (!config.automaticReplanning) return { runId: event.eventId, status: 'skipped',
                     reason: 'Automatic replanning is disabled.' };
+                if(!urgentSelfCareGoal(current,now)){
+                    const cooperation=await runEconomicCooperation(agentId,event,{agentPath,policyPath:options.cooperationPolicyPath,
+                        requiredLeaseOwner:options.requiredAutonomyLeaseOwner,maxLlmCostMicros:config.limits.maxCostMicros,
+                        settlement:options.cooperationSettlement,playerState:id=>{
+                            if(id!==agentId)return null;
+                            const live=gatewayBots().get(avatar);
+                            return live?.state&&live.status==='active'&&!live.controllers&&!supervisor.activeSkillSnapshot(avatar)
+                                ? {world:live.state,observedAt:new Date(live.lastStateReceivedAt).toISOString()}:null;
+                        },plan:async input=>(await runAdminLlmDryRun(current!,[],{...options.strategyPlanning,economicInput:input,
+                            automatic:true,configPath:options.llmConfigPath,runId:input.runId})).plan});
+                    if(cooperation)return cooperation;
+                }
                 const durableEnrollment = useStore(store => store.getAutonomyEnrollment(agentId), agentPath);
                 const savedStrategy = useStore(store => store.getPlayerStrategy(event.eventId), agentPath);
                 if (savedStrategy && ['waiting','inferring','dispatched'].includes(savedStrategy.status)) {
@@ -399,7 +423,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                         return { snapshot: view, profile: view.controlProfile, parent, world: freshGateway.state,
                             observedAt: new Date(freshGateway.lastStateReceivedAt).toISOString(), now: at,
                             definitions: definitions.flatMap(r => r.status === 'fulfilled' ? [r.value.definition] : []),
-                            config: latestConfig.autonomousExecution, incoming: view.incomingPlayerActions,
+                            config: latestConfig.autonomousExecution, incoming: view.incomingPlayerActions,contracts:view.economicContracts,
                             spentGp: useStore(s => s.playerStrategyOperationalSpend(agentId,at,event.eventId),agentPath),
                             sourceAreas, excludedSkills, trustedContext: `${buildCoreIdentity(view,2000)}\n`
                                 + `Approved state objective: ${JSON.stringify(parent.objective)}\n`

@@ -91,6 +91,8 @@ export interface CreateEconomicOffer {
     expiresAt: string;
 }
 
+export interface CooperationOfferOrigin {actionId:string;creatorBinding:string;counterpartyBinding:string;grantDigest:string}
+
 export interface EconomicOffer extends CreateEconomicOffer {
     offerId: string;
     termsDigest: string;
@@ -431,7 +433,38 @@ export class EconomicContractStore {
         return estateHeld(this.database,'contract',row.contract_id) ? { ...result, status: 'estate-held' } : result;
     }
 
-    create(input: CreateEconomicOffer, now = new Date().toISOString(), offerId = randomUUID()): EconomicOffer {
+    cooperationOrigin(offerId:string):CooperationOfferOrigin|null {
+        if(!this.database.query("SELECT 1 FROM sqlite_master WHERE name='economic_cooperation_schema'").get())return null;
+        const versions=this.database.query('SELECT version FROM economic_cooperation_schema').all() as {version:number}[];
+        if(versions.length!==1||versions[0]!.version!==1)throw new Error('Unsupported economic cooperation schema');
+        const row=this.database.query('SELECT origin_json FROM economic_cooperation_origin WHERE offer_id=?1').get(offerId) as {origin_json:string}|null;
+        return row?JSON.parse(row.origin_json):null;
+    }
+
+    /** Component-owned, immutable origin; the existing offer/contract transaction semantics are unchanged. */
+    createCooperationOffer(input:CreateEconomicOffer,origin:CooperationOfferOrigin,now:string,offerId:string):EconomicOffer {
+        this.database.transaction(()=>{
+            this.database.run('CREATE TABLE IF NOT EXISTS economic_cooperation_schema(version INTEGER NOT NULL)');
+            const versions=this.database.query('SELECT version FROM economic_cooperation_schema').all() as {version:number}[];
+            if(versions.length>1||versions.length===1&&versions[0]!.version!==1)throw new Error('Unsupported economic cooperation schema');
+            if(!versions.length)this.database.run('INSERT INTO economic_cooperation_schema VALUES(1)');
+            this.database.run(`CREATE TABLE IF NOT EXISTS economic_cooperation_origin(offer_id TEXT PRIMARY KEY REFERENCES economic_offer(offer_id),
+                action_id TEXT NOT NULL UNIQUE,origin_json TEXT NOT NULL)`);
+            for(const operation of ['UPDATE','DELETE'])this.database.run(`CREATE TRIGGER IF NOT EXISTS economic_cooperation_no_${operation.toLowerCase()}
+                BEFORE ${operation} ON economic_cooperation_origin BEGIN SELECT RAISE(ABORT,'Economic cooperation origin is immutable'); END`);
+            const prior=this.getOffer(offerId);
+            if(prior){const normalized=validateEconomicOffer(input,prior.createdAt);
+                if(JSON.stringify(this.cooperationOrigin(offerId))!==JSON.stringify(origin)||prior.termsDigest!==normalized.termsDigest
+                    ||prior.creatorAgentId!==input.creatorAgentId||prior.counterpartyAgentId!==input.counterpartyAgentId||prior.expiresAt!==input.expiresAt
+                    ||prior.title!==input.title||prior.summary!==input.summary)throw new Error('Cooperation offer identity reused');
+                return;
+            }
+            this.create(input,now,offerId);
+            this.database.run('INSERT INTO economic_cooperation_origin VALUES(?1,?2,?3)',[offerId,origin.actionId,JSON.stringify(origin)]);
+        }).immediate();return this.getOffer(offerId)!;
+    }
+
+    create(input: CreateEconomicOffer, now = new Date().toISOString(), offerId: string = randomUUID()): EconomicOffer {
         const value = validateEconomicOffer(input, now);
         this.database.run(`INSERT INTO economic_offer (offer_id, creator_agent_id, counterparty_agent_id, kind,
             title, summary, creator_provides_json, counterparty_provides_json, terms_digest, status, contract_id,
