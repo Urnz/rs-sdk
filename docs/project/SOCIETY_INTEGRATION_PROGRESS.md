@@ -1,5 +1,34 @@
 # Társadalmi integráció – implementációs eredmények
 
+## SI-B02 – Állapotcél és korlátos tervelfogadás – 2026-10-23
+
+**Kész; következő SI-B03, az még nem indult.**
+[Szerződés, migráció/rollback, teljes ellenőrzési index és korlátok](SI_B02_STATE_GOALS.md).
+Natív food/cash/hunger predikátum, achieve/maintain horizon és explicit
+admin/server objective; a legacy run-goal változatlan. Új immediate terv
+csak a meglévő current objective, parent revision, learned skill és pontos
+grant/GP-envelope keretén belül fogadható el. Sikeres skill és elégtelen natív
+állapot után újratervezés kérhető; a régi lépés cseréje nem hamis completion.
+Self-care a következő lezárt skillhatáron előzheti a munkát.
+
+Valódi model→adoption→dispatch→SDK→packed engine út igazolta: raw output és
+skill exit 0 nem cooked-food tartalék; natív főzés után a predicate teljesül.
+Proposal/adoption/dispatch/outcome/evaluation után öt külön child process
+close/finally nélkül kilép; reopen/WAL és idempotencia PASS. Tranzakción
+belüli hiba esetén a goal/event/adoption/GP-reservation együtt gördül vissza.
+
+Közvetlen fogyasztók `20261023-140209-272`: 93 PASS / 1 fixture FAIL, 8,721 s;
+javított gateway/natív határ `20261023-140312-092`: 2 PASS + root TS, az engine
+importhatár még FAIL. A pure modulkiemelés után `20261023-140640-900`: 31 PASS /
+1 új HTTP-fixture státusz-elvárás FAIL, 4,514 s. Végső javított admin-route és
+native eset `20261023-140703-390-si-b02-admin-native-types-final`: **2 PASS +
+root TS + engine TS + format PASS, 31,186 s**. A számsorok átfednek; a korábbi
+FAIL-ek megmaradnak. A hibás `./` nélküli Bun kijelölést is rögzíti a jelentés.
+
+**Full nem futott:** saját additív goal/proposal komponens, célzott legacy/
+consumer/határtesztek. Élő világ, fizetős provider és SI-B06 stratégiai
+autonóm elfogadás nem indult; SI-M1/SI-M2 eredmény ebből nem következik.
+
 ## SI-A13 runner-diagnosztika és célzott ellenőrzési szabály – 2026-10-22
 
 **A hibás közös SI-A13 wrapper-kapu javítva; mind a tíz belső próba célzottan

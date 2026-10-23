@@ -1,8 +1,15 @@
+import { evaluateAutonomousSkillPolicy, ROUTINE_AUTONOMOUS_OPERATIONS } from './autonomous-skill-policy.js';
+import { adoptBoundedImmediatePlan } from './bounded-plan-adoption.js';
+export { evaluateAutonomousSkillPolicy, ROUTINE_AUTONOMOUS_OPERATIONS } from './autonomous-skill-policy.js';
+export { adoptBoundedImmediatePlan } from './bounded-plan-adoption.js';
+
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname } from 'node:path';
 import { observeLiveState } from '../../../agent-state/live.js';
-import { selectImmediateGoal } from '../../../agent-state/planner.js';
+import { selectImmediateGoal, urgentSelfCareGoal } from '../../../agent-state/planner.js';
+import { readEconomicObservation } from './economic-observer-source.js';
+import { stateDigest } from '../../../agent-state/state-objectives.js';
 import { AgentStateStore } from '../../../agent-state/store.js';
 import type { LlmReplanEvent } from '../../../llm-runtime/events.js';
 import { delegateBusinessPlayerAction, finishAdminPlayerActionRun, listAdminAgents,
@@ -18,8 +25,6 @@ import { resolveSkillForCapability } from '../../../agent-skills/capability-gaps
 import { createAdminGoalProposal } from './agent-state.js';
 import { loadLlmRuntimeConfig } from './llm-settings.js';
 import { resolveAdminSkillForAgent } from './skill-catalog.js';
-import type { LlmAutonomousExecutionConfig } from '../../../llm-runtime/types.js';
-import type { SkillDefinition, SkillOperationName, SkillStep } from '../../../agent-skills/types.js';
 import type { BotSupervisor } from './supervisor.js';
 import type { AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import { DurableAgentReplanCoordinator, enqueueDurableReplan } from './durable-replan-coordinator.js';
@@ -37,11 +42,6 @@ import { createLivelihoodPorts } from './livelihood-sources.js';
 import { dispatchLivelihoodSkill } from './livelihood-dispatch.js';
 
 let appendTail: Promise<void> = Promise.resolve();
-
-export const ROUTINE_AUTONOMOUS_OPERATIONS: SkillOperationName[] = ['walk-to', 'wait-for-area', 'talk-to-npc',
-    'navigate-dialog', 'interact-loc', 'interact-npc', 'gather-loc', 'gather-npc', 'smith-at-anvil',
-    'open-shop', 'sell-to-shop', 'close-shop', 'open-bank', 'deposit-item', 'withdraw-item', 'close-bank',
-    'wait-ticks'];
 
 export function appendReplanRecord(record: ReplanRecord, path = llmReplanLogPath): Promise<void> {
     appendTail = appendTail.catch(() => undefined).then(async () => {
@@ -93,36 +93,6 @@ export interface GatewayAgentReplanOptions {
     requiredAutonomyLeaseOwner?: string;
     simulationClock?: ReplanInboxSimulationClock;
     livelihoodPorts?: LivelihoodPorts;
-}
-
-export function evaluateAutonomousSkillPolicy(config: LlmAutonomousExecutionConfig,
-    definition: SkillDefinition): { allowed: boolean; reason: string;
-        authorization?: LlmAutonomousExecutionConfig['allowedSkills'][number] } {
-    const reference = `${definition.id}@${definition.version}`;
-    if (!config.enabled) return { allowed: false, reason: 'Autonomous execution is disabled.' };
-    const authorization = config.allowedSkills.find(skill => skill.id === definition.id
-        && skill.version === definition.version);
-    if (!authorization) {
-        return { allowed: false, reason: `${reference} is not on the exact autonomous allowlist.` };
-    }
-    if (definition.status !== 'verified') return { allowed: false, reason: `${reference} is not verified.` };
-    if (definition.limits.maxOperations > config.maxOperations || definition.limits.timeoutMs > config.maxTimeoutMs) {
-        return { allowed: false, reason: `${reference} exceeds the autonomous operation or time limit.` };
-    }
-    const allowedOperations = new Set(authorization.operations ?? ROUTINE_AUTONOMOUS_OPERATIONS);
-    const inspect = (steps: SkillStep[]): string | null => {
-        for (const step of steps) {
-            if (step.kind === 'call') return 'Composed skill calls are not allowed in the initial autonomous policy.';
-            if (step.kind === 'repeat') { const nested = inspect(step.steps); if (nested) return nested; continue; }
-            if (!allowedOperations.has(step.operation)) {
-                return `Operation ${step.operation} is outside the exact autonomous authorization.`;
-            }
-        }
-        return null;
-    };
-    const unsafe = inspect(definition.steps);
-    return unsafe ? { allowed: false, reason: unsafe } : { allowed: true,
-        reason: `${reference} passed autonomous policy.`, authorization };
 }
 
 /** Prevents a failed precondition from hot-looping the same skill without acquiring its missing input. */
@@ -217,6 +187,9 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 const previous = store.getWorkingMemory(agentId);
                 store.setWorkingMemory(agentId, previous?.revision ?? null, observeLiveState(gateway.state!, now), now);
             }, agentPath);
+            const observation = readEconomicObservation(agentId, { agentPath, gatewayBots: gatewayBots(),
+                now, simulationClock: options.simulationClock });
+            useStore(store => store.evaluateGoalStates(agentId, observation, now), agentPath, options.simulationClock);
             const refreshed = await listAgents();
             let current = refreshed.agents.find(entry => entry.identity.agentId === agentId);
             if (!current) return { runId: event.eventId, status: 'skipped', reason: 'Agent state disappeared before planning.' };
@@ -244,9 +217,11 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 const failedGoal = failedDispatch
                     ? current.goals.find(goal => goal.goalId === failedDispatch.goalId
                         && goal.horizon === 'immediate' && goal.status === 'active') : null;
-                const immediate = failedGoal ?? selectImmediateGoal(current, event.selectionSeed);
+                const urgent = urgentSelfCareGoal(current, now);
+                const immediate = (urgent && failedGoal?.parentGoalId !== urgent.goalId ? null : failedGoal)
+                    ?? selectImmediateGoal(current, event.selectionSeed, now);
                 let alternative: { id: string; version: string } | undefined;
-                if (terminalOutcome && immediate) {
+                if (terminalOutcome && immediate && (!urgent || failedGoal?.parentGoalId === urgent.goalId)) {
                     const failed = new Set(useStore(store => store.listFailedSkillReferencesForGoal(
                         immediate.goalId), agentPath).map(skill => `${skill.id}@${skill.version}`));
                     const known = current.knownSkills.filter(item => item.status === 'known' || item.status === 'preferred');
@@ -278,7 +253,8 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                         }
                     }
                 }
-                const failureFallback = terminalFailureFallback(terminalOutcome, alternative);
+                const failureFallback = urgent && failedGoal?.parentGoalId !== urgent.goalId ? null
+                    : terminalFailureFallback(terminalOutcome, alternative);
                 const deterministicResolution = !failureFallback && immediate ? resolveSkillForCapability(immediate,
                     current.catalogSkills.map(skill => ({ ...skill, status: 'verified' as const,
                         visibility: 'shared' as const })), current.knownSkills.map(item => ({
@@ -380,6 +356,33 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                             runId: result.plan.runId, anchorGoalId: anchor.goalId,
                             anchorGoalRevision: anchor.revision, goals: result.plan.decision.goals,
                             skill: result.plan.decision.skill, reason: result.plan.decision.reason }, agentPath);
+                        if (proposal.skill && anchor.horizon === 'current' && anchor.objective) {
+                            try {
+                                const adoptionNow = new Date().toISOString();
+                                const latestConfig = (await loadLlmRuntimeConfig(options.llmConfigPath ? {
+                                    defaultConfigPath: options.llmConfigPath,
+                                    overrideConfigPath: `${options.llmConfigPath}.override`
+                                } : {})).config;
+                                if (!latestConfig.automaticReplanning || stateDigest(latestConfig.autonomousExecution)
+                                    !== stateDigest(config.autonomousExecution)) throw new Error('Autonomous grant changed during planning');
+                                const fresh = readEconomicObservation(agentId, { agentPath, gatewayBots: gatewayBots(),
+                                    now: adoptionNow, simulationClock: options.simulationClock });
+                                useStore(store => store.evaluateGoalStates(agentId, fresh, adoptionNow), agentPath, options.simulationClock);
+                                const candidate = await resolveAdminSkillForAgent(
+                                    `${proposal.skill.id}@${proposal.skill.version}`, agentId, options.skillCatalog);
+                                const adopted = useStore(store => adoptBoundedImmediatePlan(store, proposal.proposalId,
+                                    candidate.definition, config.autonomousExecution, result.plan.decision!.kind === 'propose-goal-plan'
+                                        ? result.plan.decision!.parameters : {}, adoptionNow), agentPath, options.simulationClock);
+                                const execution = useStore(store => store.getGoalExecution(adopted.goalId)!, agentPath);
+                                const launched = await dispatch(adopted.goalId, candidate, [{ ...execution.binding,
+                                    skill: proposal.skill }], event.eventId);
+                                return { ...launched, decision: { ...result.plan.decision, proposalId: proposal.proposalId,
+                                    adoptedGoalId: adopted.goalId } };
+                            } catch (error) {
+                                return { runId: result.plan.runId, status: 'approval-required',
+                                    reason: error instanceof Error ? error.message : String(error) };
+                            }
+                        }
                         return { runId: result.plan.runId, status: 'approval-required',
                             decision: { ...result.plan.decision, proposalId: proposal.proposalId },
                             reason: 'A validated strategic goal proposal is waiting for admin approval.' };

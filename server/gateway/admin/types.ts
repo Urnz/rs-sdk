@@ -1,4 +1,4 @@
-import type { BotWorldState } from '../../../sdk/types';
+import type { BotWorldState } from '../../../sdk/types.js';
 
 export type AdminBotStatus = 'active' | 'stale' | 'offline' | 'starting' | 'stopping' | 'error';
 

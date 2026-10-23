@@ -40,6 +40,8 @@ function parseDecision(output: unknown, input: LlmPlanningInput): LlmDecision {
         const goals = value.goals.map((entry, index) => {
             if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Proposed goal must be an object');
             const item = entry as Record<string, unknown>;
+            if (['objective', 'execution', 'authorization', 'scope'].some(key => Object.hasOwn(item, key)))
+                throw new Error('Model cannot author state predicates, execution policy or authorization');
             const proposedGoalId = text(item.goalId, `goals[${index}].goalId`, 64).toLowerCase();
             if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(proposedGoalId) || ids.has(proposedGoalId)) {
                 throw new Error(`Invalid or duplicate proposed goal id ${proposedGoalId}`);
@@ -61,8 +63,10 @@ function parseDecision(output: unknown, input: LlmPlanningInput): LlmDecision {
             return goal;
         });
         let skill: AgentSkillReference | null = null;
-        if (value.tool !== undefined && value.tool !== null) skill = parseSkillTool(value.tool, input).skill;
-        return { kind: 'propose-goal-plan', goalId, goals, skill, reason };
+        const selected = value.tool !== undefined && value.tool !== null ? parseSkillTool(value.tool, input) : null;
+        skill = selected?.skill ?? null;
+        return { kind: 'propose-goal-plan', goalId, goals, skill, reason,
+            ...(selected && Object.keys(selected.parameters).length ? { parameters: selected.parameters } : {}) };
     }
     if (value.decision !== 'select_skill') throw new Error('Model decision is unsupported');
     if (input.mode !== 'execute-immediate-goal') throw new Error('Model selected a skill before proposing an immediate goal');

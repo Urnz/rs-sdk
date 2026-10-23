@@ -55,6 +55,14 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     const now = Date.parse(options.now ?? new Date().toISOString());
     if (Number.isNaN(now)) throw new Error('Decision context now must be an ISO timestamp');
     const parts = [buildCoreIdentity(snapshot, Math.min(maxCharacters, 8000))];
+    const objectives = snapshot.goals.filter(g => g.status === 'active' && g.objective);
+    if (objectives.length) parts.push('Native state goals (skill success alone does not satisfy these):\n'
+        + objectives.map(g => {
+            const age = now - Date.parse(g.stateEvaluation?.observedAt ?? '');
+            const result = age >= 0 && age <= 30000 ? g.stateEvaluation?.result : 'unknown';
+            return `${g.goalId}: ${JSON.stringify(g.objective)}; state ${result ?? 'unknown'}; `
+                + `observed ${g.stateEvaluation?.observedAt ?? 'unknown'}; needs replanning ${!!g.stateEvaluation?.needsReplan}`;
+        }).join('\n'));
     if (options.economicObservation) {
         if (options.economicObservation.agentId !== snapshot.identity.agentId) throw new Error('Economic context observer differs');
         parts.push(buildEconomicContext(options.economicObservation, options.now ?? new Date(now).toISOString()));

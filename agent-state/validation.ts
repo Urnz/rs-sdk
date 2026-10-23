@@ -7,6 +7,8 @@ import type { AgentEpisodeKind, AgentEpisodeSource, AgentEpisodeTrust, AgentPlay
     GoalHorizon, SetAgentAutonomyEnrollment, SetAgentControlProfile, SetAgentRelationship,
     SetAgentWorkingMemory, UpdateAgentIdentity } from './types.js';
 
+import { validateStateObjective } from './state-objectives.js';
+
 const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLAYER_PATTERN = /^[a-z0-9 _-]+$/;
 const HORIZONS = new Set<GoalHorizon>(['life', 'long-term', 'current', 'immediate']);
@@ -284,10 +286,16 @@ export function validateCreateGoal(value: CreateAgentGoal): Required<CreateAgent
         description: text(value.description ?? '', 'description', issues, 2000, true),
         priority,
         skill: value.skill === null || value.skill === undefined ? null : validateSkillReference(value.skill, 'skill', issues),
-        execution: value.execution ?? null
+        execution: value.execution ?? null,
+        objective: value.objective ? validateStateObjective(value.objective) : null
     };
     if (horizon === 'life' && result.parentGoalId !== null) issues.push('a life goal cannot have a parent');
     if (horizon !== 'life' && result.parentGoalId === null) issues.push(`${horizon} goals require a parent`);
+    if (result.objective && (horizon === 'life'
+        || (horizon === 'long-term' && result.objective.mode !== 'maintain')
+        || (horizon === 'immediate' && result.objective.mode !== 'achieve'))) {
+        issues.push('state objectives require maintain for long-term, achieve for immediate, and no life horizon');
+    }
     if (result.execution) {
         if (horizon !== 'immediate' || !result.skill) issues.push('execution requires an immediate goal with a skill');
         if (result.execution.policy !== 'one-shot' && result.execution.policy !== 'recurring') {

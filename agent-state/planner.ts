@@ -19,12 +19,23 @@ export interface PlannerOptions {
     selectionSeed?: string;
 }
 
-export function selectImmediateGoal(snapshot: AgentSnapshot, selectionSeed?: string): AgentGoal | null {
+/** Self-care takes precedence at a bounded skill boundary; no in-flight economic operation is interrupted. */
+export function urgentSelfCareGoal(snapshot: AgentSnapshot, now = new Date().toISOString()): AgentGoal | null {
+    return snapshot.goals.filter(g => g.status === 'active' && g.horizon === 'current'
+        && g.objective?.purpose === 'self-care' && g.stateEvaluation?.result === 'unsatisfied'
+        && Date.parse(now) - Date.parse(g.stateEvaluation.observedAt) >= 0
+        && Date.parse(now) - Date.parse(g.stateEvaluation.observedAt) <= 5000)
+        .sort((a, b) => b.priority - a.priority || a.goalId.localeCompare(b.goalId))[0] ?? null;
+}
+
+export function selectImmediateGoal(snapshot: AgentSnapshot, selectionSeed?: string, now?: string): AgentGoal | null {
     if (selectionSeed !== undefined && (typeof selectionSeed !== 'string'
         || !selectionSeed.trim() || selectionSeed.length > 128)) {
         throw new Error('Planner selection seed must contain 1-128 characters');
     }
-    const immediate = snapshot.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate')
+    const urgent = urgentSelfCareGoal(snapshot, now);
+    const immediate = snapshot.goals.filter(goal => goal.status === 'active' && goal.horizon === 'immediate'
+        && !goal.stateEvaluation?.needsReplan && (!urgent || goal.parentGoalId === urgent.goalId))
         .sort((a, b) => b.priority - a.priority || a.goalId.localeCompare(b.goalId));
     const highest = immediate[0]?.priority;
     if (highest === undefined || !selectionSeed) return immediate[0] ?? null;
@@ -49,7 +60,7 @@ export function planNextAction(snapshot: AgentSnapshot, options: PlannerOptions 
     if (!Number.isInteger(maxAge) || maxAge < 0 || maxAge > 24 * 60 * 60_000) {
         throw new Error('Planner working memory maximum age must be between 0 and 24 hours');
     }
-    const selected = selectImmediateGoal(snapshot, options.selectionSeed);
+    const selected = selectImmediateGoal(snapshot, options.selectionSeed, options.now);
     if (!selected) {
         return { kind: 'no-immediate-goal', agentId: snapshot.identity.agentId, goalId: null, skill: null,
             reason: 'The agent has no active immediate goal.', decisionKey: key(snapshot, 'no-immediate-goal', null, null) };

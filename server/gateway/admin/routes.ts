@@ -70,6 +70,7 @@ import {
     updateAdminAgentSkill
 } from './agent-state';
 import { AgentStateStore } from '../../../agent-state/store.js';
+import { validateStateObjective, type StateObjective } from '../../../agent-state/state-objectives.js';
 import { observeLiveState, runLivePlannerCycle } from '../../../agent-state/live.js';
 import type { AgentCommitmentDirection, AgentCommitmentStatus, AgentEpisodeKind, AgentEpisodeTrust,
     AgentKnowledgeKind, AgentPlayerActionManualStatus, AgentRole, AgentSkillKnowledgeStatus,
@@ -1874,6 +1875,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 horizon: oneOf<GoalHorizon>(body.horizon, ['life', 'long-term', 'current', 'immediate'], 'horizon'),
                 title: text(body, 'title', true), description: text(body, 'description'),
                 priority: Number(body.priority),
+                objective: body.objective === undefined || body.objective === null ? null
+                    : validateStateObjective(body.objective as StateObjective),
                 skill: body.skill && typeof body.skill === 'object' ? body.skill as { id: string; version: string } : null
             }, context.agentStatePath ?? agentStateDbPath, context.simulationClock);
             await appendAudit({ operator: 'local-admin', action: 'agent.goal.create', reason, success: true,

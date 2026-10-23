@@ -1,6 +1,7 @@
 import type { BoundSimulationEventStamp } from '../simulation-clock/types.js';
+import type { StateObjective, StateGoalEvaluation } from './state-objectives.js';
 
-export const AGENT_STATE_SCHEMA_VERSION = 25 as const;
+export const AGENT_STATE_SCHEMA_VERSION = 26 as const;
 
 export type GoalHorizon = 'life' | 'long-term' | 'current' | 'immediate';
 export type GoalStatus = 'active' | 'completed' | 'blocked' | 'abandoned';
@@ -116,6 +117,8 @@ export interface UpdateAgentIdentity {
 }
 
 export interface AgentGoal {
+    objective?: StateObjective;
+    stateEvaluation?: StateGoalEvaluation;
     goalId: string;
     agentId: string;
     parentGoalId: string | null;
@@ -147,6 +150,7 @@ export interface AgentGoalEvent {
 }
 
 export interface CreateAgentGoal {
+    objective?: StateObjective | null;
     goalId: string;
     parentGoalId?: string | null;
     horizon: GoalHorizon;
@@ -175,7 +179,7 @@ export interface CreateAgentGoalExecution {
 export interface AgentGoalExecution {
     goalId: string;
     policy: AgentGoalExecutionPolicy;
-    completion: { kind: 'successful-skill-runs'; required: number };
+    completion: { kind: 'successful-skill-runs'; required: number } | { kind: 'native-state'; objective: StateObjective };
     progress: { successfulRuns: number };
     cooldownMs: number;
     nextEligibleAt: string | null;

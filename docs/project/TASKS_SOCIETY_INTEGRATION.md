@@ -24,8 +24,8 @@ a korabeli állapotot jelölik. A részletek: [kalibráció](SOCIETY_REALISM_CAL
 [natív bizonyítékok, mért autonóm eredmény és restore](SI_A15_TECHNICAL_RESULT.md).
 Az eredeti D1/SI-M1 gazdasági/túlélési PASS továbbra sincs igazolva.
 Az SI-C09 későbbi, nyitott feladat; nem történt karaktermentő paraméterhangolás.
-**Fejezetzárás: az SI-A technikai fejezet kész. SI-B01 elkészült;
-a következő feladat az SI-B02.** [Observer-kontextus és ellenőrzési korlátok](SI_B01_OBSERVER_CONTEXT.md).
+**Fejezetzárás: az SI-A technikai fejezet kész. SI-B01–SI-B02 elkészült;
+a következő feladat az SI-B03.** [Állapotcél és korlátos tervelfogadás](SI_B02_STATE_GOALS.md).
 A továbblépés feltétele az elfogadott SI-A15
 v2 technikai bizonyíték, nem az eredeti D1/SI-M1 túlélési PASS vagy az SI-C09.
 Új munkamenethez: [rövid átadás](SOCIETY_DEVELOPMENT_HANDOFF.md) és
@@ -686,7 +686,7 @@ A következő autonóm baseline és az alábbi mechanikai kapuk miatt a státusz
 ## 6. SI-B – stratégiai autonómia a már integrált világban
 
 **Fázisbelépés teljesült: SI-A15 v2 technikai igazolása elfogadva.
-SI-B01 kész, SI-B02 elkezdhető; SI-B02–SI-B06 még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
+SI-B01–SI-B02 kész, SI-B03 elkezdhető; SI-B03–SI-B06 még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
 belépési feltétele. Az SI-A mért ellátási kudarcai megmaradnak kiinduló
 eredményként. Az SI-B-ben külön kell bizonyítani, hogy az agent észlelt
 változást, lehetőségek közül választott, és a következményt visszaértékelte;
@@ -725,7 +725,7 @@ SI-B06 élő stratégiai E2E nem történt. Következő: SI-B02.
 
 ### SI-B02 – Állapotcél és korlátos tervelfogadás
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G02, RUNTIME.
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P1; G02, RUNTIME.
 - **Cél és indok:** „fenntartható megélhetés/van élelem” ne sikeres runszámmal legyen azonos.
 - **Meglévő:** célhierarchia, successful-skill-runs progress, proposal/approval
   ledger és narrow execution grant; új stratégiai terv adminnál megáll.
@@ -743,6 +743,13 @@ SI-B06 élő stratégiai E2E nem történt. Következő: SI-B02.
 - **Perzisztencia/hiba:** additive goal/proposal schema és policyversion,
   legacy run-goal szemantika megőrzése; ugyanaz a terv nem aktiválható kétszer.
 - **Kockázat:** magas; cél-újranyitási loop, tág implicit jogosultság és hamis siker.
+
+2026-10-23: [implementáció, migráció/rollback és célzott bizonyíték](SI_B02_STATE_GOALS.md)
+kész. Állapotpredikátumok, azonos parent revisionhöz/granthoz kötött egyetlen
+immediate terv elfogadása és cseréje, self-care elsőbbség, admin-route,
+valódi natív food-következmény és öt process-kilépési barrier igazolt.
+Az érintett ellenőrzések, root/engine TS és formázás PASS; teljes regresszió
+nem indult. SI-B03 és SI-B06 élő E2E nem történt. Következő: SI-B03.
 
 ### SI-B03 – Player-stratégia: beszerzés, más munka vagy más termelési út
 

@@ -40,6 +40,25 @@ afterEach(() => {
 });
 
 describe('admin autonomy controls', () => {
+    test('creates typed state objectives through the existing admin route and rejects invented predicates', async () => {
+        const path = setup(), store = new AgentStateStore(path);
+        try {
+            store.createGoal('ferrye14', { goalId: 'life', horizon: 'life', title: 'Live' });
+            store.createGoal('ferrye14', { goalId: 'strategy', parentGoalId: 'life', horizon: 'long-term', title: 'Eat' });
+        } finally { store.close(); }
+        const body = { goalId: 'reserve', parentGoalId: 'strategy', horizon: 'current', title: 'Have food',
+            priority: 70, reason: 'Approve a bounded food-state objective', objective: { policy: 'si-b02.v1', mode: 'maintain',
+                purpose: 'self-care', predicates: [{ kind: 'food-reserve-at-least', value: 2 }] } };
+        const response = await post('/api/admin/agents/ferrye14/goals', body, path, async () => false);
+        expect(response?.status).toBe(201);
+        expect(await response?.json()).toMatchObject({ goal: { objective: body.objective } });
+        const rejected = await post('/api/admin/agents/ferrye14/goals', { ...body, goalId: 'invented',
+            objective: { ...body.objective, predicates: [{ kind: 'model-says-completed', value: 1 }] } }, path, async () => false);
+        expect(rejected?.status).toBe(400);
+        const reopened = new AgentStateStore(path);
+        try { expect(reopened.getGoal('invented')).toBeNull(); } finally { reopened.close(); }
+    });
+
     test('exposes global and per-agent autonomy controls in the admin UI', () => {
         const html = readFileSync(join(adminPublicDir, 'index.html'), 'utf8');
         const script = readFileSync(join(adminPublicDir, 'admin.js'), 'utf8');

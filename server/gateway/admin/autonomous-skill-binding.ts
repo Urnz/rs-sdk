@@ -2,7 +2,7 @@ import type { AgentSkillParameterBinding, AgentSkillParameterSourceKind,
     AgentSkillReference } from '../../../agent-state/types.js';
 import { createSkillParameterBinding } from '../../../agent-state/skill-binding.js';
 import type { SkillDefinition } from '../../../agent-skills/types.js';
-import { validateAdminSkillParameters } from './skill-catalog.js';
+import { validateAdminSkillParameters } from './skill-parameters.js';
 
 export interface AutonomousSkillParameterCandidate {
     sourceKind: AgentSkillParameterSourceKind;

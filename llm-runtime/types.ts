@@ -160,6 +160,7 @@ export type LlmDecision = {
     reason: string;
 } | {
     kind: 'propose-goal-plan';
+    parameters?: Record<string, string | number | boolean>;
     goalId: string;
     goals: ProposedAgentGoal[];
     skill: AgentSkillReference | null;

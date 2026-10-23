@@ -37,6 +37,9 @@ import { AGENT_STATE_SCHEMA_VERSION, type AgentGoal, type AgentGoalEvent, type A
     type SetAgentEconomicActorLink, type SetAgentRelationship, type SetAgentWorkingMemory,
     type UpdateAgentIdentity } from './types.js';
 import { createSkillParameterBinding } from './skill-binding.js';
+import { installStateGoalSchema, evaluateStateObjective, STATE_GOAL_POLICY,
+    type StateObjective, type StateGoalEvaluation } from './state-objectives.js';
+import type { EconomicObservation } from './economic-context.js';
 import { installLivelihoodJournal, readLivelihoodJournal, writeLivelihoodJournal,
     type LivelihoodJournalEntry } from './livelihood.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
@@ -1614,6 +1617,8 @@ export class AgentStateStore {
                 VALUES (?1, ?2, 'created', NULL, 'active', NULL, 1, ?3, ?4, ?5)`,
             [value.goalId, normalizedAgentId, value.skill?.id ?? null, value.skill?.version ?? null, now]);
             this.bindGoalEvent(value.goalId, 1, 'created');
+            if (value.objective) this.database.run(`INSERT INTO agent_state_objective(goal_id,objective_json)
+                VALUES (?1,?2)`, [value.goalId, JSON.stringify(value.objective)]);
             if (value.execution) {
                 const binding = createSkillParameterBinding(value.execution.binding);
                 this.database.run(`INSERT INTO agent_goal_execution
@@ -1703,21 +1708,8 @@ export class AgentStateStore {
                 }
             }
             for (const input of proposal.goals) {
-                const value = validateCreateGoal(input);
-                this.database.run(`INSERT INTO agent_goal
-                    (goal_id, agent_id, parent_goal_id, horizon, title, description, status, priority,
-                    skill_id, skill_version, created_at, updated_at, completed_at, revision)
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'active', ?7, ?8, ?9, ?10, ?10, NULL, 1)`,
-                [value.goalId, proposal.agentId, value.parentGoalId, value.horizon, value.title, value.description,
-                    value.priority, value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill?.id ?? null : null,
-                    value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill?.version ?? null : null, now]);
-                const goalSkill = value.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill : null;
-                this.database.run(`INSERT INTO agent_goal_event
-                    (goal_id, agent_id, kind, previous_status, status, previous_revision, revision,
-                    skill_id, skill_version, occurred_at)
-                    VALUES (?1, ?2, 'created', NULL, 'active', NULL, 1, ?3, ?4, ?5)`,
-                [value.goalId, proposal.agentId, goalSkill?.id ?? null, goalSkill?.version ?? null, now]);
-                this.bindGoalEvent(value.goalId, 1, 'created');
+                this.createGoal(proposal.agentId, { ...input,
+                    skill: input.goalId === proposal.goals.at(-1)?.goalId ? proposal.skill : null }, now);
             }
             const status = proposal.skill ? 'approved' : 'completed';
             const result = this.database.run(`UPDATE agent_goal_proposal SET status = ?3, approval_id = ?4,
@@ -1770,6 +1762,11 @@ export class AgentStateStore {
             const current = this.requireGoal(normalizedGoalId);
             if (current.status === status) { unchanged = current; return; }
             if (current.status !== 'active' && status === 'active') throw new Error('Ended goals cannot be reactivated');
+            if (status === 'completed' && current.objective) {
+                const evidence = this.database.query(`SELECT 1 FROM agent_state_evaluation WHERE goal_id=?1
+                    AND goal_revision=?2 AND result='satisfied' AND evaluated_at=?3`).get(current.goalId, current.revision, now);
+                if (current.objective.mode !== 'achieve' || !evidence) throw new Error('State goal requires current native predicate evidence');
+            }
             if (status !== 'active') {
                 const activeChildren = this.database.query(`SELECT COUNT(*) AS count FROM agent_goal
                     WHERE parent_goal_id = ?1 AND status = 'active'`).get(current.goalId) as { count: number };
@@ -1791,10 +1788,116 @@ export class AgentStateStore {
         return unchanged ?? this.requireGoal(normalizedGoalId);
     }
 
+    private withStateObjective(value: AgentGoal): AgentGoal {
+        const row = this.database.query('SELECT objective_json FROM agent_state_objective WHERE goal_id=?1')
+            .get(value.goalId) as { objective_json: string } | null;
+        if (!row) return value;
+        const evaluation = this.database.query(`SELECT result,observed_at,digest FROM agent_state_evaluation
+            WHERE goal_id=?1 ORDER BY observed_at DESC,rowid DESC LIMIT 1`).get(value.goalId) as
+            { result: StateGoalEvaluation['result']; observed_at: string; digest: string } | null;
+        const terminal = this.database.query(`SELECT o.occurred_at FROM agent_goal_execution e
+            JOIN agent_skill_outcome o ON o.run_id=e.last_run_id WHERE e.goal_id=?1 AND o.status='completed'`)
+            .get(value.goalId) as { occurred_at: string } | null;
+        return { ...value, objective: JSON.parse(row.objective_json) as StateObjective,
+            ...(evaluation ? { stateEvaluation: { result: evaluation.result, observedAt: evaluation.observed_at,
+                digest: evaluation.digest, ...(terminal && evaluation.result !== 'satisfied'
+                    && evaluation.observed_at >= terminal.occurred_at ? { needsReplan: true } : {}) } } : {}) };
+    }
+
+    /** Called only by trusted gateway adapters, never with model/client-supplied observations. */
+    evaluateGoalStates(agentId: string, observation: EconomicObservation, now = new Date().toISOString()): void {
+        const transaction = this.database.transaction(() => {
+            if (observation.agentId !== agentId || !/^[a-f0-9]{64}$/.test(observation.binding))
+                throw new Error('State evidence agent/binding differs');
+            const goals = this.listGoals(agentId, 'active').filter(g => g.objective).reverse();
+            for (const g of goals) {
+                const result = evaluateStateObjective(g.objective!, observation, now);
+                const prior = this.database.query('SELECT source_binding,observed_at FROM agent_state_objective WHERE goal_id=?1')
+                    .get(g.goalId) as { source_binding: string | null; observed_at: string | null };
+                if ((prior.source_binding && prior.source_binding !== observation.binding)
+                    || (prior.observed_at && prior.observed_at > observation.observedAt)) throw new Error('State evidence binding/time regressed');
+                const existing = this.database.query(`SELECT 1 FROM agent_state_evaluation WHERE goal_id=?1 AND digest=?2`)
+                    .get(g.goalId, result.digest);
+                if (!existing) this.database.run(`INSERT INTO agent_state_evaluation
+                    (goal_id,goal_revision,digest,result,observed_at,evaluated_at,observation_json) VALUES (?1,?2,?3,?4,?5,?6,?7)`,
+                [g.goalId, g.revision, result.digest, result.result, result.observedAt, now, JSON.stringify(observation)]);
+                this.database.run('UPDATE agent_state_objective SET source_binding=?2,observed_at=?3 WHERE goal_id=?1',
+                    [g.goalId, observation.binding, observation.observedAt]);
+                const children = this.listGoals(agentId, 'active').some(child => child.parentGoalId === g.goalId);
+                if (!existing && !children && result.result === 'satisfied' && g.objective!.mode === 'achieve')
+                    this.setGoalStatus(g.goalId, g.revision, 'completed', now);
+            }
+        });
+        transaction.immediate();
+    }
+
+    /** Atomically adopts one bounded immediate plan inside an already-authored current objective.
+     * Skill/envelope validation is supplied by the gateway; no new grant is created here. */
+    adoptImmediateGoalProposal(proposalId: string, expectedRevision: number, input: {
+        decisionId: string; binding: AgentSkillDispatch['binding']; scopeDigest: string;
+        reservedGp: number; dailyLimitGp: number; policyId: string; policyVersion: string;
+    }, now = new Date().toISOString()): AgentGoal {
+        let adoptedGoal: AgentGoal | null = null;
+        const transaction = this.database.transaction(() => {
+            const prior = this.database.query('SELECT goal_id,scope_digest FROM agent_plan_adoption WHERE proposal_id=?1')
+                .get(proposalId) as { goal_id: string; scope_digest: string } | null;
+            if (prior) {
+                if (prior.scope_digest !== input.scopeDigest) throw new Error('Adopted plan scope changed');
+                adoptedGoal = this.requireGoal(prior.goal_id); return;
+            }
+            const proposal = this.getGoalProposal(proposalId);
+            if (!proposal || proposal.status !== 'pending' || proposal.revision !== expectedRevision)
+                throw new Error('Plan proposal changed before adoption');
+            const parent = this.requireGoal(proposal.anchorGoalId);
+            const enrollment = this.getAutonomyEnrollment(proposal.agentId);
+            if (this.getAutonomyControl().emergencyStop || !enrollment || enrollment.status !== 'running'
+                || !enrollment.leaseExpiresAt || enrollment.leaseExpiresAt <= now
+                || enrollment.policyId !== input.policyId || enrollment.policyVersion !== input.policyVersion)
+                throw new Error('Plan adoption requires the current live autonomy policy lease');
+            const age = Date.parse(now) - Date.parse(parent.stateEvaluation?.observedAt ?? '');
+            if (parent.agentId !== proposal.agentId || parent.status !== 'active' || parent.horizon !== 'current'
+                || parent.revision !== proposal.anchorGoalRevision || !parent.objective
+                || parent.stateEvaluation?.result !== 'unsatisfied' || !Number.isFinite(age) || age < 0 || age > 5000)
+                throw new Error('Plan parent revision/scope or fresh unsatisfied state changed');
+            if (proposal.goals.length !== 1 || proposal.goals[0]!.horizon !== 'immediate'
+                || proposal.goals[0]!.parentGoalId !== parent.goalId || !proposal.skill)
+                throw new Error('Only one immediate child within the existing parent can be adopted');
+            const occupied = this.listGoals(proposal.agentId, 'active').filter(g => g.horizon === 'immediate'
+                && (g.parentGoalId === parent.goalId || parent.objective!.purpose !== 'self-care'));
+            const replaceable = occupied.filter(g => g.parentGoalId === parent.goalId && g.stateEvaluation?.needsReplan
+                && g.stateEvaluation.result === 'unsatisfied' && g.stateEvaluation.digest === parent.stateEvaluation!.digest);
+            if (occupied.length !== replaceable.length || replaceable.length > 1)
+                throw new Error('An active immediate plan already occupies this scope');
+            for (const previous of replaceable) {
+                if (this.database.query(`SELECT 1 FROM agent_skill_dispatch d LEFT JOIN agent_skill_outcome o
+                    ON o.run_id=d.run_id WHERE d.goal_id=?1 AND o.run_id IS NULL`).get(previous.goalId))
+                    throw new Error('Cannot replace a plan with an in-flight native run');
+            }
+            const known = this.getSkillKnowledge(proposal.agentId, proposal.skill);
+            if (!known || known.status === 'blocked') throw new Error('Adopted skill is not learned');
+            const decision = this.listDecisions(proposal.agentId).find(d => d.decisionId === input.decisionId);
+            if (!decision || proposal.runId !== input.decisionId) throw new Error('Plan has no matching admitted decision');
+            this.reserveDecisionOperationalBudget(input.decisionId, input.reservedGp, input.dailyLimitGp, now);
+            for (const previous of replaceable) this.setGoalStatus(previous.goalId, previous.revision, 'blocked', now);
+            const child = proposal.goals[0]!;
+            const created = this.createGoal(proposal.agentId, { ...child, skill: proposal.skill,
+                objective: { ...parent.objective, mode: 'achieve' },
+                execution: { policy: 'one-shot', binding: input.binding } }, now);
+            this.database.run(`INSERT INTO agent_plan_adoption VALUES (?1,?2,?3,?4,?5,?6,?7)`,
+                [proposalId, created.goalId, input.decisionId, parent.revision, STATE_GOAL_POLICY, input.scopeDigest, now]);
+            this.database.run(`UPDATE agent_goal_proposal SET status='completed',updated_at=?2,resolved_at=?2,
+                response_note='Bounded immediate plan adopted; goal satisfaction requires native evidence',revision=revision+1
+                WHERE proposal_id=?1`, [proposalId, now]);
+            adoptedGoal = created;
+        });
+        transaction.immediate();
+        return adoptedGoal!;
+    }
+
     getGoal(goalId: string): AgentGoal | null {
         const normalized = normalizeAgentId(goalId, 'goalId');
         const row = this.database.query('SELECT * FROM agent_goal WHERE goal_id = ?1').get(normalized);
-        return row ? goal(row as GoalRow) : null;
+        return row ? this.withStateObjective(goal(row as GoalRow)) : null;
     }
 
     listGoals(agentId: string, status?: GoalStatus): AgentGoal[] {
@@ -1806,13 +1909,15 @@ export class AgentStateStore {
             : this.database.query(`SELECT * FROM agent_goal WHERE agent_id = ?1
                 ORDER BY CASE horizon WHEN 'life' THEN 0 WHEN 'long-term' THEN 1 WHEN 'current' THEN 2 ELSE 3 END,
                 priority DESC, goal_id`).all(normalized);
-        return (rows as GoalRow[]).map(goal);
+        return (rows as GoalRow[]).map(row => this.withStateObjective(goal(row)));
     }
 
     getGoalExecution(goalId: string): AgentGoalExecution | null {
         const normalized = normalizeAgentId(goalId, 'goalId');
         const row = this.database.query('SELECT * FROM agent_goal_execution WHERE goal_id = ?1').get(normalized);
-        return row ? goalExecution(row as GoalExecutionRow) : null;
+        if (!row) return null;
+        const execution = goalExecution(row as GoalExecutionRow), objective = this.getGoal(normalized)?.objective;
+        return objective ? { ...execution, completion: { kind: 'native-state', objective } } : execution;
     }
 
     recordSkillDispatch(input: Omit<AgentSkillDispatch, 'createdAt'>,
@@ -1839,6 +1944,18 @@ export class AgentStateStore {
                 throw new Error('Skill dispatch goal is inactive or does not match the exact skill');
             }
             if (!execution) throw new Error('Autonomous skill dispatch requires a persisted goal execution policy');
+            const adopted = this.database.query('SELECT parent_revision FROM agent_plan_adoption WHERE goal_id=?1')
+                .get(goalId) as { parent_revision: number } | null;
+            if (adopted) {
+                const parent = goalState.parentGoalId ? this.getGoal(goalState.parentGoalId) : null;
+                const pending = this.database.query(`SELECT 1 FROM agent_skill_dispatch d LEFT JOIN agent_skill_outcome o
+                    ON o.run_id=d.run_id WHERE d.goal_id=?1 AND o.run_id IS NULL`).get(goalId);
+                if (this.getAutonomyControl().emergencyStop || enrollment.status !== 'running'
+                    || !enrollment.leaseExpiresAt || enrollment.leaseExpiresAt <= now
+                    || !parent || parent.status !== 'active' || parent.revision !== adopted.parent_revision
+                    || pending || goalState.stateEvaluation?.needsReplan || execution.binding.digest !== binding.digest)
+                    throw new Error('Adopted plan dispatch lease, parent, binding or pending run changed');
+            }
             if (execution.nextEligibleAt && execution.nextEligibleAt > now) throw new Error('Goal execution cooldown is active');
             const decision = this.database.query(`SELECT decision_id FROM agent_decision_ledger
                 WHERE decision_id = ?1 AND agent_id = ?2`).get(decisionId, agentId);
@@ -1916,10 +2033,10 @@ export class AgentStateStore {
             const current = this.requireGoal(dispatch.goalId);
             if (!execution || current.status !== 'active') { goalState = current; return; }
             const successfulRuns = execution.progress.successfulRuns + (status === 'completed' ? 1 : 0);
-            const completes = status === 'completed' && execution.policy === 'one-shot'
-                && successfulRuns >= execution.completion.required;
-            const nextEligibleAt = execution.policy === 'recurring'
-                ? new Date(Date.parse(now) + execution.cooldownMs).toISOString() : null;
+            const completes = !current.objective && status === 'completed' && execution.policy === 'one-shot'
+                && execution.completion.kind === 'successful-skill-runs' && successfulRuns >= execution.completion.required;
+            const nextEligibleAt = execution.policy === 'recurring' || current.objective
+                ? new Date(Date.parse(now) + Math.max(execution.cooldownMs, current.objective ? 1000 : 0)).toISOString() : null;
             this.database.run(`UPDATE agent_goal_execution SET successful_runs = ?2, next_eligible_at = ?3,
                 last_run_id = ?4, updated_at = ?5, revision = revision + 1 WHERE goal_id = ?1`,
             [dispatch.goalId, successfulRuns, nextEligibleAt, runId, now]);
@@ -3104,6 +3221,9 @@ export class AgentStateStore {
         }
         if (version < 25) {
             this.database.transaction(()=>{ installPopulationEntrySchema(this.database); this.database.run('PRAGMA user_version=25'); }).immediate();
+        }
+        if (version < 26) {
+            this.database.transaction(() => { installStateGoalSchema(this.database); this.database.run('PRAGMA user_version=26'); }).immediate();
         }
     }
 }

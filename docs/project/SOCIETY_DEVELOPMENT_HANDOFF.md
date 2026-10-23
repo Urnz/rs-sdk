@@ -1,16 +1,26 @@
 # Rövid fejlesztési átadás
 
-Frissítve: 2026-10-22. Ez a következő munkamenet belépője, nem futási napló.
+Frissítve: 2026-10-23. Ez a következő munkamenet belépője, nem futási napló.
 A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
 
-- **SI-A technikai fejezet lezárva. SI-B01 kész; következő SI-B02.**
+- **SI-A technikai fejezet lezárva. SI-B01–SI-B02 kész; következő SI-B03.**
+- [SI-B02 scope, állapotcél, bounded adoption, migráció/rollback és bizonyíték](SI_B02_STATE_GOALS.md).
+  AgentState v26: saját objective/evaluation/adoption táblák; régi run-goal
+  változatlan. Az állapotcél explicit admin/server beállítás, nem automatikus
+  átminősítés. Maintained livelihood nem lesz egy sikeres skilltől completed.
+- Következő fejlesztési kérésre **SI-B03**: player megélhetési/beszerzési
+  alternatívák a meglévő typed skillök és grantok között. Előbb a feladat
+  exact alternatíva/context/budget/terminal követelményeit olvasd; SI-B06-hoz
+  később külön élő futási terv kell. SI-B03–SI-B06 még nyitott, ne kezdd el őket
+  új kérés nélkül. SI-B02 a bounded adoptiont készíti elő, nem alternatívákat talál ki.
+- SI-B02 fő fájlok: `agent-state/state-objectives.ts`, `store.ts`, `planner.ts`,
+  `llm-runtime/planning.ts`, `orchestrator.ts`, gateway `bounded-plan-adoption.ts`,
+  `autonomous-skill-policy.ts`, `replan-runtime.ts`, `state-goals.test.ts`.
+  `skill-parameters.ts`: a korábbi validátor változatlan kiemelése, régi exporttal.
+  Native thin path: `NativeFoodSkill.test.ts` SI-B02 névfilteres esete.
 - [SI-B01 scope, migráció, rollback és korlátok](SI_B01_OBSERVER_CONTEXT.md).
-  SI-B02–SI-B06 nyitott; új kérés nélkül ne kezdd el őket.
-- Következő fejlesztési kérésre SI-B02: natív evidence-alapú állapotpredikátumok
-  és korlátos tervelfogadás. Először az `agent-state/` goal/store/planner,
-  `llm-runtime/` validator és replan/authorization határt olvasd.
 - SI-B01 fő fájlok: `agent-state/economic-context.ts`,
   `server/gateway/admin/economic-observer-source.ts`, `replan-inbox.ts`,
   `domain-event-recovery.ts`, `agent-state.ts`, `admin-decision-context.ts`.
@@ -45,7 +55,24 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Bizonyítékok és futtatási állapot
 
-- Legújabb ág: `codex/si-a13-native-test-diagnostics`; korábbi munkafa megőrizve.
+- Aktuális ág: `codex/si-b02-state-goals`. Élő világ/provider nem indult;
+  csak eldobható fixture-ök migrálódtak. **Teljes regresszió nem futott.**
+- SI-B02 közvetlen fogyasztók:
+  `20261023-140209-272-si-b02-component-consumers`, 93 PASS / 1 új fixture FAIL,
+  8,721 s. A sikeres részek nem futottak újra a fixture miatt.
+- Gateway + native thin path + root TS PASS:
+  `20261023-140312-092-si-b02-gateway-native-types-retry`; az engine importhatár
+  még hibás volt. A pure policy/adoption/paramétermodul kiemelése után:
+  `20261023-140640-900-si-b02-final-boundaries-types`, 31 PASS / 1 hibás HTTP
+  státusz-elvárás, 4,514 s; benne öt valódi process-kilépési barrier.
+- Végső javított admin-route + native eset **2 PASS + root TS + engine TS + format**:
+  `20261023-140703-390-si-b02-admin-native-types-final`, **PASS**, 31,186 s.
+  [Minden korábbi sikertelen indítás és a körök korlátai](SI_B02_STATE_GOALS.md).
+  A körök számai átfednek; ez nem teljes regressziós PASS.
+- `20261023-141150-349-si-b02-docs-scope-final`, **PASS**, 1,341 s:
+  roadmap (17 kész, következő SI-B03), helyi linkek, formázás és a kiemelt
+  policy/paramétervalidátor algoritmusának gépi azonosságvizsgálata.
+- Korábbi SI-A13 ág: `codex/si-a13-native-test-diagnostics`; GitHubon `98ffcad27`.
   Ebben a javításban **nem futott teljes regresszió** és gazdasági runtime nem változott.
 - SI-A13 eredeti 120 s-os kapu, már streaming időméréssel:
   `20261022-234138-335-si-a13-streaming-original-budget`, **13 PASS**, 41,505 s.

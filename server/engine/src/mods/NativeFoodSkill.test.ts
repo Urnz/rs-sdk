@@ -71,6 +71,14 @@ import { loadDefaultBusinessRoleCatalog } from '../../../../business-roles/index
 import { AgentStateStore } from '../../../../agent-state/store.js';
 import { InstitutionTreasuryStore } from '../../../gateway/admin/institution-treasury.js';
 import { PlayerRewardStore } from './PlayerRewardStore.js';
+import { readEconomicObservation } from '../../../gateway/admin/economic-observer-source.js';
+import { adoptBoundedImmediatePlan } from '../../../gateway/admin/bounded-plan-adoption.js';
+import { buildLlmPlanningInput } from '../../../../llm-runtime/planning.js';
+import { LlmOrchestrator } from '../../../../llm-runtime/orchestrator.js';
+import { ScriptedMockProvider } from '../../../../llm-runtime/mock-provider.js';
+import { MemoryLlmAuditSink } from '../../../../llm-runtime/audit.js';
+import { validateLlmRuntimeConfig } from '../../../../llm-runtime/config.js';
+import type { GatewayBotSnapshot } from '../../../gateway/admin/types.js';
 
 const root = resolve(import.meta.dir, '../../../..'), pack = resolve(import.meta.dir, '../../data/pack');
 const dirs: string[] = [], stores: MarketStore[] = [];
@@ -196,6 +204,68 @@ async function sdkHarness(f: ReturnType<typeof kitchen>, run: (sdk: BotSDK) => P
 function definition(name: string) {
     return validateSkillDefinition(JSON.parse(readFileSync(join(root, `agent-skills/catalog/procedure.food.${name}-lobster@0.1.0.skill.json`), 'utf8')));
 }
+
+test('SI-B02 model plan → adoption → native raw output does not satisfy cooked food reserve', async () => {
+    const f = kitchen(), path = join(f.dir, 'agents.sqlite'), now = new Date().toISOString();
+    const agents = new AgentStateStore(path); closers.push(() => agents.close());
+    // Test-only reviewed definition; this does not publish a draft or alter a runtime allowlist.
+    const skill = { ...definition('gather'), status: 'verified' as const };
+    const reference = { id: skill.id, version: skill.version };
+    agents.createIdentity({ agentId: 'prodtest', playerUsername: 'prodtest', displayName: 'Local', background: 'Fixture', personalityTraits: ['careful'] }, now);
+    agents.createGoal('prodtest', { goalId: 'life', horizon: 'life', title: 'Live' }, now);
+    agents.createGoal('prodtest', { goalId: 'strategy', parentGoalId: 'life', horizon: 'long-term', title: 'Eat' }, now);
+    agents.createGoal('prodtest', { goalId: 'food', parentGoalId: 'strategy', horizon: 'current', title: 'Have cooked food',
+        objective: { policy: 'si-b02.v1', mode: 'maintain', purpose: 'livelihood', predicates: [{ kind: 'food-reserve-at-least', value: 1 }] } }, now);
+    agents.setSkillKnowledge('prodtest', reference, 'known', null, now);
+    agents.setWorkingMemory('prodtest', null, { summary: 'At native lobster source', observedAt: now }, now);
+    agents.createAutonomyEnrollment('prodtest', { status: 'desired', policyId: 'private-local-default', policyVersion: '1.0.0' }, now);
+    agents.claimAutonomyEnrollment('prodtest', 1, 'native-test', new Date(Date.parse(now) + 60000).toISOString(), now);
+    const observe = () => {
+        const at = new Date().toISOString();
+        const inventory = f.inv.items.flatMap(item => item ? [{ id: item.id, count: item.count }] : []);
+        const gateway = { username: 'prodtest', status: 'active', lastStateReceivedAt: Date.parse(at),
+            state: { player: { name: 'prodtest', isDead: false }, inventory } } as unknown as GatewayBotSnapshot;
+        const o = readEconomicObservation('prodtest', { agentPath: path, workspace: f.dir, now: at,
+            gatewayBots: new Map([['prodtest', gateway]]) });
+        agents.evaluateGoalStates('prodtest', o, at); return o;
+    };
+    observe();
+    const decisionId = 'native-plan';
+    agents.recordDecision('prodtest', agents.getControlProfile('prodtest')!.revision, { decisionId, trigger: 'event' }, now);
+    const input = buildLlmPlanningInput(agents.getSnapshot('prodtest')!, { context: { now }, runId: decisionId,
+        availableSkills: [{ ...reference, name: skill.name, description: skill.description }] });
+    const provider = new ScriptedMockProvider([{ output: { decision: 'propose_goal_plan', goalId: 'food',
+        goals: [{ goalId: 'gather-food', parentGoalId: 'food', horizon: 'immediate', title: 'Gather food', description: 'One bounded attempt', priority: 70 }],
+        tool: { name: 'execute_skill', arguments: { skillId: skill.id, version: skill.version } }, reason: 'Start acquiring food' }, usage: { costMicros: 0 } }]);
+    const plan = await new LlmOrchestrator(validateLlmRuntimeConfig({ schemaVersion: 1, enabled: true,
+        provider: 'mock', model: 'scripted', limits: { maxDurationMs: 1000, maxModelRequests: 1,
+            maxToolCalls: 1, maxCostMicros: 0, maxOutputTokens: 1000 } }), provider, new MemoryLlmAuditSink()).plan(input);
+    if (plan.decision?.kind !== 'propose-goal-plan') throw new Error(plan.reason);
+    agents.createGoalProposal('prodtest', { proposalId: 'native-proposal', runId: decisionId, anchorGoalId: 'food', anchorGoalRevision: 1,
+        goals: plan.decision.goals, skill: plan.decision.skill, reason: plan.decision.reason });
+    observe(); const at = new Date().toISOString();
+    const adopted = adoptBoundedImmediatePlan(agents, 'native-proposal', skill, { enabled: true,
+        maxOperations: 1, maxTimeoutMs: 15000, allowedSkills: [{ ...reference, operations: ['food-gather'],
+            itemNames: ['raw lobster'], maxQuantity: 1 }] }, {}, at);
+    const runId = randomUUID();
+    agents.recordSkillDispatch({ runId, decisionId, agentId: 'prodtest', goalId: adopted.goalId, skill: reference,
+        binding: agents.getGoalExecution(adopted.goalId)!.binding, policyId: 'private-local-default', policyVersion: '1.0.0' });
+    JavaRandom.setSeed(4096); f.player.setVar(VarPlayerType.getId('action_delay'), World.currentTick);
+    await sdkHarness(f, async sdk => {
+        const runtime = new RsSdkSkillRuntime({} as BotActions, sdk, grant); runtime.test = async () => true;
+        const result = await new SkillExecutor(runtime).execute(skill, { runId });
+        expect(result.status).toBe('completed'); expect(f.inv.getItemCount(377)).toBe(1);
+        agents.recordSkillRunOutcome(runId, 'completed', 'completed', 'Native raw lobster receipt');
+    });
+    observe();
+    expect(agents.getGoal(adopted.goalId)).toMatchObject({ status: 'active', stateEvaluation: { result: 'unsatisfied' } });
+    expect(agents.getGoalExecution(adopted.goalId)).toMatchObject({ completion: { kind: 'native-state' }, progress: { successfulRuns: 1 } });
+    // A second real packed-content action turns raw input into ready food.
+    const cooked = f.cook(); expect(f.receipt(cooked)?.outcome).toBe('cooked');
+    expect(f.inv.getItemCount(379)).toBe(1); observe();
+    expect(agents.getGoal(adopted.goalId)?.status).toBe('completed');
+    expect(agents.getGoal('food')).toMatchObject({ status: 'active', stateEvaluation: { result: 'satisfied' } });
+}, 15000);
 
 test('executor → real SDK socket → gateway adapter → packed gathering correlates one immutable receipt', async () => {
     const f = kitchen(); JavaRandom.setSeed(4096); f.player.setVar(VarPlayerType.getId('action_delay'), World.currentTick);
