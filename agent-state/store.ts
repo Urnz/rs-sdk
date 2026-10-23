@@ -43,6 +43,8 @@ import type { EconomicObservation } from './economic-context.js';
 import { installPlayerStrategySchema, readPlayerStrategy, PLAYER_STRATEGY_POLICY,
     type PlayerStrategyRequest, type PlayerStrategyRun } from './player-strategy.js';
 import type { LlmPlanResult } from '../llm-runtime/types.js';
+import { installInstitutionStrategySchema, readInstitutionStrategy,
+    type InstitutionStrategyRequest, type InstitutionStrategyRun } from './institution-strategy.js';
 import { installLivelihoodJournal, readLivelihoodJournal, writeLivelihoodJournal,
     type LivelihoodJournalEntry } from './livelihood.js';
 import { expectedParentHorizon, normalizeAgentId, validateCreateGoal, validateCreateIdentity,
@@ -1814,6 +1816,77 @@ export class AgentStateStore {
             WHERE agent_id=?1 AND substr(occurred_at,1,10)=?2 AND decision_id!=?3`).get(agentId,now.slice(0,10),eventId) as {total:number}).total;
     }
 
+    getInstitutionStrategy(eventId: string): InstitutionStrategyRun | null {
+        return readInstitutionStrategy(this.database, eventId);
+    }
+
+    pendingInstitutionStrategy(agentId: string): InstitutionStrategyRun | null {
+        const row = this.database.query(`SELECT event_id FROM agent_institution_strategy WHERE agent_id=?1
+            AND status IN ('prepared','inferring','decided','applying') ORDER BY rowid LIMIT 1`).get(normalizeAgentId(agentId)) as {event_id:string}|null;
+        return row ? this.getInstitutionStrategy(row.event_id) : null;
+    }
+
+    assertInstitutionStrategyAuthority(request: InstitutionStrategyRequest, owner?: string, now = new Date().toISOString()): void {
+        const profile = this.getControlProfile(request.agentId), enrollment = this.getAutonomyEnrollment(request.agentId);
+        if (!profile || profile.role !== 'institution' || profile.subjectKind !== 'business' || profile.avatarPlayerUsername
+            || profile.subjectId !== request.businessId || profile.revision !== request.profileRevision
+            || this.getAutonomyControl().emergencyStop || !enrollment || enrollment.status !== 'running'
+            || enrollment.policyId !== request.policyId || enrollment.policyVersion !== request.policyVersion
+            || !enrollment.leaseExpiresAt || Date.parse(enrollment.leaseExpiresAt) <= Date.parse(now)
+            || owner && enrollment.leaseOwner !== owner) throw new Error('Institution subject/profile/lease/stop authority changed');
+    }
+
+    prepareInstitutionStrategy(request: InstitutionStrategyRequest, llmCostMicros: number, owner?: string): InstitutionStrategyRun {
+        this.database.transaction(() => {
+            const prior = this.getInstitutionStrategy(request.eventId);
+            if (prior) {
+                if (prior.request.agentId !== request.agentId || prior.request.sourceKey !== request.sourceKey)
+                    throw new Error('Institution event identity collision');
+                return;
+            }
+            this.assertInstitutionStrategyAuthority(request, owner, request.observedAt);
+            if (this.database.query(`SELECT 1 FROM agent_institution_strategy WHERE agent_id=?1
+                AND (next_eligible_at>?2 OR status IN ('prepared','inferring','decided','applying'))`).get(request.agentId,request.observedAt))
+                throw new Error('Institution cooldown or unresolved decision is active');
+            const admitted = this.recordDecision(request.agentId,request.profileRevision,{decisionId:request.eventId,trigger:'event',
+                contextDigest:request.contextDigest,llmCostMicros},request.observedAt);
+            const interval = this.getControlProfile(request.agentId)!.decisionIntervalMs;
+            this.database.run("INSERT INTO agent_institution_strategy VALUES(?1,?2,?3,'prepared',NULL,'',?4)",
+                [request.eventId,request.agentId,JSON.stringify({...request,profileRevision:admitted.profile.revision}),new Date(Date.parse(request.observedAt)+Math.max(60000,interval)).toISOString()]);
+        }).immediate();
+        return this.getInstitutionStrategy(request.eventId)!;
+    }
+
+    claimInstitutionInference(eventId: string): boolean {
+        return this.database.run("UPDATE agent_institution_strategy SET status='inferring' WHERE event_id=?1 AND status='prepared'",[eventId]).changes === 1;
+    }
+
+    finishInstitutionInference(eventId: string, plan: LlmPlanResult): InstitutionStrategyRun {
+        const current = this.getInstitutionStrategy(eventId);
+        if (!current || current.status !== 'inferring' || plan.runId !== eventId || plan.agentId !== current.request.agentId)
+            throw new Error('Institution inference identity differs');
+        const selected = plan.status === 'proposed' && plan.decision?.kind === 'choose-alternative'
+            && current.request.input.businessAlternatives?.some(o=>o.optionId === (plan.decision as {optionId:string}).optionId);
+        this.database.run("UPDATE agent_institution_strategy SET status=?2,plan_json=?3,reason=?4 WHERE event_id=?1 AND status='inferring'",
+            [eventId,selected ? 'decided':plan.status==='failed' || plan.status==='stopped' ? 'inferring':'waiting',JSON.stringify(plan),plan.reason.slice(0,1000)]);
+        return this.getInstitutionStrategy(eventId)!;
+    }
+
+    beginInstitutionApplication(eventId: string, costGp: number, dailyLimitGp: number, owner?: string, now = new Date().toISOString()): void {
+        this.database.transaction(() => {
+            const run = this.getInstitutionStrategy(eventId);
+            if (!run || !['decided','applying'].includes(run.status)) throw new Error('Institution choice is not applicable');
+            this.assertInstitutionStrategyAuthority(run.request,owner,now);
+            this.reserveDecisionOperationalBudget(eventId,costGp,dailyLimitGp,now);
+            this.database.run("UPDATE agent_institution_strategy SET status='applying' WHERE event_id=?1 AND status='decided'",[eventId]);
+        }).immediate();
+    }
+
+    settleInstitutionStrategy(eventId: string, status: 'applied'|'waiting', reason: string): void {
+        this.database.run(`UPDATE agent_institution_strategy SET status=?2,reason=?3 WHERE event_id=?1
+            AND status IN ('prepared','decided','applying')`,[eventId,status,reason.slice(0,1000)]);
+    }
+
     preparePlayerStrategy(request: PlayerStrategyRequest, profileRevision: number, llmCostMicros: number,
         proposalId: string, now: string): PlayerStrategyRun {
         this.database.transaction(() => {
@@ -3299,6 +3372,9 @@ export class AgentStateStore {
         }
         if (version < 27) {
             this.database.transaction(() => { installPlayerStrategySchema(this.database); this.database.run('PRAGMA user_version=27'); }).immediate();
+        }
+        if (version < 28) {
+            this.database.transaction(() => { installInstitutionStrategySchema(this.database); this.database.run('PRAGMA user_version=28'); }).immediate();
         }
     }
 }

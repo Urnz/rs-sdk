@@ -89,7 +89,14 @@ export interface AllowedAgentSkill extends AgentSkillReference {
     description: string;
 }
 
-export type LlmPlanningMode = 'execute-immediate-goal' | 'derive-immediate-goal' | 'choose-player-strategy';
+export type LlmPlanningMode = 'execute-immediate-goal' | 'derive-immediate-goal' | 'choose-player-strategy' | 'choose-business-policy';
+
+export interface BusinessStrategyAlternative {
+    optionId: string;
+    description: string;
+    costGp: number;
+    policy: unknown;
+}
 
 /** Server-enumerated executable attempts. The model selects an id, never supplies authority or parameters. */
 export interface PlayerStrategyAlternative {
@@ -118,6 +125,7 @@ export interface ProposedAgentGoal extends Omit<LlmGoalSummary, 'horizon'> {
 }
 
 export interface LlmPlanningInput {
+    businessAlternatives?: readonly BusinessStrategyAlternative[];
     alternatives?: readonly PlayerStrategyAlternative[];
     agentId: string;
     mode: LlmPlanningMode;
@@ -131,6 +139,7 @@ export interface LlmPlanningInput {
 }
 
 export interface LlmProviderRequest {
+    businessAlternatives?: readonly BusinessStrategyAlternative[];
     alternatives?: readonly PlayerStrategyAlternative[];
     runId: string;
     agentId: string;
@@ -141,7 +150,7 @@ export interface LlmProviderRequest {
     trustedContext: string;
     untrustedText: readonly string[];
     tools: readonly [{
-        name: 'execute_skill';
+        name: 'execute_skill' | 'select_business_policy';
         description: string;
         allowedSkills: readonly AllowedAgentSkill[];
     }];

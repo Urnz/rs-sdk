@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { withSocietyValueMutation, nativeSocietyValuePaths, nativeSocietyPathMatches, type IntegrityBoundary } from '../../../society-integrity/runtime.js';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -502,6 +502,44 @@ export class BusinessManagerStore {
         [employmentId, businessId, expectedRevision, endedAt]);
         if (result.changes !== 1) throw new Error('Employment changed before update; refresh and try again');
         return this.getEmployment(employmentId)!;
+    }
+
+    /** One audited, idempotent application. Money and physical execution remain separate typed ports. */
+    applyInstitutionPolicy(businessId: string, input: CreateBusinessPolicyProposal, applicationId: string,
+        applicationDigest: string, stockPolicies: unknown[], now: string): BusinessPolicyProposal {
+        this.database.transaction(() => {
+            this.database.run('CREATE TABLE IF NOT EXISTS business_institution_schema(version INTEGER NOT NULL)');
+            const versions=this.database.query('SELECT version FROM business_institution_schema').all() as {version:number}[];
+            if (versions.length>1 || versions.length===1 && versions[0]!.version!==1) throw new Error('Unsupported Business institution schema');
+            if (!versions.length) this.database.run('INSERT INTO business_institution_schema VALUES(1)');
+            this.database.run(`CREATE TABLE IF NOT EXISTS business_institution_application(application_id TEXT PRIMARY KEY,
+                business_id TEXT NOT NULL,application_digest TEXT NOT NULL,proposal_id TEXT NOT NULL,
+                stock_json TEXT NOT NULL,stock_digest TEXT NOT NULL,created_at TEXT NOT NULL)`);
+            this.database.run(`CREATE TABLE IF NOT EXISTS business_institution_selection(business_id TEXT PRIMARY KEY,
+                application_id TEXT NOT NULL,stock_json TEXT NOT NULL,updated_at TEXT NOT NULL)`);
+            this.database.run(`CREATE TRIGGER IF NOT EXISTS business_institution_application_no_update BEFORE UPDATE ON business_institution_application
+                BEGIN SELECT RAISE(ABORT,'Institution application audit is immutable'); END`);
+            this.database.run(`CREATE TRIGGER IF NOT EXISTS business_institution_application_no_delete BEFORE DELETE ON business_institution_application
+                BEGIN SELECT RAISE(ABORT,'Institution application audit is immutable'); END`);
+            const prior = this.database.query('SELECT * FROM business_institution_application WHERE application_id=?1').get(applicationId) as {
+                business_id:string;application_digest:string;proposal_id:string;
+            } | null;
+            if (prior) {
+                if (prior.business_id!==businessId || prior.application_digest!==applicationDigest || prior.proposal_id!==input.proposalId)
+                    throw new Error('Institution application identity reused');
+                return this.getPolicyProposal(input.proposalId)!;
+            }
+            const proposed = this.proposePolicy(businessId,input,now);
+            const applied = this.resolvePolicy(businessId,proposed.proposalId,proposed.revision,'approve','Applied within exact institution grant.',now);
+            const stockJson=JSON.stringify(stockPolicies), stockDigest=createHash('sha256').update(stockJson).digest('hex');
+            this.database.run('INSERT INTO business_institution_application VALUES(?1,?2,?3,?4,?5,?6,?7)',
+                [applicationId,businessId,applicationDigest,input.proposalId,stockJson,stockDigest,now]);
+            this.database.run(`INSERT INTO business_institution_selection VALUES(?1,?2,?3,?4) ON CONFLICT(business_id)
+                DO UPDATE SET application_id=excluded.application_id,stock_json=excluded.stock_json,updated_at=excluded.updated_at`,
+                [businessId,applicationId,JSON.stringify(stockPolicies),now]);
+            return applied;
+        }).immediate();
+        return this.getPolicyProposal(input.proposalId)!;
     }
 
     proposePolicy(businessIdInput: string, input: CreateBusinessPolicyProposal,

@@ -4,6 +4,7 @@ import { assertNativeFoodDomainPath, assertNativeFoodPath } from '../food-loop/n
 import { readFoodCommerce, commerceIds, type FoodCommerceBinding, type FoodCommerceOrder } from './native-commerce.js';
 import { foodDigest } from '../server/engine/src/mods/NativeFoodConsumptionStore.js';
 import { loadBusinessStockPolicyCatalog, decideBusinessStock, authorizeStockMovement } from '../business-stock-policy/index.js';
+import { selectedBusinessStockCatalog } from '../business-stock-policy/selection.js';
 import { loadSaleChannelPolicyCatalog, assertAcceptedBusinessAcquisition, assertAcceptedPlayerTrade } from '../sale-channel-policy/index.js';
 import { loadNativeKitchenPolicy } from '../production-workflow/native-kitchen-policy.js';
 import { authorizeFacilityCapability } from '../facility-capability/authorization.js';
@@ -15,12 +16,12 @@ import { readNativeTradeLedger } from '../external-trade/source.js';
 
 export interface FoodCommerceOptions { workspace: string; worldId: string; businessPath: string; treasuryPath: string;
     checkpointPath: string; tradePath: string; journalPath: string }
-export const commerceCatalogs = (workspace: string) => ({
-    stock: loadBusinessStockPolicyCatalog(join(workspace, 'config/business-stock-policies.json')),
+export const commerceCatalogs = (workspace: string, businessSource?: string | OwnedDatabase) => ({
+    stock: selectedBusinessStockCatalog(loadBusinessStockPolicyCatalog(join(workspace, 'config/business-stock-policies.json')),businessSource),
     channels: loadSaleChannelPolicyCatalog(join(workspace, 'config/sale-channel-policies.json'))
 });
 export function authorizeCommerce(db: OwnedDatabase, binding: FoodCommerceBinding, clock: SimulationClockObservation, workspace: string): void {
-    const i = binding.intent, catalogs = commerceCatalogs(workspace), policy = catalogs.stock.policies.find(p => p.policyId === i.decision.policyId);
+    const i = binding.intent, catalogs = commerceCatalogs(workspace,db), policy = catalogs.stock.policies.find(p => p.policyId === i.decision.policyId);
     if (!policy || i.decision.policyDigest !== catalogs.stock.digest || i.catalogs.stock.digest !== catalogs.stock.digest
         || i.catalogs.channels.digest !== catalogs.channels.digest
         || foodDigest(decideBusinessStock(policy, catalogs.stock, i.decision.observedStock)) !== foodDigest(i.decision)

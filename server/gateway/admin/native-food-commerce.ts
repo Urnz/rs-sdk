@@ -33,7 +33,7 @@ export function reservePopulationFoodCommerce(options: FoodCommerceOptions, work
                 throw new Error('Food commerce operation id reused');
             return coordinator.prepare(i, clock, verify);
         }
-        const catalogs = commerceCatalogs(options.workspace), itemId = request.kind === 'sale' ? 379 : 377;
+        const catalogs = commerceCatalogs(options.workspace,options.businessPath), itemId = request.kind === 'sale' ? 379 : 377;
         const policy = catalogs.stock.policies.find(p => p.businessId === request.businessId && p.itemId === itemId);
         if (!policy) throw new Error('Food commerce stock policy unavailable');
         const db = new OwnedDatabase(options.businessPath, { readonly: true, strict: true });

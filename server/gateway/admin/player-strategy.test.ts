@@ -270,7 +270,7 @@ test('a visible approved work order carries its own exact binding and quoted rew
 
 test('v26 additive upgrade, reopen, migration conflict and future version preserve legacy goals',()=>{
     const f=fixture(); f.s.close();
-    let db=new Database(f.agentPath);db.run('DROP TABLE agent_player_strategy');db.run('PRAGMA user_version=26');db.close();
+    let db=new Database(f.agentPath);db.run('DROP TABLE agent_institution_strategy');db.run('DROP TABLE agent_player_strategy');db.run('PRAGMA user_version=26');db.close();
     let s=new AgentStateStore(f.agentPath);expect(s.getGoal('old-work')?.status).toBe('active');s.close();
     db=new Database(f.agentPath);expect(db.query('PRAGMA user_version').get()).toEqual({user_version:AGENT_STATE_SCHEMA_VERSION});
     db.run('DROP TABLE agent_player_strategy');db.run('CREATE TABLE agent_player_strategy(dummy TEXT)');db.run('PRAGMA user_version=26');db.close();

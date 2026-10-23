@@ -1,5 +1,40 @@
 # Társadalmi integráció – implementációs eredmények
 
+## SI-B04 – Avatarless Business stratégiai admission – 2026-10-23
+
+**Kész; következő SI-B05, az nem indult.**
+[Szerződés, konfiguráció, saját migráció/rollback és teljes ellenőrzési index](SI_B04_INSTITUTION_ADMISSION.md).
+Az existing supervisor/inbox/queue/decision ledger fogadja az institutiont;
+nincs külön scheduler. Exact Business grant legfeljebb 12 policy/stock/ár/work
+opciót ad, modell csak ID-t választ. Szerepspecifikus séma, nulla avatar tool,
+inference utáni grant/profile/lease/stop/context ellenőrzés. Alapból üres grantlista.
+Stock/price selection a natív commerce quote/dispatch ellenőrzéséig eljut;
+munka kizárólag a meglévő typed request/native completion/reward útján teljesül.
+
+AgentState v28 saját receipt; Business v1 saját atomikus selection/application
+audit. Replay/uncertain inference nem küld új providert. Félbeszakadt request-
+írást új supervisor-event az eredeti decision/order/reservation ID-val folytat.
+Megmaradó provider/port hiba az existing quarantine-be kerülhet.
+
+- `20261023-151739-802-si-b04-first-boundary`: 38 PASS / 2 új fixture FAIL,
+  70,946 s; split negatív eset és UUID-fixture javítva.
+- `20261023-151940-850-si-b04-admission-fix-types`: 15 PASS, root TS FAIL,
+  56,522 s; transaction void visszatérés külön commit utáni olvasásra javítva.
+- `20261023-152209-264-si-b04-recovery-native-types`: 42 PASS + root/engine TS,
+  103,834 s; megszakított work/request recovery, 24 packed native commerce case.
+- `20261023-152525-120-si-b04-direct-consumers`: 107 fogyasztó PASS 14 fájlban,
+  majd 14 saját PASS / 2 összesített negatív teszt timeout; 92,861 s. Tíz külön
+  esetre bontva, változatlan leaf limitekkel. A 107 sikeres próba nem ismétlődött.
+- `20261023-152749-061-si-b04-final-boundaries`: 37 PASS + root/engine TS és
+  format, 112,902 s. A körök átfednek; teljes log/result `.local/verification/`.
+
+**Full nem futott.** A Business-work teljes fájlja az első körben PASS;
+később csak a megváltozott SI-B04 eset ismétlődött. A bérút kanonikus
+trade/reward store fixture-t, a commerce valódi packed BOTH_MOVEINV cserét
+használ. Ez mechanikai bizonyíték, nem valódi LLM-es gazdasági trajectory.
+Élő világ/provider, költés és publication nem indult; SI-B06/SI-M1/SI-M2
+autonóm performance nem állítható.
+
 ## SI-B03 – Player-stratégia és tartós modellválasztás – 2026-10-23
 
 **Kész; következő SI-B04, az még nem indult.**

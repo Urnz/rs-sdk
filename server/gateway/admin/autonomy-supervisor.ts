@@ -123,7 +123,9 @@ export class GatewayAgentAutonomySupervisor {
             const due = useStore(this.agentPath, store => store.listAutonomyEnrollments('desired'))
                 .filter(item => {
                     // Queued offers/goal events cannot defeat a routine's bounded retry interval.
-                    if (isLivelihoodPolicy(item) && item.nextWakeupAt && Date.parse(item.nextWakeupAt) > Date.parse(now)) return false;
+                    const profile = useStore(this.agentPath,store=>store.getControlProfile(item.agentId));
+                    if ((isLivelihoodPolicy(item) || profile?.role === 'institution')
+                        && item.nextWakeupAt && Date.parse(item.nextWakeupAt) > Date.parse(now)) return false;
                     const event = this.nextEvent?.(item.agentId, now);
                     if (event) preferred.set(item.agentId, event);
                     return !!event || !item.nextWakeupAt || Date.parse(item.nextWakeupAt) <= Date.parse(now);

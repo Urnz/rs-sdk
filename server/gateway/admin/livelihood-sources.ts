@@ -10,6 +10,7 @@ import { workDigest } from '../../../business-work/binding.js';
 import { readBusinessFacilityGrant } from './business-facility-grant.js';
 import { BusinessWorkStore, loadDefaultBusinessWorkPolicyCatalog } from '../../../business-work/work.js';
 import { decideBusinessStock, loadDefaultBusinessStockPolicyCatalog } from '../../../business-stock-policy/policy.js';
+import { selectedBusinessStockCatalog } from '../../../business-stock-policy/selection.js';
 import { readFoodCommerce } from '../../../agent-operated-shop/native-commerce.js';
 import { readRentJournal, nativeHousingCatalogs, type NativeRentOrder, type HousingNativeOptions } from '../../../housing/native-rent.js';
 import { OwnedDatabase } from '../../engine/src/io/OwnedDatabase.js';
@@ -51,6 +52,7 @@ function domainRows<T>(path: string, table: string, read: (db: OwnedDatabase) =>
 export function createLivelihoodPorts(options: LivelihoodSourceOptions): LivelihoodPorts {
     const workspace = options.workspace ?? repoRoot, needsOptions = populationNeedsOptions(workspace);
     const businessPath = businessManagerPathFor(options.agentPath);
+    const stockCatalog = () => selectedBusinessStockCatalog(loadDefaultBusinessStockPolicyCatalog(),businessPath);
     const sendCommerce = options.requestCommerce ?? requestNativeFoodCommerce;
     const housing: HousingNativeOptions = { workspace, worldId: needsOptions.worldId, housingPath: join(workspace, '.local/economy/housing.sqlite'),
         propertyPath: join(workspace, '.local/admin/properties.sqlite'), checkpointPath: resolve(workspace, 'server/engine',
@@ -99,14 +101,14 @@ export function createLivelihoodPorts(options: LivelihoodSourceOptions): Livelih
         let routeBlocked = false;
         const manager = new BusinessManagerStore(businessPath); let businesses;
         try { businesses = manager.list(500); } finally { manager.close(); }
-        for (const policy of loadDefaultBusinessStockPolicyCatalog().policies.filter(p => p.itemId === (kind === 'sale' ? 379 : 377))
+        for (const policy of stockCatalog().policies.filter(p => p.itemId === (kind === 'sale' ? 379 : 377))
             .sort((a, b) => a.policyId.localeCompare(b.policyId))) {
             const business = businesses.find(b => b.businessId === policy.businessId && b.status === 'active' && b.activePolicy);
             if (!business) continue;
             const stock = domainRows(businessPath, 'business_inventory', db => db.query(
                 'SELECT count FROM business_inventory WHERE business_id=?1 AND item_id=?2'
             ).all(business.businessId, policy.itemId) as { count: number }[])[0]?.count ?? 0;
-            const decision = decideBusinessStock(policy, loadDefaultBusinessStockPolicyCatalog(), stock);
+            const decision = decideBusinessStock(policy, stockCatalog(), stock);
             if (kind === 'sale' ? decision.sale.availableUnits < 1 : !decision.procurement || decision.procurement.quantity < 1) continue;
             const candidates = [business.ownerAgentId, ...business.employments.filter(e => e.status === 'active').map(e => e.workerAgentId)]
                 .filter(id => id !== m.agentId);
@@ -149,7 +151,7 @@ export function createLivelihoodPorts(options: LivelihoodSourceOptions): Livelih
             if (!business.activePolicy) return result;
             const manager = new BusinessManagerStore(businessPath);
             let inventory; try { inventory = manager.listInventory(business.businessId); } finally { manager.close(); }
-            const catalog = loadDefaultBusinessStockPolicyCatalog(), policy = catalog.policies.find(p => p.businessId === business.businessId && p.itemId === 379);
+            const catalog = stockCatalog(), policy = catalog.policies.find(p => p.businessId === business.businessId && p.itemId === 379);
             if (!policy) return result;
             if (!decideBusinessStock(policy, catalog, inventory.find(i => i.itemId === 379)?.count ?? 0).procurement)
                 return { ...result, stockWaiting: 'stock-satisfied' };

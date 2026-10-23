@@ -80,6 +80,10 @@ export class OpenAIResponsesProvider implements LlmProvider {
 
     async complete(request: LlmProviderRequest, signal: AbortSignal): Promise<LlmProviderResponse> {
         this.requests.push(structuredClone(request));
+        const schema = request.mode === 'choose-business-policy' ? { ...PLAN_SCHEMA, properties: {
+            ...PLAN_SCHEMA.properties, decision: { type: 'string', enum: ['select_business_policy', 'abstain'] },
+            tool: { type: 'null' }, goals: { type: 'array', maxItems: 0, items: { type: 'string' } }
+        } } : PLAN_SCHEMA;
         const response = await this.fetch(this.endpoint, {
             method: 'POST', signal,
             headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
@@ -90,8 +94,9 @@ export class OpenAIResponsesProvider implements LlmProvider {
                 input: JSON.stringify({ agentId: request.agentId, mode: request.mode, goal: request.goal,
                     goalHierarchy: request.goalHierarchy, trustedContext: request.trustedContext,
                     untrustedText: request.untrustedText, allowedSkills: request.tools[0].allowedSkills,
-                    ...(request.alternatives ? { alternatives: request.alternatives } : {}) }),
-                text: { format: { type: 'json_schema', name: 'agent_plan', strict: true, schema: PLAN_SCHEMA } },
+                    ...(request.alternatives ? { alternatives: request.alternatives } : {}),
+                    ...(request.businessAlternatives ? { businessAlternatives: request.businessAlternatives } : {}) }),
+                text: { format: { type: 'json_schema', name: 'agent_plan', strict: true, schema } },
                 max_output_tokens: request.maxOutputTokens,
                 ...(request.reasoningEffort ? { reasoning: { effort: request.reasoningEffort } } : {})
             })

@@ -45,6 +45,8 @@ import type { PlayerStrategySources } from './player-strategy-options.js';
 import { buildCoreIdentity } from '../../../agent-state/context.js';
 import { buildEconomicContext } from '../../../agent-state/economic-context.js';
 import { join } from 'node:path';
+import { runInstitutionStrategy } from './institution-strategy-runtime.js';
+import type { BusinessWorkRuntimeOptions } from './business-work-runtime.js';
 
 let appendTail: Promise<void> = Promise.resolve();
 
@@ -90,6 +92,8 @@ export function contractObligationCandidates(agentId: string,
 }
 
 export interface GatewayAgentReplanOptions {
+    institutionPolicyPath?: string;
+    institutionWorkOptions?: BusinessWorkRuntimeOptions;
     strategyPlanning?: Pick<AdminLlmDryRunOptions, 'provider' | 'queue' | 'budget' | 'audit'>;
     agentPath?: string;
     capabilityGapPath?: string;
@@ -134,6 +138,8 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
         listEconomicAgentIds: async () => useStore(store => store.listAutonomyEnrollments()
             .filter(enrollment => enrollment.status === 'desired' || enrollment.status === 'running')
             .filter(enrollment => {
+                const profile = store.getControlProfile(enrollment.agentId);
+                if (profile?.role === 'institution' && profile.subjectKind === 'business') return true;
                 const economicGoal = store.listGoals(enrollment.agentId, 'active').some(goal =>
                     /\b(coin|coins|gp|trade|market|shop|bank|sell|buy|wage|profit|gazdas|keresk|piac|elad|vásár|bér)\b/i
                         .test(`${goal.title} ${goal.description}`));
@@ -158,6 +164,23 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                 }
             }
             const routine = useStore(store => store.getAutonomyEnrollment(agentId), agentPath);
+            const control = useStore(store=>store.getControlProfile(agentId),agentPath);
+            if (control?.role === 'institution' && control.subjectKind === 'business' && !control.avatarPlayerUsername
+                && !isLivelihoodPolicy(routine)) {
+                const configured = await loadLlmRuntimeConfig(options.llmConfigPath ? {
+                    defaultConfigPath:options.llmConfigPath,overrideConfigPath:`${options.llmConfigPath}.override-missing`
+                } : {});
+                if (!configured.config.automaticReplanning) return {runId:event.eventId,status:'skipped',reason:'Automatic replanning is disabled.'};
+                return runInstitutionStrategy(agentId,event,{agentPath,policyPath:options.institutionPolicyPath,
+                    workOptions:options.institutionWorkOptions,requiredLeaseOwner:options.requiredAutonomyLeaseOwner,
+                    maxLlmCostMicros:configured.config.limits.maxCostMicros,
+                    plan:async input=>{
+                        const views=await listAgents(), view=views.agents.find(a=>a.identity.agentId===agentId);
+                        if(!view) throw new Error('Institution identity disappeared');
+                        return (await runAdminLlmDryRun(view,[],{...options.strategyPlanning,businessInput:input,automatic:true,
+                            configPath:options.llmConfigPath,runId:event.eventId})).plan;
+                    }});
+            }
             if (routine?.policyId === LIVELIHOOD_POLICY.id && !isLivelihoodPolicy(routine))
                 return { runId: event.eventId, status: 'input-required', reason: 'Unsupported livelihood policy version.' };
             if (isLivelihoodPolicy(routine)) {

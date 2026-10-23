@@ -9,7 +9,7 @@ import { buildLlmPlanningInput, type BuildLlmPlanningInputOptions } from '../../
 import { InferenceQueue } from '../../../llm-runtime/queue.js';
 import { SqliteInferenceQueueClaimStore } from '../../../llm-runtime/inference-queue-store.js';
 import { LlmDailyBudgetStore } from '../../../llm-runtime/budget.js';
-import type { LlmAuditSink, LlmProvider, LlmProviderRequest, LlmProviderResponse } from '../../../llm-runtime/types.js';
+import type { LlmAuditSink, LlmProvider, LlmProviderRequest, LlmProviderResponse, LlmPlanningInput } from '../../../llm-runtime/types.js';
 import { CapabilityGapStore, resolveSkillForCapability, type SkillResolution } from '../../../agent-skills/capability-gaps.js';
 import type { listAdminAgents } from './agent-state.js';
 import type { AdminSkillSummary } from './skill-catalog.js';
@@ -30,6 +30,7 @@ export function setAdminLlmEmergencyStop(active: boolean): void {
 }
 
 export interface AdminLlmDryRunOptions {
+    businessInput?: LlmPlanningInput;
     strategy?: BuildLlmPlanningInputOptions['strategy'];
     now?: string;
     runId?: string;
@@ -73,6 +74,9 @@ function words(value: string): Set<string> {
 }
 
 function mockResponse(agent: AdminAgentView, request: LlmProviderRequest): LlmProviderResponse {
+    if (request.mode === 'choose-business-policy') return { output: { decision: 'select_business_policy',
+        goalId: request.goal.goalId, alternativeId: request.businessAlternatives?.[0]?.optionId,
+        tool: null, goals: [], reason: 'Deterministic institution mock fixture; not a live LLM result.' }, usage: { costMicros: 0 } };
     if (request.mode === 'choose-player-strategy') return { output: { decision: 'select_alternative',
         goalId: request.goal.goalId, alternativeId: request.alternatives?.[0]?.optionId,
         tool: null, goals: [], reason: 'Deterministic mock fixture selected the first enumerated alternative; this is not a live LLM result.' },
@@ -143,7 +147,10 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         throw new Error('Az automatikus LLM újratervezés ki van kapcsolva.');
     }
     const config = configured.provider === 'mock' ? { ...configured, enabled: true } : configured;
-    const input = buildLlmPlanningInput(agent, {
+    if (options.businessInput && (agent.controlProfile.role !== 'institution' || agent.controlProfile.subjectKind !== 'business'
+        || agent.controlProfile.avatarPlayerUsername || options.businessInput.agentId !== agent.identity.agentId
+        || options.businessInput.mode !== 'choose-business-policy')) throw new Error('Exact avatarless Business planning authority required');
+    const input = options.businessInput ?? buildLlmPlanningInput(agent, {
         strategy: options.strategy,
         availableSkills: skills.map(skill => ({ id: skill.id, version: skill.version,
             name: skill.name, description: skill.description })),
@@ -159,7 +166,7 @@ export async function runAdminLlmDryRun(agent: AdminAgentView, skills: readonly 
         untrustedText: [...agent.decisionUntrustedText, ...(options.untrustedText ?? [])],
         runId: options.runId
     });
-    if (options.automatic && options.capabilityGapStore && !options.strategy) {
+    if (options.automatic && options.capabilityGapStore && !options.strategy && !options.businessInput) {
         const pending = await options.capabilityGapStore.findPending(input.agentId, input.goal.goalId);
         if (pending) {
             const reason = `Capability gap ${pending.gapId} is still ${pending.status}; automatic LLM planning is paused.`;

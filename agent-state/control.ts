@@ -2,7 +2,7 @@ import type { AgentControlProfile, AgentDecisionTrigger } from './types.js';
 
 export type AgentDomainTool = 'execute-player-skill' | 'inspect-budget' | 'inspect-assets'
     | 'propose-contract' | 'request-player-action' | 'propose-business-policy'
-    | 'propose-faction-policy' | 'inspect-service-queue' | 'propose-world-event-template';
+    | 'propose-faction-policy' | 'select-business-policy' | 'inspect-service-queue' | 'propose-world-event-template';
 
 export interface PhysicalExecutionAuthority {
     allowed: boolean;
@@ -13,7 +13,8 @@ export interface PhysicalExecutionAuthority {
 export function listAgentDomainTools(profile: AgentControlProfile): AgentDomainTool[] {
     if (profile.role === 'player') return ['execute-player-skill', 'inspect-assets'];
     if (profile.role === 'institution') return ['inspect-budget', 'inspect-assets', 'propose-contract',
-        'request-player-action', profile.subjectKind === 'business' ? 'propose-business-policy' : 'propose-faction-policy'];
+        'request-player-action', ...(profile.subjectKind === 'business'
+            ? ['propose-business-policy', 'select-business-policy'] as const : ['propose-faction-policy'] as const)];
     if (profile.role === 'service') return ['inspect-budget', 'inspect-service-queue'];
     return ['inspect-budget', 'propose-world-event-template'];
 }

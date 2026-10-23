@@ -686,7 +686,7 @@ A következő autonóm baseline és az alábbi mechanikai kapuk miatt a státusz
 ## 6. SI-B – stratégiai autonómia a már integrált világban
 
 **Fázisbelépés teljesült: SI-A15 v2 technikai igazolása elfogadva.
-SI-B01–SI-B03 kész, SI-B04 elkezdhető; SI-B04–SI-B06 még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
+SI-B01–SI-B04 kész, SI-B05 elkezdhető; SI-B05–SI-B06 még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
 belépési feltétele. Az SI-A mért ellátási kudarcai megmaradnak kiinduló
 eredményként. Az SI-B-ben külön kell bizonyítani, hogy az agent észlelt
 változást, lehetőségek közül választott, és a következményt visszaértékelte;
@@ -782,7 +782,7 @@ SI-B06 stratégiai E2E nem állítható. Következő: SI-B04.
 
 ### SI-B04 – Institution-agent stratégiai döntési admissionje
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G02/G03, ECON/RUNTIME.
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P1; G02/G03, ECON/RUNTIME.
 - **Cél és indok:** a konyha policyválasztását ne admin vagy fix callback végezze.
 - **Meglévő:** Business/Faction read/write portok és control-profile; player-only
   automatikus replan; SI-A11-ben szándékosan determinisztikus Business-rutin.
@@ -800,6 +800,14 @@ SI-B06 stratégiai E2E nem állítható. Következő: SI-B04.
 - **Perzisztencia/hiba:** enrollment és decisionledger reuse, nincs második
   institution scheduler; folyamatos provider/port hiba quarantine-olható.
 - **Kockázat:** magas; avatarfeltételezések rejtett kódban és intézményi privilege escalation.
+
+2026-10-23: [implementáció, explicit grant, migráció/rollback és célzott bizonyíték](SI_B04_INSTITUTION_ADMISSION.md)
+kész. Exact avatarless Business a meglévő supervisor/inbox/queue/ledger útján
+policy/stock/ár/work opcióazonosítót választhat; fizikai munka typed player-request.
+Lease/stop/cooldown/budget, idegen subject, provider uncertainty, újrainduló
+alkalmazás és egyszeri natív settlement igazolt. 107 közvetlen fogyasztó PASS;
+utolsó kör 37 PASS + root/engine TS + format. Full, élő provider/világ és új
+publication nem futott. Default grantlista üres. Következő: SI-B05.
 
 ### SI-B05 – Együttműködés kezdeményezése typed gazdasági akciókkal
 

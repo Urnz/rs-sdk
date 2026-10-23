@@ -16,10 +16,16 @@ import { OwnedDatabase } from '../../engine/src/io/OwnedDatabase.js';
 import { businessWorkNeedsRecovery, type BusinessWorkRuntimeOptions } from './business-work-runtime.js';
 import { reportNativeIntegration } from '../../../society-metrics/integration-report.js';
 import { nativeIntegrationOptions } from '../../../society-metrics/integration-sources.js';
+import { runInstitutionStrategy } from './institution-strategy-runtime.js';
+import { LlmOrchestrator } from '../../../llm-runtime/orchestrator.js';
+import { ScriptedMockProvider } from '../../../llm-runtime/mock-provider.js';
+import { MemoryLlmAuditSink } from '../../../llm-runtime/audit.js';
+import { validateLlmRuntimeConfig } from '../../../llm-runtime/config.js';
+import { readFileSync } from 'node:fs';
 
 const dirs: string[] = [];
 afterEach(() => { for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
-function fixture(funds = 100, offsetMs = 0) {
+function fixture(funds = 100, offsetMs = 0, prepareOrders = true) {
     const workspace = mkdtempSync(join(tmpdir(), 'business-shift-')); dirs.push(workspace);
     const stateDir = join(workspace, '.local/economy'); mkdirSync(stateDir, { recursive: true });
     const path = join(stateDir, 'agents.sqlite'), businessPath = businessManagerPathFor(path),
@@ -44,7 +50,7 @@ function fixture(funds = 100, offsetMs = 0) {
         const agents = new AgentStateStore(path); agents.setSkillKnowledge(worker, skill, 'known', null); agents.close();
         const employment = manager.hire('karamja-kitchen', { workerAgentId: worker, roleDefinitionId: 'business.delivery.v1',
             title: 'Courier', wageGp: 25, requiredSkill: skill });
-        work.createWorkOrder(`order-${worker}`, 'karamja-kitchen.delivery.v1', employment.employmentId, start, end);
+        if (prepareOrders) work.createWorkOrder(`order-${worker}`, 'karamja-kitchen.delivery.v1', employment.employmentId, start, end);
     }
     work.close(); manager.close();
     const treasury = new InstitutionTreasuryStore(institutionTreasuryPathFor(path)); treasury.setBalance('business', 'karamja-kitchen', 1, funds); treasury.close();
@@ -81,6 +87,40 @@ function fixture(funds = 100, offsetMs = 0) {
     };
     return { workspace, path, businessPath, options, start, end, create, launch, complete, read, rewarder, credits: () => credits };
 }
+
+test('SI-B04 Business demand → model policy/work choice → typed player → canonical delivery/reward survives replay', async () => {
+    const f=fixture(100,0,false), policyPath=join(f.workspace,'institution.json'), now=new Date().toISOString();
+    const agents=new AgentStateStore(f.path);agents.createAutonomyEnrollment('kitchen-mind',{status:'desired',policyId:'private-local-default',policyVersion:'1.0.0'},now);
+    agents.claimAutonomyEnrollment('kitchen-mind',1,'test',new Date(Date.parse(now)+600000).toISOString(),now);agents.close();
+    const manager=new BusinessManagerStore(f.businessPath), employment=manager.get('karamja-kitchen')!.employments.find(e=>e.workerAgentId==='courierone')!;manager.close();
+    writeFileSync(policyPath,JSON.stringify({schemaVersion:1,grants:[{agentId:'kitchen-mind',businessId:'karamja-kitchen',policyId:'private-local-default',policyVersion:'1.0.0',
+        maxGpPerDecision:25,maxGpPerDay:50,options:[{optionId:'deliver-demand',objective:'Deliver one meal for changed demand',mode:'growth',maxRewardGp:25,preferredSkills:[],stockPolicies:[],
+            work:{policyId:'karamja-kitchen.delivery.v1',employmentId:employment.employmentId,durationMinutes:5,
+                parameters:{recipient:'consumer','item-name':'Lobster',amount:1},target:{kind:'delivery',recipient:'consumer'}}}]}]}));
+    const provider=new ScriptedMockProvider([r=>({output:{decision:'select_business_policy',goalId:r.goal.goalId,alternativeId:'deliver-demand',goals:[],tool:null,reason:'Meet observed meal demand'},usage:{costMicros:0}})]);
+    const config=validateLlmRuntimeConfig({...JSON.parse(readFileSync(join(import.meta.dir,'../../../config/llm-runtime.json'),'utf8')),enabled:true});
+    const event={eventId:'institution-demand',agentId:'kitchen-mind',sourceKey:'demand-delivery',type:'significant-economic-change' as const,occurredAt:now,summary:'Own addressed meal demand'};
+    const options={agentPath:f.path,policyPath,requiredLeaseOwner:'test',maxLlmCostMicros:0,workOptions:f.options,
+        plan:(input:Parameters<LlmOrchestrator['plan']>[0])=>new LlmOrchestrator(config,provider,new MemoryLlmAuditSink()).plan(input)};
+    const crash=new OwnedDatabase(f.path);crash.run(`CREATE TRIGGER institution_request_crash BEFORE INSERT ON agent_player_action_request BEGIN SELECT RAISE(ABORT,'request crash'); END`);crash.close();
+    expect((await runInstitutionStrategy('kitchen-mind',event,options)).status).toBe('bounded-wait');
+    const recover=new OwnedDatabase(f.path);recover.run('DROP TRIGGER institution_request_crash');recover.close();
+    expect((await runInstitutionStrategy('kitchen-mind',{...event,eventId:'new-supervisor-wakeup',sourceKey:'new-wakeup'},options)).status).toBe('completed');
+    const work=new BusinessWorkStore(f.businessPath), binding=work.bindings()[0]!;expect(work.get(binding.workOrderId)?.workerAgentId).toBe('courierone');work.close();
+    const runId=randomUUID(), started=new Date().toISOString(), committedAt=new Date(Date.parse(started)+60000).toISOString(), finished=new Date(Date.parse(started)+61000).toISOString();
+    delegateBusinessPlayerAction(binding.request.requestId,runId,f.path,started,f.options);
+    const trades=new TradeEvidenceStore(f.options.tradePath!);trades.record({tick:10,fromUsername:'courierone',toUsername:'consumer',
+        fromItems:[{id:379,name:'Lobster',count:1}],toItems:[],fromValue:0,toValue:0,committedAt});trades.close();
+    writeFileSync(join(f.options.runRoot!,`${runId}.json`),JSON.stringify({runId,username:'courierone',skill:binding.request.skill,status:'completed',parameters:binding.request.parameters,
+        events:[{runId,type:'skill.started',timestamp:started},{runId,type:'step.succeeded',operation:'trade-give-item',timestamp:committedAt},{runId,type:'skill.completed',timestamp:finished}]}));
+    expect(finishAdminPlayerActionRun(runId,true,'Completed.',f.path,null,f.options,finished)?.status).toBe('settling');
+    await settleAdminPlayerActionReward(binding.settlementId,f.path,f.rewarder,f.options);
+    expect((await runInstitutionStrategy('kitchen-mind',event,options)).status).toBe('completed');
+    await settleAdminPlayerActionReward(binding.settlementId,f.path,f.rewarder,f.options);
+    const reopened=new BusinessWorkStore(f.businessPath);expect(reopened.bindings()).toHaveLength(1);expect(reopened.get(binding.workOrderId)?.wageStatus).toBe('paid');reopened.close();
+    const treasury=new InstitutionTreasuryStore(institutionTreasuryPathFor(f.path));expect(treasury.get('business','karamja-kitchen')?.balanceGp).toBe(75);treasury.close();
+    expect(f.credits()).toBe(1);expect(provider.requests).toHaveLength(1);
+},30000);
 
 test('two role-bound workers share the existing queue and receive exactly one wage each after reopening every store', async () => {
     const f = fixture();

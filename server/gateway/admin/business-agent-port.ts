@@ -7,6 +7,8 @@ import { agentStateDbPath, businessManagerDbPath } from './paths.js';
 import { BusinessManagerStore, type Business, type BusinessPolicyMode,
     type BusinessPolicyProposal } from './business-manager.js';
 import { businessRoleAllowsSkill } from '../../../business-roles/index.js';
+import { institutionGrantDigest, type InstitutionStrategyGrant } from './institution-strategy-policy.js';
+import { stateDigest } from '../../../agent-state/state-objectives.js';
 
 export interface ProposeBusinessPolicyInput {
     proposalId: string;
@@ -66,6 +68,29 @@ export function proposeBusinessPolicyForAgent(agentId: string, input: ProposeBus
     try {
         return businesses.proposePolicy(profile.subjectId, { ...input, proposerAgentId: profile.agentId }, now);
     } finally { businesses.close(); }
+}
+
+/** Grant is trusted server configuration; the model supplies only optionId. No treasury write capability. */
+export function applyBusinessPolicyChoiceForAgent(agentId: string, grant: InstitutionStrategyGrant,
+    optionId: string, eventId: string, proposalId: string, grantDigest: string, applicationDigest: string,
+    agentPath = agentStateDbPath, now = new Date().toISOString()): BusinessPolicyProposal {
+    const profile=businessAuthority(agentId,agentPath), selected=grant.options.find(o=>o.optionId===optionId);
+    if (!listAgentDomainTools(profile).includes('select-business-policy') || profile.avatarPlayerUsername
+        || grant.agentId!==agentId || grant.businessId!==profile.subjectId || institutionGrantDigest(grant)!==grantDigest || !selected
+        || selected.maxRewardGp>grant.maxGpPerDecision || selected.maxRewardGp>profile.dailyOperationalBudgetGp
+        || selected.stockPolicies.some(p=>p.businessId!==profile.subjectId)) throw new Error('Business choice exceeds exact institution grant');
+    const agents=new AgentStateStore(agentPath);
+    try {
+        const run=agents.getInstitutionStrategy(eventId);
+        if(!run || run.status!=='applying' || run.request.agentId!==agentId || run.request.grantDigest!==grantDigest
+            || run.plan?.decision?.kind!=='choose-alternative' || run.plan.decision.optionId!==optionId
+            || stateDigest([run.request,selected])!==applicationDigest) throw new Error('Business choice lacks admitted decision');
+        agents.assertInstitutionStrategyAuthority(run.request);
+    }finally{agents.close();}
+    const businesses=new BusinessManagerStore(businessManagerPathFor(agentPath));
+    try { return businesses.applyInstitutionPolicy(profile.subjectId,{proposalId,proposerAgentId:agentId,objective:selected.objective,
+        mode:selected.mode,maxRewardGp:selected.maxRewardGp,preferredSkills:selected.preferredSkills},eventId,applicationDigest,selected.stockPolicies,now); }
+    finally{businesses.close();}
 }
 
 export function validateBusinessPlayerActionForAgent(agentId: string,

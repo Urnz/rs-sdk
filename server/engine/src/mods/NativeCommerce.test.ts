@@ -96,6 +96,23 @@ function fixture(kind: 'sale' | 'procurement' = 'sale', stock = 4, funds = 200) 
     return { options, coordinator, source, market, trades, worker, counterparty, intent, prepare, execute, count, saved, business, account, engine, clock,
         expire() { wallTime = '2026-10-19T10:06:00.000Z'; }, checkpoint(fn: () => void) { checkpoint = fn; } };
 }
+test('SI-B04 selected institution price reaches native exchange and a newer selection invalidates an uncommitted quote', () => {
+    const select=(f:ReturnType<typeof fixture>,price:number)=>{
+        const base=commerceCatalogs(f.options.workspace).stock.policies.find(p=>p.businessId==='karamja-kitchen'&&p.itemId===379)!;
+        const manager=new BusinessManagerStore(f.options.businessPath);
+        manager.applyInstitutionPolicy('karamja-kitchen',{proposalId:randomUUID(),proposerAgentId:'kitchen-mind',objective:'Bounded price choice',mode:'profit',maxRewardGp:25},
+            randomUUID(),'a'.repeat(64),[{...base,pricing:{mode:'fixed',saleUnitPriceGp:price}}],f.clock().wallTime);manager.close();
+    };
+    const stale=fixture();stale.prepare();select(stale,31);
+    expect(()=>stale.execute()).toThrow('stale');expect(stale.count(stale.counterparty,995)).toBe(200);
+    const f=fixture();select(f,31);const catalogs=commerceCatalogs(f.options.workspace,f.options.businessPath);
+    f.intent.catalogs=catalogs;f.intent.decision=decideBusinessStock(catalogs.stock.policies.find(p=>p.businessId==='karamja-kitchen'&&p.itemId===379)!,catalogs.stock,4);
+    f.intent.unitPriceGp=31;f.prepare();expect(f.execute().phase).toBe('completed');f.coordinator.finalize(f.intent.operationId);
+    expect(f.count(f.saved(f.counterparty),995)).toBe(138);expect(f.count(f.saved(f.counterparty),379)).toBe(2);expect(f.account().balanceGp).toBe(262);
+    const reopen=new FoodCommerceCoordinator(f.options);try{reopen.finalize(f.intent.operationId);}finally{reopen.close();}
+    expect(f.account().balanceGp).toBe(262);
+});
+
 test('actual bilateral BOTH_MOVEINV sale reconciles finite Business stock, buyer coins and cooked food after reopen/replay', () => {
     const f = fixture(); f.prepare(); expect(f.business()).toContainEqual({ item_id: 379, count: 2 });
     expect(f.execute().phase).toBe('completed'); expect(f.count(f.saved(f.counterparty), 379)).toBe(2); expect(f.count(f.saved(f.counterparty), 995)).toBe(120);
