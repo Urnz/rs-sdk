@@ -5,64 +5,68 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
 
-- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C03 kész; SI-M2 v2 PASS.
-  24/45 lezárt feladat. Következő SI-C04, csak új kérésre.**
-  Natív vagyon-/ár-/Business-idősor, saját SI-B06/SI-A12 függőségekkel.
-  SI-C03 mechanikai kapu, nem autonóm SI-C07, SI-M3/MVS vagy önfenntartás.
-- [C03 működés/migráció/ellenőrzések](SI_C03_NATIVE_TOOL_REPAIR.md),
-  [source/packed manifest és actual eredmény](SI_C03_NATIVE_RESULT.json).
-  Ág: `codex/si-c03-native-tool-repair`, baseline `a885bf644`.
-- 100 actual Mining→broken0; belső copper+tin→packed bronze bar; meglévő
-  repair policy1 bronzrúd/600 sim-s/Smithing1/work-surface→50 durability;
-  ugyanazzal a provenance/instance-szal új Mining→49. Nincs új tool/pótlás.
-- Native tool-WIP saját additive schema1 a canonical Player DB-ben, meglévő
-  escrow/lifecycle/repair/facility adapterekkel. Input és checkpoint atomikus;
-  a repair input indításkor elfogy, nincs ingyenes cancel/refund. WIP/history
-  nem törölhető, egy actor/tool egy aktív munkát foglalhat.
-- Csak egymást követő érvényes munkatickek simulation-ideje számít. Offline,
-  restart, pause, source/clock-drift, permission revocation és process stall
-  nem ad utólagos creditet. Pending repair nem adható át; más protected
-  munka tiltott, a Player-load visszahozza a foglalást. Rollback a pontos
-  inventory object reference-et ÉS countot, XP-t, capacityt/auditot/save-et őrzi.
-- SDK exact tool műveletek: stabil run/step UUID, backend `wx` admission;
-  completion csak readonly újranyitott canonical WIP+native effect proofból.
-  Bizonytalan eredmény nem indít új-ID-s retryt; új permission kellőképpen
-  elkülönített tool-ágon, a régi food/auth/clock/transaction alap változatlan.
-- Két új0.1.0 draft, publikálás és automatikus learning nélkül. Normál munka
-  külön megtanult verified1.0.0 verziót kér. Bootstrap kizárólag a meglévő,
-  külön jóváhagyott draft-trial útján: exact backend intent, friss aktív
-  CLI-marker trial-grant és run-journal admission, actor/run/step/params/checksum
-  kötéssel. A draft nem állít verified learned procedure-t. A Business/facility
-  actual Property tulajdont és aktív owner/worker-role jogot is külön ellenőrzi.
-- [C02 instance/custody](SI_C02_NATIVE_MINING_TOOL.md), [C01 attribute/XP](SI_C01_NATIVE_ATTRIBUTE_XP.md)
-  megmaradt. Exact egyetlen fizikai unnoted1265; unknown/dupla/lost/note tool
-  quarantine és explicit reconciliation, soha új durability. Külön trade ledger
-  nem distributed ACID: sikertelen checkpoint után sourcegap/quarantine.
-  AgentState29, lifecycle borrowed saját marker3; közös user_version/PRAGMA,
-  save-format, MarketStore transaction API és borrowed close-ownership változatlan.
+- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C04 kész; SI-M2 v2 PASS.
+  25/45 lezárt feladat. Következő SI-C05, csak új kérésre.**
+  Foglalkozási/társas/döntési outcome-metrikák, saját SI-C04/SI-B06 függőségekkel.
+  SI-C07 autonóm hosszú lánc, SI-M3/MVS és önfenntartás továbbra nyitott.
+- [C04 működés/CLI/perzisztencia/ellenőrzések](SI_C04_NATIVE_FINANCE_HISTORY.md),
+  [source/packed manifest és eredmény](SI_C04_NATIVE_RESULT.json).
+  Ág: `codex/si-c04-native-finance-history`, baseline `66d141fa6`.
+- Readonly frozen nyitó/záró natív készlet: SI-A12 exact paused clock/profile,
+  closed food tick, needs/lifecycle és custody ellenőrzése változatlan. A teljes
+  source-set stabil kettősolvasása és immutable schema1 JSON binding saját
+  `.local/society-metrics/finance-boundaries/` alatt. Nincs cross-DB ACID,
+  automatikus copy/backfill vagy report közbeni writer/migrátor.
+- Személyes Gini/rangmobilitás GP-only, egyező actor/lifecycle cohorton.
+  Business, deposits/loans/conditional contracts és noncash külön; nincs új
+  equity/GP-valuation vagy net-worth modell. Reserved treasury GP a balance része.
+  Az összes recorded cash és Business-lista a teljes frozen forrás diagnosztikája.
+- Racionális GP/darab unit-price, explicit fixed basket/freshness digesttel.
+  Csak igazolt cash-for-single-item trade; gift/barter/mixed offer nem ár,
+  hiány/stale/future/foreign source és utólag cserélt kosár inconclusive.
+- Business revenue/input csak egyező actual native trade + treasury settlement.
+  Két natív case-ben sale80 GP/procurement40 GP, nem a worker saját cash-faktuma
+  alapján. Ezek külön izolált fixture DB-k, nem egy közös élő gazdasági történet.
+  Cash600→550, Business50 GP cash-csökkenés/residual megmarad. Belső treasury40 GP
+  transfer aggregált hatása0, nem revenue. Alapítás/closed állapot megfigyelt,
+  a hiányzó gazdasági cause explicit unknown.
+- Frozen endpointok közti új, egyeztetett paid wage kaphat interval placementet:
+  work-binding/order + canonical Player reward + treasury-debit; exact
+  `simulationTime:null`. Félbemaradt saga nem closed boundary, régi paid receipt
+  nem új wage. Ezt a C04 unit gate ellenőrzi, nem új live salary-próba.
+  A Business-rent és capital GP-cost a hiányzó source miatt unknown, nem becslés;
+  natív player-rent és fizikai capital-installation külön diagnosztika.
+- Backend-only `nativeFinanceOptions`: admin GET finance/evaluation/dashboard,
+  CLI capture/report. Query source-path vagy observations JSON nem authority.
+  Konfiguráció nélkül nincs automatikus történeti adat. A capture CLI csak
+  előkészített frozen könyvtárat olvas, nem állítja le/fagyasztja be a világot.
+- [C03 same-instance repair](SI_C03_NATIVE_TOOL_REPAIR.md), [C02 custody](SI_C02_NATIVE_MINING_TOOL.md),
+  [C01 actual attribute/XP](SI_C01_NATIVE_ATTRIBUTE_XP.md) megmaradt. Native tool
+  unknown/dupla/lost/note quarantine;100/1 Mining,1 bar/600 sim-s repair→50.
+  Pending WIP/input nem dobható el/refundolható, restart/offline nem credit,
+  script közben felvett protected actor is foglalt. Új procedure draftok
+  unpublished; normál használat learned verified1.0.0, kivétel csak exact aktív,
+  külön jóváhagyott trial-grant + journal + backend intent.
+  AgentState29/lifecycle borrowed marker3; shared DB/transaction/PRAGMA/save
+  és auth/clock alap változatlan. Külön trade ledger nem distributed ACID.
 
 ## Legfrissebb ellenőrzés
 
-- **Full nem futott.** Saját additive séma és szűk tool adapter; célzott
-  migration/reopen/rollback, actor/clock/material/facility/proof és közvetlen
-  régi fogyasztók fedve. Taskzárás/push nem indít új runtime regressziót.
-- `20261024-175145-022-si-c03-protected-loop-final`:48 PASS /0 FAIL, C03 native12,
-  food20, XP13 +wrapperek; engine TS/format PASS,48,641 s. Végső működésbeli guard:
-  a protected actor foglalása minden opcode előtt ellenőrzött, később felvett
-  második actornál is. `20261024-174532-951-si-c03-draft-bootstrap`:33 PASS /0,
-  root/engine TS és format PASS,88,831 s; a későbbi engine-only guard nem érintette
-  a root modult, annak sikeres ellenőrzése nem ismétlődött.
-- `20261024-175403-585-si-c03-staged-native-format`:27 PASS /0, C03/Mining
-  natív és staged format,10,269 s. Csak egy extra fixture EOF üres sor javult;
-  innen a végső source-bound natív adat. Runtime policy változatlan.
-- `20261024-173423-142-si-c03-mining-admin-types`:13 Mining és14 escrow,
-  C03 runtime és root TS PASS; az akkori engine JSON-import/test-typing FAIL
-  később javítva. `20261024-173240-392-si-c03-consumer-types`: food20, XP13
-  és skill/framework/builder/authorization/repair/facility fájlok PASS,
-  Mining fixture cleanup FAIL külön javítva és ismételve PASS. A teljes régi
-  köröket nem állítjuk PASS-nak; pontos index a C03 dokumentumban.
-- Korábbi hibák megmaradtak a logokban; rollback-count, fixture-hivatkozás,
-  JSON-import/test-typing javítva, assertion vagy policy gyengítése nélkül.
+- **Full nem futott.** Új readonly finance/bank reader és saját observation
+  binding; bank/treasury/contract writer/migrátor és általános auth változatlan.
+  Tíz képlet, dashboard/evaluation, SI-A12, bank ledger és native commerce
+  közvetlen fogyasztói célzottan fedve. Taskzárás/push nem új runtime teszt.
+- `20261024-184407-230-si-c04-final-wage-boundary`:11 PASS /0 FAIL
+  (finance8 +actual native commerce2 +wrapper), root/engine TS PASS,93,116 s.
+  Végső runtime-forrás. Source/audit/boundary wage-feltételek és unit interval proof.
+- `20261024-183247-263-si-c04-final-consumers`:79 PASS /0,47,784 s; finance,
+  SI-A12, evaluation/evaluation-native/dashboard, bank ledger és régi commerce26.
+  Utána csak finance wage/source bővült, a végső szűk gate-ben ismételve.
+- `20261024-183650-028-si-c04-cli-types-smoke`: a két CLI külön typecheck
+  ideiglenes tsconfigból +report contract smoke PASS,10,725 s.
+  `20261024-184937-302-si-c04-staged-format`: format PASS,1,537 s.
+- Korábbi parser/fixture/tuple/type-import FAIL-ok megmaradtak a logokban,
+  szűk javítással; nincs assertion/policy gyengítés. Részletes index a C04 docban.
   A körök átfednek, számok/idők nem összeadandók. Teljes log/result:
   `.local/verification/<azonosító>.log` és `.result.json`.
 
@@ -74,7 +78,7 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 - B06 engedély kizárólag0,05 USD-s próbára szólt:11 kérés /4235 microUSD
   =0,004235 USD. Nincs általános költési engedély; normál per-call0,
   auto-replanning/autonomousExecution off, B04/B05 default grant üres.
-  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C03 providerköltség0.
+  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C04 providerköltség0.
 - SI-A15 technikai PASS; eredeti D1/SI-M1 önfenntartás nem PASS, teljes gazdasági
   minősítés inconclusive. [Technikai eredmény](SI_A15_TECHNICAL_RESULT.md),
   [archívum/restore](SI_A15_RESULT_ARCHIVE.md).

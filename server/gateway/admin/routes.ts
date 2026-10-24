@@ -9,6 +9,8 @@ import { reportSelfSufficiency, reportSocietyEvaluation, societyEvaluationContra
 import { reportSocietyDashboard, readSocietyDashboardEvent, SocietyDashboardError } from '../../../society-metrics/dashboard.js';
 import { reportNativeIntegration, readNativeIntegrationEvidence, NativeIntegrationError } from '../../../society-metrics/integration-report.js';
 import { nativeIntegrationOptions, type NativeIntegrationOptions } from '../../../society-metrics/integration-sources.js';
+import { reportNativeFinance } from '../../../society-metrics/native-finance.js';
+import type { NativeFinanceOptions } from '../../../society-metrics/finance-sources.js';
 import { observeExternalTrade, reportExternalTrade, defaultExternalTradeOptions, type ExternalTradeOptions } from '../../../external-trade/runtime.js';
 import { reportEconomicDependencies, reportEconomicRisk, type DependencyOptions } from '../../../economic-dependency/index.js';
 import { readLongExperimentReport, readLongExperimentComparison } from '../../../society-experiments/runtime.js';
@@ -150,6 +152,7 @@ export interface AdminRouteContext {
     externalTradeOptions?: ExternalTradeOptions;
     dependencyGraphOptions?: DependencyOptions;
     nativeIntegrationOptions?: NativeIntegrationOptions;
+    nativeFinanceOptions?: NativeFinanceOptions;
     longExperimentJournalPath?: string;
     longExperimentDependencies?: LongExperimentDependencies;
     populationEstateOptions?: EstateRuntimeOptions;
@@ -751,7 +754,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 eventFrom: url.searchParams.get('eventFrom') ?? undefined, eventTo: url.searchParams.get('eventTo') ?? undefined,
                 offset: numeric('offset'), limit: numeric('limit'), snapshot: url.searchParams.get('snapshot') ?? undefined };
             const options = { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions,
-                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot) };
+                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot), nativeFinance: context.nativeFinanceOptions };
             try {
                 return json(dashboardEvent ? readSocietyDashboardEvent(query, filters, decodeURIComponent(dashboardEvent[1]!), options)
                     : reportSocietyDashboard(query, filters, options));
@@ -762,8 +765,14 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 toSimulationTime: url.searchParams.get('to') ?? '', clockId: url.searchParams.get('clockId') ?? '',
                 clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '', actorAgentIds: url.searchParams.getAll('actor') },
             { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions,
-                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot) })); }
+                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot), nativeFinance: context.nativeFinanceOptions })); }
             catch (error) { if (error instanceof NativeIntegrationError) return json({ error: error.message }, error.status); throw error; }
+        }
+        if (req.method === 'GET' && url.pathname === '/api/admin/society/finance') {
+            if (!context.nativeFinanceOptions) return json({ status: 'inconclusive', reason: 'Backend frozen finance boundaries not configured' });
+            return json(reportNativeFinance({ fromSimulationTime: url.searchParams.get('from') ?? '', toSimulationTime: url.searchParams.get('to') ?? '',
+                clockId: url.searchParams.get('clockId') ?? '', clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '',
+                actorAgentIds: url.searchParams.getAll('actor') }, context.nativeFinanceOptions));
         }
         if (req.method === 'GET' && url.pathname === '/api/admin/society/self-sufficiency') {
             return json(reportSelfSufficiency({ fromSimulationTime: url.searchParams.get('from') ?? '',

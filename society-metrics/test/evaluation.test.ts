@@ -7,6 +7,12 @@ const scope: EvaluationScope = { fromSimulationTime: '2030-01-01T00:00:00.000Z',
 const evaluate = (facts: SocietyObservations = {}, query = scope) => evaluateSocietyObservations(query, facts);
 const metric = (report: ReturnType<typeof evaluate>, id: string, index = 0) => report.objectives.find(row => row.id === id)!.metrics[index]!;
 
+test('rational native unit prices retain exact fractions without integer-GP rounding', () => {
+    expect(metric(evaluate({ prices: [{ itemId: 377, openingPriceGp: { gp: 5, units: 2 }, closingPriceGp: { gp: 15, units: 4 }, fixedWeight: 1 }] }),
+        'price-stability')).toMatchObject({ numerator: '1', denominator: '2', basisPoints: '5000' });
+    expect(() => evaluate({ prices: [{ itemId: 377, openingPriceGp: { gp: 5, units: 0 }, closingPriceGp: 3, fixedWeight: 1 }] })).toThrow('quantity');
+});
+
 test('all ten independent objectives survive missing evidence; no synthetic total or success verdict', () => {
     const report = evaluate(); expect(report.objectives).toHaveLength(10);
     expect(report.objectives.every(row => row.status === 'inconclusive')).toBeTrue();

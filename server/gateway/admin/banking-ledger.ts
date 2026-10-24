@@ -64,6 +64,33 @@ function auditEntry(value: BankJournalEntry): Omit<BankJournalEntry, 'simulation
 }
 function txDigest(value: object): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex') }
 
+/** Read-only snapshot capability; never constructs the migrating/writing store. */
+export function readNativeBankingLedger(database: Database) {
+    const schema=database.query('SELECT version FROM banking_ledger_schema WHERE singleton=1').get() as {version:number}|null;
+    if(schema?.version!==1)throw new Error('Unsupported banking source schema');
+    const rows=database.query(`SELECT a.sequence,a.previous_hash previousHash,a.entry_hash entryHash,j.*
+        FROM bank_audit_chain a JOIN bank_journal j USING(transaction_id) ORDER BY a.sequence`).all() as Array<JournalRow&{sequence:number;previousHash:string;entryHash:string}>;
+    const postings=database.query(`SELECT posting_id postingId,transaction_id transactionId,side,account,amount_gp amountGp FROM bank_posting ORDER BY side`).all() as BankPosting[];
+    const count=database.query('SELECT (SELECT COUNT(*) FROM bank_journal) n,(SELECT COUNT(*) FROM bank_audit_chain) audits').get() as {n:number;audits:number};
+    if(rows.length!==count.n||rows.length!==count.audits||postings.length!==rows.length*2)throw new Error('Bank journal source gap');
+    const byTransaction=new Map<string,BankPosting[]>();
+    for(const posting of postings){const pair=byTransaction.get(posting.transactionId)??[];pair.push(posting);byTransaction.set(posting.transactionId,pair);}
+    let previous='0'.repeat(64);
+    const journal=rows.map((row,index)=>{const value=entry(row),pair=byTransaction.get(value.transactionId)??[];
+        if(row.sequence!==index+1||pair.length!==2||pair[0]!.side!=='credit'||pair[1]!.side!=='debit'
+            ||pair.some(p=>p.amountGp!==value.amountGp)||row.previousHash!==previous
+            ||row.entryHash!==txDigest({previousHash:previous,entry:auditEntry(value),postings:pair}))throw new Error('Bank source audit differs');
+        previous=row.entryHash;return value;});
+    const accounts=(database.query('SELECT * FROM bank_deposit_account ORDER BY account_id').all() as AccountRow[]).map(account);
+    const balances=new Map<string,bigint>();
+    const accountBanks=new Map(accounts.map(a=>[a.accountId,a.bankId]));
+    for(const e of journal){if(!Number.isSafeInteger(e.amountGp)||e.amountGp<=0||!['deposit','withdrawal','interest'].includes(e.kind)
+        ||accountBanks.get(e.accountId)!==e.bankId)throw new Error('Invalid native bank journal');
+        balances.set(e.accountId,(balances.get(e.accountId)??0n)+BigInt(e.amountGp)*(e.kind==='withdrawal'?-1n:1n));}
+    if(accounts.some(a=>!Number.isSafeInteger(a.balanceGp)||a.balanceGp<0||BigInt(a.balanceGp)!==(balances.get(a.accountId)??0n)))throw new Error('Invalid bank deposit claim/audit balance');
+    return{banks:(database.query('SELECT * FROM economic_bank ORDER BY bank_id').all() as BankRow[]).map(bank),accounts,journal,headHash:previous};
+}
+
 export class BankingLedgerStore {
     private readonly database: Database;
     constructor(path: string, private readonly simulationClock?: BankingSimulationClock) {

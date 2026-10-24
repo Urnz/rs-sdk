@@ -1,5 +1,5 @@
 import { readFile, stat } from 'node:fs/promises';
-import type { AdminItem, AdminSkill, OfflineSaveSnapshot } from './types';
+import type { AdminItem, AdminSkill, OfflineSaveSnapshot } from './types.js';
 
 const SAVE_MAGIC = 0x2004;
 const MAX_SAVE_VERSION = 8;

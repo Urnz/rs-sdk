@@ -88,7 +88,10 @@ function collect(query: EvaluationScope, options: SocietyEvaluationOptions) {
             numeratorScenario: objective.id === 'systemic-risk' && metric.status === 'observed' && representative
                 ? { targetNodeId: representative.targetNodeId, label: representative.label } : null,
             eventCount: ids.length, scope: objective.id === 'systemic-risk' ? evaluation.metricScopes.systemicRisk
-                : objective.id === 'specialization' ? evaluation.metricScopes.specialization : 'No complete native event-backed indicator available.' };
+                : objective.id === 'specialization' ? evaluation.metricScopes.specialization
+                : objective.id === 'mobility' ? evaluation.metricScopes.mobility
+                : objective.id === 'wealth-distribution' ? evaluation.metricScopes.wealth
+                : objective.id === 'price-stability' ? evaluation.metricScopes.prices : 'No complete native event-backed indicator available.' };
     }));
     return { scope, snapshot, evaluation, graph, events, metrics, payloads, clockBindings, incidence, eventEdges, nodes,
         worstWithdrawals: worstWithdrawals.map(row => ({ targetNodeId: row.targetNodeId, label: row.label,

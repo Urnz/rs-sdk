@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "basket": [{"itemId": 377, "fixedWeight": 1}, {"itemId": 379, "fixedWeight": 1}],
+  "maxPriceAgeSimulationMs": 86400000
+}

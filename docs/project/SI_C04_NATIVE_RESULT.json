@@ -1,0 +1,1254 @@
+{
+  "schemaVersion": 1,
+  "taskId": "SI-C04",
+  "verdict": "PASS",
+  "scope": "Readonly frozen native financial boundaries and actual native Business commerce proof; partial source coverage",
+  "source": {
+    "baseCommit": "66d141fa66a95d171d91d39c57005241f0e6993e",
+    "branch": "codex/si-c04-native-finance-history",
+    "hashEncoding": "SHA-256 of LF-normalized UTF-8 source; binary packed asset SHA-256",
+    "files": [
+      {
+        "path": "agent-operated-shop/native-commerce-runtime.ts",
+        "sha256": "22ba9449e1d37c6bd113dba5a0cb41bd0608ab442a8a3eb31de8635b77d6b31c"
+      },
+      {
+        "path": "agent-operated-shop/native-commerce-source.ts",
+        "sha256": "c82f5c96892e743af38571c99bae423d53b6d30120d568a499d5971129ffbdec"
+      },
+      {
+        "path": "agent-operated-shop/native-commerce.ts",
+        "sha256": "19e0575e78d8af75758293fe757a62662cbb2526e283d088c17b9dd1850a24df"
+      },
+      {
+        "path": "business-work/binding.ts",
+        "sha256": "6ae2d5994121a5a1f7e839ddf6b99728f923f378b2554a06648e037dca2f0c85"
+      },
+      {
+        "path": "business-work/work.ts",
+        "sha256": "13f319b1d2047251b927ea2f8fb46ffbbc262c70c46e95bcfc50e163b22314bb"
+      },
+      {
+        "path": "config/business-stock-policies.json",
+        "sha256": "672ae7521ced845e5fcbdebece077dca14712d6e357b6c982215b53a9d3b751a"
+      },
+      {
+        "path": "config/native-finance.json",
+        "sha256": "9d4b607346f361e9e7e3a3b8d831d454ba2e1a5bec9603be68466e2b83bba63a"
+      },
+      {
+        "path": "config/needs-dynamics-policies.json",
+        "sha256": "5dcd325f188026043d6b9b426dd118475d5eaabd7701c8f4f131cc66c6c48781"
+      },
+      {
+        "path": "config/needs-policies.json",
+        "sha256": "a71bf9120fb570df7c036dd4ecd810bedb0bd8f2fccb9587162f410d3926e271"
+      },
+      {
+        "path": "config/sale-channel-policies.json",
+        "sha256": "cd034f9c9eb03f2a9b79887b703060d6760f06f9dcb3a47d262b4a5c2ecb1543"
+      },
+      {
+        "path": "external-trade/source.ts",
+        "sha256": "55754cb1592b4168aabf129e73a194863fa844c85299ec5d1b83cc9dda8232b0"
+      },
+      {
+        "path": "food-loop/needs-persistence.ts",
+        "sha256": "8c72d02f3b20155b3573732c12cfbcf8276e351427584b3d6b62a52846155379"
+      },
+      {
+        "path": "needs/profile.ts",
+        "sha256": "63cb60a93f43aa09eca2dac4086383fb1727635c5f834ee594d57076e2486836"
+      },
+      {
+        "path": "needs/store.ts",
+        "sha256": "62294903a2455253e4a9dfaccc46ecc78951482b0b8a2bdbbe6edc3d294f5ee9"
+      },
+      {
+        "path": "scripts/capture-finance-boundary.ts",
+        "sha256": "f23a6e4338714741c10d00a5086cd749be2dd638c9bceebcf806bcaadb91bfdd"
+      },
+      {
+        "path": "scripts/report-society-evaluation.ts",
+        "sha256": "54765c6c7ce316949bef23daf03085938fe13c00bd2e24b3c7b4a1ea3de2a3f3"
+      },
+      {
+        "path": "sdk/test/utils/save-generator.ts",
+        "sha256": "f41416098d3a3494a575d444d7089510ba8d727b2c38faa4aad4d48bfb7c4d68"
+      },
+      {
+        "path": "server/engine/src/mods/NativeCommerce.test.ts",
+        "sha256": "ffa1b6a5fdb861a7b067270a2a1c4eb8cc2969c3d9e774d8d60404fc06969529"
+      },
+      {
+        "path": "server/engine/src/mods/NativeCommerce.ts",
+        "sha256": "9f7fbab7fa23b296bae3ddaa82839bc97c823870fd3390af703fa0479ab638f4"
+      },
+      {
+        "path": "server/engine/src/mods/NativeCommerceStore.ts",
+        "sha256": "c8c1963f3c2cde59cd440c3e5e05884bc1bbc149811e0e801527263ae461325c"
+      },
+      {
+        "path": "server/engine/src/mods/NativeFoodDeliveryStore.ts",
+        "sha256": "679e776aa722dd487b68918faaf0dc9ed590e612772777be7acc2d7acf4f65da"
+      },
+      {
+        "path": "server/engine/src/mods/PlayerInventoryEscrowStore.ts",
+        "sha256": "e3a627675113d457e34188870b0974a0c5b8b0b2cf743aed3fa3f146beef13dd"
+      },
+      {
+        "path": "server/engine/src/mods/PlayerRewardStore.ts",
+        "sha256": "cd15a5c048a24083a5207b6e79e2075cd9e8802fd481e743b155d453ddd3b322"
+      },
+      {
+        "path": "server/engine/src/mods/TradeEvidenceStore.ts",
+        "sha256": "22c17a72f2f86002241b434e16b5270d5a20a12b68d76bf56f10db3313e2b553"
+      },
+      {
+        "path": "server/gateway/admin/banking-ledger.ts",
+        "sha256": "8014f64cafc117e353c128a61a92a473b9fe6422334ea756ece757a7ba94dbfb"
+      },
+      {
+        "path": "server/gateway/admin/banking-loans.ts",
+        "sha256": "5ad40e8545771d768a5be950e7620d1a977ef5f3e90519259d255462c1552477"
+      },
+      {
+        "path": "server/gateway/admin/business-manager.ts",
+        "sha256": "f9548ea19587816fe1c94a7b290bdc31a86a3b1ee59bf22c432f562b49198b2c"
+      },
+      {
+        "path": "server/gateway/admin/economic-contracts.ts",
+        "sha256": "4236370b5b279eb1b4f4ea354c46fba6533c1b607b5740831e9e6f82c630bdf8"
+      },
+      {
+        "path": "server/gateway/admin/institution-treasury.ts",
+        "sha256": "09d760bab657a30979391bda3a12389ca0eef924249e067d8e9bd553169e8062"
+      },
+      {
+        "path": "server/gateway/admin/native-finance-commerce.test.ts",
+        "sha256": "9376153d2a6a33e4003f24e7cdd5ba8294cb94028f87a3ea5bf520a28b7b7211"
+      },
+      {
+        "path": "server/gateway/admin/native-food-commerce.test.ts",
+        "sha256": "6c7d33f9c029f7162481c4cb129f4a59e2486f510abe323ce47ce69efb966fe6"
+      },
+      {
+        "path": "server/gateway/admin/routes.ts",
+        "sha256": "abd1c44c5fe67ddb61c643a0eef845d2d29ba719ceadb0f9830ef0522adca686"
+      },
+      {
+        "path": "server/gateway/admin/save-reader.ts",
+        "sha256": "d91860f515e0ec4d747c9a6ae1a89e42997c8c7328068d4b53097f13b00dcdf4"
+      },
+      {
+        "path": "simulation-clock/profile.ts",
+        "sha256": "22a3171d81e1bac29a3601ffbb384d25a2092916d5e2449ae838a160db743f13"
+      },
+      {
+        "path": "simulation-clock/store.ts",
+        "sha256": "65bf7d0eae0ec6c9b530b97eff0424260b753afbc938e8d3343133e019627ec8"
+      },
+      {
+        "path": "society-metrics/dashboard.ts",
+        "sha256": "ae87fa12a171cfceb0d0feb8c738609bab8e731d76f30a7c2bc68d154af9e1db"
+      },
+      {
+        "path": "society-metrics/evaluation-report.ts",
+        "sha256": "18b309d1afef28aa560ab38496a3821c262e63b25de7644487ca1714f2d4cba5"
+      },
+      {
+        "path": "society-metrics/evaluation.ts",
+        "sha256": "255586d82f3b05d74052eae7e78fdc241a3826ab99ad5d416a52d5dc2840f975"
+      },
+      {
+        "path": "society-metrics/finance-options.ts",
+        "sha256": "9146e8ef1ed828e9c262c60f953a5e6c7513054d72af7cd4c820d5ae1cdf1ef7"
+      },
+      {
+        "path": "society-metrics/finance-sources.ts",
+        "sha256": "9bf8bcd46890b5cd62beb4f6206f4568736523a2f969905fb0b9cf561a9a5048"
+      },
+      {
+        "path": "society-metrics/index.ts",
+        "sha256": "e4bdeb8c466356ac0ba1c938b7ed10c32207a9bb1acbc81810bc48b539d7f5d0"
+      },
+      {
+        "path": "society-metrics/integration-sources.ts",
+        "sha256": "5f2c0e65cf194f8edddb8de75fb67ab2e29c3514d3c2a85e99ea4c5ad62cd8b0"
+      },
+      {
+        "path": "society-metrics/native-finance.ts",
+        "sha256": "8ccf5758fc0d814804141020c8216e9eb9445282c188f945e47bdb7ec9f42154"
+      },
+      {
+        "path": "society-metrics/policy.ts",
+        "sha256": "797a67a3c3110481191993c0814b0798cbf21ac7dd25a666e75a1eaa1d33a246"
+      },
+      {
+        "path": "society-metrics/test/evaluation.test.ts",
+        "sha256": "46f984728c2818f26b40e0e650625d9ee96701b60af4469b0a53daf708b339cb"
+      },
+      {
+        "path": "society-metrics/test/integration.test.ts",
+        "sha256": "ec40f2a83ba7cff7631cb5f15d46118cd78fa01f732035d6896178c622834503"
+      },
+      {
+        "path": "society-metrics/test/native-boundary-fixture.ts",
+        "sha256": "ee961532375d09c59649d9c8eac856ab86b271ab5eceee6fff728516be8f3dee"
+      },
+      {
+        "path": "society-metrics/test/native-finance.test.ts",
+        "sha256": "a2afcbf6ea69878b2c6006d3bcfe354650b8d7153e941b4ea042bb0eeacf737e"
+      },
+      {
+        "path": "society-minimum/policy.ts",
+        "sha256": "7a815751c22ed78a4945e637447d576991e9d5461613dfd0fca33c7352963f51"
+      }
+    ],
+    "packedAssets": [
+      {
+        "path": "server/engine/data/pack/main_file_cache.dat",
+        "sha256": "5c177b9209e183ad977fb43a7b5c2436953cb6585102f56c6193f2ead44499da"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx0",
+        "sha256": "af8a7bb2f99b2bdf802cf13ef8c894d59592399e41c400fd3258b384ef229b76"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx1",
+        "sha256": "0ce4f410c11cb36753a67ae4fb6acb41026133057966b4f5887877a2310dd10e"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx2",
+        "sha256": "38117c0d67c9768eccc67d1412dc0664b191c660943e6581fe36b048496eeabf"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx3",
+        "sha256": "c76aff4c175d73db6c6791ba99f9cb5667cd4645555f63909f917dbaee601ea0"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx4",
+        "sha256": "0f731d032a63baef29778c0a8857af1c1a344447292fcb28f96be3744d0f6b52"
+      },
+      {
+        "path": "server/engine/data/pack/server/category.dat",
+        "sha256": "f63cb5e4c38d7c4a79e15b48fd3d05bdb6a99dba6e1906a761e46350b0f97e98"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.dat",
+        "sha256": "5a4f274c247217875f8b3b71006100a86030b51a5d4165f6cd91dd910cce8286"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.idx",
+        "sha256": "c9d085f8a353abd58a7315f3a8e9e17e331bb38197470bd7dd17c7f67e961c23"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.dat",
+        "sha256": "74f6c6be5dae1111fbd39e7bd4290647fce7f5b93dd5fb3a0a386503ddb40ac3"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.idx",
+        "sha256": "50be28dfbd8b017cfee7fda40d07ad4c5d374b3861f0b3dcb67e76f36ff15c5a"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.dat",
+        "sha256": "692812e0b3c7b776c2edd3aac70d11249d0c824c79a42f0e2ad08311bb1b40c5"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.idx",
+        "sha256": "5c4bb2801422d762f965ac53dce6c9c8406c07f975f3cc7850bd555a76a0821b"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.dat",
+        "sha256": "1cb8bdec4c1bea9797cd5ddf2d6d12f7b278d5b52cf0e76cf870765c92d40574"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.idx",
+        "sha256": "e6e740142c951caafe7523ce5be71d6f58480f174389108c89b1c89906ea1563"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.dat",
+        "sha256": "641a509227c948dbd626eba8afd6e5b49c4e95d338d596c134b4dfe40b058121"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.idx",
+        "sha256": "f65cd1b3902def149de3ba676aa7bf227d70f408770f16df3cc1419eea6663a7"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.dat",
+        "sha256": "c49a737d21e1138667f8961ec96cfaf8fdc5a8a7e27eaccf6c0833b845eaffdd"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.idx",
+        "sha256": "15de0287fd9650a02f274771a6eab909b0cce5b7ecd9db6fd8dc0e4dc7b3d354"
+      },
+      {
+        "path": "server/engine/data/pack/server/interface.dat",
+        "sha256": "79c4635a79a4b788ab5b241c03fcfed790507f059adf8156976a1c3e906331d0"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.dat",
+        "sha256": "c742ce8c79c28552413640b5ad26626e520da3f19ccd638362a1f7bc58b73032"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.idx",
+        "sha256": "f8eeed182072f4d6ab383f7d28c3edd0dc51eacb98c1a107216523703d5c22c1"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.dat",
+        "sha256": "a45ded68e74cf5a59257141206560aa508524b9ed89c06ac5bc94482f38eaf00"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.idx",
+        "sha256": "ff841140ee0a0685e0bda5a39c3838b6d3aa34ba5db8d6d05d416b9fbebca7d2"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.dat",
+        "sha256": "8c5cbe3e9981d7982a4c3e53eb61d336ec7a6de7fe17f13bbe4a09ee07210d94"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.idx",
+        "sha256": "6e87275bbb7b59bfae93049b6ecce2a103fe80d5dd8c4e2477600f088e804609"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.dat",
+        "sha256": "819902401ef17472946c0444094ab876ee63b1ee383708ac4c14382b287be02b"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.idx",
+        "sha256": "5cd4978d0535e9cd526bff781add78db48bd036fb8ef76227053681d62674802"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.dat",
+        "sha256": "f86e2e07d8801cce6bf3751342f279b31f60190049aec77407ae9262069f9818"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.idx",
+        "sha256": "edfb9a90cab90849419be2233d7ea6af7eee05bf4880bb6b75d77683d5e0c779"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.dat",
+        "sha256": "5504276804b51de580dab058bdc2fa8bfc432a2a002d4b0a499223cd990a84fd"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.idx",
+        "sha256": "7c673ffda5b1f1536c1ccc332a61493099d08aa089d43b35e0e8fcd802be936c"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.dat",
+        "sha256": "2e9b2a8a91ae64abee01afba9ed28c8700045eed413afdfcaa521515468f09b3"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.idx",
+        "sha256": "7dcfe2c0426db07a93c63eecb3e6e8bf0e14f97d4e74b5d8e5f18c31d3137eb1"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.dat",
+        "sha256": "17a718d58381ac68c379031561349598662439507a10aa2a5408ea9a832aca51"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.idx",
+        "sha256": "8b6afaed99c44bfa201018c49c064047294dfc8169852da620f743106ebf3bbf"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.dat",
+        "sha256": "86cbc2cd8cd1565bca4b6e493d41e3a6e0cf63d9e7aa7d938221a26990427bcd"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.idx",
+        "sha256": "572859b1698e06352dd1c70c3c7ff8b5bdb6d4508ac9d82dfacb2c4a1a492c46"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.dat",
+        "sha256": "e528d20f9d055e6e76487f07c2cf0dbfe13b49f819627b0b8718eddf81fb0dfd"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.idx",
+        "sha256": "43a6cd1d81780e993979d07e506ff6c54e5571a6e62f79c94084bbe44f42019a"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.dat",
+        "sha256": "02114d60728295a675488a3b54ae1a92525496c73e984cc1fceaf45fc02f9e5e"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.idx",
+        "sha256": "a3b06e8eaaeff0f13683416777f465b5c4dbb12e1a7746b61a25a3858236927d"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.dat",
+        "sha256": "58b3f7be63bb0f421bcfd9322cb99f42d1c62bc2e295217ea1cbc4a8f6a9766c"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.idx",
+        "sha256": "73993eafcdcf368a767a8e1c622511699747a42f635f9c1b31ffd2923b319f96"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.dat",
+        "sha256": "06d9da884eb3c6dc8bfef2fda8252c57b63c9f5cb1fbfbfaee9ffe20e7cab439"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.idx",
+        "sha256": "e6e87b06af30777b0c829a15b3d8e4574d2f349c1bb18fd7c00c9682da6f52a1"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.dat",
+        "sha256": "d384d9a7778c66a4bc34ef533fa720fe1b9b2234f233312e5df892c44069a5da"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.idx",
+        "sha256": "cbc943fe49dfb709c4761f632a621ed4ff9981503cd50b1d6b3e5bf6c5d52e65"
+      }
+    ]
+  },
+  "verification": {
+    "finalGate": "20261024-184407-230-si-c04-final-wage-boundary",
+    "focusedPass": 11,
+    "focusedFail": 0,
+    "durationSeconds": 93.116,
+    "consumerGate": "20261024-183247-263-si-c04-final-consumers",
+    "consumerPass": 79,
+    "consumerDurationSeconds": 47.784,
+    "rootTypecheck": "PASS in final gate",
+    "engineTypecheck": "PASS in final gate",
+    "cliTypeAndContractGate": "20261024-183650-028-si-c04-cli-types-smoke",
+    "formatGate": "20261024-184937-302-si-c04-staged-format",
+    "fullRegression": false,
+    "providerCalls": 0,
+    "providerCostMicros": 0,
+    "countPolicy": "Overlapping/nested test counts and durations must not be added as independent coverage."
+  },
+  "native": {
+    "scope": {
+      "fromSimulationTime": "2030-01-01T00:00:00Z",
+      "toSimulationTime": "2030-01-01T01:00:00Z",
+      "clockId": "world",
+      "clockProfileDigest": "ae0b59f0aa3a44e9501d2c340c1a4a448159d42f80d4f4319d57af402578c5fb",
+      "actorAgentIds": [
+        "ada",
+        "bea",
+        "cora",
+        "dora"
+      ]
+    },
+    "opening": {
+      "status": "available",
+      "binding": {
+        "schemaVersion": 1,
+        "kind": "native-finance-boundary",
+        "id": "finance-opening",
+        "worldId": "integration-world",
+        "cohort": [
+          {
+            "actorAgentId": "ada",
+            "username": "ada",
+            "lifecycleId": "life-ada"
+          },
+          {
+            "actorAgentId": "bea",
+            "username": "bea",
+            "lifecycleId": "life-bea"
+          },
+          {
+            "actorAgentId": "cora",
+            "username": "cora",
+            "lifecycleId": "life-cora"
+          },
+          {
+            "actorAgentId": "dora",
+            "username": "dora",
+            "lifecycleId": "life-dora"
+          }
+        ],
+        "simulationTime": "2030-01-01T00:00:00Z",
+        "clockId": "world",
+        "clockProfileDigest": "ae0b59f0aa3a44e9501d2c340c1a4a448159d42f80d4f4319d57af402578c5fb",
+        "marketPolicyDigest": "74854ddbd40d16e6e5786c2210c04dea5da4ca8abaa0dfe20b1eb6076442b1f4",
+        "policy": "backend-frozen-paused-closed-tick-stable-double-read",
+        "sourceWatermarks": {
+          "bankingPath": "e0c1058716e9a573a9fa85268ed74cee8ae504c188802d2670932e1c34205460",
+          "businessPath": "d8abf27bd72ef57b7a96d9978c2696aad00072542dfce16369d3ca4244ae5f78",
+          "checkpointPath": "111f5a7423e4d6152120e76c93f80b9bd7b0e477ee837b56fdd07bdf48cc52ce",
+          "clockPath": "c05141073a8fd88aff5f17c10ae390a82591067f36ea805999c644789082eeba",
+          "contractsPath": "79f5753d24da6f034dbb6809afcc18b18589bf87773ebaa5bb0134cd3093960f",
+          "needsPath": "508dfee9f3750a75cf651d68891a0e03666f3317bb89a70ba4eba93d11d37c4b",
+          "tradePath": "346ed5d92bee58102dbcb14d758bb9a7b925a9538c32b9649386a4900e20dfe5",
+          "treasuryPath": "1ed13d577ce8cb5fb30eccf4b6b54295744441f905a93559b73fe3993d5c0341"
+        },
+        "snapshotDigest": "3a437b9db3a733d7a16e26ecd4e0e507a0526679e8c32ddbbb8d7fb1bebcffd0",
+        "digest": "d531a7a3d4780fdad33b7b12f721b971205e6aad1b21f840fb44a8cc895b119c"
+      },
+      "positions": {
+        "personal": [
+          {
+            "actorAgentId": "ada",
+            "username": "ada",
+            "lifecycleId": "life-ada",
+            "cashGp": "100"
+          },
+          {
+            "actorAgentId": "bea",
+            "username": "bea",
+            "lifecycleId": "life-bea",
+            "cashGp": "100"
+          },
+          {
+            "actorAgentId": "cora",
+            "username": "cora",
+            "lifecycleId": "life-cora",
+            "cashGp": "100"
+          },
+          {
+            "actorAgentId": "dora",
+            "username": "dora",
+            "lifecycleId": "life-dora",
+            "cashGp": "100"
+          }
+        ],
+        "businesses": [
+          {
+            "businessId": "forge",
+            "ownerAgentId": "ada",
+            "propertyId": null,
+            "status": "active",
+            "cashGp": "200",
+            "reservedGp": "0"
+          }
+        ],
+        "totalRecordedCashGp": "600",
+        "nonCashAssets": [
+          {
+            "location": "player-bank",
+            "owner": "ada",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "92bd4bebe502744f06685fc57cdde77eb33cc21fec537e5fe11d4eadfcbad9d1",
+              "container": "bank",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-bank",
+            "owner": "bea",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "c1b4afcf6c13a0485f1d908b7c487788e30a5bf6df2bddb9eb754755a235b871",
+              "container": "bank",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-bank",
+            "owner": "cora",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "a6bc67df6591ab773eafb751b8c133a060d206b203588cc9ded9d7c9da208a96",
+              "container": "bank",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-bank",
+            "owner": "dora",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "c4e952da2c7a9199a6185e587ea5bd5e6a0dcacc951317fe12c42faab3248bfb",
+              "container": "bank",
+              "slot": 0
+            }
+          }
+        ],
+        "cashLocations": [
+          {
+            "location": "player-inventory",
+            "owner": "ada",
+            "itemId": 995,
+            "count": "100",
+            "evidence": {
+              "checkpointDigest": "92bd4bebe502744f06685fc57cdde77eb33cc21fec537e5fe11d4eadfcbad9d1",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-inventory",
+            "owner": "bea",
+            "itemId": 995,
+            "count": "100",
+            "evidence": {
+              "checkpointDigest": "c1b4afcf6c13a0485f1d908b7c487788e30a5bf6df2bddb9eb754755a235b871",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-inventory",
+            "owner": "cora",
+            "itemId": 995,
+            "count": "100",
+            "evidence": {
+              "checkpointDigest": "a6bc67df6591ab773eafb751b8c133a060d206b203588cc9ded9d7c9da208a96",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-inventory",
+            "owner": "dora",
+            "itemId": 995,
+            "count": "100",
+            "evidence": {
+              "checkpointDigest": "c4e952da2c7a9199a6185e587ea5bd5e6a0dcacc951317fe12c42faab3248bfb",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "institution-treasury",
+            "owner": "business:forge",
+            "itemId": 995,
+            "count": "200",
+            "evidence": {
+              "actor_kind": "business",
+              "actor_id": "forge",
+              "balance_gp": 200,
+              "reserved_gp": 0,
+              "revision": 2,
+              "created_at": "2030-01-01T00:00:00Z",
+              "updated_at": "2030-01-01T00:00:00Z"
+            }
+          }
+        ],
+        "accounting": "Physical/custodial GP once per location; treasury reservations included in balance. Business equity, deposits, loans and contracts are not additional cash."
+      },
+      "claims": {
+        "depositClaims": [
+          {
+            "sourceId": "forge-deposit",
+            "creditor": "business:forge",
+            "debtor": "bank:local-bank",
+            "amountGp": "0",
+            "kind": "deposit-claim"
+          }
+        ],
+        "loanDebts": [],
+        "contractObligations": [],
+        "bankSource": "available",
+        "contractSource": "available",
+        "netWorthGp": null,
+        "reason": "Claims/liabilities remain separate from physical GP; conditional contracts and noncash assets have no invented net valuation."
+      }
+    },
+    "closing": {
+      "status": "available",
+      "binding": {
+        "schemaVersion": 1,
+        "kind": "native-finance-boundary",
+        "id": "finance-closing",
+        "worldId": "integration-world",
+        "cohort": [
+          {
+            "actorAgentId": "ada",
+            "username": "ada",
+            "lifecycleId": "life-ada"
+          },
+          {
+            "actorAgentId": "bea",
+            "username": "bea",
+            "lifecycleId": "life-bea"
+          },
+          {
+            "actorAgentId": "cora",
+            "username": "cora",
+            "lifecycleId": "life-cora"
+          },
+          {
+            "actorAgentId": "dora",
+            "username": "dora",
+            "lifecycleId": "life-dora"
+          }
+        ],
+        "simulationTime": "2030-01-01T01:00:00Z",
+        "clockId": "world",
+        "clockProfileDigest": "ae0b59f0aa3a44e9501d2c340c1a4a448159d42f80d4f4319d57af402578c5fb",
+        "marketPolicyDigest": "74854ddbd40d16e6e5786c2210c04dea5da4ca8abaa0dfe20b1eb6076442b1f4",
+        "policy": "backend-frozen-paused-closed-tick-stable-double-read",
+        "sourceWatermarks": {
+          "bankingPath": "e0c1058716e9a573a9fa85268ed74cee8ae504c188802d2670932e1c34205460",
+          "businessPath": "d8abf27bd72ef57b7a96d9978c2696aad00072542dfce16369d3ca4244ae5f78",
+          "checkpointPath": "852f93ff63d84d9509fd9b882f8e7cce3c046d70a3aa18e44d7416c333fb23e7",
+          "clockPath": "4c6fc5229ad3da9be3ac71fcc161aa2a70111476d35461cce1b9ea884ad227bd",
+          "contractsPath": "79f5753d24da6f034dbb6809afcc18b18589bf87773ebaa5bb0134cd3093960f",
+          "needsPath": "4b8bda9c1150b25b2127559d8b88b9e9a4abfc1b310fe1baede5277d4dc3e927",
+          "tradePath": "24cbef76b0059b292a2b8e8ef627c671ba841009dfa4380886a2ea946581b6c5",
+          "treasuryPath": "4b406257f1691b0cd64b1e744192de911699759999439a3293fcaadf0831de90"
+        },
+        "snapshotDigest": "1a06883459e02280a031abddd97d4356f0f16bfea248cbbb983258cd0eeb9df3",
+        "digest": "3dbf2af20840d41a9420185b64dbaecda189ff71c821ae115a8a4f44927663e6"
+      },
+      "positions": {
+        "personal": [
+          {
+            "actorAgentId": "ada",
+            "username": "ada",
+            "lifecycleId": "life-ada",
+            "cashGp": "40"
+          },
+          {
+            "actorAgentId": "bea",
+            "username": "bea",
+            "lifecycleId": "life-bea",
+            "cashGp": "160"
+          },
+          {
+            "actorAgentId": "cora",
+            "username": "cora",
+            "lifecycleId": "life-cora",
+            "cashGp": "100"
+          },
+          {
+            "actorAgentId": "dora",
+            "username": "dora",
+            "lifecycleId": "life-dora",
+            "cashGp": "100"
+          }
+        ],
+        "businesses": [
+          {
+            "businessId": "forge",
+            "ownerAgentId": "ada",
+            "propertyId": null,
+            "status": "active",
+            "cashGp": "150",
+            "reservedGp": "0"
+          }
+        ],
+        "totalRecordedCashGp": "550",
+        "nonCashAssets": [
+          {
+            "location": "player-bank",
+            "owner": "ada",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "ac6f377169f943f7b32af6e3e1bbfed698fbda22a15049b10a915f1f21876e57",
+              "container": "bank",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-bank",
+            "owner": "bea",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "90580d272949977fae46a4bc473f4f84bc7487888ec897bdaebfbbbcee7d7648",
+              "container": "bank",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-bank",
+            "owner": "cora",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "a6bc67df6591ab773eafb751b8c133a060d206b203588cc9ded9d7c9da208a96",
+              "container": "bank",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-bank",
+            "owner": "dora",
+            "itemId": 379,
+            "count": "2",
+            "evidence": {
+              "checkpointDigest": "c4e952da2c7a9199a6185e587ea5bd5e6a0dcacc951317fe12c42faab3248bfb",
+              "container": "bank",
+              "slot": 0
+            }
+          }
+        ],
+        "cashLocations": [
+          {
+            "location": "player-inventory",
+            "owner": "ada",
+            "itemId": 995,
+            "count": "40",
+            "evidence": {
+              "checkpointDigest": "ac6f377169f943f7b32af6e3e1bbfed698fbda22a15049b10a915f1f21876e57",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-inventory",
+            "owner": "bea",
+            "itemId": 995,
+            "count": "160",
+            "evidence": {
+              "checkpointDigest": "90580d272949977fae46a4bc473f4f84bc7487888ec897bdaebfbbbcee7d7648",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-inventory",
+            "owner": "cora",
+            "itemId": 995,
+            "count": "100",
+            "evidence": {
+              "checkpointDigest": "a6bc67df6591ab773eafb751b8c133a060d206b203588cc9ded9d7c9da208a96",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "player-inventory",
+            "owner": "dora",
+            "itemId": 995,
+            "count": "100",
+            "evidence": {
+              "checkpointDigest": "c4e952da2c7a9199a6185e587ea5bd5e6a0dcacc951317fe12c42faab3248bfb",
+              "container": "inventory",
+              "slot": 0
+            }
+          },
+          {
+            "location": "institution-treasury",
+            "owner": "business:forge",
+            "itemId": 995,
+            "count": "150",
+            "evidence": {
+              "actor_kind": "business",
+              "actor_id": "forge",
+              "balance_gp": 150,
+              "reserved_gp": 0,
+              "revision": 3,
+              "created_at": "2030-01-01T00:00:00Z",
+              "updated_at": "2030-01-01T01:00:00Z"
+            }
+          }
+        ],
+        "accounting": "Physical/custodial GP once per location; treasury reservations included in balance. Business equity, deposits, loans and contracts are not additional cash."
+      },
+      "claims": {
+        "depositClaims": [
+          {
+            "sourceId": "forge-deposit",
+            "creditor": "business:forge",
+            "debtor": "bank:local-bank",
+            "amountGp": "0",
+            "kind": "deposit-claim"
+          }
+        ],
+        "loanDebts": [],
+        "contractObligations": [],
+        "bankSource": "available",
+        "contractSource": "available",
+        "netWorthGp": null,
+        "reason": "Claims/liabilities remain separate from physical GP; conditional contracts and noncash assets have no invented net valuation."
+      }
+    },
+    "cashChange": {
+      "openingGp": "600",
+      "closingGp": "550",
+      "deltaGp": "-50",
+      "completeMutationCoverage": false
+    },
+    "prices": {
+      "status": "observed",
+      "items": [
+        {
+          "itemId": 377,
+          "fixedWeight": 1,
+          "opening": {
+            "eventId": "483c1392-f765-4dd0-9d4e-7a061a523f32",
+            "sequence": 1,
+            "digest": "891d034b6c873da13b4ef3f42a76fa083b88ae703dee07e271419661ef3cea11",
+            "simulationTime": "2030-01-01T00:00:00Z",
+            "gp": 5,
+            "units": 2
+          },
+          "closing": {
+            "eventId": "706833e3-dfc7-4f2e-82c2-d450cc8d089c",
+            "sequence": 3,
+            "digest": "52b00e5903372a3f9d5d53e360089ebc9c94e38f296ccde4051680fcc10ed594",
+            "simulationTime": "2030-01-01T01:00:00Z",
+            "gp": 10,
+            "units": 2
+          }
+        },
+        {
+          "itemId": 379,
+          "fixedWeight": 1,
+          "opening": {
+            "eventId": "67ba31c5-bf72-47f7-a17f-0bb383411b0a",
+            "sequence": 2,
+            "digest": "901ef86f820b7165572da832468c6209c76e1c9a335a1163fbdc5c362dfeaa3e",
+            "simulationTime": "2030-01-01T00:00:00Z",
+            "gp": 20,
+            "units": 2
+          },
+          "closing": {
+            "eventId": "e10b960c-9489-47e7-8eab-13857bd0afdc",
+            "sequence": 4,
+            "digest": "29b8034abf5f2de71c481fc35f2ec91fc94ec6d8382d5a851e50728fef7db55e",
+            "simulationTime": "2030-01-01T01:00:00Z",
+            "gp": 20,
+            "units": 2
+          }
+        }
+      ],
+      "maxAgeSimulationMs": 3600000,
+      "policy": "latest verified cash-for-one-item trade at/before each boundary; no barter, gifts, substitution or future price"
+    },
+    "business": {
+      "rows": [
+        {
+          "businessId": "forge",
+          "opening": {
+            "businessId": "forge",
+            "ownerAgentId": "ada",
+            "propertyId": null,
+            "status": "active",
+            "cashGp": "200",
+            "reservedGp": "0"
+          },
+          "closing": {
+            "businessId": "forge",
+            "ownerAgentId": "ada",
+            "propertyId": null,
+            "status": "active",
+            "cashGp": "150",
+            "reservedGp": "0"
+          },
+          "cashDeltaGp": "-50",
+          "observedRevenueGp": "0",
+          "observedInputGp": "0",
+          "observedWageGp": null,
+          "unclassifiedCashDeltaGp": "-50",
+          "flows": [],
+          "wagePaymentTimeDiagnostics": [],
+          "categories": {
+            "revenue": "observed-native-commerce-subset",
+            "input": "observed-native-commerce-subset",
+            "wage": "unavailable-native-wage-channel",
+            "rent": "unavailable-business-settlement; player rent is not Business cash",
+            "capital": "unavailable-GP-cost; physical investment is not expenditure"
+          },
+          "lifecycle": {
+            "transition": "unchanged",
+            "causeCode": "not-recorded-by-native-source"
+          },
+          "completeCashflowCoverage": false
+        }
+      ],
+      "issues": [],
+      "capitalObservations": null,
+      "treasuryTransfers": [],
+      "playerRentObservations": null,
+      "attribution": "Only matching native trade + Business treasury settlement is Business revenue/input. Unknown/unplaced changes remain residuals, not zero profit."
+    },
+    "calculation": {
+      "schemaVersion": 1,
+      "artifactKind": "society-multi-objective-evaluation",
+      "scope": {
+        "fromSimulationTime": "2030-01-01T00:00:00Z",
+        "toSimulationTime": "2030-01-01T01:00:00Z",
+        "clockId": "world",
+        "clockProfileDigest": "ae0b59f0aa3a44e9501d2c340c1a4a448159d42f80d4f4319d57af402578c5fb",
+        "actorAgentIds": [
+          "ada",
+          "bea",
+          "cora",
+          "dora"
+        ]
+      },
+      "contractDigest": "b41bf297285f491d9acdbbe878e0612af577aaaf9630dabd0fdfe9ccddaf9f2f",
+      "evidenceAuthority": "supplied-observations-not-native-attestation",
+      "observationsDigest": "59c85815aefbdfa1ecdb58453133b3c5d53cd418f125050c45ad0a6583d43572",
+      "objectives": [
+        {
+          "id": "survival",
+          "direction": "maximize",
+          "unit": "share",
+          "formula": "surviving opening members / opening members",
+          "status": "inconclusive",
+          "metrics": [
+            {
+              "id": "survival",
+              "unit": "unavailable",
+              "direction": "describe",
+              "status": "inconclusive",
+              "numerator": null,
+              "denominator": null,
+              "basisPoints": null,
+              "reason": "Required scoped observations unavailable."
+            }
+          ]
+        },
+        {
+          "id": "self-sufficiency",
+          "direction": "maximize",
+          "unit": "share-per-domain",
+          "formula": "verified internal final use / total demand, separately for food, tools, housing and inputs",
+          "status": "inconclusive",
+          "metrics": [
+            {
+              "id": "self-sufficiency",
+              "unit": "unavailable",
+              "direction": "describe",
+              "status": "inconclusive",
+              "numerator": null,
+              "denominator": null,
+              "basisPoints": null,
+              "reason": "Required scoped observations unavailable."
+            }
+          ]
+        },
+        {
+          "id": "specialization",
+          "direction": "describe",
+          "unit": "hhi-per-actor",
+          "formula": "sum of squared recorded stage counts / squared total stage count, per actor",
+          "status": "inconclusive",
+          "metrics": [
+            {
+              "id": "specialization",
+              "unit": "unavailable",
+              "direction": "describe",
+              "status": "inconclusive",
+              "numerator": null,
+              "denominator": null,
+              "basisPoints": null,
+              "reason": "Required scoped observations unavailable."
+            }
+          ]
+        },
+        {
+          "id": "mobility",
+          "direction": "describe",
+          "unit": "normalized-rank-movement",
+          "formula": "sum of absolute opening/closing average wealth rank differences / (n * (n - 1)); ties have average ranks",
+          "status": "observed",
+          "metrics": [
+            {
+              "id": "absolute-average-rank-movement",
+              "unit": "normalized-rank-movement",
+              "direction": "describe",
+              "status": "observed",
+              "numerator": "6",
+              "denominator": "24",
+              "basisPoints": "2500",
+              "reason": null
+            }
+          ]
+        },
+        {
+          "id": "wealth-distribution",
+          "direction": "minimize",
+          "unit": "gini",
+          "formula": "sum((2*i-n-1)*sorted wealth[i]) / (n * sum(wealth)), i starts at 1; nonnegative GP only",
+          "status": "observed",
+          "metrics": [
+            {
+              "id": "nonnegative-gp-gini",
+              "unit": "gini",
+              "direction": "minimize",
+              "status": "observed",
+              "numerator": "360",
+              "denominator": "1600",
+              "basisPoints": "2250",
+              "reason": null
+            },
+            {
+              "id": "recorded-total-wealth-gp",
+              "unit": "gp",
+              "direction": "describe",
+              "status": "observed",
+              "numerator": "400",
+              "denominator": "1",
+              "basisPoints": null,
+              "reason": null
+            }
+          ]
+        },
+        {
+          "id": "price-stability",
+          "direction": "minimize",
+          "unit": "basket-relative-change",
+          "formula": "sum(fixed weight * abs(closing-opening)/opening) / sum(fixed weight), per-item prices in GP",
+          "status": "observed",
+          "metrics": [
+            {
+              "id": "fixed-basket-absolute-relative-change",
+              "unit": "basket-relative-change",
+              "direction": "minimize",
+              "status": "observed",
+              "numerator": "1",
+              "denominator": "2",
+              "basisPoints": "5000",
+              "reason": null
+            }
+          ]
+        },
+        {
+          "id": "unemployment",
+          "direction": "minimize",
+          "unit": "share",
+          "formula": "unemployed available-and-willing person-time / available-and-willing person-time",
+          "status": "inconclusive",
+          "metrics": [
+            {
+              "id": "unemployment",
+              "unit": "unavailable",
+              "direction": "describe",
+              "status": "inconclusive",
+              "numerator": null,
+              "denominator": null,
+              "basisPoints": null,
+              "reason": "Required scoped observations unavailable."
+            }
+          ]
+        },
+        {
+          "id": "innovation-investment",
+          "direction": "describe",
+          "unit": "recipes-and-gp",
+          "formula": "distinct commissioned new recipes and realized productive capital expenditure in GP, separately",
+          "status": "inconclusive",
+          "metrics": [
+            {
+              "id": "innovation-investment",
+              "unit": "unavailable",
+              "direction": "describe",
+              "status": "inconclusive",
+              "numerator": null,
+              "denominator": null,
+              "basisPoints": null,
+              "reason": "Required scoped observations unavailable."
+            }
+          ]
+        },
+        {
+          "id": "crime",
+          "direction": "minimize",
+          "unit": "confirmed-incidents-per-person-hour",
+          "formula": "confirmed victimization incidents * 3600000 / covered at-risk person-milliseconds",
+          "status": "inconclusive",
+          "metrics": [
+            {
+              "id": "crime",
+              "unit": "unavailable",
+              "direction": "describe",
+              "status": "inconclusive",
+              "numerator": null,
+              "denominator": null,
+              "basisPoints": null,
+              "reason": "Required scoped observations unavailable."
+            }
+          ]
+        },
+        {
+          "id": "systemic-risk",
+          "direction": "minimize",
+          "unit": "withdrawal-loss-share",
+          "formula": "maximum lost recorded production event count under one actor/Business withdrawal / recorded production event count",
+          "status": "inconclusive",
+          "metrics": [
+            {
+              "id": "systemic-risk",
+              "unit": "unavailable",
+              "direction": "describe",
+              "status": "inconclusive",
+              "numerator": null,
+              "denominator": null,
+              "basisPoints": null,
+              "reason": "Required scoped observations unavailable."
+            }
+          ]
+        }
+      ],
+      "totalScore": null,
+      "societyMinimumVerdict": "inconclusive",
+      "limitations": [
+        "A measured value is not a population-wide or complete-history claim.",
+        "No weighted total, universal optimum, causal treatment effect or society-minimum verdict is inferred.",
+        "GP wealth excludes unvalued assets and debt; rank mobility is descriptive, not proof of opportunity.",
+        "Observed confirmed crime is not true incidence without complete detection/coverage.",
+        "Source scope, authority and coverage must be established by the caller; a digest only binds content."
+      ],
+      "digest": "92d82b0b36235fe5174e1adc154be88b578e7976f36bceecd6352329be6647da"
+    },
+    "digest": "ae03162eabf80b78cd6f7fbfe6bd4c90b0ae256ed6d7fe60595f361188b8f993"
+  },
+  "actualNativeCommerce": [
+    {
+      "kind": "sale",
+      "businessId": "karamja-kitchen",
+      "cashDeltaGp": "80",
+      "revenueGp": "80",
+      "inputGp": "0",
+      "unclassifiedGp": "0",
+      "flows": [
+        {
+          "id": "food-order-1",
+          "businessId": "karamja-kitchen",
+          "category": "revenue",
+          "direction": "in",
+          "amountGp": "80",
+          "simulationTime": "2001-01-01T00:00:01Z",
+          "proof": [
+            "ea8c737d-c9fe-466a-86d5-829049295b36",
+            "ea8c737d-c9fe-466a-86d5-829049295b36",
+            "e59e15e8c2ed6053ddadc0d6ca2ce9e69591ba4f35ad3ef8999316d318b39585"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "procurement",
+      "businessId": "karamja-kitchen",
+      "cashDeltaGp": "-40",
+      "revenueGp": "0",
+      "inputGp": "40",
+      "unclassifiedGp": "0",
+      "flows": [
+        {
+          "id": "food-order-1",
+          "businessId": "karamja-kitchen",
+          "category": "input",
+          "direction": "out",
+          "amountGp": "40",
+          "simulationTime": "2001-01-01T00:00:01Z",
+          "proof": [
+            "ea8c737d-c9fe-466a-86d5-829049295b36",
+            "ea8c737d-c9fe-466a-86d5-829049295b36",
+            "71d43ea4910e6360270fccf6726ceec6dd1589e3232d76febfa5f9abf298e024"
+          ]
+        }
+      ]
+    }
+  ],
+  "assertedCoverage": [
+    "1000 GP deposit and50 GP loan separate from physical GP; conditional5 GP contract not added to cash/net-worth.",
+    "Internal treasury transfer40 GP changes aggregate cash by0, not Business revenue.",
+    "Company transition active-to-closed preserves cash; new company is an observed founding with unknown economic cause.",
+    "Reconciled50 GP wage belongs to a frozen endpoint interval with null exact timestamp; partial native/treasury legs rejected.",
+    "Missing basket item, retrospective basket change, source mutation, missing observation and clock drift fail closed.",
+    "Readonly repeated reports preserve selected SQLite bytes and do not create missing observations."
+  ],
+  "limits": [
+    "Disposable frozen native SQLite/CRC Player-save fixtures; opening/closing cash was controlled by the fixture, not a live autonomous economy.",
+    "Actual BOTH_MOVEINV sale/procurement + native checkpoint + Business settlement are separately exercised by native engine tests.",
+    "GP-only personal cash Gini/rank mobility; all-recorded-source cash and Business diagnostics separate. No owner-equity, deposit, debt or item-value double counting.",
+    "Business rent GP and capital GP cost remain unavailable when no trusted Business cash settlement/cost source exists. No guessed valuation or causal bankruptcy reason.",
+    "Frozen per-source snapshots with exact paused-clock/closed-tick and stable double-read policy; no distributed ACID.",
+    "No live world, provider spend, actor enrollment or SI-C07/MVS/self-sufficiency verdict."
+  ]
+}

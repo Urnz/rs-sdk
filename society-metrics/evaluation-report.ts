@@ -6,8 +6,10 @@ import { evaluateSocietyObservations, validateEvaluationScope, societyEvaluation
 import { reportSelfSufficiency, type SelfSufficiencyOptions } from './report.js';
 import { reportNativeIntegration } from './integration-report.js';
 import type { NativeIntegrationOptions } from './integration-sources.js';
+import { reportNativeFinance } from './native-finance.js';
+import type { NativeFinanceOptions } from './finance-sources.js';
 
-export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions; nativeIntegration?: NativeIntegrationOptions }
+export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions; nativeIntegration?: NativeIntegrationOptions; nativeFinance?: NativeFinanceOptions }
 
 /** Read-only native facade. No uploaded observations, migration, clock advance or experiment dispatch. */
 export function reportSocietyEvaluation(query: EvaluationScope, options: SocietyEvaluationOptions) {
@@ -44,6 +46,8 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
             withdrawals: economicRisk.scenarios.filter(row => row.targetKind === 'agent' || row.targetKind === 'business')
                 .map(row => ({ targetId: row.targetNodeId, lostProductionEvents: row.affectedProductionEventCount })) };
     }
+    const finance = options.nativeFinance ? reportNativeFinance(scope, options.nativeFinance) : null;
+    if (finance) Object.assign(observations, finance.observations);
     const calculation = evaluateSocietyObservations(scope, observations);
     const observedObjectives = calculation.objectives.filter(row => row.status === 'observed').length;
     const sources = { selfSufficiency: { digest: selfSufficiency.digest, sources: selfSufficiency.sources, bindings: selfSufficiency.bindings },
@@ -51,8 +55,11 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
     const definition = { schemaVersion: 1, artifactKind: 'native-society-multi-objective-report',
         measurementStatus: observedObjectives ? 'partial-observed-channels' : 'inconclusive', scope,
         evidenceAuthority: 'native-readers-with-partial-coverage', contract: societyEvaluationContract(), calculation, sources,
-        nativeIntegration: integration,
+        nativeIntegration: integration, nativeFinance: finance,
         metricScopes: { specialization: 'selected-registered-responsible-agents-in-observed-production',
+            mobility: 'matched-opening-closing-native-cohort; GP-only-personal-cash',
+            wealth: 'GP-only-personal-physical-and-custodial-cash; company-equity/claims/debt/noncash-separate',
+            prices: 'fixed-world-basket; exact-rational-unit-prices-from-verified-cash-for-one-item-trades',
             systemicRisk: 'all-observed-agent-and-business-withdrawals-against-observed-world-production',
             selfSufficiency: 'explicit-selected-actors; partial-observations-without-complete-demand-or-origin-history' },
         evidence: { recipeReferences: [...recipeReferences].sort(([a], [b]) => a.localeCompare(b)).map(([stageId, recipe]) => ({ stageId, recipe })),
@@ -63,9 +70,9 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
         unavailableReasons: {
             survival: 'No exact opening-cohort/end-survival reader in this facade; admissions and current headcounts are not founder survival.',
             'self-sufficiency': 'Existing readers expose diagnostic observations, not complete internal final-use/demand denominators.',
-            mobility: 'No matched opening/closing native wealth history for the selected cohort.',
-            'wealth-distribution': 'No complete same-boundary native wealth snapshot, asset valuation or debt model.',
-            'price-stability': 'No fixed-basket opening/closing verified unit-price series; quantities and transfers are not prices.',
+            mobility: observations.mobility ? undefined : 'No matched opening/closing native wealth history for the selected cohort.',
+            'wealth-distribution': observations.wealth ? undefined : 'No matched GP-only native wealth boundaries; debt and noncash valuation remain separate.',
+            'price-stability': observations.prices ? undefined : 'No complete fixed-basket opening/closing verified unit-price series; quantities and transfers are not prices.',
             unemployment: 'No available-and-willing person-time history; offline or skill-idle does not prove unemployment.',
             'innovation-investment': 'No native commissioning/capital-expense history; production, XP and recipe availability do not prove innovation.',
             crime: 'No complete window/cohort victimization and at-risk exposure source; discoveries do not prove true incidence.' },

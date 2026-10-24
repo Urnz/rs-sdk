@@ -2270,5 +2270,41 @@ Staging után a közös fixture extra EOF üres sora javult; a végső source-bo
 native adat `20261024-175403-585-si-c03-staged-native-format`:27 PASS /0,
 C03 native12 +Mining13 +két wrapper és staged format,10,269 s.
 
+### 2026-10-24 – SI-C04: frozen natív pénzügyi történet és GP-only mérés
+
+[Működés/CLI/perzisztencia/ellenőrzések](SI_C04_NATIVE_FINANCE_HISTORY.md),
+[49 source/48 packed hash és eredmény](SI_C04_NATIVE_RESULT.json).
+SI-A12 exact paused-clock/closed-tick/needs/custody reader újrahasználata,
+immutable saját observation binding, stabil dupla forrásellenőrzés, readonly
+újraolvasás. Actor/lifecycle/policy/source drift hibás, nincs jelenlegi cash-ből
+visszabecsült múlt vagy cross-DB ACID állítás. Bank/treasury/contract writer
+és migrátor, általános clock/auth/transaction alap változatlan.
+
+Személyes GP-only Gini/rangmobilitás, külön Business balances/owner link,
+deposit/loan/conditional contract és noncash; nincs double-count/equity vagy
+kitalált net-worth. Ismert cash100/100/100/100→40/160/100/100: Gini2250 bp,
+rangmozgás2500 bp. Racionális unit-price és pinned fixed basket, hiány/stale/
+gift/barter nem kedvező nulla; kosárváltozás5000 bp. Business cash200→150,
+50 GP cash-csökkenés/residual megmarad; belső40 GP transfer aggregált hatása0.
+Business-founding/closed transition megfigyelt, gazdasági cause explicit unknown.
+
+Külön izolált actual native BOTH_MOVEINV +checkpoint +treasury esetek: sale80,
+procurement40 GP. Csak egyező Business settlement számolható. Az új paid wage
+two-boundary egyeztetésből intervallumba helyezhető, exact timestamp nélkül;
+félbemaradt saga elutasítva. Ez unit/projection proof, nem új live salary-run.
+Business rent és capital GP-cost source-hiánya unknown, a fizikai rent/capital
+diagnosztika elkülönített. Admin GET/evaluation/dashboard backend-optionsból,
+CLI capture/report; nincs HTTP source-path/posted observation authority.
+
+Végső `20261024-184407-230-si-c04-final-wage-boundary`:11 PASS /0, root/engine TS
+PASS,93,116 s. Előző közvetlen consumer gate79 PASS,47,784 s; utána csak finance
+wage/source módosult és célzottan ismétlődött. CLI külön TS +contract smoke
+PASS10,725 s, staged format PASS1,537 s. Korábbi parser/fixture/type hibák
+megmaradtak a logokban, assertions/policy gyengítése nélkül. Átfedő számok nem
+összeadandók. Full és providerhívás nincs; nincs live world/enrollment/publication.
+
+**SI-C04 kész;25/45, következő SI-C05 új kérésre.** Mérési mechanika és részleges
+native coverage; SI-C07/SI-M3/MVS vagy önfenntartási minősítés nem következik belőle.
+
 **SI-C03 kész;24/45, következő SI-C04 új kérésre.** Repair mechanikai kapu,
 nem replacement, autonóm SI-C07 lánc, SI-M3/MVS vagy önfenntartási minősítés.

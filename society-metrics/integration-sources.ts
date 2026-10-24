@@ -132,7 +132,7 @@ function readWealth(options: NativeIntegrationOptions, paths: NativeWealthPaths)
     });
     return { assets, playerUsernames: players.owners, pendingEffects };
 }
-function readWealthBoundary(scope: EvaluationScope, options: NativeIntegrationOptions, paths: NativeWealthPaths | undefined, at: string) {
+export function readWealthBoundary(scope: EvaluationScope, options: NativeIntegrationOptions, paths: NativeWealthPaths | undefined, at: string) {
     if (!paths) throw new AbsentSource('Frozen native boundary databases not configured');
     const clock = database(options, paths.clockPath, ['simulation_clock'], db => {
         check((db.query('PRAGMA user_version').get() as { user_version: number }).user_version === SIMULATION_CLOCK_STORE_SCHEMA_VERSION, 'Unsupported boundary clock schema');

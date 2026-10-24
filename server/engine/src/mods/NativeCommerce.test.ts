@@ -39,6 +39,7 @@ import { NativeCommerceExecutor, type NativeCommercePorts } from './NativeCommer
 import { initializeNativeCommerce, readNativeCommerce } from './NativeCommerceStore.js';
 import { TradeEvidenceStore } from './TradeEvidenceStore.js';
 import { handleInternalAdminRequest } from '../web/pages/internal-admin.js';
+import { businessCashflows } from '../../../../society-metrics/native-finance.js';
 
 const root = resolve(import.meta.dir, '../../../..'), pack = resolve(import.meta.dir, '../../data/pack');
 const dirs: string[] = [], closers: Array<() => void> = [];
@@ -255,4 +256,29 @@ test('Business role ending after admission preparation denies physical exchange'
     db.run("UPDATE business_employment SET worker_agent_id='actor-chef' WHERE employment_id=?1", [employment.employmentId]); db.close(true);
     f.prepare(); manager.endEmployment('karamja-kitchen', employment.employmentId, employment.revision); manager.close();
     expect(() => f.execute()).toThrow('role'); expect(f.count(f.counterparty, 995)).toBe(200);
+});
+
+for (const kind of ['sale', 'procurement'] as const) test(`SI-C04 actual native ${kind} is counted only with its matching Business cash settlement`, () => {
+    const f=fixture(kind);f.prepare();
+    const snapshot=()=>{
+        const db=new OwnedDatabase(f.options.businessPath,{readonly:true}),treasury=new OwnedDatabase(f.options.treasuryPath,{readonly:true});
+        try{
+            const account=f.account(),commerce=f.market.db.query("SELECT 1 FROM sqlite_master WHERE name='native_food_commerce_schema'").get()?readNativeCommerce(f.market.db):[];
+            return{cohort:[],wealth:{assets:[{location:'institution-treasury',owner:`business:${f.intent.businessId}`,itemId:995,count:String(account.balanceGp),evidence:{}}]},
+                business:{rows:db.query('SELECT * FROM business').all(),capital:null,work:null},
+                treasury:{accounts:treasury.query('SELECT * FROM institution_treasury').all(),reservations:treasury.query('SELECT * FROM institution_treasury_reservation').all(),
+                    transfers:treasury.query('SELECT * FROM institution_treasury_transfer').all(),externalCredits:treasury.query('SELECT * FROM institution_treasury_external_credit').all()},
+                commerce,wageAndRent:{rewards:null,rent:null},trades:{status:'available',value:commerce.filter(r=>r.trade).map(r=>({event:r.trade,
+                    stamp:{...f.clock(),clockId:f.intent.clockId,profileDigest:f.intent.clockProfileDigest}}))}} as unknown as Parameters<typeof businessCashflows>[0];
+        }finally{db.close(true);treasury.close(true);}
+    };
+    const opening=snapshot();expect(f.execute().phase).toBe('completed');
+    const scope={fromSimulationTime:'2001-01-01T00:00:00.000Z',toSimulationTime:'2001-01-01T00:00:02.000Z',clockId:f.intent.clockId,
+        clockProfileDigest:f.intent.clockProfileDigest,actorAgentIds:['actor-chef','actor-buyer']};
+    const pending=businessCashflows(opening,snapshot(),scope);expect(pending.rows[0]!.flows).toHaveLength(0);
+    f.coordinator.finalize(f.intent.operationId);const result=businessCashflows(opening,snapshot(),scope),row=result.rows[0]!;
+    const gp=String(f.intent.quantity*f.intent.unitPriceGp);
+    expect(row.flows).toHaveLength(1);expect(kind==='sale'?row.observedRevenueGp:row.observedInputGp).toBe(gp);expect(row.unclassifiedCashDeltaGp).toBe('0');
+    console.log('SI-C04_COMMERCE_ACCEPTANCE',JSON.stringify({kind,businessId:row.businessId,cashDeltaGp:row.cashDeltaGp,revenueGp:row.observedRevenueGp,
+        inputGp:row.observedInputGp,unclassifiedGp:row.unclassifiedCashDeltaGp,flows:row.flows}));
 });

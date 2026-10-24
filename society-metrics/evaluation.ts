@@ -18,13 +18,14 @@ export interface EvaluationScope {
     fromSimulationTime: string; toSimulationTime: string; clockId: string; clockProfileDigest: string; actorAgentIds: string[];
 }
 export interface WealthPair { actorAgentId: string; openingWealthGp: number; closingWealthGp: number }
+export type UnitPriceGp = number | { gp: number; units: number };
 export interface SocietyObservations {
     survival?: { openingMembers: number; survivingOpeningMembers: number };
     selfSufficiency?: Record<'food' | 'tools' | 'housing' | 'inputs', { internalFinalUse: number; demand: number }>;
     specialization?: Array<{ actorAgentId: string; stages: Array<{ stageId: string; count: number }> }>;
     mobility?: WealthPair[];
     wealth?: Array<{ actorAgentId: string; wealthGp: number }>;
-    prices?: Array<{ itemId: number; openingPriceGp: number; closingPriceGp: number; fixedWeight: number }>;
+    prices?: Array<{ itemId: number; openingPriceGp: UnitPriceGp; closingPriceGp: UnitPriceGp; fixedWeight: number }>;
     unemployment?: { unemployedPersonMilliseconds: number; availableAndWillingPersonMilliseconds: number };
     innovation?: { commissionedNewRecipeIds: string[]; realizedProductiveCapitalExpenditureGp: number };
     crime?: { confirmedVictimizationIncidents: number; coveredAtRiskPersonMilliseconds: number };
@@ -118,7 +119,11 @@ export function evaluateSocietyObservations(query: EvaluationScope, observations
         const rows = list(observations.prices, row => { integer(row.itemId); check(row.itemId <= 65535, 'Invalid basket item'); return row.itemId; }, 128);
         let numerator = 0n, denominator = 1n, weights = 0n;
         for (const row of rows) {
-            const opening = count(row.openingPriceGp), closing = count(row.closingPriceGp), weight = count(row.fixedWeight);
+            const price = (value: UnitPriceGp) => typeof value === 'number' ? { gp: count(value), units: 1n }
+                : { gp: count(value.gp), units: count(value.units) };
+            const start = price(row.openingPriceGp), end = price(row.closingPriceGp), weight = count(row.fixedWeight);
+            check(start.units > 0n && end.units > 0n, 'Unit price quantity must be positive');
+            const opening = start.gp * end.units, closing = end.gp * start.units;
             check(opening > 0n && closing > 0n && weight > 0n, 'Prices and fixed weights must be positive');
             const difference = closing >= opening ? closing - opening : opening - closing;
             numerator = numerator * opening + weight * difference * denominator; denominator *= opening;

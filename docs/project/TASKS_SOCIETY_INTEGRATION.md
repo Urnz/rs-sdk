@@ -3,8 +3,8 @@
 Dátum: 2026-10-18. Forrásbaseline: `2df0daad86c6568a3e1f0e62f58f09aa3cd955de`.
 Hatókör: kizárólag a helyi/private rs-sdk/LostCity emulator.
 
-**Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01–C03
-kész;24/45. Következő: SI-C04.** [SI-C03 natív javítás](SI_C03_NATIVE_TOOL_REPAIR.md).
+**Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01–C04
+kész;25/45. Következő: SI-C05.** [SI-C04 natív pénzügyi történet](SI_C04_NATIVE_FINANCE_HISTORY.md).
 
 ## 1. Státusz, használat és elsőbbség
 
@@ -170,7 +170,7 @@ domainre kötelező új enum:
 | --- | --- | --- | --- |
 | SI-A / SI-M1 | Integrált négyavatáros megélhetés, fizikailag és könyvelésben egyező eredmény | SI-A01–SI-A15 | Meglévő baseline |
 | SI-B / SI-M2 | Önálló stratégiai reakció és együttműködés; külön döntési bizonyíték | SI-B01–SI-B06 | SI-A15 v2 technikai kapu; SI-B01–B06 kész, SI-M2 v2 PASS |
-| SI-C / SI-M3 | Tartós, mérhető Minimum Viable Society; eszközpótlás és natív history | SI-C01–SI-C07; SI-C08 facility- és SI-C09 kalibrációs mellékág | SI-B06 v2 PASS; SI-C01–C03 kész, SI-C04 következik; saját taskfüggőségek |
+| SI-C / SI-M3 | Tartós, mérhető Minimum Viable Society; eszközpótlás és natív history | SI-C01–SI-C07; SI-C08 facility- és SI-C09 kalibrációs mellékág | SI-B06 v2 PASS; SI-C01–C04 kész, SI-C05 következik; saját taskfüggőségek |
 | SI-D / SI-M4 | Aktív utánpótlás, vagyon/Business-utódlás, két kohorszváltás | SI-D01–SI-D07 | SI-C07 |
 | SI-E / SI-M5 | Tagsági, háztartási és intézményi döntési kontinuitás | SI-E01–SI-E03 | SI-D07 |
 | SI-F / SI-M6 | Emberi részvétel, offline policy, mért kapacitás és teljes kezelési program | SI-F01–SI-F05 | SI-E03; saját taskfüggőségek |
@@ -884,7 +884,7 @@ Következő: SI-C01.
 
 ## 7. SI-C – tartós, heterogén és mérhető Minimum Viable Society
 
-**Fázisbelépés: SI-B06 v2 teljesült; SI-C01–C03 kész, következő SI-C04.** Az első valódi
+**Fázisbelépés: SI-B06 v2 teljesült; SI-C01–C04 kész, következő SI-C05.** Az első valódi
 FAIL és a javított baseline külön PASS-a egyaránt megőrzött. Nem kell újabb gazdasági domaint építeni: egy
 termelőeszköz tényleges pótlása és a natív történet teljessége a cél.
 
@@ -970,9 +970,10 @@ lineage/XP/context fogyasztók és root/engine TS PASS. Full/providerhívás nin
 **Belépés: SI-C03 kész;24/45.** [100 Mining→break→belső anyag→repair→use](SI_C03_NATIVE_TOOL_REPAIR.md),
 [source-bound eredmény](SI_C03_NATIVE_RESULT.json). A választott repair mechanikai
 kapu PASS; az autonóm hosszú lánc SI-C07 és SI-M3/MVS továbbra nyitott.
-SI-C04 új felhasználói kérésre indul, saját SI-B06/SI-A12 függőségekkel.
+Történeti SI-C04 belépés, saját SI-B06/SI-A12 függőségekkel. Azóta
+[SI-C04 mechanikai mérési kapu kész](SI_C04_NATIVE_FINANCE_HISTORY.md).
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G04, METRICS/ECON.
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P1; G04, METRICS/ECON.
 - **Cél és indok:** a meglévő Gini/mobilitás/árképletek hiteles adatból számoljanak.
 - **Meglévő:** tíz evaluation képlet, treasury/contract/bank és trade-journal;
   teljes azonos-határú nyitó/záró vagyontörténet nincs.
@@ -992,6 +993,11 @@ SI-C04 új felhasználói kérésre indul, saját SI-B06/SI-A12 függőségekkel
 - **Kockázat:** közepes–magas; debt/net-worth és cég/személy tulajdon duplaszámolása.
 
 ### SI-C05 – Foglalkozási, társas és döntési outcome-metrikák
+
+**Belépés: SI-C04 kész;25/45.** [Readonly frozen finance/basket/cashflow](SI_C04_NATIVE_FINANCE_HISTORY.md),
+[source-bound eredmény](SI_C04_NATIVE_RESULT.json). GP-only scope, claims/debt és
+hiányzó Business rent/capex forrás külön; nincs SI-C07/SI-M3/MVS minősítés.
+SI-C05 csak új kérésre indul, saját SI-C04/SI-B06 függőségekkel.
 
 - **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P2; G04/G08, METRICS/RUNTIME.
 - **Cél és indok:** megkülönböztetni a termelési felelőst, fizikai munkást és társas partnert.

@@ -8,7 +8,7 @@ import { reservePopulationFoodCommerce } from './native-food-commerce.js';
 import { populationNeedsBinding } from './needs-runtime.js';
 import { runNativeFoodIntegration } from './native-food-test-runtime.js';
 test('SI-A09 finite native food sale/procurement, bilateral settlement and uncertain recovery', async () => {
-    await runNativeFoodIntegration('NativeCommerce.test.ts', 24);
+    await runNativeFoodIntegration('NativeCommerce.test.ts', 26);
 }, 60000);
 test('backend commerce admission derives exact population identities and never accepts posted inventory or native receipt claims', () => {
     const workspace = mkdtempSync(join(tmpdir(), 'commerce-admission-'));
