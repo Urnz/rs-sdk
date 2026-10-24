@@ -15,7 +15,7 @@ const ID_PATTERN = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const OPERATION_NAMES = new Set<SkillOperationName>([
     'walk-to', 'travel-to-site', 'wait-for-area', 'talk-to-npc', 'navigate-dialog', 'interact-loc', 'interact-npc',
-    'gather-loc', 'gather-npc', 'food-gather', 'food-cook', 'food-consume', 'thieve-pickpocket', 'thieve-lockpick', 'thieve-container',
+    'gather-loc', 'gather-npc', 'food-gather', 'food-cook', 'food-consume', 'tool-smelt-bronze', 'tool-repair', 'thieve-pickpocket', 'thieve-lockpick', 'thieve-container',
     'thieve-property-entry', 'smith-at-anvil', 'open-shop', 'buy-from-shop',
     'sell-to-shop', 'close-shop', 'trade-give-item', 'trade-receive-item', 'open-bank', 'deposit-item',
     'withdraw-item', 'close-bank', 'wait-ticks'
@@ -25,6 +25,8 @@ const CONDITION_NAMES = new Set<SkillConditionName>([
     'inventory-free-slots-at-least', 'skill-level-at-least'
 ]);
 const OPERATION_ARGUMENTS: Record<SkillOperationName, { allowed: string[]; required: string[] }> = {
+    'tool-smelt-bronze': { allowed: ['timeoutMs'], required: ['timeoutMs'] },
+    'tool-repair': { allowed: ['businessId', 'timeoutMs'], required: ['businessId', 'timeoutMs'] },
     'walk-to': { allowed: ['x', 'z', 'tolerance'], required: ['x', 'z'] },
     'travel-to-site': { allowed: ['site'], required: ['site'] },
     'wait-for-area': { allowed: ['x', 'z', 'tolerance', 'timeoutMs'], required: ['x', 'z'] },
@@ -170,6 +172,12 @@ function validateStep(value: unknown, parameters: Record<string, SkillParameterD
         if (!OPERATION_NAMES.has(value.operation as SkillOperationName)) issues.push(`${path}.operation is not allowed`);
         else validateArgumentShape(value.arguments, OPERATION_ARGUMENTS[value.operation as SkillOperationName], `${path}.arguments`, issues);
         validateArguments(value.arguments, parameters, `${path}.arguments`, issues);
+        if (String(value.operation).startsWith('tool-')) {
+            if ((value.maxAttempts ?? 1) !== 1 || (value.onFailure ?? 'stop') !== 'stop'
+                || !isRecord(value.arguments) || !Number.isSafeInteger(value.arguments.timeoutMs)
+                || Number(value.arguments.timeoutMs) < 100 || Number(value.arguments.timeoutMs) > 60000)
+                issues.push(`${path} tool work requires one attempt, stop on failure and a bounded timeout`);
+        }
         if (String(value.operation).startsWith('food-')
             && ((value.maxAttempts ?? 1) !== 1 || (value.onFailure ?? 'stop') !== 'stop')) {
             issues.push(`${path} food operations require one attempt and stop on failure`);

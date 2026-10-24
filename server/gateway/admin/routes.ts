@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { verifyFoodSkillRunSources } from './native-food-skills.js';
+import { verifyToolSkillRunSources } from './native-tool-skills.js';
 import { draftTrialAuthorization, foodTrialParameters, matchesFoodTrialParameters } from '../../../agent-skills/food-trials.js';
 import { SocietyIntegrityStore } from '../../../society-integrity/store.js';
 import { societyIntegrityDbPath } from '../../../society-integrity/runtime.js';
@@ -1466,6 +1467,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 targetVersion: trial.targetVersion,
                 parameters: trial.parameters,
                 verifyFoodEvidence: run => verifyFoodSkillRunSources(repoRoot, run),
+                verifyToolEvidence: run => verifyToolSkillRunSources(repoRoot, run),
                 resolveDefinition: reference => verificationLibrary.registry
                     .get(reference, 'admin-trial-runner')?.definition ?? null
             });
@@ -1499,6 +1501,11 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 const evidence = await collectTrialEvidence(trial);
                 if (evidence.length !== report.evidenceRunIds.length || evidence.some(run => !report.evidenceRunIds.includes(run.runId)
                     || !verifyFoodSkillRunSources(repoRoot, run))) throw new Error('A natív food bizonyíték megváltozott a publikálás előtt.');
+            }
+            if (report.checks.some(check => check.id === 'native-tool-sources')) {
+                const evidence = await collectTrialEvidence(trial);
+                if (evidence.length !== report.evidenceRunIds.length || evidence.some(run => !report.evidenceRunIds.includes(run.runId)
+                    || !verifyToolSkillRunSources(repoRoot, run))) throw new Error('A natív javítás bizonyítéka megváltozott a publikálás előtt.');
             }
             const path = await new FileSkillStore(agentSkillsLocalDir).save(promoted, {
                 actorKind: 'system', actorId: SKILL_VERIFIER_ID

@@ -144,6 +144,7 @@ import { getWorldDirectorEventStore, type EngineWorldDirectorEvent,
 import { getPlayerCustodyStore, type PlayerCustodyOrder,
     type PlayerCustodyRecord } from '#/mods/PlayerCustodyStore.js';
 import { tickNativeKitchen } from '#/mods/NativeKitchenRuntime.js';
+import { tickNativeToolWork } from '#/mods/NativeToolWorkRuntime.js';
 import { tickNativeHousing, refreshNativeHousing } from '#/mods/NativeHousingRuntime.js';
 import { tickNativeCommerce } from '#/mods/NativeCommerceRuntime.js';
 import { tickNativeFoodSkills } from '#/mods/NativeFoodSkillRuntime.js';
@@ -722,6 +723,7 @@ class World {
             this.processAdminPlayerRewards();
             this.processAdminPlayerEscrows();
             tickNativeKitchen();
+            tickNativeToolWork();
             tickNativeCommerce();
             tickNativeHousing();
             tickNativeFoodSkills();

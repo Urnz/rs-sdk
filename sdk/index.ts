@@ -1171,6 +1171,9 @@ export class BotSDK {
     async sendSocietyFood(request: import('./society-food').SocietyFoodRequest): Promise<ActionResult> {
         return this.sendAction({ type: 'societyFood', request, reason: 'SDK' });
     }
+    async sendSocietyTool(request: import('./society-tools').SocietyToolRequest): Promise<ActionResult> {
+        return this.sendAction({ type: 'societyTool', request, reason: 'SDK' });
+    }
 
     /** Send walk command to coordinates. */
     async sendWalk(x: number, z: number, running: boolean = true): Promise<ActionResult> {

@@ -10,6 +10,7 @@ import { playerSaveStore, type MarketStore } from '../engine/market/MarketStore.
 import { populationFoodContext } from './PopulationDeathRuntime.js';
 import type { NativeFoodContext } from './NativeFoodConsumptionStore.js';
 import type { EngineTradeEvidence } from './TradeEvidenceStore.js';
+import { NativeToolWorkStore } from '../../../../production-workflow/native-tool-work.js';
 import { NativeToolStore, NATIVE_PICKAXE, nativeToolCatalog, nativeToolCycles, nativeToolDigest,
     type NativeToolBinding, type NativeToolOwner } from '../../../../item-lifecycle/native-tool.js';
 
@@ -56,6 +57,15 @@ function identity(player: Player, p: NativeMiningPorts, binding: NativeToolBindi
     return context;
 }
 
+/** Existing native physical identity, shared with repair; never guesses a new instance from a stack. */
+export function nativeMiningToolForWork(player:Player,actionId:string){
+    const runtime=storeFor(player),binding=runtime?.store.binding(player.username);
+    if(!runtime||!binding)throw new Error('Native repair requires a bound existing mining tool');
+    const context=identity(player,runtime.ports,binding,actionId),current=token(player);
+    if(![InvType.INV,InvType.WORN].includes(current.position.inventory))throw new Error('Repair tool is not in inventory/equipment');
+    return{binding,item:runtime.store.lifecycle.get(binding.itemInstanceId)!,context,store:runtime.store};
+}
+
 /** Explicit existing-instance opening. No stack lookup ever creates a fresh lifecycle instance. */
 export function bindNativeMiningTool(player: Player, itemInstanceId: string, evidenceDigest: string, p: NativeMiningPorts): void {
     if (!/^[0-9a-f]{64}$/.test(evidenceDigest)) throw new Error('Native mining opening evidence is invalid');
@@ -82,6 +92,8 @@ export function bindNativeMiningTool(player: Player, itemInstanceId: string, evi
 /** Called on verified Player-load, before any script can replace the physical object. */
 export function hydrateNativeMiningTool(player: Player): void {
     const runtime = storeFor(player), binding = runtime?.store.binding(player.username);
+    if(runtime&&NativeToolWorkStore.present(runtime.ports.market.db))player.nativeToolWorkOperationId=NativeToolWorkStore.read(runtime.ports.market.db)
+        .find(row=>row.intent.owner.username===player.username&&row.phase==='working')?.intent.operationId??null;
     if (!runtime || !binding || binding.status !== 'bound') return;
     const saved = runtime.ports.market.saved(player.username), reference = player.getInventory(binding.position.inventory)?.get(binding.position.slot);
     if (saved && nativeToolDigest([...saved]) === binding.checkpointDigest && reference?.id === NATIVE_PICKAXE && reference.count === 1
@@ -192,6 +204,8 @@ export function captureNativeToolTrade(from: Player, to: Player, offer: number):
         identity(sender, p, binding, randomUUID());
         const current = token(sender);
         if (current.position.inventory !== offer) continue;
+        if(NativeToolWorkStore.present(p.market.db)&&NativeToolWorkStore.read(p.market.db).some(row=>
+            row.intent.itemInstanceId===binding.itemInstanceId&&row.phase!=='completed'))throw new Error('Tool is reserved by unfinished native repair');
         if (!p.identity(receiver.username, randomUUID(), 0, World.currentTick)) throw new Error('Native tool recipient requires population identity');
         if (ports(receiver)?.market.db !== p.market.db) throw new Error('Native tool transfer crosses checkpoint authorities');
         transfers.push({ from: sender, to: receiver, binding, revision: store.lifecycle.get(binding.itemInstanceId)!.revision });

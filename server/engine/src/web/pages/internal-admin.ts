@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { enqueueNativeHousing } from '#/mods/NativeHousingRuntime.js';
 import { enqueueNativeCommerce } from '#/mods/NativeCommerceRuntime.js';
 import { enqueueNativeKitchen } from '#/mods/NativeKitchenRuntime.js';
+import { enqueueNativeToolWork } from '#/mods/NativeToolWorkRuntime.js';
 import { enqueueNativeFoodSkill } from '#/mods/NativeFoodSkillRuntime.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -80,6 +81,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/native-housing'
         || url.pathname === '/api/internal/admin/native-food-commerce'
         || url.pathname === '/api/internal/admin/native-kitchen'
+        || url.pathname === '/api/internal/admin/native-tool-work'
         || url.pathname === '/api/internal/admin/native-food-skill'
         || url.pathname === '/api/internal/admin/witness-inspection'
         || url.pathname === '/api/internal/admin/checkpoint/search'
@@ -187,6 +189,12 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         return json(result, result.ok ? 200 : 409);
     }
 
+    if(url.pathname==='/api/internal/admin/native-tool-work'){
+        if(Object.keys(body).sort().join(',')!=='businessId,commandId,contextDigest,kind,operationId,username')return json({error:'Invalid native tool fields'},400);
+        const {commandId:_commandId,...command}=body;
+        const result=await enqueueNativeToolWork(command as unknown as import('../../mods/NativeToolWork.js').NativeToolWorkCommand);
+        return json(result,result.ok?200:409);
+    }
     if (url.pathname === '/api/internal/admin/native-kitchen') {
         if (Object.keys(body).sort().join(',') !== 'commandId,operation,runId' || typeof body.runId !== 'string'
             || !/^[a-z0-9][a-z0-9._:-]{1,127}$/.test(body.runId) || !['issue', 'process', 'return'].includes(String(body.operation)))

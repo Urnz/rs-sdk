@@ -138,6 +138,13 @@ export default class ScriptRunner {
             }
 
             while (state.execution === ScriptState.RUNNING) {
+                // A script can acquire either protected actor after it starts.
+                if(state._activePlayer?.nativeToolWorkOperationId && state.pointerGet(ScriptPointer.ProtectedActivePlayer)
+                    && state.nativeToolWorkOperationId!==state._activePlayer.nativeToolWorkOperationId)
+                    throw new Error('Worker is occupied by native tool work');
+                if(state._activePlayer2?.nativeToolWorkOperationId && state.pointerGet(ScriptPointer.ProtectedActivePlayer2)
+                    && state.nativeToolWorkOperationId!==state._activePlayer2.nativeToolWorkOperationId)
+                    throw new Error('Second worker is occupied by native tool work');
                 if (state._activePlayer?.populationTerminal || state._activePlayer2?.populationTerminal
                     || (state.self instanceof Player && state.self.populationTerminal)) {
                     state.execution = ScriptState.ABORTED;

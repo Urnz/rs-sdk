@@ -107,6 +107,8 @@ const run = await runScript(async ({ bot, sdk }) => {
         skillId: registered.definition.id,
         version: registered.definition.version,
         runId: actualRunId,
+        nativeToolTrial: allowDraft && registered.definition.steps.some(step => step.kind === 'operation' && step.operation.startsWith('tool-'))
+            ? { checksum: registered.checksum, runtimeAuthorization } : null,
         startedAt: new Date().toISOString(),
         heartbeatAt: new Date().toISOString(),
         progressAt: new Date().toISOString(),

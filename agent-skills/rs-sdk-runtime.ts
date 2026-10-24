@@ -109,6 +109,27 @@ export class RsSdkSkillRuntime implements SkillRuntime {
         const authorizationFailure = this.authorize(operation, args);
         if (authorizationFailure) return authorizationFailure;
         switch (operation) {
+            case 'tool-smelt-bronze':
+            case 'tool-repair': {
+                if (!context) return { success: false, message: 'Tool work requires an executor run binding', code: 'tool-context-required', retryable: false };
+                const { validateSocietyToolRequest } = await import('../sdk/society-tools.js');
+                const request = validateSocietyToolRequest({ operation, args, context }), deadline = Date.now() + Number(args.timeoutMs);
+                for (let poll = 0; poll < 240 && Date.now() < deadline; poll++) {
+                    const denied = this.authorize(operation, args); if (denied) return { ...denied, retryable: false };
+                    let result;
+                    try { result = await withAbort(this.sdk.sendSocietyTool(request), signal); }
+                    catch { return { success: false, message: 'Tool work interrupted; reconcile this same run', code: 'tool-uncertain', retryable: false, data: { context } }; }
+                    if (result.data?.status !== 'waiting') {
+                        const terminal = result.phase === 'completion' && result.data?.status === 'terminal'
+                            && result.data.receipt?.phase === 'completed' && /^[a-f0-9]{64}$/.test(result.data.receiptDigest)
+                            && JSON.stringify(result.data.context) === JSON.stringify(context);
+                        return { success: result.success && !!terminal, message: result.message,
+                            code: !terminal && result.reason !== 'tool-source-rejected' ? 'tool-uncertain' : result.reason, data: result.data, retryable: false };
+                    }
+                    await withAbort(new Promise(resolve => setTimeout(resolve, 250)), signal);
+                }
+                return { success: false, message: 'Tool work is pending; reconcile this same run', code: 'tool-uncertain', retryable: false, data: { context } };
+            }
             case 'travel-to-site':
                 return travelToSocietySite(this.bot, this.sdk, args.site, signal, () => {
                     if (!this.authorization || this.authorization.maxGpPerRun - this.spentGp < 30) return false;
@@ -560,6 +581,11 @@ export class RsSdkSkillRuntime implements SkillRuntime {
 
     private authorize(operation: SkillOperationName, args: Record<string, unknown>): SkillOperationResult | null {
         const authorization = this.authorization;
+        if (operation.startsWith('tool-') && (!authorization || authorization.maxQuantity < 1
+            || !(operation === 'tool-repair' ? ['bronze bar', 'bronze pickaxe'] : ['copper ore', 'tin ore', 'bronze bar'])
+                .every(item => authorization.itemNames.includes(item)))) {
+            return { success: false, message: 'Tool work requires an explicit material/tool grant', code: 'authorization-item' };
+        }
         if (operation.startsWith('food-') && (!authorization || !authorization.itemNames.includes(String(args.item).toLowerCase())
             || (operation === 'food-cook' && !authorization.itemNames.includes('lobster')))) {
             return { success: false, message: 'Food operation requires an explicit exact-item runtime grant', code: 'authorization-item' };

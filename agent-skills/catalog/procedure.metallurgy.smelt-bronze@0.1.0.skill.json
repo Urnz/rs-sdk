@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.metallurgy.smelt-bronze",
+  "version": "0.1.0",
+  "status": "draft",
+  "name": "Smelt one native bronze bar",
+  "description": "Walk to the existing Lumbridge furnace and turn one copper ore and one tin ore into one actual bronze bar using protected native work.",
+  "tags": ["procedure", "metallurgy", "society", "native"],
+  "provenance": {"authorKind": "agent", "authorId": "society-tool-builder", "createdAt": "2026-10-24T00:00:00.000Z", "notes": "Isolated integration evidence only. Requires independent live evidence and publication approval before the learned verified 1.0.0 procedure becomes available; this draft grants no native access."},
+  "sharing": {"visibility": "shared"},
+  "parameters": {},
+  "limits": {"timeoutMs": 120000, "maxOperations": 2},
+  "preconditions": [
+    {"condition": "skill-level-at-least", "arguments": {"skill": "Smithing", "level": 1}},
+    {"condition": "inventory-contains", "arguments": {"name": "Copper ore", "match": "exact", "amount": 1}},
+    {"condition": "inventory-contains", "arguments": {"name": "Tin ore", "match": "exact", "amount": 1}}
+  ],
+  "steps": [
+    {"kind": "operation", "id": "furnace", "operation": "walk-to", "arguments": {"x": 3225, "z": 3255, "tolerance": 0}},
+    {"kind": "operation", "id": "smelt", "operation": "tool-smelt-bronze", "arguments": {"timeoutMs": 60000}}
+  ]
+}

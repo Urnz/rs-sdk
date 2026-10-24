@@ -110,6 +110,7 @@ export default class Player extends PathingEntity {
     populationSleeping = false;
     nativeAttributeXpReceipts: NativeAttributeXpReceipt[] = [];
     nativeMiningPorts?: NativeMiningPorts;
+    nativeToolWorkOperationId: string | null = null;
     nativeAttributeXpContext?: (username: string, tick: number) => NativeAttributeContext | null;
     static readonly DESIGN_BODY_COLORS: number[][] = [
         [6798, 107, 10283, 16, 4797, 7744, 5799, 4634, 33697, 22433, 2983, 54193],

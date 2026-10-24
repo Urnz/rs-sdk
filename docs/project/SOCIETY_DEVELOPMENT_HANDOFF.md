@@ -5,100 +5,87 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
 
-- **SI-A technikailag lezárva; SI-B01–SI-B06 és SI-C01–C02 kész. SI-M2 v2 PASS.
-  Következő: SI-C03, összesen23/45 kész. Új kérés nélkül ne kezdd el.**
-  Következő konkrét határ: egy native input/idő/facility/worker-skillhez kötött
-  repair vagy replacement, majd ugyanazzal az igazolt instance-szal új munka.
-- [SI-C02 működés, korlátok, migráció és teljes ellenőrzési index](SI_C02_NATIVE_MINING_TOOL.md),
-  [100 natív munka és source/packed hashek](SI_C02_NATIVE_RESULT.json).
-  Ág: `codex/si-c02-native-mining-tool`, kiinduló commit `9e1433607`.
-- ItemLifecycleStore borrowed DB mód: ugyanaz a lifecycle motor a kanonikus
-  Player-checkpoint DB-ben. Saját schema marker3, shared user_version és
-  connection PRAGMA/close ownership változatlan. A string-path constructor
-  továbbra is a standalone DB-é; a canonical checkpointot csak borrowed módban
-  szabad megnyitni. Régi authority live átköltöztetése nem történt.
-- Explicit backend `bindNativeMiningTool`: már létező, owner/provenance-kötött
-  instance + egyetlen unnoted1265 fizikai tool. Nincs automatikus stack→új
-  durability vagy LLM által feltöltött receipt. Player-load pontos checkpointból
-  hidratál; witnessed native inventory/equipment/bank/offer move és BOTH_MOVEINV
-  ugyanazt az ID-t/kopást/provenance-t viszi. Ismeretlen/dupla/note/lost tool
-  quarantined és explicit reconciliation; nincs automatikus friss instance.
-- Packed Mining → actual copper/tin INV_ADD → existing cycle.use → Player save
-  és immutable native event egy SQLite commit. Failed roll/gem/animation nem
-  cycle-use. Broken/replaced, foreign lifecycle/clock, policy drift, másik
-  pickaxe és nem támogatott Mining source nem kerülheti meg a guardot.
-  Suspended munka exact tool/revisionhoz kötött; replay breakage után sem ad
-  új outputot/XP-t/use-t. Nincs elvesző cross-DB pending-wear ablak.
-- Native trade a tényleges TradeEvidenceStore után, azonos checkpointtal
-  változtat ownert. Külön trade-ledger hiba/sourcegap továbbra sem distributed
-  ACID: sikertelen local commit nem igazol native transfer-proofot; custody
-  quarantine, nem reset. Halott actor nem dolgozik/ad át, az instance auditja
-  és régi custodyja megmarad; nincs automatikus örökös vagy új item.
-- Readonly tool context a canonical source-ból, actor/lifecycle/clock/world/
-  policy ellenőrzéssel. Durability/service-capacity nem reachability:
-  az engine külön ellenőrzi, hogy a tool tényleg inventory/equipmentben van.
-- Normál100 durability /1 wear:100 packed Mining-output,100 külön action-ID,
- 100 bankolt actual rézérc, broken0 és következő copper/iron munka tiltva.
-  Ez mechanikai kapu, nem SI-M3/MVS vagy önfenntartás; repair/replacement SI-C03.
-- Fájlok: `item-lifecycle/store.ts`/`native-tool.ts`, engine `NativeMiningTool.ts`,
-  `ScriptRunner.ts`/`ScriptState.ts`/`InvOps.ts`, Player/PlayerLoading/World
-  checkpoint adapter; admin `agent-state.ts` readonly context. Új gate:
-  gateway `native-mining-tool.test.ts`,13 natív eset.
-- [SI-C01 exact attribute/XP és migráció](SI_C01_NATIVE_ATTRIBUTE_XP.md) megmaradt:
-  population creation immutable profile; régi hiány explicit import; négy
-  skill XP calibration→diminishing→potential→rate→cap, actual checkpoint receipt.
-  AgentState továbbra is v29. Nincs live profile/tool import vagy worldindítás.
-- Nincs providerhívás/költség, enrollment vagy publication. Korábbi admincím
-  `http://127.0.0.1:7781/admin/`; API-kulcs a Helyi szerver/local-default aktív
-  repo Windows titoktárában. Új runtime-indítás előtt állapotellenőrzés kell.
-- B06 korábbi engedély csak0,05 USD-s próbára szólt;11 kérés /4235 microUSD
-  =0,004235 USD, uncertain0. Normál per-call0, auto-replanning/autonomousExecution
-  off; B04/B05 default grant üres. Nincs általános költési engedély.
-  [B06 külön FAIL és v2 PASS](SI_B06_STRATEGIC_ACCEPTANCE.md).
+- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C03 kész; SI-M2 v2 PASS.
+  24/45 lezárt feladat. Következő SI-C04, csak új kérésre.**
+  Natív vagyon-/ár-/Business-idősor, saját SI-B06/SI-A12 függőségekkel.
+  SI-C03 mechanikai kapu, nem autonóm SI-C07, SI-M3/MVS vagy önfenntartás.
+- [C03 működés/migráció/ellenőrzések](SI_C03_NATIVE_TOOL_REPAIR.md),
+  [source/packed manifest és actual eredmény](SI_C03_NATIVE_RESULT.json).
+  Ág: `codex/si-c03-native-tool-repair`, baseline `a885bf644`.
+- 100 actual Mining→broken0; belső copper+tin→packed bronze bar; meglévő
+  repair policy1 bronzrúd/600 sim-s/Smithing1/work-surface→50 durability;
+  ugyanazzal a provenance/instance-szal új Mining→49. Nincs új tool/pótlás.
+- Native tool-WIP saját additive schema1 a canonical Player DB-ben, meglévő
+  escrow/lifecycle/repair/facility adapterekkel. Input és checkpoint atomikus;
+  a repair input indításkor elfogy, nincs ingyenes cancel/refund. WIP/history
+  nem törölhető, egy actor/tool egy aktív munkát foglalhat.
+- Csak egymást követő érvényes munkatickek simulation-ideje számít. Offline,
+  restart, pause, source/clock-drift, permission revocation és process stall
+  nem ad utólagos creditet. Pending repair nem adható át; más protected
+  munka tiltott, a Player-load visszahozza a foglalást. Rollback a pontos
+  inventory object reference-et ÉS countot, XP-t, capacityt/auditot/save-et őrzi.
+- SDK exact tool műveletek: stabil run/step UUID, backend `wx` admission;
+  completion csak readonly újranyitott canonical WIP+native effect proofból.
+  Bizonytalan eredmény nem indít új-ID-s retryt; új permission kellőképpen
+  elkülönített tool-ágon, a régi food/auth/clock/transaction alap változatlan.
+- Két új0.1.0 draft, publikálás és automatikus learning nélkül. Normál munka
+  külön megtanult verified1.0.0 verziót kér. Bootstrap kizárólag a meglévő,
+  külön jóváhagyott draft-trial útján: exact backend intent, friss aktív
+  CLI-marker trial-grant és run-journal admission, actor/run/step/params/checksum
+  kötéssel. A draft nem állít verified learned procedure-t. A Business/facility
+  actual Property tulajdont és aktív owner/worker-role jogot is külön ellenőrzi.
+- [C02 instance/custody](SI_C02_NATIVE_MINING_TOOL.md), [C01 attribute/XP](SI_C01_NATIVE_ATTRIBUTE_XP.md)
+  megmaradt. Exact egyetlen fizikai unnoted1265; unknown/dupla/lost/note tool
+  quarantine és explicit reconciliation, soha új durability. Külön trade ledger
+  nem distributed ACID: sikertelen checkpoint után sourcegap/quarantine.
+  AgentState29, lifecycle borrowed saját marker3; közös user_version/PRAGMA,
+  save-format, MarketStore transaction API és borrowed close-ownership változatlan.
 
 ## Legfrissebb ellenőrzés
 
-- **Teljes regresszió nem futott.** Saját additive lifecycle/identity/event
-  táblák és konkrét Mining/inventory/trade/checkpoint adapter. A shared save
-  formátum és MarketStore transaction API változatlan, közvetlen fogyasztók
-  célzottan lefedve. Taskzárás/push nem indít új runtime tesztet.
-- `20261024-130836-796-si-c02-native-custody-fixed`:31 PASS, benne20 lifecycle/
-  cycle/repair/borrow és10 natív +wrapper,2,907 s.
-- `20261024-131219-378-si-c02-consumer-gate`:46 PASS /0 FAIL; benne13 Mining,
- 11 lineage és13 SI-C01 XP natív eset, admin-context; root/engine TS/format PASS,
- 107,489 s.
-- `20261024-131518-824-si-c02-final-mining-gate`: további Mining-belépő guard
-  javítása után13 natív +wrapper PASS, engine TS/format PASS,38,409 s.
-  Változatlan root/lineage/XP körök nem ismétlődtek.
-- `20261024-132454-140-si-c02-final-instance-id`:128 karakteres valid instance-ID
-  native trade esetével is13 natív +wrapper PASS, engine TS/format PASS,48,883 s.
-  Ez a végső source-bound natív eredmény; a root fogyasztókat ez nem módosította.
-- Első entry-pointer és hibás BANK-fixture FAIL-ok megmaradtak, későbbi szűk
-  PASS-szal javítva. SQLite auto-review patch elutasítás után az eredeti owned
-  constructor szerződését megőrző változat készült; nincs fennmaradó blokkolás.
-  Pontos log/result index a C02 dokumentumban, `.local/verification/` alatt.
-  A körök átfednek; PASS-számok/idők nem összeadandók.
+- **Full nem futott.** Saját additive séma és szűk tool adapter; célzott
+  migration/reopen/rollback, actor/clock/material/facility/proof és közvetlen
+  régi fogyasztók fedve. Taskzárás/push nem indít új runtime regressziót.
+- `20261024-175145-022-si-c03-protected-loop-final`:48 PASS /0 FAIL, C03 native12,
+  food20, XP13 +wrapperek; engine TS/format PASS,48,641 s. Végső működésbeli guard:
+  a protected actor foglalása minden opcode előtt ellenőrzött, később felvett
+  második actornál is. `20261024-174532-951-si-c03-draft-bootstrap`:33 PASS /0,
+  root/engine TS és format PASS,88,831 s; a későbbi engine-only guard nem érintette
+  a root modult, annak sikeres ellenőrzése nem ismétlődött.
+- `20261024-175403-585-si-c03-staged-native-format`:27 PASS /0, C03/Mining
+  natív és staged format,10,269 s. Csak egy extra fixture EOF üres sor javult;
+  innen a végső source-bound natív adat. Runtime policy változatlan.
+- `20261024-173423-142-si-c03-mining-admin-types`:13 Mining és14 escrow,
+  C03 runtime és root TS PASS; az akkori engine JSON-import/test-typing FAIL
+  később javítva. `20261024-173240-392-si-c03-consumer-types`: food20, XP13
+  és skill/framework/builder/authorization/repair/facility fájlok PASS,
+  Mining fixture cleanup FAIL külön javítva és ismételve PASS. A teljes régi
+  köröket nem állítjuk PASS-nak; pontos index a C03 dokumentumban.
+- Korábbi hibák megmaradtak a logokban; rollback-count, fixture-hivatkozás,
+  JSON-import/test-typing javítva, assertion vagy policy gyengítése nélkül.
+  A körök átfednek, számok/idők nem összeadandók. Teljes log/result:
+  `.local/verification/<azonosító>.log` és `.result.json`.
 
 ## Megőrzendő döntések és mentések
 
-- SI-A15 v2 technikai elfogadás kész; eredeti D1/SI-M1 önfenntartási PASS nincs,
-  teljes gazdasági minősítés `inconclusive`. SI-M2 korlátos stratégiai kapu most PASS, nem önfenntartási minősítés.
-  Kontrollált mechanikai és autonóm trajectory bizonyíték nem azonos.
-- Éhség/önálló ételkeresés egy nap után, éhhalál hét nap teljes hiány után;
-  normál adag egy napot pótol. Live nap/óra, teszt nap/öt perc. SI-C09 nyitott
-  realizmuskalibráció; a világot nem igazítottuk a karakterek túléléséhez.
-- Csak helyi/private emulator. Korábbi publication-engedély csak a konkrét
-  food/travel verziókra szólt, nem új publikálásra. Az SI-B06 jelenlegi, szűk providerkerete fent külön szerepel.
-- [SI-A15 technikai eredmény](SI_A15_TECHNICAL_RESULT.md),
+- Csak helyi/private emulator. Nincs live world indítás, actor/tool import,
+  enrollment vagy új publication. Korábbi admincím `http://127.0.0.1:7781/admin/`;
+  kulcs a Helyi szerver/local-default titoktárában. Új indítás előtt állapotellenőrzés.
+- B06 engedély kizárólag0,05 USD-s próbára szólt:11 kérés /4235 microUSD
+  =0,004235 USD. Nincs általános költési engedély; normál per-call0,
+  auto-replanning/autonomousExecution off, B04/B05 default grant üres.
+  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C03 providerköltség0.
+- SI-A15 technikai PASS; eredeti D1/SI-M1 önfenntartás nem PASS, teljes gazdasági
+  minősítés inconclusive. [Technikai eredmény](SI_A15_TECHNICAL_RESULT.md),
   [archívum/restore](SI_A15_RESULT_ARCHIVE.md).
-  World: `backups/si-a15-technical-20261022-1648/workspace`;
-  result: `backups/si-a15-technical-result-20261022-1715/workspace`;
-  restore: `backups/si-a15-technical-restored-20261022-1726/workspace`.
-  A korábbi záráskor a runtime-ok leálltak. Új indítás előtt aktuális
-  állapotellenőrzés kell; immutable result payload DB-it ne nyisd meg.
+- Történeti backup payload DB-ket ne nyisd meg és ne módosítsd:
+  `backups/si-a15-technical-20261022-1648/workspace`,
+  `backups/si-a15-technical-result-20261022-1715/workspace`,
+  `backups/si-a15-technical-restored-20261022-1726/workspace`.
+- Éhség egy nap után, éhhalál hét nap teljes hiány után; normál adag egy nap.
+  Live nap/óra, teszt nap/öt perc. SI-C09 kalibráció nyitott, a világot nem
+  igazítottuk a karakterek túléléséhez.
 
-```powershell
-pwsh -NoProfile -File scripts/get-society-work-brief.ps1
-```
+`pwsh -NoProfile -File scripts/get-society-work-brief.ps1`
 
-A folytonosságot ezek a fájlok és a repo-local society skill adják, nem a chatmemória.
+A folytonosságot e fájlok és a repo-local society skill adják, nem a chatmemória.

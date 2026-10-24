@@ -2230,3 +2230,45 @@ SI-M3/MVS és önfenntartási minősítés nem ennek a mechanikai kapunak az ere
 A végső `20261024-132454-140-si-c02-final-instance-id` a megengedett128 karakteres
 instance-ID natív átadását is igazolja:13 natív +wrapper, engine TS/format PASS,
 48,883 s. A belső művelet-ID fix hosszú digest, a root/lineage/XP bemenet változatlan.
+
+### 2026-10-24 – SI-C03: belső bronzrúd és same-instance natív javítás
+
+[Implementáció és ellenőrzési index](SI_C03_NATIVE_TOOL_REPAIR.md),
+[53 source/48 packed hash és tényleges eredmény](SI_C03_NATIVE_RESULT.json).
+Változatlan100/1 Mining policyval100 packed munka→broken0; az utolsó saját
+copper+tin a meglévő furnace/packed scriptben120 sim-s és legalább3 tick alatt
+egy actual bronzrúd. Meglévő repair policy1 bronzrúd/600 aktív sim-s/Smithing1/
+work-surface→50 durability; ugyanazzal az instance/provenance-szal új Mining→49.
+98 bankolt réz,101 distinct Mining receipt, érvényes lifecycle audit.
+
+A vékony native service-WIP meglévő escrow/lifecycle/repair/facility adaptereket
+köt össze egy canonical Player-checkpoint commitban. Restart/offline/stall és
+revoked/absent source nem ad creditet. Spent input és pending WIP nem dobható
+el/refundolható, párhuzamos munka és pending tool-transfer tiltott. A hibapróba
+feltárt és javított egy memóriabeli inventory-count rollback hibát; object
+reference és mennyiség együtt áll vissza, az eszköz fizikai tokenje megmarad.
+
+SDK exact operation és context; stabil run/step UUID és backend admission,
+readonly canonical WIP+effect proof. Verifier és publication recheck nem fogad
+küldési sikert vagy másolt receiptet. Két unpublished draft, normál használathoz
+learned verified1.0.0 kell. Az első, külön jóváhagyott draft-próba saját aktív
+CLI-marker grant + run-journal + backend intent kötéssel futtatható, így nincs
+publikálás előtti bootstrap-holtpont; nem állít verified competence-t.
+
+Végső gate `20261024-175145-022-si-c03-protected-loop-final`:48 PASS /0 FAIL,
+C03 native12 +food20 +XP13 és három wrapper; engine TS/format PASS,48,641 s.
+A protected actor foglalás minden opcode előtt ellenőrzött, később felvett
+második actornál is. Az előző `20261024-174532-951-si-c03-draft-bootstrap`:
+33 PASS, root/engine TS és format PASS,88,831 s; változatlan root nem ismétlődött.
+Régi Mining13 és escrow14
+külön PASS; változatlan food20/XP13 és közvetlen skill/facility/repair fogyasztók
+PASS. Korábbi összesített FAIL-ok külön megmaradtak (fixture cleanup, JSON-import,
+test typing), célzott javítással; nem nevezzük a teljes régi köröket PASS-nak.
+Full és providerhívás nem futott, nincs live rollout/enrollment/publication.
+
+Staging után a közös fixture extra EOF üres sora javult; a végső source-bound
+native adat `20261024-175403-585-si-c03-staged-native-format`:27 PASS /0,
+C03 native12 +Mining13 +két wrapper és staged format,10,269 s.
+
+**SI-C03 kész;24/45, következő SI-C04 új kérésre.** Repair mechanikai kapu,
+nem replacement, autonóm SI-C07 lánc, SI-M3/MVS vagy önfenntartási minősítés.

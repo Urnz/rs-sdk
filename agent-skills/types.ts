@@ -63,6 +63,8 @@ export type SkillOperationName =
     | 'food-gather'
     | 'food-cook'
     | 'food-consume'
+    | 'tool-smelt-bronze'
+    | 'tool-repair'
     | 'thieve-pickpocket'
     | 'thieve-lockpick'
     | 'thieve-container'

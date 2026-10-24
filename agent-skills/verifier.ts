@@ -30,6 +30,7 @@ export interface SkillVerificationOptions {
     resolveDefinition?: SkillDefinitionResolver;
     /** Trusted backend must reopen canonical food sources; uploaded operation data is insufficient. */
     verifyFoodEvidence?: (run: SkillRunResult) => boolean;
+    verifyToolEvidence?: (run: SkillRunResult) => boolean;
 }
 
 export const SKILL_VERIFIER_ID = 'deterministic-skill-verifier';
@@ -177,6 +178,23 @@ export function verifyAndPromoteSkill(
         check('native-food-sources', sourcesVerified, 'Every food trial must reopen its exact durable intent and canonical native source.');
     }
 
+    const containsTool = (steps: SkillStep[], seen = new Set<string>()): boolean => steps.some(step => {
+        if (step.kind === 'operation') return step.operation.startsWith('tool-');
+        if (step.kind === 'repeat') return containsTool(step.steps, seen);
+        const key = skillReferenceKey(step.skill); if (seen.has(key)) return false; seen.add(key);
+        const child = options.resolveDefinition?.(step.skill);
+        return child ? containsTool(validateSkillDefinition(child).steps, seen) : false;
+    });
+    if (containsTool(draft.steps)) {
+        const ids = uniqueEvidence.flatMap(run => run.events.filter(event => event.type === 'step.succeeded'
+            && event.operation?.startsWith('tool-')).map(event => (event.data?.receipt as {intent?:{operationId?:string}})?.intent?.operationId ?? ''));
+        check('independent-native-tool', ids.length >= minimumSuccessfulRuns && ids.every(Boolean) && new Set(ids).size === ids.length,
+            'Independent tool trials require distinct committed native operations.');
+        let verified = false;
+        try { verified = !!options.verifyToolEvidence && uniqueEvidence.length >= minimumSuccessfulRuns
+            && uniqueEvidence.every(run => options.verifyToolEvidence!(run)); } catch { /* Source failure must prevent promotion. */ }
+        check('native-tool-sources', verified, 'Every tool trial must reopen its canonical WIP and committed material/capacity effect.');
+    }
     const passed = checks.every(item => item.passed);
     const report: SkillVerificationReport = {
         id: crypto.randomUUID(), createdAt, verifierId,

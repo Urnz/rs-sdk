@@ -44,6 +44,7 @@ export default class ScriptState {
     nativeFoodConsumption: { username: string; itemId: number; slot: number; inventoryId: number; deletions: number } | null = null;
     nativeFoodProductionActionId: string | null = null;
     nativeMiningActionId: string | null = null;
+    nativeToolWorkOperationId: string | null = null;
     nativeMiningOutput: number | null = null;
     nativeMiningInstanceId: string | null = null;
     nativeMiningToolRevision: number | null = null;

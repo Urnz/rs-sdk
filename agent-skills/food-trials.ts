@@ -1,9 +1,10 @@
 import type { SkillDefinition, SkillRuntimeAuthorization } from './types.js';
 import { resolveSkillParameters } from './validation.js';
+import { toolTrialAuthorization } from './tool-trials.js';
 
 /** The acknowledged isolated travel trial permits one fixed route and at most one 30 GP ferry. */
 export function draftTrialAuthorization(draft: SkillDefinition): SkillRuntimeAuthorization | undefined {
-    if (!draft.steps.some(step => step.kind === 'operation' && step.operation === 'travel-to-site')) return foodTrialAuthorization(draft);
+    if (!draft.steps.some(step => step.kind === 'operation' && step.operation === 'travel-to-site')) return toolTrialAuthorization(draft) ?? foodTrialAuthorization(draft);
     if (draft.steps.length !== 1 || draft.steps[0]?.kind !== 'operation' || draft.steps[0].operation !== 'travel-to-site'
         || draft.limits.maxOperations !== 1 || draft.limits.timeoutMs > 360000)
         throw new Error('Travel trial requires a single bounded native route');

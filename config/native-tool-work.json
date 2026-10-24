@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "smelt": {
+    "recipeId": "metallurgy.smelt-bronze-bar",
+    "recipeVersion": "1.0.0",
+    "durationTicks": 3,
+    "source": { "debugName": "furnace1", "x": 3226, "z": 3255, "level": 0 }
+  },
+  "repair": {
+    "policyId": "bronze-pickaxe-workshop-repair",
+    "facilityId": "varrock.east-workshop.forge",
+    "source": { "debugName": "anvil", "x": 3246, "z": 3404, "level": 0 }
+  }
+}

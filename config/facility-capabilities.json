@@ -9,6 +9,7 @@
       "capabilities": [
         { "capabilityId": "smithing.basic-furnace", "capacityUnits": 1 },
         { "capabilityId": "smithing.basic-forging", "capacityUnits": 1 },
+        { "capabilityId": "work-surface", "capacityUnits": 1 },
         { "capabilityId": "logistics.cart-bay", "capacityUnits": 1 }
       ],
       "allowedAccessKinds": ["employment", "lease", "contract", "explicit"]

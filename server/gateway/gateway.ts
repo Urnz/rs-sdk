@@ -753,6 +753,15 @@ const SyncModule = {
                 return;
             }
 
+            if(message.action?.type==='societyTool'){
+                try{
+                    const {executeLocalToolSkill}=await import('./admin/native-tool-skills.js');
+                    const result=await executeLocalToolSkill(sdkSession.targetUsername,message.action.request);
+                    this.sendToSDK(sdkSession,{type:'sdk_action_result',actionId:message.actionId,result});
+                }catch(error){this.sendToSDK(sdkSession,{type:'sdk_action_result',actionId:message.actionId,
+                    result:{success:false,message:String(error),reason:'tool-source-rejected',phase:'observation'}});}
+                return;
+            }
             if (message.action?.type === 'societyFood') {
                 try {
                     const { executeLocalFoodSkill } = await import('./admin/native-food-skills.js');

@@ -1,0 +1,769 @@
+{
+  "schemaVersion": 1,
+  "taskId": "SI-C03",
+  "verdict": "PASS",
+  "scope": "Bounded native mining -> break -> copper/tin procurement -> packed smelting -> existing repair -> same-instance mining",
+  "source": {
+    "baseCommit": "a885bf644768b94354535fb9f1eca55c5aa0103a",
+    "branch": "codex/si-c03-native-tool-repair",
+    "hashEncoding": "SHA-256 of LF-normalized UTF-8 source; binary SHA-256 packed assets",
+    "files": [
+      {
+        "path": "agent-skills/builder.ts",
+        "sha256": "74d1fed16ea7bb212545058d8d0e6dc599a978cf188952053b2f61f619a5e529"
+      },
+      {
+        "path": "agent-skills/catalog/procedure.metallurgy.smelt-bronze@0.1.0.skill.json",
+        "sha256": "7f588192bedd5c768f93e470d303e1f6f165b66e9e72f02d3ded63f4f1d767b7"
+      },
+      {
+        "path": "agent-skills/catalog/procedure.tools.repair-bronze-pickaxe@0.1.0.skill.json",
+        "sha256": "4fe9e5ced3470b19ef624777fcb66d479512f602b1a704f8a45fb830ceb23e07"
+      },
+      {
+        "path": "agent-skills/food-trials.ts",
+        "sha256": "f4bb64d6a2bcaa05568e9f4d9d8bc0758fbeba313a6cc717dfb4183087aad06c"
+      },
+      {
+        "path": "agent-skills/rs-sdk-runtime.ts",
+        "sha256": "08111d89907c569133ca45b43daf2f4d2f6cef40979c0c80b3b73794594c7305"
+      },
+      {
+        "path": "agent-skills/run.ts",
+        "sha256": "6b4fb5fa29589ead7badcd6077f7db18f67583ace60d5c093206fee9e4f64353"
+      },
+      {
+        "path": "agent-skills/test/tool-procedures.test.ts",
+        "sha256": "f0841beb9a7e5429575951177fe8d0074a33e17afbd2a11e282c07a983ed5336"
+      },
+      {
+        "path": "agent-skills/tool-trials.ts",
+        "sha256": "d39b7a301ef5046002eef483dab412e5fa2e0a548f321de0ef1495423f56aba3"
+      },
+      {
+        "path": "agent-skills/types.ts",
+        "sha256": "0d77734b03cb10a3bd20a56cbfb3c0c42fcccf0c515f0afca7a4f5b9f68b13db"
+      },
+      {
+        "path": "agent-skills/validation.ts",
+        "sha256": "9f44d9d6ca5ecbf111b114755804917758cead5f47254198eb942b00226a5ca7"
+      },
+      {
+        "path": "agent-skills/verifier.ts",
+        "sha256": "4914dd13f288be2c73a2343d7e7d91b68d9b4abfa1f647f5e19f0b620f8f762c"
+      },
+      {
+        "path": "agent-skills/verify.ts",
+        "sha256": "cb6fdd7ebde877bcbc33effaae8af33041f607f6bb9fc4804c3e29fc9241ff17"
+      },
+      {
+        "path": "config/business-role-definitions.json",
+        "sha256": "e056008e52e7e0ccc69743991ae4cff67c8f1a5bd0454747099b9fcc0a1beba5"
+      },
+      {
+        "path": "config/facility-capabilities.json",
+        "sha256": "c32866998006e150d43c179eac15840fe409b6577bd57a08d66bf4bb9b9e4b72"
+      },
+      {
+        "path": "config/item-lifecycle.json",
+        "sha256": "2b34ef6b2b378c060f0005c71f520fbc6fb6d9231f83aa18bd556f8c484d2976"
+      },
+      {
+        "path": "config/item-repair-policies.json",
+        "sha256": "3cee27159aa7b6d290e652cf17622a7ab90e388d7f12211df3c22c0012879ce1"
+      },
+      {
+        "path": "config/native-tool-work.json",
+        "sha256": "a1e80bf4a617ce514b74537e1e0cf259b826c52b438dfa0bc2e925e60ac70651"
+      },
+      {
+        "path": "config/production-workflows.json",
+        "sha256": "e8fe17100c04d73b26b2345045b9f4c1e75e1e5361fba1113d55ac01d55624ba"
+      },
+      {
+        "path": "config/properties.json",
+        "sha256": "15a7d1c427977d958026c06df6940031a081d249fb26293af4ae22cd93969915"
+      },
+      {
+        "path": "item-lifecycle/native-tool.ts",
+        "sha256": "6fedd176717c419cdc0f6a5166255232a37e14e25cf3ecb13037975778f192e5"
+      },
+      {
+        "path": "item-lifecycle/repair-policy.ts",
+        "sha256": "a0f3bf03121024131a56afb7158c4f8de66f716406094239dcd917629108404c"
+      },
+      {
+        "path": "item-lifecycle/store.ts",
+        "sha256": "b6cf73fb14f33e3d9637dcce42bc344d327da520ffeb8b0892da763afc4b4706"
+      },
+      {
+        "path": "production-workflow/native-tool-work-invocation.ts",
+        "sha256": "7e23130d63f671bdaa4015d76dc5b5bc442ce33fc4e3e0a694beae4bd0d662bc"
+      },
+      {
+        "path": "production-workflow/native-tool-work-policy.ts",
+        "sha256": "6ea906df66a98b9e44ba185516bafac252bcd0edcf93ea7127cbce26d87eb1db"
+      },
+      {
+        "path": "production-workflow/native-tool-work-source.ts",
+        "sha256": "209756ceb0fe13d9d4df4bf9b8aae5e036bec4e98f844f5c53c9d25abf539f5b"
+      },
+      {
+        "path": "production-workflow/native-tool-work.ts",
+        "sha256": "9b345206161d1c41fecd7e242e9373324da42927c86d8091ed538e82eaa304d5"
+      },
+      {
+        "path": "production-workflow/test/native-tool-work-source.test.ts",
+        "sha256": "71ee876365b84de38150d4395b67f5a2278ca0b1a289b3ceb1f54290c20e53a6"
+      },
+      {
+        "path": "sdk/index.ts",
+        "sha256": "d78d89444f62ad5421287a1441592ffde8be7d5018c0d59bdc3789437fe6aa6a"
+      },
+      {
+        "path": "sdk/society-tools.ts",
+        "sha256": "5ca0171d724accc485776d339600d8ded14a8ae50a28a4bcde8279fca5af5c07"
+      },
+      {
+        "path": "sdk/types.ts",
+        "sha256": "9ea802e5ac3778fcd1922f3e346e4fc1ecaa1cccd23631ecc1c0f910fbb8db84"
+      },
+      {
+        "path": "server/content/maps/m50_50.jm2",
+        "sha256": "d29e1e400252fcd2421853b6d2677084f5f2935be56414b92fc836a93ad0b046"
+      },
+      {
+        "path": "server/content/maps/m50_53.jm2",
+        "sha256": "08962260c45cde518703d11929238ca6eb5fb9e1c7ed740d86a129a2ec6c9e25"
+      },
+      {
+        "path": "server/content/scripts/skill_smithing/configs/smelting/smelting.struct",
+        "sha256": "9dbea9df267f0b433f1515e27c0f474aeaaf9c273dd68a442c71a622df275b0b"
+      },
+      {
+        "path": "server/content/scripts/skill_smithing/scripts/smelting/smelting.rs2",
+        "sha256": "1c8e611ef58dd0f15edf7a0b93563a6621ba59454bd1825b34b644147fd4e31e"
+      },
+      {
+        "path": "server/engine/src/engine/entity/Player.ts",
+        "sha256": "b470e80fae0b93da6e5e046795c182832ac48c556836b10be43a21889e0308ba"
+      },
+      {
+        "path": "server/engine/src/engine/script/ScriptRunner.ts",
+        "sha256": "7eafac96132bd23118b7cd2ce634d6357bf38c94a8bdd956b3ae8dff2ce6564c"
+      },
+      {
+        "path": "server/engine/src/engine/script/ScriptState.ts",
+        "sha256": "dc19ae083f3f5e9e53c74083fa59764eec0d3748a323528b1a47f1e2b16a854d"
+      },
+      {
+        "path": "server/engine/src/engine/World.ts",
+        "sha256": "bdea7ad8d94ff0dee0fb82ceba4522bd812ed3c763a0486a5598084a29d47b0a"
+      },
+      {
+        "path": "server/engine/src/mods/native-mining-tool-fixture.ts",
+        "sha256": "ee9ffb92d74b94e34b1ccbe98045a41cc87b0fcb905672cfbd18dc8148dd8eed"
+      },
+      {
+        "path": "server/engine/src/mods/NativeMiningTool.test.ts",
+        "sha256": "cc9f66b329ffc8522b9a379d49a2c0c36564993d41e76cd8812b2d2e37fcd466"
+      },
+      {
+        "path": "server/engine/src/mods/NativeMiningTool.ts",
+        "sha256": "25ba722688ccf90fb8ffc678c13c892e3f58ec0d218cdb3b0becdc0a93ccea4a"
+      },
+      {
+        "path": "server/engine/src/mods/NativeToolWork.test.ts",
+        "sha256": "2eaa9020e036c35541df4542ec92b09ecde4daf3be94abfb36d24e5e6b95cf7e"
+      },
+      {
+        "path": "server/engine/src/mods/NativeToolWork.ts",
+        "sha256": "e926c17cf9a6ca9c056173152f7075f1e7f9e4f52c1d0242db7ded076fbde21e"
+      },
+      {
+        "path": "server/engine/src/mods/NativeToolWorkRuntime.ts",
+        "sha256": "5f0282ecc89c36d9483575010e1783b2ccdf1c0525d3d7bdb31bb951a39e68ac"
+      },
+      {
+        "path": "server/engine/src/mods/PlayerInventoryEscrowStore.ts",
+        "sha256": "e3a627675113d457e34188870b0974a0c5b8b0b2cf743aed3fa3f146beef13dd"
+      },
+      {
+        "path": "server/engine/src/mods/PropertyStore.ts",
+        "sha256": "3cc329407a334eff677827b8bc545ccf687542ab7700acdf18f3a765103a96a8"
+      },
+      {
+        "path": "server/engine/src/web/pages/internal-admin.ts",
+        "sha256": "4d9978942090055408e8fdacae42c492529a2e86e926c5985ea854137685ccd2"
+      },
+      {
+        "path": "server/gateway/admin/autonomous-skill-binding.ts",
+        "sha256": "301fb04a0b2a4f9abea3449ade093d29ba93d18d8d2bb80b9259813fc394d790"
+      },
+      {
+        "path": "server/gateway/admin/business-manager.ts",
+        "sha256": "f9548ea19587816fe1c94a7b290bdc31a86a3b1ee59bf22c432f562b49198b2c"
+      },
+      {
+        "path": "server/gateway/admin/native-tool-skills.ts",
+        "sha256": "94f561bfbae63df1bafdba5774a5a5e7146b7c5e787bc864021f68ec2ba8f95a"
+      },
+      {
+        "path": "server/gateway/admin/native-tool-work.test.ts",
+        "sha256": "78d90ba6f57300172b5c17d150245b7a955da2db056ee1d28af89cb7269ce9af"
+      },
+      {
+        "path": "server/gateway/admin/routes.ts",
+        "sha256": "eb4eb2b9920338be0b5c23a04f8daf6fa4950f38f2e520b9fda6324c94932bd0"
+      },
+      {
+        "path": "server/gateway/gateway.ts",
+        "sha256": "6774ca6a241b9761a871fda3b47a5d33e4c1cfde66cca5a3b2858e089f7e57bd"
+      }
+    ],
+    "packedAssets": [
+      {
+        "path": "server/engine/data/pack/main_file_cache.dat",
+        "sha256": "5c177b9209e183ad977fb43a7b5c2436953cb6585102f56c6193f2ead44499da"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx0",
+        "sha256": "af8a7bb2f99b2bdf802cf13ef8c894d59592399e41c400fd3258b384ef229b76"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx1",
+        "sha256": "0ce4f410c11cb36753a67ae4fb6acb41026133057966b4f5887877a2310dd10e"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx2",
+        "sha256": "38117c0d67c9768eccc67d1412dc0664b191c660943e6581fe36b048496eeabf"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx3",
+        "sha256": "c76aff4c175d73db6c6791ba99f9cb5667cd4645555f63909f917dbaee601ea0"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx4",
+        "sha256": "0f731d032a63baef29778c0a8857af1c1a344447292fcb28f96be3744d0f6b52"
+      },
+      {
+        "path": "server/engine/data/pack/server/category.dat",
+        "sha256": "f63cb5e4c38d7c4a79e15b48fd3d05bdb6a99dba6e1906a761e46350b0f97e98"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.dat",
+        "sha256": "5a4f274c247217875f8b3b71006100a86030b51a5d4165f6cd91dd910cce8286"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.idx",
+        "sha256": "c9d085f8a353abd58a7315f3a8e9e17e331bb38197470bd7dd17c7f67e961c23"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.dat",
+        "sha256": "74f6c6be5dae1111fbd39e7bd4290647fce7f5b93dd5fb3a0a386503ddb40ac3"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.idx",
+        "sha256": "50be28dfbd8b017cfee7fda40d07ad4c5d374b3861f0b3dcb67e76f36ff15c5a"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.dat",
+        "sha256": "692812e0b3c7b776c2edd3aac70d11249d0c824c79a42f0e2ad08311bb1b40c5"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.idx",
+        "sha256": "5c4bb2801422d762f965ac53dce6c9c8406c07f975f3cc7850bd555a76a0821b"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.dat",
+        "sha256": "1cb8bdec4c1bea9797cd5ddf2d6d12f7b278d5b52cf0e76cf870765c92d40574"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.idx",
+        "sha256": "e6e740142c951caafe7523ce5be71d6f58480f174389108c89b1c89906ea1563"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.dat",
+        "sha256": "641a509227c948dbd626eba8afd6e5b49c4e95d338d596c134b4dfe40b058121"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.idx",
+        "sha256": "f65cd1b3902def149de3ba676aa7bf227d70f408770f16df3cc1419eea6663a7"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.dat",
+        "sha256": "c49a737d21e1138667f8961ec96cfaf8fdc5a8a7e27eaccf6c0833b845eaffdd"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.idx",
+        "sha256": "15de0287fd9650a02f274771a6eab909b0cce5b7ecd9db6fd8dc0e4dc7b3d354"
+      },
+      {
+        "path": "server/engine/data/pack/server/interface.dat",
+        "sha256": "79c4635a79a4b788ab5b241c03fcfed790507f059adf8156976a1c3e906331d0"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.dat",
+        "sha256": "c742ce8c79c28552413640b5ad26626e520da3f19ccd638362a1f7bc58b73032"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.idx",
+        "sha256": "f8eeed182072f4d6ab383f7d28c3edd0dc51eacb98c1a107216523703d5c22c1"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.dat",
+        "sha256": "a45ded68e74cf5a59257141206560aa508524b9ed89c06ac5bc94482f38eaf00"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.idx",
+        "sha256": "ff841140ee0a0685e0bda5a39c3838b6d3aa34ba5db8d6d05d416b9fbebca7d2"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.dat",
+        "sha256": "8c5cbe3e9981d7982a4c3e53eb61d336ec7a6de7fe17f13bbe4a09ee07210d94"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.idx",
+        "sha256": "6e87275bbb7b59bfae93049b6ecce2a103fe80d5dd8c4e2477600f088e804609"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.dat",
+        "sha256": "819902401ef17472946c0444094ab876ee63b1ee383708ac4c14382b287be02b"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.idx",
+        "sha256": "5cd4978d0535e9cd526bff781add78db48bd036fb8ef76227053681d62674802"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.dat",
+        "sha256": "f86e2e07d8801cce6bf3751342f279b31f60190049aec77407ae9262069f9818"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.idx",
+        "sha256": "edfb9a90cab90849419be2233d7ea6af7eee05bf4880bb6b75d77683d5e0c779"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.dat",
+        "sha256": "5504276804b51de580dab058bdc2fa8bfc432a2a002d4b0a499223cd990a84fd"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.idx",
+        "sha256": "7c673ffda5b1f1536c1ccc332a61493099d08aa089d43b35e0e8fcd802be936c"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.dat",
+        "sha256": "2e9b2a8a91ae64abee01afba9ed28c8700045eed413afdfcaa521515468f09b3"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.idx",
+        "sha256": "7dcfe2c0426db07a93c63eecb3e6e8bf0e14f97d4e74b5d8e5f18c31d3137eb1"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.dat",
+        "sha256": "17a718d58381ac68c379031561349598662439507a10aa2a5408ea9a832aca51"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.idx",
+        "sha256": "8b6afaed99c44bfa201018c49c064047294dfc8169852da620f743106ebf3bbf"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.dat",
+        "sha256": "86cbc2cd8cd1565bca4b6e493d41e3a6e0cf63d9e7aa7d938221a26990427bcd"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.idx",
+        "sha256": "572859b1698e06352dd1c70c3c7ff8b5bdb6d4508ac9d82dfacb2c4a1a492c46"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.dat",
+        "sha256": "e528d20f9d055e6e76487f07c2cf0dbfe13b49f819627b0b8718eddf81fb0dfd"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.idx",
+        "sha256": "43a6cd1d81780e993979d07e506ff6c54e5571a6e62f79c94084bbe44f42019a"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.dat",
+        "sha256": "02114d60728295a675488a3b54ae1a92525496c73e984cc1fceaf45fc02f9e5e"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.idx",
+        "sha256": "a3b06e8eaaeff0f13683416777f465b5c4dbb12e1a7746b61a25a3858236927d"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.dat",
+        "sha256": "58b3f7be63bb0f421bcfd9322cb99f42d1c62bc2e295217ea1cbc4a8f6a9766c"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.idx",
+        "sha256": "73993eafcdcf368a767a8e1c622511699747a42f635f9c1b31ffd2923b319f96"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.dat",
+        "sha256": "06d9da884eb3c6dc8bfef2fda8252c57b63c9f5cb1fbfbfaee9ffe20e7cab439"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.idx",
+        "sha256": "e6e87b06af30777b0c829a15b3d8e4574d2f349c1bb18fd7c00c9682da6f52a1"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.dat",
+        "sha256": "d384d9a7778c66a4bc34ef533fa720fe1b9b2234f233312e5df892c44069a5da"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.idx",
+        "sha256": "cbc943fe49dfb709c4761f632a621ed4ff9981503cd50b1d6b3e5bf6c5d52e65"
+      }
+    ]
+  },
+  "verification": {
+    "finalGate": "20261024-175145-022-si-c03-protected-loop-final",
+    "durationSeconds": 48.6412076,
+    "nativeCases": 12,
+    "focusedPass": 48,
+    "focusedFail": 0,
+    "miningAndEscrow": "20261024-173423-142-si-c03-mining-admin-types (runtime PASS; later engine test typing failure fixed in final gate)",
+    "priorConsumerFiles": "20261024-173240-392-si-c03-consumer-types (food/XP/skill/facility/repair PASS; Mining fixture cleanup failure fixed separately)",
+    "rootTypecheck": "PASS",
+    "engineTypecheck": "PASS",
+    "changedLineFormat": "PASS",
+    "fullRegression": false,
+    "providerCalls": 0,
+    "providerCostMicros": 0,
+    "rootAndDraftGate": "20261024-174532-951-si-c03-draft-bootstrap: 33 PASS, root/engine TS and format PASS; only engine ScriptRunner guard subsequently refined",
+    "nativeEvidenceGate": "20261024-175403-585-si-c03-staged-native-format: 27 PASS, format PASS; only an extra EOF blank line removed from shared native fixture after the preceding typed gate"
+  },
+  "native": {
+    "instanceId": "tool-miner2",
+    "nativeMiningOutputs": 101,
+    "nativeMiningActionIds": [
+      "232ed1a8-88ce-4ff0-a8f3-6e257a534a1d",
+      "aad05082-3185-4834-882d-69dae6d8d9b1",
+      "df4d9469-46ef-4000-9ade-1bc498e15740",
+      "4162573e-589c-4af1-913e-b579e1dadfbe",
+      "00d0690b-fac4-419c-9afd-9cec5320e9a8",
+      "3211a9e5-369c-40a8-b510-fa54b4387ecd",
+      "48cbd370-913d-4b2a-a2c9-5685d73dccc3",
+      "ccdc85aa-237f-4e23-b3cf-9dd3d1384031",
+      "ac350267-6bbf-45d3-a33a-b6cf5c823d0f",
+      "fc73bee2-3b17-4fc4-96a8-f241b1bc02a1",
+      "92bfcde6-df2e-4b70-94ff-cb19238741f3",
+      "9be37c44-9e72-4341-89c9-ced344c1e1e0",
+      "d47593b0-00aa-447a-9337-5b31c470b962",
+      "c5126642-6de8-4bb3-9117-97854a6ae65a",
+      "a1f75890-7980-4821-84c3-1fbb8363bb43",
+      "748f53d7-b21c-41ed-9c85-b6c4e3be0dc1",
+      "03459b84-0a79-41a8-a2e8-04c7073fbfb9",
+      "fe1d99b1-b0e0-4d3a-8791-0ade0e978871",
+      "6492d5f2-03ff-43c4-b30b-4f7d3480f5d9",
+      "9d69c1d2-5cca-4588-91d4-c815b9c85e26",
+      "4ef48e6a-d909-4b76-9a55-cfcdbfc4a682",
+      "12299244-0e9b-44a6-8b4f-8dceb7eb854e",
+      "9d93bde5-6284-4fa6-a80c-44cc0e8acd6f",
+      "a841ce22-5290-4b54-a84d-747711750b59",
+      "98f6ecab-8df2-417b-bf52-d87e1a7273df",
+      "c3e30130-5148-49b4-a123-a33fed8d9fb2",
+      "931c1816-f9b1-4a1b-9650-df1242d18334",
+      "fbc7275d-2397-49d6-950b-ce5f3edc3c6e",
+      "bf7f392b-b2d0-4aad-96a8-4b5a87a50bc6",
+      "8c3139d6-2eae-45d5-b9e0-91b616d2c398",
+      "eb08ce91-201d-4493-b175-efe4672137e3",
+      "aa972dbc-151f-48f9-aced-62c69b98e2dc",
+      "1d465d9c-46d0-412f-a7ce-b523938dc60d",
+      "90e597d6-0603-4612-a205-d2eeb7e8c1f4",
+      "a05ea8f0-3216-4dd3-b7ea-a37e80d900e4",
+      "23620160-049c-4bdd-8e96-832a744d05c4",
+      "0b30e0a7-90ef-45f1-83fe-8eec2c1b97e1",
+      "f14a19b9-5c46-486e-9aca-54343d744bb8",
+      "58143f26-de57-479d-94e3-de816dc7259f",
+      "19a5bd2b-c8bd-42f2-a293-851ec37f9855",
+      "1c14119a-0378-4d96-b0fc-2f31890b9dbf",
+      "1aaf6364-7394-40a4-99f2-049de2ce3686",
+      "0d5c3a5d-d83c-4c72-94ef-98411c655ee5",
+      "2cc09e8f-0668-4b9c-bd60-ac3f0ea6a276",
+      "75c1cd30-2082-4715-98da-97e6e0830634",
+      "7da219a5-295f-4ca3-bc22-ca519820eda3",
+      "221c678e-a3f3-444e-b808-c12560b9e82c",
+      "7b44dece-ce18-44c4-94bf-42c44f7d6595",
+      "ced3d0af-6659-4440-b6ea-e449029c1712",
+      "3b02924a-33d1-4591-86b3-e4d05337f50e",
+      "c04ed684-856e-422a-8c2b-47173a3fda7e",
+      "2407f950-3ac2-42df-bc36-b45607cd0bcf",
+      "2b51c89e-68c4-4666-8343-c267e59b9fda",
+      "142ed8f2-dce6-4c58-8ceb-e61959270197",
+      "6abb6223-4391-4260-be1d-6fafe97fd942",
+      "6cf36177-2ff8-4a60-b2d6-388b26b072a2",
+      "26424fc1-ac05-4140-8115-0d58b752f550",
+      "a4c8168d-6029-4562-8cc5-08932b016a57",
+      "adaf7e97-1b60-4748-957f-cddc3c640ca7",
+      "95a15834-bbd9-4f45-9251-28b0a25fa351",
+      "a30defaf-0994-4257-b61e-f7ead8df1cc3",
+      "47810d41-1ccb-43f1-a6d8-02a3e98872bf",
+      "e0739e14-8a25-4a36-9824-88021c2da552",
+      "26001e95-226c-48ca-a613-c86f062c4c7d",
+      "4537f1d4-4178-4a24-91bf-0ba3b816a08e",
+      "2b10119a-1b7e-4150-8ba4-b9fc4acfb233",
+      "08bdb3d5-4e20-4495-8d5e-9d42a1d43c5d",
+      "cddc3aae-ae87-43ec-a5a7-84957a407b44",
+      "19a98be1-4dca-4777-b6ca-85472df0eea2",
+      "10d052ae-77d3-424b-a496-be7d764a4aa1",
+      "c25178eb-3cfa-4772-a941-f17b3e4c94e5",
+      "6da12d88-7ca5-4109-b9b0-4ea554f00ce9",
+      "24226bf1-21ef-4d61-9ed4-48c56340479f",
+      "1f6cf9f7-9709-40d4-8cb3-15e9a7745a58",
+      "659ae659-b95a-4026-9341-77075db0e4ab",
+      "df401cfb-03f4-4838-89bd-5c6e70af80b1",
+      "376deb5b-215c-48b0-965c-2776ad86008d",
+      "5f169d9b-794e-440c-8529-0a7399376f72",
+      "cbeea269-5574-42ed-8de7-d713ccb55b56",
+      "acad0800-1c05-4d82-bf83-d838716de340",
+      "fc8f43e0-e0b7-4edc-ac30-dd7e91d6e91d",
+      "de9366b2-3f10-4c85-8572-5e1e3c560a12",
+      "5ee7e63a-d5b2-418f-a8b3-516b35962691",
+      "4d73c71f-67d5-4872-a0d0-0361e1579d53",
+      "bb553bb2-0b09-4b25-9465-116cbc99e734",
+      "f4c8e2de-46eb-4028-8d92-e9bd825a3b50",
+      "081dcd9d-1c19-4641-a1d9-7819a6ab314b",
+      "0826029e-dab6-4612-9518-4a681f5528d2",
+      "d670faf8-1a24-4969-b38a-184aa71d8109",
+      "c8a18688-ba9d-46bf-a99c-ee9fe94c337e",
+      "a3f03e2c-7ab6-43c2-9946-bcee1caa95fb",
+      "9e1231ff-b498-4361-aa3a-e67b92cac10a",
+      "6f2b8131-43d3-481c-9380-6a6a641873b6",
+      "102546d1-5010-44ca-8c76-8fdf3008c882",
+      "5f4109d6-0a93-43fc-87d4-1fb793e8a3f8",
+      "00a4cee4-eace-4830-b12c-fdafee71bca2",
+      "b90d9545-adb9-4b35-9196-709df60d5a49",
+      "0fe85cc8-cf2d-4282-a1af-4c84172adfc8",
+      "da93e748-ead2-4ae8-8d22-74d0183d765b",
+      "23fd3a58-749c-4c8a-a46f-7adb75ab4f8f",
+      "fd7ba377-fbd2-4c99-93be-ee16c3d117c9"
+    ],
+    "bankedCopper": 98,
+    "auditValid": true,
+    "smelt": {
+      "schemaVersion": 1,
+      "intent": {
+        "operationId": "eeb82c31-da39-4514-81ad-b266cf459f46",
+        "kind": "smelt",
+        "businessId": null,
+        "contextDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "owner": {
+          "actorId": "actor-miner2",
+          "username": "miner2",
+          "lifecycleId": "life-miner2",
+          "worldId": "si-c02-fixture",
+          "clockId": "si-c02-clock",
+          "clockProfileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "itemInstanceId": null,
+        "expectedRevision": null,
+        "escrowId": "c21dd501-758e-4120-aaa5-ef39d9d13147",
+        "policyDigest": "53667024983aa8b66a1ee5f36c672a231270d5f47a22aed7f98a4b4a28c46963",
+        "authorityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "skill": {
+          "id": "procedure.metallurgy.smelt-bronze",
+          "version": "1.0.0",
+          "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "intentDigest": "f4b5637650f13aa7646269ef3e1f5eca8c6e4b93108e166052bb44a4cf822cf2",
+      "phase": "completed",
+      "reason": null,
+      "progressMs": 120000,
+      "workTicks": 3,
+      "revision": 4,
+      "started": {
+        "clockId": "si-c02-clock",
+        "profileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "status": "running",
+        "revision": 1,
+        "engineTick": 608,
+        "wallTime": "2026-10-24T13:06:04.8Z",
+        "simulationTime": "2001-01-01T00:06:04.8Z"
+      },
+      "last": {
+        "clock": {
+          "clockId": "si-c02-clock",
+          "profileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "status": "running",
+          "revision": 1,
+          "engineTick": 611,
+          "wallTime": "2026-10-24T13:06:06.6Z",
+          "simulationTime": "2001-01-01T00:08:04.8Z"
+        },
+        "sessionId": "373bd490-4c9e-4e63-893b-d1d86462d72d",
+        "valid": true
+      },
+      "competence": null,
+      "materialDigest": "90a997ecd6644ee89a97b5e776d8d86df33be546b964e3f598693ae89099dd95",
+      "result": {
+        "kind": "smelt",
+        "inputItems": [
+          {
+            "id": 436,
+            "count": 1
+          },
+          {
+            "id": 438,
+            "count": 1
+          }
+        ],
+        "outputItems": [
+          {
+            "id": 2349,
+            "count": 1
+          }
+        ],
+        "tool": null,
+        "checkpointDigest": "0ab05dac55417fff93049ac205ceac80a6392afc900e9e5e4d3e3a4a6a21ac56",
+        "script": "[queue,smelting_ore]"
+      }
+    },
+    "repair": {
+      "schemaVersion": 1,
+      "intent": {
+        "operationId": "c0dcbc39-e998-4252-b082-9c2032662c64",
+        "kind": "repair",
+        "businessId": "fixture-workshop",
+        "contextDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "owner": {
+          "actorId": "actor-miner2",
+          "username": "miner2",
+          "lifecycleId": "life-miner2",
+          "worldId": "si-c02-fixture",
+          "clockId": "si-c02-clock",
+          "clockProfileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "itemInstanceId": "tool-miner2",
+        "expectedRevision": 101,
+        "escrowId": "6ab677db-3462-4a6b-9982-c4141b5ebc80",
+        "policyDigest": "53667024983aa8b66a1ee5f36c672a231270d5f47a22aed7f98a4b4a28c46963",
+        "authorityDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "skill": {
+          "id": "procedure.tools.repair-bronze-pickaxe",
+          "version": "1.0.0",
+          "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "intentDigest": "3c26e434fea494bbf30f76fbcc9ea2e2ba1b5911cd76b7988035bbe20c76461d",
+      "phase": "completed",
+      "reason": null,
+      "progressMs": 600000,
+      "workTicks": 2,
+      "revision": 3,
+      "started": {
+        "clockId": "si-c02-clock",
+        "profileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "status": "running",
+        "revision": 1,
+        "engineTick": 611,
+        "wallTime": "2026-10-24T13:06:06.6Z",
+        "simulationTime": "2001-01-01T00:08:04.8Z"
+      },
+      "last": {
+        "clock": {
+          "clockId": "si-c02-clock",
+          "profileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "status": "running",
+          "revision": 1,
+          "engineTick": 613,
+          "wallTime": "2026-10-24T13:06:07.8Z",
+          "simulationTime": "2001-01-01T00:18:04.8Z"
+        },
+        "sessionId": "373bd490-4c9e-4e63-893b-d1d86462d72d",
+        "valid": true
+      },
+      "competence": {
+        "schemaVersion": 1,
+        "snapshotId": "repair:c0dcbc39-e998-4252-b082-9c2032662c64",
+        "characterAgentId": "actor-miner2",
+        "observedAtSimulationTime": "2001-01-01T00:08:04.8Z",
+        "personalSkills": [
+          {
+            "kind": "personal-rs-skill",
+            "characterAgentId": "actor-miner2",
+            "skillId": "smithing",
+            "level": 1
+          }
+        ],
+        "learnedProcedures": [
+          {
+            "kind": "verified-agent-skill",
+            "characterAgentId": "actor-miner2",
+            "skill": {
+              "id": "procedure.tools.repair-bronze-pickaxe",
+              "version": "1.0.0",
+              "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "learnedAtSimulationTime": "2001-01-01T00:08:04.8Z",
+            "status": "verified",
+            "executable": true
+          }
+        ],
+        "providedCapabilities": [
+          {
+            "kind": "provided-capability",
+            "characterAgentId": "actor-miner2",
+            "capabilityId": "work-surface",
+            "provider": {
+              "kind": "facility",
+              "providerId": "varrock.east-workshop.forge"
+            },
+            "grantId": "fixture-grant"
+          }
+        ],
+        "digest": "d8f4f1631473cf5670930e9fc17aa1b5c9716a107b778ea0cf1e20b4bc1afdfc"
+      },
+      "materialDigest": "6e1afac399b589729ace00b5be9bea94951f81bfb87484f0238d001c12b95574",
+      "result": {
+        "kind": "repair",
+        "inputItems": [
+          {
+            "id": 2349,
+            "count": 1
+          }
+        ],
+        "outputItems": [],
+        "tool": {
+          "itemInstanceId": "tool-miner2",
+          "lifecycleTypeId": "bronze-pickaxe",
+          "itemId": 1265,
+          "ownerActorId": "actor-miner2",
+          "durability": 50,
+          "maxDurability": 100,
+          "status": "usable",
+          "qualityBasisPoints": 10000,
+          "provenanceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "createdAtSimulationTime": "2001-01-01T00:00:00Z",
+          "updatedAtSimulationTime": "2001-01-01T00:18:04.8Z",
+          "revision": 102
+        },
+        "checkpointDigest": "99c4b63ee7ec30afd9ea4737832cff23548e4b6c6f2038d948757848d11f9697",
+        "script": null
+      }
+    },
+    "afterUse": {
+      "itemInstanceId": "tool-miner2",
+      "lifecycleTypeId": "bronze-pickaxe",
+      "itemId": 1265,
+      "ownerActorId": "actor-miner2",
+      "durability": 49,
+      "maxDurability": 100,
+      "status": "usable",
+      "qualityBasisPoints": 10000,
+      "provenanceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "createdAtSimulationTime": "2001-01-01T00:00:00Z",
+      "updatedAtSimulationTime": "2001-01-01T00:18:08.4Z",
+      "revision": 103
+    }
+  },
+  "limits": [
+    "Disposable native Player/packed-script fixture, not live world rollout or autonomous performance.",
+    "Mining policy unchanged: 100 capacity, one wear per successful output; existing repair costs one bronze bar and 600 active simulation seconds for 50 capacity.",
+    "Typed native loc objects in fixture; actual production runtime checks existing World.getLoc. Source map locations hashed and inspected.",
+    "Business/Property/learned skill and exact acknowledged draft-trial authorities tested with disposable real stores separately.",
+    "Two unpublished procedure drafts; no automatic skill publication, learning or live actor enrollment.",
+    "No replacement, cancellation/refund of spent repair input, MVS, SI-C07 autonomous chain or self-sufficiency claim."
+  ]
+}
