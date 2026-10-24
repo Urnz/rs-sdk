@@ -5,70 +5,71 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
 
-- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C04 kész; SI-M2 v2 PASS.
-  25/45 lezárt feladat. Következő SI-C05, csak új kérésre.**
-  Foglalkozási/társas/döntési outcome-metrikák, saját SI-C04/SI-B06 függőségekkel.
-  SI-C07 autonóm hosszú lánc, SI-M3/MVS és önfenntartás továbbra nyitott.
-- [C04 működés/CLI/perzisztencia/ellenőrzések](SI_C04_NATIVE_FINANCE_HISTORY.md),
-  [source/packed manifest és eredmény](SI_C04_NATIVE_RESULT.json).
-  Ág: `codex/si-c04-native-finance-history`, baseline `66d141fa6`.
-- Readonly frozen nyitó/záró natív készlet: SI-A12 exact paused clock/profile,
-  closed food tick, needs/lifecycle és custody ellenőrzése változatlan. A teljes
-  source-set stabil kettősolvasása és immutable schema1 JSON binding saját
-  `.local/society-metrics/finance-boundaries/` alatt. Nincs cross-DB ACID,
-  automatikus copy/backfill vagy report közbeni writer/migrátor.
-- Személyes Gini/rangmobilitás GP-only, egyező actor/lifecycle cohorton.
-  Business, deposits/loans/conditional contracts és noncash külön; nincs új
-  equity/GP-valuation vagy net-worth modell. Reserved treasury GP a balance része.
-  Az összes recorded cash és Business-lista a teljes frozen forrás diagnosztikája.
-- Racionális GP/darab unit-price, explicit fixed basket/freshness digesttel.
-  Csak igazolt cash-for-single-item trade; gift/barter/mixed offer nem ár,
-  hiány/stale/future/foreign source és utólag cserélt kosár inconclusive.
-- Business revenue/input csak egyező actual native trade + treasury settlement.
-  Két natív case-ben sale80 GP/procurement40 GP, nem a worker saját cash-faktuma
-  alapján. Ezek külön izolált fixture DB-k, nem egy közös élő gazdasági történet.
-  Cash600→550, Business50 GP cash-csökkenés/residual megmarad. Belső treasury40 GP
-  transfer aggregált hatása0, nem revenue. Alapítás/closed állapot megfigyelt,
-  a hiányzó gazdasági cause explicit unknown.
-- Frozen endpointok közti új, egyeztetett paid wage kaphat interval placementet:
-  work-binding/order + canonical Player reward + treasury-debit; exact
-  `simulationTime:null`. Félbemaradt saga nem closed boundary, régi paid receipt
-  nem új wage. Ezt a C04 unit gate ellenőrzi, nem új live salary-próba.
-  A Business-rent és capital GP-cost a hiányzó source miatt unknown, nem becslés;
-  natív player-rent és fizikai capital-installation külön diagnosztika.
-- Backend-only `nativeFinanceOptions`: admin GET finance/evaluation/dashboard,
-  CLI capture/report. Query source-path vagy observations JSON nem authority.
-  Konfiguráció nélkül nincs automatikus történeti adat. A capture CLI csak
-  előkészített frozen könyvtárat olvas, nem állítja le/fagyasztja be a világot.
-- [C03 same-instance repair](SI_C03_NATIVE_TOOL_REPAIR.md), [C02 custody](SI_C02_NATIVE_MINING_TOOL.md),
-  [C01 actual attribute/XP](SI_C01_NATIVE_ATTRIBUTE_XP.md) megmaradt. Native tool
-  unknown/dupla/lost/note quarantine;100/1 Mining,1 bar/600 sim-s repair→50.
-  Pending WIP/input nem dobható el/refundolható, restart/offline nem credit,
-  script közben felvett protected actor is foglalt. Új procedure draftok
-  unpublished; normál használat learned verified1.0.0, kivétel csak exact aktív,
-  külön jóváhagyott trial-grant + journal + backend intent.
-  AgentState29/lifecycle borrowed marker3; shared DB/transaction/PRAGMA/save
-  és auth/clock alap változatlan. Külön trade ledger nem distributed ACID.
+- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C05 kész; SI-M2 v2 PASS.
+  26/45 lezárt feladat. Következő SI-C06, csak új felhasználói kérésre.**
+  C05 ág: `codex/si-c05-native-outcome-metrics`, baseline `0cf37107c`.
+  [C05 határ/CLI/korlátok](SI_C05_NATIVE_OUTCOME_METRICS.md),
+  [source-bound eredmény](SI_C05_NATIVE_RESULT.json).
+- C06 első lépés: a meglévő archive/controller/source/comparison authoritative
+  source-listájának összevetése az új C01–C05 forrásokkal; pinned report/policy/
+  cache/model/config verzió és kicsi restore-roundtrip terv. C05 nem hozott új
+  authoritative store-t. Történeti backupokat ne nyisd meg; ne indíts C07 soakt.
+- C05 readonly projection: actual worker/native output/credited simulation-time
+  és physical-stage receipt HHI külön a registered recipe responsibilitytől.
+  Business requester/assigned worker és cook run/batch kapcsolás külön.
+  Completion whole-job timing; person-time credit az ablakra vágott.
+  Shift minutes, noncredit, offline és receipt timestamp nem munkaidő-nevező.
+- Kontrollált native proof: repair600000 ms/capacity50, smelt120000 ms/egy bar,
+  Mining egy ore ismeretlen durationnel. Offline200600 ms nem credit,
+  smelt elapsed320600 ms. Három completion egyhetes riportablakban, nem autonóm
+  munkahét. Available-and-willing person-time és unemployment rate unknown.
+- Social csak backend-scoped observer saját memóriája/commitmentje/evidence-ID-ja
+  és saját trade-részvétele, partner is selected cohort. Observer belief és
+  reported cooperation/conflict külön a native trade-től; nincs trade→trust.
+  Privát szöveg és parser error excerpt nem export. Source-head/wall memória
+  nem simulation-window tény. Actor-widening még source-read előtt elutasított.
+- Goal stored observation digest/predicate újraszámolt; completion event és
+  natív clock stamp egyeztetett. Successful skill nem state/strategy siker.
+  Történeti inventory újraattestálása és teljes stratégiai sikerráta hiányzik.
+- Provider külön explicit wall-window; audit-reported tokens/cost, admission,
+  request→response elapsed, active service unknown. Stage tartalmazhat backoffot;
+  missing/ambiguous response, truncation és audit nélküli admission nem teljes
+  nulla. Mock120/30 token/0 microUSD; actual providerhívás nincs.
+- Export: `reportNativeOutcomes`, optional evaluation/dashboard `nativeOutcomes`,
+  admin context `nativeOutcomeOptions`, GET `/api/admin/society/outcomes`,
+  explicit workspace/world/checkpoint/actor/observer CLI. Default nincs scoped
+  export capability. HTTP path/observer/observations nem authority. Nincs új
+  store/migráció, report közben writer, vagy cross-DB atomicity claim.
+- [C04 frozen finance](SI_C04_NATIVE_FINANCE_HISTORY.md), [C03 repair](SI_C03_NATIVE_TOOL_REPAIR.md),
+  [C02 custody](SI_C02_NATIVE_MINING_TOOL.md), [C01 XP](SI_C01_NATIVE_ATTRIBUTE_XP.md)
+  korlátai megmaradtak. AgentState29; saját readonly projection, auth/clock/
+  transaction alap változatlan. SI-C07/SI-M3/MVS/önfenntartás továbbra nyitott.
 
 ## Legfrissebb ellenőrzés
 
-- **Full nem futott.** Új readonly finance/bank reader és saját observation
-  binding; bank/treasury/contract writer/migrátor és általános auth változatlan.
-  Tíz képlet, dashboard/evaluation, SI-A12, bank ledger és native commerce
-  közvetlen fogyasztói célzottan fedve. Taskzárás/push nem új runtime teszt.
-- `20261024-184407-230-si-c04-final-wage-boundary`:11 PASS /0 FAIL
-  (finance8 +actual native commerce2 +wrapper), root/engine TS PASS,93,116 s.
-  Végső runtime-forrás. Source/audit/boundary wage-feltételek és unit interval proof.
-- `20261024-183247-263-si-c04-final-consumers`:79 PASS /0,47,784 s; finance,
-  SI-A12, evaluation/evaluation-native/dashboard, bank ledger és régi commerce26.
-  Utána csak finance wage/source bővült, a végső szűk gate-ben ismételve.
-- `20261024-183650-028-si-c04-cli-types-smoke`: a két CLI külön typecheck
-  ideiglenes tsconfigból +report contract smoke PASS,10,725 s.
-  `20261024-184937-302-si-c04-staged-format`: format PASS,1,537 s.
-- Korábbi parser/fixture/tuple/type-import FAIL-ok megmaradtak a logokban,
-  szűk javítással; nincs assertion/policy gyengítés. Részletes index a C04 docban.
-  A körök átfednek, számok/idők nem összeadandók. Teljes log/result:
-  `.local/verification/<azonosító>.log` és `.result.json`.
+- **Full nem futott:** readonly source/projection + lokális planning DI;
+  shared persistence/transaction/clock/auth/dependency alap nem módosult.
+  Csak konkrét consumer, native boundary, érintett TS és staged format.
+- `20261024-225138-443-si-c05-final-effect-clock`: native child+wrapper2 PASS,
+  engine TS PASS,46,177 s. Digest-helyes, de foreign-clock effect fault is fedett.
+- `20261024-225138-949-si-c05-final-effect-reader-types`: reader9/root TS PASS,
+  50,777 s. `20261024-225424-400-si-c05-final-export-privacy`: végső reader9
+  és CLI/transitive TS PASS,11,212 s. Sanitized error nem idéz privát auditot.
+- `20261024-224711-277-si-c05-final-readers-consumers`:65 PASS/1 FAIL,14,294 s.
+  Meglévő replan fixture közös budgetet/állandó run ID-t használt. Javítás:
+  optional backend `planning` infrastruktúra-injekció; saját temp budget/
+  queue/audit, scope/goal/authorization változás nélkül. Két külön ismétlés
+  és16 replan/dry-run consumer PASS:
+  `20261024-224916-858-si-c05-isolated-planning`,11,972 s.
+  A többi65 PASS fogyasztó bemenete változatlan; új reader ismét célzottan fedve.
+- `20261024-224614-487-si-c05-native-credit-and-cohort`:23 PASS,13,756 s,
+  benne C03 régi12 native case és default-kompatibilis fixture workerparaméter.
+- Korai fixture/UUID/hierarchy/mock-goalId/generic return hibák logjai megvannak;
+  nincs assertion/policy gyengítés vagy közös budget-törlés. A gate-ek átfednek,
+  párhuzamos/nested idők és számok nem összeadandók. Részletes index a C05 doc/
+  eredményben; teljes log/result: `.local/verification/<id>.log/.result.json`.
+- `20261024-225759-936-si-c05-docs-source-final`: staged format, source43/packed48
+  hash, linkek és roadmap26/45 ellenőrzés PASS,1,869 s. Nincs új runtime futás.
 
 ## Megőrzendő döntések és mentések
 
@@ -78,7 +79,7 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 - B06 engedély kizárólag0,05 USD-s próbára szólt:11 kérés /4235 microUSD
   =0,004235 USD. Nincs általános költési engedély; normál per-call0,
   auto-replanning/autonomousExecution off, B04/B05 default grant üres.
-  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C04 providerköltség0.
+  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C05 providerköltség0.
 - SI-A15 technikai PASS; eredeti D1/SI-M1 önfenntartás nem PASS, teljes gazdasági
   minősítés inconclusive. [Technikai eredmény](SI_A15_TECHNICAL_RESULT.md),
   [archívum/restore](SI_A15_RESULT_ARCHIVE.md).

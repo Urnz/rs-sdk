@@ -8,8 +8,9 @@ import { reportNativeIntegration } from './integration-report.js';
 import type { NativeIntegrationOptions } from './integration-sources.js';
 import { reportNativeFinance } from './native-finance.js';
 import type { NativeFinanceOptions } from './finance-sources.js';
+import { reportNativeOutcomes,type NativeOutcomeOptions } from './native-outcomes.js';
 
-export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions; nativeIntegration?: NativeIntegrationOptions; nativeFinance?: NativeFinanceOptions }
+export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions; nativeIntegration?: NativeIntegrationOptions; nativeFinance?: NativeFinanceOptions; nativeOutcomes?: NativeOutcomeOptions }
 
 /** Read-only native facade. No uploaded observations, migration, clock advance or experiment dispatch. */
 export function reportSocietyEvaluation(query: EvaluationScope, options: SocietyEvaluationOptions) {
@@ -19,6 +20,8 @@ export function reportSocietyEvaluation(query: EvaluationScope, options: Society
 /** Internal native collection, also used for exact receipt drill-down. No supplied report JSON. */
 export function collectSocietyEvaluation(query: EvaluationScope, options: SocietyEvaluationOptions) {
     const scope = validateEvaluationScope(query);
+    // Enforce export scope before the other native readers are opened.
+    const outcomes = options.nativeOutcomes ? reportNativeOutcomes(scope,options.nativeOutcomes) : null;
     const integration = options.nativeIntegration && scope.actorAgentIds.length === 4 ? reportNativeIntegration(scope, options.nativeIntegration) : null;
     const selfSufficiency = reportSelfSufficiency(scope, options);
     const economic = collectEconomicRiskEvidence({ from: scope.fromSimulationTime, to: scope.toSimulationTime, basis: 'simulation',
@@ -55,7 +58,7 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
     const definition = { schemaVersion: 1, artifactKind: 'native-society-multi-objective-report',
         measurementStatus: observedObjectives ? 'partial-observed-channels' : 'inconclusive', scope,
         evidenceAuthority: 'native-readers-with-partial-coverage', contract: societyEvaluationContract(), calculation, sources,
-        nativeIntegration: integration, nativeFinance: finance,
+        nativeIntegration: integration, nativeFinance: finance, nativeOutcomes: outcomes,
         metricScopes: { specialization: 'selected-registered-responsible-agents-in-observed-production',
             mobility: 'matched-opening-closing-native-cohort; GP-only-personal-cash',
             wealth: 'GP-only-personal-physical-and-custodial-cash; company-equity/claims/debt/noncash-separate',

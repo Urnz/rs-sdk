@@ -18,6 +18,7 @@ import { loadPackedContent } from './native-food-skill-fixture.js';
 import { NativeToolWorkExecutor,type NativeToolWorkPorts,type NativeToolWorkCommand } from './NativeToolWork.js';
 import { nativeToolWorkPolicy,TOOL_WORK_SKILLS } from '../../../../production-workflow/native-tool-work-policy.js';
 import type { NativeToolWorkKind,NativeToolWorkRecord } from '../../../../production-workflow/native-tool-work.js';
+import { readNativeWorkerEvidence,laborProjection } from '../../../../society-metrics/outcome-work.js';
 beforeAll(loadPackedContent);afterEach(closeNativeMiningFixtures);
 function harness(){
     const f=fixture(),originalIdentity=f.p.identity;let offset=0;
@@ -32,11 +33,42 @@ function harness(){
     let executor=new NativeToolWorkExecutor(p);
     const command=(kind:NativeToolWorkKind):NativeToolWorkCommand=>({operationId:randomUUID(),kind,username:f.miner.username,
         businessId:kind==='repair'?'fixture-workshop':null,contextDigest:'d'.repeat(64)});
-    const place=(kind:NativeToolWorkKind)=>{const s=sources[kind];f.miner.x=s.x-1;f.miner.z=s.z;f.miner.level=s.level;};
-    const tick=(id:string,deltaMs=150000)=>{World.currentTick++;offset+=deltaMs-600;return executor.advance(id,f.miner);};
+    const place=(kind:NativeToolWorkKind,worker=f.miner)=>{const s=sources[kind];worker.x=s.x-1;worker.z=s.z;worker.level=s.level;};
+    const tick=(id:string,deltaMs=150000,worker=f.miner)=>{World.currentTick++;offset+=deltaMs-600;return executor.advance(id,worker);};
     return{...f,p,sources,command,place,tick,executor:()=>executor,restart(){executor=new NativeToolWorkExecutor(p);},
         jumpWall(){const old=p.clock;p.clock=()=>{const c=old();return{...c,wallTime:new Date(Date.parse(c.wallTime)+60000).toISOString()};};}};
 }
+test('SI-C05 controlled native work week separates workers, output, credit and unknown availability',()=>{
+    const f=harness(),second=f.player(undefined,false),id=`tool-${f.miner.username}`;
+    f.store.lifecycle.use('fixture-break',id,1,100,'e'.repeat(64),'2001-01-01T00:00:00.000Z');
+    f.miner.invAdd(InvType.INV,2349,1);f.place('repair');const repair=f.command('repair');f.executor().start(repair,f.miner);
+    expect(f.tick(repair.operationId,600000).phase).toBe('completed');
+    expect(f.mine().execution).not.toBe(-1);
+    second.invAdd(InvType.INV,436,1);second.invAdd(InvType.INV,438,1);f.place('smelt',second);
+    const smelt={...f.command('smelt'),username:second.username};f.executor().start(smelt,second);
+    f.tick(smelt.operationId,40000,second);World.currentTick++;
+    expect(f.executor().advance(smelt.operationId,null).phase).toBe('paused');
+    expect(f.tick(smelt.operationId,200000,second).progressMs).toBe(40000);
+    for(let i=0;i<2;i++)f.tick(smelt.operationId,40000,second);
+    const scope={clockId:'si-c02-clock',clockProfileDigest:'b'.repeat(64),fromSimulationTime:'2001-01-01T00:00:00.000Z',
+        toSimulationTime:'2001-01-08T00:00:00.000Z',actorAgentIds:[`actor-${f.miner.username}`,`actor-${second.username}`]};
+    const actors=[f.miner,second].map(p=>({agentId:`actor-${p.username}`,username:p.username,lifecycleId:`life-${p.username}`}));
+    const work=readNativeWorkerEvidence(f.market.db,scope,'si-c02-fixture',actors),labor=laborProjection(scope.actorAgentIds,work);
+    expect(work.rows).toHaveLength(3);expect(work.rows.find(r=>r.stage==='repair')).toMatchObject({workerAgentId:actors[0]!.agentId,
+        outputItems:[],serviceCapacityAfter:50,creditedSimulationMs:'600000'});
+    expect(work.rows.find(r=>r.stage==='smelt')).toMatchObject({workerAgentId:actors[1]!.agentId,outputItems:[{itemId:2349,quantity:1}],creditedSimulationMs:'120000',
+        elapsedSimulationMs:'320600',noncreditedElapsedSimulationMs:'200600'});
+    expect(work.rows.find(r=>r.stage==='mining')?.elapsedSimulationMs).toBeNull();
+    expect(labor.map(l=>l.recordedCreditedSimulationMs)).toEqual(['600000','120000']);
+    expect(labor.every(l=>l.availableAndWillingPersonMs===null&&l.unemploymentRate===null)).toBeTrue();
+    expect(()=>readNativeWorkerEvidence(f.market.db,{...scope,clockProfileDigest:'a'.repeat(64)},'si-c02-fixture',actors)).toThrow('profile');
+    console.log('SI-C05_NATIVE_ACCEPTANCE',JSON.stringify({scope,work,labor}));
+    // Deliberately bypass immutability only in this disposable fixture to test the independent effect-clock check.
+    const corrupt=f.store.event(`work:${smelt.operationId}`)!;corrupt.clock={...corrupt.clock,clockId:'foreign'};
+    f.market.db.run('DROP TRIGGER native_tool_event_no_update');
+    f.market.db.run('UPDATE native_tool_event SET payload=?,digest=? WHERE event_id=?',[JSON.stringify(corrupt),nativeToolDigest(corrupt),`work:${smelt.operationId}`]);
+    expect(()=>readNativeWorkerEvidence(f.market.db,scope,'si-c02-fixture',actors)).toThrow('effect clock');
+});
 test('SI-C03 packed bronze smelting holds exact native ores and commits one actual bar',()=>{
     const f=harness();f.miner.invAdd(InvType.INV,436,1);f.miner.invAdd(InvType.INV,438,1);f.place('smelt');
     const command=f.command('smelt');const pending=f.executor().start(command,f.miner);

@@ -99,6 +99,8 @@ export interface GatewayAgentReplanOptions {
     institutionPolicyPath?: string;
     institutionWorkOptions?: BusinessWorkRuntimeOptions;
     strategyPlanning?: Pick<AdminLlmDryRunOptions, 'provider' | 'queue' | 'budget' | 'audit'>;
+    /** Optional planning infrastructure; source/goal/authorization inputs remain server-owned. */
+    planning?: Pick<AdminLlmDryRunOptions, 'provider' | 'queue' | 'budget' | 'audit'>;
     agentPath?: string;
     capabilityGapPath?: string;
     llmConfigPath?: string;
@@ -464,7 +466,7 @@ export function createGatewayAgentReplanCoordinator(gatewayBots: () => Map<strin
                         return { ...launched, decision: deterministic.decision };
                     }
                 }
-                const result = await runAdminLlmDryRun(current, current.catalogSkills, { now, runId: event.eventId,
+                const result = await runAdminLlmDryRun(current, current.catalogSkills, { ...options.planning, now, runId: event.eventId,
                     untrustedText: event.type === 'offer-received' ? [event.summary] : [], automatic: true,
                     requireAuthoritativeContext: true,
                     configPath: options.llmConfigPath,

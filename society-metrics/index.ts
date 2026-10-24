@@ -8,6 +8,7 @@ export { evaluateSocietyObservations, societyEvaluationContract, SOCIETY_OBJECTI
 export type { EvaluationScope, SocietyObservations, SocietyObjectiveId } from './evaluation.js';
 export { reportSocietyEvaluation, type SocietyEvaluationOptions } from './evaluation-report.js';
 export { reportNativeFinance } from './native-finance.js';
+export { reportNativeOutcomes,type NativeOutcomeOptions } from './native-outcomes.js';
 export { nativeFinanceOptions } from './finance-options.js';
 export { captureNativeFinanceBoundary, readNativeFinanceBoundary, type NativeFinanceOptions, type FinanceBoundaryPaths } from './finance-sources.js';
 export { reportSocietyDashboard, readSocietyDashboardEvent, SocietyDashboardError, type DashboardFilters } from './dashboard.js';

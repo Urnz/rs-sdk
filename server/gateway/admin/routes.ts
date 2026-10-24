@@ -11,6 +11,7 @@ import { reportNativeIntegration, readNativeIntegrationEvidence, NativeIntegrati
 import { nativeIntegrationOptions, type NativeIntegrationOptions } from '../../../society-metrics/integration-sources.js';
 import { reportNativeFinance } from '../../../society-metrics/native-finance.js';
 import type { NativeFinanceOptions } from '../../../society-metrics/finance-sources.js';
+import { reportNativeOutcomes,type NativeOutcomeOptions } from '../../../society-metrics/native-outcomes.js';
 import { observeExternalTrade, reportExternalTrade, defaultExternalTradeOptions, type ExternalTradeOptions } from '../../../external-trade/runtime.js';
 import { reportEconomicDependencies, reportEconomicRisk, type DependencyOptions } from '../../../economic-dependency/index.js';
 import { readLongExperimentReport, readLongExperimentComparison } from '../../../society-experiments/runtime.js';
@@ -153,6 +154,7 @@ export interface AdminRouteContext {
     dependencyGraphOptions?: DependencyOptions;
     nativeIntegrationOptions?: NativeIntegrationOptions;
     nativeFinanceOptions?: NativeFinanceOptions;
+    nativeOutcomeOptions?: NativeOutcomeOptions;
     longExperimentJournalPath?: string;
     longExperimentDependencies?: LongExperimentDependencies;
     populationEstateOptions?: EstateRuntimeOptions;
@@ -754,7 +756,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 eventFrom: url.searchParams.get('eventFrom') ?? undefined, eventTo: url.searchParams.get('eventTo') ?? undefined,
                 offset: numeric('offset'), limit: numeric('limit'), snapshot: url.searchParams.get('snapshot') ?? undefined };
             const options = { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions,
-                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot), nativeFinance: context.nativeFinanceOptions };
+                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot), nativeFinance: context.nativeFinanceOptions,
+                nativeOutcomes: context.nativeOutcomeOptions };
             try {
                 return json(dashboardEvent ? readSocietyDashboardEvent(query, filters, decodeURIComponent(dashboardEvent[1]!), options)
                     : reportSocietyDashboard(query, filters, options));
@@ -765,7 +768,8 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 toSimulationTime: url.searchParams.get('to') ?? '', clockId: url.searchParams.get('clockId') ?? '',
                 clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '', actorAgentIds: url.searchParams.getAll('actor') },
             { configDirectory: join(repoRoot, 'config'), sources: context.selfSufficiencySources, dependencies: context.dependencyGraphOptions,
-                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot), nativeFinance: context.nativeFinanceOptions })); }
+                nativeIntegration: context.nativeIntegrationOptions ?? nativeIntegrationOptions(repoRoot), nativeFinance: context.nativeFinanceOptions,
+                nativeOutcomes: context.nativeOutcomeOptions })); }
             catch (error) { if (error instanceof NativeIntegrationError) return json({ error: error.message }, error.status); throw error; }
         }
         if (req.method === 'GET' && url.pathname === '/api/admin/society/finance') {
@@ -773,6 +777,12 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             return json(reportNativeFinance({ fromSimulationTime: url.searchParams.get('from') ?? '', toSimulationTime: url.searchParams.get('to') ?? '',
                 clockId: url.searchParams.get('clockId') ?? '', clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '',
                 actorAgentIds: url.searchParams.getAll('actor') }, context.nativeFinanceOptions));
+        }
+        if (req.method === 'GET' && url.pathname === '/api/admin/society/outcomes') {
+            if (!context.nativeOutcomeOptions) return json({ status: 'inconclusive', reason: 'Backend outcome export scope not configured' });
+            return json(reportNativeOutcomes({ fromSimulationTime: url.searchParams.get('from') ?? '', toSimulationTime: url.searchParams.get('to') ?? '',
+                clockId: url.searchParams.get('clockId') ?? '', clockProfileDigest: url.searchParams.get('clockProfileDigest') ?? '',
+                actorAgentIds: url.searchParams.getAll('actor') }, context.nativeOutcomeOptions));
         }
         if (req.method === 'GET' && url.pathname === '/api/admin/society/self-sufficiency') {
             return json(reportSelfSufficiency({ fromSimulationTime: url.searchParams.get('from') ?? '',

@@ -3,8 +3,8 @@
 Dátum: 2026-10-18. Forrásbaseline: `2df0daad86c6568a3e1f0e62f58f09aa3cd955de`.
 Hatókör: kizárólag a helyi/private rs-sdk/LostCity emulator.
 
-**Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01–C04
-kész;25/45. Következő: SI-C05.** [SI-C04 natív pénzügyi történet](SI_C04_NATIVE_FINANCE_HISTORY.md).
+**Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01–C05
+kész;26/45. Következő: SI-C06.** [SI-C05 natív outcome-mérés](SI_C05_NATIVE_OUTCOME_METRICS.md).
 
 ## 1. Státusz, használat és elsőbbség
 
@@ -994,12 +994,19 @@ Történeti SI-C04 belépés, saját SI-B06/SI-A12 függőségekkel. Azóta
 
 ### SI-C05 – Foglalkozási, társas és döntési outcome-metrikák
 
-**Belépés: SI-C04 kész;25/45.** [Readonly frozen finance/basket/cashflow](SI_C04_NATIVE_FINANCE_HISTORY.md),
+**Történeti belépés: SI-C04 kész;25/45.** [Readonly frozen finance/basket/cashflow](SI_C04_NATIVE_FINANCE_HISTORY.md),
 [source-bound eredmény](SI_C04_NATIVE_RESULT.json). GP-only scope, claims/debt és
 hiányzó Business rent/capex forrás külön; nincs SI-C07/SI-M3/MVS minősítés.
-SI-C05 csak új kérésre indul, saját SI-C04/SI-B06 függőségekkel.
+SI-C05 a felhasználó kérésére elkészült, SI-C04/SI-B06 függőségekkel.
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P2; G04/G08, METRICS/RUNTIME.
+**Zárás: SI-C05 kész;26/45.** [Readonly worker/social/goal/provider projection](SI_C05_NATIVE_OUTCOME_METRICS.md),
+[source-bound eredmény](SI_C05_NATIVE_RESULT.json). Actual credit és worker-output
+külön a responsibility HHI-től; observer-owned graph, újraszámolt state evaluation
+és native-clock goal transition; külön wall provider audit/queue. Hiányzó
+available-and-willing denominator és active service unknown. Kontrollált natív
+próba/célzott kapuk, nem SI-C07/SI-M3/MVS. Következő SI-C06 új kérésre.
+
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P2; G04/G08, METRICS/RUNTIME.
 - **Cél és indok:** megkülönböztetni a termelési felelőst, fizikai munkást és társas partnert.
 - **Meglévő:** recipe-responsibility HHI, employment, directed social memory,
   commitment, döntési budget/token audit és goal-success progress.
@@ -1019,6 +1026,11 @@ SI-C05 csak új kérésre indul, saját SI-C04/SI-B06 függőségekkel.
 - **Kockázat:** közepes; hibás nevezőből tetszetős, de félrevezető társadalmi következtetés.
 
 ### SI-C06 – A kibővült világ összehasonlítható baseline-ja
+
+**Belépés: SI-C05 kész;26/45.** [Outcome-verzió és source/clock korlátok](SI_C05_NATIVE_OUTCOME_METRICS.md),
+[mechanikai elfogadás](SI_C05_NATIVE_RESULT.json). Új outcome store nincs;
+archive/source coverage vizsgálatnál a meglévő authoritative source-ok és a
+reportverzió rögzítendő. SI-C06 csak új kérésre indul; SI-C07/SI-M3/MVS nyitott.
 
 - **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G04/G05, METRICS/CLOCK.
 - **Cél és indok:** az új needs/custody/profile store ne maradjon ki a már meglévő restore-ból.

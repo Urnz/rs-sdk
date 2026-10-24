@@ -1,0 +1,616 @@
+{
+  "schemaVersion": 1,
+  "taskId": "SI-C05",
+  "verdict": "PASS",
+  "scope": "Read-only partial native worker, observer, goal and provider outcome projection; mechanical acceptance only",
+  "source": {
+    "baseCommit": "0cf37107c1042e0f409131a5cdc433b47e67b844",
+    "branch": "codex/si-c05-native-outcome-metrics",
+    "hashEncoding": "SHA-256 of LF-normalized UTF-8 selected source/contracts; binary packed asset SHA-256",
+    "coverage": "Changed TypeScript and selected direct source/producer contracts; not a claim of a complete transitive dependency manifest",
+    "files": [
+      {
+        "path": "agent-state/economic-context.ts",
+        "sha256": "2a188532700fe132cd0ea1abbed45b8c1bb9f1ab9de136d7fb7fd22baad5f62a"
+      },
+      {
+        "path": "agent-state/memory-archive.ts",
+        "sha256": "a708cae6a67e7f559ad961f7c72a314cae89e9f8bcd03f8047131ec97575367d"
+      },
+      {
+        "path": "agent-state/population-entry.ts",
+        "sha256": "8a6d7af76dbfec9d5f8c2ea4cc97e1d01bab08b7d53e6a1eb618131b17a938d7"
+      },
+      {
+        "path": "agent-state/state-objectives.ts",
+        "sha256": "c90de276dbd12eaa99591a08e91a2063ba817f00643450d769a68bd4cee9e1c0"
+      },
+      {
+        "path": "agent-state/store.ts",
+        "sha256": "9f8e31392c5d62131832e988d3b05a4642da8b1306f19d89748640718a2734a3"
+      },
+      {
+        "path": "agent-state/types.ts",
+        "sha256": "cacc71053d3c65077ddc83d90ee80abb5909c48b2322903515f1f21df24519b1"
+      },
+      {
+        "path": "business-work/binding.ts",
+        "sha256": "6ae2d5994121a5a1f7e839ddf6b99728f923f378b2554a06648e037dca2f0c85"
+      },
+      {
+        "path": "business-work/work.ts",
+        "sha256": "13f319b1d2047251b927ea2f8fb46ffbbc262c70c46e95bcfc50e163b22314bb"
+      },
+      {
+        "path": "external-trade/source.ts",
+        "sha256": "55754cb1592b4168aabf129e73a194863fa844c85299ec5d1b83cc9dda8232b0"
+      },
+      {
+        "path": "item-lifecycle/native-tool.ts",
+        "sha256": "6fedd176717c419cdc0f6a5166255232a37e14e25cf3ecb13037975778f192e5"
+      },
+      {
+        "path": "llm-runtime/audit.ts",
+        "sha256": "eb71b930186240858647296dec0c6a598df5c4796bc306c57249f49b64e14860"
+      },
+      {
+        "path": "llm-runtime/inference-queue-store.ts",
+        "sha256": "952d0fd3a72c358d568132a46a2dce467cc9158bc90d1d7a42748b71f66c238b"
+      },
+      {
+        "path": "llm-runtime/orchestrator.ts",
+        "sha256": "ed83bff01de8907305387e9edcd8177cce38711f0e1519ddca3cfe1695bf8f7c"
+      },
+      {
+        "path": "llm-runtime/queue.ts",
+        "sha256": "c12ab1299527effd7030a068402fd2960bbbca27b3c7ed4ebefd135c7ae97f26"
+      },
+      {
+        "path": "llm-runtime/types.ts",
+        "sha256": "e675364f7bc887666d4e7b493759c55285e6881287785cb5576f83f7068a95dc"
+      },
+      {
+        "path": "needs/population-binding.ts",
+        "sha256": "874cea4733fdce556d1e312f32ca600c1588438036fb9f6dd64dd691dd56b66f"
+      },
+      {
+        "path": "production-workflow/native-tool-work-policy.ts",
+        "sha256": "6ea906df66a98b9e44ba185516bafac252bcd0edcf93ea7127cbce26d87eb1db"
+      },
+      {
+        "path": "production-workflow/native-tool-work.ts",
+        "sha256": "9b345206161d1c41fecd7e242e9373324da42927c86d8091ed538e82eaa304d5"
+      },
+      {
+        "path": "scripts/report-society-outcomes.ts",
+        "sha256": "191d85c3de71ff533b0266626fd39040d1de16debc805ab731a4d069cfacafe0"
+      },
+      {
+        "path": "server/engine/src/io/OwnedDatabase.ts",
+        "sha256": "d2f1ae8b6b4bd96d61510b0a1cdee52076fb404e5c3061a2783d7407f2e3a77a"
+      },
+      {
+        "path": "server/engine/src/mods/native-food-skill-fixture.ts",
+        "sha256": "9a0309eb2de47841f468e862540165903885eb7d50f50f35d403a458c1d24c2f"
+      },
+      {
+        "path": "server/engine/src/mods/native-mining-tool-fixture.ts",
+        "sha256": "ee9ffb92d74b94e34b1ccbe98045a41cc87b0fcb905672cfbd18dc8148dd8eed"
+      },
+      {
+        "path": "server/engine/src/mods/NativeFoodConsumptionStore.ts",
+        "sha256": "1c1f9658c6f7b60f941cccbbdd134edb8382e35a0b4a4cff78f285ec87cb07a8"
+      },
+      {
+        "path": "server/engine/src/mods/NativeFoodProductionStore.ts",
+        "sha256": "043f57fbfce2ef9a02d5b7cf27df9beafe4f65b3625ed7198374c319b0037567"
+      },
+      {
+        "path": "server/engine/src/mods/NativeMiningTool.ts",
+        "sha256": "25ba722688ccf90fb8ffc678c13c892e3f58ec0d218cdb3b0becdc0a93ccea4a"
+      },
+      {
+        "path": "server/engine/src/mods/NativeToolWork.test.ts",
+        "sha256": "6200d8451c3c9887d744967c8992991c565e74f54feac0639608b8ca76bd7998"
+      },
+      {
+        "path": "server/engine/src/mods/NativeToolWork.ts",
+        "sha256": "e926c17cf9a6ca9c056173152f7075f1e7f9e4f52c1d0242db7ded076fbde21e"
+      },
+      {
+        "path": "server/engine/src/mods/TradeEvidenceStore.ts",
+        "sha256": "22c17a72f2f86002241b434e16b5270d5a20a12b68d76bf56f10db3313e2b553"
+      },
+      {
+        "path": "server/gateway/admin/llm-dry-run.ts",
+        "sha256": "f83741c562405c45f88b67075470c71117c2fdcc9ae244f9a968022b67b80398"
+      },
+      {
+        "path": "server/gateway/admin/native-food-test-runtime.ts",
+        "sha256": "c980e78185a9372d0644dd654f5744c94487c6f686b6323b33d37431a3d3d8c5"
+      },
+      {
+        "path": "server/gateway/admin/native-outcomes.test.ts",
+        "sha256": "8152480bc242d3fdc5ca0b7ffbf60ccce4301fb7b83eba5001303413d6f70bae"
+      },
+      {
+        "path": "server/gateway/admin/paths.ts",
+        "sha256": "b383bd3d27235e3dc2b853301eacfad7b0925dce6e954a1cd6c9a49d90551c66"
+      },
+      {
+        "path": "server/gateway/admin/replan-runtime.ts",
+        "sha256": "076c36ab4b754c599886885885b1716f53bf112cc0bb8a00b736cf8b66fc6a03"
+      },
+      {
+        "path": "server/gateway/admin/routes.ts",
+        "sha256": "56fd02a5b4b62c3c141ed7a1e9f113d3acba86e8c75c6a7a0887c8686e756c56"
+      },
+      {
+        "path": "server/gateway/admin/state-goals.test.ts",
+        "sha256": "d2bc0a816e10e6f2ec5211ab09a6a507e9607595f546dac0365d166fe4b05bd9"
+      },
+      {
+        "path": "simulation-clock/types.ts",
+        "sha256": "1970c5e2f76d7355eac5cac951f2b13049e940604bf4c89ae72219494ef8c11c"
+      },
+      {
+        "path": "society-metrics/evaluation-report.ts",
+        "sha256": "2f13f0665dddcc60f0710076f6ece44179b54532475dee25244d6630d7541c29"
+      },
+      {
+        "path": "society-metrics/index.ts",
+        "sha256": "b3439302e3e78244f19215a7e5831c1a07e3571f17ededef3d57d52ed5143f9f"
+      },
+      {
+        "path": "society-metrics/native-outcomes.ts",
+        "sha256": "66cae11bc8610e089e5ba6e2c149c57149786c02db2c0825593d20d742bf56a2"
+      },
+      {
+        "path": "society-metrics/outcome-agents.ts",
+        "sha256": "a2836a743ebcdae42d03d2688f47a651ce0e06a9b0d4ba42ba7be573658a2040"
+      },
+      {
+        "path": "society-metrics/outcome-provider.ts",
+        "sha256": "93e20f4ad5d306526ab9bb9bcb6bc421e892503c0c54a9ccf6b7e5599108d347"
+      },
+      {
+        "path": "society-metrics/outcome-work.ts",
+        "sha256": "719ab1f953c24e8e65e9b37136fcda973a73148954eb3f4b9b3e120683924dea"
+      },
+      {
+        "path": "society-metrics/test/native-outcomes.test.ts",
+        "sha256": "ecaeac2690dac06a0ac3c06b9b5d246a0ed45a514eff69529b543a3572704601"
+      }
+    ],
+    "packedAssets": [
+      {
+        "path": "server/engine/data/pack/main_file_cache.dat",
+        "sha256": "5c177b9209e183ad977fb43a7b5c2436953cb6585102f56c6193f2ead44499da"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx0",
+        "sha256": "af8a7bb2f99b2bdf802cf13ef8c894d59592399e41c400fd3258b384ef229b76"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx1",
+        "sha256": "0ce4f410c11cb36753a67ae4fb6acb41026133057966b4f5887877a2310dd10e"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx2",
+        "sha256": "38117c0d67c9768eccc67d1412dc0664b191c660943e6581fe36b048496eeabf"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx3",
+        "sha256": "c76aff4c175d73db6c6791ba99f9cb5667cd4645555f63909f917dbaee601ea0"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx4",
+        "sha256": "0f731d032a63baef29778c0a8857af1c1a344447292fcb28f96be3744d0f6b52"
+      },
+      {
+        "path": "server/engine/data/pack/server/category.dat",
+        "sha256": "f63cb5e4c38d7c4a79e15b48fd3d05bdb6a99dba6e1906a761e46350b0f97e98"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.dat",
+        "sha256": "5a4f274c247217875f8b3b71006100a86030b51a5d4165f6cd91dd910cce8286"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.idx",
+        "sha256": "c9d085f8a353abd58a7315f3a8e9e17e331bb38197470bd7dd17c7f67e961c23"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.dat",
+        "sha256": "74f6c6be5dae1111fbd39e7bd4290647fce7f5b93dd5fb3a0a386503ddb40ac3"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.idx",
+        "sha256": "50be28dfbd8b017cfee7fda40d07ad4c5d374b3861f0b3dcb67e76f36ff15c5a"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.dat",
+        "sha256": "692812e0b3c7b776c2edd3aac70d11249d0c824c79a42f0e2ad08311bb1b40c5"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.idx",
+        "sha256": "5c4bb2801422d762f965ac53dce6c9c8406c07f975f3cc7850bd555a76a0821b"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.dat",
+        "sha256": "1cb8bdec4c1bea9797cd5ddf2d6d12f7b278d5b52cf0e76cf870765c92d40574"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.idx",
+        "sha256": "e6e740142c951caafe7523ce5be71d6f58480f174389108c89b1c89906ea1563"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.dat",
+        "sha256": "641a509227c948dbd626eba8afd6e5b49c4e95d338d596c134b4dfe40b058121"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.idx",
+        "sha256": "f65cd1b3902def149de3ba676aa7bf227d70f408770f16df3cc1419eea6663a7"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.dat",
+        "sha256": "c49a737d21e1138667f8961ec96cfaf8fdc5a8a7e27eaccf6c0833b845eaffdd"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.idx",
+        "sha256": "15de0287fd9650a02f274771a6eab909b0cce5b7ecd9db6fd8dc0e4dc7b3d354"
+      },
+      {
+        "path": "server/engine/data/pack/server/interface.dat",
+        "sha256": "79c4635a79a4b788ab5b241c03fcfed790507f059adf8156976a1c3e906331d0"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.dat",
+        "sha256": "c742ce8c79c28552413640b5ad26626e520da3f19ccd638362a1f7bc58b73032"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.idx",
+        "sha256": "f8eeed182072f4d6ab383f7d28c3edd0dc51eacb98c1a107216523703d5c22c1"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.dat",
+        "sha256": "a45ded68e74cf5a59257141206560aa508524b9ed89c06ac5bc94482f38eaf00"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.idx",
+        "sha256": "ff841140ee0a0685e0bda5a39c3838b6d3aa34ba5db8d6d05d416b9fbebca7d2"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.dat",
+        "sha256": "8c5cbe3e9981d7982a4c3e53eb61d336ec7a6de7fe17f13bbe4a09ee07210d94"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.idx",
+        "sha256": "6e87275bbb7b59bfae93049b6ecce2a103fe80d5dd8c4e2477600f088e804609"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.dat",
+        "sha256": "819902401ef17472946c0444094ab876ee63b1ee383708ac4c14382b287be02b"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.idx",
+        "sha256": "5cd4978d0535e9cd526bff781add78db48bd036fb8ef76227053681d62674802"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.dat",
+        "sha256": "f86e2e07d8801cce6bf3751342f279b31f60190049aec77407ae9262069f9818"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.idx",
+        "sha256": "edfb9a90cab90849419be2233d7ea6af7eee05bf4880bb6b75d77683d5e0c779"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.dat",
+        "sha256": "5504276804b51de580dab058bdc2fa8bfc432a2a002d4b0a499223cd990a84fd"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.idx",
+        "sha256": "7c673ffda5b1f1536c1ccc332a61493099d08aa089d43b35e0e8fcd802be936c"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.dat",
+        "sha256": "2e9b2a8a91ae64abee01afba9ed28c8700045eed413afdfcaa521515468f09b3"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.idx",
+        "sha256": "7dcfe2c0426db07a93c63eecb3e6e8bf0e14f97d4e74b5d8e5f18c31d3137eb1"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.dat",
+        "sha256": "17a718d58381ac68c379031561349598662439507a10aa2a5408ea9a832aca51"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.idx",
+        "sha256": "8b6afaed99c44bfa201018c49c064047294dfc8169852da620f743106ebf3bbf"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.dat",
+        "sha256": "86cbc2cd8cd1565bca4b6e493d41e3a6e0cf63d9e7aa7d938221a26990427bcd"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.idx",
+        "sha256": "572859b1698e06352dd1c70c3c7ff8b5bdb6d4508ac9d82dfacb2c4a1a492c46"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.dat",
+        "sha256": "e528d20f9d055e6e76487f07c2cf0dbfe13b49f819627b0b8718eddf81fb0dfd"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.idx",
+        "sha256": "43a6cd1d81780e993979d07e506ff6c54e5571a6e62f79c94084bbe44f42019a"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.dat",
+        "sha256": "02114d60728295a675488a3b54ae1a92525496c73e984cc1fceaf45fc02f9e5e"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.idx",
+        "sha256": "a3b06e8eaaeff0f13683416777f465b5c4dbb12e1a7746b61a25a3858236927d"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.dat",
+        "sha256": "58b3f7be63bb0f421bcfd9322cb99f42d1c62bc2e295217ea1cbc4a8f6a9766c"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.idx",
+        "sha256": "73993eafcdcf368a767a8e1c622511699747a42f635f9c1b31ffd2923b319f96"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.dat",
+        "sha256": "06d9da884eb3c6dc8bfef2fda8252c57b63c9f5cb1fbfbfaee9ffe20e7cab439"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.idx",
+        "sha256": "e6e87b06af30777b0c829a15b3d8e4574d2f349c1bb18fd7c00c9682da6f52a1"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.dat",
+        "sha256": "d384d9a7778c66a4bc34ef533fa720fe1b9b2234f233312e5df892c44069a5da"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.idx",
+        "sha256": "cbc943fe49dfb709c4761f632a621ed4ff9981503cd50b1d6b3e5bf6c5d52e65"
+      }
+    ]
+  },
+  "verification": {
+    "checks": [
+      {
+        "id": "20261024-225138-443-si-c05-final-effect-clock",
+        "resultPath": ".local/verification/20261024-225138-443-si-c05-final-effect-clock.result.json",
+        "durationSeconds": 46.1769972,
+        "tests": {
+          "passed": 2.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "outcome": "SUCCESS",
+        "command": "bun test ./server/gateway/admin/native-outcomes.test.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun run typecheck:engine; exit $LASTEXITCODE",
+        "logSha256": "6451c9c9d1547089ef5a1d3514fbfdde1e797a98d8c282bc72c8c7dc14ab08ca"
+      },
+      {
+        "id": "20261024-225138-949-si-c05-final-effect-reader-types",
+        "resultPath": ".local/verification/20261024-225138-949-si-c05-final-effect-reader-types.result.json",
+        "durationSeconds": 50.7774571,
+        "tests": {
+          "passed": 9.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "outcome": "SUCCESS",
+        "command": "bun test ./society-metrics/test/native-outcomes.test.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun run typecheck; exit $LASTEXITCODE",
+        "logSha256": "a164d45e0f76a39766f2a3450a6e4f58f3f960de13e2311c4cfeda246d5cf7ce"
+      },
+      {
+        "id": "20261024-225424-400-si-c05-final-export-privacy",
+        "resultPath": ".local/verification/20261024-225424-400-si-c05-final-export-privacy.result.json",
+        "durationSeconds": 11.2121294,
+        "tests": {
+          "passed": 9.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "outcome": "SUCCESS",
+        "command": "bun test ./society-metrics/test/native-outcomes.test.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun node_modules/typescript/bin/tsc --noEmit -p .local/verification/tsconfig-si-c05-cli.json; exit $LASTEXITCODE",
+        "logSha256": "405ec65a33289477e09ba3669f6c55cf6d3a6c70f32b045b1d7892bd7f6a1b36"
+      },
+      {
+        "id": "20261024-224915-610-si-c05-final-root-cli-types",
+        "resultPath": ".local/verification/20261024-224915-610-si-c05-final-root-cli-types.result.json",
+        "durationSeconds": 51.3798916,
+        "tests": {
+          "passed": null,
+          "failed": null,
+          "skipped": null
+        },
+        "outcome": "SUCCESS",
+        "command": "bun run typecheck; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun node_modules/typescript/bin/tsc --noEmit -p .local/verification/tsconfig-si-c05-cli.json; exit $LASTEXITCODE",
+        "logSha256": "33c02627b2cf2bdc11626f1ff857b7dc9fc98cea157a3e00eeaa93f1d775fc94"
+      },
+      {
+        "id": "20261024-224916-858-si-c05-isolated-planning",
+        "resultPath": ".local/verification/20261024-224916-858-si-c05-isolated-planning.result.json",
+        "durationSeconds": 11.972234,
+        "tests": {
+          "passed": 18.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "outcome": "SUCCESS",
+        "command": "bun test ./server/gateway/admin/state-goals.test.ts -t \"the real gateway replan path\"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun test ./server/gateway/admin/state-goals.test.ts -t \"the real gateway replan path\"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun test ./server/gateway/admin/replan-runtime.test.ts ./server/gateway/admin/llm-dry-run.test.ts; exit $LASTEXITCODE",
+        "logSha256": "1e7d2408bc51912c455602d8c5346900563a2b75ff66b881fd872cab41fdce9e"
+      },
+      {
+        "id": "20261024-224614-487-si-c05-native-credit-and-cohort",
+        "resultPath": ".local/verification/20261024-224614-487-si-c05-native-credit-and-cohort.result.json",
+        "durationSeconds": 13.756837,
+        "tests": {
+          "passed": 23.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "outcome": "SUCCESS",
+        "command": "bun test ./society-metrics/test/native-outcomes.test.ts ./server/gateway/admin/native-outcomes.test.ts ./server/gateway/admin/native-tool-work.test.ts; exit $LASTEXITCODE",
+        "logSha256": "180d82c6415d3afb9a61a0db1cb35f89de3d5341916497779aee2ce1f6c909d1"
+      }
+    ],
+    "fullRegressionRun": false,
+    "fullOmission": "No shared persistence/transaction/clock/auth invariant or dependency change; read-only projection and explicit planning infrastructure injection.",
+    "consumerGate": {
+      "id": "20261024-224711-277-si-c05-final-readers-consumers",
+      "outcome": "FAIL",
+      "passed": 65,
+      "failed": 1,
+      "failure": "Existing gateway-plan fixture reused a shared LLM budget run ID with different admission data.",
+      "resolution": "Explicit isolated budget/queue/audit via optional backend planning infrastructure. Failed case passed twice; replan-runtime/llm-dry-run16 passed. Other65 cases passed before this unrelated injection; changed outcome source covered again by final9-case gate."
+    },
+    "countPolicy": "Do not sum overlapping/nested tests, repeated isolation proofs or parallel check durations."
+  },
+  "nativeAcceptance": {
+    "scope": {
+      "clockId": "si-c02-clock",
+      "clockProfileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "fromSimulationTime": "2001-01-01T00:00:00Z",
+      "toSimulationTime": "2001-01-08T00:00:00Z",
+      "actorAgentIds": [
+        "actor-miner1",
+        "actor-miner2"
+      ]
+    },
+    "work": {
+      "channels": {
+        "toolWork": true,
+        "mining": true,
+        "food": false
+      },
+      "rows": [
+        {
+          "id": "tool-work:c1208a5c-0646-4d5a-aa1b-c4f4069cb460",
+          "workerAgentId": "actor-miner1",
+          "stage": "repair",
+          "simulationTime": "2001-01-01T00:10:00Z",
+          "outputItems": [],
+          "serviceCapacityAfter": 50,
+          "creditedSimulationMs": "600000",
+          "elapsedSimulationMs": "600000",
+          "noncreditedElapsedSimulationMs": "0",
+          "relatedRunId": null,
+          "relatedBatchId": null
+        },
+        {
+          "id": "tool-work:3d403b1c-af10-4ec8-871c-1a2844e2f729",
+          "workerAgentId": "actor-miner2",
+          "stage": "smelt",
+          "simulationTime": "2001-01-01T00:15:24.2Z",
+          "outputItems": [
+            {
+              "itemId": 2349,
+              "quantity": 1
+            }
+          ],
+          "serviceCapacityAfter": null,
+          "creditedSimulationMs": "120000",
+          "elapsedSimulationMs": "320600",
+          "noncreditedElapsedSimulationMs": "200600",
+          "relatedRunId": null,
+          "relatedBatchId": null
+        },
+        {
+          "id": "mining:baa61004-182e-439d-bc9a-7eda3813f16d",
+          "workerAgentId": "actor-miner1",
+          "stage": "mining",
+          "simulationTime": "2001-01-01T00:10:03.6Z",
+          "outputItems": [
+            {
+              "itemId": 436,
+              "quantity": 1
+            }
+          ],
+          "serviceCapacityAfter": null,
+          "creditedSimulationMs": null,
+          "elapsedSimulationMs": null,
+          "noncreditedElapsedSimulationMs": null,
+          "relatedRunId": null,
+          "relatedBatchId": null
+        }
+      ],
+      "credits": [
+        {
+          "operationId": "c1208a5c-0646-4d5a-aa1b-c4f4069cb460",
+          "workerAgentId": "actor-miner1",
+          "from": "2001-01-01T00:00:00Z",
+          "to": "2001-01-01T00:10:00Z",
+          "creditedMs": "600000"
+        },
+        {
+          "operationId": "3d403b1c-af10-4ec8-871c-1a2844e2f729",
+          "workerAgentId": "actor-miner2",
+          "from": "2001-01-01T00:10:03.6Z",
+          "to": "2001-01-01T00:10:43.6Z",
+          "creditedMs": "40000"
+        },
+        {
+          "operationId": "3d403b1c-af10-4ec8-871c-1a2844e2f729",
+          "workerAgentId": "actor-miner2",
+          "from": "2001-01-01T00:14:04.2Z",
+          "to": "2001-01-01T00:14:44.2Z",
+          "creditedMs": "40000"
+        },
+        {
+          "operationId": "3d403b1c-af10-4ec8-871c-1a2844e2f729",
+          "workerAgentId": "actor-miner2",
+          "from": "2001-01-01T00:14:44.2Z",
+          "to": "2001-01-01T00:15:24.2Z",
+          "creditedMs": "40000"
+        }
+      ],
+      "completeWorkerCoverage": false,
+      "timing": "Completion rows carry whole-job timing; person-time credits are clipped to the selected window. Receipt timestamps alone do not prove duration. Noncredited elapsed time is not automatically queue waiting."
+    },
+    "labor": [
+      {
+        "workerAgentId": "actor-miner1",
+        "recordedCreditedSimulationMs": "600000",
+        "availableAndWillingPersonMs": null,
+        "unemployedPersonMs": null,
+        "unemploymentRate": null,
+        "status": "inconclusive",
+        "reason": "Complete available-and-willing demand/exposure is absent; offline, skill-idle and uncredited time are not unemployment."
+      },
+      {
+        "workerAgentId": "actor-miner2",
+        "recordedCreditedSimulationMs": "120000",
+        "availableAndWillingPersonMs": null,
+        "unemployedPersonMs": null,
+        "unemploymentRate": null,
+        "status": "inconclusive",
+        "reason": "Complete available-and-willing demand/exposure is absent; offline, skill-idle and uncredited time are not unemployment."
+      }
+    ]
+  },
+  "assertedCoverage": [
+    "Native work600000/120000 ms, exact physical workers, one bronze bar and one Mining ore; repair capacity50 is not item output.",
+    "Offline/resume200600 ms uncredited; completion elapsed320600 ms; absent willingness/exposure is inconclusive, not unemployment.",
+    "Native effect with recomputed payload digest but foreign clock rejected in disposable fault injection.",
+    "Lifecycle binding equals the existing native physiology identity; foreign cohort clock rejected.",
+    "Observer-owned asymmetric beliefs, cooperation/conflict and participating trades; third-party memory/private texts and parser excerpts excluded.",
+    "Business requester/assigned worker separate from native physical receipt; scheduled or recorded shift minutes never become productive simulation credit.",
+    "Successful skill plus unsatisfied food predicate remains unsuccessful state objective; native-clock recorded state completion separately verified.",
+    "Actual mock-orchestrator JSONL and durable queue: input120/output30 audit tokens, cost0 microUSD, no actual OpenAI request.",
+    "Identical audit dedupe, ambiguous/missing response and unmatched admission yield unknown totals; truncated source invalid.",
+    "Evaluation/dashboard integration and unchanged admin authorization; actor widening rejected before read; query source/observer ignored; CLI export and missing-file noncreation."
+  ],
+  "limits": [
+    "Controlled three-completion native experiment in a one-week reporting window; not autonomous weekly performance.",
+    "No complete available-and-willing person-time history, native service-only timing, population coverage or total strategy success rate.",
+    "Social memory and generic Business status are current source-head/wall observations; no invented simulation-window placement.",
+    "Goal predicate observations are server-recorded and recomputed, not independently reopened historical inventories. Goal transitions are native-clock-bound, not durable strategic success.",
+    "Provider stage may include retry/backoff; usage is audit-reported rather than independent invoice reconciliation. Audit tail/run completeness is unproven.",
+    "Per-source read snapshots/digests, no distributed atomicity or source completeness proof. No new authoritative store or migration.",
+    "No live world, actual provider spend, enrollment, publication, SI-C07, SI-M3/MVS or self-sufficiency verdict."
+  ]
+}

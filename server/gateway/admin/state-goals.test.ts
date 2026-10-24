@@ -13,6 +13,8 @@ import { buildLlmPlanningInput } from '../../../llm-runtime/planning.js';
 import { LlmOrchestrator } from '../../../llm-runtime/orchestrator.js';
 import { ScriptedMockProvider } from '../../../llm-runtime/mock-provider.js';
 import { MemoryLlmAuditSink } from '../../../llm-runtime/audit.js';
+import { LlmDailyBudgetStore } from '../../../llm-runtime/budget.js';
+import { InferenceQueue } from '../../../llm-runtime/queue.js';
 import { validateLlmRuntimeConfig } from '../../../llm-runtime/config.js';
 import { adoptBoundedImmediatePlan, createGatewayAgentReplanCoordinator } from './replan-runtime.js';
 import type { BotSupervisor } from './supervisor.js';
@@ -267,8 +269,11 @@ test('the real gateway replan path adopts and dispatches a scoped model plan wit
             started.push(options.runId); return { runId: options.runId, status: 'starting', skill: _skill,
                 startedAt: at, pid: 1, exitCode: null, logPath: join(dir, 'skill.log') } as ManagedSkillRunSnapshot;
         } } as unknown as BotSupervisor;
+    const budget = new LlmDailyBudgetStore(join(dir, 'llm-budget.sqlite'));
+    try {
     const coordinator = createGatewayAgentReplanCoordinator(() => gateway, supervisor, async () => {}, {
         agentPath: f.path, capabilityGapPath: join(dir, 'gaps.json'), llmConfigPath: configPath,
+        planning: { budget, queue: new InferenceQueue(), audit: new MemoryLlmAuditSink() },
         skillCatalog: { catalogRoot, localRoot: join(dir, 'drafts') } });
     const record = await coordinator.submit({ eventId: 'gateway-plan', agentId: 'worker', type: 'manual-request',
         sourceKey: 'gateway-plan', occurredAt: at, summary: 'Restore the existing approved reserve' }, at);
@@ -278,6 +283,7 @@ test('the real gateway replan path adopts and dispatches a scoped model plan wit
     const reopened = openStore(f.path);
     expect(reopened.getSkillDispatch(started[0]!)?.decisionId).toBe('gateway-plan');
     expect(reopened.listGoalProposals('worker')[0]).toMatchObject({ status: 'completed', approvalId: null }); reopened.close();
+    } finally { budget.close(); }
 });
 
 test('self-care overrides higher-priority work at the next skill boundary, then work remains available', () => {

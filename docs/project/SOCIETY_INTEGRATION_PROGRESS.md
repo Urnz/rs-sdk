@@ -2308,3 +2308,39 @@ native coverage; SI-C07/SI-M3/MVS vagy önfenntartási minősítés nem követke
 
 **SI-C03 kész;24/45, következő SI-C04 új kérésre.** Repair mechanikai kapu,
 nem replacement, autonóm SI-C07 lánc, SI-M3/MVS vagy önfenntartási minősítés.
+
+## 2026-10-24 – SI-C05: natív munka-, társas- és döntési outcome-projection
+
+[Határ/használat/korlátok](SI_C05_NATIVE_OUTCOME_METRICS.md),
+[source-bound eredmény](SI_C05_NATIVE_RESULT.json). Readonly existing-ID
+projection, új store/migráció nélkül. Actual worker/output/credited sim-time és
+physical-stage receipt HHI külön a recipe-responsibilitytől; requester/assigned
+worker/batch binding külön. Available-and-willing exposure nincs, ezért a
+munkanélküliségi nevező és ráta unknown. Native repair600000 ms/capacity50,
+smelt120000 ms/egy2349 bar, Mining egy436 ore ismeretlen durationnel. Offline
+200600 ms nem credit; whole-job elapsed320600 ms. Három completion egy hét
+riportablakban, nem autonóm hét. Foreign profile/effect-clock elutasított.
+
+Observer saját relationship/commitment/evidence-ID és saját native trade;
+eltérő trust belief, cooperation/conflict observer-reported, trade→trust nincs.
+Privát szöveg, harmadik szereplő memóriája és parser error excerpt nem export.
+Stored goal-state observation digest/predicate újraszámolt; goal transition
+külön native clock stamphez egyeztetett. Sikeres skill nem state/strategy siker.
+Provider audit120/30 mock token és0 microUSD; külön wall-window, admission és
+provider elapsed, active service unknown. Missing/ambiguous/truncated audit
+nem teljes nulla. Nincs valódi providerhívás vagy új költési engedély.
+
+Végső native/engine gate `20261024-225138-443-si-c05-final-effect-clock`:2 PASS
+(child+wrapper),46,177 s. Root reader9 +TS PASS50,777 s; utolsó sanitized export
+reader9 +CLI/transitive TS PASS11,212 s. Korábbi consumer gate65 PASS/1 FAIL:
+régi replan-teszt közös budget és állandó run ID. Saját temp budget/queue/audit
+és backend-only planning DI után két ismétlés és16 közvetlen consumer PASS,
+11,972 s. Nincs közös budget-törlés, assertions gyengítése vagy teljes suite.
+Korábbi C03 harness12 natív eset is PASS; csak a default-kompatibilis fixture
+workerparaméter változott. Részletes index az eredményben; átfedő/párhuzamos
+számok és idők nem összeadandók. Teljes logok `.local/verification/` alatt.
+
+**SI-C05 kész;26/45. Következő SI-C06 csak új kérésre.** SI-C07 autonóm lánc,
+realizmuskalibráció, teljes exposure és SI-M3/MVS/önfenntartás nem következik
+e mechanikai kapuból. Full nem futott: readonly reader és lokális DI, shared
+transaction/persistence/clock/auth/dependency alap változatlan.
