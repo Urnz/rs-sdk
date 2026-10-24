@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { OpenAIResponsesProvider, createOpenAIProvider, type OpenAIFetch } from '../openai-provider.js';
+import { OpenAIResponsesProvider, calculateOpenAIUsage, createOpenAIProvider, type OpenAIFetch } from '../openai-provider.js';
 import type { LlmProviderRequest } from '../types.js';
 import { InferenceQueueRateLimitError } from '../queue.js';
 
@@ -19,6 +19,17 @@ function provider(fetch: OpenAIFetch) {
 }
 
 describe('OpenAI Responses provider', () => {
+    test('prices modern cache writes and reads without charging ordinary input twice', async () => {
+        const usage = { input_tokens: 1000, output_tokens: 100, input_tokens_details: { cached_tokens: 200, cache_write_tokens: 300 } };
+        const pricing = { inputMicrosPerMillionTokens: 100000, outputMicrosPerMillionTokens: 500000 };
+        expect(calculateOpenAIUsage(usage, pricing, 'gpt-6-luna').costMicros).toBe(140);
+        expect(calculateOpenAIUsage(usage, pricing, 'gpt-6.1-sol').costMicros).toBe(139);
+        const p = new OpenAIResponsesProvider({ apiKey: 'test-secret', pricing, fetch: async () => Response.json({
+            status: 'completed', output_text: '{}', usage }) });
+        expect((await p.complete({ ...request, model: 'gpt-6-luna' }, new AbortController().signal)).usage.costMicros).toBe(140);
+        expect(() => calculateOpenAIUsage({ ...usage, input_tokens: 100 }, pricing, 'gpt-6-luna')).toThrow('exceed');
+        expect(() => calculateOpenAIUsage(usage, pricing, 'unknown-model')).toThrow('unknown');
+    });
     test('transports bounded strategy alternatives and the exact id-selection schema', async () => {
         const alternative={optionId:'option.visible',skill:{id:'mining',version:'1.0.0'},parameters:{},purpose:'produce' as const,
             costGp:0,rewardGp:null,risk:'routine',requirements:['owned-tool'],evidence:['own-live']};

@@ -112,6 +112,7 @@ export function readEconomicObservation(agentId: string, options: EconomicObserv
 
         let cash: number | null = null;
         let food: number | null = null;
+        let rawFood: number | null = null;
         if (profile.role === 'player' && profile.avatarPlayerUsername) {
             const gateway = [...(options.gatewayBots?.entries() ?? [])].find(([name]) =>
                 name.toLowerCase() === profile.avatarPlayerUsername!.toLowerCase())?.[1];
@@ -123,9 +124,13 @@ export function readEconomicObservation(agentId: string, options: EconomicObserv
             {
                 cash = gateway.state.inventory.filter(i => i.id === 995).reduce((sum, i) => sum + i.count, 0);
                 food = gateway.state.inventory.filter(i => i.id === 379).reduce((sum, i) => sum + i.count, 0);
+                rawFood = gateway.state.inventory.filter(i => i.id === 377).reduce((sum, i) => sum + i.count, 0);
             }
             fact('own-liquid-inventory-gp', cash, 'own-engine-observation', at ?? 'unavailable', at, 'observed');
             fact('own-food-portions', food, 'own-engine-observation', at ?? 'unavailable', at, 'observed');
+            if (agents.listSkillKnowledge(agentId).some(k => k.status !== 'blocked'
+                && ['procedure.food.gather-lobster', 'procedure.food.cook-lobster'].includes(k.skill.id)))
+                fact('stock:377', rawFood, 'own-engine-observation', at ?? 'unavailable', at, 'observed');
         } else {
             unknown('own-liquid-inventory-gp', 'institution-no-avatar');
             if (profile.subjectKind === 'business' || profile.subjectKind === 'faction') {

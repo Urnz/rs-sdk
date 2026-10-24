@@ -181,6 +181,25 @@ describe('SI-B01 native domain → durable inbox → scoped context → decision
         expect(() => new ReplanInboxStore(value.inboxPath)).toThrow('newer than supported');
     });
 
+    test('own native raw shortage wakes once; absent or foreign inventory never becomes zero stock', () => {
+        const value = setup(), inbox = new ReplanInboxStore(value.inboxPath);
+        const view = (raw: number, at: string, username = 'worker') => new Map([[username, { username, status: 'active', lastStateReceivedAt: Date.parse(at),
+            state: { player: { name: username, isDead: false }, inventory: [{ id: 377, count: raw }] } } as GatewayBotSnapshot]]);
+        try {
+            expect(readEconomicObservation('worker', { ...value.options, gatewayBots: view(0, start) }).facts.some(f => f.key === 'stock:377')).toBe(false);
+            const agent = new AgentStateStore(value.agentPath);
+            try { agent.setSkillKnowledge('worker', { id: 'procedure.food.gather-lobster', version: '0.1.0' }, 'known', null, start); }
+            finally { agent.close(); }
+            expect(inbox.observeEconomy(readEconomicObservation('worker', { ...value.options, gatewayBots: view(2, start) }))).toBeNull();
+            const foreign = readEconomicObservation('worker', { ...value.options, now: later, gatewayBots: view(0, later, 'stranger') });
+            expect(foreign.facts.find(f => f.key === 'stock:377')?.value).toBeNull();
+            expect(inbox.observeEconomy(foreign)).toBeNull();
+            const own = readEconomicObservation('worker', { ...value.options, now: later, gatewayBots: view(0, later) });
+            expect(inbox.observeEconomy(own)?.event.summary).toContain('stock:377');
+            expect(inbox.observeEconomy(own)).toBeNull();
+        } finally { inbox.close(); }
+    });
+
     test('economic event uses the gateway lease gate before any model request', async () => {
         const value = setup(); value.end();
         const inbox = new ReplanInboxStore(value.inboxPath);

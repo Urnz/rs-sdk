@@ -2141,3 +2141,37 @@ meglévő világon futó smoke nem történt; SI-A14/SI-A15 közös élő elfoga
 továbbra is nyitott. A packetenként új UUID és a typed belső retry eltérő
 jelentése a működési leírásban explicit. Providerhívás és kézi világmódosítás
 nem történt.
+
+## 2026-10-23 – SI-B06 stratégiai elfogadás, SI-M2 v2 lezárva
+
+A [részletes terv és ellenőrzési index](SI_B06_STRATEGIC_ACCEPTANCE.md)
+megőrzi az [első valódi FAIL-t](SI_B06_LUNA_ATTEMPT_1.json) és a külön,
+őszinte v2 baseline [négy valódi PASS-át](SI_B06_LUNA_ATTEMPT_2.json).
+OpenAI gpt-6-luna/medium, összesen11 kérés /0,003841 USD. Az első két
+lehetőség nem tett diagnosztikussá income-váltást; a v2 három, már fedezett
+5/4/3 GP-s munkaforrás között méri az eredeti megszűnése utáni választást.
+Control5 GP és income-loss másik contract-source4 GP natív kifizetéssel,
+raw-hiányra source-backed acquisition, önálló ajánlat→külön Business-consent→
+B03-adoption→native skill→5 GP service-settlement. Négy readonly zárt GP-egyenlet.
+
+A mérésből javított own-funding context és producer-only raw wakeup;
+meglévő cooldown-t megtartó, legfeljebb négy új offer-döntési forduló,
+explicit no-retry és konzervatív budgetfoglalás. Az üres admin AI-form
+betöltési hiba is javítva, valódi böngészős ellenőrzéssel. Nincs új migráció,
+world indítás/enrollment vagy skillpublication. A régi20 native fogyasztó,
+B05 consumer21 eset, új stratégiai és negatív határok, root/engine TS és
+formázás PASS; teljes regresszió nem futott, az átfedő körök nem adandók össze.
+
+**SI-B06 kész; SI-M2 korlátos stratégiai kapu PASS; SI-C01 elkezdhető.**
+Ez nem MVS vagy önfenntartási minősítés; a SI-A gazdasági hiányok és SI-C09
+realizmuskalibráció külön nyitott ügyek. SI-C01 e kérés részeként nem indult.
+
+### 2026-10-24 – SI-B06 cache-költség korrekció
+
+A valódi válaszok default30m cache-írását az eredeti usage-konverzió kihagyta.
+Javított, célzottan tesztelt provider/trial díjszámítás; a mentett11 válasz
+offline visszajátszásával a kerekített összeg3841→4235 microUSD, azaz
+**0,004235 USD**. A 394 microUSD különbség auditált, hozzáfűzött budget-
+korrekció, régi sor/report átírása és új API-hívás nélkül. A két publikus
+bizonyíték `billingReconciliation` mezője őrzi a bontást; a SI-M2 PASS változatlan.
+30 közvetlen teszt + root/engine TS PASS; full és új natív/providerfutás nem történt.

@@ -468,7 +468,7 @@
                 <div class="llm-settings-actions"><span id="llm-config-source" class="count-pill">Betöltés…</span>
                     <button id="reload-llm-settings" type="button" class="button ghost">Újratöltés</button></div>
             </div>
-            <form id="llm-settings-form" class="llm-settings-form">
+            <form id="llm-settings-form" class="llm-settings-form" inert>
                 <p class="llm-settings-intro">Ezek a beállítások csak ehhez a játékszerverhez tartoznak. A biztonsági és strukturált-output szabályok nem írhatók felül; az alábbi szerepprompt azok után kerül a modellhez.</p>
                 <div class="llm-status-grid">
                     <article><span>Konfiguráció</span><strong id="llm-config-status">Betöltés…</strong></article>
@@ -542,7 +542,7 @@
                 <label>Mentés indoklása<input name="reason" maxlength="240" value="LLM szerverbeállítások frissítése" required></label>
                 <div class="llm-save-row">
                     <p class="dialog-note">A kézi dry-run a következő hívástól azonnal ezt a konfigurációt használja; engine-restart nem szükséges.</p>
-                    <button id="save-llm-settings" class="button primary" type="submit">AI beállítások mentése</button>
+                    <button id="save-llm-settings" class="button primary" type="submit" disabled>AI beállítások mentése</button>
                 </div>
             </form>
         </section>

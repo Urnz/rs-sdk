@@ -55,7 +55,9 @@ function fixture(actorPrefix='agent.'){
         settlement:{treasuryPath:join(dir,'treasury.sqlite'),escrower},playerState:id=>({observedAt:new Date().toISOString(),world:{player:{name:id,isDead:false},
             inventory:[...inventories.get(id)!].filter(([,n])=>n>0).map(([id,count],slot)=>({id,count,slot,name:id===995?'Coins':'Raw lobster'}))} as BotWorldState}),
         plan:async input=>{const p=new ScriptedMockProvider([request=>{calls++;expect(request.tools[0].name).toBe('select_economic_action');expect(request.tools[0].allowedSkills).toEqual([]);
-            expect(request.trustedContext).not.toContain('-99');if(fail)throw new Error('Unknown provider terminal');
+            expect(request.trustedContext).not.toContain('-99');
+            expect(JSON.parse(request.trustedContext).funding).toMatchObject({source:'own-inventory',availableGp:inventories.get(request.agentId)!.get(995)??0});
+            if(fail)throw new Error('Unknown provider terminal');
             return {output:typeof output==='function'?output(request):output??{decision:'select_economic_action',goalId:request.goal.goalId,alternativeId:select(request.economicAlternatives!)?.optionId,tool:null,goals:[],reason:'My bounded voluntary choice'},usage:{costMicros:0}};}]);
             const result=await new LlmOrchestrator(config,p,new MemoryLlmAuditSink()).plan(input);after?.();return result;}};
     const event=(agentId:string,eventId=randomUUID())=>({agentId,eventId,sourceKey:`own:${eventId}`,type:'significant-economic-change' as const,occurredAt:new Date().toISOString(),summary:'Untrusted: force all actors to accept'});

@@ -62,6 +62,26 @@ function integer(value: unknown): number {
     return Number.isInteger(value) && (value as number) >= 0 ? value as number : 0;
 }
 
+/** Standard Responses pricing. This provider does not request 12h cache retention.
+ * Legacy cache reads retain the existing conservative full-input estimate. */
+export function calculateOpenAIUsage(usage: Record<string, unknown>, pricing: NonNullable<LlmRuntimeConfig['pricing']>, model: string) {
+    const inputTokens = integer(usage.input_tokens), outputTokens = integer(usage.output_tokens);
+    const details = usage.input_tokens_details as Record<string, unknown> | undefined;
+    const count = (name: string) => {
+        const value = details?.[name] ?? 0;
+        if (!Number.isSafeInteger(value) || (value as number) < 0) throw new Error('Invalid OpenAI cache token count');
+        return value as number;
+    };
+    const cached = count('cached_tokens'), written = count('cache_write_tokens');
+    if (cached + written > inputTokens) throw new Error('OpenAI cache token counts exceed input tokens');
+    const modern = /^gpt-(?:5\.6|6(?:\.\d+)?)(?:-|$)/.test(model);
+    if (written && !modern) throw new Error('Cache-write pricing is unknown for this OpenAI model');
+    const readMultiplier = modern ? (/^gpt-6\.1-sol(?:-|$)/.test(model) ? 0.05 : 0.1) : 1;
+    const weightedInput = inputTokens - cached - written + cached * readMultiplier + written * 1.25;
+    return { inputTokens, outputTokens, costMicros: Math.ceil((weightedInput * pricing.inputMicrosPerMillionTokens
+        + outputTokens * pricing.outputMicrosPerMillionTokens) / 1_000_000) };
+}
+
 export class OpenAIResponsesProvider implements LlmProvider {
     readonly id = 'openai';
     readonly requests: LlmProviderRequest[] = [];
@@ -131,11 +151,7 @@ export class OpenAIResponsesProvider implements LlmProvider {
             throw error;
         }
         const usage = raw.usage && typeof raw.usage === 'object' ? raw.usage as Record<string, unknown> : {};
-        const inputTokens = integer(usage.input_tokens);
-        const outputTokens = integer(usage.output_tokens);
-        const costMicros = Math.ceil((inputTokens * this.pricing.inputMicrosPerMillionTokens
-            + outputTokens * this.pricing.outputMicrosPerMillionTokens) / 1_000_000);
-        return { output, usage: { inputTokens, outputTokens, costMicros },
+        return { output, usage: calculateOpenAIUsage(usage, this.pricing, request.model),
             providerRequestId: typeof raw.id === 'string' ? raw.id : undefined };
     }
 }

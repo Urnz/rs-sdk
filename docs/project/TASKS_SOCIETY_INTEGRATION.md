@@ -686,7 +686,9 @@ A következő autonóm baseline és az alábbi mechanikai kapuk miatt a státusz
 ## 6. SI-B – stratégiai autonómia a már integrált világban
 
 **Fázisbelépés teljesült: SI-A15 v2 technikai igazolása elfogadva.
-SI-B01–SI-B05 kész, SI-B06 elkezdhető; stratégiai/valós-provideres elfogadása még nyitott.** Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
+SI-B01–SI-B06 kész; SI-B06 v2 valódi provideres stratégiai kapu PASS,
+SI-C01 elkezdhető.** Az első SI-B06 FAIL változatlanul megőrzött.
+Az eredeti D1/SI-M1 önfenntartási PASS nem a fejlesztés
 belépési feltétele. Az SI-A mért ellátási kudarcai megmaradnak kiinduló
 eredményként. Az SI-B-ben külön kell bizonyítani, hogy az agent észlelt
 változást, lehetőségek közül választott, és a következményt visszaértékelte;
@@ -841,7 +843,7 @@ Következő: SI-B06; SI-M2 valós-provideres PASS továbbra sincs.
 
 ### SI-B06 – Stratégiai autonómia elfogadás, SI-M2 kapu
 
-- **Státusz/típus/prioritás:** [ ] TESZT/VÉGREHAJTÁS; P1; G02/G05/G08.
+- **Státusz/típus/prioritás:** [x] TESZT/VÉGREHAJTÁS; P1; G02/G05/G08.
 - **Cél és indok:** külön bizonyítani a döntési autonómiát és a skill működését.
 - **Meglévő:** SI-A15 stabil mechanikus lánc és deterministic/mock providertesztek.
 - **Módosítás:** ugyanazon baseline kontrollja és három változás: megszűnt
@@ -861,9 +863,26 @@ Következő: SI-B06; SI-M2 valós-provideres PASS továbbra sincs.
   no-provider vagy budgethiány `not-tested`, nem mock alapján valós-LLM PASS.
 - **Kockázat:** közepes–magas; nem determinisztikus modell, kedvező futás kiválogatása.
 
+2026-10-23: [futtató, javítások és ellenőrzési index](SI_B06_STRATEGIC_ACCEPTANCE.md),
+[első valódi Luna/medium eredmény](SI_B06_LUNA_ATTEMPT_1.json) és a külön
+[v2 elfogadási bizonyíték](SI_B06_LUNA_ATTEMPT_2.json). Scripted
+natív út és célzott TS/format ellenőrzések PASS, új full nem indult.
+Valódi mérés: 5 kérés / 0,001795 USD; control és raw-hiány natív eredménnyel,
+income-lossnál ugyanaz a production stratégia, cooperationnél két külön
+ajánlat. Ez történeti FAIL, nem lett utólag átminősítve. A mérés után javított saját
+funding-context és cooldown-t tartó ellenajánlat-folytatás scripted igazolt;
+külön v2-ben azonos baseline-ból három ténylegesen fedezett munkaforrás közül
+választás, income-loss után 5→4 GP-s work-source váltás, native acquisition
+és önálló kezdeményezés→külön Business-consent→natív service→5 GP díj igazolt.
+**Négy valódi stratégiai PASS; SI-B06 kész, SI-M2 kapu teljesült.** Két
+valódi mérés összesen 11 kérés / korrigált 0,004235 USD, readonly zárt pénzegyenletekkel;
+ez eldobható natív fixture-elfogadás, nem önfenntartási vagy live rollout PASS.
+Következő: SI-C01.
+
 ## 7. SI-C – tartós, heterogén és mérhető Minimum Viable Society
 
-**Fázisbelépés: SI-B06.** Nem kell újabb gazdasági domaint építeni: egy
+**Fázisbelépés: SI-B06 v2 teljesült; SI-C01 elkezdhető.** Az első valódi
+FAIL és a javított baseline külön PASS-a egyaránt megőrzött. Nem kell újabb gazdasági domaint építeni: egy
 termelőeszköz tényleges pótlása és a natív történet teljessége a cél.
 
 ### SI-C01 – Az attribute/potential tényleges engine-hatása

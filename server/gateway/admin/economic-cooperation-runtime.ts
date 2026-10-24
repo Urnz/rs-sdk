@@ -120,11 +120,21 @@ export async function runEconomicCooperation(agentId:string,event:LlmReplanEvent
             return choices.slice(0,12);
         };
         if(!run){const choices=enumerate();if(!choices.length)return null;
+            let funding: { source:'own-treasury'|'own-inventory'; availableGp:number; observedAt:string };
+            if(profile.role==='institution'){
+                const treasury=new InstitutionTreasuryStore(options.settlement?.treasuryPath??institutionTreasuryPathFor(options.agentPath));
+                try{funding={source:'own-treasury',availableGp:treasury.get('business',profile.subjectId)?.availableGp??0,observedAt:new Date().toISOString()};}
+                finally{treasury.close();}
+            }else{
+                const own=options.playerState?.(agentId),age=Date.now()-Date.parse(own?.observedAt??'');
+                if(!own||age<0||age>5000)throw new Error('Fresh own funding observation required');
+                funding={source:'own-inventory',availableGp:own.world.inventory.filter(i=>i.id===995).reduce((n,i)=>n+i.count,0),observedAt:own.observedAt};
+            }
             const goal={goalId:'economic-cooperation',title:'Choose bounded voluntary cooperation',description:'Own goals, personal trust and reciprocal terms; no forced consent'};
             const input:LlmPlanningInput={agentId,mode:'choose-economic-action',cooperationRole:grant.role,goal,
                 goalHierarchy:[{...goal,parentGoalId:null,horizon:'current',priority:50}],allowedSkills:[],runId:event.eventId,
                 economicAlternatives:choices.map(({optionId,action,partnerAgentId,costGp,description,terms})=>({optionId,action,partnerAgentId,costGp,description,terms})),
-                trustedContext:JSON.stringify({subject:`${profile.subjectKind}:${profile.subjectId}`,relationships:ownRelations()
+                trustedContext:JSON.stringify({subject:`${profile.subjectKind}:${profile.subjectId}`,funding,relationships:ownRelations()
                     .filter(r=>choices.some(c=>r.partnerAgentId===c.partnerAgentId)).map(({relationship:r,partnerAgentId})=>({actor:partnerAgentId,trust:r.trust,affinity:r.affinity})),
                     limits:{gp:grant.maxGpPerAction,dailyGp:grant.maxGpPerDay,itemUnits:grant.maxItemUnits}}),untrustedText:[event.summary.slice(0,1000)]};
             run=use(s=>s.prepareEconomicAction({eventId:event.eventId,sourceKey:event.sourceKey,agentId,profileRevision:profile.revision,grantDigest,

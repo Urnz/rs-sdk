@@ -1,0 +1,795 @@
+{
+  "classification": "Bounded native fixture with real model decisions; not economic survival acceptance",
+  "manifest": {
+    "protocol": "si-b06.v2",
+    "runId": "df8b68de-ccaa-4972-b511-748a2000152a",
+    "provider": "openai",
+    "model": "gpt-6-luna",
+    "sourceDigest": "34e2c8afb56fd929fcff693df588c334e9ad89595f1b086f86edb9df108d8acf",
+    "baselineDigest": "39b8f10af2a90ebe6982ba52e42a27bd3e89f1182a060078ccbc8c2b3e8f4fcc",
+    "startedAt": "2026-10-23T20:53:41.045Z",
+    "scenarios": [
+      "control",
+      "income-loss",
+      "raw-scarcity",
+      "cooperation"
+    ],
+    "limits": {
+      "maxCalls": 8,
+      "maxCostMicros": 50000,
+      "maxInputBytes": 8192,
+      "maxOutputTokens": 2000,
+      "requestMs": 30000,
+      "totalMs": 180000,
+      "maxGp": 10
+    },
+    "fixtureWallClock": "real wall time",
+    "config": {
+      "schemaVersion": 1,
+      "enabled": true,
+      "automaticReplanning": false,
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "plannerPrompt": "Choose a useful bounded response to your own observed economic situation. Compare the listed alternatives, costs, inputs and obligations. Keep food and cash for future needs. An ended income source cannot be continued. Missing raw input calls for acquisition or another feasible activity. Consider voluntary work with known partners. You may abstain. Never invent authority, resources or consent.",
+      "autonomousExecution": {
+        "enabled": false,
+        "allowedSkills": [],
+        "maxOperations": 100,
+        "maxTimeoutMs": 900000
+      },
+      "reasoningEffort": "medium",
+      "pricing": {
+        "inputMicrosPerMillionTokens": 100000,
+        "outputMicrosPerMillionTokens": 500000
+      },
+      "skillBuilder": {
+        "enabled": false,
+        "prompt": "Design one small, reusable RuneScape agent skill for the supplied capability gap.\nUse only the supplied declarative operations. Prefer parameters over hard-coded variants and keep every loop and retry bounded.\nDo not emit JavaScript, shell commands, file paths, network calls, tools, provenance, status or access-control fields.",
+        "intervalMs": 60000,
+        "cooldownMs": 3600000,
+        "maxAttemptsPerGap": 3,
+        "maxCostMicrosPerGap": 50000,
+        "maxDailyCostMicros": 100000,
+        "maxDurationMs": 60000,
+        "maxOutputTokens": 6000
+      },
+      "dailyBudget": {
+        "scope": "lostcity-local",
+        "maxCostMicros": 50000,
+        "maxDecisions": 1000,
+        "estimatedCostMicros": 5000
+      },
+      "limits": {
+        "maxDurationMs": 30000,
+        "maxModelRequests": 1,
+        "maxToolCalls": 1,
+        "maxCostMicros": 50000,
+        "maxOutputTokens": 2000
+      }
+    },
+    "configDigest": "c2290937e59b8b2432418f0db5b0fad4880b2e2a60f89a0103ad8ea6abfd971f",
+    "opportunities": {
+      "player": [
+        "three funded native work sources paying 5/4/3 GP; the original 5 GP source is cancelled on income loss",
+        "native consume own cooked lobster"
+      ],
+      "cooperation": [
+        "propose one native gather for 4 or 5 GP",
+        "independently accept or decline",
+        "plan accepted work through B03"
+      ]
+    }
+  },
+  "source": {
+    "revision": "f11021fe871afafc52314b9757700ff10d907af5",
+    "diffDigest": "f20bdacf2a96ba776b729f6e83c07009ea5cf97f5c8384287a78c60678025020",
+    "bun": "1.3.14",
+    "sourceDigest": "34e2c8afb56fd929fcff693df588c334e9ad89595f1b086f86edb9df108d8acf",
+    "inputCount": 64,
+    "inputInventoryDigest": "73b3f9778b4eb5492d734936ec99dd070d9145bda8f04b24ca3f03f2daa9f8be"
+  },
+  "report": {
+    "protocol": "si-b06.v2",
+    "runId": "df8b68de-ccaa-4972-b511-748a2000152a",
+    "technical": "pass",
+    "realLlm": "pass",
+    "scenarios": [
+      {
+        "scenario": "control",
+        "status": "pass",
+        "problems": []
+      },
+      {
+        "scenario": "income-loss",
+        "status": "pass",
+        "problems": []
+      },
+      {
+        "scenario": "raw-scarcity",
+        "status": "pass",
+        "problems": []
+      },
+      {
+        "scenario": "cooperation",
+        "status": "pass",
+        "problems": []
+      }
+    ],
+    "budgetOk": true,
+    "usage": {
+      "calls": 6,
+      "reservedMicros": 14361,
+      "actualCostMicros": 2046,
+      "uncertainCalls": 0,
+      "durationMs": 36651.9019
+    },
+    "limitations": [
+      "Disposable packed native microbenchmark; not SI-A15 economic survival or realism acceptance.",
+      "A scripted technical PASS never establishes real model autonomy."
+    ]
+  },
+  "traces": [
+    {
+      "scenario": "control",
+      "baselineDigest": "39b8f10af2a90ebe6982ba52e42a27bd3e89f1182a060078ccbc8c2b3e8f4fcc",
+      "eventId": "64330690-f17e-4549-b7b9-16b2e1c94889",
+      "eventSource": "own-engine-observation",
+      "observedSource": "own-engine-observation",
+      "agentId": "worker",
+      "plan": {
+        "runId": "64330690-f17e-4549-b7b9-16b2e1c94889",
+        "agentId": "worker",
+        "status": "proposed",
+        "decision": {
+          "kind": "choose-alternative",
+          "goalId": "reserve",
+          "optionId": "option.885dced5f5f6445ebc1f424aa286aaf9",
+          "reason": "Gathering is the best fit for the reserve goal: its 5 GP reward raises the observed 20 GP cash reserve to the 25 GP target, while consuming food would reduce the available food reserve and hunger is already 0."
+        },
+        "approvalId": null,
+        "reason": "Gathering is the best fit for the reserve goal: its 5 GP reward raises the observed 20 GP cash reserve to the 25 GP target, while consuming food would reduce the available food reserve and hunger is already 0.",
+        "usage": {
+          "inputTokens": 2443,
+          "outputTokens": 252,
+          "costMicros": 371
+        },
+        "durationMs": 4192
+      },
+      "alternativeIds": [
+        "option.dfa31792e3bb4b00d1e52d601d19b696",
+        "option.885dced5f5f6445ebc1f424aa286aaf9",
+        "option.90efc30bbd22d32fea539c50c4eb9af2",
+        "option.59fece727cfff74da1faecf21bd619d4"
+      ],
+      "selectedStrategy": "procedure.food.gather-lobster@0.1.0:contract-obligation:ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4",
+      "adoptedRunId": "90210412-6942-47f2-a47b-6d49fa54314e",
+      "nativeRunId": "90210412-6942-47f2-a47b-6d49fa54314e",
+      "nativeVerified": true,
+      "outcome": {
+        "rawDelta": 1,
+        "gpDelta": 5,
+        "proposalId": null,
+        "partnerAccepted": false
+      },
+      "reason": "Gather one native lobster completed",
+      "perceivedChange": true,
+      "selectedContractId": "ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4"
+    },
+    {
+      "scenario": "income-loss",
+      "baselineDigest": "39b8f10af2a90ebe6982ba52e42a27bd3e89f1182a060078ccbc8c2b3e8f4fcc",
+      "eventId": "c935211f-adc7-4b43-98fe-2797fe1ba07f",
+      "eventSource": "employment:71bd762c-3546-456b-8c80-cc6b7407a0c1",
+      "observedSource": "employment:71bd762c-3546-456b-8c80-cc6b7407a0c1",
+      "agentId": "worker",
+      "plan": {
+        "runId": "c935211f-adc7-4b43-98fe-2797fe1ba07f",
+        "agentId": "worker",
+        "status": "proposed",
+        "decision": {
+          "kind": "choose-alternative",
+          "goalId": "reserve",
+          "optionId": "option.90efc30bbd22d32fea539c50c4eb9af2",
+          "reason": "Cash is 20 GP against a 25 GP reserve target, and food is 2 portions against a target of 3. The ended income source cannot be relied on. Consuming food would reduce the reserve while hunger is already 0. Of the feasible gathering options, the 4 GP reward is better for rebuilding cash than the 3 GP reward, with the same stated cost and risk."
+        },
+        "approvalId": null,
+        "reason": "Cash is 20 GP against a 25 GP reserve target, and food is 2 portions against a target of 3. The ended income source cannot be relied on. Consuming food would reduce the reserve while hunger is already 0. Of the feasible gathering options, the 4 GP reward is better for rebuilding cash than the 3 GP reward, with the same stated cost and risk.",
+        "usage": {
+          "inputTokens": 2274,
+          "outputTokens": 395,
+          "costMicros": 425
+        },
+        "durationMs": 5592
+      },
+      "alternativeIds": [
+        "option.dfa31792e3bb4b00d1e52d601d19b696",
+        "option.90efc30bbd22d32fea539c50c4eb9af2",
+        "option.59fece727cfff74da1faecf21bd619d4"
+      ],
+      "selectedStrategy": "procedure.food.gather-lobster@0.1.0:contract-obligation:84f2ecb1-7085-596c-a18f-ad49f9c7a160",
+      "adoptedRunId": "922dd303-c838-485a-9758-cb5651e6ead8",
+      "nativeRunId": "922dd303-c838-485a-9758-cb5651e6ead8",
+      "nativeVerified": true,
+      "outcome": {
+        "rawDelta": 1,
+        "gpDelta": 4,
+        "proposalId": null,
+        "partnerAccepted": false
+      },
+      "reason": "Gather one native lobster completed",
+      "perceivedChange": true,
+      "selectedContractId": "84f2ecb1-7085-596c-a18f-ad49f9c7a160"
+    },
+    {
+      "scenario": "raw-scarcity",
+      "baselineDigest": "39b8f10af2a90ebe6982ba52e42a27bd3e89f1182a060078ccbc8c2b3e8f4fcc",
+      "eventId": "941b5fa5-fb1e-4547-b240-ee6820671180",
+      "eventSource": "own-engine-observation",
+      "observedSource": "own-engine-observation",
+      "agentId": "worker",
+      "plan": {
+        "runId": "941b5fa5-fb1e-4547-b240-ee6820671180",
+        "agentId": "worker",
+        "status": "proposed",
+        "decision": {
+          "kind": "choose-alternative",
+          "goalId": "reserve",
+          "optionId": "option.885dced5f5f6445ebc1f424aa286aaf9",
+          "reason": "Gathering has no listed cash cost and offers the highest reward (5 gp), helping close the cash-reserve gap while avoiding consuming food when hunger is already 0. The available evidence does not establish that the exact cooked lobster required for consumption is in slot 3."
+        },
+        "approvalId": null,
+        "reason": "Gathering has no listed cash cost and offers the highest reward (5 gp), helping close the cash-reserve gap while avoiding consuming food when hunger is already 0. The available evidence does not establish that the exact cooked lobster required for consumption is in slot 3.",
+        "usage": {
+          "inputTokens": 2451,
+          "outputTokens": 296,
+          "costMicros": 394
+        },
+        "durationMs": 3567
+      },
+      "alternativeIds": [
+        "option.dfa31792e3bb4b00d1e52d601d19b696",
+        "option.885dced5f5f6445ebc1f424aa286aaf9",
+        "option.90efc30bbd22d32fea539c50c4eb9af2",
+        "option.59fece727cfff74da1faecf21bd619d4"
+      ],
+      "selectedStrategy": "procedure.food.gather-lobster@0.1.0:contract-obligation:ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4",
+      "adoptedRunId": "81fab3f0-ddd9-422d-93e7-58f4e680e005",
+      "nativeRunId": "81fab3f0-ddd9-422d-93e7-58f4e680e005",
+      "nativeVerified": true,
+      "outcome": {
+        "rawDelta": 1,
+        "gpDelta": 5,
+        "proposalId": null,
+        "partnerAccepted": false
+      },
+      "reason": "Gather one native lobster completed",
+      "perceivedChange": true,
+      "selectedContractId": "ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4"
+    },
+    {
+      "scenario": "cooperation",
+      "baselineDigest": "39b8f10af2a90ebe6982ba52e42a27bd3e89f1182a060078ccbc8c2b3e8f4fcc",
+      "eventId": "b328074a-5479-45d0-94a2-c2ce7ba68ca1",
+      "eventSource": "relationship:agent.cooperation-mind",
+      "observedSource": "relationship:agent.cooperation-mind",
+      "agentId": "worker",
+      "plan": {
+        "runId": "b328074a-5479-45d0-94a2-c2ce7ba68ca1",
+        "agentId": "worker",
+        "status": "proposed",
+        "decision": {
+          "kind": "choose-alternative",
+          "goalId": "economic-cooperation",
+          "optionId": "propose.db02f0b10b94a5f864ed58ba50ffa8b9",
+          "reason": "Choose the one-invocation proposal paying 5 GP rather than 4. It requires no GP from me, stays within my limits, and preserves my available funds; given the partner's low personal trust score, keep the exchange bounded. This is a proposal, not acceptance or performance."
+        },
+        "approvalId": null,
+        "reason": "Choose the one-invocation proposal paying 5 GP rather than 4. It requires no GP from me, stays within my limits, and preserves my available funds; given the partner's low personal trust score, keep the exchange bounded. This is a proposal, not acceptance or performance.",
+        "usage": {
+          "inputTokens": 726,
+          "outputTokens": 252,
+          "costMicros": 199
+        },
+        "durationMs": 4045
+      },
+      "alternativeIds": [
+        "propose.db02f0b10b94a5f864ed58ba50ffa8b9",
+        "propose.4ec66f6aac09192e72e5f352644310bc"
+      ],
+      "selectedStrategy": "voluntary-native-work",
+      "adoptedRunId": "40ea3084-ce9c-4acb-a61d-298382036cc5",
+      "nativeRunId": "40ea3084-ce9c-4acb-a61d-298382036cc5",
+      "nativeVerified": true,
+      "outcome": {
+        "rawDelta": 1,
+        "gpDelta": 5,
+        "proposalId": "003b90dc-010b-5966-a832-32fc4068f41a",
+        "partnerAccepted": true
+      },
+      "reason": "Gather one native lobster completed",
+      "perceivedChange": true,
+      "consentPlan": {
+        "runId": "1e0ee433-1a2a-4757-8198-cf67fa9e58f3",
+        "agentId": "cooperation-mind",
+        "status": "proposed",
+        "decision": {
+          "kind": "choose-alternative",
+          "goalId": "economic-cooperation",
+          "optionId": "accept.003b90dc-010b-5966-a832-32fc4068f41a",
+          "reason": "Accept the bounded offer: 5 gp is within my 5 gp action limit and the available treasury, and the partner’s gathering service could provide food input. This preserves the rest of my funds; acceptance is not performance."
+        },
+        "approvalId": null,
+        "reason": "Accept the bounded offer: 5 gp is within my 5 gp action limit and the available treasury, and the partner’s gathering service could provide food input. This preserves the rest of my funds; acceptance is not performance.",
+        "usage": {
+          "inputTokens": 981,
+          "outputTokens": 350,
+          "costMicros": 274
+        },
+        "durationMs": 6489
+      },
+      "contractId": "22b2f803-c3c1-5048-a44e-6bd722ff6e2c",
+      "contractParties": [
+        "worker",
+        "cooperation-mind"
+      ],
+      "executionPlan": {
+        "runId": "6ed17432-9015-4b35-a248-f7ca2ad5f3bb",
+        "agentId": "worker",
+        "status": "proposed",
+        "decision": {
+          "kind": "choose-alternative",
+          "goalId": "reserve",
+          "optionId": "option.5a919068ca472bb378a4dc6f1a3b97e7",
+          "reason": "Cash is 20 GP, below the 25 GP reserve target, while hunger is 0. Gathering is the listed option that can earn 5 GP toward the shortfall without consuming food; consuming a lobster is not needed for current hunger and could reduce the food reserve."
+        },
+        "approvalId": null,
+        "reason": "Cash is 20 GP, below the 25 GP reserve target, while hunger is 0. Gathering is the listed option that can earn 5 GP toward the shortfall without consuming food; consuming a lobster is not needed for current hunger and could reduce the food reserve.",
+        "usage": {
+          "inputTokens": 2119,
+          "outputTokens": 341,
+          "costMicros": 383
+        },
+        "durationMs": 4978
+      },
+      "selectedContractId": "22b2f803-c3c1-5048-a44e-6bd722ff6e2c"
+    }
+  ],
+  "nativeEvidence": [
+    {
+      "scenario": "control",
+      "runId": "90210412-6942-47f2-a47b-6d49fa54314e",
+      "skill": {
+        "id": "procedure.food.gather-lobster",
+        "version": "0.1.0"
+      },
+      "status": "completed",
+      "operation": "food-gather",
+      "actionId": "fbef9300-a1e1-4fde-ae45-338af782a54d",
+      "receiptDigest": "ad4c0419ed2945e78717b221b9335c554163dd5fca328fac7fc9288c53390247",
+      "outcome": "raw-gained",
+      "inputs": [],
+      "outputs": [
+        {
+          "itemId": 377,
+          "quantity": 1
+        }
+      ],
+      "checkpointId": "food-production:fbef9300-a1e1-4fde-ae45-338af782a54d",
+      "checkpointDigest": "99ef9772ec44da48f3e0566512bc610b3f10e2b5be21cef10569cb99daa811b7",
+      "clock": {
+        "clockId": "fixture-clock",
+        "profileDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "wallTime": "2026-10-23T20:53:46.852Z",
+        "simulationTime": "2001-01-01T00:00:01Z",
+        "status": "running",
+        "revision": 1,
+        "engineTick": 100
+      }
+    },
+    {
+      "scenario": "income-loss",
+      "runId": "922dd303-c838-485a-9758-cb5651e6ead8",
+      "skill": {
+        "id": "procedure.food.gather-lobster",
+        "version": "0.1.0"
+      },
+      "status": "completed",
+      "operation": "food-gather",
+      "actionId": "9a74cc29-f3e1-459f-a7e6-cdb582663978",
+      "receiptDigest": "7c97ef15c0ce6b034d7afc36dd76715c7287800a941435a19f11beb73ed149c7",
+      "outcome": "raw-gained",
+      "inputs": [],
+      "outputs": [
+        {
+          "itemId": 377,
+          "quantity": 1
+        }
+      ],
+      "checkpointId": "food-production:9a74cc29-f3e1-459f-a7e6-cdb582663978",
+      "checkpointDigest": "99ef9772ec44da48f3e0566512bc610b3f10e2b5be21cef10569cb99daa811b7",
+      "clock": {
+        "clockId": "fixture-clock",
+        "profileDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "wallTime": "2026-10-23T20:53:54.397Z",
+        "simulationTime": "2001-01-01T00:00:01Z",
+        "status": "running",
+        "revision": 1,
+        "engineTick": 100
+      }
+    },
+    {
+      "scenario": "raw-scarcity",
+      "runId": "81fab3f0-ddd9-422d-93e7-58f4e680e005",
+      "skill": {
+        "id": "procedure.food.gather-lobster",
+        "version": "0.1.0"
+      },
+      "status": "completed",
+      "operation": "food-gather",
+      "actionId": "dfb01641-387c-43d4-adfd-9ed5bc078183",
+      "receiptDigest": "e74e7d817ed0cd4f0cf2a868f4678477ccc26b96d6decfc23c13cf4d82ad6795",
+      "outcome": "raw-gained",
+      "inputs": [],
+      "outputs": [
+        {
+          "itemId": 377,
+          "quantity": 1
+        }
+      ],
+      "checkpointId": "food-production:dfb01641-387c-43d4-adfd-9ed5bc078183",
+      "checkpointDigest": "cbc6c664928719f5627672e826667928a7eb003050821c9514156d063ea68df4",
+      "clock": {
+        "clockId": "fixture-clock",
+        "profileDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "wallTime": "2026-10-23T20:53:59.366Z",
+        "simulationTime": "2001-01-01T00:00:01Z",
+        "status": "running",
+        "revision": 1,
+        "engineTick": 101
+      }
+    },
+    {
+      "scenario": "cooperation",
+      "runId": "40ea3084-ce9c-4acb-a61d-298382036cc5",
+      "skill": {
+        "id": "procedure.food.gather-lobster",
+        "version": "0.1.0"
+      },
+      "status": "completed",
+      "operation": "food-gather",
+      "actionId": "00721134-106e-4ea0-ada8-33222850fd73",
+      "receiptDigest": "4976a064553c5a0e843b4a832929ce66e4e21cf4c32c149a5bbc06cc2bd4ed49",
+      "outcome": "raw-gained",
+      "inputs": [],
+      "outputs": [
+        {
+          "itemId": 377,
+          "quantity": 1
+        }
+      ],
+      "checkpointId": "food-production:00721134-106e-4ea0-ada8-33222850fd73",
+      "checkpointDigest": "99ef9772ec44da48f3e0566512bc610b3f10e2b5be21cef10569cb99daa811b7",
+      "clock": {
+        "clockId": "fixture-clock",
+        "profileDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "wallTime": "2026-10-23T20:54:16.714Z",
+        "simulationTime": "2001-01-01T00:00:01Z",
+        "status": "running",
+        "revision": 1,
+        "engineTick": 100
+      }
+    }
+  ],
+  "financialEvidence": [
+    {
+      "scenario": "control",
+      "rewards": [
+        {
+          "settlement_id": "d2384762-54de-52b0-9211-ee627ecfa76d",
+          "username": "prodtest",
+          "amount": 5,
+          "status": "committed",
+          "coins_before": 20,
+          "coins_after": 25
+        }
+      ],
+      "settlements": [
+        {
+          "settlement_id": "d2384762-54de-52b0-9211-ee627ecfa76d",
+          "contract_id": "ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4",
+          "payer_actor_id": "fish-kitchen",
+          "amount_gp": 5,
+          "status": "committed"
+        }
+      ],
+      "proofs": [
+        {
+          "contract_id": "ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4",
+          "actor_agent_id": "worker",
+          "run_id": "90210412-6942-47f2-a47b-6d49fa54314e",
+          "journal_digest": "0be18aaf58bee615d4acbd47c274de4cd3386d9e8224703cc88d4c56997d3503",
+          "matched_service": 1
+        }
+      ],
+      "accounts": [
+        {
+          "actor_id": "alternative-kitchen",
+          "balance_gp": 25,
+          "reserved_gp": 0
+        },
+        {
+          "actor_id": "fish-kitchen",
+          "balance_gp": 20,
+          "reserved_gp": 7
+        }
+      ],
+      "totalGp": 70
+    },
+    {
+      "scenario": "income-loss",
+      "rewards": [
+        {
+          "settlement_id": "45d53a24-f0ea-5db0-9dfc-d6f5e65fb4c1",
+          "username": "prodtest",
+          "amount": 4,
+          "status": "committed",
+          "coins_before": 20,
+          "coins_after": 24
+        }
+      ],
+      "settlements": [
+        {
+          "settlement_id": "45d53a24-f0ea-5db0-9dfc-d6f5e65fb4c1",
+          "contract_id": "84f2ecb1-7085-596c-a18f-ad49f9c7a160",
+          "payer_actor_id": "fish-kitchen",
+          "amount_gp": 4,
+          "status": "committed"
+        }
+      ],
+      "proofs": [
+        {
+          "contract_id": "84f2ecb1-7085-596c-a18f-ad49f9c7a160",
+          "actor_agent_id": "worker",
+          "run_id": "922dd303-c838-485a-9758-cb5651e6ead8",
+          "journal_digest": "469eae3ec00ecdfd301781c206ef459b9347068e17ce058d154d3b363b21380e",
+          "matched_service": 1
+        }
+      ],
+      "accounts": [
+        {
+          "actor_id": "alternative-kitchen",
+          "balance_gp": 25,
+          "reserved_gp": 0
+        },
+        {
+          "actor_id": "fish-kitchen",
+          "balance_gp": 21,
+          "reserved_gp": 3
+        }
+      ],
+      "totalGp": 70
+    },
+    {
+      "scenario": "raw-scarcity",
+      "rewards": [
+        {
+          "settlement_id": "d2384762-54de-52b0-9211-ee627ecfa76d",
+          "username": "prodtest",
+          "amount": 5,
+          "status": "committed",
+          "coins_before": 20,
+          "coins_after": 25
+        }
+      ],
+      "settlements": [
+        {
+          "settlement_id": "d2384762-54de-52b0-9211-ee627ecfa76d",
+          "contract_id": "ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4",
+          "payer_actor_id": "fish-kitchen",
+          "amount_gp": 5,
+          "status": "committed"
+        }
+      ],
+      "proofs": [
+        {
+          "contract_id": "ea94b24d-fa0c-5ad8-ae74-add0b25a2ee4",
+          "actor_agent_id": "worker",
+          "run_id": "81fab3f0-ddd9-422d-93e7-58f4e680e005",
+          "journal_digest": "f0a6988bd60114e22c5fd5b593cb5c0def0076f2be36741f6a3d1e6f58a7d7f8",
+          "matched_service": 1
+        }
+      ],
+      "accounts": [
+        {
+          "actor_id": "alternative-kitchen",
+          "balance_gp": 25,
+          "reserved_gp": 0
+        },
+        {
+          "actor_id": "fish-kitchen",
+          "balance_gp": 20,
+          "reserved_gp": 7
+        }
+      ],
+      "totalGp": 70
+    },
+    {
+      "scenario": "cooperation",
+      "rewards": [
+        {
+          "settlement_id": "e481b967-3d56-55b8-8f66-13de9209b261",
+          "username": "prodtest",
+          "amount": 5,
+          "status": "committed",
+          "coins_before": 20,
+          "coins_after": 25
+        }
+      ],
+      "settlements": [
+        {
+          "settlement_id": "e481b967-3d56-55b8-8f66-13de9209b261",
+          "contract_id": "22b2f803-c3c1-5048-a44e-6bd722ff6e2c",
+          "payer_actor_id": "alternative-kitchen",
+          "amount_gp": 5,
+          "status": "committed"
+        }
+      ],
+      "proofs": [
+        {
+          "contract_id": "22b2f803-c3c1-5048-a44e-6bd722ff6e2c",
+          "actor_agent_id": "worker",
+          "run_id": "40ea3084-ce9c-4acb-a61d-298382036cc5",
+          "journal_digest": "e3cfec290849b53ef3eef3032f6210e57f221f185a9b6d705db5b4bb2c1f3a04",
+          "matched_service": 1
+        }
+      ],
+      "accounts": [
+        {
+          "actor_id": "alternative-kitchen",
+          "balance_gp": 20,
+          "reserved_gp": 0
+        },
+        {
+          "actor_id": "fish-kitchen",
+          "balance_gp": 25,
+          "reserved_gp": 12
+        }
+      ],
+      "totalGp": 70
+    }
+  ],
+  "resolvedModels": [
+    "gpt-6-luna"
+  ],
+  "billingReconciliation": {
+    "protocol": "si-b06-cache-billing-v1",
+    "correctionId": "si-b06-cache-correction-b338f0f35d0294f3326ea0f0",
+    "pricing": {
+      "inputMicrosPerMillionTokens": 100000,
+      "outputMicrosPerMillionTokens": 500000,
+      "cachedInputMicrosPerMillionTokens": 10000,
+      "cacheWriteMicrosPerMillionTokens": 125000,
+      "retention": "30m"
+    },
+    "source": "https://developers.openai.com/api/docs/guides/prompt-caching",
+    "originalCostMicros": 2046,
+    "correctedCostMicros": 2278,
+    "deltaMicros": 232,
+    "items": [
+      {
+        "runId": "64330690-f17e-4549-b7b9-16b2e1c94889",
+        "providerRequestId": "resp_09e07feb54184038016adbc9562fa887d2967fb2c1facb26ea",
+        "usage": {
+          "input_tokens": 2443,
+          "input_tokens_details": {
+            "cache_write_tokens": 2440,
+            "cached_tokens": 0
+          },
+          "output_tokens": 252,
+          "output_tokens_details": {
+            "reasoning_tokens": 147
+          },
+          "total_tokens": 2695
+        },
+        "originalCostMicros": 371,
+        "correctedCostMicros": 432,
+        "deltaMicros": 61
+      },
+      {
+        "runId": "c935211f-adc7-4b43-98fe-2797fe1ba07f",
+        "providerRequestId": "resp_0c005dce5c0968bf016adbc95bd5a087d2bab0396bc382f080",
+        "usage": {
+          "input_tokens": 2274,
+          "input_tokens_details": {
+            "cache_write_tokens": 2271,
+            "cached_tokens": 0
+          },
+          "output_tokens": 395,
+          "output_tokens_details": {
+            "reasoning_tokens": 257
+          },
+          "total_tokens": 2669
+        },
+        "originalCostMicros": 425,
+        "correctedCostMicros": 482,
+        "deltaMicros": 57
+      },
+      {
+        "runId": "941b5fa5-fb1e-4547-b240-ee6820671180",
+        "providerRequestId": "resp_028ab65b5a69a8ec016adbc962d37c87d29f32b67dcd75606e",
+        "usage": {
+          "input_tokens": 2451,
+          "input_tokens_details": {
+            "cache_write_tokens": 2448,
+            "cached_tokens": 0
+          },
+          "output_tokens": 296,
+          "output_tokens_details": {
+            "reasoning_tokens": 184
+          },
+          "total_tokens": 2747
+        },
+        "originalCostMicros": 394,
+        "correctedCostMicros": 455,
+        "deltaMicros": 61
+      },
+      {
+        "runId": "b328074a-5479-45d0-94a2-c2ce7ba68ca1",
+        "providerRequestId": "resp_002eb59d2beb8ba6016adbc967ba2c87d2ad7a8c23ed2200aa",
+        "usage": {
+          "input_tokens": 726,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 252,
+          "output_tokens_details": {
+            "reasoning_tokens": 132
+          },
+          "total_tokens": 978
+        },
+        "originalCostMicros": 199,
+        "correctedCostMicros": 199,
+        "deltaMicros": 0
+      },
+      {
+        "runId": "1e0ee433-1a2a-4757-8198-cf67fa9e58f3",
+        "providerRequestId": "resp_0a799d48675db787016adbc96c127087d2bf7f1637c18c422f",
+        "usage": {
+          "input_tokens": 981,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 350,
+          "output_tokens_details": {
+            "reasoning_tokens": 243
+          },
+          "total_tokens": 1331
+        },
+        "originalCostMicros": 274,
+        "correctedCostMicros": 274,
+        "deltaMicros": 0
+      },
+      {
+        "runId": "6ed17432-9015-4b35-a248-f7ca2ad5f3bb",
+        "providerRequestId": "resp_041e2f9f8769b05f016adbc972be7c87d28783c601d37c3431",
+        "usage": {
+          "input_tokens": 2119,
+          "input_tokens_details": {
+            "cache_write_tokens": 2116,
+            "cached_tokens": 0
+          },
+          "output_tokens": 341,
+          "output_tokens_details": {
+            "reasoning_tokens": 227
+          },
+          "total_tokens": 2460
+        },
+        "originalCostMicros": 383,
+        "correctedCostMicros": 436,
+        "deltaMicros": 53
+      }
+    ]
+  }
+}

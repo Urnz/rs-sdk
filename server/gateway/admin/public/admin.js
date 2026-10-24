@@ -192,6 +192,8 @@ function renderLlmSettings(settings) {
     $('#llm-api-key-status').textContent = settings.apiKey.configured
         ? `Beállítva · ${llmSecretSourceLabels[settings.apiKey.source] || settings.apiKey.source}`
         : (llmSecretSourceLabels[settings.apiKey.source] || 'Nincs beállítva');
+    form.inert = false;
+    $('#save-llm-settings').disabled = false;
     syncLlmProviderFields();
 }
 
@@ -3018,6 +3020,7 @@ $('#queue-world-event').addEventListener('click', async () => {
 });
 $('#llm-settings-form').addEventListener('submit', async event => {
     event.preventDefault();
+    if (!state.llmSettings) return toast('A szerver beállításai még nem töltődtek be. Használd az Újratöltés gombot.', true);
     const form = event.currentTarget;
     const values = new FormData(form);
     const apiKey = String(values.get('apiKey') || '').trim();
@@ -3207,15 +3210,23 @@ async function bootstrapAdmin() {
             $('#control-servers-link').hidden = false;
         } else if (session.status === 401) { location.assign('/admin/login.html'); throw new Error('Bejelentkezés szükséges.'); }
     }
+    // This form is usable independently of unrelated dashboard endpoints. Retrying
+    // the rest of bootstrap must not overwrite the user's unsaved edits or key.
+    if (!state.llmSettings) {
+        try { await refreshLlmSettings(); }
+        catch (error) {
+            $('#llm-config-status').textContent = `A beállítások nem tölthetők be: ${error.message}. Ellenőrizd a gatewayt, majd kattints az Újratöltésre.`;
+            throw error;
+        }
+    }
     const bootstrap = await Promise.all([
         api('/api/admin/config'), api('/api/admin/skills'), api('/api/admin/teleport-destinations'),
-        api('/api/admin/llm-settings'), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
+        Promise.resolve(state.llmSettings), api('/api/admin/capability-gaps'), api('/api/admin/skill-trials'),
         api('/api/admin/world-director/templates'), api('/api/admin/world-director/cycles'),
         api('/api/admin/llm-replans?limit=100'), api('/api/admin/multi-agent-experiments?limit=50'),
         api('/api/admin/skill-drafts'), api('/api/admin/experiment-parameter-profiles?limit=100')
     ]);
     state.config = bootstrap[0]; state.skills = bootstrap[1].skills; state.teleportDestinations = bootstrap[2].destinations;
-    renderLlmSettings(bootstrap[3]);
     renderCapabilityGaps(bootstrap[4].gaps);
     renderSkillTrials(bootstrap[5].trials);
     renderWorldDirector(bootstrap[6].templates, bootstrap[7]);
