@@ -1,4 +1,5 @@
 import { playerSaveStore } from '#/engine/market/MarketStore.js';
+import { hydrateNativeMiningTool } from '#/mods/NativeMiningTool.js';
 import { randomUUID } from 'node:crypto';
 import { withSocietyValueMutation } from '../../../../../society-integrity/runtime.js';
 import InvType from '#/cache/config/InvType.js';
@@ -176,6 +177,7 @@ export class PlayerLoading {
         }
 
         player.combatLevel = player.getCombatLevel();
+        hydrateNativeMiningTool(player);
 
         return player;
     }

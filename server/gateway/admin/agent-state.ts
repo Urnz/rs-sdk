@@ -1,4 +1,7 @@
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
+import { readNativeToolContext, nativeToolDigest } from '../../../item-lifecycle/native-tool.js';
+import { assertNativeFoodPath, type NativeFoodSourceOptions } from '../../../food-loop/native-source.js';
+import { managedContext } from '../../control-plane/instance-context.js';
 import { existsSync } from 'node:fs';
 import { AgentStateStore, type AgentStateSimulationClock } from '../../../agent-state/store.js';
 import { isLivelihoodPolicy } from './livelihood-policy.js';
@@ -70,6 +73,7 @@ function useBusiness<T>(path: string, callback: (store: BusinessManagerStore) =>
 }
 
 export interface AdminAgentAssetSources {
+    nativeToolSource?: NativeFoodSourceOptions;
     simulationClock?: AgentStateSimulationClock;
     populationAgePolicy?: PopulationAgePolicy;
     populationMortalityPolicy?: PopulationMortalityPolicy;
@@ -245,6 +249,23 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
                 + `rest required ${populationHealth.restRequired}; treatment required ${populationHealth.treatmentRequired}; `
                 + `workload capacity ${populationHealth.workloadCapacityBasisPoints}/10000. Treatment needs verified clinical evidence.`
             : '\nInjury health is unobserved/unavailable; stored values are historical. Do not assume the character is healthy.' : '';
+        let toolContext = '';
+        const toolSource = assetSources.nativeToolSource ?? (path===agentStateDbPath ? {workspace:repoRoot,
+            worldId:managedContext()?.id ?? `local:${nativeToolDigest(repoRoot+sep)}`,
+            checkpointPath:resolve(repoRoot,'server/engine',process.env.PLAYER_CHECKPOINT_DATABASE ?? process.env.GE_DATABASE ?? 'data/player-checkpoints.sqlite')} : null);
+        if (snapshot.populationMember && identity.playerUsername) {
+            toolContext = '\nNative mining tool source unavailable; do not assume a usable or fresh tool.';
+            if(toolSource && existsSync(toolSource.checkpointPath)) try {
+                assertNativeFoodPath(toolSource);
+                const member=snapshot.populationMember;
+                toolContext='\n'+readNativeToolContext(toolSource.checkpointPath,identity.agentId,identity.playerUsername,{
+                    worldId:toolSource.worldId,clockId:member.simulationClock.clockId,clockProfileDigest:member.simulationClock.profileDigest,
+                    lifecycleId:nativeToolDigest({agentId:member.agentId,createdAt:member.characterLifecycle.createdAt,
+                        origin:member.characterLifecycle.origin,createdAtSimulationTime:member.characterLifecycle.createdAtSimulationTime,
+                        sourceResultId:member.sourceResultId,sourceResultDigest:member.sourceResultDigest,
+                        worldProfile:member.worldProfile,lifecyclePolicy:member.lifecyclePolicy,simulationClock:member.simulationClock})});
+            } catch { /* Unknown/stale custody never becomes an invented usable tool in the prompt. */ }
+        }
         const baseContext = `${buildDecisionContext(snapshot, { now: generatedAt, maxCharacters: 6000,
             economicObservation: readEconomicObservation(identity.agentId, { agentPath: path,
                 contractsPath: assetSources.economicContractsPath, simulationClock: assetSources.simulationClock,
@@ -254,7 +275,7 @@ export async function listAdminAgents(path = agentStateDbPath, assetSources: Adm
             episodicMemories: relevantEpisodes.map(result => result.episode),
             semanticMemories: relevantKnowledge.map(result => result.knowledge),
             socialMemories: relevantRelationships, assets })}${witnessedCrimeContext}${reformContext}${treasury
-                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}${healthContext}`;
+                ? `\nTreasury: ${treasury.balanceGp} gp balance; ${treasury.reservedGp} gp reserved; ${treasury.availableGp} gp available.` : ''}${healthContext}${toolContext}`;
         const decision = buildAdminDecisionContext({ baseContext, profile: controlProfile, bot: bot ?? null,
             gateway, business, governance, offers: relevantOffers, contracts: relevantContracts,
             latestRun: identity.playerUsername

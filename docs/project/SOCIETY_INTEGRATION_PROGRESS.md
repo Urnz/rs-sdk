@@ -2201,3 +2201,32 @@ modellhívás nem futott; nincs live profilimport/worldindítás vagy publicatio
 
 **SI-C01 kész;22/45, következő SI-C02.** Ez mechanikai kapu, nem SI-M3/MVS,
 többnapos életpálya vagy önfenntartási minősítés. SI-C02 új kérésre indul.
+
+### 2026-10-24 – SI-C02: natív Mining, exact csákány és kopás/custody
+
+[Implementáció/migráció/ellenőrzések](SI_C02_NATIVE_MINING_TOOL.md),
+[100 valós output és source/packed manifest](SI_C02_NATIVE_RESULT.json).
+A meglévő lifecycle motor borrowed módban a canonical Player-checkpoint DB-ben
+fut, saját verzióval; a közös PRAGMA/save-format/transaction API változatlan.
+Explicit physical-instance opening, native slot/bank/trade identity; unknown
+replacement/loss/duplicate quarantined, nem új durability. Copper/tin INV_ADD,
+wear, audit, native receipt és actual Player checkpoint egy commit. Suspended
+work instance/revision kötött; broken/unsupported source, replay, write-failure,
+clock/owner/death és actual BOTH_MOVEINV tesztelt, provenance/kopás megmarad.
+A külön trade-ledger hiba explicit custody sourcegap, nem hamis distributed ACID.
+
+Változatlan100/1 policyval100 packed Mining munka →100 bankolt actual érc és
+broken0; következő copper/iron Mining tiltva.13 natív eset; lifecycle20 régi/új
+komponens PASS; közvetlen lineage11, SI-C01 XP13 és admin-context PASS. Consumer
+kapu46 PASS +root/engine TS/format107,489 s; végső Mining guard kapu13+wrapper
+PASS +engine TS/format38,409 s. Átfedő számok nem összeadandók. Korábbi pointer/
+BANK-fixture FAIL és az auto-review elutasított patch megmaradt; végül a hívó
+SQLite-beállításait megőrző megoldás készült, assertions/policy gyengítése nélkül.
+Teljes regresszió és providerhívás nincs, nincs live tool-enrollment/worldindítás.
+
+**SI-C02 kész;23/45, következő SI-C03.** Repair/replacement, autonóm procurement,
+SI-M3/MVS és önfenntartási minősítés nem ennek a mechanikai kapunak az eredménye.
+
+A végső `20261024-132454-140-si-c02-final-instance-id` a megengedett128 karakteres
+instance-ID natív átadását is igazolja:13 natív +wrapper, engine TS/format PASS,
+48,883 s. A belső művelet-ID fix hosszú digest, a root/lineage/XP bemenet változatlan.

@@ -77,6 +77,7 @@ import Midi from '#/cache/midi/Midi.js';
 import { applyWorldModXpAward, getActiveWorldMods, type XpActivityContext } from '#/mods/WorldMods.js';
 import { prepareNativeAttributeXp, type NativeAttributeXpReceipt, type NativeAttributeContext } from '#/mods/NativeAttributeXp.js';
 import { characterBindingDigest } from '../../../../../character-attributes/binding-store.js';
+import type { NativeMiningPorts } from '#/mods/NativeMiningTool.js';
 
 const levelExperience = new Int32Array(99);
 
@@ -108,6 +109,7 @@ export default class Player extends PathingEntity {
     populationFinite = false;
     populationSleeping = false;
     nativeAttributeXpReceipts: NativeAttributeXpReceipt[] = [];
+    nativeMiningPorts?: NativeMiningPorts;
     nativeAttributeXpContext?: (username: string, tick: number) => NativeAttributeContext | null;
     static readonly DESIGN_BODY_COLORS: number[][] = [
         [6798, 107, 10283, 16, 4797, 7744, 5799, 4634, 33697, 22433, 2983, 54193],

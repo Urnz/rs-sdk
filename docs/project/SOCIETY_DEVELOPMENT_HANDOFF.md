@@ -5,62 +5,79 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
 
-- **SI-A technikailag lezárva; SI-B01–SI-B06 és SI-C01 kész. SI-M2 v2 PASS.
-  Következő: SI-C02, összesen22/45 kész. Új kérés nélkül ne kezdd el.**
-- [SI-C01 pontos határ, migráció és teljes ellenőrzési index](SI_C01_NATIVE_ATTRIBUTE_XP.md),
-  [páros natív eredmény és forráshashek](SI_C01_PAIRED_RESULT.json).
-  Ág: `codex/si-c01-native-attribute-xp`, kiinduló commit `cef67876d`.
-- Az új genesis/population membership seedelt immutable attribute/potential
-  bindinget is kap ugyanabban a tranzakcióban. Exact budget/allocation/potential/
-  cap policy version/digest. AgentState továbbra is v29; saját additív binding
-  tábla. Training nem módosítja a profilt; régi member replay nem backfill.
-- Régi profilhiány: explicit `AgentStateStore.bindCharacterAttributes` vagy
-  `bun character-attributes/bind-cli.ts --agents-db PATH --agent-id ID --input creation.json`.
-  A teljes validált profile/policy és creation evidence kötelező, nincs átlag-
-  default vagy automatikus live import. E körben élő profilimport nem történt.
-- Fishing/Cooking/Mining/Smithing actual `Player.addXp`: experiment calibration
-  → diminishing → potential → global XP rate → személyes hard cap/engine limit.
-  `allowMulti=false` is betartja a potential/capet. Más skill és a nem population
-  avatar vanilla. Soft cap az award előtti szintből számol; facility nem írja át
-  a személyes skillt. Level-1/99 és már magasabb személyes szint külön tesztelt.
-- Saját receipt tábla a kanonikus Player-checkpoint DB-ben; actual before/after,
-  négy számítási lépcső, activity, clock/world/lifecycle és teljes binding/policy.
-  Save-byte/XP egyezés ellenőrzése és receipt insert egy checkpoint tranzakció.
-  Failure/retry/reopen/nested rollback, offline pending logout és gather/kitchen
-  stat+pending-evidence rollback megőrzött. Nincs új általános tranzakcióalap.
-- Páros disposable actual Player workload: azonos80-ból skillenként60/100 XP,
-  négy skill, nyolc natív receipt, actual Player-load és checkpoint digestei.
-  Ez mechanikai kapu, nem többnapos életpálya, SI-M3/MVS vagy önfenntartás.
-- Fő fájlok: `character-attributes/binding-store.ts`, `bind-cli.ts`,
-  `agent-state/store.ts`/`context.ts`, engine `NativeAttributeXp.ts`,
-  `PopulationDeathRuntime.ts`, `Player.ts`, `World.ts`; native gather/kitchen
-  rollback fogyasztók. Natív próba: gateway `native-attribute-xp.test.ts`.
-- Nincs providerhívás/költség, új world indítás, enrollment vagy publication.
-  A korábbi admincím `http://127.0.0.1:7781/admin/`; az API-kulcs a **Helyi
-  szerver / local-default**, aktív repo Windows titoktárában. Új runtime-indítás
-  előtt aktuális állapotellenőrzés kell.
-- SI-B06 korábbi kerete csak a0,05 USD-s próbára szólt;11 kérés /4235 microUSD
-  =0,004235 USD, uncertain0. Normál config per-call0, auto-replanning és
-  autonomousExecution kikapcsolva; B04/B05 default grant üres. Nincs általános
-  költési engedély. [B06 forrás/baseline, FAIL és v2 PASS](SI_B06_STRATEGIC_ACCEPTANCE.md).
+- **SI-A technikailag lezárva; SI-B01–SI-B06 és SI-C01–C02 kész. SI-M2 v2 PASS.
+  Következő: SI-C03, összesen23/45 kész. Új kérés nélkül ne kezdd el.**
+  Következő konkrét határ: egy native input/idő/facility/worker-skillhez kötött
+  repair vagy replacement, majd ugyanazzal az igazolt instance-szal új munka.
+- [SI-C02 működés, korlátok, migráció és teljes ellenőrzési index](SI_C02_NATIVE_MINING_TOOL.md),
+  [100 natív munka és source/packed hashek](SI_C02_NATIVE_RESULT.json).
+  Ág: `codex/si-c02-native-mining-tool`, kiinduló commit `9e1433607`.
+- ItemLifecycleStore borrowed DB mód: ugyanaz a lifecycle motor a kanonikus
+  Player-checkpoint DB-ben. Saját schema marker3, shared user_version és
+  connection PRAGMA/close ownership változatlan. A string-path constructor
+  továbbra is a standalone DB-é; a canonical checkpointot csak borrowed módban
+  szabad megnyitni. Régi authority live átköltöztetése nem történt.
+- Explicit backend `bindNativeMiningTool`: már létező, owner/provenance-kötött
+  instance + egyetlen unnoted1265 fizikai tool. Nincs automatikus stack→új
+  durability vagy LLM által feltöltött receipt. Player-load pontos checkpointból
+  hidratál; witnessed native inventory/equipment/bank/offer move és BOTH_MOVEINV
+  ugyanazt az ID-t/kopást/provenance-t viszi. Ismeretlen/dupla/note/lost tool
+  quarantined és explicit reconciliation; nincs automatikus friss instance.
+- Packed Mining → actual copper/tin INV_ADD → existing cycle.use → Player save
+  és immutable native event egy SQLite commit. Failed roll/gem/animation nem
+  cycle-use. Broken/replaced, foreign lifecycle/clock, policy drift, másik
+  pickaxe és nem támogatott Mining source nem kerülheti meg a guardot.
+  Suspended munka exact tool/revisionhoz kötött; replay breakage után sem ad
+  új outputot/XP-t/use-t. Nincs elvesző cross-DB pending-wear ablak.
+- Native trade a tényleges TradeEvidenceStore után, azonos checkpointtal
+  változtat ownert. Külön trade-ledger hiba/sourcegap továbbra sem distributed
+  ACID: sikertelen local commit nem igazol native transfer-proofot; custody
+  quarantine, nem reset. Halott actor nem dolgozik/ad át, az instance auditja
+  és régi custodyja megmarad; nincs automatikus örökös vagy új item.
+- Readonly tool context a canonical source-ból, actor/lifecycle/clock/world/
+  policy ellenőrzéssel. Durability/service-capacity nem reachability:
+  az engine külön ellenőrzi, hogy a tool tényleg inventory/equipmentben van.
+- Normál100 durability /1 wear:100 packed Mining-output,100 külön action-ID,
+ 100 bankolt actual rézérc, broken0 és következő copper/iron munka tiltva.
+  Ez mechanikai kapu, nem SI-M3/MVS vagy önfenntartás; repair/replacement SI-C03.
+- Fájlok: `item-lifecycle/store.ts`/`native-tool.ts`, engine `NativeMiningTool.ts`,
+  `ScriptRunner.ts`/`ScriptState.ts`/`InvOps.ts`, Player/PlayerLoading/World
+  checkpoint adapter; admin `agent-state.ts` readonly context. Új gate:
+  gateway `native-mining-tool.test.ts`,13 natív eset.
+- [SI-C01 exact attribute/XP és migráció](SI_C01_NATIVE_ATTRIBUTE_XP.md) megmaradt:
+  population creation immutable profile; régi hiány explicit import; négy
+  skill XP calibration→diminishing→potential→rate→cap, actual checkpoint receipt.
+  AgentState továbbra is v29. Nincs live profile/tool import vagy worldindítás.
+- Nincs providerhívás/költség, enrollment vagy publication. Korábbi admincím
+  `http://127.0.0.1:7781/admin/`; API-kulcs a Helyi szerver/local-default aktív
+  repo Windows titoktárában. Új runtime-indítás előtt állapotellenőrzés kell.
+- B06 korábbi engedély csak0,05 USD-s próbára szólt;11 kérés /4235 microUSD
+  =0,004235 USD, uncertain0. Normál per-call0, auto-replanning/autonomousExecution
+  off; B04/B05 default grant üres. Nincs általános költési engedély.
+  [B06 külön FAIL és v2 PASS](SI_B06_STRATEGIC_ACCEPTANCE.md).
 
 ## Legfrissebb ellenőrzés
 
-- **Teljes regresszió nem futott.** Komponenssaját profil/XP-táblák és konkrét
-  award/checkpoint adapter; célzott policy/rollback/reopen/logout és packed
-  fogyasztók fedik. A változatlan PASS teszteket nem ismételtük taskzárás miatt.
-- `20261024-123802-533-si-c01-final-gate`: **46 PASS /0 FAIL**, benne13 natív
-  eset; root/engine TS és changed-line format PASS, **37,001 s**.
-- `20261024-123223-155-si-c01-consumer-repair`:53 runtime PASS, benne20 korábbi
-  packed food/SDK/business consumer; a kör TS-visszatérési típus/import miatt
-  még FAIL volt,50,809 s. A végső kapu ezeket javítva igazolja.
-- `20261024-123017-349-si-c01-component-boundaries`: régi attribute képletek,
-  framework, WorldMods/ExperimentXp/DiminishingXp PASS; teljes kör FAIL két
-  régi fixture miatt,19,231 s. A v21/v24 fixture a későbbi táblákat is eltávolítja,
-  a shift egy rögzített Date.now()-ból számol; assertions/termékvalidáció megmaradt.
-- A korábbi bootstrap/fixture és CJS/ESM FAIL diagnosztikák megmaradtak, pontos
-  index a C01 dokumentumban. A körök átfednek; PASS-ok/idők nem összeadandók.
-  Full log/result: `.local/verification/`. Dokumentációs zárás nem indít runtime tesztet.
+- **Teljes regresszió nem futott.** Saját additive lifecycle/identity/event
+  táblák és konkrét Mining/inventory/trade/checkpoint adapter. A shared save
+  formátum és MarketStore transaction API változatlan, közvetlen fogyasztók
+  célzottan lefedve. Taskzárás/push nem indít új runtime tesztet.
+- `20261024-130836-796-si-c02-native-custody-fixed`:31 PASS, benne20 lifecycle/
+  cycle/repair/borrow és10 natív +wrapper,2,907 s.
+- `20261024-131219-378-si-c02-consumer-gate`:46 PASS /0 FAIL; benne13 Mining,
+ 11 lineage és13 SI-C01 XP natív eset, admin-context; root/engine TS/format PASS,
+ 107,489 s.
+- `20261024-131518-824-si-c02-final-mining-gate`: további Mining-belépő guard
+  javítása után13 natív +wrapper PASS, engine TS/format PASS,38,409 s.
+  Változatlan root/lineage/XP körök nem ismétlődtek.
+- `20261024-132454-140-si-c02-final-instance-id`:128 karakteres valid instance-ID
+  native trade esetével is13 natív +wrapper PASS, engine TS/format PASS,48,883 s.
+  Ez a végső source-bound natív eredmény; a root fogyasztókat ez nem módosította.
+- Első entry-pointer és hibás BANK-fixture FAIL-ok megmaradtak, későbbi szűk
+  PASS-szal javítva. SQLite auto-review patch elutasítás után az eredeti owned
+  constructor szerződését megőrző változat készült; nincs fennmaradó blokkolás.
+  Pontos log/result index a C02 dokumentumban, `.local/verification/` alatt.
+  A körök átfednek; PASS-számok/idők nem összeadandók.
 
 ## Megőrzendő döntések és mentések
 

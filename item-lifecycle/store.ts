@@ -25,13 +25,27 @@ function state(row: Row): ItemInstanceState { return { itemInstanceId: row.item_
 
 export class ItemLifecycleStore {
     private readonly database: Database;
-    constructor(path: string, private readonly catalog: ItemLifecycleCatalog) {
+    private readonly borrowed: boolean;
+    constructor(path: string | Database, private readonly catalog: ItemLifecycleCatalog) {
         const { digest, ...definition } = catalog;
         if (digest !== itemLifecycleCatalogDigest(definition)) throw new Error('Item lifecycle catalog digest mismatch');
-        mkdirSync(dirname(path), { recursive: true }); this.database = new Database(path, { create: true, strict: true });
-        this.database.run('PRAGMA foreign_keys = ON'); this.migrate();
+        this.borrowed = typeof path !== 'string';
+        if (typeof path === 'string') {
+            mkdirSync(dirname(path), { recursive: true }); this.database = new Database(path, { create: true, strict: true });
+            // Preserve the legacy owned-connection contract. Never change a borrowed connection's PRAGMAs.
+            this.database.run('PRAGMA foreign_keys = ON');
+        } else {
+            this.database = path;
+            this.database.run('CREATE TABLE IF NOT EXISTS item_lifecycle_schema(singleton INTEGER PRIMARY KEY CHECK(singleton=1),version INTEGER NOT NULL)');
+            if (!this.database.query('SELECT version FROM item_lifecycle_schema WHERE singleton=1').get()) {
+                if (this.database.query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='item_instance'").get())
+                    throw new Error('Existing lifecycle tables require explicit authority migration');
+                this.database.run('INSERT INTO item_lifecycle_schema VALUES(1,0)');
+            }
+        }
+        this.migrate();
     }
-    close(): void { this.database.close(true); }
+    close(): void { if (!this.borrowed) this.database.close(true); }
     get(itemInstanceId: string): ItemInstanceState | null { const row = this.database.query(
         'SELECT * FROM item_instance WHERE item_instance_id=?1').get(id(itemInstanceId, 'Item instance id')) as Row|null;
         return row ? state(row) : null; }
@@ -128,6 +142,25 @@ export class ItemLifecycleStore {
                 [operationId,replacedId,replacementId,owner,input.evidenceDigest,at]);});
         transaction.immediate();return this.get(replacementId)!;
     }
+    transfer(operationId: string, itemInstanceId: string, expectedRevision: number, fromActorId: string,
+        toActorId: string, evidenceDigest: string, atSimulationTime: string): ItemInstanceState {
+        id(operationId,'Operation id'); id(fromActorId,'From actor'); id(toActorId,'To actor');
+        const at=time(atSimulationTime), current=this.get(itemInstanceId);
+        if (!current || !DIGEST.test(evidenceDigest) || fromActorId===toActorId) throw new Error('Invalid item transfer');
+        const requestDigest=hash({itemInstanceId,expectedRevision,fromActorId,toActorId,evidenceDigest,at});
+        const prior=this.database.query('SELECT request_digest FROM item_lifecycle_operation WHERE operation_id=?1')
+            .get(operationId) as {request_digest:string}|null;
+        if(prior){if(prior.request_digest!==requestDigest)throw new Error('Lifecycle transfer id was reused');return current;}
+        if(current.ownerActorId!==fromActorId || current.revision!==expectedRevision || at<current.updatedAtSimulationTime
+            ||this.getReplacement(itemInstanceId))throw new Error('Item transfer ownership/revision is stale');
+        this.database.transaction(()=>{
+            const changed=this.database.run('UPDATE item_instance SET owner_actor_id=?3,updated_at=?4,revision=revision+1 WHERE item_instance_id=?1 AND revision=?2',
+                [itemInstanceId,expectedRevision,toActorId,at]);
+            if(changed.changes!==1)throw new Error('Item transfer changed');
+            this.operation('transferred',operationId,itemInstanceId,at,{fromActorId,toActorId,evidenceDigest,requestDigest});
+        }).immediate();
+        return this.get(itemInstanceId)!;
+    }
     verifyAuditChain(): boolean { const rows = this.database.query(`SELECT previous_hash,entry_hash,payload_json
         FROM item_lifecycle_audit ORDER BY sequence`).all() as Array<{previous_hash:string;entry_hash:string;payload_json:string}>;
         let head=ZERO; for(const row of rows){if(row.previous_hash!==head
@@ -178,7 +211,13 @@ export class ItemLifecycleStore {
         this.database.run(`INSERT INTO item_lifecycle_audit
             (operation_id,payload_json,previous_hash,entry_hash) VALUES(?1,?2,?3,?4)`,
         [operationId,JSON.stringify(payload),previousHash,hash({previousHash,payload})]); }
-    private migrate():void{let version=Number((this.database.query('PRAGMA user_version').get() as{user_version:number}).user_version);
+    private setSchemaVersion(version: number): void {
+        if (this.borrowed) this.database.run('UPDATE item_lifecycle_schema SET version=?1 WHERE singleton=1',[version]);
+        else this.database.run(`PRAGMA user_version = ${version}`);
+    }
+    private migrate():void{let version=this.borrowed
+        ? Number((this.database.query('SELECT version FROM item_lifecycle_schema WHERE singleton=1').get() as {version:number}).version)
+        : Number((this.database.query('PRAGMA user_version').get() as{user_version:number}).user_version);
         if(version>3)throw new Error(`Item lifecycle schema ${version} is newer than supported version 3`);
         if(version===0){const transaction=this.database.transaction(()=>{this.database.run(`CREATE TABLE item_instance (
             item_instance_id TEXT PRIMARY KEY,lifecycle_type_id TEXT NOT NULL,item_id INTEGER NOT NULL,owner_actor_id TEXT NOT NULL,
@@ -188,14 +227,14 @@ export class ItemLifecycleStore {
             REFERENCES item_instance(item_instance_id),kind TEXT NOT NULL,request_digest TEXT NOT NULL,detail_json TEXT NOT NULL,occurred_at TEXT NOT NULL)`);
             this.database.run(`CREATE TABLE item_lifecycle_audit (sequence INTEGER PRIMARY KEY AUTOINCREMENT,operation_id TEXT NOT NULL,
             payload_json TEXT NOT NULL,previous_hash TEXT NOT NULL,entry_hash TEXT NOT NULL UNIQUE)`);
-            this.database.run('PRAGMA user_version = 1');});transaction.immediate();version=1;}
+            this.setSchemaVersion(1);});transaction.immediate();version=1;}
         if(version===1){const transaction=this.database.transaction(()=>{this.database.run(`CREATE TABLE item_replacement (
             operation_id TEXT PRIMARY KEY REFERENCES item_lifecycle_operation(operation_id),
             replaced_item_instance_id TEXT NOT NULL UNIQUE REFERENCES item_instance(item_instance_id),
             replacement_item_instance_id TEXT NOT NULL UNIQUE REFERENCES item_instance(item_instance_id),
             owner_actor_id TEXT NOT NULL,evidence_digest TEXT NOT NULL,occurred_at TEXT NOT NULL)`);
-            this.database.run('PRAGMA user_version = 2');});transaction.immediate();version=2;}
+            this.setSchemaVersion(2);});transaction.immediate();version=2;}
         if(version===2){const transaction=this.database.transaction(()=>{this.database.run(`CREATE TABLE item_repair_evidence (
             material_receipt_id TEXT PRIMARY KEY,operation_id TEXT NOT NULL UNIQUE REFERENCES item_lifecycle_operation(operation_id),
-            receipt_digest TEXT NOT NULL)`);this.database.run('PRAGMA user_version = 3');});transaction.immediate();}}
+            receipt_digest TEXT NOT NULL)`);this.setSchemaVersion(3);});transaction.immediate();}}
 }

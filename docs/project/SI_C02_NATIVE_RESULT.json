@@ -1,0 +1,422 @@
+{
+  "schemaVersion": 1,
+  "taskId": "SI-C02",
+  "verdict": "PASS",
+  "scope": "Bounded packed native Mining wear/custody/checkpoint acceptance",
+  "source": {
+    "baseCommit": "9e143360789349a70740a5fffd89e7b683d66fb9",
+    "branch": "codex/si-c02-native-mining-tool",
+    "hashEncoding": "SHA-256 of LF-normalized UTF-8 source; binary SHA-256 packed assets",
+    "files": [
+      {
+        "path": "config/item-lifecycle.json",
+        "sha256": "2b34ef6b2b378c060f0005c71f520fbc6fb6d9231f83aa18bd556f8c484d2976"
+      },
+      {
+        "path": "config/production-tool-cycles.json",
+        "sha256": "1222b5bf2c5e54d29cb5e9cdbdefdddfd7b24cb65a6a4fd68b55ec2908aeee8a"
+      },
+      {
+        "path": "item-lifecycle/native-tool.ts",
+        "sha256": "6fedd176717c419cdc0f6a5166255232a37e14e25cf3ecb13037975778f192e5"
+      },
+      {
+        "path": "item-lifecycle/store.ts",
+        "sha256": "b6cf73fb14f33e3d9637dcce42bc344d327da520ffeb8b0892da763afc4b4706"
+      },
+      {
+        "path": "item-lifecycle/test/native-tool.test.ts",
+        "sha256": "d7111ab0cb846a58ce9db636b686b2c7227b04b016714daa3b07288cbbf17c30"
+      },
+      {
+        "path": "server/engine/src/engine/entity/Player.ts",
+        "sha256": "af34ad51cf4a5b72283ed9145a44fa4dbec0657b387aa738b4270e4228e6cca9"
+      },
+      {
+        "path": "server/engine/src/engine/entity/PlayerLoading.ts",
+        "sha256": "c1189cfa75d9a1e6e2702fe6243defa6d98e884c2b76e1d51f0376c746f13d6b"
+      },
+      {
+        "path": "server/engine/src/engine/script/handlers/InvOps.ts",
+        "sha256": "1b93750900fb48007b17d5c5c1da5c9763f66498e0d3623262508e9aea5030bb"
+      },
+      {
+        "path": "server/engine/src/engine/script/ScriptRunner.ts",
+        "sha256": "9a8d12096c2d1bcd0cbc4766c82d06390a4816d4f91bc2f4c2ffaf9e789a6483"
+      },
+      {
+        "path": "server/engine/src/engine/script/ScriptState.ts",
+        "sha256": "49b83a210ffab11a951ce9288e3abf24064b7580ee07a7cf9de36d2906a75be5"
+      },
+      {
+        "path": "server/engine/src/engine/World.ts",
+        "sha256": "c6f2e8534b217dd5c592d8b75691de02ff39b3e509ca5e54bd6698b0fbd62b83"
+      },
+      {
+        "path": "server/engine/src/mods/NativeMiningTool.test.ts",
+        "sha256": "2f80d5187873f41cdc323badf2bf937441ad507dbf61dbed9db978a78a355b22"
+      },
+      {
+        "path": "server/engine/src/mods/NativeMiningTool.ts",
+        "sha256": "54f18eab11501abf516639f393ed9d4575ed31d2248c7198dc4cd62514187ba2"
+      },
+      {
+        "path": "server/gateway/admin/agent-state.ts",
+        "sha256": "7974503d2466e4e76977037b38f596d6305533ba7730e557e4343cc3fe388345"
+      },
+      {
+        "path": "server/gateway/admin/native-mining-tool.test.ts",
+        "sha256": "962e60234b51ab63a09ecf3a84bf65f1eb330d8df3b8a9171b9130fdda069c68"
+      }
+    ],
+    "packedAssets": [
+      {
+        "path": "server/engine/data/pack/main_file_cache.dat",
+        "sha256": "5c177b9209e183ad977fb43a7b5c2436953cb6585102f56c6193f2ead44499da"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx0",
+        "sha256": "af8a7bb2f99b2bdf802cf13ef8c894d59592399e41c400fd3258b384ef229b76"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx1",
+        "sha256": "0ce4f410c11cb36753a67ae4fb6acb41026133057966b4f5887877a2310dd10e"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx2",
+        "sha256": "38117c0d67c9768eccc67d1412dc0664b191c660943e6581fe36b048496eeabf"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx3",
+        "sha256": "c76aff4c175d73db6c6791ba99f9cb5667cd4645555f63909f917dbaee601ea0"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx4",
+        "sha256": "0f731d032a63baef29778c0a8857af1c1a344447292fcb28f96be3744d0f6b52"
+      },
+      {
+        "path": "server/engine/data/pack/server/category.dat",
+        "sha256": "f63cb5e4c38d7c4a79e15b48fd3d05bdb6a99dba6e1906a761e46350b0f97e98"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.dat",
+        "sha256": "5a4f274c247217875f8b3b71006100a86030b51a5d4165f6cd91dd910cce8286"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.idx",
+        "sha256": "c9d085f8a353abd58a7315f3a8e9e17e331bb38197470bd7dd17c7f67e961c23"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.dat",
+        "sha256": "74f6c6be5dae1111fbd39e7bd4290647fce7f5b93dd5fb3a0a386503ddb40ac3"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.idx",
+        "sha256": "50be28dfbd8b017cfee7fda40d07ad4c5d374b3861f0b3dcb67e76f36ff15c5a"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.dat",
+        "sha256": "692812e0b3c7b776c2edd3aac70d11249d0c824c79a42f0e2ad08311bb1b40c5"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.idx",
+        "sha256": "5c4bb2801422d762f965ac53dce6c9c8406c07f975f3cc7850bd555a76a0821b"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.dat",
+        "sha256": "1cb8bdec4c1bea9797cd5ddf2d6d12f7b278d5b52cf0e76cf870765c92d40574"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.idx",
+        "sha256": "e6e740142c951caafe7523ce5be71d6f58480f174389108c89b1c89906ea1563"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.dat",
+        "sha256": "641a509227c948dbd626eba8afd6e5b49c4e95d338d596c134b4dfe40b058121"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.idx",
+        "sha256": "f65cd1b3902def149de3ba676aa7bf227d70f408770f16df3cc1419eea6663a7"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.dat",
+        "sha256": "c49a737d21e1138667f8961ec96cfaf8fdc5a8a7e27eaccf6c0833b845eaffdd"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.idx",
+        "sha256": "15de0287fd9650a02f274771a6eab909b0cce5b7ecd9db6fd8dc0e4dc7b3d354"
+      },
+      {
+        "path": "server/engine/data/pack/server/interface.dat",
+        "sha256": "79c4635a79a4b788ab5b241c03fcfed790507f059adf8156976a1c3e906331d0"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.dat",
+        "sha256": "c742ce8c79c28552413640b5ad26626e520da3f19ccd638362a1f7bc58b73032"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.idx",
+        "sha256": "f8eeed182072f4d6ab383f7d28c3edd0dc51eacb98c1a107216523703d5c22c1"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.dat",
+        "sha256": "a45ded68e74cf5a59257141206560aa508524b9ed89c06ac5bc94482f38eaf00"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.idx",
+        "sha256": "ff841140ee0a0685e0bda5a39c3838b6d3aa34ba5db8d6d05d416b9fbebca7d2"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.dat",
+        "sha256": "8c5cbe3e9981d7982a4c3e53eb61d336ec7a6de7fe17f13bbe4a09ee07210d94"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.idx",
+        "sha256": "6e87275bbb7b59bfae93049b6ecce2a103fe80d5dd8c4e2477600f088e804609"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.dat",
+        "sha256": "819902401ef17472946c0444094ab876ee63b1ee383708ac4c14382b287be02b"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.idx",
+        "sha256": "5cd4978d0535e9cd526bff781add78db48bd036fb8ef76227053681d62674802"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.dat",
+        "sha256": "f86e2e07d8801cce6bf3751342f279b31f60190049aec77407ae9262069f9818"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.idx",
+        "sha256": "edfb9a90cab90849419be2233d7ea6af7eee05bf4880bb6b75d77683d5e0c779"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.dat",
+        "sha256": "5504276804b51de580dab058bdc2fa8bfc432a2a002d4b0a499223cd990a84fd"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.idx",
+        "sha256": "7c673ffda5b1f1536c1ccc332a61493099d08aa089d43b35e0e8fcd802be936c"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.dat",
+        "sha256": "2e9b2a8a91ae64abee01afba9ed28c8700045eed413afdfcaa521515468f09b3"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.idx",
+        "sha256": "7dcfe2c0426db07a93c63eecb3e6e8bf0e14f97d4e74b5d8e5f18c31d3137eb1"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.dat",
+        "sha256": "17a718d58381ac68c379031561349598662439507a10aa2a5408ea9a832aca51"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.idx",
+        "sha256": "8b6afaed99c44bfa201018c49c064047294dfc8169852da620f743106ebf3bbf"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.dat",
+        "sha256": "86cbc2cd8cd1565bca4b6e493d41e3a6e0cf63d9e7aa7d938221a26990427bcd"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.idx",
+        "sha256": "572859b1698e06352dd1c70c3c7ff8b5bdb6d4508ac9d82dfacb2c4a1a492c46"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.dat",
+        "sha256": "e528d20f9d055e6e76487f07c2cf0dbfe13b49f819627b0b8718eddf81fb0dfd"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.idx",
+        "sha256": "43a6cd1d81780e993979d07e506ff6c54e5571a6e62f79c94084bbe44f42019a"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.dat",
+        "sha256": "02114d60728295a675488a3b54ae1a92525496c73e984cc1fceaf45fc02f9e5e"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.idx",
+        "sha256": "a3b06e8eaaeff0f13683416777f465b5c4dbb12e1a7746b61a25a3858236927d"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.dat",
+        "sha256": "58b3f7be63bb0f421bcfd9322cb99f42d1c62bc2e295217ea1cbc4a8f6a9766c"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.idx",
+        "sha256": "73993eafcdcf368a767a8e1c622511699747a42f635f9c1b31ffd2923b319f96"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.dat",
+        "sha256": "06d9da884eb3c6dc8bfef2fda8252c57b63c9f5cb1fbfbfaee9ffe20e7cab439"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.idx",
+        "sha256": "e6e87b06af30777b0c829a15b3d8e4574d2f349c1bb18fd7c00c9682da6f52a1"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.dat",
+        "sha256": "d384d9a7778c66a4bc34ef533fa720fe1b9b2234f233312e5df892c44069a5da"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.idx",
+        "sha256": "cbc943fe49dfb709c4761f632a621ed4ff9981503cd50b1d6b3e5bf6c5d52e65"
+      }
+    ]
+  },
+  "verification": {
+    "lifecycle": "20261024-130836-796-si-c02-native-custody-fixed",
+    "consumerGate": "20261024-131219-378-si-c02-consumer-gate",
+    "consumerDurationSeconds": 107.489,
+    "finalMiningGate": "20261024-132454-140-si-c02-final-instance-id",
+    "finalDurationSeconds": 48.883,
+    "nativeCases": 13,
+    "rootTypecheck": "PASS",
+    "engineTypecheck": "PASS",
+    "fullRegression": false,
+    "providerCalls": 0,
+    "providerCostMicros": 0
+  },
+  "native": {
+    "source": "packed Mining/INV_ADD + native bank moves + Player checkpoint",
+    "itemInstanceId": "tool-miner2",
+    "owner": {
+      "actorId": "actor-miner2",
+      "username": "miner2",
+      "lifecycleId": "life-miner2",
+      "worldId": "si-c02-fixture",
+      "clockId": "si-c02-clock",
+      "clockProfileDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "catalogDigest": "8cd643b7fe68e378c2d9f7446c151726511a104ade540f5b76d7ab7fbd8e378e",
+    "cycleDigest": "a2c5e0d03d532fca08429f6960bb3cb52bfb5ab5d0dbe4fe9ef429a3ee23b186",
+    "successfulNativeActions": 100,
+    "actionIds": [
+      "46336835-402d-40d7-99c8-61f1f1a7b1d6",
+      "cde3f614-0c26-4707-94c3-addf0992c510",
+      "82d16c60-5e6e-4669-b0f4-b5d8ba207d97",
+      "dc29b18b-2b33-4c11-83fc-51cdba4c3ca8",
+      "e210f7b8-11b4-4c9e-b5e9-640bcfb289b1",
+      "d1510690-af60-4128-9d58-600e692338ca",
+      "3be218e3-588a-4940-976d-9b47c5552571",
+      "7a413680-b996-4c1a-9809-f3ab788eb097",
+      "e4e6d75e-20f9-48d4-a1c6-16715cfe2b70",
+      "c8dc24e1-9b1d-439a-bed7-1778d8387311",
+      "5954088c-d93e-4205-b971-fe644b4766c5",
+      "46628ca5-aa11-4b34-b317-7a88bae1d823",
+      "530521c3-04db-4835-9a97-de142780edea",
+      "4247edc9-0307-4465-830d-07f9c7513327",
+      "6fb8ddbf-ecc4-4cab-8e4d-7a6ea931339a",
+      "27118187-deb1-4993-9c34-9b32e392adaf",
+      "3b1cdb46-f7a7-4502-8467-350c734840ed",
+      "0af4b2a8-bef3-4f46-b02d-cd92b091f713",
+      "72b01e62-0a5b-47ce-80b5-be6c383d266b",
+      "ca586958-91f9-4c04-ae4f-b71bd52257aa",
+      "3a5c9855-260b-456b-b1ab-e047efaa6f17",
+      "439fd408-49aa-4d74-8cb4-04bec08a04d8",
+      "6c3ac179-3d80-4ac6-94b6-9fdc2c586ab8",
+      "93fa976c-e173-4165-9db3-ab17a6912fd7",
+      "2d1756be-ba40-462b-b924-53c38a0d14c4",
+      "d446c22c-216c-4f57-a3bf-1814553f6210",
+      "0eaf6091-1e6f-4b9f-8422-0f5010d2bf08",
+      "b0bddbf7-8c2e-4d8c-9000-bc6459bad526",
+      "87306874-85a1-4fa4-b0e4-e6784ddd75ed",
+      "4e037c3a-2c31-4e67-94f1-bd2ab2dc26b7",
+      "08bb788e-9630-4811-a89a-f3a4cf8095aa",
+      "4be994c3-e0cd-4ac1-aeae-98a4c05418fa",
+      "2f858ad1-29a7-456d-9b22-7421696df1c4",
+      "2e31e1d6-a9c7-469b-a708-8c5f02f47cdf",
+      "7fdebd5f-9d3f-4811-91d0-d35f2941d790",
+      "8c1e5f20-a140-458f-83a4-da24a69bed52",
+      "4995a66f-34ab-42eb-8ba0-0d7b7ec44bd6",
+      "a6f8fb6c-2db9-4e83-8087-ff7060822b9b",
+      "5ea6f4d9-c80c-4fb3-9dd7-fece88f2d8a4",
+      "d8c7ace7-684d-4491-b3f0-9ad3f6b19b5e",
+      "f0faa1a3-fdf1-4fa0-b7b7-b434ea0547ba",
+      "9abd5ffe-4f68-4648-ac32-b9ebd110cd7b",
+      "2a3f894e-d014-4d4f-bedf-1af105bb6177",
+      "0794b4c6-a58b-453d-8544-d9e0f3cc018e",
+      "8bde44c0-7ffa-45d6-9d17-214c7d0f3ee7",
+      "2d1e147e-a25e-4e7e-9604-680ee595f76a",
+      "06fc54fa-cb79-44e2-94a0-4e94c5a5ebeb",
+      "55410a06-21e6-4864-b476-bf1d30acd28f",
+      "49d9cef7-67be-409c-b9a5-787638608750",
+      "63c42d60-85bc-48f4-ba87-6537609bfdda",
+      "9e659cc0-87f7-4119-b539-7ccedf7b1dc5",
+      "aa0cfb94-2572-4000-84ec-4eee5c72275d",
+      "44737f82-7bf7-4bf1-b8dd-8fcd1042cd66",
+      "1883342a-c759-4f6b-a993-25962dbc4f58",
+      "24988218-fcee-4dca-a15c-9820ed020825",
+      "9f640033-a76e-406b-bc52-236ccafb979c",
+      "af857cb4-c53a-4821-a4fb-47fd2e995528",
+      "875c883c-e145-4ee6-993e-8dbef78a0248",
+      "7a093eef-23aa-4396-ad3b-309dc81472ec",
+      "5a6873dd-61f7-481b-96f4-ecefe0702546",
+      "4bf822ba-f8da-45da-bb6c-3bc2c36f9e9f",
+      "a5956b2b-e5b7-4a26-8d8f-1ef6a8165d92",
+      "2d828c2e-61e5-41db-aa4a-346b96db052b",
+      "32ea2de0-0ea5-49f7-816e-39c4817128c8",
+      "ab8528c7-5bb8-41ef-a48d-d0551b5e502b",
+      "60ff9fdb-9ead-4a5a-9416-0fb2cdc9a817",
+      "e715ace9-b8e2-4617-9cef-66cd1173f4c8",
+      "297dd71e-719a-4968-8dc2-b39a1dbc1764",
+      "4018c997-d9a2-44a4-a108-9c3224e1d0a2",
+      "ec672293-7705-4b62-af49-6a841c9ad7b8",
+      "bb449776-708a-40ea-9ecb-cef7ad665f1e",
+      "06cf3f12-c2a4-4784-b99e-ad5d8d125974",
+      "1551a679-d166-4ac4-867d-a4c00b1c2a8e",
+      "3a06ea81-76a5-4682-9fff-7d3060771ac6",
+      "50208039-3d6f-4609-935e-56ad54416113",
+      "36cecf00-8e5c-49fa-b031-0864b8d21ba5",
+      "4b34d65d-d2b6-4fde-8aec-f8a001722cf3",
+      "5a48c7ae-fdcc-47fa-b911-cfe78729197b",
+      "38d86e86-2204-44fe-bcf8-b84c2636e2e4",
+      "04102fb9-fd34-45e0-bb49-5299d35ca33f",
+      "8edbbe89-472d-4b0c-9e6f-7f964800d21a",
+      "776b2f94-e9ed-43ee-8bcb-81b92e570c2a",
+      "13d001ba-023b-4e26-8901-d0627a60f63c",
+      "2f6aea3f-34fc-406f-9714-d72e09a8fad9",
+      "607872f8-4fd7-468f-b8e9-3e25ae390457",
+      "3bd0a56e-a6ec-4afa-9f20-c1beb82c8db4",
+      "8e5d6f89-a574-4763-b3fb-c38216403809",
+      "22678c5b-24af-4b82-8b4e-64c66685385d",
+      "c2435f8f-d555-4aae-b2d0-5a47382e4759",
+      "178c149b-0d50-402a-b477-99d73cbfc71b",
+      "b22ff839-fbb8-486d-8a08-c8c1ece6f6f9",
+      "971cb6b7-dcd0-4615-9fb0-8bca57133cb4",
+      "9533f6bd-074e-49f5-9a38-116620df7ddb",
+      "d0d1750f-1142-4721-b3d9-8109f4d18bea",
+      "e4550d51-9feb-4787-b9c1-2e254ae62616",
+      "c19d7320-19b2-4f8e-8f55-5c966253542b",
+      "091b0453-8b74-44e1-aec7-fa25c8e5b1c2",
+      "5ca2f03c-0c1b-4234-ac44-735477a3dac0",
+      "8008f107-4264-49e2-965e-354f61afbffe",
+      "3a4f2291-ed57-49d8-8d7f-e1d83a5f774b"
+    ],
+    "actualBankOre": 100,
+    "after": {
+      "itemInstanceId": "tool-miner2",
+      "lifecycleTypeId": "bronze-pickaxe",
+      "itemId": 1265,
+      "ownerActorId": "actor-miner2",
+      "durability": 0,
+      "maxDurability": 100,
+      "status": "broken",
+      "qualityBasisPoints": 10000,
+      "provenanceDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "createdAtSimulationTime": "2001-01-01T00:00:00Z",
+      "updatedAtSimulationTime": "2001-01-01T00:06:03.6Z",
+      "revision": 101
+    },
+    "checkpointDigest": "0504bab8811ddef0243a249c4de2734786aaa643830853d48b733a10e9ed36ba",
+    "auditValid": true,
+    "nextAttempt": "blocked"
+  },
+  "limits": [
+    "Disposable native fixture; checkpoint and trade databases removed after assertions.",
+    "Unchanged bronze policy: 100 durability and 1 wear per native copper/tin output.",
+    "One exact unnoted bronze tool per avatar; witnessed native moves/trade only. Unknown loss/replacement is quarantined without fresh durability.",
+    "Trade evidence is a separate authority: checkpoint failure can leave a source gap requiring explicit custody reconciliation.",
+    "No live enrollment, autonomous procurement/repair, MVS or self-sufficiency claim."
+  ]
+}

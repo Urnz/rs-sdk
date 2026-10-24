@@ -17,6 +17,7 @@ import { creditNativePlayerReward } from '#/mods/NativePlayerReward.js';
 import fs from 'fs';
 import { randomUUID } from 'node:crypto';
 import { checkpointNativeAttributeXp, type NativeAttributeXpTarget } from '../mods/NativeAttributeXp.js';
+import { checkpointNativeMiningTool } from '../mods/NativeMiningTool.js';
 import { withSocietyValueMutation } from '../../../../society-integrity/runtime.js';
 import { saveCreatesValue, saveValueSnapshot } from '../../../../society-integrity/store.js';
 import { Worker } from 'worker_threads';
@@ -156,6 +157,7 @@ type LogoutRequest = {
     save: Uint8Array;
     lastAttempt: number;
     nativeXp?: NativeAttributeXpTarget;
+    nativeTool?: Player;
 };
 
 export interface AdminTeleportDestination {
@@ -2824,10 +2826,15 @@ class World {
         if (extra) saves.set(extra.username, extraSave ?? extra.save(false));
         const store = playerSaveStore();
         const xpPlayers = new Map<string, NativeAttributeXpTarget>();
+        const toolPlayers = new Map<string, Player>();
+        for (const [name, request] of this.logoutRequests) if (request.nativeTool) toolPlayers.set(name,request.nativeTool);
+        for (const player of this.playerLoop.all()) toolPlayers.set(player.username,player);
+        if (extra) toolPlayers.set(extra.username,extra);
         for (const [owner, request] of this.logoutRequests) if (request.nativeXp) xpPlayers.set(owner, request.nativeXp);
         for (const player of this.playerLoop.all()) xpPlayers.set(player.username, player);
         if (extra) xpPlayers.set(extra.username, extra);
         if (store) store.db.transaction(() => {
+            for (const player of toolPlayers.values()) checkpointNativeMiningTool(player,saves.get(player.username)!,store.db);
             for (const [owner, save] of saves) store.checkpoint(owner, save, true);
             for (const player of xpPlayers.values()) checkpointNativeAttributeXp(store.db, player, saves.get(player.username)!);
         }).immediate();
@@ -4174,6 +4181,7 @@ class World {
         this.logoutRequests.set(player.username, {
             save,
             lastAttempt: -1,
+            nativeTool: player,
             nativeXp: { username: player.username, nativeAttributeXpReceipts: player.nativeAttributeXpReceipts }
         });
         // Enroll first-time players before the async login-service acknowledgement.

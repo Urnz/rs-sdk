@@ -28,6 +28,7 @@ import World from '#/engine/World.js';
 import Environment from '#/util/Environment.js';
 import { printError, printWarning } from '#/util/Logger.js';
 import { finishNativeFoodProductionSegment } from '#/mods/NativeFoodProduction.js';
+import { prepareNativeMining } from '#/mods/NativeMiningTool.js';
 
 export type CommandHandler = (state: ScriptState) => void;
 export type CommandHandlers = {
@@ -129,6 +130,7 @@ export default class ScriptRunner {
                 state.executionHistory.push(state.execution);
             }
             state.execution = ScriptState.RUNNING;
+            prepareNativeMining(state);
 
             let start = 0;
             if (Environment.node.debugProfile) {

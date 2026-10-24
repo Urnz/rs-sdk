@@ -17,9 +17,11 @@ import World from '#/engine/World.js';
 import { WealthEventType } from '#/server/logger/WealthEventType.js';
 import { handleNativeFoodProduction } from '#/mods/NativeFoodProduction.js';
 import { handleNativeTravelFare } from '#/mods/NativeTravelFare.js';
+import { handleNativeMiningOutput, captureNativeMiningMove, captureNativeToolTrade, commitNativeToolTrade,
+    type NativeToolTradeWitness } from '#/mods/NativeMiningTool.js';
 import { captureFoodTrade, commitFoodTrade, type FoodTradeWitness } from '#/mods/NativeFoodTrade.js';
 
-type PendingCommittedTrade = { from:string;to:string;fromItems:WealthEventItem[];fromValue:number; food: FoodTradeWitness | null };
+type PendingCommittedTrade = { from:string;to:string;fromItems:WealthEventItem[];fromValue:number; food: FoodTradeWitness | null; tool: NativeToolTradeWitness | null };
 const pendingCommittedTrades = new WeakMap<object,PendingCommittedTrade>();
 
 const InvOps: CommandHandlers = {
@@ -77,6 +79,7 @@ const InvOps: CommandHandlers = {
         }
 
         if (handleNativeFoodProduction(state, 'add', invType.id, objType.id, count)) return;
+        if (handleNativeMiningOutput(state, invType.id, objType.id, count)) return;
 
         const player = state.activePlayer;
         const overflow = count - player.invAdd(invType.id, objType.id, count);
@@ -351,7 +354,9 @@ const InvOps: CommandHandlers = {
         }
 
         const player = state.activePlayer;
+        const finishToolMove = captureNativeMiningMove(player);
         const { overflow, fromObj } = player.invMoveFromSlot(fromInvType.id, toInvType.id, fromSlot);
+        finishToolMove?.();
         if (overflow > 0) {
             const objType: ObjType = ObjType.get(fromObj);
             if (!objType.stackable || overflow === 1) {
@@ -380,7 +385,9 @@ const InvOps: CommandHandlers = {
             throw new Error(`$inv requires protected access: ${toInvType.debugname}`);
         }
 
+        const finishToolMove = captureNativeMiningMove(state.activePlayer);
         state.activePlayer.invMoveToSlot(fromInvType.id, toInvType.id, fromSlot, toSlot);
+        finishToolMove?.();
     }),
 
     // https://x.com/JagexAsh/status/1681295591639248897
@@ -423,6 +430,8 @@ const InvOps: CommandHandlers = {
 
         const foodTrade = fromInvType.debugname === 'tradeoffer' && !secondary
             ? captureFoodTrade(fromPlayer, toPlayer, from, state.nativeFoodTradePorts?.identity) : null;
+        const toolTrade = fromInvType.debugname === 'tradeoffer' && !secondary
+            ? captureNativeToolTrade(fromPlayer, toPlayer, from) : null;
 
         let fromTotal = 0;
         // Holds a record of the wealth for logging only
@@ -509,7 +518,7 @@ const InvOps: CommandHandlers = {
             }
             // The opposite offer is still only a request here. Do not create a
             // payment receipt until the following .both_moveinv moved it too.
-            pendingCommittedTrades.set(state,{from:fromPlayer.username,to:toPlayer.username,fromItems,fromValue:fromTotal,food:foodTrade});
+            pendingCommittedTrades.set(state,{from:fromPlayer.username,to:toPlayer.username,fromItems,fromValue:fromTotal,food:foodTrade,tool:toolTrade});
         } else if (fromInvType.debugname === 'tradeoffer') {
             const pending=pendingCommittedTrades.get(state);pendingCommittedTrades.delete(state);
             if(!pending||pending.from!==toPlayer.username||pending.to!==fromPlayer.username)
@@ -517,6 +526,7 @@ const InvOps: CommandHandlers = {
             if(pending.fromItems.length>0||fromItems.length>0) {
                 const trade = (state.nativeFoodTradePorts?.record ?? recordTrade)({tick:World.currentTick,from:pending.from,to:pending.to,
                     fromItems:pending.fromItems,toItems:fromItems,fromValue:pending.fromValue,toValue:fromTotal});
+                commitNativeToolTrade(pending.tool, trade);
                 commitFoodTrade(pending.food, trade, toPlayer, fromPlayer, from,
                     state.nativeFoodTradePorts?.market, state.nativeFoodTradePorts?.checkpoint);
             }
@@ -542,12 +552,14 @@ const InvOps: CommandHandlers = {
         }
 
         const player: Player = state.activePlayer;
+        const finishToolMove = captureNativeMiningMove(player);
         const completed = player.invDel(fromInvType.id, objType.id, count);
         if (completed == 0) {
             return;
         }
 
         const overflow = count - player.invAdd(toInvType.id, objType.id, completed);
+        finishToolMove?.();
         if (overflow > 0) {
             if (!objType.stackable || overflow === 1) {
                 for (let i = 0; i < overflow; i++) {

@@ -43,6 +43,11 @@ export default class ScriptState {
     /** Engine-owned witness for the allowlisted synchronous native food operation. */
     nativeFoodConsumption: { username: string; itemId: number; slot: number; inventoryId: number; deletions: number } | null = null;
     nativeFoodProductionActionId: string | null = null;
+    nativeMiningActionId: string | null = null;
+    nativeMiningOutput: number | null = null;
+    nativeMiningInstanceId: string | null = null;
+    nativeMiningToolRevision: number | null = null;
+    nativeMiningSource: {type:number;x:number;z:number;level:number} | null = null;
     nativeFoodProductionStage: NativeFoodProductionStage | null = null;
     /** Trusted engine/test ports; never populated from a client packet or model response. */
     nativeFoodProductionPorts: NativeFoodProductionPorts | null = null;
