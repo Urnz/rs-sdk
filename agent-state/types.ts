@@ -638,6 +638,7 @@ export interface AgentSnapshot {
     identity: AgentIdentity;
     characterLifecycle: AgentCharacterLifecycle | null;
     populationMember: AgentPopulationMember | null;
+    characterAttributes?: import('../character-attributes/binding-store.js').CharacterAttributeBinding | null;
     goals: AgentGoal[];
     workingMemory: AgentWorkingMemory | null;
     knownSkills: AgentSkillKnowledge[];

@@ -74,7 +74,9 @@ import VarBitType from '#/cache/config/VarBitType.js';
 import FriendlistLoaded from '#/network/game/server/model/FriendlistLoaded.js';
 import UpdateIgnoreList from '#/network/game/server/model/UpdateIgnoreList.js';
 import Midi from '#/cache/midi/Midi.js';
-import { applyWorldModXpAward, type XpActivityContext } from '#/mods/WorldMods.js';
+import { applyWorldModXpAward, getActiveWorldMods, type XpActivityContext } from '#/mods/WorldMods.js';
+import { prepareNativeAttributeXp, type NativeAttributeXpReceipt, type NativeAttributeContext } from '#/mods/NativeAttributeXp.js';
+import { characterBindingDigest } from '../../../../../character-attributes/binding-store.js';
 
 const levelExperience = new Int32Array(99);
 
@@ -105,6 +107,8 @@ export default class Player extends PathingEntity {
     populationTerminal = false;
     populationFinite = false;
     populationSleeping = false;
+    nativeAttributeXpReceipts: NativeAttributeXpReceipt[] = [];
+    nativeAttributeXpContext?: (username: string, tick: number) => NativeAttributeContext | null;
     static readonly DESIGN_BODY_COLORS: number[][] = [
         [6798, 107, 10283, 16, 4797, 7744, 5799, 4634, 33697, 22433, 2983, 54193],
         [8741, 12, 64030, 43162, 7735, 8404, 1701, 38430, 24094, 10153, 56621, 4783, 1341, 16578, 35003, 25239],
@@ -1881,19 +1885,29 @@ export default class Player extends PathingEntity {
             return;
         }
 
-        if (allowMulti) {
-            xp = applyWorldModXpAward(this, PlayerStatNameMap.get(stat) ?? `STAT_${stat}`, xp, activityContext ?? {
-                script: 'engine.direct', targetKind: 'none', targetId: null, x: this.x, z: this.z, level: this.level
-            });
-            if (xp === 0) return;
-        }
-
+        const skill = PlayerStatNameMap.get(stat) ?? `STAT_${stat}`;
+        const context = activityContext ?? { script: 'engine.direct', targetKind: 'none' as const,
+            targetId: null, x: this.x, z: this.z, level: this.level };
+        const worldAward = () => applyWorldModXpAward(this, skill, xp, context);
         const multi = allowMulti ? Environment.node.xpRate : 1;
-        this.stats[stat] += xp * multi;
+        const native = prepareNativeAttributeXp(this, skill, xp, this.stats[stat], getLevelByExp(this.stats[stat]),
+            World.currentTick, allowMulti, multi, context, worldAward,
+            () => allowMulti ? characterBindingDigest(getActiveWorldMods().mods) : null, getExpByLevel, () => {
+                if (!playerSaveStore()) throw new Error('Native attribute XP requires the Player checkpoint authority');
+            });
+        if (native) {
+            this.stats[stat] = native.afterXp;
+            this.nativeAttributeXpReceipts.push(native);
+        } else {
+            if (allowMulti) {
+                xp = worldAward();
+                if (xp === 0) return;
+            }
 
-        // cap to 200m, this is represented as "2 billion" because we use 32-bit signed integers and divide by 10 to give us a decimal point
-        if (this.stats[stat] > 2_000_000_000) {
-            this.stats[stat] = 2_000_000_000;
+            this.stats[stat] += xp * multi;
+
+            // XP is stored in tenths; the vanilla engine maximum is 200 million XP.
+            if (this.stats[stat] > 2_000_000_000) this.stats[stat] = 2_000_000_000;
         }
 
         const before = this.baseLevels[stat];

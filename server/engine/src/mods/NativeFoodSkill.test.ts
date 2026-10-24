@@ -304,7 +304,8 @@ for (const burnt of [false, true]) test(`SI-A08 packed cook shift ${burnt ? 'bur
     const runRoot = join(f.dir, '.local/agent-skills/runs'); mkdirSync(runRoot, { recursive: true });
     const settings = { workspace: f.dir, worldId: 'fixture-world', checkpointPath: f.path, catalog, roles, runRoot,
         rewardPath: join(f.dir, 'wage-receipts.sqlite') };
-    const start = new Date(Date.now() - 120000).toISOString(), end = new Date(Date.now() + 600000).toISOString();
+    const shiftNow = Date.now();
+    const start = new Date(shiftNow - 120000).toISOString(), end = new Date(shiftNow + 600000).toISOString();
     const shifts = new BusinessWorkStore(f.businessPath, catalog, roles);
     shifts.grantEntitlement({ entitlementId: 'cook-shift-heat', businessId: 'fish-kitchen', propertyId: 'karamja.fishing-hut',
         facilityCapability: 'cooking.heat-source', validFrom: start, validUntil: end });

@@ -2175,3 +2175,29 @@ offline visszajátszásával a kerekített összeg3841→4235 microUSD, azaz
 korrekció, régi sor/report átírása és új API-hívás nélkül. A két publikus
 bizonyíték `billingReconciliation` mezője őrzi a bontást; a SI-M2 PASS változatlan.
 30 közvetlen teszt + root/engine TS PASS; full és új natív/providerfutás nem történt.
+
+### 2026-10-24 – SI-C01: actual attribute/potential XP és tartós checkpoint proof
+
+[Implementáció/migráció/ellenőrzési index](SI_C01_NATIVE_ATTRIBUTE_XP.md),
+[páros actual Player eredmény](SI_C01_PAIRED_RESULT.json). Új genesis/population
+membershiphez atomikusan seedelt immutable profil/policy kötődik; régi profilhiány
+explicit importot igényel, nincs kitalált átlag. AgentState v29, komponenssaját
+additív binding és native-XP receipt táblák, nincs közös sémamigráció.
+
+Négy célskill actual Player.addXp útja: calibration→diminishing→potential→
+global-rate→hard-cap. Azonos80 egységből60/100 mentett XP két kontrollált
+profilnál, négy skill és nyolc receipt. Hard/soft/facility és1/99 cap, nem célskill,
+allowMulti=false, profile/clock-hiba, actual save-load, checkpoint-failure/retry,
+nested rollback, offline logout és native gather stat/evidence rollback tesztelt.
+A facility nem emel/csökkent személyes szintet; training nem módosít profilt.
+
+Végső kapu `20261024-123802-533-si-c01-final-gate`:46 PASS /0 FAIL, benne13
+natív eset, root/engine TS és format PASS,37,001 s. A közvetlen régi20 packed
+food/SDK/business consumer és XP-képletek/hookok külön körben PASS; átfedő
+számok nem összeadandók. A korábbi diagnosztikai FAIL-ok megmaradtak, köztük
+két régi fixture javítása (tényleges v21/v24 DB és egyetlen shift-időalap),
+assertion- vagy termékvalidáció-gyengítés nélkül. Teljes regresszió és fizetős
+modellhívás nem futott; nincs live profilimport/worldindítás vagy publication.
+
+**SI-C01 kész;22/45, következő SI-C02.** Ez mechanikai kapu, nem SI-M3/MVS,
+többnapos életpálya vagy önfenntartási minősítés. SI-C02 új kérésre indul.

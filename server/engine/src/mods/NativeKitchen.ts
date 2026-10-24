@@ -50,6 +50,7 @@ export class NativeKitchenExecutor {
         const inventory = player?.getInventory(InvType.INV), original = inventory?.items.map(item => item && { ...item });
         const vars = player?.vars.slice(), levels = player?.levels.slice(), stats = player?.stats.slice(), baseLevels = player?.baseLevels.slice();
         const strings = player ? [...player.varsString] : null;
+        const xpReceipts = player ? [...player.nativeAttributeXpReceipts] : null;
         const flags = player ? { delayed: player.delayed, delayedUntil: player.delayedUntil, protect: player.protect,
             lastUseItem: player.lastUseItem } : null;
         const queued = player ? new Set([...player.queue.all(), ...player.weakQueue.all()]) : null;
@@ -135,6 +136,7 @@ export class NativeKitchenExecutor {
             if (inventory && original) original.forEach((item, slot) => inventory.set(slot, item));
             if (player && vars && levels && stats && baseLevels && strings && flags) {
                 player.vars.set(vars); player.levels.set(levels); player.stats.set(stats); player.baseLevels.set(baseLevels); player.varsString = strings; Object.assign(player, flags);
+                player.nativeAttributeXpReceipts = xpReceipts!;
             }
             throw error;
         }

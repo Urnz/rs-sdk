@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "taskId": "SI-C01",
+  "verdict": "PASS",
+  "scope": "Bounded mechanical native Player XP and atomic checkpoint acceptance",
+  "source": {
+    "baseCommit": "cef67876d05e109b8892ec9a45dd91b659c4b150",
+    "branch": "codex/si-c01-native-attribute-xp",
+    "hashEncoding": "SHA-256 of LF-normalized UTF-8 source",
+    "files": [
+      {
+        "path": "agent-state/context.ts",
+        "sha256": "5b328859c0890f833be74eb06d54050e5840280c5e669b94c23dac46d4b72774"
+      },
+      {
+        "path": "agent-state/store.ts",
+        "sha256": "9f8e31392c5d62131832e988d3b05a4642da8b1306f19d89748640718a2734a3"
+      },
+      {
+        "path": "agent-state/test/population-entry.test.ts",
+        "sha256": "95f642360ae56b0a00898d901fb8c278a9f51ef91c185f74b0eee5307c50a522"
+      },
+      {
+        "path": "agent-state/test/population-membership.test.ts",
+        "sha256": "3598de126def7d4926b8d9f8e6ab6c68dc89f7bdfd55251b2c45a64ed882b393"
+      },
+      {
+        "path": "agent-state/types.ts",
+        "sha256": "cacc71053d3c65077ddc83d90ee80abb5909c48b2322903515f1f21df24519b1"
+      },
+      {
+        "path": "character-attributes/bind-cli.ts",
+        "sha256": "e0b8de236323d9d01f5828380475730e92633d76d75aba31d1ec303053ad3053"
+      },
+      {
+        "path": "character-attributes/binding-store.ts",
+        "sha256": "b9f9483eed2049a9bac44e98c0c0f332cf57965ac504555c97b9994c13fa40c2"
+      },
+      {
+        "path": "character-attributes/test/binding-fixture.ts",
+        "sha256": "8b36711ab9be9f247865eb00b3c646664108ed9f107b036e3a5edd9604b224a7"
+      },
+      {
+        "path": "character-attributes/test/binding-store.test.ts",
+        "sha256": "6d45e8ae2748da25a3dd3c360b5ac2778ed445b458dcb20a1db31e089af0022e"
+      },
+      {
+        "path": "config/attribute-allocation-policies.json",
+        "sha256": "c5ff22f8b2476ebefb77ba1718585ec4d8b8bbcc9cb5b2de7aace00182ba5449"
+      },
+      {
+        "path": "config/attribute-budget-policies.json",
+        "sha256": "c1ef19458ed21ed3cced647cb0a04428245c960209369ab6cb4bd13535ce1547"
+      },
+      {
+        "path": "config/skill-cap-policies.json",
+        "sha256": "8ed431a9af9561cc2c9607c54c30caf08d1698380831563474c77fbffbe66b26"
+      },
+      {
+        "path": "config/skill-potential-policies.json",
+        "sha256": "6d2ac592d90c404c8c6d37273691db147ee5244508252bdec6b64541a9e76277"
+      },
+      {
+        "path": "server/engine/src/engine/entity/Player.ts",
+        "sha256": "c103fb8385c89db89bd13d040df58899a8db6c36c1f9f58d8b21550ee353f95a"
+      },
+      {
+        "path": "server/engine/src/engine/World.ts",
+        "sha256": "c66295d4ccc9a6a8f5615be515a38d5c72941907f616b26a438bfe42db6a1c62"
+      },
+      {
+        "path": "server/engine/src/mods/NativeAttributeXp.test.ts",
+        "sha256": "f9d6c938cdcf9683763186176d0c497cc5fce8f1ac3194f63f565e91aaa9d2a8"
+      },
+      {
+        "path": "server/engine/src/mods/NativeAttributeXp.ts",
+        "sha256": "401b5032da1eaf2e09a121c406c09409ffcafd7237c8c6df5f8d41a6335cca15"
+      },
+      {
+        "path": "server/engine/src/mods/NativeFoodSkill.test.ts",
+        "sha256": "8b977fe09087798d2151df9aa2177f9bca2b21c210567520ce1101ae5ac1b270"
+      },
+      {
+        "path": "server/engine/src/mods/NativeFoodSkill.ts",
+        "sha256": "6b28b4bafe8d6c45a30592612ef1a6083da375ffaddce60544d3203a411406e6"
+      },
+      {
+        "path": "server/engine/src/mods/NativeKitchen.ts",
+        "sha256": "5b640512fff0f4c0c5341ddfcd2d888b4177a2eb54bb87d87adbd0770a027881"
+      },
+      {
+        "path": "server/engine/src/mods/PopulationDeathRuntime.ts",
+        "sha256": "9148d560c196c7ed8e157c95023833fc5310e8f92bf7a7c9db6c733754b794bf"
+      },
+      {
+        "path": "server/gateway/admin/native-attribute-xp.test.ts",
+        "sha256": "ce778c75bd2b489e7944594e3421124f6bd9b209e8617f3aaa2d6189340b7461"
+      }
+    ]
+  },
+  "verification": {
+    "result": "20261024-123802-533-si-c01-final-gate",
+    "durationSeconds": 37.001,
+    "passedIncludingNativeChild": 46,
+    "failed": 0,
+    "nativeCases": 13,
+    "rootTypecheck": "PASS",
+    "engineTypecheck": "PASS",
+    "fullRegression": false,
+    "providerCalls": 0,
+    "providerCostMicros": 0
+  },
+  "paired": {
+    "source": "actual-Player.addXp/World.checkpointPlayers",
+    "clockId": "fixture",
+    "low": 60,
+    "high": 100,
+    "skills": 4,
+    "receipts": 8,
+    "actors": [
+      {
+        "username": "alice",
+        "bindingDigest": "444a9aaf2e01781079d01b7de2410aedaedce7232b157e46c8186ab123611743",
+        "attributesDigest": "c148549973ed81d871c5400a784219a455b895d3255235872ce4cd6611c8fa22",
+        "potentialPolicy": "705649f821721253c47d5c5d09176f4388470110e67c3119ea81f3dcd75969b4",
+        "capPolicy": "baa6988009dc2ffc69223161050c63ae9853daff8f70cd868d5db29d291a1a49",
+        "awards": [
+          {
+            "skill": "fishing",
+            "requestedXp": 80,
+            "grantedXp": 60,
+            "afterXp": 60,
+            "checkpointDigest": "68a1ae5996f9bcc3f4a36aa0f73ea9ffde1ea4321c2bd95a05b759004a5f1e94"
+          },
+          {
+            "skill": "cooking",
+            "requestedXp": 80,
+            "grantedXp": 60,
+            "afterXp": 60,
+            "checkpointDigest": "68a1ae5996f9bcc3f4a36aa0f73ea9ffde1ea4321c2bd95a05b759004a5f1e94"
+          },
+          {
+            "skill": "mining",
+            "requestedXp": 80,
+            "grantedXp": 60,
+            "afterXp": 60,
+            "checkpointDigest": "68a1ae5996f9bcc3f4a36aa0f73ea9ffde1ea4321c2bd95a05b759004a5f1e94"
+          },
+          {
+            "skill": "smithing",
+            "requestedXp": 80,
+            "grantedXp": 60,
+            "afterXp": 60,
+            "checkpointDigest": "68a1ae5996f9bcc3f4a36aa0f73ea9ffde1ea4321c2bd95a05b759004a5f1e94"
+          }
+        ]
+      },
+      {
+        "username": "bob",
+        "bindingDigest": "bb49a77d7e5738af63a8d3943f01bf3e91193bb152a59631e58298c628f10ca4",
+        "attributesDigest": "89862f9cde1f9fe540de7f91401f6b392f8543adfc085830ee5827843ffd3ca2",
+        "potentialPolicy": "705649f821721253c47d5c5d09176f4388470110e67c3119ea81f3dcd75969b4",
+        "capPolicy": "baa6988009dc2ffc69223161050c63ae9853daff8f70cd868d5db29d291a1a49",
+        "awards": [
+          {
+            "skill": "fishing",
+            "requestedXp": 80,
+            "grantedXp": 100,
+            "afterXp": 100,
+            "checkpointDigest": "b6fac83459103e406a07eae84da0d38b02804e656411f60cdb4b3bdc1d6e2325"
+          },
+          {
+            "skill": "cooking",
+            "requestedXp": 80,
+            "grantedXp": 100,
+            "afterXp": 100,
+            "checkpointDigest": "b6fac83459103e406a07eae84da0d38b02804e656411f60cdb4b3bdc1d6e2325"
+          },
+          {
+            "skill": "mining",
+            "requestedXp": 80,
+            "grantedXp": 100,
+            "afterXp": 100,
+            "checkpointDigest": "b6fac83459103e406a07eae84da0d38b02804e656411f60cdb4b3bdc1d6e2325"
+          },
+          {
+            "skill": "smithing",
+            "requestedXp": 80,
+            "grantedXp": 100,
+            "afterXp": 100,
+            "checkpointDigest": "b6fac83459103e406a07eae84da0d38b02804e656411f60cdb4b3bdc1d6e2325"
+          }
+        ]
+      }
+    ]
+  },
+  "limits": [
+    "Disposable fixtures; checkpoint databases removed after assertions.",
+    "Same 80 native XP units per skill; low/high profiles are controlled extremes, not realism calibration.",
+    "Not a multi-day trajectory, MVS, self-sufficiency or live-world rollout result."
+  ]
+}

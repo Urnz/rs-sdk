@@ -177,7 +177,12 @@ describe('bounded seeded population admission', () => {
         expect(local.store.listIdentities()).toHaveLength(2);
     });
     test('v24 migration is additive and generates no entrants for pre-existing characters', () => {
-        const local = fixture(); raw(local.agentPath, db => { db.run('DROP TABLE agent_population_entry'); db.run('PRAGMA user_version=24'); });
+        const local = fixture(); raw(local.agentPath, db => {
+            // Rebuild the actual v24 boundary, not a current DB with only its version lowered.
+            for (const table of ['agent_economic_action','agent_institution_strategy','agent_player_strategy',
+                'agent_plan_adoption','agent_state_evaluation','agent_state_objective','agent_population_entry']) db.run(`DROP TABLE ${table}`);
+            db.run('PRAGMA user_version=24');
+        });
         local.restart(); expect(local.store.listIdentities()).toHaveLength(1); expect(local.store.listPopulationMembers()).toHaveLength(1);
         raw(local.agentPath, db => expect(db.query('PRAGMA user_version').get()).toEqual({ user_version: AGENT_STATE_SCHEMA_VERSION }));
     });

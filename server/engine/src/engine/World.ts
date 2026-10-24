@@ -16,6 +16,7 @@ import { creditNativePlayerReward } from '#/mods/NativePlayerReward.js';
 // stdlib
 import fs from 'fs';
 import { randomUUID } from 'node:crypto';
+import { checkpointNativeAttributeXp, type NativeAttributeXpTarget } from '../mods/NativeAttributeXp.js';
 import { withSocietyValueMutation } from '../../../../society-integrity/runtime.js';
 import { saveCreatesValue, saveValueSnapshot } from '../../../../society-integrity/store.js';
 import { Worker } from 'worker_threads';
@@ -154,6 +155,7 @@ const priv = forge.pki.privateKeyFromPem(process.env.ENGINE_LOGIN_PRIVATE_KEY ||
 type LogoutRequest = {
     save: Uint8Array;
     lastAttempt: number;
+    nativeXp?: NativeAttributeXpTarget;
 };
 
 export interface AdminTeleportDestination {
@@ -2262,6 +2264,8 @@ class World {
 
         for (const [username, request] of this.logoutRequests) {
             if (request.lastAttempt < Date.now() - 15000) {
+                // A failed flush must not send XP-bearing bytes without the canonical receipt commit.
+                if (request.nativeXp?.nativeAttributeXpReceipts.length) this.checkpointPlayers();
                 request.lastAttempt = Date.now();
                 this.loginThread.postMessage({
                     type: 'player_logout',
@@ -2819,9 +2823,16 @@ class World {
         }
         if (extra) saves.set(extra.username, extraSave ?? extra.save(false));
         const store = playerSaveStore();
+        const xpPlayers = new Map<string, NativeAttributeXpTarget>();
+        for (const [owner, request] of this.logoutRequests) if (request.nativeXp) xpPlayers.set(owner, request.nativeXp);
+        for (const player of this.playerLoop.all()) xpPlayers.set(player.username, player);
+        if (extra) xpPlayers.set(extra.username, extra);
         if (store) store.db.transaction(() => {
             for (const [owner, save] of saves) store.checkpoint(owner, save, true);
+            for (const player of xpPlayers.values()) checkpointNativeAttributeXp(store.db, player, saves.get(player.username)!);
         }).immediate();
+        // A native caller may still own an outer transaction; retain pending evidence until its commit.
+        if (store && !store.db.inTransaction) for (const player of xpPlayers.values()) player.nativeAttributeXpReceipts.length = 0;
         return saves;
     }
 
@@ -4162,7 +4173,8 @@ class World {
         const save = player.save(false);
         this.logoutRequests.set(player.username, {
             save,
-            lastAttempt: -1
+            lastAttempt: -1,
+            nativeXp: { username: player.username, nativeAttributeXpReceipts: player.nativeAttributeXpReceipts }
         });
         // Enroll first-time players before the async login-service acknowledgement.
         // Keep the pending save available even if a bystander's serialization fails.

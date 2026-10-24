@@ -3,6 +3,9 @@
 Dátum: 2026-10-18. Forrásbaseline: `2df0daad86c6568a3e1f0e62f58f09aa3cd955de`.
 Hatókör: kizárólag a helyi/private rs-sdk/LostCity emulator.
 
+**Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01
+kész;22/45. Következő: SI-C02.** [SI-C01 natív XP eredmény](SI_C01_NATIVE_ATTRIBUTE_XP.md).
+
 ## 1. Státusz, használat és elsőbbség
 
 Ez a felhasználó új kérése szerinti részletes integrációs munkalista.
@@ -166,8 +169,8 @@ domainre kötelező új enum:
 | Fázis | Cél / kilépési kapu | Taskok | Előfeltétel |
 | --- | --- | --- | --- |
 | SI-A / SI-M1 | Integrált négyavatáros megélhetés, fizikailag és könyvelésben egyező eredmény | SI-A01–SI-A15 | Meglévő baseline |
-| SI-B / SI-M2 | Önálló stratégiai reakció és együttműködés; külön döntési bizonyíték | SI-B01–SI-B06 | SI-A15 v2 technikai kapu elfogadva; SI-B01 kész, SI-B02 következik |
-| SI-C / SI-M3 | Tartós, mérhető Minimum Viable Society; eszközpótlás és natív history | SI-C01–SI-C07; SI-C08 facility- és SI-C09 kalibrációs mellékág | SI-B06; saját taskfüggőségek |
+| SI-B / SI-M2 | Önálló stratégiai reakció és együttműködés; külön döntési bizonyíték | SI-B01–SI-B06 | SI-A15 v2 technikai kapu; SI-B01–B06 kész, SI-M2 v2 PASS |
+| SI-C / SI-M3 | Tartós, mérhető Minimum Viable Society; eszközpótlás és natív history | SI-C01–SI-C07; SI-C08 facility- és SI-C09 kalibrációs mellékág | SI-B06 v2 PASS; SI-C01 kész, SI-C02 következik; saját taskfüggőségek |
 | SI-D / SI-M4 | Aktív utánpótlás, vagyon/Business-utódlás, két kohorszváltás | SI-D01–SI-D07 | SI-C07 |
 | SI-E / SI-M5 | Tagsági, háztartási és intézményi döntési kontinuitás | SI-E01–SI-E03 | SI-D07 |
 | SI-F / SI-M6 | Emberi részvétel, offline policy, mért kapacitás és teljes kezelési program | SI-F01–SI-F05 | SI-E03; saját taskfüggőségek |
@@ -881,13 +884,13 @@ Következő: SI-C01.
 
 ## 7. SI-C – tartós, heterogén és mérhető Minimum Viable Society
 
-**Fázisbelépés: SI-B06 v2 teljesült; SI-C01 elkezdhető.** Az első valódi
+**Fázisbelépés: SI-B06 v2 teljesült; SI-C01 kész, következő SI-C02.** Az első valódi
 FAIL és a javított baseline külön PASS-a egyaránt megőrzött. Nem kell újabb gazdasági domaint építeni: egy
 termelőeszköz tényleges pótlása és a natív történet teljessége a cél.
 
 ### SI-C01 – Az attribute/potential tényleges engine-hatása
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G08, PROFILE/RUNTIME.
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P1; G08, PROFILE/RUNTIME.
 - **Cél és indok:** az adottság és tanult készség életúthatása ne csak tesztképlet legyen.
 - **Meglévő:** immutable AttributeProfile, seedelt allocation, potential/cap és
   tiszta XP-kontroll; kísérletbeli declared input nem engine-enforcement.
@@ -905,6 +908,14 @@ termelőeszköz tényleges pótlása és a natív történet teljessége a cél.
 - **Perzisztencia/hiba:** immutable creation policy/digest, migráció a régi
   karakterekre explicit; training nem módosítja az alaptulajdonságot.
 - **Kockázat:** magas; több XP-út és szorzók nem felcserélhető sorrendje.
+
+2026-10-24: [natív XP/binding és ellenőrzési index](SI_C01_NATIVE_ATTRIBUTE_XP.md),
+[páros actual Player/checkpoint bizonyíték](SI_C01_PAIRED_RESULT.json).
+Új genesis/population profil és exact policy tartós/immutable; a régi profilhiány
+explicit migrációt igényel. Calibration→diminishing→potential→global-rate→cap;
+nyolc native receipt, azonos80-ból60/100 actual XP négy skillnél.13 natív eset,
+közvetlen fogyasztók, root/engine TS és format PASS; full és providerhívás nincs.
+**SI-C01 kész; SI-C02 következik.** Nem SI-M3 vagy többnapos életpálya-PASS.
 
 ### SI-C02 – Egy valós termelőeszköz natív használata és kopása
 

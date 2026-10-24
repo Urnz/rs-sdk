@@ -2,6 +2,7 @@ import { mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { createHash } from 'node:crypto';
+import { CharacterAttributeStore, createPopulationAttributes, type CharacterAttributeCreation, type CharacterAttributeBinding } from '../character-attributes/binding-store.js';
 import { generatePopulationEntry, populationEntryId, populationEntryDigest, validatePopulationEntryRequest,
     type PopulationEntryEnvironment, type PopulationEntryPlan, type PopulationEntryReceipt } from '../population-lifecycle/entry.js';
 import { installPopulationEntrySchema, readPopulationEntry, verifyPopulationEntryHistory } from './population-entry.js';
@@ -691,6 +692,29 @@ export class AgentStateStore {
     }
 
     bindPopulationMember(input:BindAgentPopulationMember,now=new Date().toISOString()):AgentPopulationMember{
+        let member!: AgentPopulationMember;
+        this.database.transaction(() => { member = this.bindPopulationMemberTransaction(input, now); }).immediate();
+        return member;
+    }
+
+    getCharacterAttributes(agentId: string) {
+        const member = this.getPopulationMember(agentId);
+        return member ? new CharacterAttributeStore(this.database).get(member) : null;
+    }
+
+    /** Explicit legacy import. Never backfill guessed averages on lookup or training. */
+    bindCharacterAttributes(agentId: string, creation: CharacterAttributeCreation) {
+        if (this.readOnly) throw new Error('Read-only character attributes');
+        let binding!: CharacterAttributeBinding;
+        this.database.transaction(() => {
+            const member = this.getPopulationMember(agentId);
+            if (!member) throw new Error('Character attributes require population membership');
+            binding = new CharacterAttributeStore(this.database).bind(member, creation);
+        }).immediate();
+        return binding;
+    }
+
+    private bindPopulationMemberTransaction(input:BindAgentPopulationMember,now:string):AgentPopulationMember{
         if(!this.simulationClock)throw new Error('Population membership requires the shared simulation clock');
         const agentId=normalizeAgentId(input.agentId),identity=this.requireIdentity(agentId),profile=this.getControlProfile(agentId),
             lifecycle=this.getCharacterLifecycle(agentId);
@@ -746,7 +770,9 @@ export class AgentStateStore {
         [agentId,playerUsername,worldProfile.profileId,worldProfile.version,worldProfile.digest,lifecyclePolicy.policyId,
             lifecyclePolicy.version,lifecyclePolicy.digest,simulationClock.clockId,simulationClock.profileDigest,
             joinedAtSimulationTime,sourceResultId,sourceResultDigest,now]);
-        return this.getPopulationMember(agentId)!;
+        const member = this.getPopulationMember(agentId)!;
+        new CharacterAttributeStore(this.database).bind(member, createPopulationAttributes(member));
+        return member;
     }
 
     getPopulationEntry(entryId: string): PopulationEntryReceipt | null {
@@ -2831,6 +2857,7 @@ export class AgentStateStore {
         const found = this.getIdentity(agentId);
         return found ? { identity: found, characterLifecycle: this.getCharacterLifecycle(found.agentId),
             populationMember: this.getPopulationMember(found.agentId),
+            characterAttributes: this.getCharacterAttributes(found.agentId),
             goals: this.listGoals(found.agentId),
             workingMemory: this.getWorkingMemory(found.agentId), knownSkills: this.listSkillKnowledge(found.agentId) } : null;
     }

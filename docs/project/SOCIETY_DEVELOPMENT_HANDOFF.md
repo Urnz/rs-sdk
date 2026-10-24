@@ -5,77 +5,63 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
 
-- **SI-A technikailag lezárva; SI-B01–SI-B06 kész. SI-M2 v2 PASS.
-  Következő: SI-C01, összesen 21/45 kész.** Új kérés nélkül ne kezdd el.
-- [SI-B06 terv, javítások és pontos ellenőrzési index](SI_B06_STRATEGIC_ACCEPTANCE.md),
-  [első valódi FAIL](SI_B06_LUNA_ATTEMPT_1.json), [külön v2 PASS](SI_B06_LUNA_ATTEMPT_2.json).
-  Valódi OpenAI `gpt-6-luna`, medium: control5 GP / income-loss után másik
-  contract-source4 GP / raw-scarcity native raw+1 és5 GP / önálló ajánlat,
-  külön Business-consent, B03-adoption, native gather és5 GP settlement.
-  A mechanika mindkét munkánál ugyanaz a Skill[], a munkaforrás tényleg változott.
-- V2 source digest `34e2c8afb56fd929fcff693df588c334e9ad89595f1b086f86edb9df108d8acf`;
-  run `df8b68de-ccaa-4972-b511-748a2000152a`;
-  `.local/experiments/si-b06/2026-10-23T20-53-39-749Z-openai-627ef277/`.
-  Az első source/baseline eltérő, az akkori FAIL nem lett átminősítve.
-- Három már fedezett, stabil ID-s 5/4/3 GP-s work-source azonos baseline-ból;
-  income-loss megszünteti a régi jövedelmet és kapcsolt szerződést.
-  Native service = **egy natív invocation**, nem Businessbe szállított input.
-  Ágonként a Player + két Business teljes GP-je70, külön readonly egyeztetve.
-  A nyers outputtól a cooked-food reserve helyesen nem lesz completed.
-- Javítva: csak ismert gather/cook procedure-rel rendelkező Player saját
-  friss raw377 hiánya ébreszt; B05 context külön saját fundingot és limitet
-  mutat; legfeljebb négy új offerhez kötött tárgyalási forduló az eredeti
-  60 s cooldownnal. Scripted fixture-óra gyorsítható, a valódi ág valós időt várna.
-  Request/response/negative output/audit/DB/native receipt mind megmarad;
-  429 vagy bizonytalan inference után nincs automatikus újraküldés.
-- Modulok: `society-experiments/strategic-acceptance.ts`,
-  `scripts/run-strategic-acceptance.ts --provider scripted|openai`,
-  `StrategicAcceptance.test.ts`, `native-food-skill-fixture.ts`, gateway
-  `native-strategic-acceptance.test.ts`. Az utóbbi automatizáltan scripted-only.
-  Manifest source/dirty diff/packed digesthez és fix config/prompthoz kötött.
-- Az admin AI-form settings-loadig inert/menthetetlen; más dashboardhiba és
-  bootstrap-retry nem üríti/írja felül a szerkesztést. A kulcs a **Helyi szerver /
-  local-default**, az aktív repo Windows titoktárában van. Régi `test` instance
-  változatlan. A teszthez indított gateway leállt; a független admin megmaradt
-  `http://127.0.0.1:7781/admin/` alatt, standard start/stop metaadatokkal.
-- A felhasználó 10 USD feltöltést jelzett, Luna/medium indulást és ár/érték
-  döntést kért. E feladatra vállalt keret0,05 USD; ténylegesen **11 kérés /
-  4235 microUSD = 0,004235 USD**, uncertain0. Cache-írási díjjal korrigált, felfelé kerekített usage-költség; ez nem általános költési engedély.
-  A normál mentett config per-call kerete0, auto-replanning/autonomousExecution
-  kikapcsolva; a microtrial külön fix configból, a meglévő `lostcity-local`
-  budgetledgerrel futott. Kulcs nem került fájlba/logba/Gitbe vagy fixture-be.
-- AgentState továbbra is **v29**; nincs új migráció. B04/B05 default grantok
-  üresek, nincs live enrollment/rollout vagy új skillpublication. A kapu
-  eldobható native fixture-ben végrehajtott valódi modell-elfogadás;
-  nem többnapos gazdasági/MVS/önfenntartási vagy realizmuskalibrációs PASS.
+- **SI-A technikailag lezárva; SI-B01–SI-B06 és SI-C01 kész. SI-M2 v2 PASS.
+  Következő: SI-C02, összesen22/45 kész. Új kérés nélkül ne kezdd el.**
+- [SI-C01 pontos határ, migráció és teljes ellenőrzési index](SI_C01_NATIVE_ATTRIBUTE_XP.md),
+  [páros natív eredmény és forráshashek](SI_C01_PAIRED_RESULT.json).
+  Ág: `codex/si-c01-native-attribute-xp`, kiinduló commit `cef67876d`.
+- Az új genesis/population membership seedelt immutable attribute/potential
+  bindinget is kap ugyanabban a tranzakcióban. Exact budget/allocation/potential/
+  cap policy version/digest. AgentState továbbra is v29; saját additív binding
+  tábla. Training nem módosítja a profilt; régi member replay nem backfill.
+- Régi profilhiány: explicit `AgentStateStore.bindCharacterAttributes` vagy
+  `bun character-attributes/bind-cli.ts --agents-db PATH --agent-id ID --input creation.json`.
+  A teljes validált profile/policy és creation evidence kötelező, nincs átlag-
+  default vagy automatikus live import. E körben élő profilimport nem történt.
+- Fishing/Cooking/Mining/Smithing actual `Player.addXp`: experiment calibration
+  → diminishing → potential → global XP rate → személyes hard cap/engine limit.
+  `allowMulti=false` is betartja a potential/capet. Más skill és a nem population
+  avatar vanilla. Soft cap az award előtti szintből számol; facility nem írja át
+  a személyes skillt. Level-1/99 és már magasabb személyes szint külön tesztelt.
+- Saját receipt tábla a kanonikus Player-checkpoint DB-ben; actual before/after,
+  négy számítási lépcső, activity, clock/world/lifecycle és teljes binding/policy.
+  Save-byte/XP egyezés ellenőrzése és receipt insert egy checkpoint tranzakció.
+  Failure/retry/reopen/nested rollback, offline pending logout és gather/kitchen
+  stat+pending-evidence rollback megőrzött. Nincs új általános tranzakcióalap.
+- Páros disposable actual Player workload: azonos80-ból skillenként60/100 XP,
+  négy skill, nyolc natív receipt, actual Player-load és checkpoint digestei.
+  Ez mechanikai kapu, nem többnapos életpálya, SI-M3/MVS vagy önfenntartás.
+- Fő fájlok: `character-attributes/binding-store.ts`, `bind-cli.ts`,
+  `agent-state/store.ts`/`context.ts`, engine `NativeAttributeXp.ts`,
+  `PopulationDeathRuntime.ts`, `Player.ts`, `World.ts`; native gather/kitchen
+  rollback fogyasztók. Natív próba: gateway `native-attribute-xp.test.ts`.
+- Nincs providerhívás/költség, új world indítás, enrollment vagy publication.
+  A korábbi admincím `http://127.0.0.1:7781/admin/`; az API-kulcs a **Helyi
+  szerver / local-default**, aktív repo Windows titoktárában. Új runtime-indítás
+  előtt aktuális állapotellenőrzés kell.
+- SI-B06 korábbi kerete csak a0,05 USD-s próbára szólt;11 kérés /4235 microUSD
+  =0,004235 USD, uncertain0. Normál config per-call0, auto-replanning és
+  autonomousExecution kikapcsolva; B04/B05 default grant üres. Nincs általános
+  költési engedély. [B06 forrás/baseline, FAIL és v2 PASS](SI_B06_STRATEGIC_ACCEPTANCE.md).
 
 ## Legfrissebb ellenőrzés
 
-- Ág: `codex/si-b06-strategic-acceptance`. **Teljes regresszió nem futott.**
-- `20261023-221503-295-si-b06-final-technical`: 47 PASS + root/engine TS/format,
-  94,838 s, benne a kiemelt fixture mind a húsz korábbi natív esete.
-- `20261023-222122-500-si-b06-luna-real-attempt-1`: stratégiai FAIL,
-  38,822 s /5 kérés /1795 microUSD, változatlanul megőrizve.
-- `20261023-223105-024-si-b06-counteroffer-cooldown`: 5 native PASS, 4,521 s;
-  21 B05 consumer PASS az előző funding-körben, külön form-load browser PASS.
-- `20261023-225110-953-si-b06-v2-source-boundaries`: **7 PASS + root/engine
-  TS/format**, 91,003 s; aktuális v2 scripted baseline és negatív source gate.
-- `20261023-225338-609-si-b06-luna-real-attempt-2-v2`: **négy valódi stratégiai
-  PASS**, 39,225 s /6 kérés /2046 microUSD.
-- `20261023-225715-049-si-b06-v2-native-money-audit`: readonly run/contract/
-  native reward és négy 70 GP-s pénzegyenlet PASS, 0,551 s.
-- `20261023-230242-672-si-b06-docs-final`: dokumentáció/JSON/link/roadmap,
-  staged utak és formázás PASS, 1,710 s; 21/45 kész, következő SI-C01.
-- `20261024-120041-850-si-b06-cache-pricing-boundary`: cache-aware usage,
-  30 közvetlen PASS + root/engine TS, 156,574 s; nincs új modellhívás.
-  A 11 mentett válasz offline díja4235 microUSD; a régi3841 mellé auditált,
-  idempotens394 microUSD könyvelési korrekció került a budgetledgerbe.
-  A két bizonyíték `billingReconciliation` része tartalmazza; a régi source/
-  verdict/report megmaradt. Egy plusz accounting admission nem API-kérés.
-- A körök átfednek; teljes log/result `.local/verification/`, részletes index
-  a B06 dokumentumban. A dokumentációs lezárás nem indokol új runtime tesztet.
-- Korábbi B05 GitHub commit `f11021fe8`; B04 `c4c8618c4`, B03 `cfc8b3e36`,
-  B02 `15d60cac1`, SI-A/B01/runner `98ffcad27`.
+- **Teljes regresszió nem futott.** Komponenssaját profil/XP-táblák és konkrét
+  award/checkpoint adapter; célzott policy/rollback/reopen/logout és packed
+  fogyasztók fedik. A változatlan PASS teszteket nem ismételtük taskzárás miatt.
+- `20261024-123802-533-si-c01-final-gate`: **46 PASS /0 FAIL**, benne13 natív
+  eset; root/engine TS és changed-line format PASS, **37,001 s**.
+- `20261024-123223-155-si-c01-consumer-repair`:53 runtime PASS, benne20 korábbi
+  packed food/SDK/business consumer; a kör TS-visszatérési típus/import miatt
+  még FAIL volt,50,809 s. A végső kapu ezeket javítva igazolja.
+- `20261024-123017-349-si-c01-component-boundaries`: régi attribute képletek,
+  framework, WorldMods/ExperimentXp/DiminishingXp PASS; teljes kör FAIL két
+  régi fixture miatt,19,231 s. A v21/v24 fixture a későbbi táblákat is eltávolítja,
+  a shift egy rögzített Date.now()-ból számol; assertions/termékvalidáció megmaradt.
+- A korábbi bootstrap/fixture és CJS/ESM FAIL diagnosztikák megmaradtak, pontos
+  index a C01 dokumentumban. A körök átfednek; PASS-ok/idők nem összeadandók.
+  Full log/result: `.local/verification/`. Dokumentációs zárás nem indít runtime tesztet.
+
 ## Megőrzendő döntések és mentések
 
 - SI-A15 v2 technikai elfogadás kész; eredeti D1/SI-M1 önfenntartási PASS nincs,

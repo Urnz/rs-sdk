@@ -84,6 +84,7 @@ export function executeNativeFoodSkill(raw: NativeFoodSkillCommand, player: Play
         levels = player.levels.slice(), baseLevels = player.baseLevels.slice();
     const flags = { delayed: player.delayed, delayedUntil: player.delayedUntil, protect: player.protect };
     const queued = new Set([...player.queue.all(), ...player.weakQueue.all()]);
+    const xpReceipts = [...player.nativeAttributeXpReceipts];
     const stopContinuation = () => {
         for (const entry of [...player.queue.all(), ...player.weakQueue.all()]) if (!queued.has(entry)) entry.unlink();
         player.clearInteraction();
@@ -106,6 +107,7 @@ export function executeNativeFoodSkill(raw: NativeFoodSkillCommand, player: Play
     } catch (error) {
         stopContinuation();
         items.forEach((item, slot) => inventory.set(slot, item)); player.vars.set(vars); player.varsString = strings;
-        player.stats.set(stats); player.levels.set(levels); player.baseLevels.set(baseLevels); Object.assign(player, flags); throw error;
+        player.stats.set(stats); player.levels.set(levels); player.baseLevels.set(baseLevels);
+        player.nativeAttributeXpReceipts = xpReceipts; Object.assign(player, flags); throw error;
     }
 }

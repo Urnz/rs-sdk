@@ -55,6 +55,13 @@ export function buildDecisionContext(snapshot: AgentSnapshot, options: DecisionC
     const now = Date.parse(options.now ?? new Date().toISOString());
     if (Number.isNaN(now)) throw new Error('Decision context now must be an ISO timestamp');
     const parts = [buildCoreIdentity(snapshot, Math.min(maxCharacters, 8000))];
+    if (snapshot.populationMember) {
+        const attributes = snapshot.characterAttributes;
+        parts.push(attributes ? `Native attributes ${attributes.attributes.profileId}@${attributes.attributes.version}; binding ${attributes.digest}; `
+            + `cap ${attributes.capPolicy.policyId}@${attributes.capPolicy.version}: `
+            + attributes.potential.skills.map(skill => `${skill.skillId} learning=${skill.learningMultiplierBps}bps potential=${skill.personalPotentialLevel}`).join('; ')
+            : 'Native attributes missing: explicit lifecycle-bound migration required for fishing/cooking/mining/smithing XP.');
+    }
     const objectives = snapshot.goals.filter(g => g.status === 'active' && g.objective);
     if (objectives.length) parts.push('Native state goals (skill success alone does not satisfy these):\n'
         + objectives.map(g => {

@@ -123,6 +123,20 @@ function starvationOptions() {
 }
 export function populationAvatarIsFinite(username: string): boolean { return !!memberFor(username); }
 
+/** Runtime identity/profile lookup, never an LLM-supplied profile or an averaged legacy default. */
+export function populationAttributeContext(username: string, engineTick: number) {
+    assertManagedModuleRoot(fileURLToPath(root));
+    const member = memberFor(username);
+    if (!member) return null;
+    if (populationAvatarRestricted(username)) throw new Error('Terminal population avatar cannot gain XP');
+    const binding = getRuntime()!.agents.getCharacterAttributes(member.agentId);
+    if (!binding) throw new Error('Population character attributes are missing; explicit migration required');
+    const clock = clockObservation(engineTick);
+    if (clock.clockId !== binding.clockId || clock.profileDigest !== binding.clockProfileDigest)
+        throw new Error('Character attribute clock mismatch');
+    return { binding, clock, worldId: managedContext()?.id ?? `local:${foodDigest(fileURLToPath(root))}` };
+}
+
 /** Called before any world/client/NPC execution. Offline members are included. */
 export function tickPopulationDeaths(engineTick: number): void {
     try {
