@@ -6,6 +6,11 @@ Hatókör: kizárólag a helyi/private rs-sdk/LostCity emulator.
 **Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01–C06
 kész;27/45. Következő: SI-C07.** [SI-C06 kibővített baseline](SI_C06_EXPANDED_BASELINE.md).
 
+SI-C07 [readonly előkészítés és reference-fix](SI_C07_RUN_PREPARATION.md)
+elkészült; [preflight NO-GO](SI_C07_PREFLIGHT_RESULT.json). A task nyitott:
+minimum assessment és tool-demand history hiányzik, a food-only baseline és
+gyorsított arány nem elegendő. Hosszú run nem indult; a keret továbbra27/45.
+
 ## 1. Státusz, használat és elsőbbség
 
 Ez a felhasználó új kérése szerinti részletes integrációs munkalista.
@@ -1065,6 +1070,12 @@ Selected coverage nem teljes világ és nem bitazonos rerun; C07/SI-M3/MVS nyito
 eredeti minimum denominátorai és tényleges enforcement előzetesen ellenőrzendő.
 Csak új kérésre induló terv/preflight; a hosszú valódi run külön, konkrét tervre
 adott futási jóváhagyást és költségkeretet igényel. Eddig nincs SI-M3/MVS PASS.
+
+**2026-10-24 előkészítés:** [run-tervezet, NO-GO és következő kódmunka](SI_C07_RUN_PREPARATION.md),
+[forráskötött diagnosztika](SI_C07_PREFLIGHT_RESULT.json). Day-survival minimum
+reference-ID ütközés javítva,17 eredeti requirement és policy-fájl változatlan.
+Új hosszú run/baseline/értékimport/providerköltség nincs. Előbb natív tool-demand
+history +minimum bridge, majd teljes baseline/ratio/SI-A14 preflight és jóváhagyás.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

@@ -1,0 +1,345 @@
+{
+  "protocol": "si-c07-minimum-run-preparation-v1",
+  "scope": "readonly-definition-and-capability-preflight",
+  "status": "no-go",
+  "liveRunStarted": false,
+  "liveStartAuthorized": false,
+  "readyForRunApproval": false,
+  "minimumVerdict": "inconclusive",
+  "fixtureId": "society-lobster-four",
+  "fixtureDigest": "2094c0b60bd99c4a416fb6e85d3f84d6bd7c1621cdc75a6ef1c6090050c1a92e",
+  "fixtureVersion": "1.3.0",
+  "contractDigest": "d12d387d2cf06193378401dc22c5c6ee6ef27350388e047da044da36e3a5e84e",
+  "requirementsDigest": "2794096742fb7f6820abdcfbc7e6bccbfdd4a8180f30b65d65a803787906bd21",
+  "requiredIntegrityGates": [
+    "applied-genesis-baseline",
+    "complete-source-coverage",
+    "finite-lifecycle-no-respawn",
+    "frozen-founder-roster",
+    "no-external-shop-or-import-value",
+    "no-post-genesis-admin-or-fallback-value",
+    "unchanged-clock-and-world-policy",
+    "verified-internal-lineage-and-final-use"
+  ],
+  "candidate": {
+    "warmupSimulationMs": 86400000,
+    "evaluationSimulationMs": 604800000,
+    "bucketSimulationMs": 86400000,
+    "rate": {
+      "simulationMilliseconds": 288,
+      "wallMilliseconds": 1
+    },
+    "nominalWallMs": 2400000,
+    "maximumSampleWallMs": 12500,
+    "proposedSampleWallMs": 5000,
+    "proposedExecutionWallCeilingMs": 3000000,
+    "clockRatioValidationRequired": true,
+    "proposedBaselineCaptureWallCeilingMs": 1200000,
+    "proposedResultCaptureWallCeilingMs": 1200000,
+    "proposedResultRestoreWallCeilingMs": 1500000,
+    "providerRequestsAuthorized": 0,
+    "providerCostMicrosAuthorized": 0,
+    "selectedWorldId": null,
+    "baselineDigest": null,
+    "stopConditions": [
+      "Source/profile/contract drift",
+      "Native source gap or absent required denominator",
+      "Clock-rate validation failure",
+      "Native uncertainty, unauthorized value or external import",
+      "Timeout, cost/request cap, authority expiry or operator stop",
+      "Founder death or proven original minimum violation; retain FAIL evidence, do not lower thresholds"
+    ]
+  },
+  "supplyEnvelope": {
+    "maximumFinitePortions": 36,
+    "nominalEightDayPortions": 32,
+    "nominalClosingReserve": 4,
+    "optimisticNoBurnHeadroom": 0,
+    "notAnAssessment": true
+  },
+  "readerCoverage": [
+    {
+      "requirementId": "founders-at-start",
+      "comparison": "at-least",
+      "threshold": 4,
+      "scope": "opening-boundary",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "minimum-living-founders",
+      "comparison": "at-least",
+      "threshold": 4,
+      "scope": "all-observation-boundaries",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "founder-survival",
+      "comparison": "at-least",
+      "threshold": 9000,
+      "scope": "closing-boundary",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "hunger-satisfied-time",
+      "comparison": "at-least",
+      "threshold": 9500,
+      "scope": "every-member-every-bucket",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "hunger-continuous-critical-time",
+      "comparison": "at-most",
+      "threshold": 21600000,
+      "scope": "every-member-whole-window",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "fatigue-satisfied-time",
+      "comparison": "at-least",
+      "threshold": 9500,
+      "scope": "every-member-every-bucket",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "fatigue-continuous-critical-time",
+      "comparison": "at-most",
+      "threshold": 21600000,
+      "scope": "every-member-whole-window",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "internal-food-relief-share",
+      "comparison": "at-least",
+      "threshold": 10000,
+      "scope": "every-bucket",
+      "status": "partial-native-reader",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "food-reserve-coverage",
+      "comparison": "at-least",
+      "threshold": 86400000,
+      "scope": "all-observation-boundaries",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "food-stock-retention",
+      "comparison": "at-least",
+      "threshold": 10000,
+      "scope": "closing-boundary",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "legal-housing-access-time",
+      "comparison": "at-least",
+      "threshold": 9500,
+      "scope": "every-member-every-bucket",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "tool-maintenance-cycles",
+      "comparison": "at-least",
+      "threshold": 1,
+      "scope": "every-tool-type-whole-window",
+      "status": "partial-native-reader",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "tool-unusable-demand-time",
+      "comparison": "at-most",
+      "threshold": 3600000,
+      "scope": "every-tool-type-whole-window",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "tool-service-capacity-retention",
+      "comparison": "at-least",
+      "threshold": 10000,
+      "scope": "closing-boundary",
+      "status": "not-aggregated-for-minimum",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "productive-participants",
+      "comparison": "at-least",
+      "threshold": 2,
+      "scope": "every-bucket",
+      "status": "partial-native-reader",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "productive-stage-kinds",
+      "comparison": "at-least",
+      "threshold": 3,
+      "scope": "whole-window",
+      "status": "partial-native-reader",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    },
+    {
+      "requirementId": "inter-actor-final-use-chains",
+      "comparison": "at-least",
+      "threshold": 1,
+      "scope": "every-bucket",
+      "status": "partial-native-reader",
+      "assessedValue": null,
+      "verdict": "inconclusive"
+    }
+  ],
+  "gates": [
+    {
+      "id": "unchanged-minimum",
+      "status": "passed",
+      "reason": "Exact original minimum source is pinned; any threshold/window/reference edit requires review, not automatic acceptance."
+    },
+    {
+      "id": "verified-procedures",
+      "status": "passed",
+      "reason": "Exact existing fixture procedures are verified."
+    },
+    {
+      "id": "finite-food-envelope",
+      "status": "unverified",
+      "reason": "No-burn provisioning headroom 0 portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence."
+    },
+    {
+      "id": "tool-chain-baseline",
+      "status": "blocked",
+      "reason": "Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity."
+    },
+    {
+      "id": "minimum-assessor",
+      "status": "blocked",
+      "reason": "Current native integration/evaluation reports retain an inconclusive minimum verdict;17 scoped rules need a complete source-backed assessment bridge."
+    },
+    {
+      "id": "tool-unusable-demand-coverage",
+      "status": "blocked",
+      "reason": "Committed Mining/work receipts do not record all attempted or requested tool demand; idle/offline is not a denominator."
+    },
+    {
+      "id": "legal-housing-exposure",
+      "status": "unverified",
+      "reason": "Two tenant slots and current rent/sleep receipts do not attest95% legal housing access for every founder; full ownership/access history is required."
+    },
+    {
+      "id": "clock-ratio",
+      "status": "blocked",
+      "reason": "Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse."
+    },
+    {
+      "id": "selected-baseline",
+      "status": "unverified",
+      "reason": "No active world selected, frozen founder roster or exact expanded baseline/result pin prepared for C07."
+    },
+    {
+      "id": "native-regression",
+      "status": "unverified",
+      "reason": "Exact SI-A14 regression belongs after the cheap NO-GO blockers are resolved, before an approved long run."
+    },
+    {
+      "id": "run-approval-and-budget",
+      "status": "unapproved",
+      "reason": "No new long-run/provider authority; B06 permission is scoped to its earlier trial."
+    }
+  ],
+  "sources": [
+    {
+      "path": "society-minimum/contract.ts",
+      "sha256": "922ce9a4677dfb3fa25f310e4f0e9019c25baf83972572f9578075607c7e6300"
+    },
+    {
+      "path": "config/society-minimum-policy.json",
+      "sha256": "596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a"
+    },
+    {
+      "path": "config/survival-rules.json",
+      "sha256": "708b626abba3eff9361643750465fe14ed243762c67aa7dc587311a06c84f2a0"
+    },
+    {
+      "path": "needs/survival.ts",
+      "sha256": "49ac20c778a394c52b88e12bdbf148d4ad7077c2c7cb2283a11ac61000b47328"
+    },
+    {
+      "path": "society-metrics/integration-report.ts",
+      "sha256": "ae42b52a1e8a7d0860c5d16c21db09e11eb5ecec869844a38fdb07658156a7e5"
+    },
+    {
+      "path": "society-metrics/evaluation-report.ts",
+      "sha256": "2f13f0665dddcc60f0710076f6ece44179b54532475dee25244d6630d7541c29"
+    },
+    {
+      "path": "society-metrics/outcome-work.ts",
+      "sha256": "719ab1f953c24e8e65e9b37136fcda973a73148954eb3f4b9b3e120683924dea"
+    },
+    {
+      "path": "server/engine/src/mods/NativeMiningTool.ts",
+      "sha256": "25ba722688ccf90fb8ffc678c13c892e3f58ec0d218cdb3b0becdc0a93ccea4a"
+    },
+    {
+      "path": "society-experiments/benchmark-report.ts",
+      "sha256": "a0b026c7e678174170c683aece401094be418bf4404612829cf2b24e8cca4a69"
+    },
+    {
+      "path": "society-experiments/expanded-baseline.ts",
+      "sha256": "95c34bc3512fcedf2153259c8aeee8d4ded4eb4ec420c0696bb07aacb59e2261"
+    },
+    {
+      "path": "society-experiments/minimum-preflight.ts",
+      "sha256": "50ebb1f6ae399b25b02a9b2b198d381125deaabc65ca65323bf18bf47696eefd"
+    },
+    {
+      "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
+      "sha256": "ea36f309490eb786a412e9203d63c66e76587854a5d15539a7e2dadf7729e3aa"
+    },
+    {
+      "path": "agent-skills/catalog/procedure.food.gather-lobster@1.0.0.skill.json",
+      "sha256": "8fde01313f54defbbb795211a7b9ddcf52fb90781f0df381b4ee74a68874dfd8"
+    },
+    {
+      "path": "agent-skills/catalog/procedure.food.cook-lobster@1.0.0.skill.json",
+      "sha256": "42e242c8197a9400b66816b4f4b816cc499385eb11fa8ab3ec1cb7fad6110a8c"
+    },
+    {
+      "path": "agent-skills/catalog/trade.lumbridge.give-item@1.0.0.skill.json",
+      "sha256": "64a8fd031babf15bfee897dc6b106b32767b99b391f0305eaa7ad518c31414db"
+    },
+    {
+      "path": "agent-skills/catalog/procedure.travel.native-sites@1.0.0.skill.json",
+      "sha256": "b99b6c458d53901fa4955dd00a1a52daa5a93866f40507e0995309538b20d080"
+    }
+  ],
+  "nextActions": [
+    "Complete the native minimum assessment and missing demand/access history before requesting a run.",
+    "Prepare a complete native-tool/food/housing founder baseline with unchanged acceptance thresholds.",
+    "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
+    "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
+  ],
+  "digest": "50bc7d1d4f68b4abd12365c010752e60106c9348dc247144a1db3e88c2fb3051"
+}

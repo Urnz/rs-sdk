@@ -1,0 +1,21 @@
+import { afterEach,expect,test } from 'bun:test';
+import { cpSync,mkdtempSync,writeFileSync,readFileSync,rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { loadSocietyMinimumContract,assertSocietyMinimumContractBinding } from '../contract.js';
+import { stageSurvivalConfiguration } from '../../needs/survival-config.js';
+const roots:string[]=[];afterEach(()=>{for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true});});
+for(const mode of ['live','accelerated-test'] as const)test(`minimum binds verified ${mode} physiology without weakening its17 rules or rewriting policy`,()=>{
+    const root=mkdtempSync(join(tmpdir(),'si-c07-contract-'));roots.push(root);const config=join(root,'config');
+    cpSync(join(import.meta.dir,'../../config'),config,{recursive:true});writeFileSync(join(root,'.integration-stage.json'),'{}');
+    const before=loadSocietyMinimumContract(config),bytes=readFileSync(join(config,'society-minimum-policy.json'));
+    const profile=stageSurvivalConfiguration(root,mode,'si-c07-binding');
+    const after=loadSocietyMinimumContract(config);
+    expect(after.requirements).toEqual(before.requirements);expect(after.policy.integrityGates).toEqual(before.policy.integrityGates);
+    expect(after.dependencies.needs.policyId).toBe(profile.policy.policyId);expect(after.dependencies.dynamics.policyId).toBe(profile.dynamics.policyId);
+    expect(after.policy.references.needs.policyId).toBe('day-survival-needs');
+    expect(after.digest).not.toBe(before.digest);assertSocietyMinimumContractBinding(after.digest,after);
+    expect(readFileSync(join(config,'society-minimum-policy.json'))).toEqual(bytes);
+    const marker=JSON.parse(readFileSync(join(config,'survival-profile.json'),'utf8'));marker.rules.normalMealGameDays=2;
+    writeFileSync(join(config,'survival-profile.json'),JSON.stringify(marker));expect(()=>loadSocietyMinimumContract(config)).toThrow();
+});

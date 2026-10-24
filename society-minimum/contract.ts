@@ -1,4 +1,6 @@
-import { join } from 'node:path';
+import { join,dirname } from 'node:path';
+import { existsSync } from 'node:fs';
+import { loadSurvivalProfile } from '../needs/survival.js';
 import { loadNeedsPolicyCatalog, loadNeedsDynamicsPolicyCatalog } from '../needs/config.js';
 import { loadHousingTierPolicyCatalog, loadHousingEffectPolicyCatalog } from '../housing/config.js';
 import { loadFoodLoopCatalog } from '../food-loop/catalog.js';
@@ -82,9 +84,23 @@ export function resolveSocietyMinimumContract(input: SocietyMinimumPolicy, confi
             'runSeed', 'evaluationStartSimulationTime', 'evaluationEndSimulationTime', 'sourceWatermarksAndCoverage'] };
     return { ...contract, digest: societyMinimumDigest(contract) };
 }
-export type SocietyMinimumContract = ReturnType<typeof resolveSocietyMinimumContract>;
+export type SocietyMinimumContract = ReturnType<typeof resolveSocietyMinimumContract> & {physiologyBinding?:{
+    protocol:string;declaredPolicyDigest:string;effectivePolicyDigest:string;survivalSelectionDigest:string;requirementsDigest:string}};
 export function loadSocietyMinimumContract(configDirectory: string): SocietyMinimumContract {
-    return resolveSocietyMinimumContract(loadSocietyMinimumPolicy(join(configDirectory, 'society-minimum-policy.json')), configDirectory);
+    const declared=loadSocietyMinimumPolicy(join(configDirectory,'society-minimum-policy.json'));
+    if(!existsSync(join(configDirectory,'survival-profile.json')))return resolveSocietyMinimumContract(declared,configDirectory);
+    const survival=loadSurvivalProfile(dirname(configDirectory));
+    if(!survival)throw new Error('Minimum survival binding requires a validated world selection');
+    // Bind references to the already-verified effective physiology. Never alter acceptance numbers or rewrite policy files.
+    const {digest:declaredDigest,...definition}=declared;
+    const effective=validateSocietyMinimumPolicy({...definition,references:{...definition.references,
+        needs:{policyId:survival.policy.policyId,version:survival.policy.version},dynamics:{policyId:survival.dynamics.policyId,version:survival.dynamics.version}}});
+    if(societyMinimumDigest(societyMinimumRequirements(effective))!==societyMinimumDigest(societyMinimumRequirements(declared)))
+        throw new Error('Survival reference binding changed minimum requirements');
+    const {digest:_resolved,...resolved}=resolveSocietyMinimumContract(effective,configDirectory);
+    const body={...resolved,physiologyBinding:{protocol:'verified-survival-minimum-references-v1',declaredPolicyDigest:declaredDigest,
+        effectivePolicyDigest:effective.digest,survivalSelectionDigest:survival.selection.digest,requirementsDigest:societyMinimumDigest(resolved.requirements)}};
+    return{...body,digest:societyMinimumDigest(body)};
 }
 export function assertSocietyMinimumContractBinding(expectedDigest: string, contract: SocietyMinimumContract): void {
     const { digest, ...definition } = contract;

@@ -1,0 +1,10 @@
+import { resolve } from 'node:path';
+import { parseArgs } from 'node:util';
+import { loadIntegrationFixture } from '../society-integration/fixture.js';
+import { inspectMinimumRunPreparation } from '../society-experiments/minimum-preflight.js';
+const {values}=parseArgs({options:{fixture:{type:'string'},root:{type:'string'}}});
+const root=resolve(values.root??resolve(import.meta.dir,'..'));
+const fixture=loadIntegrationFixture(resolve(values.fixture??resolve(root,'config/fixtures/society-lobster-four-accelerated-test-native-travel-v1.json')));
+const report=await inspectMinimumRunPreparation(root,fixture);
+console.log(JSON.stringify(report,null,2));
+process.exitCode=report.readyForRunApproval?0:2;

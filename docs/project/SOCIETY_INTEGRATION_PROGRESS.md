@@ -2383,3 +2383,38 @@ megmaradtak. Átfedő/nested/párhuzamos számok/idők nem összeadandók.
 **SI-C06 kész;27/45. Következő SI-C07 új kérésre.** Hosszú run csak előkészített
 konkrét tervvel és külön futási/költség-jóváhagyással. Full és valódi providerhívás
 nem futott; költség0 USD, nincs live világ/enrollment/publication vagy SI-M3 PASS.
+
+## 2026-10-24 – SI-C07 előkészítés, NO-GO; task nyitott
+
+[Konkrét terv és akadályok](SI_C07_RUN_PREPARATION.md),
+[gépileg olvasható diagnosztika](SI_C07_PREFLIGHT_RESULT.json). A verified1.3.0
+native-travel fixture összevetése az eredeti17 minimum requirementtel és8
+integrity gate-tel.288:1 mellett1+7 sim nap névleg40 wall perc, execution-terv
+50 perc,5 s observer-javaslat; ratio és teljes trace még nem igazolt.36
+optimista adagból32 nominális fogyasztás +4 reserve mellett0 burn-headroom,
+de ez nem natív demand és nem önálló FAIL. A fixture továbbra food/travel,
+nincs a foundercohorthoz kötött tool-maintenance teljes lánc.
+
+Javított konkrét hiba: staged day-survival needs/dynamics azonosítók mellett az
+eredeti minimum referenciafeloldás hibát adott. Most csak validált immutable
+survival selectionből, külön declared/effective policy és requirements digesttel
+kötődik;17 rule, minden küszöb/window/integrity gate és a policy-fájl bytes
+változatlan. Legacy világon változatlan resolverág. A preparer az eredeti
+minimum forráshashét is megköveteli;9500→9400 relaxáció blocked, nem automatikus
+unchanged-minimum PASS. A CLI NO-GO esetén exit2, nem indítási kapu.
+
+M3 belépési rések: nincs teljes native minimum-assessment bridge; teljes tool-
+unusable-demand history hiányzik; housingaccess- és ratio-lefedettség unverified.
+Source pin vagy sikeres skill nem helyettesíti ezeket. Nincs kijelölt élő világ,
+új baseline/genesis/adminérték, publikálás/enrollment, hosszú run vagy provider-
+hívás. Költség0. Hosszú futási jóváhagyást most nem kértünk egy ismert NO-GO-ra.
+
+`20261024-234953-838-si-c07-preparation-contract-gate`:66 célzott teszt/root+CLI
+TS PASS103,911 s; runtime27,52 s. Utána csak saját policy-drift preflight bővült:
+`20261024-235512-434-si-c07-policy-drift-and-candidate`:3 saját teszt/CLI TS és
+friss NO-GO artifact PASS4,556 s. Átfedő számok/idők nem összeadandók. Full
+nem futott; nincs threshold/physiology/clock/persistence/auth alapváltozás.
+
+**SI-C07 nyitott;27/45. Következő: natív tool-demand history és minimum bridge,
+majd teljes baseline/ratio/SI-A14 preflight; külön jóváhagyott hosszú run csak
+ezek után. SI-M3/MVS/önfenntartás nem PASS.**
