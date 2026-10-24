@@ -3,8 +3,8 @@
 Dátum: 2026-10-18. Forrásbaseline: `2df0daad86c6568a3e1f0e62f58f09aa3cd955de`.
 Hatókör: kizárólag a helyi/private rs-sdk/LostCity emulator.
 
-**Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01–C05
-kész;26/45. Következő: SI-C06.** [SI-C05 natív outcome-mérés](SI_C05_NATIVE_OUTCOME_METRICS.md).
+**Aktuális állapot, 2026-10-24: SI-A technikailag lezárt, SI-B01–B06 és SI-C01–C06
+kész;27/45. Következő: SI-C07.** [SI-C06 kibővített baseline](SI_C06_EXPANDED_BASELINE.md).
 
 ## 1. Státusz, használat és elsőbbség
 
@@ -1027,12 +1027,19 @@ próba/célzott kapuk, nem SI-C07/SI-M3/MVS. Következő SI-C06 új kérésre.
 
 ### SI-C06 – A kibővült világ összehasonlítható baseline-ja
 
-**Belépés: SI-C05 kész;26/45.** [Outcome-verzió és source/clock korlátok](SI_C05_NATIVE_OUTCOME_METRICS.md),
+**Történeti belépés: SI-C05 kész;26/45.** [Outcome-verzió és source/clock korlátok](SI_C05_NATIVE_OUTCOME_METRICS.md),
 [mechanikai elfogadás](SI_C05_NATIVE_RESULT.json). Új outcome store nincs;
 archive/source coverage vizsgálatnál a meglévő authoritative source-ok és a
-reportverzió rögzítendő. SI-C06 csak új kérésre indul; SI-C07/SI-M3/MVS nyitott.
+reportverzió rögzítendő. SI-C06 a felhasználó kérésére elkészült.
 
-- **Státusz/típus/prioritás:** [ ] KIEGÉSZÍTÉS; P1; G04/G05, METRICS/CLOCK.
+**Zárás: SI-C06 kész;27/45.** [Coverage/pin/restore és CLI](SI_C06_EXPANDED_BASELINE.md),
+[source-bound eredmény](SI_C06_NATIVE_RESULT.json). Új checkpoint+sidecar és finance
+observation coverage; explicit source/schema/runtime/policy/cache/provider/report
+pin; exact baseline/result link; stagingben native state/report újraolvasás.
+V1 kompatibilitás, WAL és valódi native WIP replay célzottan ellenőrzött.
+Selected coverage nem teljes világ és nem bitazonos rerun; C07/SI-M3/MVS nyitott.
+
+- **Státusz/típus/prioritás:** [x] KIEGÉSZÍTÉS; P1; G04/G05, METRICS/CLOCK.
 - **Cél és indok:** az új needs/custody/profile store ne maradjon ki a már meglévő restore-ból.
 - **Meglévő:** offline hash-archívum, új könyvtáras restore, controller és
   XP/condition digest-kapuk, explicit RNG/LLM reprodukciós korlátok.
@@ -1052,6 +1059,12 @@ reportverzió rögzítendő. SI-C06 csak új kérésre indul; SI-C07/SI-M3/MVS n
 - **Kockázat:** közepes–magas; snapshot teljesség és konfigurációból csak látszólag eltérő kezelés.
 
 ### SI-C07 – Tartós önfenntartási próba, SI-M3 kapu
+
+**Belépés: SI-C06 kész;27/45.** [Explicit baseline és korlátok](SI_C06_EXPANDED_BASELINE.md),
+[mechanikai eredmény](SI_C06_NATIVE_RESULT.json). A teljes required source-lista,
+eredeti minimum denominátorai és tényleges enforcement előzetesen ellenőrzendő.
+Csak új kérésre induló terv/preflight; a hosszú valódi run külön, konkrét tervre
+adott futási jóváhagyást és költségkeretet igényel. Eddig nincs SI-M3/MVS PASS.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

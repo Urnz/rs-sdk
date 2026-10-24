@@ -6,3 +6,5 @@ export {defaultLongExperimentSources,nativeLongExperimentDependencies,readLongEx
 export {readLongExperimentComparison} from './runtime.js';
 export {compareLongExperiments,validateLongComparisonRequest,LONG_COMPARISON_CAPABILITIES} from './comparison.js';
 export type {LongComparisonRequest,LongComparisonAxis} from './comparison.js';
+export {prepareExpandedBaseline,captureExpandedArchive,verifyExpandedArchive,restoreExpandedArchive,compareExpandedArchives,EXPANDED_BASELINE_PROTOCOL} from './expanded-baseline.js';
+export type {ExpandedSelection,ExpandedBaselinePin} from './expanded-baseline.js';

@@ -2344,3 +2344,42 @@ számok és idők nem összeadandók. Teljes logok `.local/verification/` alatt.
 realizmuskalibráció, teljes exposure és SI-M3/MVS/önfenntartás nem következik
 e mechanikai kapuból. Full nem futott: readonly reader és lokális DI, shared
 transaction/persistence/clock/auth/dependency alap változatlan.
+
+## 2026-10-24 – SI-C06: kibővített baseline/result archívum
+
+[Coverage/pin/CLI/korlátok](SI_C06_EXPANDED_BASELINE.md),
+[source-bound eredmény](SI_C06_NATIVE_RESULT.json). A canonical player-checkpoints
+és sidecarjai, valamint `.local/society-metrics` finance megfigyelései bekerültek
+az archívumgyökerekbe. V1 olvashatóság megmaradt. Additív expanded pin/evidence:
+source/config/policy/packed/model/report/run, explicit role/path/table és native
+schema/state digest; missing store nem válik default üres DB-vé. Baseline dirty
+vagy drift a pinhez képest elutasított. Result exact baseline-manifesthez és
+teljes planhez kötött; schema drift új explicit baseline nélkül elutasított.
+
+Restore új könyvtár stagingjében native state/schema és result-report újraolvasás,
+publikálás előtt. Nincs extra restore előtti teljes verify, payload-SQLite-read,
+adatmigráció vagy shared SQLite/clock/auth/commit alapváltozás. Provider config,
+world-director/world-mod override és engine config is pinned. Seed nem engine
+RNG-stream vagy külső LLM/scheduler replay. A selected comparison nem teljes
+világ vagy oksági MVS állítás. Controller-kezelési capability nem bővült pusztán
+a pinningtől; az új v2 benchmark report C05 outcomes-ot olvas, observer-export off.
+
+Külön kontrollált bizonyítékok:6 native store/schema +finance observation replay,
+WAL-only42 committed sor, treasury42 GP baseline/result és wrong-report staging
+elutasítás. Valódi engine repair WIP200000 ms archive/reopen, miközben az eredeti
+600000 ms-nál befejeződik; restored working/200000/result null, exact material/
+intent és Player checkpoint. A transport és a pin fixture nem egy élő gazdaság.
+
+Végső `20261024-231836-132-si-c06-final-archive-root`:11 PASS/root TS/format,
+29,271 s. `20261024-231835-076-si-c06-final-native-engine`: child+wrapper2 PASS,
+engine TS,16,816 s. Utolsó override/engine-config2 +root TS PASS18,106 s:
+`20261024-232038-466-si-c06-final-runtime-policy-pins`. Régi archive/CLI/offline
+consumer gate24 PASS,21,428 s. A controller/Phase12/XP natív report-case PASS;
+ugyanabban a wrapperben egy összesített negatív teszt5 s timeoutot adott, ezért
+külön `test.each` sorokra bontva, limit/assertion emelése nélkül; végül13 expanded
+eset fedett. Korai fixture clock/admission és CLI literal type hibák logjai
+megmaradtak. Átfedő/nested/párhuzamos számok/idők nem összeadandók.
+
+**SI-C06 kész;27/45. Következő SI-C07 új kérésre.** Hosszú run csak előkészített
+konkrét tervvel és külön futási/költség-jóváhagyással. Full és valódi providerhívás
+nem futott; költség0 USD, nincs live világ/enrollment/publication vagy SI-M3 PASS.

@@ -1,0 +1,536 @@
+{
+  "schemaVersion": 1,
+  "taskId": "SI-C06",
+  "verdict": "PASS",
+  "scope": "Expanded offline archive coverage/pinning and native evidence replay; no autonomous performance verdict",
+  "source": {
+    "baseCommit": "d57966d2f9c3a395166313e26d50a3090f9a1d6e",
+    "branch": "codex/si-c06-expanded-baseline",
+    "hashEncoding": "SHA-256 of LF-normalized UTF-8 selected source/contracts; binary packed SHA-256",
+    "coverage": "Changed TypeScript/PowerShell and selected producer/consumer contracts; not a complete transitive dependency manifest",
+    "files": [
+      {
+        "path": "agent-state/store.ts",
+        "sha256": "9f8e31392c5d62131832e988d3b05a4642da8b1306f19d89748640718a2734a3"
+      },
+      {
+        "path": "agent-state/types.ts",
+        "sha256": "cacc71053d3c65077ddc83d90ee80abb5909c48b2322903515f1f21df24519b1"
+      },
+      {
+        "path": "business-work/binding.ts",
+        "sha256": "6ae2d5994121a5a1f7e839ddf6b99728f923f378b2554a06648e037dca2f0c85"
+      },
+      {
+        "path": "business-work/work.ts",
+        "sha256": "13f319b1d2047251b927ea2f8fb46ffbbc262c70c46e95bcfc50e163b22314bb"
+      },
+      {
+        "path": "character-attributes/binding-store.ts",
+        "sha256": "b9f9483eed2049a9bac44e98c0c0f332cf57965ac504555c97b9994c13fa40c2"
+      },
+      {
+        "path": "item-lifecycle/native-tool.ts",
+        "sha256": "6fedd176717c419cdc0f6a5166255232a37e14e25cf3ecb13037975778f192e5"
+      },
+      {
+        "path": "needs/config.ts",
+        "sha256": "908751cb34f7d6e4a18fe86626696de5a77b2573452192a17c18d4889b297d74"
+      },
+      {
+        "path": "needs/store.ts",
+        "sha256": "62294903a2455253e4a9dfaccc46ecc78951482b0b8a2bdbbe6edc3d294f5ee9"
+      },
+      {
+        "path": "production-workflow/native-tool-work.ts",
+        "sha256": "9b345206161d1c41fecd7e242e9373324da42927c86d8091ed538e82eaa304d5"
+      },
+      {
+        "path": "scripts/assert-society-offline.ps1",
+        "sha256": "e79c237f201605d6595c1f1cc3c6391602f4a49c0610cc64587cba953e1284ef"
+      },
+      {
+        "path": "scripts/society-benchmark.ts",
+        "sha256": "bbe59daee2f8697982e5d7cf19f3d760336a1af2285853815e911ff2c69d68ee"
+      },
+      {
+        "path": "server/control-plane/managed-runtime.ts",
+        "sha256": "beec55d8559dc2478ceceda6b66723b1c7139f19f1979a8bbcb85279f3c47c42"
+      },
+      {
+        "path": "server/engine/src/io/OwnedDatabase.ts",
+        "sha256": "d2f1ae8b6b4bd96d61510b0a1cdee52076fb404e5c3061a2783d7407f2e3a77a"
+      },
+      {
+        "path": "server/engine/src/mods/native-food-skill-fixture.ts",
+        "sha256": "9a0309eb2de47841f468e862540165903885eb7d50f50f35d403a458c1d24c2f"
+      },
+      {
+        "path": "server/engine/src/mods/native-mining-tool-fixture.ts",
+        "sha256": "ee9ffb92d74b94e34b1ccbe98045a41cc87b0fcb905672cfbd18dc8148dd8eed"
+      },
+      {
+        "path": "server/engine/src/mods/NativeToolWork.test.ts",
+        "sha256": "bd09bef40d33b95bf3cfdd154297811a24095596cdde86d2d6a60f7cb7d5e0dd"
+      },
+      {
+        "path": "server/engine/src/mods/NativeToolWork.ts",
+        "sha256": "e926c17cf9a6ca9c056173152f7075f1e7f9e4f52c1d0242db7ded076fbde21e"
+      },
+      {
+        "path": "server/gateway/admin/institution-treasury.ts",
+        "sha256": "09d760bab657a30979391bda3a12389ca0eef924249e067d8e9bd553169e8062"
+      },
+      {
+        "path": "server/gateway/admin/native-baseline-archive.test.ts",
+        "sha256": "ce066dff7f50bdca1fe3929b00e8d58c05ac6482739c565510080b1069aed521"
+      },
+      {
+        "path": "server/gateway/admin/native-food-test-runtime.ts",
+        "sha256": "c980e78185a9372d0644dd654f5744c94487c6f686b6323b33d37431a3d3d8c5"
+      },
+      {
+        "path": "simulation-clock/store.ts",
+        "sha256": "65bf7d0eae0ec6c9b530b97eff0424260b753afbc938e8d3343133e019627ec8"
+      },
+      {
+        "path": "simulation-clock/types.ts",
+        "sha256": "1970c5e2f76d7355eac5cac951f2b13049e940604bf4c89ae72219494ef8c11c"
+      },
+      {
+        "path": "society-experiments/archive.ts",
+        "sha256": "a075488aace6c703c0158f87fd3d52540ce2c67c6d16604ff48f9788e6607772"
+      },
+      {
+        "path": "society-experiments/benchmark-clock.ts",
+        "sha256": "ff0ed4de61118f8a83cbf43c409866896b5ea5c440596299884ac49c29330413"
+      },
+      {
+        "path": "society-experiments/benchmark-report.ts",
+        "sha256": "a0b026c7e678174170c683aece401094be418bf4404612829cf2b24e8cca4a69"
+      },
+      {
+        "path": "society-experiments/comparison.ts",
+        "sha256": "461bca7b5f17d684e3a201edc2ad8a59bb584d7acd665aa890ff5b6b63f7f2d9"
+      },
+      {
+        "path": "society-experiments/controller.ts",
+        "sha256": "0d232e11a7c42b059003618446f4153bd9ab81778108691a7e78ec7b1aa047fd"
+      },
+      {
+        "path": "society-experiments/expanded-baseline.ts",
+        "sha256": "95c34bc3512fcedf2153259c8aeee8d4ded4eb4ec420c0696bb07aacb59e2261"
+      },
+      {
+        "path": "society-experiments/index.ts",
+        "sha256": "4902113f51475673e2a8c015e99098d1fb2791ac0464bdf9e6c123e7d1f41478"
+      },
+      {
+        "path": "society-experiments/plan.ts",
+        "sha256": "9f1a04cfcc096ac75d0765802866f97e885e325f26d1d50b898d10fc95df7044"
+      },
+      {
+        "path": "society-experiments/runtime.ts",
+        "sha256": "77fade30f8e03dd445d6026d401b8fa80a48a7dbc13e2b1e662d33ca4c41a51c"
+      },
+      {
+        "path": "society-experiments/source.ts",
+        "sha256": "5303b9d3784ad63517d47878f392e716e84a19742cf38482bc27035bd14f66b6"
+      },
+      {
+        "path": "society-experiments/store.ts",
+        "sha256": "407c88aa7cb398fcdf483ee593eae00212459c8fd4d6264027f622ee51528afb"
+      },
+      {
+        "path": "society-experiments/test/controller.test.ts",
+        "sha256": "dd6fb7b99c067a163fc15f7469be9b90d46e3b46df0b77e21f08344f971ce568"
+      },
+      {
+        "path": "society-experiments/test/expanded-baseline.test.ts",
+        "sha256": "527bc208e2e66dcfca50a4ec0e44a6243b1733be406a1c71c1d8cb5942bc4c85"
+      },
+      {
+        "path": "society-experiments/test/expanded-fixture.ts",
+        "sha256": "faa704ab84815ccd4787be68537e0be4538351a15531d11b9d6b1445497337c5"
+      },
+      {
+        "path": "society-experiments/test/offline-probe.test.ts",
+        "sha256": "d5dca3d01b6346700c0f4cb6b96eec18c051dc69bf6d51f97e0443fcae8d556d"
+      },
+      {
+        "path": "society-experiments/xp-execution-source.ts",
+        "sha256": "74f42e2b978dfd70ae87e1949549d97404ffd82a13f1451512a4d900992deaab"
+      },
+      {
+        "path": "society-experiments/xp-state.ts",
+        "sha256": "cd11fbd6e13e56f03657d32ab4750cfad5bf0c0d9e5f1bfab4f6ce9c1876c49a"
+      },
+      {
+        "path": "society-metrics/evaluation-report.ts",
+        "sha256": "2f13f0665dddcc60f0710076f6ece44179b54532475dee25244d6630d7541c29"
+      },
+      {
+        "path": "society-metrics/native-outcomes.ts",
+        "sha256": "66cae11bc8610e089e5ba6e2c149c57149786c02db2c0825593d20d742bf56a2"
+      },
+      {
+        "path": "society-metrics/outcome-agents.ts",
+        "sha256": "a2836a743ebcdae42d03d2688f47a651ce0e06a9b0d4ba42ba7be573658a2040"
+      },
+      {
+        "path": "society-metrics/outcome-provider.ts",
+        "sha256": "93e20f4ad5d306526ab9bb9bcb6bc421e892503c0c54a9ccf6b7e5599108d347"
+      },
+      {
+        "path": "society-metrics/outcome-work.ts",
+        "sha256": "719ab1f953c24e8e65e9b37136fcda973a73148954eb3f4b9b3e120683924dea"
+      }
+    ],
+    "packedAssets": [
+      {
+        "path": "server/engine/data/pack/main_file_cache.dat",
+        "sha256": "5c177b9209e183ad977fb43a7b5c2436953cb6585102f56c6193f2ead44499da"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx0",
+        "sha256": "af8a7bb2f99b2bdf802cf13ef8c894d59592399e41c400fd3258b384ef229b76"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx1",
+        "sha256": "0ce4f410c11cb36753a67ae4fb6acb41026133057966b4f5887877a2310dd10e"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx2",
+        "sha256": "38117c0d67c9768eccc67d1412dc0664b191c660943e6581fe36b048496eeabf"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx3",
+        "sha256": "c76aff4c175d73db6c6791ba99f9cb5667cd4645555f63909f917dbaee601ea0"
+      },
+      {
+        "path": "server/engine/data/pack/main_file_cache.idx4",
+        "sha256": "0f731d032a63baef29778c0a8857af1c1a344447292fcb28f96be3744d0f6b52"
+      },
+      {
+        "path": "server/engine/data/pack/server/category.dat",
+        "sha256": "f63cb5e4c38d7c4a79e15b48fd3d05bdb6a99dba6e1906a761e46350b0f97e98"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.dat",
+        "sha256": "5a4f274c247217875f8b3b71006100a86030b51a5d4165f6cd91dd910cce8286"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbrow.idx",
+        "sha256": "c9d085f8a353abd58a7315f3a8e9e17e331bb38197470bd7dd17c7f67e961c23"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.dat",
+        "sha256": "74f6c6be5dae1111fbd39e7bd4290647fce7f5b93dd5fb3a0a386503ddb40ac3"
+      },
+      {
+        "path": "server/engine/data/pack/server/dbtable.idx",
+        "sha256": "50be28dfbd8b017cfee7fda40d07ad4c5d374b3861f0b3dcb67e76f36ff15c5a"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.dat",
+        "sha256": "692812e0b3c7b776c2edd3aac70d11249d0c824c79a42f0e2ad08311bb1b40c5"
+      },
+      {
+        "path": "server/engine/data/pack/server/enum.idx",
+        "sha256": "5c4bb2801422d762f965ac53dce6c9c8406c07f975f3cc7850bd555a76a0821b"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.dat",
+        "sha256": "1cb8bdec4c1bea9797cd5ddf2d6d12f7b278d5b52cf0e76cf870765c92d40574"
+      },
+      {
+        "path": "server/engine/data/pack/server/flo.idx",
+        "sha256": "e6e740142c951caafe7523ce5be71d6f58480f174389108c89b1c89906ea1563"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.dat",
+        "sha256": "641a509227c948dbd626eba8afd6e5b49c4e95d338d596c134b4dfe40b058121"
+      },
+      {
+        "path": "server/engine/data/pack/server/hunt.idx",
+        "sha256": "f65cd1b3902def149de3ba676aa7bf227d70f408770f16df3cc1419eea6663a7"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.dat",
+        "sha256": "c49a737d21e1138667f8961ec96cfaf8fdc5a8a7e27eaccf6c0833b845eaffdd"
+      },
+      {
+        "path": "server/engine/data/pack/server/idk.idx",
+        "sha256": "15de0287fd9650a02f274771a6eab909b0cce5b7ecd9db6fd8dc0e4dc7b3d354"
+      },
+      {
+        "path": "server/engine/data/pack/server/interface.dat",
+        "sha256": "79c4635a79a4b788ab5b241c03fcfed790507f059adf8156976a1c3e906331d0"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.dat",
+        "sha256": "c742ce8c79c28552413640b5ad26626e520da3f19ccd638362a1f7bc58b73032"
+      },
+      {
+        "path": "server/engine/data/pack/server/inv.idx",
+        "sha256": "f8eeed182072f4d6ab383f7d28c3edd0dc51eacb98c1a107216523703d5c22c1"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.dat",
+        "sha256": "a45ded68e74cf5a59257141206560aa508524b9ed89c06ac5bc94482f38eaf00"
+      },
+      {
+        "path": "server/engine/data/pack/server/loc.idx",
+        "sha256": "ff841140ee0a0685e0bda5a39c3838b6d3aa34ba5db8d6d05d416b9fbebca7d2"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.dat",
+        "sha256": "8c5cbe3e9981d7982a4c3e53eb61d336ec7a6de7fe17f13bbe4a09ee07210d94"
+      },
+      {
+        "path": "server/engine/data/pack/server/mesanim.idx",
+        "sha256": "6e87275bbb7b59bfae93049b6ecce2a103fe80d5dd8c4e2477600f088e804609"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.dat",
+        "sha256": "819902401ef17472946c0444094ab876ee63b1ee383708ac4c14382b287be02b"
+      },
+      {
+        "path": "server/engine/data/pack/server/npc.idx",
+        "sha256": "5cd4978d0535e9cd526bff781add78db48bd036fb8ef76227053681d62674802"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.dat",
+        "sha256": "f86e2e07d8801cce6bf3751342f279b31f60190049aec77407ae9262069f9818"
+      },
+      {
+        "path": "server/engine/data/pack/server/obj.idx",
+        "sha256": "edfb9a90cab90849419be2233d7ea6af7eee05bf4880bb6b75d77683d5e0c779"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.dat",
+        "sha256": "5504276804b51de580dab058bdc2fa8bfc432a2a002d4b0a499223cd990a84fd"
+      },
+      {
+        "path": "server/engine/data/pack/server/param.idx",
+        "sha256": "7c673ffda5b1f1536c1ccc332a61493099d08aa089d43b35e0e8fcd802be936c"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.dat",
+        "sha256": "2e9b2a8a91ae64abee01afba9ed28c8700045eed413afdfcaa521515468f09b3"
+      },
+      {
+        "path": "server/engine/data/pack/server/script.idx",
+        "sha256": "7dcfe2c0426db07a93c63eecb3e6e8bf0e14f97d4e74b5d8e5f18c31d3137eb1"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.dat",
+        "sha256": "17a718d58381ac68c379031561349598662439507a10aa2a5408ea9a832aca51"
+      },
+      {
+        "path": "server/engine/data/pack/server/seq.idx",
+        "sha256": "8b6afaed99c44bfa201018c49c064047294dfc8169852da620f743106ebf3bbf"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.dat",
+        "sha256": "86cbc2cd8cd1565bca4b6e493d41e3a6e0cf63d9e7aa7d938221a26990427bcd"
+      },
+      {
+        "path": "server/engine/data/pack/server/spotanim.idx",
+        "sha256": "572859b1698e06352dd1c70c3c7ff8b5bdb6d4508ac9d82dfacb2c4a1a492c46"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.dat",
+        "sha256": "e528d20f9d055e6e76487f07c2cf0dbfe13b49f819627b0b8718eddf81fb0dfd"
+      },
+      {
+        "path": "server/engine/data/pack/server/struct.idx",
+        "sha256": "43a6cd1d81780e993979d07e506ff6c54e5571a6e62f79c94084bbe44f42019a"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.dat",
+        "sha256": "02114d60728295a675488a3b54ae1a92525496c73e984cc1fceaf45fc02f9e5e"
+      },
+      {
+        "path": "server/engine/data/pack/server/varbit.idx",
+        "sha256": "a3b06e8eaaeff0f13683416777f465b5c4dbb12e1a7746b61a25a3858236927d"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.dat",
+        "sha256": "58b3f7be63bb0f421bcfd9322cb99f42d1c62bc2e295217ea1cbc4a8f6a9766c"
+      },
+      {
+        "path": "server/engine/data/pack/server/varn.idx",
+        "sha256": "73993eafcdcf368a767a8e1c622511699747a42f635f9c1b31ffd2923b319f96"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.dat",
+        "sha256": "06d9da884eb3c6dc8bfef2fda8252c57b63c9f5cb1fbfbfaee9ffe20e7cab439"
+      },
+      {
+        "path": "server/engine/data/pack/server/varp.idx",
+        "sha256": "e6e87b06af30777b0c829a15b3d8e4574d2f349c1bb18fd7c00c9682da6f52a1"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.dat",
+        "sha256": "d384d9a7778c66a4bc34ef533fa720fe1b9b2234f233312e5df892c44069a5da"
+      },
+      {
+        "path": "server/engine/data/pack/server/vars.idx",
+        "sha256": "cbc943fe49dfb709c4761f632a621ed4ff9981503cd50b1d6b3e5bf6c5d52e65"
+      }
+    ]
+  },
+  "verification": {
+    "checks": [
+      {
+        "id": "20261024-231836-132-si-c06-final-archive-root",
+        "outcome": "SUCCESS",
+        "durationSeconds": 29.2716899,
+        "tests": {
+          "passed": 11.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "command": "bun test ./society-experiments/test/expanded-baseline.test.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun run typecheck; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun run format:check; exit $LASTEXITCODE",
+        "logSha256": "d028b9bf83a7da8157d1dc40c483e6e32ece603b1df45cca874316a96ebc5a09"
+      },
+      {
+        "id": "20261024-231835-076-si-c06-final-native-engine",
+        "outcome": "SUCCESS",
+        "durationSeconds": 16.8160947,
+        "tests": {
+          "passed": 2.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "command": "bun test ./server/gateway/admin/native-baseline-archive.test.ts; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun run typecheck:engine; exit $LASTEXITCODE",
+        "logSha256": "db28c2f9b727d81b9507d9b20cc36e1c3b7a68e71e2175f51e584bc74c0910a8"
+      },
+      {
+        "id": "20261024-232038-466-si-c06-final-runtime-policy-pins",
+        "outcome": "SUCCESS",
+        "durationSeconds": 18.1060883,
+        "tests": {
+          "passed": 2.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "command": "bun test ./society-experiments/test/expanded-baseline.test.ts -t \"pinned (engine-config|director-override)\"; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; bun run typecheck; exit $LASTEXITCODE",
+        "logSha256": "d540946133a99bebe80a2bfc589e964c72685f7692de279a2d7ada83decae957"
+      },
+      {
+        "id": "20261024-231426-889-si-c06-archive-consumers",
+        "outcome": "SUCCESS",
+        "durationSeconds": 21.4286083,
+        "tests": {
+          "passed": 24.0,
+          "failed": 0.0,
+          "skipped": 0.0
+        },
+        "command": "bun test ./society-experiments/test/expanded-baseline.test.ts ./society-experiments/test/archive.test.ts ./society-experiments/test/offline-probe.test.ts; exit $LASTEXITCODE",
+        "logSha256": "095a9aaf00e1d57c8ec7558f1b881075ab44de4e161b18fc5cd8b230b8952af3"
+      }
+    ],
+    "fullRegressionRun": false,
+    "fullOmission": "Component-specific archive coverage/pinning, optional staging validation and readers; shared SQLite transactions, clock/economic commit/auth foundations and dependencies unchanged.",
+    "controllerBoundary": {
+      "id": "20261024-231608-591-si-c06-expanded-controller-boundary",
+      "outcome": "PARTIAL_FAIL",
+      "controllerReportCase": "PASS",
+      "expandedCases": "5 PASS/1 aggregate timeout",
+      "resolution": "Six negative modes split into individually timed test.each cases, without increasing the5000 ms limit. Final11 plus2 additional override/config cases PASS.",
+      "assertion": "Native Phase12/controller/clock/XP report read through v2-expanded projection in a distinct restored directory; digest equality asserted."
+    },
+    "countPolicy": "Do not sum overlapping/repeated/nested cases or parallel durations. Root11 plus targeted override2 cover the13 current expanded cases."
+  },
+  "nativeTransportAcceptance": {
+    "archiveDigest": "ff1298fbb4627639ae714f47e0bb2f485a9ea5e34563a20bf9cf037161004ab4",
+    "checkpoint": "server/engine/data/player-checkpoints.sqlite",
+    "capturedProgressMs": 200000,
+    "restoredProgressMs": 200000,
+    "restoredPhase": "working",
+    "originalProgressAfterCapture": 600000,
+    "restoredResult": null,
+    "intentDigest": "a68451cdcbd5c3cad4a881ea1996da6ce2b2a1ffce5091d82925c2c4be38a681",
+    "materialDigest": "091392e8ce60bb56ffd97d4c405f9b4b788c7f505e0665408b89e7e43bdf1209"
+  },
+  "expandedPinAcceptance": {
+    "baselineDigest": "7f1ec4a68cab58137a8d240569107f5eff4a51929ae86042d331f98362088ed1",
+    "pinDigest": "17528c8a5bbd54234446dbcd7cf3a50175134daf76e4ea4acdf308f7894de126",
+    "stores": [
+      {
+        "role": "agent",
+        "path": ".local/agent-state/agents.sqlite",
+        "userVersion": 29,
+        "schemaDigest": "2735597284dada7afe22de5e1b89897ea59ebd12f1c8bc4ec3a7f37b956a4bc1",
+        "stateDigest": "be83ca45babe2be4f0a7b8848623aa7a15052148be022e5c290f11423eef339e"
+      },
+      {
+        "role": "clock",
+        "path": ".local/simulation/simulation-clock.sqlite",
+        "userVersion": 6,
+        "schemaDigest": "0c069e730327672fbb0b018f412f8255359badc5bb5d69458fcf286b5451b0c4",
+        "stateDigest": "a8611f156ba4b0a40c3887a5b12dbba8e6f476ebe09af39aac7a4b64996f1c59"
+      },
+      {
+        "role": "needs",
+        "path": ".local/simulation/food-needs.sqlite",
+        "userVersion": 0,
+        "schemaDigest": "f50cdf8658d4cbccd081c5807803cc40ea9c8540c53557125326782831d224c5",
+        "stateDigest": "67ab336fef836bb380d0456cb35854815c0c96e3d30e07a6221c19e30864de98"
+      },
+      {
+        "role": "checkpoint",
+        "path": "server/engine/data/player-checkpoints.sqlite",
+        "userVersion": 0,
+        "schemaDigest": "1d9471118c195193c0a22a73a5737703c43ac9e3002da0026054e3763c15f437",
+        "stateDigest": "718d751658fe78f78f3f0bd866400a604250b35c1135546881fcac0a88e33ca8"
+      },
+      {
+        "role": "business",
+        "path": ".local/economy/businesses.sqlite",
+        "userVersion": 0,
+        "schemaDigest": "40be4199bdaed323c7658ae4b7dbda064bba162789026b0330f3ca983e97b57e",
+        "stateDigest": "3c28caa3718636e1d375e58a14ecf1dcc1fea0d205c1cbdf2ac29421c669bf65"
+      },
+      {
+        "role": "treasury",
+        "path": ".local/economy/institution-treasury.sqlite",
+        "userVersion": 0,
+        "schemaDigest": "2da2dc7e15e876e307eec90d9f8883049d0b81eae57ff72091316e0a3bed8a80",
+        "stateDigest": "76c54636ea1dfef7c9a4e387b302e6a70eee0bca60d36e1f955d9134f63d825d"
+      }
+    ],
+    "checkpointIncluded": true,
+    "financeObservationIncluded": true,
+    "restoredInSeparateDirectory": true,
+    "provider": {
+      "provider": "mock",
+      "model": "fixture",
+      "reasoningEffort": null
+    },
+    "reportVersion": "si-c05.v1"
+  },
+  "assertedCoverage": [
+    "Canonical player-checkpoints.sqlite and WAL/SHM/journal sidecars included; .local/society-metrics finance observations included.",
+    "Current native AgentState/attribute, paused clock, needs, tool custody/work, Business binding and treasury schemas reopen in a separate directory.",
+    "WAL-only committed42 survives archive and readonly reopen; no empty default database is created when a source is missing.",
+    "Result binds the exact baseline manifest, full plan and pin; canonical treasury42 GP report is read from native SQLite again before publication.",
+    "Wrong native report, missing store/table, unsupported schema, dirty state/source/config/cache/model and unrelated baseline rejected.",
+    "Engine data/config and admin world-director/LLM/world-mod overrides participate in configuration pinning.",
+    "Native repair frozen at200000 ms, original later600000 ms completed; restored WIP remains working200000 ms with null result and exact intent/material digest and player account.",
+    "Legacy archive/CLI/path/link/secret/corrupt-payload invariants remain tested; restore validates native evidence in staging before publishing.",
+    "Managed relative worker command recognized by offline probe; no process is stopped by discovery.",
+    "Expanded benchmark report uses exact controller run/clock/genesis seed and scoped C05 outcomes with observer export disabled."
+  ],
+  "limits": [
+    "Native repair transport fixture and expanded schema/pin fixture are separate controlled experiments, not one autonomous shared economy.",
+    "Selected role/table coverage is explicit, not automatic complete-world coverage. C07 must select every authoritative channel it uses.",
+    "Native snapshots are reopened with existing current schema readers; pending/future unsupported schema must be migrated explicitly before a new pin. No automatic writer/migrator during capture or restore.",
+    "A matching seed does not attest the engine random stream, asynchronous scheduling, external LLM response replay or bit-identical world reruns.",
+    "Archive hash integrity and exact evidence replay do not create a new supported causal treatment axis or attest missing native enforcement.",
+    "Windows offline probe plus operator assertion still requires all custom/managed writers stopped; no live-world writes or historical SI-A15 database reads occurred.",
+    "Provider cost0 USD; no actual provider call, live world start, enrollment, publication, C07 run or SI-M3/MVS/self-sufficiency PASS."
+  ]
+}

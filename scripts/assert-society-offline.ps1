@@ -20,7 +20,7 @@ foreach ($entry in $processes) {
     $commandText = [string]$entry.CommandLine
     if ($entry.Name -match '^(bun|node|java)(\.exe)?$' -and
         ($commandText -match [regex]::Escape($repoPath) -or
-         $commandText -match '(server[\\/]gateway|agent-state[\\/]run|agent-skills[\\/]run|thieving-procedures[\\/]watch|run-society-experiment|src[\\/]app\.ts|src[\\/]web\.ts)')) {
+         $commandText -match '(server[\\/]gateway|server[\\/]control-plane[\\/]managed-worker\.ts|agent-state[\\/]run|agent-skills[\\/]run|thieving-procedures[\\/]watch|run-society-experiment|src[\\/]app\.ts|src[\\/]web\.ts)')) {
         throw "Possible society writer is still running (PID $($entry.ProcessId))."
     }
 }

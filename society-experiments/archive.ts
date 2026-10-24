@@ -9,8 +9,8 @@ import { validateLongExperimentPlan, type LongExperimentPlan } from './plan.js';
 /** Local private archive, never a publishable/redacted dataset. No live-world overwrite operation. */
 export const ARCHIVE_PROTOCOL = 'society-offline-archive-v1';
 const stateRoots = ['.local/admin', '.local/agent-state', '.local/agent-skills', '.local/crime', '.local/economy', '.local/simulation',
-    'server/engine/data/mods', 'server/engine/data/players', 'server/engine/data/config', 'server/engine/data/pack'];
-const engineFiles = ['server/engine/db.sqlite', 'server/engine/data/market.sqlite'];
+    '.local/society-metrics', 'server/engine/data/mods', 'server/engine/data/players', 'server/engine/data/config', 'server/engine/data/pack'];
+const engineFiles = ['server/engine/db.sqlite', 'server/engine/data/market.sqlite', 'server/engine/data/player-checkpoints.sqlite'];
 const required = ['package.json', 'config/simulation-clock.json', '.local/agent-state/agents.sqlite', '.local/simulation/simulation-clock.sqlite',
     '.local/simulation/world-genesis-runs.sqlite', '.local/simulation/society-integrity.sqlite', '.local/admin/experiment-parameters.sqlite'];
 const maxFiles = 100000, maxBytes = 20 * 1024 ** 3;
@@ -19,6 +19,8 @@ export interface ArchiveManifest {
     protocol: typeof ARCHIVE_PROTOCOL; kind: 'baseline' | 'result'; createdAt: string; plan: LongExperimentPlan;
     sourceCommit: string; bunVersion: string; platform: string; sourceTreeDigest: string;
     files: ArchiveFile[]; sourceFiles: string[]; absentRoots: string[]; report: unknown; digest: string;
+    /** Optional SI-C06 attestation; legacy verification alone does not validate its native meaning. */
+    baselineEvidence?: unknown;
 }
 function safePath(path: string) {
     check(typeof path === 'string' && path.length > 0 && path.length < 500 && !/[\\:\x00-\x1f]/.test(path), 'Invalid archive path');
@@ -52,7 +54,7 @@ function command(root: string, args: string[]) {
 }
 function excluded(path: string) {
     return path.split('/').some(part => /^(?:\.env(?:\..*)?|bot\.env|secrets|node_modules|\.git)$/i.test(part))
-        || /^(?:backups|\.local|bots)\//.test(path) || /^server\/engine\/(?:db\.sqlite|data\/(?:mods|players|pack|config|market\.sqlite))/.test(path);
+        || /^(?:backups|\.local|bots)\//.test(path) || /^server\/engine\/(?:db\.sqlite|data\/(?:mods|players|pack|config|(?:market|player-checkpoints)\.sqlite))/.test(path);
 }
 function walk(root: string, prefix: string, result: string[]) {
     const path = join(root, prefix); if (!existsSync(path)) return;
@@ -110,13 +112,15 @@ function publish(stage: string, destination: string) {
 }
 /** Required offline guard runs on both boundaries. Caller must stop ALL external writers, not only TCP listeners. */
 export function captureSocietyArchive(options: { root: string; output: string; kind: 'baseline' | 'result'; plan: LongExperimentPlan;
-    assertOffline(): void; readReport?(root: string): unknown; validateBaseline?(): void }) {
+    assertOffline(): void; readReport?(root: string): unknown; validateBaseline?(): void; baselineEvidence?: unknown;
+    readBaselineEvidence?(root:string):unknown }) {
     const root = resolve(options.root), output = resolve(options.output), plan = validateLongExperimentPlan(options.plan);
     check(options.kind === 'baseline' || options.kind === 'result', 'Invalid archive kind');
     check(!under(output, root) && (!under(root, output) || slash(relative(root, output)).startsWith('backups/')), 'Use an external destination or backups/');
     ancestors(root); options.assertOffline();
     if (options.kind === 'baseline') options.validateBaseline?.();
     const report = options.kind === 'result' ? options.readReport?.(root) : null;
+    const baselineEvidence=options.readBaselineEvidence?.(root)??options.baselineEvidence;
     // Even readonly SQLite can initialize WAL shared-memory files; finish native reads before hashing inputs.
     const before = inventory(root);
     if (options.kind === 'result') check(before.files.some(file => file.path === '.local/admin/long-experiments.sqlite') && report, 'Result requires native report and journal');
@@ -129,7 +133,7 @@ export function captureSocietyArchive(options: { root: string; output: string; k
         options.assertOffline(); check(digest(inventory(root)) === digest(before), 'Source changed during offline capture');
         const definition: Omit<ArchiveManifest, 'digest'> = { protocol: ARCHIVE_PROTOCOL, kind: options.kind, createdAt: new Date().toISOString(), plan,
             sourceCommit: command(root, ['rev-parse', 'HEAD']).trim(), bunVersion: Bun.version, platform: process.platform,
-            ...before, report };
+            ...before, report, ...(baselineEvidence ? {baselineEvidence} : {}) };
         const manifest: ArchiveManifest = { ...definition, digest: digest(definition) };
         const manifestText = JSON.stringify(manifest, null, 2) + '\n';
         check(Buffer.byteLength(manifestText) <= 32 * 1024 ** 2, 'Manifest too large');
@@ -168,7 +172,7 @@ export function verifySocietyArchive(bundle: string): ArchiveManifest {
     return manifest;
 }
 /** Restores the entire checkout/state into <output>/workspace; credentials and installed dependencies are supplied separately. */
-export function restoreSocietyArchive(bundle: string, outputPath: string) {
+export function restoreSocietyArchive(bundle: string, outputPath: string, validateRestored?: (root:string,manifest:ArchiveManifest)=>void) {
     const output = resolve(outputPath); check(!under(resolve(bundle), output) && !under(output, resolve(bundle)), 'Restore and archive overlap');
     const manifest = verifySocietyArchive(bundle), stage = newStage(output);
     try {
@@ -176,9 +180,10 @@ export function restoreSocietyArchive(bundle: string, outputPath: string) {
             ancestors(source); mkdirSync(dirname(target), { recursive: true }); copyFileSync(source, target);
             check(fileHash(target) === file.sha256, 'Archive changed during restore'); }
         sqliteIntegrity(stage, manifest.files);
+        validateRestored?.(stage,manifest);
         publish(stage, output); return manifest;
     } catch (error) { if (existsSync(stage)) discard(stage, dirname(output)); throw error; }
 }
 
 /** Shared filesystem guards for other offline protocols. Long-experiment validation remains unchanged. */
-export const offlineArchiveIO = { safePath, plain, ancestors, fileHash, command, under, newStage, discard, publish, sqliteIntegrity };
+export const offlineArchiveIO = { safePath, plain, ancestors, fileHash, command, under, newStage, discard, publish, sqliteIntegrity, inventory };

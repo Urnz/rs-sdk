@@ -19,6 +19,9 @@ import { NativeToolWorkExecutor,type NativeToolWorkPorts,type NativeToolWorkComm
 import { nativeToolWorkPolicy,TOOL_WORK_SKILLS } from '../../../../production-workflow/native-tool-work-policy.js';
 import type { NativeToolWorkKind,NativeToolWorkRecord } from '../../../../production-workflow/native-tool-work.js';
 import { readNativeWorkerEvidence,laborProjection } from '../../../../society-metrics/outcome-work.js';
+import { expandedFixture,put } from '../../../../society-experiments/test/expanded-fixture.js';
+import { captureSocietyArchive,restoreSocietyArchive } from '../../../../society-experiments/archive.js';
+import { join } from 'node:path';
 beforeAll(loadPackedContent);afterEach(closeNativeMiningFixtures);
 function harness(){
     const f=fixture(),originalIdentity=f.p.identity;let offset=0;
@@ -38,6 +41,26 @@ function harness(){
     return{...f,p,sources,command,place,tick,executor:()=>executor,restart(){executor=new NativeToolWorkExecutor(p);},
         jumpWall(){const old=p.clock;p.clock=()=>{const c=old();return{...c,wallTime:new Date(Date.parse(c.wallTime)+60000).toISOString()};};}};
 }
+test('SI-C06 native in-progress repair checkpoint reopens from archive without lost material or borrowed progress',()=>{
+    const f=harness(),a=expandedFixture(),id=`tool-${f.miner.username}`;
+    f.store.lifecycle.use('fixture-break',id,1,100,'e'.repeat(64),'2001-01-01T00:00:00.000Z');
+    f.miner.invAdd(InvType.INV,2349,1);f.place('repair');const command=f.command('repair');f.executor().start(command,f.miner);
+    const pending=f.tick(command.operationId,200000);expect(pending.phase).toBe('working');
+    // Export a frozen logical checkpoint image; the separate fixture supplies only archive transport metadata.
+    put(a.root,a.checkpoint,f.market.db.serialize());
+    const manifest=captureSocietyArchive({root:a.root,output:a.bundle,kind:'baseline',plan:a.plan,assertOffline:()=>{}});
+    expect(f.tick(command.operationId,400000).phase).toBe('completed');
+    restoreSocietyArchive(a.bundle,a.output);
+    const db=new Database(join(a.output,'workspace',a.checkpoint),{readonly:true});
+    try{const restored=NativeToolWorkStore.read(db).find(r=>r.intent.operationId===command.operationId)!;
+        expect(restored).toEqual(pending);expect(restored.progressMs).toBe(200000);expect(restored.result).toBeNull();
+        expect(db.query('SELECT count(*) n FROM accounts WHERE owner=?').get(f.miner.username)).toEqual({n:1});
+        console.log('SI-C06_NATIVE_ACCEPTANCE',JSON.stringify({archiveDigest:manifest.digest,checkpoint:a.checkpoint,
+            capturedProgressMs:pending.progressMs,restoredProgressMs:restored.progressMs,restoredPhase:restored.phase,
+            originalProgressAfterCapture:f.executor().work.get(command.operationId)!.progressMs,restoredResult:restored.result,
+            intentDigest:restored.intentDigest,materialDigest:restored.materialDigest}));
+    }finally{(db as Database&{clearQueryCache():void}).clearQueryCache();db.close(true);}
+});
 test('SI-C05 controlled native work week separates workers, output, credit and unknown availability',()=>{
     const f=harness(),second=f.player(undefined,false),id=`tool-${f.miner.username}`;
     f.store.lifecycle.use('fixture-break',id,1,100,'e'.repeat(64),'2001-01-01T00:00:00.000Z');

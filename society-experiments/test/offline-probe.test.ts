@@ -20,6 +20,8 @@ test('offline probe refuses a local listener and a known writer even with a rela
     expect(listener.exitCode).not.toBe(0); expect(listener.stderr.toString()).toContain('listener');
     const writer = probe("function Get-CimInstance { @([pscustomobject]@{ProcessId=123;Name='bun.exe';CommandLine='bun server/gateway/gateway.ts'}) }");
     expect(writer.exitCode).not.toBe(0); expect(writer.stderr.toString()).toContain('writer');
+    const managed = probe("function Get-CimInstance { @([pscustomobject]@{ProcessId=123;Name='bun.exe';CommandLine='bun server/control-plane/managed-worker.ts'}) }");
+    expect(managed.exitCode).not.toBe(0); expect(managed.stderr.toString()).toContain('writer');
 });
 test('offline probe fails closed when OS discovery fails', () => {
     const result = probe("function Get-CimInstance { throw 'discovery unavailable' }");

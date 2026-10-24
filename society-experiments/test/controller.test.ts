@@ -33,6 +33,7 @@ import {compareLongExperiments,LONG_COMPARISON_CAPABILITIES,validateLongComparis
 import {captureSocietyArchive,restoreSocietyArchive,verifySocietyArchive} from '../archive.js';
 import {readBenchmarkReport,validateBenchmarkBaseline} from '../benchmark-report.js';
 import {transitionBenchmarkClock} from '../benchmark-clock.js';
+import type { ExpandedSelection } from '../expanded-baseline.js';
 import {defaultLongExperimentSources} from '../runtime.js';
 import {readdirSync} from 'node:fs';
 
@@ -181,6 +182,16 @@ test('benchmark result restores native Phase12, clock and XP evidence into an is
     restoreSocietyArchive(bundle,restored);
     expect(readBenchmarkReport(join(restored,'workspace'),f.plan)).toEqual(original);
     expect(verifySocietyArchive(bundle).digest).toBe(manifest.digest);
+    const selected:ExpandedSelection={worldId:'si-c06-report-fixture',clockId:original.execution.started.clockId,
+        clockProfileDigest:original.execution.started.profileDigest,seed:f.result.seed,runId:f.plan.sessionId,
+        provider:{provider:'mock',model:'deterministic-scripted-v1',reasoningEffort:null},reportVersion:'si-c05.v1',
+        stores:[{role:'agent',path:'.local/agent-state/agents.sqlite',requiredTables:['agent_population_member']},
+            {role:'clock',path:'.local/simulation/simulation-clock.sqlite',requiredTables:['simulation_clock']}]};
+    const enriched=readBenchmarkReport(root,f.plan,selected),expandedBundle=join(f.directory,'expanded-report'),expandedRestore=join(f.directory,'expanded-restore');
+    expect(enriched.protocol).toBe('society-benchmark-report-v2-expanded');
+    captureSocietyArchive({root,output:expandedBundle,kind:'result',plan:f.plan,assertOffline:()=>{},readReport:base=>readBenchmarkReport(base,f.plan,selected)});
+    restoreSocietyArchive(expandedBundle,expandedRestore,(base,m)=>expect(readBenchmarkReport(base,f.plan,selected).digest).toBe((m.report as {digest:string}).digest));
+    expect(readBenchmarkReport(join(expandedRestore,'workspace'),f.plan,selected)).toEqual(enriched);
     mutate(join(restored,'workspace/.local/admin/xp-execution.sqlite'),"DELETE FROM xp_execution_event WHERE sequence=2");
     expect(()=>readBenchmarkReport(join(restored,'workspace'),f.plan)).toThrow();
 },30000);

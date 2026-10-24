@@ -5,71 +5,68 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
 
-- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C05 kész; SI-M2 v2 PASS.
-  26/45 lezárt feladat. Következő SI-C06, csak új felhasználói kérésre.**
-  C05 ág: `codex/si-c05-native-outcome-metrics`, baseline `0cf37107c`.
-  [C05 határ/CLI/korlátok](SI_C05_NATIVE_OUTCOME_METRICS.md),
-  [source-bound eredmény](SI_C05_NATIVE_RESULT.json).
-- C06 első lépés: a meglévő archive/controller/source/comparison authoritative
-  source-listájának összevetése az új C01–C05 forrásokkal; pinned report/policy/
-  cache/model/config verzió és kicsi restore-roundtrip terv. C05 nem hozott új
-  authoritative store-t. Történeti backupokat ne nyisd meg; ne indíts C07 soakt.
-- C05 readonly projection: actual worker/native output/credited simulation-time
-  és physical-stage receipt HHI külön a registered recipe responsibilitytől.
-  Business requester/assigned worker és cook run/batch kapcsolás külön.
-  Completion whole-job timing; person-time credit az ablakra vágott.
-  Shift minutes, noncredit, offline és receipt timestamp nem munkaidő-nevező.
-- Kontrollált native proof: repair600000 ms/capacity50, smelt120000 ms/egy bar,
-  Mining egy ore ismeretlen durationnel. Offline200600 ms nem credit,
-  smelt elapsed320600 ms. Három completion egyhetes riportablakban, nem autonóm
-  munkahét. Available-and-willing person-time és unemployment rate unknown.
-- Social csak backend-scoped observer saját memóriája/commitmentje/evidence-ID-ja
-  és saját trade-részvétele, partner is selected cohort. Observer belief és
-  reported cooperation/conflict külön a native trade-től; nincs trade→trust.
-  Privát szöveg és parser error excerpt nem export. Source-head/wall memória
-  nem simulation-window tény. Actor-widening még source-read előtt elutasított.
-- Goal stored observation digest/predicate újraszámolt; completion event és
-  natív clock stamp egyeztetett. Successful skill nem state/strategy siker.
-  Történeti inventory újraattestálása és teljes stratégiai sikerráta hiányzik.
-- Provider külön explicit wall-window; audit-reported tokens/cost, admission,
-  request→response elapsed, active service unknown. Stage tartalmazhat backoffot;
-  missing/ambiguous response, truncation és audit nélküli admission nem teljes
-  nulla. Mock120/30 token/0 microUSD; actual providerhívás nincs.
-- Export: `reportNativeOutcomes`, optional evaluation/dashboard `nativeOutcomes`,
-  admin context `nativeOutcomeOptions`, GET `/api/admin/society/outcomes`,
-  explicit workspace/world/checkpoint/actor/observer CLI. Default nincs scoped
-  export capability. HTTP path/observer/observations nem authority. Nincs új
-  store/migráció, report közben writer, vagy cross-DB atomicity claim.
-- [C04 frozen finance](SI_C04_NATIVE_FINANCE_HISTORY.md), [C03 repair](SI_C03_NATIVE_TOOL_REPAIR.md),
-  [C02 custody](SI_C02_NATIVE_MINING_TOOL.md), [C01 XP](SI_C01_NATIVE_ATTRIBUTE_XP.md)
-  korlátai megmaradtak. AgentState29; saját readonly projection, auth/clock/
-  transaction alap változatlan. SI-C07/SI-M3/MVS/önfenntartás továbbra nyitott.
+- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C06 kész; SI-M2 v2 PASS.
+  27/45 lezárt feladat. Következő SI-C07, csak új felhasználói kérésre.**
+  Ág: `codex/si-c06-expanded-baseline`, baseline `d57966d2f`.
+  [C06 coverage/pin/CLI/korlátok](SI_C06_EXPANDED_BASELINE.md),
+  [source-bound eredmény](SI_C06_NATIVE_RESULT.json).
+- C07 első lépés: teljes native source/enforcement/minimum-denominátor preflight
+  és konkrét hosszú run-plan maxwall/költség/stopfeltételekkel. A valódi hosszú
+  futás külön, elkészült tervre adott jóváhagyást kér. A korábbi B06 költségkeret
+  nem általános engedély. Ne indíts automatikusan új világot vagy hosszú soakt.
+- C06 új root coverage: canonical `player-checkpoints.sqlite` +WAL/SHM/journal
+  és `.local/society-metrics` megfigyelések. Régi v1 archive olvasható. Additív
+  expanded pin/evidence és opcionális staging callback; nincs új authoritative
+  store, domain migráció vagy shared SQLite/clock/auth/economic-commit változás.
+- Pin: explicit world/clock/profile/run/declared seed/provider/model/effort/
+  reportverzió; source/config/packed digest és kiválasztott store/table/schema/
+  state. Config, engine data/config, LLM/world-director/world-mod override
+  pinned. Missing source/table vagy unsupported séma hiba; a run minden
+  szükséges authoritative source-át a tervbe fel kell venni. Selected coverage
+  nem automatikus teljes-világ-lefedettség. Migráció csak normál domain workflow
+  szerint, a pin készítése előtt; report/restore nem migrál.
+- Result exact baseline-manifesthez és teljes pin/planhez kötött. Restore új
+  könyvtárba, native state/schema/report ellenőrzés még stagingben, publish előtt.
+  Archive payload DB-t ne nyiss meg, külön előzetes teljes verify nem kell.
+  CLI: `society-benchmark.ts prepare-expanded/capture/restore/compare-expanded`;
+  source paths/selection operátori/backend authority, nem feltöltött observations.
+- A v2 benchmark report C05 outcomes-ot olvas a saját restored workspace-ból,
+  exact controller run/clock/genesis seeddel és valódi execution wall-windowval.
+  Observer-export off; hiányzó csatorna partial/inconclusive. V1 default ág és
+  minimumképletek változatlanok. Seed nem RNG-stream/scheduler/LLM replay;
+  nincs bitazonos rerun vagy új támogatott oksági treatment-axis állítás.
+- Két külön kontrollált proof:6 store/schema +finance observation +WAL-only42
+  row +treasury42 GP result replay; külön actual engine repair WIP200000 ms
+  archive/reopen, eredeti később600000 ms completed, másolat working200000/
+  result null. A native transport meta-fixture és a pin fixture nem egy élő
+  közös gazdaság. Intent/material digest és Player checkpoint megmaradt.
+- [C05 outcomes](SI_C05_NATIVE_OUTCOME_METRICS.md), [C04 finance](SI_C04_NATIVE_FINANCE_HISTORY.md),
+  [C03 repair](SI_C03_NATIVE_TOOL_REPAIR.md), [C02 custody](SI_C02_NATIVE_MINING_TOOL.md),
+  [C01 XP](SI_C01_NATIVE_ATTRIBUTE_XP.md) korlátai megmaradtak. Available/willing
+  exposure és teljes stratégiai sikerráta nincs; trade nem trust, skill nem
+  strategy-success. SI-C07/SI-M3/MVS/önfenntartás továbbra nyitott.
 
 ## Legfrissebb ellenőrzés
 
-- **Full nem futott:** readonly source/projection + lokális planning DI;
-  shared persistence/transaction/clock/auth/dependency alap nem módosult.
-  Csak konkrét consumer, native boundary, érintett TS és staged format.
-- `20261024-225138-443-si-c05-final-effect-clock`: native child+wrapper2 PASS,
-  engine TS PASS,46,177 s. Digest-helyes, de foreign-clock effect fault is fedett.
-- `20261024-225138-949-si-c05-final-effect-reader-types`: reader9/root TS PASS,
-  50,777 s. `20261024-225424-400-si-c05-final-export-privacy`: végső reader9
-  és CLI/transitive TS PASS,11,212 s. Sanitized error nem idéz privát auditot.
-- `20261024-224711-277-si-c05-final-readers-consumers`:65 PASS/1 FAIL,14,294 s.
-  Meglévő replan fixture közös budgetet/állandó run ID-t használt. Javítás:
-  optional backend `planning` infrastruktúra-injekció; saját temp budget/
-  queue/audit, scope/goal/authorization változás nélkül. Két külön ismétlés
-  és16 replan/dry-run consumer PASS:
-  `20261024-224916-858-si-c05-isolated-planning`,11,972 s.
-  A többi65 PASS fogyasztó bemenete változatlan; új reader ismét célzottan fedve.
-- `20261024-224614-487-si-c05-native-credit-and-cohort`:23 PASS,13,756 s,
-  benne C03 régi12 native case és default-kompatibilis fixture workerparaméter.
-- Korai fixture/UUID/hierarchy/mock-goalId/generic return hibák logjai megvannak;
-  nincs assertion/policy gyengítés vagy közös budget-törlés. A gate-ek átfednek,
-  párhuzamos/nested idők és számok nem összeadandók. Részletes index a C05 doc/
-  eredményben; teljes log/result: `.local/verification/<id>.log/.result.json`.
-- `20261024-225759-936-si-c05-docs-source-final`: staged format, source43/packed48
-  hash, linkek és roadmap26/45 ellenőrzés PASS,1,869 s. Nincs új runtime futás.
+- **Full nem futott.** Offline archive saját coverage/pin/validator, readonly
+  report és lokális CLI/probe; nincs shared writer/migration/auth/clock alapváltozás.
+- `20261024-231836-132-si-c06-final-archive-root`:11 expanded PASS,
+  root TS/format PASS,29,271 s.
+- `20261024-231835-076-si-c06-final-native-engine`: actual native WIP
+  child+wrapper2 PASS, engine TS,16,816 s.
+- `20261024-232038-466-si-c06-final-runtime-policy-pins`: engine-config és
+  director-override2 PASS, root TS,18,106 s. Összes jelenlegi expanded eset13,
+  a korábbi11 kimeneteit e két új filter nem változtatja.
+- `20261024-231426-889-si-c06-archive-consumers`:24 PASS,21,428 s,
+  legacy archive/CLI/path/link/secret/corruption és offline probe is fedett.
+- `20261024-231608-591-si-c06-expanded-controller-boundary`: native controller/
+  Phase12/clock/XP +v2 report restore-case PASS; utána expanded5 PASS/1 összesített
+  5 s timeout. A6 negatív mód külön név/idő szerinti test.each sor lett,
+  időlimit/assertion emelése nélkül; a végső expanded kapu zöld.
+- Korai fixture pause-argument/population clock/attribute admission és CLI
+  literal type FAIL-ok megmaradtak, szűken javítva. Átfedő/nested/párhuzamos
+  számok/idők nem összeadandók. Részletes index a C06 doc/eredményben;
+  teljes log/result: `.local/verification/<id>.log/.result.json`.
 
 ## Megőrzendő döntések és mentések
 
@@ -79,7 +76,7 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 - B06 engedély kizárólag0,05 USD-s próbára szólt:11 kérés /4235 microUSD
   =0,004235 USD. Nincs általános költési engedély; normál per-call0,
   auto-replanning/autonomousExecution off, B04/B05 default grant üres.
-  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C05 providerköltség0.
+  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C06 providerköltség0.
 - SI-A15 technikai PASS; eredeti D1/SI-M1 önfenntartás nem PASS, teljes gazdasági
   minősítés inconclusive. [Technikai eredmény](SI_A15_TECHNICAL_RESULT.md),
   [archívum/restore](SI_A15_RESULT_ARCHIVE.md).
