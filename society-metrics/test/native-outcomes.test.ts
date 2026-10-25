@@ -23,6 +23,7 @@ import { BusinessManagerStore } from '../../server/gateway/admin/business-manage
 import { BusinessWorkStore } from '../../business-work/work.js';
 import { populationNeedsBinding } from '../../needs/population-binding.js';
 import { NativeMiningDemandStore } from '../../item-lifecycle/native-mining-demand.js';
+import { NativeMiningIntentStore,type NativeMiningIntentRecord } from '../../item-lifecycle/native-mining-intent.js';
 
 const roots:string[]=[],closers:Array<()=>void>=[];
 afterEach(()=>{for(const close of closers.splice(0).reverse())close();for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true});});
@@ -205,4 +206,29 @@ test('native tool-demand channel binds lifecycle, stays partial and redacts corr
     expect(readFileSync(path)).toEqual(before);
     db.exec(`DROP TRIGGER native_mining_demand_no_update;UPDATE native_mining_demand_event SET payload='PRIVATE CORRUPT SOURCE'`);
     const invalid=f.read().sources.toolDemand;expect(invalid.status).toBe('invalid');expect(JSON.stringify(invalid)).not.toContain('PRIVATE');
+});
+
+test('a scoped native unusable-demand violation is surfaced through evaluation without granting any minimum PASS',()=>{
+    const f=fixture(),member=f.store.bindPopulationMember({agentId:'alice',playerUsername:'alice',worldProfile:{profileId:'mature-society',version:'1.0.0',digest:'a'.repeat(64)},
+        lifecyclePolicy:{policyId:'finite-population',version:'1.0.0',digest:'b'.repeat(64),kind:'finite'},
+        simulationClock:{clockId:'world',profileDigest:f.scope.clockProfileDigest},joinedAtSimulationTime:sim,
+        sourceResultId:'genesis-0123456789abcdef01234567',sourceResultDigest:'c'.repeat(64)},wall);
+    const path=join(f.workspace,'server/engine/data/player-checkpoints.sqlite');mkdirSync(join(f.workspace,'server/engine/data'),{recursive:true});
+    mkdirSync(join(f.workspace,'config'));writeFileSync(join(f.workspace,'config/society-minimum-policy.json'),readFileSync(resolve(import.meta.dir,'../../config/society-minimum-policy.json')));
+    const db=new OwnedDatabase(path);closers.push(()=>db.close());f.options.checkpointPath=path;
+    const store=new NativeMiningIntentStore(db),initialWall=Date.parse(wall);
+    let r:NativeMiningIntentRecord={schemaVersion:1,revision:1,phase:'pending',completionEventId:null,
+        intent:{demandId:randomUUID(),outputItemId:436,contextDigest:'c'.repeat(64),authorityDigest:'d'.repeat(64),maximumWallMilliseconds:300000,
+            expiresAtWallTime:new Date(initialWall+300000).toISOString(),owner:{actorId:'alice',username:'alice',lifecycleId:populationNeedsBinding(f.options.worldId,member).lifecycleId,
+                worldId:f.options.worldId,clockId:'world',clockProfileDigest:f.scope.clockProfileDigest}},
+        sample:{clock:{clockId:'world',profileDigest:f.scope.clockProfileDigest,status:'running',engineTick:1,revision:1,wallTime:wall,simulationTime:sim},
+            sessionId:'native-session',availability:'unusable',itemInstanceId:'tool-alice',itemRevision:2,reason:null}};
+    store.write(r);
+    for(let i=1;i<=7;i++){r={...r,revision:r.revision+1,sample:{...r.sample,clock:{...r.sample.clock,engineTick:i+1,
+        wallTime:new Date(initialWall+i*600).toISOString(),simulationTime:new Date(Date.parse(sim)+i*600000).toISOString()}}};store.write(r);}
+    const options={configDirectory:resolve(import.meta.dir,'../../config'),nativeOutcomes:f.options};
+    expect(reportSocietyEvaluation(f.scope,options).societyMinimumVerdict).toBe('fail');
+    const channel=f.read().sources.toolDemand;expect(channel.status).toBe('available');if(channel.status!=='available')throw Error('demand channel');
+    expect(channel.value.standingRequests).toMatchObject({verdict:'fail',longestConfirmedUnusableSimulationMs:4200000,completeDemandCoverage:false});
+    expect(reportSocietyEvaluation({...f.scope,fromSimulationTime:'2001-01-01T01:00:00.000Z'},options).societyMinimumVerdict).toBe('inconclusive');
 });

@@ -3,9 +3,12 @@ import { NativeMiningDemandStore,type NativeMiningDemandObservation } from '../i
 import { nativeToolDigest } from '../item-lifecycle/native-tool.js';
 import type { EvaluationScope } from './evaluation.js';
 import { outcomeCheck,outcomeTime,type OutcomeActor } from './outcome-work.js';
+import { NativeMiningIntentStore } from '../item-lifecycle/native-mining-intent.js';
+import { readNativeMiningIntentIntervals } from './tool-demand-intervals.js';
+import type { SocietyMinimumPolicy } from '../society-minimum/policy.js';
 
 /** Native request observations, deliberately separate from an unproved continuous-demand denominator. */
-export function readNativeToolDemandObservations(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[]){
+export function readNativeToolDemandObservations(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[],policy?:SocietyMinimumPolicy){
     const from=outcomeTime(scope.fromSimulationTime),to=outcomeTime(scope.toSimulationTime);
     outcomeCheck(to>from&&new Set(actors.map(a=>a.agentId)).size===actors.length&&actors.length===scope.actorAgentIds.length
         &&actors.every(a=>scope.actorAgentIds.includes(a.agentId)),'Invalid native tool demand scope/actors');
@@ -31,9 +34,10 @@ export function readNativeToolDemandObservations(db:Database,scope:EvaluationSco
             evidence:rows.map(e=>({sequence:e.sequence,digest:e.digest,requestId:e.observation.requestId,phase:e.observation.phase,
                 reason:e.observation.reason,simulationTime:e.observation.clock.simulationTime,itemInstanceId:e.observation.item?.itemInstanceId??null}))};
     });
-    const body={protocol:'native-tool-demand-observations-v1',scope,worldId,cycleId:'bronze-pickaxe-mining',
+    const standingRequests=NativeMiningIntentStore.present(db)&&policy?readNativeMiningIntentIntervals(db,scope,worldId,actors,policy):null;
+    const body={protocol:'native-tool-demand-observations-v1',scope,worldId,cycleId:'bronze-pickaxe-mining',standingRequests,
         coverage:present?'attempt-observations-only':'source-absent',sourceHead:source?.head??null,actors:observed,
-        unusableDemandSimulationMilliseconds:null,minimumVerdict:'inconclusive',
+        unusableDemandSimulationMilliseconds:null,minimumVerdict:standingRequests?.verdict==='fail'?'fail':'inconclusive',
         gaps:['Native script admission/rejection/output observations do not attest persistent requested-use intervals or all actor demand.',
             'Missing identity/unbound legacy requests, cancellation, downtime and pre-instrumentation history have no completeness watermark.',
             'Idle/offline time and the gap between rejected clicks must not be counted as requested unusable-tool time.']};

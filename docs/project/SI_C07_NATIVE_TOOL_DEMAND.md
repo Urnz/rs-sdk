@@ -2,6 +2,11 @@
 
 2026-10-25. Részlépés; SI-C07 nyitott,27/45, SI-M3/MVS nem PASS.
 
+**Későbbi bővítés:** [tartós igény, expiry/cancel/fulfillment és időintervallumok](SI_C07_STANDING_TOOL_DEMAND.md).
+Az alábbi leírás az egyszeri attempt-csatorna határa; a teljes cohort coverage
+továbbra hiányzik. A tartós kérés külön natív admissiont igényel, nem születik
+egy elutasított kattintásból.
+
 A tényleges packed Mining befogadott, elutasított és committed kimeneti
 megfigyelése most tartósan megmarad. A natív script törött eszköz esetén azonnal
 ABORTED állapotba kerül; nincs mögötte automatikusan fennmaradó várakozási igény.
@@ -64,8 +69,9 @@ Hosszú C07 baseline kiválasztásakor e táblák/head kötelező source-pinje �
 
 ## Maradó munka
 
-1. Natív tartós igény lifecycle és hiányt igazoló időintervallumok; a cancel,
-   eltűnt session/identity és runtime downtime ne váljon igazolatlan nullává.
+1. A később elkészült tartós komponenshez production source-backed gather-loc
+   admission/start/cancel és teljes cohort coverage szükséges; a részleteket
+   a fenti bővítési link tartalmazza. Session/identity gap nem igazolt nulla.
 2. A17 eredeti minimum requirement és8 integrity gate teljes assessment bridge-e;
    hiányzó coverage inconclusive, bizonyított gazdasági sértés FAIL.
 3. Teljes founder tool/food/housing baseline, ratio-próba, kötelező source-pinek,

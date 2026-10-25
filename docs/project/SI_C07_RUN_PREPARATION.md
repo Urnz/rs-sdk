@@ -3,7 +3,8 @@
 2026-10-24, folyamatban; baseline `8b605589413687cc1bea934475b4e86c0d7e9402`,
 ág `codex/si-c07-minimum-preflight`. SI-C07 nincs lezárva,27/45.
 
-E kör a konkrét run-plan és a readonly belépési feltételek előkészítése.
+Az első,2026-10-24-i kör a run-plan és readonly belépési feltételek előkészítése.
+A2026-10-25-i natív komponensbővítések és ellenőrzések alább szerepelnek.
 Nincs hosszú futási vagy provider-költési jóváhagyás; B06 engedély nem általános.
 Történeti SI-A15 payloadokat nem nyitjuk meg, élő világot nem indítunk.
 
@@ -64,15 +65,18 @@ verziókkal rendelkező1.3.0 native-travel fixture. Ezt nem alkalmaztuk egy vil�
 
 ## Konkrét belépési akadályok és következő munka
 
-1. **Natív minimum-assessment bridge hiányzik.** A jelenlegi integration/
-   evaluation riport szándékosan részleges, minimumverdiktje inconclusive.
+1. **Teljes natív minimum-assessment bridge hiányzik.** A riport részleges;
+   a bizonyított natív tool-demand sértést már FAIL-ként továbbadja, teljes
+   minimum PASS-t nem állapíthat meg.
    A17 rule minden required scope-ját és8 integrity gate-et a meglévő forrásokból
    kell összekötni, változatlan képlettel. Egy sikeres controller-trajectory
    vagy report-restore nem oldja ezt meg.
 2. **Tool-unusable-demand időbeli lefedettsége hiányos.** 2026-10-25 óta a
    [natív Mining request-napló](SI_C07_NATIVE_TOOL_DEMAND.md) a befogadott,
-   elutasított és committed próbákat tartósan köti a natív forráshoz. A teljes
-   kért igényidő, cancel és coverage-watermark még hiányzik. Offline vagy üres
+   elutasított és committed próbákat tartósan köti a natív forráshoz. Most a
+   [külön tartós kérés](SI_C07_STANDING_TOOL_DEMAND.md) expiry/cancel/fulfillment
+   és konzervatív időintervallumai is elkészültek. A production gather-loc
+   admission és teljes cohort coverage még hiányzik. Offline vagy üres
    skill-queue, illetve két elutasított kattintás közötti idő nem töltheti ki
    ezt a nevezőt. A C05 available-and-willing unemployment exposure külön mérés.
 3. **A baseline food/travel-only.** Nincs a négy founderhez kötött teljes
@@ -113,7 +117,18 @@ nem változik, így nem az első használat bővíti a leendő baseline sémáj�
 `20261025-100843-755-si-c07-demand-benchmark-restore`:1 célzott benchmark/
 result-report/restore próba és friss NO-GO/sourcehash/link ellenőrzés PASS16,617 s.
 
+2026-10-25 további részlépés: [tartós natív igény és időmérés](SI_C07_STANDING_TOOL_DEMAND.md),
+explicit lifetime/cancel/expiry, valódi érc-receipthez kötött teljesítés és
+source-gap védelem. Scoped, igazolt >1 óra hiány FAIL-ként továbbjut az evaluation
+facade-ba, rövid/hiányos bizonyíték nem lesz PASS. A production admitted gather
+run/step/parameters/checksum bekötés még hiányzik; a runtime start fail-closed.
+Ellenőrzés:129 célzott runtime ellenőrzés PASS59,82 s, a kör root TS2322 miatt
+FAIL76,892 s; explicit commit utáni return javítás után7 saját teszt +root/engine
+TS PASS104,775 s. `si-c07-intent-preflight-and-benchmark`:3 preparer és1 konkrét
+benchmark/restore próba +friss NO-GO artifact/sourcehash/link PASS9,702 s.
+Részletes azonosítók és korlátok a tartós igény dokumentumában/átadásban.
+
 **SI-C07 nyitott,27/45; SI-M3/MVS nem PASS.** Következő konkrét kódmunka a
-tartós natív requested-use intervallum/lezárás/coverage és a minimum assessment
-bridge. A következő task továbbra C07, nem C08; a hosszú futási jóváhagyás még
-nem esedékes.
+source-backed gather-loc admission/start/cancel, teljes cohort coverage és a
+minimum assessment bridge. A következő task C07, nem C08; a hosszú futási
+jóváhagyás még nem esedékes.

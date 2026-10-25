@@ -2457,3 +2457,48 @@ sémaváltás vagy visszatöltött history. Régi binding világán baseline el�
 külön upgrade kell. `20261025-100734-190-si-c07-demand-opening-boundary`:
 20 ellenőrzés és engine TS PASS40,022 s (5 új +13 C02 natív eset,2 wrapper).
 Ez a nyitási módosítás utáni célzott ismétlés, nem általános regressziós kör.
+
+## 2026-10-25 – SI-C07 tartós natív igény és időmérés
+
+[Tartós Mining-igény komponens](SI_C07_STANDING_TOOL_DEMAND.md): saját explicit
+admission port, pending/cancel/expiry/valódi Mining-eventhez kötött fulfillment,
+World tick observer és4 additív saját tábla/séma1. User_version/clock/asset
+alaptranzakció változatlan. A kimeneti intent-írás az érc/wear/checkpoint
+tranzakció része; új íráshiba mindet rollbackeli. Korábbi egyszeri kattintásból
+nincs implicit tartós igény vagy demand-backfill. A tracker nem mozgat vagy
+bányászik automatikusan. Natív repair→Mining és külön könyvtáras archive-reopen
+próba megvan; C06 a selected intent source chain/head/clock kötését újraolvassa.
+
+A sim idő csak egyazon aktív igény folytonos, ugyanazon session/egymás utáni
+tick/azonos broken instance+revision mintáiból alsó korlát. Restart/offline,
+kihagyott tick,5 s-nál nagyobb observer wall rés, módosult state vagy unobserved
+open tail nem bizonyított nulla. A natív lifetime legfeljebb300000 wall ms,
+retry nem tolja ki; expiry után nincs igényidő vagy utólagos fulfillment.
+Eredeti policyből származó >1 óra igazolt scoped sértés FAIL-ként továbbjut az
+evaluation facade-ba, a részleges/rövid bizonyítékból nem keletkezhet PASS.
+Nincs új minimumképlet vagy17 rule/8 integrity gate/küszöb/fiziológia módosítás.
+
+Production gather-loc source-backed admission/start/cancel még hiányzik;
+a normál runtime start fail-closed, nincs új SDK/HTTP belépő. A natív tesztek
+explicit fixture admissiont adnak. Következő: admitted run/step/parameters/
+checksum/active marker +avatar kötés és abort/timeout/disconnect/retarget,
+majd teljes cohort coverage, minimum bridge és teljes baseline/ratio/SI-A14.
+100000 row/256 MiB readerlimit: hosszú terv előtt source-row/byte budget kell.
+SI-C07 továbbra nyitott27/45 és preflight NO-GO. Nincs hosszú run, új genesis,
+import, enrollment/publication, történeti DB-read vagy providerköltség.
+
+Ellenőrzés: `20261025-102821-661-si-c07-intent-native-thin`korai5 natív +1
+wrapper PASS3,088 s. `20261025-103413-367-si-c07-intent-consumers`14 fájl129
+runtime ellenőrzése PASS59,82 s; a kör összesítve FAIL76,892 s a root TS2322
+miatt (SQLite transaction.immediate void-visszatérési típusa). Javítás: explicit
+record return commit után. `20261025-103631-057-si-c07-intent-types-return`:
+7 saját store teszt és root+engine TS PASS104,775 s. A sikeres natív és consumer
+köröket a típusjavítás miatt nem ismételtük. Full nem futott: a saját additív
+séma/lokális observer nem változtatott shared migrátort/clock/asset commit/auth
+invariánst. A nested és átfedő ellenőrzések számai/idői nem összeadandók.
+
+Utóellenőrzés: `20261025-104422-944-si-c07-intent-preflight-and-benchmark`:
+3 saját preparer és1 kiválasztott benchmark/result/restore próba, friss NO-GO
+artifact +sourcehash/link PASS9,702 s. Továbbra27/45, C07 nyitott. A17 eredeti
+requirement/8 integrity gate, approved minimum forráshash,0 provider authorization
+és a külön hosszú futási jóváhagyás követelménye változatlan.

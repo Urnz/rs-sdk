@@ -9,6 +9,7 @@ import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFood
 import { AGENT_STATE_SCHEMA_VERSION } from '../agent-state/types.js';
 import { SIMULATION_CLOCK_STORE_SCHEMA_VERSION } from '../simulation-clock/types.js';
 import { readWorkBindings } from '../business-work/binding.js';
+import { NativeMiningIntentStore } from '../item-lifecycle/native-mining-intent.js';
 import { captureSocietyArchive,verifySocietyArchive,restoreSocietyArchive,offlineArchiveIO as io,type ArchiveManifest } from './archive.js';
 import type { LongExperimentPlan } from './plan.js';
 
@@ -39,6 +40,9 @@ function stores(root:string,selected:ExpandedSelection){
             if(s.requiredTables.includes('native_tool_work'))for(const job of NativeToolWorkStore.read(db))check(job.intent.owner.worldId===selected.worldId
                 &&job.intent.owner.clockId===selected.clockId&&job.intent.owner.clockProfileDigest===selected.clockProfileDigest,'Native work belongs to another world/clock');
             if(s.requiredTables.includes('native_food_production_schema'))assertFoodProductionSchema(db);
+            if(s.requiredTables.includes('native_mining_intent_state'))for(const {record} of NativeMiningIntentStore.read(db).entries)
+                check(record.intent.owner.worldId===selected.worldId&&record.intent.owner.clockId===selected.clockId
+                    &&record.intent.owner.clockProfileDigest===selected.clockProfileDigest,'Native mining demand belongs to another world/clock');
             if(s.requiredTables.includes('business_work_binding'))readWorkBindings(db);
             if(s.role==='needs')check((db.query('SELECT version FROM needs_schema').all() as {version:number}[]).map(r=>r.version).join(',')==='1','Unsupported needs schema');
             if(s.role==='clock'){const clock=db.query('SELECT status,profile_digest FROM simulation_clock WHERE clock_id=?').get(selected.clockId) as {status:string;profile_digest:string}|null;

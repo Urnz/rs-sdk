@@ -79,7 +79,8 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
             unemployment: 'No available-and-willing person-time history; offline or skill-idle does not prove unemployment.',
             'innovation-investment': 'No native commissioning/capital-expense history; production, XP and recipe availability do not prove innovation.',
             crime: 'No complete window/cohort victimization and at-risk exposure source; discoveries do not prove true incidence.' },
-        totalScore: null, societyMinimumVerdict: 'inconclusive', completePopulationCoverage: false,
+        totalScore: null, societyMinimumVerdict: outcomes?.sources.toolDemand.status==='available'
+            &&outcomes.sources.toolDemand.value.minimumVerdict==='fail'?'fail':'inconclusive', completePopulationCoverage: false,
         limitations: [...selfSufficiency.limitations, ...economicRisk.limitations,
             'Specialization counts recorded recipe-stage responsibilities, not physical worker execution, productive efficiency or opportunity.',
             'Systemic risk describes the observed economic window, not only the selected cohort and not future adaptive behavior.',

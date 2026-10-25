@@ -26,7 +26,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     const headroom=nominalPortions===null||closingReserve===null?null:capacity-nominalPortions-closingReserve;
     const toolSkills=fixture.skills.filter(s=>/smelt|repair|mining/.test(s.id));
     const readerCoverage=contract.requirements.map(r=>({requirementId:r.requirementId,comparison:r.comparison,threshold:r.threshold,scope:r.scope,
-        status:['internal-food-relief-share','tool-maintenance-cycles','productive-participants','productive-stage-kinds','inter-actor-final-use-chains'].includes(r.requirementId)?'partial-native-reader':'not-aggregated-for-minimum',
+        status:['internal-food-relief-share','tool-maintenance-cycles','tool-unusable-demand-time','productive-participants','productive-stage-kinds','inter-actor-final-use-chains'].includes(r.requirementId)?'partial-native-reader':'not-aggregated-for-minimum',
         assessedValue:null,verdict:'inconclusive'}));
     const gates=[
         {id:'unchanged-minimum',status:sourceHash(root,'config/society-minimum-policy.json')===APPROVED_MINIMUM_SOURCE_SHA256?'passed':'blocked',
@@ -35,8 +35,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         {id:'finite-food-envelope',status:'unverified',
             reason:`No-burn provisioning headroom ${headroom??'unknown'} portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence.`},
         {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:'Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity.'},
-        {id:'minimum-assessor',status:'blocked',reason:'Current native integration/evaluation reports retain an inconclusive minimum verdict;17 scoped rules need a complete source-backed assessment bridge.'},
-        {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Native Mining now records admitted/blocked/committed request observations, but lacks persistent requested-use intervals and a complete coverage watermark; idle/offline is not a denominator.'},
+        {id:'minimum-assessor',status:'blocked',reason:'A proven native tool-demand violation can now surface FAIL;17 scoped rules and8 integrity gates still need the complete source-backed assessment bridge.'},
+        {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Standing native requests now have bounded lifetimes, cancel/fulfillment and conservative unusable-time intervals. Source-backed gather-loc admission and complete cohort coverage are still missing; idle/offline is not a denominator.'},
         {id:'legal-housing-exposure',status:'unverified',reason:'Two tenant slots and current rent/sleep receipts do not attest95% legal housing access for every founder; full ownership/access history is required.'},
         {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
         {id:'selected-baseline',status:'unverified',reason:'No active world selected, frozen founder roster or exact expanded baseline/result pin prepared for C07.'},
@@ -47,6 +47,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'society-metrics/integration-report.ts','society-metrics/evaluation-report.ts','society-metrics/outcome-work.ts',
         'server/engine/src/mods/NativeMiningTool.ts','item-lifecycle/native-mining-demand.ts','society-metrics/tool-demand.ts',
         'society-metrics/native-outcomes.ts','society-experiments/benchmark-report.ts','society-experiments/expanded-baseline.ts',
+        'item-lifecycle/native-mining-intent.ts','server/engine/src/mods/NativeMiningIntent.ts','server/engine/src/mods/NativeMiningIntentRuntime.ts',
+        'server/engine/src/engine/World.ts','society-metrics/tool-demand-intervals.ts',
         'society-experiments/minimum-preflight.ts',...fixture.skills.map(s=>`agent-skills/catalog/${s.id}@${s.version}.skill.json`)];
     const sources=sourcePaths.map(path=>({path,sha256:sourceHash(root,path)}));
     const body={protocol:'si-c07-minimum-run-preparation-v1',scope:'readonly-definition-and-capability-preflight',status:'no-go',

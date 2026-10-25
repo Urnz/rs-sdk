@@ -1,6 +1,7 @@
 import type { Database } from 'bun:sqlite';
 import { createHash } from 'node:crypto';
-import { readFileSync,statSync } from 'node:fs';
+import { readFileSync,statSync,existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
 import { assertNativeFoodPath,assertNativeFoodDomainPath } from '../food-loop/native-source.js';
 import { societyMinimumDigest as digest } from '../society-minimum/policy.js';
@@ -12,6 +13,7 @@ import { providerOutcomes,type OutcomeWallWindow,type OutcomeQueueRow } from './
 import { outcomeCheck as check,outcomeRows as rows,outcomeTable as table,outcomeTime as time,readNativeWorkerEvidence,laborProjection } from './outcome-work.js';
 import { validateEvaluationScope,type EvaluationScope } from './evaluation.js';
 import { readNativeToolDemandObservations } from './tool-demand.js';
+import { loadSocietyMinimumPolicy } from '../society-minimum/policy.js';
 
 /** Backend-owned export capability. Query parameters cannot widen actors, observers or source paths. */
 export interface NativeOutcomeOptions {
@@ -41,7 +43,9 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
     const work=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
         return database(options,options.checkpointPath,db=>readNativeWorkerEvidence(db,scope,options.worldId,agent.value.actors));});
     const toolDemand=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
-        return database(options,options.checkpointPath,db=>readNativeToolDemandObservations(db,scope,options.worldId,agent.value.actors));});
+        const policyPath=join(options.workspace,'config/society-minimum-policy.json');
+        return database(options,options.checkpointPath,db=>readNativeToolDemandObservations(db,scope,options.worldId,agent.value.actors,
+            existsSync(policyPath)?loadSocietyMinimumPolicy(policyPath):undefined));});
     const goalClock=capture(()=>database(options,options.clockPath,db=>{
         check((db.query('PRAGMA user_version').get() as {user_version:number}).user_version===SIMULATION_CLOCK_STORE_SCHEMA_VERSION,'Unsupported outcome clock schema');
         check(agent.status==='available','Outcome goal source unavailable');const stamps=rows(db,'simulation_event_stamp');

@@ -6,6 +6,20 @@ import { prepareExpandedBaseline,captureExpandedArchive,restoreExpandedArchive,c
 import { verifySocietyArchive } from '../archive.js';
 import { expandedFixture,put } from './expanded-fixture.js';
 import { InstitutionTreasuryStore } from '../../server/gateway/admin/institution-treasury.js';
+import { NativeMiningIntentStore } from '../../item-lifecycle/native-mining-intent.js';
+
+test('selected standing Mining demand source is validated and reread after isolated restore',()=>{
+    const f=expandedFixture(),db=new Database(join(f.root,f.checkpoint));
+    try{new NativeMiningIntentStore(db);}finally{db.close();}
+    f.selected.stores.find(s=>s.role==='checkpoint')!.requiredTables.push('native_mining_intent_state','native_mining_intent_audit','native_mining_intent_head','native_mining_intent_schema');
+    const pin=prepareExpandedBaseline(f.root,f.selected);
+    captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});restoreExpandedArchive(f.bundle,f.output);
+    const read=new Database(join(f.output,'workspace',f.checkpoint),{readonly:true});
+    try{expect(NativeMiningIntentStore.read(read)).toEqual({entries:[],head:{sequence:0,digest:null}});}finally{read.close();}
+    const changed=new Database(join(f.root,f.checkpoint));
+    try{changed.run("UPDATE native_mining_intent_head SET sequence=1,digest='missing'");}finally{changed.close();}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('tail mismatch');
+});
 test('expanded baseline restores current needs/attributes/custody/work schemas and finance observations in another directory',()=>{
     const f=expandedFixture(),pin=prepareExpandedBaseline(f.root,f.selected);
     const manifest=captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});

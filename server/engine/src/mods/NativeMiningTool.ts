@@ -12,6 +12,7 @@ import type { NativeFoodContext } from './NativeFoodConsumptionStore.js';
 import type { EngineTradeEvidence } from './TradeEvidenceStore.js';
 import { NativeToolWorkStore } from '../../../../production-workflow/native-tool-work.js';
 import { NativeMiningDemandStore, type NativeMiningDemandObservation } from '../../../../item-lifecycle/native-mining-demand.js';
+import { NativeMiningIntentStore,nativeMiningDemandSessionId } from '../../../../item-lifecycle/native-mining-intent.js';
 import { NativeToolStore, NATIVE_PICKAXE, nativeToolCatalog, nativeToolCycles, nativeToolDigest,
     type NativeToolBinding, type NativeToolOwner } from '../../../../item-lifecycle/native-tool.js';
 
@@ -91,6 +92,7 @@ export function bindNativeMiningTool(player: Player, itemInstanceId: string, evi
             // Freeze the empty component schema at explicit genesis opening, before a baseline is pinned.
             // This creates no demand observation and makes no retrospective coverage claim.
             new NativeMiningDemandStore(p.market.db);
+            new NativeMiningIntentStore(p.market.db);
             const save = player.save(false);
             store.put({ schemaVersion: 1, itemInstanceId, owner: owner(context), position: current.position,
                 status: 'bound', reason: null, catalogDigest: nativeToolCatalog.digest, cycleDigest: nativeToolCycles.digest,
@@ -212,6 +214,16 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
             p.checkpoint([player]); p.market.checkpoint(player.username, player.save(false), true);
             store.append(id, { kind: 'mined', source, before, after, lifecycleAuditValid: store.lifecycle.verifyAuditChain() });
             observeDemand(p,context,id,binding,state.nativeMiningSource,'committed');
+            if(NativeMiningIntentStore.present(p.market.db)){
+                const intents=new NativeMiningIntentStore(p.market.db),pending=intents.pending().find(r=>r.intent.owner.username===player.username);
+                if(pending&&pending.intent.outputItemId===item){
+                    if(nativeToolDigest(pending.intent.owner)!==nativeToolDigest(binding.owner))throw Error('Mining intent output owner differs');
+                    const expired=Date.parse(context.clock.wallTime)>=Date.parse(pending.intent.expiresAtWallTime);
+                    intents.write({...pending,revision:pending.revision+1,phase:expired?'expired':'fulfilled',completionEventId:expired?null:id,
+                        sample:{clock:context.clock,sessionId:nativeMiningDemandSessionId,availability:'usable',
+                            itemInstanceId:binding.itemInstanceId,itemRevision:before.revision,reason:null}});
+                }
+            }
         }).immediate();
     } catch (error) { original.forEach((item, slot) => inventory.set(slot, item)); throw error; }
     return true;

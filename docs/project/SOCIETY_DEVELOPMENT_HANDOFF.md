@@ -17,14 +17,27 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   meglévő tranzakciójában. Saját additív séma1, közös user_version változatlan.
   Explicit tool-opening már létrehozza az üres sémát a baseline előtt; ez nem
   demand evidence. Legacy binding világán külön baseline előtti upgrade kell.
-- **Következő konkrét kódmunka:** tartós natív requested-use intervallum,
-  lezárás/cancel és coverage-watermark, továbbá a
+- **Újabb elkészült komponens:** [tartós Mining-igény és időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
+  Explicit trusted admission port, pending/cancel/expiry/valódi Mining-eventhez
+  kötött fulfillment. World tick observer, saját additív intent séma1;
+  az üres séma explicit tool-openingkor készül, a kimeneti írás a meglévő
+  érc/wear/checkpoint tranzakció része. Nincs automatikus bányászat/javítás.
+  Queryre vágott, igazolt longest-unusable alsó korlát; restart/offline/tick-
+  vagy state-gap nem nulla. A bizonyított >1 óra scoped sértés evaluation FAIL,
+  rövid/hiányos bizonyíték inconclusive. A controlled fixture FAIL nem M3 run.
+- **Következő konkrét kódmunka:** source-backed `gather-loc` admission/start/cancel:
+  executor admitted run/step/parameters/checksum/active-skill marker +pontos avatar,
+  timeout/abort/disconnect/retarget határ. Production start ma fail-closed, nincs
+  új SDK/HTTP belépő. A natív próbák explicit fixture admissiont használnak.
+  Utána teljes cohort coverage és a
  17 eredeti minimum requirement/8 integrity gate teljes source-backed
   assessment bridge-e. Egy blocked natív script azonnal abortál: két kattintás
-  közötti idő nem igényidő. A demand-idő null, minimum inconclusive marad;
+  közötti idő nem igényidő. A teljes demand-idő null, teljes minimum PASS nincs;
   offline/idle/missing identity/legacy történet nem válik nullás nevezővé.
-  Nincs új minimumképlet. Az új táblák kötelező C06 source-pinje és restore
-  utáni natív újraolvasása is bekötendő a végső baseline-hoz.
+  Nincs új minimumképlet. C06 a selected intent-state teljes chain/head és
+  world/clock/profile kötését ellenőrzi, a kimenetproofot az interval-reader.
+  A végső baseline teljes authoritative listájába még fel kell venni a csatornát.
+  Row/byte budget:100000 audit row/256 MiB readerlimit; nem korlátlan1:1 ígéret.
 - Utána: teljes founder tool/food/housing baseline, valódi clock-ratio próba,
   minden authoritative source C06 pinje, SI-A14 regresszió és konkrét jóváhagyható
   run/model/budget/maxwall/stop terv. Hosszú runhoz külön engedély kell; a mostani
@@ -60,6 +73,20 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Legfrissebb ellenőrzés
 
+- `20261025-104422-944-si-c07-intent-preflight-and-benchmark`:3 preparer és
+ 1 kiválasztott benchmark/result/restore próba, friss NO-GO artifact és sourcehash/
+  linkellenőrzés PASS9,702 s. A minimum-assessor/coverage kapu továbbra blocked.
+- `20261025-103413-367-si-c07-intent-consumers`:129 runtime ellenőrzés PASS,
+ 14 célzott fájl59,82 s. A kör összesítve **FAIL76,892 s**, mert root TS2322:
+  a Bun SQLite transaction.immediate típusa void, a store.write recordot ígért.
+  Javítás: explicit return a sikeres commit után, gazdasági viselkedés változatlan.
+- `20261025-103631-057-si-c07-intent-types-return`:7 saját store teszt,
+  root+engine TS **PASS104,775 s** a javítás után. A sikeres natív/metrics/restore
+  körök nem ismétlődtek. Full nem futott; saját additív store és lokális observer,
+  nincs shared clock/migrátor/asset commit/auth alapváltozás.
+- `20261025-102821-661-si-c07-intent-native-thin`:korai5 natív +1 wrapper
+  PASS3,088 s; a végső6 natív eset a fenti129-es kör része. Átfedő körök.
+- Korábbi attempt-csatorna ellenőrzései:
 - `20261025-100843-755-si-c07-demand-benchmark-restore`:1 célzott
   benchmark/result-report/restore próba és friss NO-GO digest/sourcehash/link
   ellenőrzés PASS16,617 s. Nem a teljes controller suite futott.
