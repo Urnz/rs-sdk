@@ -36,7 +36,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
             reason:`No-burn provisioning headroom ${headroom??'unknown'} portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence.`},
         {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:'Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity.'},
         {id:'minimum-assessor',status:'blocked',reason:'Current native integration/evaluation reports retain an inconclusive minimum verdict;17 scoped rules need a complete source-backed assessment bridge.'},
-        {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Committed Mining/work receipts do not record all attempted or requested tool demand; idle/offline is not a denominator.'},
+        {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Native Mining now records admitted/blocked/committed request observations, but lacks persistent requested-use intervals and a complete coverage watermark; idle/offline is not a denominator.'},
         {id:'legal-housing-exposure',status:'unverified',reason:'Two tenant slots and current rent/sleep receipts do not attest95% legal housing access for every founder; full ownership/access history is required.'},
         {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
         {id:'selected-baseline',status:'unverified',reason:'No active world selected, frozen founder roster or exact expanded baseline/result pin prepared for C07.'},
@@ -45,7 +45,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     ];
     const sourcePaths=['society-minimum/contract.ts','config/society-minimum-policy.json','config/survival-rules.json','needs/survival.ts',
         'society-metrics/integration-report.ts','society-metrics/evaluation-report.ts','society-metrics/outcome-work.ts',
-        'server/engine/src/mods/NativeMiningTool.ts','society-experiments/benchmark-report.ts','society-experiments/expanded-baseline.ts',
+        'server/engine/src/mods/NativeMiningTool.ts','item-lifecycle/native-mining-demand.ts','society-metrics/tool-demand.ts',
+        'society-metrics/native-outcomes.ts','society-experiments/benchmark-report.ts','society-experiments/expanded-baseline.ts',
         'society-experiments/minimum-preflight.ts',...fixture.skills.map(s=>`agent-skills/catalog/${s.id}@${s.version}.skill.json`)];
     const sources=sourcePaths.map(path=>({path,sha256:sourceHash(root,path)}));
     const body={protocol:'si-c07-minimum-run-preparation-v1',scope:'readonly-definition-and-capability-preflight',status:'no-go',

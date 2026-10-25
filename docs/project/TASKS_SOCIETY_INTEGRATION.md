@@ -1074,8 +1074,10 @@ adott futási jóváhagyást és költségkeretet igényel. Eddig nincs SI-M3/MV
 **2026-10-24 előkészítés:** [run-tervezet, NO-GO és következő kódmunka](SI_C07_RUN_PREPARATION.md),
 [forráskötött diagnosztika](SI_C07_PREFLIGHT_RESULT.json). Day-survival minimum
 reference-ID ütközés javítva,17 eredeti requirement és policy-fájl változatlan.
-Új hosszú run/baseline/értékimport/providerköltség nincs. Előbb natív tool-demand
-history +minimum bridge, majd teljes baseline/ratio/SI-A14 preflight és jóváhagyás.
+Új hosszú run/baseline/értékimport/providerköltség nincs. 2026-10-25:
+[natív Mining request-napló és outcome bekötés](SI_C07_NATIVE_TOOL_DEMAND.md)
+elkészült. A tartós requested-use idő/coverage és minimum bridge még hiányzik;
+utána teljes baseline/ratio/SI-A14 preflight és jóváhagyás.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

@@ -241,7 +241,7 @@
     {
       "id": "tool-unusable-demand-coverage",
       "status": "blocked",
-      "reason": "Committed Mining/work receipts do not record all attempted or requested tool demand; idle/offline is not a denominator."
+      "reason": "Native Mining now records admitted/blocked/committed request observations, but lacks persistent requested-use intervals and a complete coverage watermark; idle/offline is not a denominator."
     },
     {
       "id": "legal-housing-exposure",
@@ -300,7 +300,19 @@
     },
     {
       "path": "server/engine/src/mods/NativeMiningTool.ts",
-      "sha256": "25ba722688ccf90fb8ffc678c13c892e3f58ec0d218cdb3b0becdc0a93ccea4a"
+      "sha256": "596e8a58e48eace4787df850299d271e597ea4d9466624c44da0b10211412031"
+    },
+    {
+      "path": "item-lifecycle/native-mining-demand.ts",
+      "sha256": "4a8eecc1262b18a9fdc904e3768212128932c79accbfc7aaf060073ff5e0e182"
+    },
+    {
+      "path": "society-metrics/tool-demand.ts",
+      "sha256": "85fab76c3a52e08bafb254103383e604d5686eae7eb6b311b4a713acc46cc63a"
+    },
+    {
+      "path": "society-metrics/native-outcomes.ts",
+      "sha256": "ac7355c00af9b5f19eda2e893cc2b44cf518f5337289d1786cfa312cd87df05a"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -312,7 +324,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "50ebb1f6ae399b25b02a9b2b198d381125deaabc65ca65323bf18bf47696eefd"
+      "sha256": "b62c1dfd54041e3d7550b3391b85d11a69c729ba3b3b9d959beccf67e8e438da"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -341,5 +353,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "50bc7d1d4f68b4abd12365c010752e60106c9348dc247144a1db3e88c2fb3051"
+  "digest": "ff61248927da46bdb5ecfa377bd2163fb163f495dfee9536b5c808dd372e41f2"
 }

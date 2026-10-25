@@ -22,6 +22,7 @@ import type { BotSupervisor } from '../../server/gateway/admin/supervisor.js';
 import { BusinessManagerStore } from '../../server/gateway/admin/business-manager.js';
 import { BusinessWorkStore } from '../../business-work/work.js';
 import { populationNeedsBinding } from '../../needs/population-binding.js';
+import { NativeMiningDemandStore } from '../../item-lifecycle/native-mining-demand.js';
 
 const roots:string[]=[],closers:Array<()=>void>=[];
 afterEach(()=>{for(const close of closers.splice(0).reverse())close();for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true});});
@@ -179,4 +180,29 @@ test('CLI exports only explicit actor/observer selection and leaves a missing na
     const [out,err,exit]=await Promise.all([new Response(child.stdout).text(),new Response(child.stderr).text(),child.exited]);
     expect(exit,err).toBe(0);const report=JSON.parse(out);expect(report.observerAgentIds).toEqual(['alice']);expect(report.sources.agent.status).toBe('available');
     expect(report.sources.work.status).toBe('unavailable');expect(()=>readFileSync(checkpoint)).toThrow();
+});
+
+test('native tool-demand channel binds lifecycle, stays partial and redacts corrupt sources',()=>{
+    const f=fixture(),member=f.store.bindPopulationMember({agentId:'alice',playerUsername:'alice',worldProfile:{profileId:'mature-society',version:'1.0.0',digest:'a'.repeat(64)},
+        lifecyclePolicy:{policyId:'finite-population',version:'1.0.0',digest:'b'.repeat(64),kind:'finite'},
+        simulationClock:{clockId:'world',profileDigest:f.scope.clockProfileDigest},joinedAtSimulationTime:sim,
+        sourceResultId:'genesis-0123456789abcdef01234567',sourceResultDigest:'c'.repeat(64)},wall);
+    const path=join(f.workspace,'server/engine/data/player-checkpoints.sqlite');mkdirSync(join(f.workspace,'server/engine/data'),{recursive:true});
+    const db=new OwnedDatabase(path);closers.push(()=>db.close());f.options.checkpointPath=path;
+    const missing=f.read().sources.toolDemand;
+    expect(missing.status).toBe('available');if(missing.status!=='available')throw Error('missing channel');
+    expect(missing.value.coverage).toBe('source-absent');
+    const store=new NativeMiningDemandStore(db);
+    store.append({protocol:'native-mining-demand-v1',requestId:'native-request',phase:'blocked',reason:'invalid-evidence',cycleId:'bronze-pickaxe-mining',
+        owner:{actorId:'alice',username:'alice',worldId:f.options.worldId,clockId:'world',clockProfileDigest:f.scope.clockProfileDigest,
+            lifecycleId:populationNeedsBinding(f.options.worldId,member).lifecycleId},
+        clock:{clockId:'world',profileDigest:f.scope.clockProfileDigest,status:'running',engineTick:1,revision:1,wallTime:wall,simulationTime:sim},
+        item:null,bindingDigest:null,source:null});
+    const before=readFileSync(path),channel=f.read().sources.toolDemand;
+    expect(channel.status).toBe('available');if(channel.status!=='available')throw Error('demand channel');
+    expect(channel.value.actors.find(a=>a.agentId==='alice')).toMatchObject({attemptedRequests:1,invalidEvidenceRequests:1,unusableToolRequests:0});
+    expect(channel.value.unusableDemandSimulationMilliseconds).toBeNull();expect(channel.value.minimumVerdict).toBe('inconclusive');
+    expect(readFileSync(path)).toEqual(before);
+    db.exec(`DROP TRIGGER native_mining_demand_no_update;UPDATE native_mining_demand_event SET payload='PRIVATE CORRUPT SOURCE'`);
+    const invalid=f.read().sources.toolDemand;expect(invalid.status).toBe('invalid');expect(JSON.stringify(invalid)).not.toContain('PRIVATE');
 });

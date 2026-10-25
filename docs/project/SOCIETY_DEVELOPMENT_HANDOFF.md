@@ -1,6 +1,6 @@
 # Rövid fejlesztési átadás
 
-Frissítve: 2026-10-24. Belépő, nem futási napló.
+Frissítve: 2026-10-25. Belépő, nem futási napló.
 A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő lépés
@@ -10,11 +10,21 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   Ág: `codex/si-c07-minimum-preflight`, baseline `8b6055894`.
   [C07 run-tervezet és akadályok](SI_C07_RUN_PREPARATION.md),
   [forráskötött diagnosztika](SI_C07_PREFLIGHT_RESULT.json).
-- **Következő konkrét kódmunka:** natív tool-unusable-demand history és a
+- **Elkészült új részlépés:** [natív Mining request-megfigyelések](SI_C07_NATIVE_TOOL_DEMAND.md),
+  admitted/blocked/committed hash-lánccal, owner/world/clock/lifecycle kötve;
+  outcome `sources.toolDemand` readonly, backend actor/path korláttal.
+  Broken/banked/invalid-evidence külön; kimeneti napló az érc/wear/checkpoint
+  meglévő tranzakciójában. Saját additív séma1, közös user_version változatlan.
+  Explicit tool-opening már létrehozza az üres sémát a baseline előtt; ez nem
+  demand evidence. Legacy binding világán külön baseline előtti upgrade kell.
+- **Következő konkrét kódmunka:** tartós natív requested-use intervallum,
+  lezárás/cancel és coverage-watermark, továbbá a
  17 eredeti minimum requirement/8 integrity gate teljes source-backed
-  assessment bridge-e. A minimum/evaluation report ma még inconclusive; a
-  régi committed Mining/work event nem teljes requested/failed demand history.
-  Ne következtess demandra offline/idle állapotból. Nincs új minimumképlet.
+  assessment bridge-e. Egy blocked natív script azonnal abortál: két kattintás
+  közötti idő nem igényidő. A demand-idő null, minimum inconclusive marad;
+  offline/idle/missing identity/legacy történet nem válik nullás nevezővé.
+  Nincs új minimumképlet. Az új táblák kötelező C06 source-pinje és restore
+  utáni natív újraolvasása is bekötendő a végső baseline-hoz.
 - Utána: teljes founder tool/food/housing baseline, valódi clock-ratio próba,
   minden authoritative source C06 pinje, SI-A14 regresszió és konkrét jóváhagyható
   run/model/budget/maxwall/stop terv. Hosszú runhoz külön engedély kell; a mostani
@@ -50,6 +60,23 @@ A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Legfrissebb ellenőrzés
 
+- `20261025-100843-755-si-c07-demand-benchmark-restore`:1 célzott
+  benchmark/result-report/restore próba és friss NO-GO digest/sourcehash/link
+  ellenőrzés PASS16,617 s. Nem a teljes controller suite futott.
+- `20261025-100734-190-si-c07-demand-opening-boundary`:20 ellenőrzés és
+  engine TS PASS40,022 s. Új5 natív demand és13 régi C02 Mining eset +2 wrapper;
+  a baseline előtti üres séma az első Mining során változatlan marad.
+- `20261025-100007-735-si-c07-demand-thin`:13 ellenőrzés PASS10,985 s:
+  saját upgrade/reopen/idempotencia/rollback/tamper/readonly próbák és5 packed
+  Mining próba elkülönített native runnerben. Sikertelen output és demand-írás
+  sem hagyhat meg ércet/wear/receiptet; request evidence megmarad.
+- `20261025-100143-108-si-c07-demand-consumers`:68 ellenőrzés, root+engine TS
+  PASS153,683 s.8 célzott fájl: ledger, native-outcomes/evaluation/dashboard,
+  preparer, C02 Mining, C03 repair és C05 native outcome. Runtime18,85 s.
+  Nested wrapperteszteket is tartalmaz; az előző körrel átfed, nem összeadandó.
+  Full nem futott: komponens-owned additív táblák/megfigyelés, meglévő
+  tranzakcióhatár; nincs shared migrátor/clock/economic alap/auth változás.
+- Korábbi C07 előkészítési bizonyítékok:
 - `20261024-234953-838-si-c07-preparation-contract-gate`:66 célzott
   contract/survival/preparer/evaluation/integration/dashboard teszt PASS,
   root +preparer CLI TS PASS,103,911 s. Runtime27,52 s; wrapperben a két TS is.

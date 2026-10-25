@@ -11,6 +11,7 @@ import { readOutcomeAgents } from './outcome-agents.js';
 import { providerOutcomes,type OutcomeWallWindow,type OutcomeQueueRow } from './outcome-provider.js';
 import { outcomeCheck as check,outcomeRows as rows,outcomeTable as table,outcomeTime as time,readNativeWorkerEvidence,laborProjection } from './outcome-work.js';
 import { validateEvaluationScope,type EvaluationScope } from './evaluation.js';
+import { readNativeToolDemandObservations } from './tool-demand.js';
 
 /** Backend-owned export capability. Query parameters cannot widen actors, observers or source paths. */
 export interface NativeOutcomeOptions {
@@ -39,6 +40,8 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
     const agent=capture(()=>database(options,options.agentPath,db=>readOutcomeAgents(db,scope,observers)));
     const work=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
         return database(options,options.checkpointPath,db=>readNativeWorkerEvidence(db,scope,options.worldId,agent.value.actors));});
+    const toolDemand=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
+        return database(options,options.checkpointPath,db=>readNativeToolDemandObservations(db,scope,options.worldId,agent.value.actors));});
     const goalClock=capture(()=>database(options,options.clockPath,db=>{
         check((db.query('PRAGMA user_version').get() as {user_version:number}).user_version===SIMULATION_CLOCK_STORE_SCHEMA_VERSION,'Unsupported outcome clock schema');
         check(agent.status==='available','Outcome goal source unavailable');const stamps=rows(db,'simulation_event_stamp');
@@ -88,7 +91,7 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
                 physicalWorkerMatchesAssignment:b.assignedWorkerAgentId===w.workerAgentId})):[],
         interpretation:'Actual worker is bound by native receipt; registered requester and assigned worker remain separate.'})):null;
     const definition={schemaVersion:1,artifactKind:'native-society-outcome-report',scope,worldId:options.worldId,observerAgentIds:observers,
-        sources:{agent,work,business,trades,provider,goalClock},labor,physicalSpecialization,roleBindings,
+        sources:{agent,work,toolDemand,business,trades,provider,goalClock},labor,physicalSpecialization,roleBindings,
         registeredResponsibility:'Existing evaluation specialization remains registered recipe responsibility; physical-stage receipt HHI is separate.',
         availability:{status:'inconclusive',availableAndWillingPersonMs:null,unemploymentRate:null},
         limitations:['Read-only per-source snapshots; no cross-database atomicity or complete event coverage.',

@@ -69,12 +69,12 @@ verziókkal rendelkező1.3.0 native-travel fixture. Ezt nem alkalmaztuk egy vil�
    A17 rule minden required scope-ját és8 integrity gate-et a meglévő forrásokból
    kell összekötni, változatlan képlettel. Egy sikeres controller-trajectory
    vagy report-restore nem oldja ezt meg.
-2. **Tool-unusable-demand history hiányzik.** A committed Mining/repair receipt
-   nem naplózza a teljes kért/meghiúsult tool-használati igényt. Offline vagy
-   üres skill-queue nem töltheti ki ezt a nevezőt. Ez külön fogalom a C05
-   available-and-willing unemployment exposure-jától; egyikből sincs automatikus
-   következtetés a másikra. Először ezt a natív gapet és assessment-bekötést kell
-   pótolni, aztán a source/audit/reopen határt célzottan tesztelni.
+2. **Tool-unusable-demand időbeli lefedettsége hiányos.** 2026-10-25 óta a
+   [natív Mining request-napló](SI_C07_NATIVE_TOOL_DEMAND.md) a befogadott,
+   elutasított és committed próbákat tartósan köti a natív forráshoz. A teljes
+   kért igényidő, cancel és coverage-watermark még hiányzik. Offline vagy üres
+   skill-queue, illetve két elutasított kattintás közötti idő nem töltheti ki
+   ezt a nevezőt. A C05 available-and-willing unemployment exposure külön mérés.
 3. **A baseline food/travel-only.** Nincs a négy founderhez kötött teljes
    Mining→smelt→repair→reuse workflow, initial tool-service capacity, input,
    kompetencia és approved skill/grant csomag. A korábbi C03 mechanikai próba
@@ -101,7 +101,19 @@ verziókkal rendelkező1.3.0 native-travel fixture. Ezt nem alkalmaztuk egy vil�
 - `20261024-234809-582-si-c07-thin-preparation`: korai3 mechanikai teszt PASS,
  1,209 s. Nincs hosszú run, SI-A14 run, providerhívás vagy történeti DB-read.
 
-Az előkészítési lépés és a referencia-betöltési javítás elkészült. **SI-C07
-nyitott,27/45; SI-M3/MVS nem PASS.** Következő konkrét kódmunka a natív tool-
-demand history és a minimum assessment bridge. A következő task továbbra C07,
-nem C08; a hosszú futási jóváhagyás még nem esedékes.
+2026-10-25: a natív Mining request megfigyelési lánc és outcome-report bekötés
+elkészült; [határ, séma/rollback és maradó rések](SI_C07_NATIVE_TOOL_DEMAND.md).
+`20261025-100007-735-si-c07-demand-thin`:13 ellenőrzés PASS10,985 s;
+`20261025-100143-108-si-c07-demand-consumers`:68 ellenőrzés és root/engine TS
+PASS153,683 s, ebből runtime18,85 s. A számok tartalmaznak nested wrapper
+teszteket, a körök átfednek. Full/provider/hosszú run nem futott.
+`20261025-100734-190-si-c07-demand-opening-boundary`:20 ellenőrzés +engine TS
+PASS40,022 s. Az explicit eszköznyitáskor üres demand-séma az első Mining alatt
+nem változik, így nem az első használat bővíti a leendő baseline sémáját.
+`20261025-100843-755-si-c07-demand-benchmark-restore`:1 célzott benchmark/
+result-report/restore próba és friss NO-GO/sourcehash/link ellenőrzés PASS16,617 s.
+
+**SI-C07 nyitott,27/45; SI-M3/MVS nem PASS.** Következő konkrét kódmunka a
+tartós natív requested-use intervallum/lezárás/coverage és a minimum assessment
+bridge. A következő task továbbra C07, nem C08; a hosszú futási jóváhagyás még
+nem esedékes.

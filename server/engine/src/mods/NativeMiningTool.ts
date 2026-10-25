@@ -11,6 +11,7 @@ import { populationFoodContext } from './PopulationDeathRuntime.js';
 import type { NativeFoodContext } from './NativeFoodConsumptionStore.js';
 import type { EngineTradeEvidence } from './TradeEvidenceStore.js';
 import { NativeToolWorkStore } from '../../../../production-workflow/native-tool-work.js';
+import { NativeMiningDemandStore, type NativeMiningDemandObservation } from '../../../../item-lifecycle/native-mining-demand.js';
 import { NativeToolStore, NATIVE_PICKAXE, nativeToolCatalog, nativeToolCycles, nativeToolDigest,
     type NativeToolBinding, type NativeToolOwner } from '../../../../item-lifecycle/native-tool.js';
 
@@ -57,6 +58,14 @@ function identity(player: Player, p: NativeMiningPorts, binding: NativeToolBindi
     return context;
 }
 
+function observeDemand(p:NativeMiningPorts,context:NativeFoodContext,id:string,binding:NativeToolBinding|null,
+    source:NativeMiningDemandObservation['source'],phase:NativeMiningDemandObservation['phase'],reason:NativeMiningDemandObservation['reason']=null){
+    const item=binding?new NativeToolStore(p.market.db).lifecycle.get(binding.itemInstanceId):null;
+    new NativeMiningDemandStore(p.market.db).append({protocol:'native-mining-demand-v1',requestId:id,phase,reason,
+        owner:owner(context),clock:context.clock,cycleId:'bronze-pickaxe-mining',item,
+        bindingDigest:binding?nativeToolDigest(binding):null,source});
+}
+
 /** Existing native physical identity, shared with repair; never guesses a new instance from a stack. */
 export function nativeMiningToolForWork(player:Player,actionId:string){
     const runtime=storeFor(player),binding=runtime?.store.binding(player.username);
@@ -79,6 +88,9 @@ export function bindNativeMiningTool(player: Player, itemInstanceId: string, evi
     tokens.set(player, current);
     try {
         p.market.db.transaction(() => {
+            // Freeze the empty component schema at explicit genesis opening, before a baseline is pinned.
+            // This creates no demand observation and makes no retrospective coverage claim.
+            new NativeMiningDemandStore(p.market.db);
             const save = player.save(false);
             store.put({ schemaVersion: 1, itemInstanceId, owner: owner(context), position: current.position,
                 status: 'bound', reason: null, catalogDigest: nativeToolCatalog.digest, cycleDigest: nativeToolCycles.digest,
@@ -142,26 +154,37 @@ export function prepareNativeMining(state: ScriptState): void {
     const hasBronze = positions(player).length > 0;
     const runtime = storeFor(player), binding = runtime?.store.binding(player.username);
     if (!hasBronze && !binding) { state.nativeMiningActionId = null; return; }
-    if (!source || !output || Math.max(Math.abs(source.x-player.x),Math.abs(source.z-player.z))>1 || source.level!==player.level)
-        throw new Error('Native bronze mining is limited to adjacent copper/tin sources');
-    if (!runtime || !binding) throw new Error('Mining tool requires explicit instance migration');
-    if (!runtime.store.lifecycle.verifyAuditChain()) throw new Error('Native tool lifecycle audit is invalid');
-    const revision = runtime.store.lifecycle.get(binding.itemInstanceId)!.revision;
-    if (state.nativeMiningInstanceId !== null && (state.nativeMiningInstanceId !== binding.itemInstanceId || state.nativeMiningToolRevision !== revision))
-        throw new Error('Native mining tool changed during the suspended workload');
-    state.nativeMiningInstanceId = binding.itemInstanceId; state.nativeMiningToolRevision = revision;
-    identity(player, p, binding, id);
-    const current = token(player);
-    if (![InvType.INV, InvType.WORN].includes(current.position.inventory)) throw new Error('Mining tool is not available in inventory/equipment');
-    for (const name of ['iron_pickaxe','steel_pickaxe','mithril_pickaxe','adamant_pickaxe','rune_pickaxe']) {
-        const item = ObjType.getId(name);
-        if ((player.getInventory(InvType.INV)?.getItemCount(item) ?? 0) + (player.getInventory(InvType.WORN)?.getItemCount(item) ?? 0)>0)
-            throw new Error('Native bronze mining cannot ambiguously select another pickaxe');
+    // Only this native request is witnessed. A rejection does not leave a queued demand interval.
+    const demandSource=source?{type:source.type,x:source.x,z:source.z,level:source.level}:null;
+    let blockedReason:NativeMiningDemandObservation['reason']='invalid-evidence';
+    try {
+        if (!source || !output || Math.max(Math.abs(source.x-player.x),Math.abs(source.z-player.z))>1 || source.level!==player.level)
+            throw new Error('Native bronze mining is limited to adjacent copper/tin sources');
+        if (!runtime || !binding) throw new Error('Mining tool requires explicit instance migration');
+        if (!runtime.store.lifecycle.verifyAuditChain()) throw new Error('Native tool lifecycle audit is invalid');
+        const revision = runtime.store.lifecycle.get(binding.itemInstanceId)!.revision;
+        if (state.nativeMiningInstanceId !== null && (state.nativeMiningInstanceId !== binding.itemInstanceId || state.nativeMiningToolRevision !== revision))
+            throw new Error('Native mining tool changed during the suspended workload');
+        state.nativeMiningInstanceId = binding.itemInstanceId; state.nativeMiningToolRevision = revision;
+        identity(player, p, binding, id);
+        const current = token(player);
+        if (![InvType.INV, InvType.WORN].includes(current.position.inventory)) {
+            blockedReason='unavailable-position';throw new Error('Mining tool is not available in inventory/equipment');
+        }
+        for (const name of ['iron_pickaxe','steel_pickaxe','mithril_pickaxe','adamant_pickaxe','rune_pickaxe']) {
+            const item = ObjType.getId(name);
+            if ((player.getInventory(InvType.INV)?.getItemCount(item) ?? 0) + (player.getInventory(InvType.WORN)?.getItemCount(item) ?? 0)>0)
+                throw new Error('Native bronze mining cannot ambiguously select another pickaxe');
+        }
+        if (!runtime.store.cycle.utility('bronze-pickaxe-mining', binding.itemInstanceId, binding.owner.actorId).capabilityAvailable) {
+            blockedReason='unusable-tool';throw new Error('Broken/replaced native mining tool cannot work');
+        }
+        state.nativeMiningOutput = output;
+        state.nativeMiningSource ??= { type: source.type, x: source.x, z: source.z, level: source.level };
+    } catch(error) {
+        observeDemand(p,context,id,binding??null,demandSource,'blocked',blockedReason);throw error;
     }
-    if (!runtime.store.cycle.utility('bronze-pickaxe-mining', binding.itemInstanceId, binding.owner.actorId).capabilityAvailable)
-        throw new Error('Broken/replaced native mining tool cannot work');
-    state.nativeMiningOutput = output;
-    state.nativeMiningSource ??= { type: source.type, x: source.x, z: source.z, level: source.level };
+    observeDemand(p,context,id,binding??null,demandSource,'admitted');
 }
 
 export function handleNativeMiningOutput(state: ScriptState, inv: number, item: number, count: number): boolean {
@@ -188,6 +211,7 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
                 outputItemId: item, outputQuantity: 1, sourceEvidenceDigest: nativeToolDigest(source), atSimulationTime: context.clock.simulationTime });
             p.checkpoint([player]); p.market.checkpoint(player.username, player.save(false), true);
             store.append(id, { kind: 'mined', source, before, after, lifecycleAuditValid: store.lifecycle.verifyAuditChain() });
+            observeDemand(p,context,id,binding,state.nativeMiningSource,'committed');
         }).immediate();
     } catch (error) { original.forEach((item, slot) => inventory.set(slot, item)); throw error; }
     return true;

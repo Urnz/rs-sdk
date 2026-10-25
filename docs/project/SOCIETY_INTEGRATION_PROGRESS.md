@@ -2418,3 +2418,42 @@ nem futott; nincs threshold/physiology/clock/persistence/auth alapváltozás.
 **SI-C07 nyitott;27/45. Következő: natív tool-demand history és minimum bridge,
 majd teljes baseline/ratio/SI-A14 preflight; külön jóváhagyott hosszú run csak
 ezek után. SI-M3/MVS/önfenntartás nem PASS.**
+
+## 2026-10-25 – SI-C07 natív Mining request-megfigyelések
+
+A [natív request-napló](SI_C07_NATIVE_TOOL_DEMAND.md) tényleges packed Mining
+befogadást/elutasítást/kimenetet rögzít, owner/world/clock/lifecycle kötött
+hash-lánccal és tail-headdel. A sikeres kimeneti megfigyelés az érc, wear,
+receipt és Player checkpoint meglévő tranzakciójában van; íráshiba mindet
+rollbackeli. Broken tool/banked tool/invalid evidence külön ok. A report
+`sources.toolDemand` ugyanazon backend actor/path exporthatáron, readonly
+snapshotból olvas; sérült forrás tartalma nem szivárog hibaüzenetbe.
+
+Saját additív séma1; a közös user_version és régi állapot változatlan.
+Upgrade/reopen/idempotencia/conflict/immutable/tamper/rollback próbák megvannak;
+régi receiptből nincs demand-backfill. Rollback régi kóddal a táblák/bizonyíték
+megtartásával lehetséges, az így keletkező gap nem válik később coverage-dé.
+
+A blocked natív script azonnal ABORTED; nincs implicit sorban váró igény.
+Két kattintás közti idő, offline/idle vagy eredménytelen roll nem demand-idő.
+A folyamatos requested-use intervallum, lezárás/cancel és completeness watermark
+még hiányzik: demand-idő null, minimum inconclusive, a preflight továbbra NO-GO.
+A17 eredeti requirement és8 integrity gate, küszöb és fiziológia változatlan.
+
+`20261025-100007-735-si-c07-demand-thin`:13 ellenőrzés PASS10,985 s, ebből5
+valódi packed Mining próba. `20261025-100143-108-si-c07-demand-consumers`:68
+ellenőrzés és root+engine TS PASS153,683 s (runtime18,85 s). Szűk8 fájl;
+nested wrapper és átfedő körök, nem összeadandók. Full nem futott: nincs
+közös migrátor/clock/economic alap/auth változás. Nincs élő world, import,
+publication, providerköltség, SI-A14 vagy hosszú run. Nem módosult történeti DB.
+
+**SI-C07 nyitott,27/45.** Következő: tartós natív igényidő/coverage és minimum
+assessment bridge, szükséges demand source-pin/restore, majd teljes founder
+baseline/ratio/SI-A14 és konkrét jóváhagyható hosszú terv. C08 nem indult.
+
+C07 kiegészítő baseline-határ: az explicit tool-opening közös checkpoint-
+tranzakciója már létrehozza az üres demand-sémát. Első Mining alatt nincs
+sémaváltás vagy visszatöltött history. Régi binding világán baseline előtt
+külön upgrade kell. `20261025-100734-190-si-c07-demand-opening-boundary`:
+20 ellenőrzés és engine TS PASS40,022 s (5 új +13 C02 natív eset,2 wrapper).
+Ez a nyitási módosítás utáni célzott ismétlés, nem általános regressziós kör.
