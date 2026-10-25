@@ -4,6 +4,7 @@ import { nativeToolDigest } from '../item-lifecycle/native-tool.js';
 import { societyMinimumRequirements,type SocietyMinimumPolicy } from '../society-minimum/policy.js';
 import type { EvaluationScope } from './evaluation.js';
 import { outcomeCheck as check,outcomeTime as time,type OutcomeActor } from './outcome-work.js';
+import { requireNativeMiningDispatchProof } from '../item-lifecycle/native-mining-dispatch.js';
 
 /** Lower bound on the longest outstanding unusable request; never sums different actors or requests. */
 export function readNativeMiningIntentIntervals(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[],policy:SocietyMinimumPolicy){
@@ -23,6 +24,7 @@ export function readNativeMiningIntentIntervals(db:Database,scope:EvaluationScop
                 &&proof.source.outputItemId===r.intent.outputItemId&&proof.source.outputQuantity===1
                 &&nativeToolDigest(proof.source.clock)===nativeToolDigest(r.sample.clock)&&proof.before.itemInstanceId===r.sample.itemInstanceId
                 &&proof.before.revision===r.sample.itemRevision,'Native mining intent completion lacks its native output');
+            if(r.intent.nativeDispatchRequired)requireNativeMiningDispatchProof(db,r.intent,r.completionEventId!,proof.source);
         }
         const values=requests.get(r.intent.demandId)??[];values.push(entry);requests.set(r.intent.demandId,values);
     }

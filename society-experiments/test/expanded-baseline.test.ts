@@ -10,6 +10,16 @@ import { NativeMiningIntentStore } from '../../item-lifecycle/native-mining-inte
 import { randomUUID } from 'node:crypto';
 import { NativeMiningDemandStore } from '../../item-lifecycle/native-mining-demand.js';
 import { NativeMiningCoverageStore,miningCoverageSourceHeads } from '../../item-lifecycle/native-mining-coverage.js';
+import { NativeMiningDispatchStore } from '../../item-lifecycle/native-mining-dispatch.js';
+
+test('selected native Mining dispatch schema is pinned, restored offline and rejects incompatible versions',()=>{
+    const f=expandedFixture(),db=new Database(join(f.root,f.checkpoint));try{new NativeMiningDispatchStore(db,true);}finally{db.close();}
+    f.selected.stores.find(s=>s.role==='checkpoint')!.requiredTables.push('native_mining_dispatch','native_mining_dispatch_schema');
+    const pin=prepareExpandedBaseline(f.root,f.selected);captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});restoreExpandedArchive(f.bundle,f.output);
+    const read=new Database(join(f.output,'workspace',f.checkpoint),{readonly:true});try{expect(new NativeMiningDispatchStore(read).read()).toEqual([]);}finally{read.close();}
+    const changed=new Database(join(f.root,f.checkpoint));try{changed.run('UPDATE native_mining_dispatch_schema SET version=2');}finally{changed.close();}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('Unsupported');
+});
 
 test('selected cohort Mining coverage survives isolated restore and corrupt source prefixes prevent capture',()=>{
     const f=expandedFixture(),db=new Database(join(f.root,f.checkpoint));

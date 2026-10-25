@@ -8,11 +8,12 @@ import { NativeMiningIntentStore,type NativeMiningIntentRecord } from '../../../
 import { authorizeMiningDemand,authorizeMiningDemandCommand,readMiningDemandInvocation,miningDemandCancellation,miningOperationSealed } from '../../../../agent-skills/mining-demand-source.js';
 import { assertManagedModuleRoot } from '../../../control-plane/instance-context.js';
 import { tickNativeMiningCoverage,type MiningCoveragePorts } from './NativeMiningCoverage.js';
+import { tickNativeMiningInteractions,type NativeMiningInteractionRuntime } from './NativeMiningInteraction.js';
 
 import type { NativeMiningDemandCommand } from '../../../../sdk/mining-demand.js';
 export type { NativeMiningDemandCommand } from '../../../../sdk/mining-demand.js';
 type Response={ok:true;record:NativeMiningIntentRecord|null}|{ok:false;error:string};
-export interface NativeMiningDemandRuntime {workspace:string;tracker:NativeMiningIntentTracker;player(username:string):Player|null;coverage?:MiningCoveragePorts}
+export interface NativeMiningDemandRuntime {workspace:string;tracker:NativeMiningIntentTracker;player(username:string):Player|null;coverage?:MiningCoveragePorts;interaction?:NativeMiningInteractionRuntime}
 const queue:Array<{command:NativeMiningDemandCommand;expires:number;resolve(value:Response):void}>=[];
 let current:NativeMiningDemandRuntime|null=null;
 function valid(c:NativeMiningDemandCommand){return c&&Object.keys(c).sort().join(',')==='contextDigest,demandId,operation,username'
@@ -26,7 +27,7 @@ export function enqueueNativeMiningDemand(command:NativeMiningDemandCommand):Pro
 function runtime():NativeMiningDemandRuntime{
     const workspace=fileURLToPath(new URL('../../../../',import.meta.url));assertManagedModuleRoot(workspace);
     const market=ensurePlayerSaveStore();if(current?.tracker.ports.market.db===market.db)return current;
-    const tracker=new NativeMiningIntentTracker({market,identity:populationFoodContext,
+    const tracker=new NativeMiningIntentTracker({market,identity:populationFoodContext,requireDispatchProof:true,
         checkpoint:players=>{for(const player of players)World.checkpointPlayers(player);},
         clock:()=>{const c=populationFoodTickClock(World.currentTick);if(!c)throw Error('Native mining intent clock unavailable');return c;},
         authorizeStart:(command,owner)=>authorizeMiningDemandCommand(workspace,command,owner)});
@@ -59,6 +60,7 @@ export function tickNativeMiningIntents(override?:NativeMiningDemandRuntime){
     for(const entry of queue.splice(0,10))try{
         if(Date.now()>entry.expires)throw Error('Expired command');entry.resolve(applyNativeMiningDemand(override??runtime(),entry.command));
     }catch{entry.resolve({ok:false,error:'Native Mining command unavailable or expired'});}
+    if(!override||override.interaction)tickNativeMiningInteractions(override?.interaction);
     try{
         const market=override?.tracker.ports.market??playerSaveStore();if(!market||!NativeMiningIntentStore.present(market.db))return;
         if(!market.db.query("SELECT 1 FROM native_mining_intent_state WHERE phase='pending' LIMIT 1").get())return;

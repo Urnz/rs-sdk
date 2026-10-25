@@ -19,10 +19,12 @@ után; SI-C07 nyitott,27/45, preflight NO-GO. Nem hosszú gazdasági próba.
   Régi/raw `interact-loc`, szerszámkötés nélküli út, hiányzó identity,
   unsupported natív forrás és admission előtti régi akció nem tűnik el.
   Az új csatorna sem Miningot, sem javítást, sem új eszközt nem indít.
-- A `compatible-request` csak a szerver által újraolvasott, aktuális igénnyel
-  egyező natív belépés. **Nem bizonyítja a kattintás executor/transport eredetét.**
-  Egy aktív igény közben ugyanazon avatar másik raw kattintását a jelenlegi
-  protokoll nem különbözteti meg. Emiatt nincs teljes demand-coverage állítás.
+- A korábbi `compatible-request` csak aktuális igénnyel egyező natív belépés,
+  nem executor eredet; most külön provenance-gap. A későbbi
+  [exact natív dispatch](SI_C07_NATIVE_DISPATCH.md) `source-bound-request`
+  bejegyzése konkrét immutable admissionhöz/ScriptState-hez kötődik. A selected
+  cohort raw/unbound Mining belépése már naplózott elutasítás, ore/wear nélkül.
+  Teljes high-level demand nevező továbbra nincs, ezért nincs minimum PASS.
 - Ingress-írási hiba után a következő sikeres frame külön gapet őriz. Ha ez sem
   készül el, a hiányzó tick/session/clock vagy ablakvég látszik az olvasónál.
 
@@ -69,10 +71,9 @@ még sor-/byte- és megfigyelési teljesítménybudget kell. Az olvasó a kivál
 hézagkeretet jelenti; a minimum bridge-nek ezt az eredeti policyhoz is kötnie
 kell. A komponens nem választ világot vagy clock-ratiót és nem ad futási jogot.
 
-**Következő:** az executor operation-instance azonosítójának végigkötése a
-tényleges SDK/transport/native packet belépéshez és a teljes belépési kör
-enforcementje. A kompatibilis, de más forrásból érkező kattintás is maradjon
-elkülöníthető. Utána teljes17 requirement/8 integrity gate assessment,
+**Következő:** az exact natív dispatch elkészült; a
+[2. rögzített munkacsomag](SI_C07_REMAINING_WORK.md) a teljes high-level
+igénylefedettség és17 requirement/8 integrity gate assessment,
 founder tool/food/housing baseline, ratio-validálás, SI-A14 és külön jóváhagyható
 hosszú terv. Nincs C08-továbblépés vagy M3/MVS PASS.
 

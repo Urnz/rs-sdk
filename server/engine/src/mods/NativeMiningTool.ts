@@ -16,6 +16,8 @@ import { NativeMiningDemandStore, type NativeMiningDemandObservation } from '../
 import { NativeMiningIntentStore,nativeMiningDemandSessionId,type NativeMiningIntentRecord } from '../../../../item-lifecycle/native-mining-intent.js';
 import { miningIntentFulfillmentAllowed } from '../../../../agent-skills/mining-demand-source.js';
 import { observeNativeMiningIngress,type MiningCoveragePorts } from './NativeMiningCoverage.js';
+import { NativeMiningDispatchStore,requireNativeMiningDispatchProof } from '../../../../item-lifecycle/native-mining-dispatch.js';
+import { NativeMiningCoverageStore } from '../../../../item-lifecycle/native-mining-coverage.js';
 import { NativeToolStore, NATIVE_PICKAXE, nativeToolCatalog, nativeToolCycles, nativeToolDigest,
     type NativeToolBinding, type NativeToolOwner } from '../../../../item-lifecycle/native-tool.js';
 
@@ -98,6 +100,7 @@ export function bindNativeMiningTool(player: Player, itemInstanceId: string, evi
             // This creates no demand observation and makes no retrospective coverage claim.
             new NativeMiningDemandStore(p.market.db);
             new NativeMiningIntentStore(p.market.db);
+            new NativeMiningDispatchStore(p.market.db,true);
             const save = player.save(false);
             store.put({ schemaVersion: 1, itemInstanceId, owner: owner(context), position: current.position,
                 status: 'bound', reason: null, catalogDigest: nativeToolCatalog.digest, cycleDigest: nativeToolCycles.digest,
@@ -151,8 +154,15 @@ export function prepareNativeMining(state: ScriptState): void {
     const id = state.nativeMiningActionId ?? randomUUID();
     const source = state._activeLoc;
     const output = source && rocks[LocType.get(source.type).debugname ?? ''];
-    observeNativeMiningIngress(player,id,output||undefined,p);
+    observeNativeMiningIngress(player,id,output||undefined,p,undefined,state.nativeMiningDispatchId??undefined);
     if (!p) return;
+    if(NativeMiningCoverageStore.present(p.market.db)&&new NativeMiningCoverageStore(p.market.db).selection().actors.some(a=>a.username===player.username)
+        &&!state.nativeMiningDispatchId)throw Error('Selected cohort Mining requires exact executor dispatch');
+    if(state.nativeMiningDispatchId){
+        const dispatch=new NativeMiningDispatchStore(p.market.db).get(state.nativeMiningDispatchId),t=dispatch?.request.target;
+        if(!dispatch||state.nativeMiningDispatchId!==id||dispatch.owner.username!==player.username||!source||!t
+            ||source.x!==t.x||source.z!==t.z||source.type!==t.locId||source.level!==dispatch.level)throw Error('Native Mining dispatch target differs');
+    }
     state.nativeMiningActionId = id;
     if (NativeToolStore.present(p.market.db) && new NativeToolStore(p.market.db).event(id)) { state.execution = 1; return; }
     const context = p.identity(player.username, id, 0, World.currentTick);
@@ -208,12 +218,14 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
     if (binding.itemInstanceId !== state.nativeMiningInstanceId || store.lifecycle.get(binding.itemInstanceId)?.revision !== state.nativeMiningToolRevision)
         throw new Error('Native mining output tool revision changed');
     if (count !== 1 || state.nativeMiningOutput !== item || !state.nativeMiningSource) throw new Error('Native mining output differs from source');
+    const miningSource=state.nativeMiningSource;
     const inventory = player.getInventory(inv)!, original = [...inventory.items];
     try {
         p.market.db.transaction(() => {
             const before = store.lifecycle.get(binding.itemInstanceId)!;
             if (inventory.add(item, 1) !== 1) throw new Error('Native mining output overflow');
-            const source = { actionId: id, owner: binding.owner, toolPosition: token(player).position, source: state.nativeMiningSource, outputItemId: item,
+            const source = { actionId: id, owner: binding.owner, toolPosition: token(player).position, source: miningSource, outputItemId: item,
+                ...(state.nativeMiningDispatchId?{nativeMiningDispatchId:state.nativeMiningDispatchId}:{}),
                 outputQuantity: 1, clock: context.clock, checkpointDigest: nativeToolDigest([...player.save(false)]) };
             const after = store.cycle.recordUse({ receiptId: id, cycleId: 'bronze-pickaxe-mining', itemInstanceId: binding.itemInstanceId,
                 actorId: binding.owner.actorId, expectedRevision: before.revision, skillName: 'Mining', successfulActions: 1,
@@ -228,6 +240,8 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
                     ORDER BY sequence LIMIT 1`).get(id);
                 if(pending&&pending.intent.outputItemId===item&&pending.intent.attemptSequenceAtAdmission!==undefined
                     &&admitted&&admitted.sequence>pending.intent.attemptSequenceAtAdmission&&p.intentFulfillmentAllowed?.(pending)!==false){
+                    if(pending.intent.nativeDispatchRequired&&!state.nativeMiningDispatchId)return;
+                    if(pending.intent.nativeDispatchRequired)requireNativeMiningDispatchProof(p.market.db,pending.intent,id,source);
                     if(nativeToolDigest(pending.intent.owner)!==nativeToolDigest(binding.owner))throw Error('Mining intent output owner differs');
                     const expired=Date.parse(context.clock.wallTime)>=Date.parse(pending.intent.expiresAtWallTime);
                     intents.write({...pending,revision:pending.revision+1,phase:expired?'expired':'fulfilled',completionEventId:expired?null:id,

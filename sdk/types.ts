@@ -596,6 +596,7 @@ export type BotAction =
     | { type: 'societyFood'; request: import('./society-food').SocietyFoodRequest; reason: string }
     | { type: 'societyTool'; request: import('./society-tools').SocietyToolRequest; reason: string }
     | { type: 'miningDemand'; request: import('./mining-demand').MiningDemandRequest; reason: string }
+    | { type: 'miningInteraction'; request: import('./mining-interaction').MiningInteractionRequest; reason: string }
     | { type: 'none'; reason: string }
     | { type: 'wait'; reason: string; ticks?: number }
     | { type: 'talkToNpc'; npcIndex: number; reason: string }

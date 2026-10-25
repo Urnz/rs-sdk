@@ -1,6 +1,7 @@
 import type { BotSDK } from '../sdk/index.js';
 import type { SocietyFoodContext } from '../sdk/society-food.js';
 import { miningGatherArgs,validateMiningDemandRequest,type MiningDemandContext } from '../sdk/mining-demand.js';
+import type { MiningDemandRequest } from '../sdk/mining-demand.js';
 import type { ActionResult } from '../sdk/types.js';
 import type { SkillOperationResult } from './types.js';
 
@@ -13,7 +14,7 @@ async function bounded<T>(promise:Promise<T>,milliseconds:number,signal?:AbortSi
 }
 /** Demand ACK is not resource production. A successful gather also needs the native fulfilled receipt. */
 export async function executeBoundMiningGather(sdk:Pick<BotSDK,'sendMiningDemand'>,args:Record<string,unknown>,
-    context:SocietyFoodContext&{operationSequence?:number},signal:AbortSignal,gather:(deadline:number)=>Promise<SkillOperationResult>):Promise<SkillOperationResult>{
+    context:SocietyFoodContext&{operationSequence?:number},signal:AbortSignal,gather:(deadline:number,demand:MiningDemandRequest)=>Promise<SkillOperationResult>):Promise<SkillOperationResult>{
     let request;
     try{request=validateMiningDemandRequest({operation:'open',args:miningGatherArgs(args),context:context as MiningDemandContext});}
     catch{return{success:false,code:'mining-demand-context-required',message:'Mining requires an admitted executor operation instance',retryable:false};}
@@ -24,7 +25,8 @@ export async function executeBoundMiningGather(sdk:Pick<BotSDK,'sendMiningDemand
         if(opened.success&&opened.data?.state==='pending'&&JSON.stringify(opened.data.context)===JSON.stringify(request.context)
             &&typeof opened.data.demandId==='string'&&Number.isFinite(Date.parse(opened.data.expiresAtWallTime))){
             if(signal.aborted)result={success:false,code:'cancelled',message:'Skill cancelled',retryable:false};
-            else if(Date.parse(opened.data.expiresAtWallTime)>Date.now())result=await gather(Date.parse(opened.data.expiresAtWallTime));
+            else if(Date.parse(opened.data.expiresAtWallTime)>Date.now())result=await bounded(gather(Date.parse(opened.data.expiresAtWallTime),request),
+                Math.max(1,Date.parse(opened.data.expiresAtWallTime)-Date.now()),signal);
         }
     }catch{result={success:false,code:signal.aborted?'cancelled':'mining-demand-uncertain',message:'Mining interrupted; reconcile this same operation',retryable:false};}
     finally{

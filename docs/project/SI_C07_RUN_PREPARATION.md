@@ -139,8 +139,17 @@ Az aktív igénynek megfelelő kattintás csak `compatible-request`, mert az
 executor→transport/native packet pontos eredet még nincs végigkötve. A teljes
 demand-coverage és17/8 bridge továbbra hiányzik; preflight NO-GO.
 
-**SI-C07 nyitott,27/45; SI-M3/MVS nem PASS.** Következő konkrét kódmunka az
-exact operation-instance transport/native ingress kötése és teljes enforcement,
-majd a minimum assessment bridge.
+Az [exact natív dispatch](SI_C07_NATIVE_DISPATCH.md) további lépése elkészült:
+SDK source context +retarget ordinal, egyszer használható immutable admission,
+valódi packed Mining és exact outputproof. Kijelölt cohort raw bányászatának
+elutasítása, in-flight abort/late SDK send és replay/cancel védelme próbázott.
+A `compatible-request` most már külön provenance-gap, `source-bound-request`
+a tényleges native dispatch-hez köthető. A teljes high-level demand nevező
+hiányos, ezért coverage továbbra nem teljes vagy minimum PASS.
+
+**SI-C07 nyitott,27/45; SI-M3/MVS nem PASS.** A
+[rögzített7 csomagból az1. kész,6 maradt](SI_C07_REMAINING_WORK.md).
+Következő a17/8 minimum-assessment bridge és a teljes high-level demand/
+housing/exposure forráskötés; ismert NO-GO mellett nincs hosszú run-jóváhagyás.
 A következő task C07, nem C08; a hosszú futási
 jóváhagyás még nem esedékes.

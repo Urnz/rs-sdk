@@ -36,7 +36,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
             reason:`No-burn provisioning headroom ${headroom??'unknown'} portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence.`},
         {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:'Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity.'},
         {id:'minimum-assessor',status:'blocked',reason:'A proven native tool-demand violation can now surface FAIL;17 scoped rules and8 integrity gates still need the complete source-backed assessment bridge.'},
-        {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Prospective cohort/window/head observations and native legacy/identity/unbound ingress gaps are implemented. No selected C07 watermark or enforced complete executor/transport ingress exists yet; an empty queue and idle/offline cannot establish zero demand.'},
+        {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Exact executor→SDK→typed native dispatch and selected-cohort raw Mining rejection are implemented. Complete high-level request denominators and a selected C07 watermark are still unproven; an empty queue or idle/offline cannot establish zero demand.'},
         {id:'legal-housing-exposure',status:'unverified',reason:'Two tenant slots and current rent/sleep receipts do not attest95% legal housing access for every founder; full ownership/access history is required.'},
         {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
         {id:'selected-baseline',status:'unverified',reason:'No active world selected, frozen founder roster or exact expanded baseline/result pin prepared for C07.'},
@@ -52,6 +52,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'item-lifecycle/native-mining-coverage.ts','society-metrics/tool-demand-coverage.ts','server/engine/src/mods/NativeMiningCoverage.ts',
         'server/engine/src/mods/PopulationDeathRuntime.ts',
         'sdk/mining-demand.ts','sdk/index.ts','sdk/types.ts','agent-skills/mining-admission.ts','agent-skills/mining-demand-source.ts',
+        'sdk/mining-interaction.ts','sdk/actions.ts','agent-skills/mining-interaction-source.ts','item-lifecycle/native-mining-dispatch.ts',
+        'server/engine/src/mods/NativeMiningInteraction.ts','server/engine/src/engine/script/ScriptState.ts','server/gateway/admin/native-mining-interaction.ts',
         'agent-skills/mining-gather.ts','agent-skills/executor.ts','agent-skills/run.ts','agent-skills/types.ts','agent-skills/rs-sdk-runtime.ts',
         'server/gateway/admin/native-mining-demand.ts','server/gateway/gateway.ts','server/engine/src/web/pages/internal-admin.ts',
         'society-experiments/minimum-preflight.ts',...fixture.skills.map(s=>`agent-skills/catalog/${s.id}@${s.version}.skill.json`)];

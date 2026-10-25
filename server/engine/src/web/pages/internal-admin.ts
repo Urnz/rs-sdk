@@ -4,6 +4,7 @@ import { enqueueNativeCommerce } from '#/mods/NativeCommerceRuntime.js';
 import { enqueueNativeKitchen } from '#/mods/NativeKitchenRuntime.js';
 import { enqueueNativeToolWork } from '#/mods/NativeToolWorkRuntime.js';
 import { enqueueNativeMiningDemand } from '#/mods/NativeMiningIntentRuntime.js';
+import { enqueueNativeMiningInteraction } from '#/mods/NativeMiningInteraction.js';
 import { enqueueNativeFoodSkill } from '#/mods/NativeFoodSkillRuntime.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -84,6 +85,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/native-kitchen'
         || url.pathname === '/api/internal/admin/native-tool-work'
         || url.pathname === '/api/internal/admin/native-mining-demand'
+        || url.pathname === '/api/internal/admin/native-mining-interaction'
         || url.pathname === '/api/internal/admin/native-food-skill'
         || url.pathname === '/api/internal/admin/witness-inspection'
         || url.pathname === '/api/internal/admin/checkpoint/search'
@@ -191,6 +193,11 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         return json(result, result.ok ? 200 : 409);
     }
 
+    if(url.pathname==='/api/internal/admin/native-mining-interaction'){
+        if(Object.keys(body).sort().join(',')!=='commandId,dispatchId,username')return json({error:'Invalid typed Mining interaction fields'},400);
+        const result=await enqueueNativeMiningInteraction({dispatchId:body.dispatchId as string,username:body.username as string});
+        return json(result,result.ok?200:409);
+    }
     if(url.pathname==='/api/internal/admin/native-mining-demand'){
         if(Object.keys(body).sort().join(',')!=='commandId,contextDigest,demandId,operation,username')return json({error:'Invalid typed Mining fields'},400);
         const {commandId:_commandId,...command}=body;

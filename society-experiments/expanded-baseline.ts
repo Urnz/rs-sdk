@@ -12,6 +12,7 @@ import { readWorkBindings } from '../business-work/binding.js';
 import { NativeMiningIntentStore } from '../item-lifecycle/native-mining-intent.js';
 import { NativeMiningCoverageStore } from '../item-lifecycle/native-mining-coverage.js';
 import { readNativeMiningCohortCoverage } from '../society-metrics/tool-demand-coverage.js';
+import { NativeMiningDispatchStore } from '../item-lifecycle/native-mining-dispatch.js';
 import { captureSocietyArchive,verifySocietyArchive,restoreSocietyArchive,offlineArchiveIO as io,type ArchiveManifest } from './archive.js';
 import type { LongExperimentPlan } from './plan.js';
 
@@ -54,6 +55,9 @@ function stores(root:string,selected:ExpandedSelection){
                     cohort.worldId,cohort.actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId})));
             }
             if(s.requiredTables.includes('business_work_binding'))readWorkBindings(db);
+            if(s.requiredTables.includes('native_mining_dispatch'))for(const record of new NativeMiningDispatchStore(db).read())
+                check(record.owner.worldId===selected.worldId&&record.owner.clockId===selected.clockId
+                    &&record.owner.clockProfileDigest===selected.clockProfileDigest,'Native Mining dispatch belongs to another world/clock');
             if(s.role==='needs')check((db.query('SELECT version FROM needs_schema').all() as {version:number}[]).map(r=>r.version).join(',')==='1','Unsupported needs schema');
             if(s.role==='clock'){const clock=db.query('SELECT status,profile_digest FROM simulation_clock WHERE clock_id=?').get(selected.clockId) as {status:string;profile_digest:string}|null;
                 check(clock?.status==='paused'&&clock.profile_digest===selected.clockProfileDigest,'Expanded baseline requires exact paused native clock');}

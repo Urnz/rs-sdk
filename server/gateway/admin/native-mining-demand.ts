@@ -13,6 +13,7 @@ import { OwnedDatabase } from '../../engine/src/io/OwnedDatabase.js';
 import type { NativeMiningDemandCommand } from '../../../sdk/mining-demand.js';
 import type { ActionResult } from '../../../sdk/types.js';
 import { foodSkillCheckpointPath } from './native-food-skills.js';
+import { requireNativeMiningDispatchProof } from '../../../item-lifecycle/native-mining-dispatch.js';
 import { populationNeedsBinding,populationNeedsOptions } from './needs-runtime.js';
 
 export interface MiningDemandOptions {workspace:string;worldId:string;checkpointPath:string;
@@ -37,6 +38,7 @@ export function readMiningDemandProof(o:Pick<MiningDemandOptions,'workspace'|'wo
                 ||proof.source.outputItemId!==i.outputItemId||proof.source.outputQuantity!==1||hash(proof.source.clock)!==hash(row.sample.clock)
                 ||proof.before.itemInstanceId!==row.sample.itemInstanceId||proof.before.revision!==row.sample.itemRevision
                 ||!first||first.sequence<=i.attemptSequenceAtAdmission)throw Error('Native Mining completion source differs');
+            if(i.nativeDispatchRequired)requireNativeMiningDispatchProof(db,i,row.completionEventId!,proof.source);
         }
         result=row;
     }).deferred();return result;}finally{db.close(true);}
@@ -61,9 +63,9 @@ export async function executeMiningDemandRequest(o:MiningDemandOptions,username:
         reason:acknowledged?'mining-demand-acknowledged':'mining-demand-uncertain',phase:row?.phase==='fulfilled'?'completion':'observation',
         data:{...data,dispatched}};
 }
-export async function executeLocalMiningDemand(username:string,request:MiningDemandRequest){
+export function localMiningDemandOptions():MiningDemandOptions{
     const workspace=resolve(import.meta.dir,'../../..'),needs=populationNeedsOptions(workspace);
-    return executeMiningDemandRequest({workspace,worldId:needs.worldId,checkpointPath:foodSkillCheckpointPath(workspace,needs.worldId),
+    return{workspace,worldId:needs.worldId,checkpointPath:foodSkillCheckpointPath(workspace,needs.worldId),
         binding:who=>{const agents=new AgentStateStore(join(workspace,'.local/agent-state/agents.sqlite'),undefined,true);
             try{const members=agents.listPopulationMembers().filter(m=>m.playerUsername===who);if(members.length!==1)throw Error('Mining population binding missing');
                 const {playerId,...binding}=populationNeedsBinding(needs.worldId,members[0]!);return{...binding,username:playerId};}finally{agents.close();}},
@@ -74,5 +76,6 @@ export async function executeLocalMiningDemand(username:string,request:MiningDem
             const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Engine-Admin-Token':token},
                 body:JSON.stringify({commandId:randomUUID(),...command}),signal:AbortSignal.timeout(8000)});
             const result=await response.json() as {ok?:boolean};if(!response.ok||result.ok!==true)throw Error('Native Mining dispatch unavailable');return result;
-        }},username,request);
+        }};
 }
+export async function executeLocalMiningDemand(username:string,request:MiningDemandRequest){return executeMiningDemandRequest(localMiningDemandOptions(),username,request);}

@@ -9,6 +9,7 @@ import { NativeMiningIntentStore,nativeMiningDemandSessionId } from '../../../..
 import { NativeMiningCoverageStore,miningCoverageSourceHeads,miningRosterDigest,type NativeMiningCoverageSample,type NativeMiningCoverageIngress } from '../../../../item-lifecycle/native-mining-coverage.js';
 import { miningIntentFulfillmentAllowed,miningOwner } from '../../../../agent-skills/mining-demand-source.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
+import { NativeMiningDispatchStore } from '../../../../item-lifecycle/native-mining-dispatch.js';
 
 /** Explicit test/backend ports only; none are posted by an avatar or exposed through HTTP. */
 export interface MiningCoveragePorts {
@@ -57,7 +58,7 @@ export function tickNativeMiningCoverage(override?:MiningCoveragePorts){
     }catch{console.error('[NativeMiningCoverage] source unavailable; no coverage claimed');}
 }
 /** Before identity/tool early returns, including legacy/raw Mining. Observation never admits work. */
-export function observeNativeMiningIngress(player:Player,nativeActionId:string,output:number|undefined,ports:NativeMiningPorts|null,override?:MiningCoveragePorts){
+export function observeNativeMiningIngress(player:Player,nativeActionId:string,output:number|undefined,ports:NativeMiningPorts|null,override?:MiningCoveragePorts,dispatchId?:string){
     const p=override??ports?.miningCoverage??production();
     if(!p||!NativeMiningCoverageStore.present(p.db))return;
     try{
@@ -75,9 +76,15 @@ export function observeNativeMiningIngress(player:Player,nativeActionId:string,o
                 const old=p.db.query<{sequence:number},[string]>(`SELECT sequence FROM native_mining_demand_event
                     WHERE json_valid(payload) AND json_extract(payload,'$.requestId')=? ORDER BY sequence LIMIT 1`).get(nativeActionId);
                 if(pending.intent.attemptSequenceAtAdmission===undefined||old&&old.sequence<=pending.intent.attemptSequenceAtAdmission)reason='pre-admission-action';
-                else{reason='compatible-request';demandId=pending.intent.demandId;}
+                else{
+                    reason='compatible-request';demandId=pending.intent.demandId;
+                    if(dispatchId){const proof=new NativeMiningDispatchStore(p.db).get(dispatchId);
+                        if(proof&&proof.dispatchId===nativeActionId&&proof.demandId===demandId&&miningRosterDigest([proof.owner])===miningRosterDigest([owner]))reason='source-bound-request';
+                        else{reason='admission-unavailable';demandId=null;}}
+                }
             }
         }
-        store.append({kind:'ingress',clock,sessionId:nativeMiningDemandSessionId,username:player.username,nativeActionId,demandId,reason,heads:miningCoverageSourceHeads(p.db)});
+        store.append({kind:'ingress',clock,sessionId:nativeMiningDemandSessionId,username:player.username,nativeActionId,demandId,reason,
+            ...(dispatchId?{dispatchId}:{}),heads:miningCoverageSourceHeads(p.db)});
     }catch{ingressFailures.add(p.db);console.error('[NativeMiningCoverage] Mining ingress unavailable; gap retained');}
 }

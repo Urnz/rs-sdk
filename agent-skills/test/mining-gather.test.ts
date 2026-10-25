@@ -7,24 +7,32 @@ import type { MiningDemandRequest } from '../../sdk/mining-demand.js';
 const fixtures:ReturnType<typeof miningSourceFixture>[]=[];afterEach(()=>{for(const f of fixtures.splice(0))f.close();});
 function fixture(){const f=miningSourceFixture();fixtures.push(f);return f;}
 function client(f:ReturnType<typeof fixture>,nativeFulfilled=true){
-    const calls:MiningDemandRequest[]=[];let interactions=0,count=0;
+    const calls:MiningDemandRequest[]=[],packets:import('../../sdk/mining-interaction.js').MiningInteractionContext[]=[];let interactions=0,count=0;
     const sdk={getInventory:()=>count?[{id:436,name:'copper ore',count}]:[],getSkillXp:()=>0,
         waitForCondition:async()=>{if(interactions===1)throw Error('retarget');count=1;},
         sendMiningDemand:async(r:MiningDemandRequest)=>{calls.push(r);return{success:true,phase:r.operation==='close'&&nativeFulfilled?'completion':'observation',
             message:'fixture',data:{context:r.context,demandId:miningDemandId(r),state:r.operation==='open'?'pending':nativeFulfilled?'fulfilled':'cancelled',
                 expiresAtWallTime:new Date(Date.now()+15000).toISOString(),nativeActionId:nativeFulfilled?'native-action':null,receiptDigest:'a'.repeat(64)}};}};
-    const bot={interactLoc:async()=>{interactions++;return{success:true,message:'targeted'};}};
-    return{sdk,bot,calls,interactions:()=>interactions};
+    const bot={interactLoc:async(_target?:unknown,_option?:unknown,context?:import('../../sdk/mining-interaction.js').MiningInteractionContext)=>{
+        if(context)packets.push(context);interactions++;return{success:true,message:'targeted'};}};
+    return{sdk,bot,calls,packets,interactions:()=>interactions};
 }
 test('bounded gather retargets inside one acknowledged demand and success requires native fulfillment',async()=>{
     const f=fixture(),c=client(f);const r=await new RsSdkSkillRuntime(c.bot as any,c.sdk as any).execute('gather-loc',f.request.args as any,new AbortController().signal,f.request.context);
     expect(r.success).toBeTrue();expect(c.interactions()).toBe(2);expect(c.calls.map(r=>r.operation)).toEqual(['open','close']);
     expect(miningDemandId(c.calls[0]!)).toBe(miningDemandId(c.calls[1]!));
     expect(r.data?.miningDemand).toMatchObject({state:'fulfilled',nativeActionId:'native-action'});
+    expect(c.packets.map(p=>p.dispatchSequence)).toEqual([1,2]);expect(c.packets.every(p=>miningDemandId(p.demand)===miningDemandId(f.request))).toBeTrue();
 });
 test('SDK inventory/XP progress without native fulfilled proof is uncertain and cannot be blindly retried',async()=>{
     const f=fixture(),c=client(f,false);const r=await new RsSdkSkillRuntime(c.bot as any,c.sdk as any).execute('gather-loc',f.request.args as any,new AbortController().signal,f.request.context);
     expect(r).toMatchObject({success:false,code:'mining-demand-uncertain',retryable:false});
+});
+test('abort during an in-flight interaction closes immediately and cannot wait behind the old transport',async()=>{
+    const f=fixture(),c=client(f),controller=new AbortController();
+    c.bot.interactLoc=async()=>{controller.abort();return await new Promise<any>(()=>{});};
+    const r=await new RsSdkSkillRuntime(c.bot as any,c.sdk as any).execute('gather-loc',f.request.args as any,controller.signal,f.request.context);
+    expect(r).toMatchObject({success:false,code:'cancelled',retryable:false});expect(c.calls.map(v=>v.operation)).toEqual(['open','close']);
 });
 test('abort while opening still sends close and never interacts, even if the open ACK arrives later',async()=>{
     const f=fixture(),c=client(f),controller=new AbortController(),send=c.sdk.sendMiningDemand;

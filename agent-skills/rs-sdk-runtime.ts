@@ -284,7 +284,7 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 return this.executeThievingOperation(operation, args, signal);
             case 'gather-loc':
             case 'gather-npc': {
-                const gather=async(nativeDeadline=Infinity):Promise<SkillOperationResult>=>{
+                const gather=async(nativeDeadline=Infinity,demand?:import('../sdk/mining-demand.js').MiningDemandRequest):Promise<SkillOperationResult>=>{
                 const target = selector(stringArg(args, 'name'), args.match);
                 const itemName = stringArg(args, 'item');
                 const item = selector(itemName, 'contains');
@@ -301,7 +301,7 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 while (Date.now() < deadline && interactions < maxRetargets) {
                     if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
                     const interaction = operation === 'gather-loc'
-                        ? await this.bot.interactLoc(target, option)
+                        ? demand?await this.bot.interactLoc(target,option,{demand,dispatchSequence:interactions+1,signal}):await this.bot.interactLoc(target, option)
                         : await this.bot.interactNpc(target, option);
                     lastInteraction = normalized(interaction);
                     interactions++;

@@ -8,6 +8,7 @@ import { NativeMiningDemandStore } from '../../../../item-lifecycle/native-minin
 
 export interface NativeMiningIntentCommand {demandId:string;username:string;outputItemId:436|438;contextDigest:string;maximumWallMilliseconds:number}
 export interface NativeMiningIntentPorts extends NativeMiningPorts {
+    requireDispatchProof?:boolean;
     clock():SimulationClockObservation;
     /** Trusted caller must re-read the admitted high-level invocation; a posted digest is not authority. */
     authorizeStart(command:NativeMiningIntentCommand,owner:NativeToolOwner):{authorityDigest:string;expiresAtWallTime?:string};
@@ -54,6 +55,7 @@ export class NativeMiningIntentTracker {
         if(!Number.isSafeInteger(maximumWallMilliseconds)||maximumWallMilliseconds<100||maximumWallMilliseconds>command.maximumWallMilliseconds)throw Error('Mining executor lifetime expired or differs');
         const intent={demandId:command.demandId,owner:actual.owner,outputItemId:command.outputItemId,contextDigest:command.contextDigest,authorityDigest:authority.authorityDigest,
             maximumWallMilliseconds,expiresAtWallTime,
+            ...(this.ports.requireDispatchProof?{nativeDispatchRequired:true as const}:{}),
             attemptSequenceAtAdmission:prior?.intent.attemptSequenceAtAdmission??(NativeMiningDemandStore.present(this.ports.market.db)?NativeMiningDemandStore.read(this.ports.market.db).head.sequence:0)};
         if(prior){if(nativeToolDigest(intent)!==nativeToolDigest(prior.intent))throw Error('Native mining intent conflict');return prior;}
         return this.store.write({schemaVersion:1,intent,revision:1,phase:'pending',sample,completionEventId:null});

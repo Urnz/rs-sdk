@@ -3925,6 +3925,7 @@ export class BotActions {
     async interactLoc(
         target: NearbyLoc | string | RegExp,
         option: number | string | RegExp = 1,
+        mining?:import('./mining-interaction').MiningInteractionContext&{signal?:AbortSignal},
     ): Promise<InteractLocResult> {
         if (target == null) {
             // An undefined target used to fall through to a match-anything
@@ -3932,6 +3933,7 @@ export class BotActions {
             return { success: false, message: `interactLoc requires a target loc, name, or pattern (got ${target})`, reason: 'loc_not_found' };
         }
         const resolvedLoc = this.helpers.resolveLocation(target, /./);
+        if(mining)return this._interactLocOnce(target,option,mining);
         return this.helpers.withDoorRetry(
             () => this._interactLocOnce(target, option),
             (r) => r.reason === 'cant_reach',
@@ -3943,8 +3945,11 @@ export class BotActions {
     private async _interactLocOnce(
         target: NearbyLoc | string | RegExp,
         option: number | string | RegExp = 1,
+        mining?:import('./mining-interaction').MiningInteractionContext&{signal?:AbortSignal},
     ): Promise<InteractLocResult> {
         await this.dismissBlockingUI();
+
+        if(mining?.signal?.aborted)return{success:false,message:'Mining cancelled',reason:'timeout'};
 
         // A named option narrows resolution to locs that actually offer it.
         const optionFilter = typeof option === 'number' ? undefined : option;
@@ -3967,8 +3972,8 @@ export class BotActions {
         }
 
         // Walk to the location first (handles doors)
-        if (loc.distance > 2) {
-            const walkResult = await this.walkTo(loc.x, loc.z, 2);
+        if (loc.distance > (mining?1:2)) {
+            const walkResult = await this.walkTo(loc.x, loc.z, mining?1:2);
             if (!walkResult.success) {
                 return { success: false, message: `Cannot reach ${loc.name}: ${walkResult.message}`, reason: 'cant_reach' };
             }
@@ -4006,7 +4011,9 @@ export class BotActions {
             state?.player != null &&
             Math.max(Math.abs(state.player.x - dispatchX), Math.abs(state.player.z - dispatchZ)) > 8;
 
-        const result = await this.sdk.sendInteractLoc(locNow.x, locNow.z, locNow.id, opIndex);
+        if(mining?.signal?.aborted)return{success:false,message:'Mining cancelled',reason:'timeout'};
+        const result = mining?await this.sdk.sendMiningInteraction({demand:mining.demand,dispatchSequence:mining.dispatchSequence,target:{x:locNow.x,z:locNow.z,locId:locNow.id,optionIndex:opIndex as 1|3}})
+            :await this.sdk.sendInteractLoc(locNow.x, locNow.z, locNow.id, opIndex);
         if (!result.success) {
             return { success: false, message: result.message, reason: 'timeout' };
         }

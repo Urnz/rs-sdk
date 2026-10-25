@@ -8,6 +8,8 @@ import { miningOwner } from '../../../../agent-skills/mining-demand-source.js';
 import { tickNativeMiningIntents } from './NativeMiningIntentRuntime.js';
 import { NativeMiningIntentTracker } from './NativeMiningIntent.js';
 import type { MiningCoveragePorts } from './NativeMiningCoverage.js';
+import { NativeToolStore } from '../../../../item-lifecycle/native-tool.js';
+import InvType from '../cache/config/InvType.js';
 beforeAll(loadPackedContent);afterEach(closeNativeMiningFixtures);
 function harness(){
     const f=fixture(undefined,{username:'alice'}),players=[f.miner,...['bob','carol','dave'].map(name=>f.player(name))];
@@ -33,12 +35,16 @@ test('SI-C07 cohort observer samples all four founders through the real tick hoo
     const tail=f.store.read().entries.at(-1)!.event;if(tail.kind!=='sample')throw Error('No cohort frame');
     expect(tail.actors.find(a=>a.actorId==='actor-dave')?.status).toBe('offline');
 });
-test('SI-C07 raw packed Mining is observed as a legacy gap while its normal ore and wear remain unchanged',()=>{
+test('SI-C07 selected cohort raw packed Mining is observed as a legacy gap and rejected without ore or wear',()=>{
     const f=harness();const state=f.mine(),events=f.store.read().entries.map(e=>e.event).filter(e=>e.kind==='ingress');
     expect(events.length).toBeGreaterThan(0);expect(events.every(e=>e.reason==='no-standing-request'&&e.demandId===null)).toBeTrue();
-    expect(events.some(e=>e.nativeActionId===state.nativeMiningActionId)).toBeTrue();
+    expect(events.every(e=>typeof e.nativeActionId==='string'&&e.nativeActionId.length===36)).toBeTrue();
     expect(f.store.read().entries.every(e=>e.event.clock.clockId===f.selection.clockId)).toBeTrue();
-    expect(f.store.read().selection).toEqual(f.selection);expect(f.market.db.query('SELECT 1 FROM native_tool_event WHERE event_id=?').get(state.nativeMiningActionId!)).not.toBeNull();
+    expect(f.store.read().selection).toEqual(f.selection);expect(state.execution).toBe(-1);
+    expect(f.store.read().entries.every(e=>e.event.kind!=='ingress'||e.event.reason!=='source-bound-request')).toBeTrue();
+    expect(f.market.db.query('SELECT 1 FROM native_tool_event WHERE event_id=?').get(events[0]!.nativeActionId)).toBeNull();
+    expect(new NativeToolStore(f.market.db).lifecycle.get('tool-alice')!.durability).toBe(100);expect(f.miner.getInventory(InvType.INV)!.getItemCount(436)).toBe(0);
+    expect(f.store.read().selection.actors).toHaveLength(4);
 });
 test('SI-C07 missing population identity is durably observed before the native early return or rejection',()=>{
     const f=harness();f.p.identity=()=>null;

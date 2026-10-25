@@ -9,6 +9,7 @@ export interface NativeMiningIntent {
     maximumWallMilliseconds:number;expiresAtWallTime:string;
     /** Absent on legacy records; no fresh-admission claim may be inferred for them. */
     attemptSequenceAtAdmission?:number;
+    nativeDispatchRequired?:true;
 }
 export interface NativeMiningIntentRecord {
     schemaVersion:1;intent:NativeMiningIntent;revision:number;phase:'pending'|'fulfilled'|'cancelled'|'expired';
@@ -27,6 +28,7 @@ function validate(r:NativeMiningIntentRecord){
         'Invalid native mining intent identity');
     check(Number.isSafeInteger(i.maximumWallMilliseconds)&&i.maximumWallMilliseconds>=100&&i.maximumWallMilliseconds<=300000
         &&typeof i.expiresAtWallTime==='string'&&Number.isFinite(Date.parse(i.expiresAtWallTime)),'Invalid native mining intent lifetime');
+    check(i.nativeDispatchRequired===undefined||i.nativeDispatchRequired===true,'Invalid Mining dispatch requirement');
     check(o&&Object.keys(o).sort().join(',')==='actorId,clockId,clockProfileDigest,lifecycleId,username,worldId'
         &&Object.values(o).every(v=>typeof v==='string'&&v.length>0&&v.length<=256)&&hex(o.clockProfileDigest),'Invalid native mining intent owner');
     check(c&&c.clockId===o.clockId&&c.profileDigest===o.clockProfileDigest&&c.status==='running'

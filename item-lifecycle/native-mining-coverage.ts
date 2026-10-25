@@ -18,7 +18,8 @@ export interface NativeMiningCoverageSample {
 export interface NativeMiningCoverageIngress {
     kind:'ingress';clock:SimulationClockObservation;sessionId:string;username:string;nativeActionId:string;
     heads:{attempt:MiningSourceHead;intent:MiningSourceHead};
-    demandId:string|null;reason:'compatible-request'|'no-standing-request'|'identity-unavailable'|'admission-unavailable'|'unsupported-native-path'|'pre-admission-action';
+    dispatchId?:string;
+    demandId:string|null;reason:'source-bound-request'|'compatible-request'|'no-standing-request'|'identity-unavailable'|'admission-unavailable'|'unsupported-native-path'|'pre-admission-action';
 }
 export type NativeMiningCoverageEvent=NativeMiningCoverageSample|NativeMiningCoverageIngress;
 const check=(v:unknown,m:string)=>{if(!v)throw Error(m);};
@@ -62,8 +63,9 @@ function validate(s:NativeMiningCoverageSelection,e:NativeMiningCoverageEvent){
         validHead(e.heads.attempt);validHead(e.heads.intent);
         check(e.kind==='ingress'&&s.actors.some(a=>a.username===e.username)&&uuid(e.nativeActionId)
             &&(e.demandId===null||uuid(e.demandId))
-            &&['compatible-request','no-standing-request','identity-unavailable','admission-unavailable','unsupported-native-path','pre-admission-action'].includes(e.reason)
-            &&(e.reason!=='compatible-request'||e.demandId!==null),'Invalid Mining coverage ingress');
+            &&['source-bound-request','compatible-request','no-standing-request','identity-unavailable','admission-unavailable','unsupported-native-path','pre-admission-action'].includes(e.reason)
+            &&(e.reason!=='compatible-request'&&e.reason!=='source-bound-request'||e.demandId!==null)
+            &&(e.dispatchId===undefined||uuid(e.dispatchId))&&(e.reason!=='source-bound-request'||e.dispatchId===e.nativeActionId),'Invalid Mining coverage ingress');
     }
 }
 export interface NativeMiningCoverageEntry {sequence:number;event:NativeMiningCoverageEvent;digest:string}

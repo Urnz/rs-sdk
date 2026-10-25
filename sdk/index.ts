@@ -1177,6 +1177,9 @@ export class BotSDK {
     async sendMiningDemand(request: import('./mining-demand').MiningDemandRequest): Promise<ActionResult> {
         return this.sendAction({ type: 'miningDemand', request, reason: 'SDK' });
     }
+    async sendMiningInteraction(request: import('./mining-interaction').MiningInteractionRequest): Promise<ActionResult> {
+        return this.sendAction({ type: 'miningInteraction', request, reason: 'SDK' });
+    }
 
     /** Send walk command to coordinates. */
     async sendWalk(x: number, z: number, running: boolean = true): Promise<ActionResult> {

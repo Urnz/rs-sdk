@@ -2630,3 +2630,69 @@ Hosszú run/providerhívás/költség0; további futási engedélyt nem kértün
 
 Végső artifact: `20261025-225050-867-si-c07-cohort-final-artifact`,friss NO-GO
 sourcehash/digest/link PASS0,852 s, változatlan17/8 és0 provider-jogosultság.
+
+### 2026-10-25 – SI-C07/1 exact natív dispatch; rögzített7 csomagból6 maradt
+
+[A7 csomagos bontás](SI_C07_REMAINING_WORK.md) az első mostani csomaggal együtt
+értendő; az1. célzottan kész,6 maradt. Ezek lezárási egységek, nem garantált
+chatkörök; feltárt hibák és sikertelen gazdasági run további javítási/próba
+köröket igényelhetnek. Következő a2. csomag:17 requirement/8 integrity gate
+source-map/assessor és hiányzó high-level demand/housing/needs exposure.
+
+[Exact dispatch](SI_C07_NATIVE_DISPATCH.md): reviewed demand +retarget ordinal
+és exact target immutable sidecar, source-rechecked authenticated SDK target,
+szűk loopback HTTP/native tick queue. A valódi World loc, plane, adjacent range,
+copper/tin output, selector és Mine-option ellenőrzése után a saját immutable
+DB-admission fogyasztja a dispatchId-t, a valódi packed script konkrét state-je
+kapja a provenance-t. Nem egy régi browser OPLOC kap környezeti identitást.
+Replay visszaolvassa az admissiont, nem futtat újra. Ez csak admission ACK,
+sikerhez canonical mined/output/wear/intent proof kell. Új production intent
+nativeDispatchRequired:true; másik raw vagy korábbi suspended akció nem
+teljesítheti. A selected cohort raw/unbound Mining naplózott elutasítás,
+ore/wear nélkül. Régi metadata/history nincs backfillve.
+
+Abort/deadline a teljes managed gatherre kiterjed, finally close nem vár a
+beragadt interactionre. A SDK a séta után ellenőrzi a helyi AbortSignal-t,
+nem szerializálja azt. Késői/cancelled/sealed/offline/rossz target/source
+nem indít új native munkát. A callback után bizonytalan effect nem retryzható
+vakon. Source-bound és compatible ingress külön; hiányzó dispatch-ingress gap.
+Teljes high-level request nevező továbbra unproven, nem állítottunk minimum PASS-t.
+
+Saját additív dispatch schema1, shared user_version/clock/auth/migrátor és a
+wear/output gazdasági commit változatlan. Explicit tool-opening inicializál,
+command nem pótol defaultsot. C06 selected dispatch schema/world/clock validálás
+és offline restore bekötve; runtime source-sidecarok a meglévő `.local/agent-skills`
+archívumgyökérben maradnak. Rollback előtt stop, régi bináris nem kompatibilis
+az új strict flaggel való folytatáshoz; új baseline/pin szükséges, evidence-törlés nincs.
+
+Ellenőrzés és diagnosztika (nested számok átfednek, nem összeadandók):
+
+- `20261025-230418-667-si-c07-dispatch-source-thin`:11 PASS1,745 s.
+- `20261025-230456-458-si-c07-native-dispatch-thin`:FAIL16,369 s;
+  a korábbi direkt-script fixture FOREVER köve a World.getLoc nyilvántartásban
+  nem szerepelt, és a selected raw-rejection előtti actionId-állapotot várta.
+- `20261025-230622-913-si-c07-dispatch-native-stage`:FAIL17,726 s;
+  bounded, payloadot nem idéző fáziskód a target-checkre szűkítette a hibát.
+  `20261025-230730-052-si-c07-dispatch-one-target-diagnostic`:egyetlen natív
+  eset reprodukciója FAIL2,654 s, ugyanaz a target-lookup. A fixture valóban
+  nyilvántartott dinamikus locot kapott; production check nem lazult.
+- `20261025-230810-158-si-c07-dispatch-indexed-native`:FAIL14,830 s;
+  a fennmaradó3 natív eset még pending volt. A régi f.mine helperrel egyező
+  cooldown/tick előkészítés hiányzott a fixture-ből. Generic limit nem nőtt.
+- `20261025-231025-927-si-c07-dispatch-native-cooldown-and-types`:20 runtime
+  ellenőrzés PASS, root TS PASS; kör engine TS miatt FAIL143,339 s. Nullable
+  loc-option és transaction closure-ben nem szűkített source típus; explicit
+  null-guard és rögzített lokális source javította, config/any-lazítás nélkül.
+- **`20261025-231507-910-si-c07-dispatch-consumers-final`:113 célzott/nested
+  ellenőrzés és root+engine+webclient TS PASS189,906 s**, köztük3 selected-source
+  archive/restore próba. SDK exact wire/abort/legacy, executor/source/schema,
+  intent/coverage/outcome/preparer és natív raw/replay/cancel/owner/target/auth.
+
+A közös SDK-szerződés miatt mindhárom TS érintett; a gazdasági/migrátor/auth
+alapok nem változtak, így nem teljes regresszió. Nincs új baseline/live world,
+providerhívás, költség vagy hosszú futási engedély. SI-C07 nyitott27/45,
+preflight NO-GO; C08 nem indul, SI-M3/MVS nem PASS.
+
+Végső artifact: `20261025-232300-047-si-c07-dispatch-final-artifact`, NO-GO
+sourcehash/digest és5 kapcsolt dokumentum linkje PASS0,808 s. A17/8 minimum
+és a0 provider-jogosultság változatlan; a113 sikeres ellenőrzés nem ismétlődött.
