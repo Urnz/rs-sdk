@@ -131,7 +131,16 @@ TS PASS104,775 s. `si-c07-intent-preflight-and-benchmark`:3 preparer és1 konkr�
 benchmark/restore próba +friss NO-GO artifact/sourcehash/link PASS9,702 s.
 Részletes azonosítók és korlátok a tartós igény dokumentumában/átadásban.
 
-**SI-C07 nyitott,27/45; SI-M3/MVS nem PASS.** Következő konkrét kódmunka a
-teljes founder-cohort/source coverage-watermark és a minimum assessment bridge.
+2026-10-25: [prospektív cohort/window/head és native ingress napló](SI_C07_COHORT_COVERAGE.md)
+elkészült komponensszinten. A kiválasztott teljes roster megfigyelése üres
+queue mellett is működik; legacy/unbound/missing-identity/tick/session/source
+gapek megmaradnak, a C06 selected source restore és outcome-read ellenőrzi őket.
+Az aktív igénynek megfelelő kattintás csak `compatible-request`, mert az
+executor→transport/native packet pontos eredet még nincs végigkötve. A teljes
+demand-coverage és17/8 bridge továbbra hiányzik; preflight NO-GO.
+
+**SI-C07 nyitott,27/45; SI-M3/MVS nem PASS.** Következő konkrét kódmunka az
+exact operation-instance transport/native ingress kötése és teljes enforcement,
+majd a minimum assessment bridge.
 A következő task C07, nem C08; a hosszú futási
 jóváhagyás még nem esedékes.

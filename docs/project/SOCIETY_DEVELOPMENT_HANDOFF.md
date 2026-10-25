@@ -20,10 +20,17 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   Admissionkori attempt-cursor: régi suspended akció késői érce nem teljesít új
   kérést. Sikertelen managed gather mindig retryable:false, a cancel nem
   játékcsomag-visszavonás. Source/role elvesztése unknown, nem nulla.
-- **Következő konkrét feladat:** teljes founder-cohort/source coverage-watermark.
-  Kösd a kiválasztott roster/clock/window és authoritative headeket; a közvetlen
-  legacy interact-loc/unbound/missing-identity/kimaradt observer utakat gapként
-  kezeld. A hiányzó kérés vagy üres queue nem bizonyítja az igény hiányát.
+- **Új komponens kész:** [prospektív cohort/window/source-head napló](SI_C07_COHORT_COVERAGE.md).
+  Explicit baseline előtti immutable selection; üres queue mellett is minden
+  founder megfigyelése, raw/unbound/missing-identity native ingress a korai
+  kilépések előtt. Tick/session/roster/clock/prefix gap nem interpolálható.
+  C06 selected-source capture/restore és outcome-read bekötve; sérült coverage
+  nem rejti el az érvényes intent-naplóval bizonyított scoped FAIL-t.
+- **Következő konkrét feladat:** az executor operation-instance végigkötése a
+  tényleges SDK/transport/native packet belépéshez, a teljes belépési kör
+  enforcementje. A `compatible-request` csak egyező aktív igény: a mostani
+  kattintás protokollból nem bizonyítható az executor eredet, ezért a watermark
+  completeDemandCoverage:false marad. Üres queue/nincs kérés nem nulla demand.
   Utána17 eredeti requirement/8 integrity gate teljes assessment bridge.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
@@ -56,47 +63,46 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   nincs új fulfillment. Baseline előtt schema/index init/pin szükséges.
   C06 selected intent chain/head/clockot, interval-reader outputproofot ellenőriz.
  100000 row/256 MiB readerlimit; explicit run source-row/byte budget még kell.
+- Az új coverage séma saját schemaVersion1 selection/event/head táblákkal,
+  baseline előtti explicit installal működik; live workspace-be nem települt.
+  Nincs történeti backfill vagy automatikus selection/default. A teljes
+  transport ingress még hiányzik, így az observer ablakának hiánytalansága
+  önmagában nem teljes demand-coverage vagy minimum PASS.
 - CLI: `bun scripts/prepare-society-minimum-run.ts`; NO-GO JSON +exit2,
   liveStartAuthorized/readyForRunApproval=false. Nincs selectedWorld/baseline.
   Forráshash, sikeres skill vagy helyes restore nem társadalmi PASS.
 
 ## Ellenőrzési bizonyíték
 
-- `20261025-115804-236-si-c07-mining-admission-final-artifact`:végső source-
-  hash/digest és dokumentációlink ellenőrzés PASS3,873 s, NO-GO exit2 tudatos
-  kapuval; nincs runtime- vagy providerindítás.
-- `20261025-114922-832-si-c07-mining-timeout-no-retry`:14 célzott runtime/
-  natív ellenőrzés +root/engine TS PASS244,154 s, runtime33,87 s. A cancel
-  után is sikertelen gather nem ismétel már elküldött csomagot. A változatlan
-  webclient és a sikeres169 fogyasztói eset nem futott újra.
-- `20261025-114216-650-si-c07-mining-admission-preflight-copy`:3 preparer
-  próba +friss NO-GO artifact/sourcehash/link PASS1,709 s. A megelőző2 PASS/1
-  FAIL1,959 s körben a másolt negatív fixture csak catalogot másolt; a filter
-  most az új agent-skills kódfájlokat is megtartja.9500→9400 továbbra blocked.
-- `20261025-111228-254-si-c07-mining-source-runtime`:11 source/runtime
-  repeat/retarget/abort/disconnect/marker/admission eset PASS2,056 s.
-- `20261025-111659-251-si-c07-mining-admission-native`:6 tényleges natív lánc/
-  hibahatár +1 wrapper PASS4,031 s, explicit fixture source-porttal.
-- `20261025-112122-525-si-c07-mining-admission-consumers`:16 célzott fájl,
- 169 PASS/1 FAIL,99,071 s. Egy C06 compound result/restore eset a generikus5 s
-  timerbe futott6,876 s-nál; más assertion nem bukott. Nem full regresszió.
-- Változatlan limitű izolált reprodukció PASS2,615 s (`112343-749`), részfázisos
-  mérés PASS2,668 s (`112453-151`), case-body2,128 s. Ez az egy3 capture/több
-  restore/2 SQLite világ teszt explicit15 s I/O-budgetet és részfázisnaplót
-  kapott; assertion/runtime/clock/run-limit nem lazult. A javított eset PASS
- 2,062 s body (`112620-636`), ugyanazon kör root TS tesztadat-hibája még FAIL.
-- `20261025-113401-579-si-c07-mining-shared-fixture-and-types`:18 érintett
-  ellenőrzés és **root+engine+webclient TS PASS183,099 s**, runtime5,69 s.
-  Root/NodeNext közös fixture import.meta helyett JSON-importot használ.
-  A sikeres169 fogyasztót nem ismételtük; csak a változott fixture és hibás határ.
-- Korai type/fixture FAIL-ek és javítások a [részletes progressben](SOCIETY_INTEGRATION_PROGRESS.md)
-  és `.local/verification/*si-c07-mining-*.log/.result.json` alatt megmaradnak.
-  A körök nested/átfedő számai és idői nem összeadandók.
-- Full nem futott: új szűk ág a meglévő socket target/observe és engine token
-  guard mögött; ezek, a közös clock/migrátor/asset commit invariánsai változatlanok.
-  A közös BotAction típus miatt mindhárom TS-projekt érintett volt. A rootba
-  motort behúzó type-importot tiszta SDK-típusra cseréltük; nem globális configot.
-
+- `20261025-225050-867-si-c07-cohort-final-artifact`:friss NO-GO artifact,
+  sourcehash/digest és dokumentációlink PASS0,852 s; változatlan17/8, provider0.
+- `20261025-224729-890-si-c07-cohort-prefix-restore-final`:19 célzott/nested
+  ellenőrzés +root/engine TS PASS120,674 s. Pre-window offline founder gap,
+  valódi admitted native ingress prefix-read és2 selected-source capture/restore
+  eset. A már sikeres többi fogyasztó nem ismétlődött.
+- `20261025-224306-585-si-c07-cohort-coverage-consumers`:70 célzott/nested
+  ellenőrzés +root/engine TS PASS154,490 s, runtime21,37 s. Saját séma/reader,
+  native Mining/intent/admission, outcome/evaluation FAIL-megőrzés és preparer.
+  A két kör átfed, számaik/idejük nem összeadandók.
+- `20261025-223914-850-si-c07-cohort-coverage-thin`:korai16 PASS/9 FAIL,
+  16,799 s; root assertionök a raw SQLite-fixture strict close-ján buktak
+  (cache-ből kiesett statementek),1 natív eset dobott kivételt várt a motor
+  ABORTED visszatérési állapota helyett. Meglévő OwnedDatabase fixture és
+  explicit native execution-assertion javította; termék-assertion nem lazult.
+- `20261025-224034-286-si-c07-cohort-coverage-owned-db`:13 ellenőrzés PASS,
+  a kör root TS miatt FAIL83,183 s (a Bun által futáskor elfogadott Bufferes
+  reopen nem része a típusdeklarációnak). A fixture valódi ideiglenes fájlt és
+  readonly újranyitást kapott; type/config nem lazult. A két végső TS kör PASS.
+- Korábbi source-backed admission:18 ellenőrzés +root/engine/webclient TS
+  PASS183,099 s (`20261025-113401-579-si-c07-mining-shared-fixture-and-types`),
+  majd a sikertelen gather no-retry javítása14 ellenőrzés +root/engine TS
+  PASS244,154 s (`20261025-114922-832-si-c07-mining-timeout-no-retry`).
+  A korábbi compound restore timerdiagnosztika és a részfázisok a
+  [gather-admission dokumentumban](SI_C07_GATHER_ADMISSION.md) megmaradnak.
+- Full nem futott: saját additív megfigyelési séma és reader, változatlan közös
+  clock/auth/migrátor/gazdasági commit; a közvetlen source/archive/native
+  fogyasztók célzottan ellenőrizve. A webclient nem változott, TS sem ismétlődött.
+  Hosszú run, providerhívás, új live selection/baseline és történeti DB-read0.
 ## Megőrzendő döntések
 
 - Csak helyi/private LostCity. Nincs live world-indítás, import, enrollment,

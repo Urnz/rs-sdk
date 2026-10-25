@@ -49,6 +49,17 @@ export function populationFoodTickClock(engineTick: number): SimulationClockObse
     if (!local || !local.agents.listPopulationMembers().length) return null;
     return clockObservation(engineTick);
 }
+/** Observer roster, including offline/terminal members; never infers membership from connected avatars. */
+export function populationMiningCoverageRoster() {
+    assertManagedModuleRoot(fileURLToPath(root));
+    const local=getRuntime();if(!local)throw Error('Population roster unavailable');
+    return local.agents.listPopulationMembers().map(member=>({actorId:member.agentId,username:member.playerUsername,
+        lifecycleId:foodDigest({agentId:member.agentId,createdAt:member.characterLifecycle.createdAt,origin:member.characterLifecycle.origin,
+            createdAtSimulationTime:member.characterLifecycle.createdAtSimulationTime,sourceResultId:member.sourceResultId,sourceResultDigest:member.sourceResultDigest,
+            worldProfile:member.worldProfile,lifecyclePolicy:member.lifecyclePolicy,simulationClock:member.simulationClock}),
+        worldId:managedContext()?.id??`local:${foodDigest(fileURLToPath(root))}`,clockId:member.simulationClock.clockId,
+        clockProfileDigest:member.simulationClock.profileDigest}));
+}
 function memberFor(username: string) {
     const local = getRuntime();
     if (!local) {

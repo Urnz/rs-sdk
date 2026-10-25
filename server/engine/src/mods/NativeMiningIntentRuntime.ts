@@ -7,11 +7,12 @@ import { NativeMiningIntentTracker } from './NativeMiningIntent.js';
 import { NativeMiningIntentStore,type NativeMiningIntentRecord } from '../../../../item-lifecycle/native-mining-intent.js';
 import { authorizeMiningDemand,authorizeMiningDemandCommand,readMiningDemandInvocation,miningDemandCancellation,miningOperationSealed } from '../../../../agent-skills/mining-demand-source.js';
 import { assertManagedModuleRoot } from '../../../control-plane/instance-context.js';
+import { tickNativeMiningCoverage,type MiningCoveragePorts } from './NativeMiningCoverage.js';
 
 import type { NativeMiningDemandCommand } from '../../../../sdk/mining-demand.js';
 export type { NativeMiningDemandCommand } from '../../../../sdk/mining-demand.js';
 type Response={ok:true;record:NativeMiningIntentRecord|null}|{ok:false;error:string};
-export interface NativeMiningDemandRuntime {workspace:string;tracker:NativeMiningIntentTracker;player(username:string):Player|null}
+export interface NativeMiningDemandRuntime {workspace:string;tracker:NativeMiningIntentTracker;player(username:string):Player|null;coverage?:MiningCoveragePorts}
 const queue:Array<{command:NativeMiningDemandCommand;expires:number;resolve(value:Response):void}>=[];
 let current:NativeMiningDemandRuntime|null=null;
 function valid(c:NativeMiningDemandCommand){return c&&Object.keys(c).sort().join(',')==='contextDigest,demandId,operation,username'
@@ -75,4 +76,5 @@ export function tickNativeMiningIntents(override?:NativeMiningDemandRuntime){
             try{local.tracker.observe(record.intent.demandId,null,false);}catch{console.error('[NativeMiningIntent] source gap; request retained');}
         }
     }catch{console.error('[NativeMiningIntent] source unavailable; no coverage claimed');}
+    finally{if(!override||override.coverage)tickNativeMiningCoverage(override?.coverage);}
 }

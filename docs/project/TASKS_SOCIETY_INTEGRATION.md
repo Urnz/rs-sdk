@@ -1079,8 +1079,10 @@ reference-ID ütközés javítva,17 eredeti requirement és policy-fájl változ
 elkészült. [Tartós natív igény/lifetime/cancel/output és időmérés](SI_C07_STANDING_TOOL_DEMAND.md)
 is kész komponensszinten. A [production source-backed gather admission](SI_C07_GATHER_ADMISSION.md)
 bekötése is elkészült, ismétlés/cancel/expiry/friss native output védelemmel.
-A teljes founder-cohort/source coverage és minimum bridge még hiányzik;
-utána baseline/ratio/SI-A14 preflight és jóváhagyás.
+A [prospektív cohort/window/head napló](SI_C07_COHORT_COVERAGE.md) és a natív
+legacy/unbound/identity gapek megfigyelése is kész komponensszinten. Az exact
+executor→transport/native packet eredet és a teljes demand-coverage enforcement,
+majd a minimum bridge még hiányzik; utána baseline/ratio/SI-A14 és jóváhagyás.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

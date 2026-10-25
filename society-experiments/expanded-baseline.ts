@@ -10,6 +10,8 @@ import { AGENT_STATE_SCHEMA_VERSION } from '../agent-state/types.js';
 import { SIMULATION_CLOCK_STORE_SCHEMA_VERSION } from '../simulation-clock/types.js';
 import { readWorkBindings } from '../business-work/binding.js';
 import { NativeMiningIntentStore } from '../item-lifecycle/native-mining-intent.js';
+import { NativeMiningCoverageStore } from '../item-lifecycle/native-mining-coverage.js';
+import { readNativeMiningCohortCoverage } from '../society-metrics/tool-demand-coverage.js';
 import { captureSocietyArchive,verifySocietyArchive,restoreSocietyArchive,offlineArchiveIO as io,type ArchiveManifest } from './archive.js';
 import type { LongExperimentPlan } from './plan.js';
 
@@ -43,6 +45,14 @@ function stores(root:string,selected:ExpandedSelection){
             if(s.requiredTables.includes('native_mining_intent_state'))for(const {record} of NativeMiningIntentStore.read(db).entries)
                 check(record.intent.owner.worldId===selected.worldId&&record.intent.owner.clockId===selected.clockId
                     &&record.intent.owner.clockProfileDigest===selected.clockProfileDigest,'Native mining demand belongs to another world/clock');
+            if(s.requiredTables.includes('native_mining_coverage_selection')){
+                const cohort=new NativeMiningCoverageStore(db).selection();
+                check(cohort.worldId===selected.worldId&&cohort.clockId===selected.clockId&&cohort.clockProfileDigest===selected.clockProfileDigest,
+                    'Native Mining cohort belongs to another world/clock');
+                readNativeMiningCohortCoverage(db,{clockId:cohort.clockId,clockProfileDigest:cohort.clockProfileDigest,
+                    fromSimulationTime:cohort.fromSimulationTime,toSimulationTime:cohort.toSimulationTime,actorAgentIds:cohort.actors.map(a=>a.actorId)},
+                    cohort.worldId,cohort.actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId})));
+            }
             if(s.requiredTables.includes('business_work_binding'))readWorkBindings(db);
             if(s.role==='needs')check((db.query('SELECT version FROM needs_schema').all() as {version:number}[]).map(r=>r.version).join(',')==='1','Unsupported needs schema');
             if(s.role==='clock'){const clock=db.query('SELECT status,profile_digest FROM simulation_clock WHERE clock_id=?').get(selected.clockId) as {status:string;profile_digest:string}|null;

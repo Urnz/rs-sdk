@@ -15,11 +15,12 @@ import { NativeToolWorkStore } from '../../../../production-workflow/native-tool
 import { NativeMiningDemandStore, type NativeMiningDemandObservation } from '../../../../item-lifecycle/native-mining-demand.js';
 import { NativeMiningIntentStore,nativeMiningDemandSessionId,type NativeMiningIntentRecord } from '../../../../item-lifecycle/native-mining-intent.js';
 import { miningIntentFulfillmentAllowed } from '../../../../agent-skills/mining-demand-source.js';
+import { observeNativeMiningIngress,type MiningCoveragePorts } from './NativeMiningCoverage.js';
 import { NativeToolStore, NATIVE_PICKAXE, nativeToolCatalog, nativeToolCycles, nativeToolDigest,
     type NativeToolBinding, type NativeToolOwner } from '../../../../item-lifecycle/native-tool.js';
 
 export interface NativeMiningPorts { market: MarketStore; identity: typeof populationFoodContext; checkpoint(players: Player[]): void;
-    intentFulfillmentAllowed?(record:NativeMiningIntentRecord):boolean }
+    intentFulfillmentAllowed?(record:NativeMiningIntentRecord):boolean;miningCoverage?:MiningCoveragePorts }
 type Position = NativeToolBinding['position'];
 type Token = { reference: {id:number;count:number}; position: Position };
 const tokens = new WeakMap<Player, Token>();
@@ -147,16 +148,18 @@ export function prepareNativeMining(state: ScriptState): void {
     if (!state._activePlayer) return;
     if (!/^\[oploc[13],(?:_mining_rock_[a-z_]+|blankrunestone|gemrock)\]$/.test(state.script.name) && !state.nativeMiningActionId) return;
     const player = state._activePlayer, p = ports(player);
+    const id = state.nativeMiningActionId ?? randomUUID();
+    const source = state._activeLoc;
+    const output = source && rocks[LocType.get(source.type).debugname ?? ''];
+    observeNativeMiningIngress(player,id,output||undefined,p);
     if (!p) return;
-    const id = state.nativeMiningActionId ??= randomUUID();
+    state.nativeMiningActionId = id;
     if (NativeToolStore.present(p.market.db) && new NativeToolStore(p.market.db).event(id)) { state.execution = 1; return; }
     const context = p.identity(player.username, id, 0, World.currentTick);
     if (!context) {
         if (storeFor(player)?.store.binding(player.username)) throw new Error('Native tool population identity disappeared');
         state.nativeMiningActionId = null; return;
     }
-    const source = state._activeLoc;
-    const output = source && rocks[LocType.get(source.type).debugname ?? ''];
     const hasBronze = positions(player).length > 0;
     const runtime = storeFor(player), binding = runtime?.store.binding(player.username);
     if (!hasBronze && !binding) { state.nativeMiningActionId = null; return; }

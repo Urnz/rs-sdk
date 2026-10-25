@@ -16,6 +16,8 @@ import { executeMiningDemandRequest,type MiningDemandOptions } from '../../../ga
 import { RsSdkSkillRuntime } from '../../../../agent-skills/rs-sdk-runtime.js';
 import { SkillExecutor } from '../../../../agent-skills/executor.js';
 import type { NativeMiningDemandCommand,MiningDemandRequest } from '../../../../sdk/mining-demand.js';
+import { NativeMiningCoverageStore,miningCoverageSourceHeads } from '../../../../item-lifecycle/native-mining-coverage.js';
+import { readNativeMiningCohortCoverage } from '../../../../society-metrics/tool-demand-coverage.js';
 beforeAll(loadPackedContent);
 const sources:ReturnType<typeof miningSourceFixture>[]=[],token=process.env.ENGINE_ADMIN_TOKEN;
 afterEach(()=>{closeNativeMiningFixtures();for(const f of sources.splice(0))f.close();
@@ -103,4 +105,24 @@ test('SI-C07 internal Mining command retains token/method/schema restrictions',a
         demandId:f.s.demandId,username:'worker',contextDigest:miningRequestDigest(f.s.request),receipt:{phase:'fulfilled'}})}),url))?.status).toBe(400);
     expect((await handleInternalAdminRequest(new Request(url,{method:'POST',headers,body:JSON.stringify({commandId:randomUUID(),operation:'invent-value',
         demandId:f.s.demandId,username:'worker',contextDigest:miningRequestDigest(f.s.request)})}),url))?.status).toBe(409);
+});
+
+test('SI-C07 source-backed admission links the real packed Mining ingress to its exact cohort and intent prefix',async()=>{
+    const f=harness();f.s.admit();await executeMiningDemandRequest(f.options,'worker',f.s.request);
+    const clock=f.s.clock.observeNow(f.s.owner.clockId,World.currentTick);
+    const store=new NativeMiningCoverageStore(f.market.db,{schemaVersion:1,selectionId:randomUUID(),worldId:f.s.owner.worldId,
+        clockId:clock.clockId,clockProfileDigest:clock.profileDigest,fromSimulationTime:clock.simulationTime,
+        toSimulationTime:new Date(Date.parse(clock.simulationTime)+60000).toISOString(),maximumSimulationGapMs:3600000,maximumWallGapMs:5000,
+        actors:[f.s.owner],openingHeads:miningCoverageSourceHeads(f.market.db)});
+    f.p.miningCoverage={db:f.market.db,workspace:f.s.root,clock:()=>f.s.clock.observeNow(clock.clockId,World.currentTick),identity:f.p.identity,
+        player:name=>name==='worker'?f.miner:null,roster:()=>[f.s.owner],admitted:r=>miningIntentFulfillmentAllowed(f.s.root,r.intent)};
+    const state=f.mine();const rows=store.read().entries.filter(e=>e.event.kind==='ingress');
+    expect(rows.length).toBeGreaterThan(0);expect(rows[0]!.event).toMatchObject({kind:'ingress',reason:'compatible-request',demandId:f.s.demandId});
+    expect(f.tracker.store.get(f.s.demandId)!.phase).toBe('fulfilled');
+    expect(rows[0]!.event).toMatchObject({nativeActionId:state.nativeMiningActionId});
+    expect(rows[0]!.event.heads.intent.sequence).toBeGreaterThanOrEqual(1);
+    const s=store.selection(),report=readNativeMiningCohortCoverage(f.market.db,{clockId:s.clockId,clockProfileDigest:s.clockProfileDigest,
+        fromSimulationTime:s.fromSimulationTime,toSimulationTime:s.toSimulationTime,actorAgentIds:[f.s.owner.actorId]},s.worldId,
+        [{agentId:f.s.owner.actorId,username:f.s.owner.username,lifecycleId:f.s.owner.lifecycleId}]);
+    expect(report).toMatchObject({compatibleIntentIngresses:rows.length,completeDemandCoverage:false,observerCoverageComplete:false});
 });

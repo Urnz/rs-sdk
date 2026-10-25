@@ -6,6 +6,7 @@ import { outcomeCheck,outcomeTime,type OutcomeActor } from './outcome-work.js';
 import { NativeMiningIntentStore } from '../item-lifecycle/native-mining-intent.js';
 import { readNativeMiningIntentIntervals } from './tool-demand-intervals.js';
 import type { SocietyMinimumPolicy } from '../society-minimum/policy.js';
+import { readNativeMiningCohortCoverage } from './tool-demand-coverage.js';
 
 /** Native request observations, deliberately separate from an unproved continuous-demand denominator. */
 export function readNativeToolDemandObservations(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[],policy?:SocietyMinimumPolicy){
@@ -35,7 +36,10 @@ export function readNativeToolDemandObservations(db:Database,scope:EvaluationSco
                 reason:e.observation.reason,simulationTime:e.observation.clock.simulationTime,itemInstanceId:e.observation.item?.itemInstanceId??null}))};
     });
     const standingRequests=NativeMiningIntentStore.present(db)&&policy?readNativeMiningIntentIntervals(db,scope,worldId,actors,policy):null;
-    const body={protocol:'native-tool-demand-observations-v1',scope,worldId,cycleId:'bronze-pickaxe-mining',standingRequests,
+    const cohortCoverage=(()=>{try{return readNativeMiningCohortCoverage(db,scope,worldId,actors);}
+        catch{return{protocol:'native-mining-cohort-coverage-v1',status:'invalid',observerCoverageComplete:false,completeDemandCoverage:false,
+            gaps:[{kind:'observer',reason:'Coverage source validation failed'}]};}})();
+    const body={protocol:'native-tool-demand-observations-v1',scope,worldId,cycleId:'bronze-pickaxe-mining',standingRequests,cohortCoverage,
         coverage:present?'attempt-observations-only':'source-absent',sourceHead:source?.head??null,actors:observed,
         unusableDemandSimulationMilliseconds:null,minimumVerdict:standingRequests?.verdict==='fail'?'fail':'inconclusive',
         gaps:['Native script admission/rejection/output observations do not attest persistent requested-use intervals or all actor demand.',

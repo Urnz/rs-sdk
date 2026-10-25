@@ -7,6 +7,32 @@ import { verifySocietyArchive } from '../archive.js';
 import { expandedFixture,put } from './expanded-fixture.js';
 import { InstitutionTreasuryStore } from '../../server/gateway/admin/institution-treasury.js';
 import { NativeMiningIntentStore } from '../../item-lifecycle/native-mining-intent.js';
+import { randomUUID } from 'node:crypto';
+import { NativeMiningDemandStore } from '../../item-lifecycle/native-mining-demand.js';
+import { NativeMiningCoverageStore,miningCoverageSourceHeads } from '../../item-lifecycle/native-mining-coverage.js';
+
+test('selected cohort Mining coverage survives isolated restore and corrupt source prefixes prevent capture',()=>{
+    const f=expandedFixture(),db=new Database(join(f.root,f.checkpoint));
+    try{
+        new NativeMiningDemandStore(db);new NativeMiningIntentStore(db);
+        new NativeMiningCoverageStore(db,{schemaVersion:1,selectionId:randomUUID(),worldId:f.selected.worldId,clockId:f.selected.clockId,
+            clockProfileDigest:f.selected.clockProfileDigest,fromSimulationTime:'2001-01-01T00:00:00.000Z',toSimulationTime:'2001-01-02T00:00:00.000Z',
+            maximumSimulationGapMs:3600000,maximumWallGapMs:5000,openingHeads:miningCoverageSourceHeads(db),actors:[{actorId:'worker',username:'worker',
+                lifecycleId:'fixture-life',worldId:f.selected.worldId,clockId:f.selected.clockId,clockProfileDigest:f.selected.clockProfileDigest}]});
+    }finally{db.close();}
+    f.selected.stores.find(s=>s.role==='checkpoint')!.requiredTables.push('native_mining_coverage_selection','native_mining_coverage_event','native_mining_coverage_head');
+    const pin=prepareExpandedBaseline(f.root,f.selected);captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});
+    restoreExpandedArchive(f.bundle,f.output);
+    const restored=new Database(join(f.output,'workspace',f.checkpoint),{readonly:true});
+    try{expect(new NativeMiningCoverageStore(restored).read()).toMatchObject({entries:[],head:{sequence:0,digest:null}});}finally{restored.close();}
+    const altered=new Database(join(f.root,f.checkpoint));try{
+        const store=new NativeMiningCoverageStore(altered),s=store.selection();store.append({kind:'sample',clock:{clockId:s.clockId,profileDigest:s.clockProfileDigest,
+            status:'running',revision:1,engineTick:0,simulationTime:s.fromSimulationTime,wallTime:'2026-10-25T00:00:00.000Z'},sessionId:'fixture',rosterDigest:null,
+            heads:{attempt:{sequence:1,digest:'a'.repeat(64)},intent:s.openingHeads.intent},ingressWriteFailed:false,
+            actors:[{actorId:'worker',status:'offline',demandId:null}]});
+    }finally{altered.close();}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('prefix');
+});
 
 test('selected standing Mining demand source is validated and reread after isolated restore',()=>{
     const f=expandedFixture(),db=new Database(join(f.root,f.checkpoint));

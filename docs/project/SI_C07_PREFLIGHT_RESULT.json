@@ -241,7 +241,7 @@
     {
       "id": "tool-unusable-demand-coverage",
       "status": "blocked",
-      "reason": "Bounded gather-loc now uses source-backed executor-instance admission, sealing/cancel and fresh native output. Complete cohort coverage, including legacy/unbound/missing paths, remains unproven; idle/offline is not a denominator."
+      "reason": "Prospective cohort/window/head observations and native legacy/identity/unbound ingress gaps are implemented. No selected C07 watermark or enforced complete executor/transport ingress exists yet; an empty queue and idle/offline cannot establish zero demand."
     },
     {
       "id": "legal-housing-exposure",
@@ -300,7 +300,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeMiningTool.ts",
-      "sha256": "4d3df466152841a5465c67254e99231deaa23ead64abb874da9ff6458f249b1a"
+      "sha256": "f62c3f6efe1be02982547d9c4de388bd958cb18595117419355103792f85515f"
     },
     {
       "path": "item-lifecycle/native-mining-demand.ts",
@@ -308,7 +308,7 @@
     },
     {
       "path": "society-metrics/tool-demand.ts",
-      "sha256": "e07e99e32589a16033fbca19ebbbb292a73d04f6fcd5de48dc1750a8d51ed036"
+      "sha256": "65f012e19674c16e5bbb0d48c1ecc8df61535292fd5114f798f5a786d48b0524"
     },
     {
       "path": "society-metrics/native-outcomes.ts",
@@ -320,7 +320,7 @@
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "8ae9278322fef2a0af9d24e303c120acd6483bae705a894e669ac904269f702d"
+      "sha256": "5c77bbcc4c292cbc56716ffbb13f5f8ff4f987d83451cb00deef4fd93c8defbc"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -332,7 +332,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeMiningIntentRuntime.ts",
-      "sha256": "5e166a72adaa5cb13bec65bf7d886e2d6dc34b331dcb7c45be6df396f9c4063e"
+      "sha256": "f212dd6dae2e706e6853d20c1173eeedfd886fa037018f58d6ec2543211ae47a"
     },
     {
       "path": "server/engine/src/engine/World.ts",
@@ -341,6 +341,22 @@
     {
       "path": "society-metrics/tool-demand-intervals.ts",
       "sha256": "8f413d1043e50c040318c9a9b3e1a0fabfe44e03969f8a9b0934c14f366e654d"
+    },
+    {
+      "path": "item-lifecycle/native-mining-coverage.ts",
+      "sha256": "46e2c538b38b5127279c9b6868701ca6b8630db86df9e12392a97598d36e4007"
+    },
+    {
+      "path": "society-metrics/tool-demand-coverage.ts",
+      "sha256": "1fab9ebc6b71e509db4a5b2150e641a66bb61c3ee6c9d493e8d6d713831eb799"
+    },
+    {
+      "path": "server/engine/src/mods/NativeMiningCoverage.ts",
+      "sha256": "2c1a7fd2420bdf81d590300936d2a8fbd4ae7fd9342897b88badc3a603d408e1"
+    },
+    {
+      "path": "server/engine/src/mods/PopulationDeathRuntime.ts",
+      "sha256": "88d1e9789d812354bdfba5df267ef01611af3ac09e0f52bbfb4ac1aacd3eaf8f"
     },
     {
       "path": "sdk/mining-demand.ts",
@@ -396,7 +412,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "8b65316e6ca8bf63ccf16cc61a0675ff8d7aca1e6f0c7b7e92cb369d56259c05"
+      "sha256": "61cea8f819f6ab12bb07b214081c32270f8329a10dedd4fea610413e7fd488e3"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -425,5 +441,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "53e84cf66ecf2f98b10cb85eae301d4267e39da397025f2bc1753d460067421b"
+  "digest": "2b6b27e9d89866bf29e3cdd5d4b5f7774e2b758d39ed90a032b864229b113039"
 }

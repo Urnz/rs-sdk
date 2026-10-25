@@ -230,5 +230,9 @@ test('a scoped native unusable-demand violation is surfaced through evaluation w
     expect(reportSocietyEvaluation(f.scope,options).societyMinimumVerdict).toBe('fail');
     const channel=f.read().sources.toolDemand;expect(channel.status).toBe('available');if(channel.status!=='available')throw Error('demand channel');
     expect(channel.value.standingRequests).toMatchObject({verdict:'fail',longestConfirmedUnusableSimulationMs:4200000,completeDemandCoverage:false});
+    db.exec("CREATE TABLE native_mining_coverage_selection(singleton INTEGER,payload TEXT,digest TEXT);INSERT INTO native_mining_coverage_selection VALUES(1,'PRIVATE CORRUPTION','bad')");
+    const damaged=f.read().sources.toolDemand;if(damaged.status!=='available')throw Error('Independent intent evidence was hidden');
+    expect(damaged.value.cohortCoverage.status).toBe('invalid');expect(JSON.stringify(damaged)).not.toContain('PRIVATE');
+    expect(reportSocietyEvaluation(f.scope,options).societyMinimumVerdict).toBe('fail');
     expect(reportSocietyEvaluation({...f.scope,fromSimulationTime:'2001-01-01T01:00:00.000Z'},options).societyMinimumVerdict).toBe('inconclusive');
 });

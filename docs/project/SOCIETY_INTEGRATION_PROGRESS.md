@@ -2582,3 +2582,51 @@ forrásra regenerálandó; hosszú run és providerköltség továbbra0, C07 nyi
 Végső artifact frissítve: `20261025-115804-236-si-c07-mining-admission-final-artifact`,
 NO-GO/sourcehash/digest/link PASS3,873 s. Ez diagnosztikai siker, nem run-engedély,
 nincs selectedWorld/baseline vagy M3 PASS. A következő kódmunka cohort coverage.
+
+### 2026-10-25 – SI-C07 prospektív founder-cohort/window/head napló
+
+[Komponens és korlátok](SI_C07_COHORT_COVERAGE.md). Explicit immutable kiválasztás
+és append-only hash-lánc az existing checkpoint DB saját additív tábláiban;
+user_version/közös migrátor/clock/auth/gazdasági commit változatlan. Üres queue
+mellett is teljes kiválasztott roster-frame. Native ingress a tool/identity
+korai kilépések előtt, legacy/unbound/missing identity source-gapekkel. Reader
+teljes auditot, exact cohort/window/clockot és attempt/intent head-prefixeket
+ellenőriz; session/tick/clock/roster/offline rés nem interpolálható. Az ablak
+előtti bracketing offline founder sem rejthető el a későbbi egészséges mintával.
+
+Az aktív source-backed igényhez illő native belépés `compatible-request`:
+az executor/transport packet eredetet a meglévő protokoll nem bizonyítja.
+Ezért completeDemandCoverage:false, üres queue/nincs request nem nulla demand.
+Ez a következő konkrét kódhatár; nem adtunk téves teljes lefedettséget vagy
+minimum PASS-t. Corrupt coverage külön redaktált invalid, a másik érvényes
+intent-naplóval bizonyított minimumsértés evaluation FAIL marad. A C06 selected
+coverage selection/audit/head és forrás-prefixek capture/restore alatt is
+újraolvasódnak; nincs történeti archívum-átírás vagy live selection install.
+
+Ellenőrzés: `20261025-223914-850-si-c07-cohort-coverage-thin`,16 PASS/9 FAIL,
+16,799 s. Assertion után a raw Bun SQLite-fixture strict close-ján cache-ből
+kiesett statementek maradtak; a native unbound eset a motor ABORTED state-je
+helyett JavaScript-kivételt várt. Meglévő OwnedDatabase és explicit execution
+assertion javította; termékviselkedés/limit nem lazult. Következő
+`20261025-224034-286-si-c07-cohort-coverage-owned-db`:13 próba PASS, root TS
+miatt FAIL83,183 s, a Bufferes újranyitás a runtime-ban működött, a deklarációban
+nem támogatott. A fixture valós ideiglenes DB-fájlt/readonly reopent kapott.
+
+`20261025-224306-585-si-c07-cohort-coverage-consumers`:70 célzott/nested
+ellenőrzés +root/engine TS PASS154,490 s, runtime21,37 s; saját upgrade/reopen/
+rollback/immutability,4-founder frames, natív raw/identity/unbound/admission/
+tool/intent, outcome/evaluation és preparer. Utolsó reader-szigorítás után
+`20261025-224729-890-si-c07-cohort-prefix-restore-final`:19 célzott/nested
+ellenőrzés +root/engine TS PASS120,674 s; ablakhatár, valódi prefix-read,
+2 selected-source capture/restore. A körök átfednek, nem összeadandók.
+Full és változatlan webclient TS nem futott, a sikeres70 fogyasztót sem
+ismételtük. Saját megfigyelési komponens és közvetlen fogyasztók változtak,
+közös foundation nem; nincs általános full-trigger.
+
+SI-C07 nyitott27/45, preflight NO-GO, eredeti17/8 policy változatlan.
+Következő: exact operation-instance→SDK/transport/native packet eredet és
+teljes ingress enforcement; utána minimum bridge/baseline/ratio/SI-A14.
+Hosszú run/providerhívás/költség0; további futási engedélyt nem kértünk.
+
+Végső artifact: `20261025-225050-867-si-c07-cohort-final-artifact`,friss NO-GO
+sourcehash/digest/link PASS0,852 s, változatlan17/8 és0 provider-jogosultság.
