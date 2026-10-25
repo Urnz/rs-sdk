@@ -1,144 +1,117 @@
 # Rövid fejlesztési átadás
 
 Frissítve: 2026-10-25. Belépő, nem futási napló.
-A checkboxok forrása: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
+Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
-## Aktuális állapot és következő lépés
+## Aktuális állapot és következő kódmunka
 
-- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C06 kész; SI-M2 v2 PASS.
-  27/45 lezárt feladat. SI-C07 nyitott: előkészítés elkészült, preflight NO-GO.**
-  Ág: `codex/si-c07-minimum-preflight`, baseline `8b6055894`.
-  [C07 run-tervezet és akadályok](SI_C07_RUN_PREPARATION.md),
-  [forráskötött diagnosztika](SI_C07_PREFLIGHT_RESULT.json).
-- **Elkészült új részlépés:** [natív Mining request-megfigyelések](SI_C07_NATIVE_TOOL_DEMAND.md),
-  admitted/blocked/committed hash-lánccal, owner/world/clock/lifecycle kötve;
-  outcome `sources.toolDemand` readonly, backend actor/path korláttal.
-  Broken/banked/invalid-evidence külön; kimeneti napló az érc/wear/checkpoint
-  meglévő tranzakciójában. Saját additív séma1, közös user_version változatlan.
-  Explicit tool-opening már létrehozza az üres sémát a baseline előtt; ez nem
-  demand evidence. Legacy binding világán külön baseline előtti upgrade kell.
-- **Újabb elkészült komponens:** [tartós Mining-igény és időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
-  Explicit trusted admission port, pending/cancel/expiry/valódi Mining-eventhez
-  kötött fulfillment. World tick observer, saját additív intent séma1;
-  az üres séma explicit tool-openingkor készül, a kimeneti írás a meglévő
-  érc/wear/checkpoint tranzakció része. Nincs automatikus bányászat/javítás.
-  Queryre vágott, igazolt longest-unusable alsó korlát; restart/offline/tick-
-  vagy state-gap nem nulla. A bizonyított >1 óra scoped sértés evaluation FAIL,
-  rövid/hiányos bizonyíték inconclusive. A controlled fixture FAIL nem M3 run.
-- **Következő konkrét kódmunka:** source-backed `gather-loc` admission/start/cancel:
-  executor admitted run/step/parameters/checksum/active-skill marker +pontos avatar,
-  timeout/abort/disconnect/retarget határ. Production start ma fail-closed, nincs
-  új SDK/HTTP belépő. A natív próbák explicit fixture admissiont használnak.
-  Utána teljes cohort coverage és a
- 17 eredeti minimum requirement/8 integrity gate teljes source-backed
-  assessment bridge-e. Egy blocked natív script azonnal abortál: két kattintás
-  közötti idő nem igényidő. A teljes demand-idő null, teljes minimum PASS nincs;
-  offline/idle/missing identity/legacy történet nem válik nullás nevezővé.
-  Nincs új minimumképlet. C06 a selected intent-state teljes chain/head és
-  world/clock/profile kötését ellenőrzi, a kimenetproofot az interval-reader.
-  A végső baseline teljes authoritative listájába még fel kell venni a csatornát.
-  Row/byte budget:100000 audit row/256 MiB readerlimit; nem korlátlan1:1 ígéret.
-- Utána: teljes founder tool/food/housing baseline, valódi clock-ratio próba,
-  minden authoritative source C06 pinje, SI-A14 regresszió és konkrét jóváhagyható
-  run/model/budget/maxwall/stop terv. Hosszú runhoz külön engedély kell; a mostani
-  ismert NO-GO-ra nem kértünk jóváhagyást. C08-at ne kezdd el, C07 nincs kész.
-- Javított konkrét hiba: a day-survival staging `day-survival-needs/dynamics`
-  azonosítói mellett a minimum legacy referencia-feloldása hibás volt. Most
-  kizárólag validált immutable survival profile alapján effektív referencia-
-  binding készül, declared/effective policy és requirements digesttel.
- 17 requirement, ablak/küszöb/integrity gate és eredeti policy-file byteok
-  változatlanok; legacy világ ág változatlan. Nem írtunk át needs/clock/DB-t.
-- Az új readonly preparer az eredeti minimum forráshashét is megköveteli;
- 9500→9400 lazítás blocked. CLI: `bun scripts/prepare-society-minimum-run.ts`,
-  NO-GO JSON és **exit2**, liveStartAuthorized=false, readyForRunApproval=false.
-  Nem nevezhető zöld runtime/M3 kapunak. Nincs selectedWorld vagy baseline.
-- Candidate: verified1.3.0 native-travel fixture,1+7 sim nap288:1 mellett
-  névleg40 wall perc, execution-terv50 perc,5 s observer. Maximum1h sim trace
-  gap itt12,5 s wall; observer önmagában nem native coverage. A288:1 ratio még
-  nem M3-validált. Capture-terv20+20 perc, result restore25 perc külön IO-limit.
- 1:1-nél8 valós nap, live24:1-nél8 óra névleges idő.
-- Finite food-envelope36 no-burn adag,32 nominális napadag +4 closing reserve:
- 0 headroom. Ez nem mért demand vagy önálló FAIL. Jelenlegi fixture food/travel-
-  only, nincs founder Mining→smelt→repair→reuse baseline;2 tenant slot/current
-  rent/sleep sem teljes95% housingaccess-exposure. Nem emeltünk készletet vagy
-  csökkentettünk minimumot a siker érdekében.
-- A contractDigest a repository definíciójáé, nem még nem létező staged world
-  effektív pinje. A forráshash/archívum vagy skill-success nem társadalmi PASS.
-  C07/M3/MVS/önfenntartás nyitott. Provider authorization0 kérés/0 microUSD;
-  B06 engedély továbbra kizárólag a korábbi próbára vonatkozott.
-- [C06 baseline/restore](SI_C06_EXPANDED_BASELINE.md), [C05 outcomes](SI_C05_NATIVE_OUTCOME_METRICS.md),
-  [C04 finance](SI_C04_NATIVE_FINANCE_HISTORY.md), [C03 repair](SI_C03_NATIVE_TOOL_REPAIR.md)
-  mechanikai eredményei és korlátai megmaradtak. C06 selected coverage nem teljes
-  világ; payload DB-t ne nyisd meg, szükség esetén új könyvtáras restore kell.
+- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C06 kész;27/45.
+  SI-C07 nyitott, preflight NO-GO; SI-M3/MVS nem PASS.**
+  Ág: `codex/si-c07-minimum-preflight`. C06 baseline `8b6055894`.
+  [Run-tervezet](SI_C07_RUN_PREPARATION.md), [diagnosztika](SI_C07_PREFLIGHT_RESULT.json).
+- **Elkészült:** [source-backed gather-loc admission](SI_C07_GATHER_ADMISSION.md).
+  Executor előzetesen kiírt és megvárt run/step/operationSequence/args/checksum
+  nyugta +aktuális marker; authenticated avatar/active population/control/learned
+  verified procedure/clock/lifecycle újraolvasás. Egy repeat új demandId,
+  retarget ugyanazon igény. SDK→gateway→belső HTTP/tick→valódi packed Mining
+  közös út próbázva. Inventory/XP/transport ACK nem helyettesíti a native proofot.
+- **Lezárás:** immutable cancel-tombstone a dispatch előtt, executor finally-seal,
+  eredeti abszolút deadline. Abort/disconnect/late open nem hosszabbítja az igényt.
+  Admissionkori attempt-cursor: régi suspended akció késői érce nem teljesít új
+  kérést. Sikertelen managed gather mindig retryable:false, a cancel nem
+  játékcsomag-visszavonás. Source/role elvesztése unknown, nem nulla.
+- **Következő konkrét feladat:** teljes founder-cohort/source coverage-watermark.
+  Kösd a kiválasztott roster/clock/window és authoritative headeket; a közvetlen
+  legacy interact-loc/unbound/missing-identity/kimaradt observer utakat gapként
+  kezeld. A hiányzó kérés vagy üres queue nem bizonyítja az igény hiányát.
+  Utána17 eredeti requirement/8 integrity gate teljes assessment bridge.
+- Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
+  [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
+  Lower-bound longest unusable-time, nem más actorok/kérések összege; restart,
+  offline vagy state/tick gap nem interpolálható. Bizonyított >1 óra scoped
+  sértés evaluation FAIL; rövid/hiányos bizonyíték inconclusive, sosem PASS.
+  Controlled fixture FAIL nem egy hosszú C07 gazdaság eredménye.
+- Ezután teljes founder tool/food/housing baseline, tényleges ratio-próba,
+  authoritative source-lista/C06 pin, SI-A14 és konkrét jóváhagyható hosszú terv.
+  Hosszú futáshoz külön engedély szükséges. Ismert NO-GO-ra ne kérj jóváhagyást;
+  C08-at ne kezdd el, C07 nincs kész.
 
-## Legfrissebb ellenőrzés
+## Megmaradó preflight-korlátok
 
-- `20261025-104422-944-si-c07-intent-preflight-and-benchmark`:3 preparer és
- 1 kiválasztott benchmark/result/restore próba, friss NO-GO artifact és sourcehash/
-  linkellenőrzés PASS9,702 s. A minimum-assessor/coverage kapu továbbra blocked.
-- `20261025-103413-367-si-c07-intent-consumers`:129 runtime ellenőrzés PASS,
- 14 célzott fájl59,82 s. A kör összesítve **FAIL76,892 s**, mert root TS2322:
-  a Bun SQLite transaction.immediate típusa void, a store.write recordot ígért.
-  Javítás: explicit return a sikeres commit után, gazdasági viselkedés változatlan.
-- `20261025-103631-057-si-c07-intent-types-return`:7 saját store teszt,
-  root+engine TS **PASS104,775 s** a javítás után. A sikeres natív/metrics/restore
-  körök nem ismétlődtek. Full nem futott; saját additív store és lokális observer,
-  nincs shared clock/migrátor/asset commit/auth alapváltozás.
-- `20261025-102821-661-si-c07-intent-native-thin`:korai5 natív +1 wrapper
-  PASS3,088 s; a végső6 natív eset a fenti129-es kör része. Átfedő körök.
-- Korábbi attempt-csatorna ellenőrzései:
-- `20261025-100843-755-si-c07-demand-benchmark-restore`:1 célzott
-  benchmark/result-report/restore próba és friss NO-GO digest/sourcehash/link
-  ellenőrzés PASS16,617 s. Nem a teljes controller suite futott.
-- `20261025-100734-190-si-c07-demand-opening-boundary`:20 ellenőrzés és
-  engine TS PASS40,022 s. Új5 natív demand és13 régi C02 Mining eset +2 wrapper;
-  a baseline előtti üres séma az első Mining során változatlan marad.
-- `20261025-100007-735-si-c07-demand-thin`:13 ellenőrzés PASS10,985 s:
-  saját upgrade/reopen/idempotencia/rollback/tamper/readonly próbák és5 packed
-  Mining próba elkülönített native runnerben. Sikertelen output és demand-írás
-  sem hagyhat meg ércet/wear/receiptet; request evidence megmarad.
-- `20261025-100143-108-si-c07-demand-consumers`:68 ellenőrzés, root+engine TS
-  PASS153,683 s.8 célzott fájl: ledger, native-outcomes/evaluation/dashboard,
-  preparer, C02 Mining, C03 repair és C05 native outcome. Runtime18,85 s.
-  Nested wrapperteszteket is tartalmaz; az előző körrel átfed, nem összeadandó.
-  Full nem futott: komponens-owned additív táblák/megfigyelés, meglévő
-  tranzakcióhatár; nincs shared migrátor/clock/economic alap/auth változás.
-- Korábbi C07 előkészítési bizonyítékok:
-- `20261024-234953-838-si-c07-preparation-contract-gate`:66 célzott
-  contract/survival/preparer/evaluation/integration/dashboard teszt PASS,
-  root +preparer CLI TS PASS,103,911 s. Runtime27,52 s; wrapperben a két TS is.
-- `20261024-235512-434-si-c07-policy-drift-and-candidate`:3 preparer teszt,
-  CLI/transitive TS és új NO-GO artifact PASS,4,556 s. Ez tartalmazza a policy-
-  relaxációs negatív esetet; korábbi fogyasztók bemenete nem változott.
-- `20261024-234809-582-si-c07-thin-preparation`:3 korai mechanikai teszt
-  PASS1,209 s. Artifact-generálás korábbi `si-c07-candidate-no-go` PASS0,828 s,
-  a NO-GO exit2 tudatos ellenőrzésével, nem starttal.
-- **Full nem futott:** readonly referencia-binding és saját preparer, nincs
-  shared clock/dynamics/transaction/migration/auth változás. A célzott PASS
-  nem teljes suite vagy M3 PASS. SI-A14/live/soak nem indult ismert NO-GO mellett.
-  A körök átfednek, számok/idők nem összeadandók. Teljes log/result:
-  `.local/verification/<id>.log/.result.json`.
+- Eredeti minimum17 rule/8 gate/küszöb változatlan, policy forráshash pinned;
+ 9500→9400 relaxáció blocked. Day-survival effektív needs/dynamics referenciák
+  kizárólag validált immutable survival selectionből kötődnek, eredeti file
+  byteok változatlanok. ContractDigest a repository definíciójáé, nem élő pin.
+- Candidate verified1.3.0 native-travel fixture,1+7 sim nap288:1 mellett névleg
+ 40 wall perc, execution-terv50 perc, observer5 s. Trace-gap maximum12,5 s wall;
+  ratio még nem M3-validált. Capture-terv20+20 perc, restore25 perc külön IO.
+ 1:1 nyolc valódi nap, live24:1 nyolc óra; ez nem kapacitás- vagy runígéret.
+- Food/travel-only baseline:36 no-burn portion,32 nominális adag +4 closing
+  reserve,0 headroom; ez nem mért demand vagy önálló FAIL. Nincs a founderhez
+  kötött teljes Mining→smelt→repair→reuse baseline, illetve teljes95% legal
+  housing exposure. Nem tuningoltunk világot vagy csökkentettünk minimumot.
+- Saját attempt/intent sémák1, user_version változatlan. Additív request-index,
+  új immutable executor/invocation/cancel/seal sidecarok; régi adatokhoz nincs
+  visszatöltés. Opcionális attemptSequenceAtAdmission nélküli legacy rekordból
+  nincs új fulfillment. Baseline előtt schema/index init/pin szükséges.
+  C06 selected intent chain/head/clockot, interval-reader outputproofot ellenőriz.
+ 100000 row/256 MiB readerlimit; explicit run source-row/byte budget még kell.
+- CLI: `bun scripts/prepare-society-minimum-run.ts`; NO-GO JSON +exit2,
+  liveStartAuthorized/readyForRunApproval=false. Nincs selectedWorld/baseline.
+  Forráshash, sikeres skill vagy helyes restore nem társadalmi PASS.
 
-## Megőrzendő döntések és mentések
+## Ellenőrzési bizonyíték
 
-- Csak helyi/private emulator. Nincs live world indítás, actor/tool import,
-  enrollment vagy új publication. Korábbi admincím `http://127.0.0.1:7781/admin/`;
-  kulcs a Helyi szerver/local-default titoktárában. Új indítás előtt állapotellenőrzés.
-- B06 engedély kizárólag0,05 USD-s próbára szólt:11 kérés /4235 microUSD
-  =0,004235 USD. Nincs általános költési engedély; normál per-call0,
-  auto-replanning/autonomousExecution off, B04/B05 default grant üres.
-  [B06 eredmények](SI_B06_STRATEGIC_ACCEPTANCE.md). C01–C07 előkészítés providerköltség0.
-- SI-A15 technikai PASS; eredeti D1/SI-M1 önfenntartás nem PASS, teljes gazdasági
-  minősítés inconclusive. [Technikai eredmény](SI_A15_TECHNICAL_RESULT.md),
-  [archívum/restore](SI_A15_RESULT_ARCHIVE.md).
-- Történeti backup payload DB-ket ne nyisd meg és ne módosítsd:
+- `20261025-115804-236-si-c07-mining-admission-final-artifact`:végső source-
+  hash/digest és dokumentációlink ellenőrzés PASS3,873 s, NO-GO exit2 tudatos
+  kapuval; nincs runtime- vagy providerindítás.
+- `20261025-114922-832-si-c07-mining-timeout-no-retry`:14 célzott runtime/
+  natív ellenőrzés +root/engine TS PASS244,154 s, runtime33,87 s. A cancel
+  után is sikertelen gather nem ismétel már elküldött csomagot. A változatlan
+  webclient és a sikeres169 fogyasztói eset nem futott újra.
+- `20261025-114216-650-si-c07-mining-admission-preflight-copy`:3 preparer
+  próba +friss NO-GO artifact/sourcehash/link PASS1,709 s. A megelőző2 PASS/1
+  FAIL1,959 s körben a másolt negatív fixture csak catalogot másolt; a filter
+  most az új agent-skills kódfájlokat is megtartja.9500→9400 továbbra blocked.
+- `20261025-111228-254-si-c07-mining-source-runtime`:11 source/runtime
+  repeat/retarget/abort/disconnect/marker/admission eset PASS2,056 s.
+- `20261025-111659-251-si-c07-mining-admission-native`:6 tényleges natív lánc/
+  hibahatár +1 wrapper PASS4,031 s, explicit fixture source-porttal.
+- `20261025-112122-525-si-c07-mining-admission-consumers`:16 célzott fájl,
+ 169 PASS/1 FAIL,99,071 s. Egy C06 compound result/restore eset a generikus5 s
+  timerbe futott6,876 s-nál; más assertion nem bukott. Nem full regresszió.
+- Változatlan limitű izolált reprodukció PASS2,615 s (`112343-749`), részfázisos
+  mérés PASS2,668 s (`112453-151`), case-body2,128 s. Ez az egy3 capture/több
+  restore/2 SQLite világ teszt explicit15 s I/O-budgetet és részfázisnaplót
+  kapott; assertion/runtime/clock/run-limit nem lazult. A javított eset PASS
+ 2,062 s body (`112620-636`), ugyanazon kör root TS tesztadat-hibája még FAIL.
+- `20261025-113401-579-si-c07-mining-shared-fixture-and-types`:18 érintett
+  ellenőrzés és **root+engine+webclient TS PASS183,099 s**, runtime5,69 s.
+  Root/NodeNext közös fixture import.meta helyett JSON-importot használ.
+  A sikeres169 fogyasztót nem ismételtük; csak a változott fixture és hibás határ.
+- Korai type/fixture FAIL-ek és javítások a [részletes progressben](SOCIETY_INTEGRATION_PROGRESS.md)
+  és `.local/verification/*si-c07-mining-*.log/.result.json` alatt megmaradnak.
+  A körök nested/átfedő számai és idői nem összeadandók.
+- Full nem futott: új szűk ág a meglévő socket target/observe és engine token
+  guard mögött; ezek, a közös clock/migrátor/asset commit invariánsai változatlanok.
+  A közös BotAction típus miatt mindhárom TS-projekt érintett volt. A rootba
+  motort behúzó type-importot tiszta SDK-típusra cseréltük; nem globális configot.
+
+## Megőrzendő döntések
+
+- Csak helyi/private LostCity. Nincs live world-indítás, import, enrollment,
+  publication, hosszú run vagy providerhívás. Admin korábbi címe
+  `http://127.0.0.1:7781/admin/`; kulcs local-default titoktárában, nem chatben.
+- B06 engedély kizárólag korábbi0,05 USD-s próbára:11 kérés/4235 microUSD.
+  Most0 kérés/0 microUSD engedély; normál per-call0, auto-replanning és autonomous
+  execution off. Nincs általános költési engedély. [B06](SI_B06_STRATEGIC_ACCEPTANCE.md).
+- SI-A15 technikai PASS, eredeti D1/SI-M1 önfenntartás nem PASS.
+  [Eredmény](SI_A15_TECHNICAL_RESULT.md), [archívum](SI_A15_RESULT_ARCHIVE.md).
+  Történeti payload DB-ket ne nyisd meg/ne módosítsd:
   `backups/si-a15-technical-20261022-1648/workspace`,
   `backups/si-a15-technical-result-20261022-1715/workspace`,
   `backups/si-a15-technical-restored-20261022-1726/workspace`.
-- Éhség egy nap után, éhhalál hét nap teljes hiány után; normál adag egy nap.
-  Live nap/óra, teszt nap/öt perc. SI-C09 kalibráció nyitott, a világot nem
-  igazítottuk a karakterek túléléséhez.
+- Éhség1 nap, éhhalál7 nap teljes hiány után; normál adag1 nap. SI-C09 kalibráció
+  nyitott; a világot nem igazítottuk a karakterek túléléséhez.
 
-`pwsh -NoProfile -File scripts/get-society-work-brief.ps1`
-
-A folytonosságot e fájlok és a repo-local society skill adják, nem a chatmemória.
+`pwsh -NoProfile -File scripts/get-society-work-brief.ps1 -TaskId SI-C07`

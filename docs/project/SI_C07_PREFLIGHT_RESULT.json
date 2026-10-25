@@ -241,7 +241,7 @@
     {
       "id": "tool-unusable-demand-coverage",
       "status": "blocked",
-      "reason": "Standing native requests now have bounded lifetimes, cancel/fulfillment and conservative unusable-time intervals. Source-backed gather-loc admission and complete cohort coverage are still missing; idle/offline is not a denominator."
+      "reason": "Bounded gather-loc now uses source-backed executor-instance admission, sealing/cancel and fresh native output. Complete cohort coverage, including legacy/unbound/missing paths, remains unproven; idle/offline is not a denominator."
     },
     {
       "id": "legal-housing-exposure",
@@ -300,11 +300,11 @@
     },
     {
       "path": "server/engine/src/mods/NativeMiningTool.ts",
-      "sha256": "eec5d9de9574efd709a050df4cc7d893b1f89005c1290180b2eeff61a739aab9"
+      "sha256": "4d3df466152841a5465c67254e99231deaa23ead64abb874da9ff6458f249b1a"
     },
     {
       "path": "item-lifecycle/native-mining-demand.ts",
-      "sha256": "4a8eecc1262b18a9fdc904e3768212128932c79accbfc7aaf060073ff5e0e182"
+      "sha256": "e7863e51f6906f83afd9ebf5e62c8a5be23e5668f189dfb9497abfd5153517cb"
     },
     {
       "path": "society-metrics/tool-demand.ts",
@@ -324,15 +324,15 @@
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
-      "sha256": "0065353d01f3b8ca6b411178539bc90c65c5b700fdd8db4817b2c0fc0729e0a0"
+      "sha256": "3f4af99b36ddf931c41d95618d71a694923b72838175cede616ccdc00f14c8e3"
     },
     {
       "path": "server/engine/src/mods/NativeMiningIntent.ts",
-      "sha256": "a5514fa1655c9202887a8b8773642407be0b20aa461e3fbb8c6aafc5d7189c39"
+      "sha256": "aa8a5acc0d022a1154397347ba766c65dfbb80af6878ada535fb2778ad0be8de"
     },
     {
       "path": "server/engine/src/mods/NativeMiningIntentRuntime.ts",
-      "sha256": "f60b18be86d53ce0cb16989cf4cd02c93edbd7b312a9f18dfcd59b8f15415a82"
+      "sha256": "5e166a72adaa5cb13bec65bf7d886e2d6dc34b331dcb7c45be6df396f9c4063e"
     },
     {
       "path": "server/engine/src/engine/World.ts",
@@ -343,8 +343,60 @@
       "sha256": "8f413d1043e50c040318c9a9b3e1a0fabfe44e03969f8a9b0934c14f366e654d"
     },
     {
+      "path": "sdk/mining-demand.ts",
+      "sha256": "7a67b1bc4caf4ab2ddc738d6efd4096b9c4e79b1846b0901716fdc7f166c8bba"
+    },
+    {
+      "path": "sdk/index.ts",
+      "sha256": "f3aa927f35959bb22daac7a1c58728f71504a65a3cbf7bf9287e12edfcbb5157"
+    },
+    {
+      "path": "sdk/types.ts",
+      "sha256": "9023bdc52648a1c2e750b6c50bd9cc2f1ae5d11e8bce9004b8e51b7c4253aeea"
+    },
+    {
+      "path": "agent-skills/mining-admission.ts",
+      "sha256": "60f9328e502797bb53dccee4469732b1bcb997be6321b2b5674a7932e826e217"
+    },
+    {
+      "path": "agent-skills/mining-demand-source.ts",
+      "sha256": "b64882e918e7e5d9ffa56d371d4b137353018bc18a40e23f5e74e2b873c1abd8"
+    },
+    {
+      "path": "agent-skills/mining-gather.ts",
+      "sha256": "b8435ea9b0afd84bf4aeaa37a45629678551849f5e755df4129856e79474e5d9"
+    },
+    {
+      "path": "agent-skills/executor.ts",
+      "sha256": "6cd8408f961ba07df6e9de03ed727479f6873a2f14578be6bbe3e5361b5ec91e"
+    },
+    {
+      "path": "agent-skills/run.ts",
+      "sha256": "871872c309f0ce51743b567e8d4478c2a3a22f9ecc5d06f7e17be01da995af6f"
+    },
+    {
+      "path": "agent-skills/types.ts",
+      "sha256": "e62d78ddda511b88469e78ed8d69aad388378a3d27ab1ed091008b9acbff6fe1"
+    },
+    {
+      "path": "agent-skills/rs-sdk-runtime.ts",
+      "sha256": "25dd87f9af455f4eaf4c7a08489372ed65b6d19983a5e1155533b6973ff15fd7"
+    },
+    {
+      "path": "server/gateway/admin/native-mining-demand.ts",
+      "sha256": "2aa5ddb19f56978586488d460a0bcf2501bd698e00a59435b19a11656d5ca5ad"
+    },
+    {
+      "path": "server/gateway/gateway.ts",
+      "sha256": "341c8be9a6fae5a87287446e46539a3f51543fc5b74ddc1e0cd5f69837877215"
+    },
+    {
+      "path": "server/engine/src/web/pages/internal-admin.ts",
+      "sha256": "3c4c8c1922cfa9c9a4ee60f51851b6b58f13b3448b4c36a8cf86802b1e18e4ee"
+    },
+    {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "92f9145dee4407b52c66744596b01eb8782a196b3fee30aa9c08e43b23ecd724"
+      "sha256": "8b65316e6ca8bf63ccf16cc61a0675ff8d7aca1e6f0c7b7e92cb369d56259c05"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -373,5 +425,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "49bcc46eb300817d4de1d268a6c5c14c07caf3b55783bed687f3a597367810c2"
+  "digest": "53e84cf66ecf2f98b10cb85eae301d4267e39da397025f2bc1753d460067421b"
 }

@@ -753,6 +753,14 @@ const SyncModule = {
                 return;
             }
 
+            if(message.action?.type==='miningDemand'){
+                try{const {executeLocalMiningDemand}=await import('./admin/native-mining-demand.js');
+                    const result=await executeLocalMiningDemand(sdkSession.targetUsername,message.action.request);
+                    this.sendToSDK(sdkSession,{type:'sdk_action_result',actionId:message.actionId,result});
+                }catch{this.sendToSDK(sdkSession,{type:'sdk_action_result',actionId:message.actionId,
+                    result:{success:false,message:'Native Mining demand source rejected',reason:'mining-demand-source-rejected',phase:'observation'}});}
+                return;
+            }
             if(message.action?.type==='societyTool'){
                 try{
                     const {executeLocalToolSkill}=await import('./admin/native-tool-skills.js');

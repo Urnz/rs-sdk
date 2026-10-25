@@ -158,7 +158,7 @@ export interface SkillOperationResult {
 
 export interface SkillRuntime {
     execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal,
-        context?: import('../sdk/society-food').SocietyFoodContext): Promise<SkillOperationResult>;
+        context?: import('../sdk/society-food').SocietyFoodContext & {operationSequence?:number}): Promise<SkillOperationResult>;
     test(condition: SkillConditionName, args: Record<string, unknown>, signal: AbortSignal): Promise<boolean>;
 }
 
@@ -208,6 +208,9 @@ export interface SkillExecutionOptions {
     signal?: AbortSignal;
     allowDraft?: boolean;
     onEvent?: (event: SkillEvent) => void;
+    /** Trusted executor-side evidence sink; must complete before the bounded Mining runtime is called. */
+    onMiningAdmission?: (request:import('../sdk/mining-demand').MiningDemandRequest)=>Promise<void>;
+    onMiningClosed?: (request:import('../sdk/mining-demand').MiningDemandRequest)=>Promise<void>;
 }
 
 /** Trusted, supervisor-issued limits applied again inside an autonomous skill process. */

@@ -3,6 +3,7 @@ import { enqueueNativeHousing } from '#/mods/NativeHousingRuntime.js';
 import { enqueueNativeCommerce } from '#/mods/NativeCommerceRuntime.js';
 import { enqueueNativeKitchen } from '#/mods/NativeKitchenRuntime.js';
 import { enqueueNativeToolWork } from '#/mods/NativeToolWorkRuntime.js';
+import { enqueueNativeMiningDemand } from '#/mods/NativeMiningIntentRuntime.js';
 import { enqueueNativeFoodSkill } from '#/mods/NativeFoodSkillRuntime.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -82,6 +83,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         || url.pathname === '/api/internal/admin/native-food-commerce'
         || url.pathname === '/api/internal/admin/native-kitchen'
         || url.pathname === '/api/internal/admin/native-tool-work'
+        || url.pathname === '/api/internal/admin/native-mining-demand'
         || url.pathname === '/api/internal/admin/native-food-skill'
         || url.pathname === '/api/internal/admin/witness-inspection'
         || url.pathname === '/api/internal/admin/checkpoint/search'
@@ -189,6 +191,12 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
         return json(result, result.ok ? 200 : 409);
     }
 
+    if(url.pathname==='/api/internal/admin/native-mining-demand'){
+        if(Object.keys(body).sort().join(',')!=='commandId,contextDigest,demandId,operation,username')return json({error:'Invalid typed Mining fields'},400);
+        const {commandId:_commandId,...command}=body;
+        const result=await enqueueNativeMiningDemand(command as unknown as import('../../mods/NativeMiningIntentRuntime.js').NativeMiningDemandCommand);
+        return json(result,result.ok?200:409);
+    }
     if(url.pathname==='/api/internal/admin/native-tool-work'){
         if(Object.keys(body).sort().join(',')!=='businessId,commandId,contextDigest,kind,operationId,username')return json({error:'Invalid native tool fields'},400);
         const {commandId:_commandId,...command}=body;

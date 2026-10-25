@@ -63,6 +63,7 @@ export class NativeMiningDemandStore {
                 CREATE TABLE IF NOT EXISTS native_mining_demand_head(singleton INTEGER PRIMARY KEY CHECK(singleton=1),sequence INTEGER NOT NULL,digest TEXT);
                 CREATE TABLE IF NOT EXISTS native_mining_demand_event(sequence INTEGER PRIMARY KEY,event_key TEXT NOT NULL UNIQUE,payload TEXT NOT NULL,
                     previous_digest TEXT,digest TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS native_mining_demand_request ON native_mining_demand_event(json_extract(payload,'$.requestId'),sequence) WHERE json_valid(payload);
                 CREATE TRIGGER IF NOT EXISTS native_mining_demand_no_update BEFORE UPDATE ON native_mining_demand_event
                 BEGIN SELECT RAISE(ABORT,'Native mining demand history is immutable'); END;
                 CREATE TRIGGER IF NOT EXISTS native_mining_demand_no_delete BEFORE DELETE ON native_mining_demand_event

@@ -76,7 +76,8 @@ verziókkal rendelkező1.3.0 native-travel fixture. Ezt nem alkalmaztuk egy vil�
    elutasított és committed próbákat tartósan köti a natív forráshoz. Most a
    [külön tartós kérés](SI_C07_STANDING_TOOL_DEMAND.md) expiry/cancel/fulfillment
    és konzervatív időintervallumai is elkészültek. A production gather-loc
-   admission és teljes cohort coverage még hiányzik. Offline vagy üres
+   admission már [hitelesítetten bekötött](SI_C07_GATHER_ADMISSION.md), a teljes
+   cohort coverage még hiányzik. Offline vagy üres
    skill-queue, illetve két elutasított kattintás közötti idő nem töltheti ki
    ezt a nevezőt. A C05 available-and-willing unemployment exposure külön mérés.
 3. **A baseline food/travel-only.** Nincs a négy founderhez kötött teljes
@@ -121,7 +122,9 @@ result-report/restore próba és friss NO-GO/sourcehash/link ellenőrzés PASS16
 explicit lifetime/cancel/expiry, valódi érc-receipthez kötött teljesítés és
 source-gap védelem. Scoped, igazolt >1 óra hiány FAIL-ként továbbjut az evaluation
 facade-ba, rövid/hiányos bizonyíték nem lesz PASS. A production admitted gather
-run/step/parameters/checksum bekötés még hiányzik; a runtime start fail-closed.
+run/step/parameters/checksum bekötés [később elkészült](SI_C07_GATHER_ADMISSION.md),
+szűk source/SDK/gateway/HTTP/tick és natív receipt-kötéssel. Teljes cohort
+watermark és17/8 minimum source-bridge még nincs; a preflight továbbra NO-GO.
 Ellenőrzés:129 célzott runtime ellenőrzés PASS59,82 s, a kör root TS2322 miatt
 FAIL76,892 s; explicit commit utáni return javítás után7 saját teszt +root/engine
 TS PASS104,775 s. `si-c07-intent-preflight-and-benchmark`:3 preparer és1 konkrét
@@ -129,6 +132,6 @@ benchmark/restore próba +friss NO-GO artifact/sourcehash/link PASS9,702 s.
 Részletes azonosítók és korlátok a tartós igény dokumentumában/átadásban.
 
 **SI-C07 nyitott,27/45; SI-M3/MVS nem PASS.** Következő konkrét kódmunka a
-source-backed gather-loc admission/start/cancel, teljes cohort coverage és a
-minimum assessment bridge. A következő task C07, nem C08; a hosszú futási
+teljes founder-cohort/source coverage-watermark és a minimum assessment bridge.
+A következő task C07, nem C08; a hosszú futási
 jóváhagyás még nem esedékes.

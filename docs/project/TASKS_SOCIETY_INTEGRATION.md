@@ -1077,9 +1077,10 @@ reference-ID ütközés javítva,17 eredeti requirement és policy-fájl változ
 Új hosszú run/baseline/értékimport/providerköltség nincs. 2026-10-25:
 [natív Mining request-napló és outcome bekötés](SI_C07_NATIVE_TOOL_DEMAND.md)
 elkészült. [Tartós natív igény/lifetime/cancel/output és időmérés](SI_C07_STANDING_TOOL_DEMAND.md)
-is kész komponensszinten. A production source-backed gather admission, teljes
-cohort coverage és minimum bridge még hiányzik; utána baseline/ratio/SI-A14
-preflight és jóváhagyás.
+is kész komponensszinten. A [production source-backed gather admission](SI_C07_GATHER_ADMISSION.md)
+bekötése is elkészült, ismétlés/cancel/expiry/friss native output védelemmel.
+A teljes founder-cohort/source coverage és minimum bridge még hiányzik;
+utána baseline/ratio/SI-A14 preflight és jóváhagyás.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

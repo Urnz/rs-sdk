@@ -30,17 +30,17 @@ import { TradeEvidenceStore, type EngineTradeEvidence } from './TradeEvidenceSto
 const stores: MarketStore[] = [], dirs: string[] = [];
 let sequence = 0;
 export function closeNativeMiningFixtures(){for(const s of stores.splice(0))s.db.close(true);for(const d of dirs.splice(0))rmSync(d,{recursive:true,force:true});}
-export function fixture(longInstanceId?:string) {
+export function fixture(longInstanceId?:string,options?:{identity?:NativeMiningPorts['identity'];username?:string;checkpointPath?:string}) {
     const dir=mkdtempSync(join(tmpdir(),'native-mining-'));dirs.push(dir);
-    const market=new MarketStore(join(dir,'checkpoints.sqlite'));stores.push(market);
+    const market=new MarketStore(options?.checkpointPath??join(dir,'checkpoints.sqlite'));stores.push(market);
     const store=new NativeToolStore(market.db);let attempt=0,alive=true,failCheckpoint=false;
-    const p: NativeMiningPorts={market,identity:(username,actionId,slot,tick)=>{
+    const p: NativeMiningPorts={market,identity:options?.identity??((username,actionId,slot,tick)=>{
         if(!alive)throw new Error('Terminal population avatar');
         return {action:{actionId,worldId:'si-c02-fixture',actorId:`actor-${username}`,username,lifecycleId:`life-${username}`,
             itemId:379,quantity:1,slot,policyDigest:'a'.repeat(64),clockId:'si-c02-clock',clockProfileDigest:'b'.repeat(64)},
         clock:{clockId:'si-c02-clock',profileDigest:'b'.repeat(64),status:'running',revision:1,engineTick:tick,
             wallTime:'2026-10-24T13:00:00.000Z',simulationTime:new Date(Date.UTC(2001,0,1)+tick*600).toISOString()}};
-    },checkpoint:players=>{
+    }),checkpoint:players=>{
         for(const player of players){const save=player.save(false);checkpointNativeMiningTool(player,save);
             checkpointNativeAttributeXp(market.db,player,save);market.checkpoint(player.username,save,true);}
         if(failCheckpoint)throw new Error('injected native checkpoint failure');
@@ -57,7 +57,7 @@ export function fixture(longInstanceId?:string) {
             bindNativeMiningTool(player,instanceId,'d'.repeat(64),p);}
         return player;
     }
-    const miner=player();
+    const miner=player(options?.username);
     function mine(seed=4096,who=miner,actionId?:string,beforeResume?:()=>void,rockName='copperrock1') {
         World.currentTick+=5;const rock=new Loc(0,3230+(attempt++*2),3149,1,1,EntityLifeCycle.FOREVER,LocType.getId(rockName),10,0);
         who.x=rock.x-1;who.z=rock.z;World.addLoc(rock,-1);

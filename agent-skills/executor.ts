@@ -13,6 +13,7 @@ import type {
     SkillValue
 } from './types';
 import { resolveSkillParameters, skillReferenceKey, validateSkillDefinition } from './validation';
+import { isMiningDemandGather,miningGatherArgs } from '../sdk/mining-demand.js';
 
 const MAX_CALL_DEPTH = 8;
 
@@ -162,8 +163,16 @@ export class SkillExecutor {
                     }
                     operations++;
                     emit({ type: 'step.started', stepId, operation: step.operation, attempt });
-                    const result = await this.runtime.execute(step.operation, args, controller.signal,
-                        { runId, skill: reference, stepId, parametersDigest });
+                    const context={runId,skill:reference,stepId,parametersDigest,
+                        ...(isMiningDemandGather(step.operation,args)?{operationSequence:operations}:{})};
+                    let result:Awaited<ReturnType<SkillRuntime['execute']>>;
+                    try{
+                        if(context.operationSequence!==undefined)await options.onMiningAdmission?.({operation:'open',args:miningGatherArgs(args),
+                            context:{...context,operationSequence:context.operationSequence}});
+                        checkAbort();result=await this.runtime.execute(step.operation,args,controller.signal,context);
+                    }
+                    finally{if(context.operationSequence!==undefined)await options.onMiningClosed?.({operation:'close',args:miningGatherArgs(args),
+                        context:{...context,operationSequence:context.operationSequence}});}
                     checkAbort();
                     if (result.success) {
                         emit({ type: 'step.succeeded', stepId, operation: step.operation, attempt, code: result.code, message: result.message, data: result.data });

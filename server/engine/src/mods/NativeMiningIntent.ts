@@ -4,12 +4,13 @@ import { nativeMiningToolForWork,type NativeMiningPorts } from './NativeMiningTo
 import { nativeToolDigest,type NativeToolOwner } from '../../../../item-lifecycle/native-tool.js';
 import { NativeMiningIntentStore,nativeMiningDemandSessionId,type NativeMiningIntentRecord } from '../../../../item-lifecycle/native-mining-intent.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
+import { NativeMiningDemandStore } from '../../../../item-lifecycle/native-mining-demand.js';
 
 export interface NativeMiningIntentCommand {demandId:string;username:string;outputItemId:436|438;contextDigest:string;maximumWallMilliseconds:number}
 export interface NativeMiningIntentPorts extends NativeMiningPorts {
     clock():SimulationClockObservation;
     /** Trusted caller must re-read the admitted high-level invocation; a posted digest is not authority. */
-    authorizeStart(command:NativeMiningIntentCommand,owner:NativeToolOwner):{authorityDigest:string};
+    authorizeStart(command:NativeMiningIntentCommand,owner:NativeToolOwner):{authorityDigest:string;expiresAtWallTime?:string};
 }
 function ownerFor(p:NativeMiningPorts,player:Player,id:string){
     const c=p.identity(player.username,id,0,World.currentTick);
@@ -48,19 +49,29 @@ export class NativeMiningIntentTracker {
         if(!/^[a-f0-9]{64}$/.test(authority.authorityDigest))throw Error('Native mining intent admission unavailable');
         const prior=this.store.get(command.demandId);
         const sample=prior?.sample??this.sample(actual.owner,command.demandId,player,actual.clock);
-        const intent={demandId:command.demandId,owner:actual.owner,outputItemId:command.outputItemId,contextDigest:command.contextDigest,...authority,
-            maximumWallMilliseconds:command.maximumWallMilliseconds,
-            expiresAtWallTime:prior?.intent.expiresAtWallTime??new Date(Date.parse(sample.clock.wallTime)+command.maximumWallMilliseconds).toISOString()};
+        const expiresAtWallTime=prior?.intent.expiresAtWallTime??authority.expiresAtWallTime??new Date(Date.parse(sample.clock.wallTime)+command.maximumWallMilliseconds).toISOString();
+        const maximumWallMilliseconds=prior?.intent.maximumWallMilliseconds??Date.parse(expiresAtWallTime)-Date.parse(sample.clock.wallTime);
+        if(!Number.isSafeInteger(maximumWallMilliseconds)||maximumWallMilliseconds<100||maximumWallMilliseconds>command.maximumWallMilliseconds)throw Error('Mining executor lifetime expired or differs');
+        const intent={demandId:command.demandId,owner:actual.owner,outputItemId:command.outputItemId,contextDigest:command.contextDigest,authorityDigest:authority.authorityDigest,
+            maximumWallMilliseconds,expiresAtWallTime,
+            attemptSequenceAtAdmission:prior?.intent.attemptSequenceAtAdmission??(NativeMiningDemandStore.present(this.ports.market.db)?NativeMiningDemandStore.read(this.ports.market.db).head.sequence:0)};
         if(prior){if(nativeToolDigest(intent)!==nativeToolDigest(prior.intent))throw Error('Native mining intent conflict');return prior;}
         return this.store.write({schemaVersion:1,intent,revision:1,phase:'pending',sample,completionEventId:null});
     }
-    observe(id:string,player:Player|null){
+    observe(id:string,player:Player|null,sourceAvailable=true){
         const prior=this.store.get(id);if(!prior)throw Error('Native mining intent missing');if(prior.phase!=='pending')return prior;
         const clock=this.ports.clock();
         if(prior.sample.sessionId===this.sessionId&&prior.sample.clock.engineTick===clock.engineTick)return prior;
         if(Date.parse(clock.wallTime)>=Date.parse(prior.intent.expiresAtWallTime))return this.store.write({...prior,revision:prior.revision+1,phase:'expired',
             sample:{clock,sessionId:this.sessionId,availability:'unknown',itemInstanceId:null,itemRevision:null,reason:'request-expired'}});
-        return this.store.write({...prior,revision:prior.revision+1,sample:this.sample(prior.intent.owner,id,player,clock)});
+        return this.store.write({...prior,revision:prior.revision+1,sample:sourceAvailable?this.sample(prior.intent.owner,id,player,clock)
+            :{clock,sessionId:this.sessionId,availability:'unknown',itemInstanceId:null,itemRevision:null,reason:'invocation-unavailable'}});
+    }
+    /** Trusted source cancellation works even after disconnect; no caller-supplied owner/clock receipt. */
+    cancelAcknowledged(id:string){
+        const prior=this.store.get(id);if(!prior)throw Error('Native mining intent missing');if(prior.phase!=='pending')return prior;
+        return this.store.write({...prior,revision:prior.revision+1,phase:'cancelled',sample:{clock:this.ports.clock(),sessionId:this.sessionId,
+            availability:'unknown',itemInstanceId:null,itemRevision:null,reason:'source-cancelled'}});
     }
     cancel(id:string,player:Player){
         const prior=this.store.get(id);if(!prior)throw Error('Native mining intent missing');

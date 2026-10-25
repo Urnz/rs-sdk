@@ -46,22 +46,26 @@ test.each(['state','source','config','cache','missing','model','engine-config','
         expect(existsSync(f.bundle)).toBeFalse();if(mode==='missing')expect(existsSync(join(f.root,f.checkpoint))).toBeFalse();
 });
 test('result is tied to exact baseline/plan and native report is re-read before restore publication',()=>{
-    const f=expandedFixture(),pin=prepareExpandedBaseline(f.root,f.selected);
-    const baseline=captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});
+    const phase=<T>(name:string,run:()=>T):T=>{const start=performance.now();try{return run();}
+        finally{console.info('[expanded-restore-phase]',JSON.stringify({name,wallMs:Math.round(performance.now()-start)}));}};
+    const f=phase('fixture',expandedFixture),pin=phase('prepare',()=>prepareExpandedBaseline(f.root,f.selected));
+    const baseline=phase('baseline-capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
     const treasury=new InstitutionTreasuryStore(join(f.root,'.local/economy/institution-treasury.sqlite'));
     try{treasury.setBalance('business','fixture',1,42);}finally{treasury.close();}
     // A selected report is always read from the restored native database, not supplied JSON.
     const report=(root:string)=>{const db=new Database(join(root,'.local/economy/institution-treasury.sqlite'),{readonly:true});try{return db.query("SELECT balance_gp FROM institution_treasury WHERE actor_id='fixture'").get();}finally{db.close();}};
     put(f.root,'.local/admin/long-experiments.sqlite',readFileSync(join(f.root,'.local/admin/experiment-parameters.sqlite')));
-    const result=join(f.directory,'result'),manifest=captureExpandedArchive({...f,output:result,kind:'result',pin,baselineBundle:f.bundle,assertOffline:()=>{},readReport:report});
-    expect(compareExpandedArchives(f.bundle,result)).toMatchObject({baselineDigest:baseline.digest,resultDigest:manifest.digest,bitIdenticalWorldRerun:false});
-    expect(()=>restoreExpandedArchive(result,f.output,()=>({n:999}))).toThrow('native report');expect(existsSync(f.output)).toBeFalse();
-    restoreExpandedArchive(result,f.output,report);expect(report(join(f.output,'workspace'))).toEqual({balance_gp:42});
-    const unrelated=expandedFixture(),otherPin=prepareExpandedBaseline(unrelated.root,unrelated.selected);
-    captureExpandedArchive({...unrelated,output:unrelated.bundle,kind:'baseline',pin:otherPin,assertOffline:()=>{}});
-    expect(()=>compareExpandedArchives(unrelated.bundle,result)).toThrow('Unrelated');
-    expect(verifySocietyArchive(f.bundle).digest).toBe(baseline.digest);
-});
+    const result=join(f.directory,'result'),manifest=phase('result-capture',()=>captureExpandedArchive({...f,output:result,kind:'result',pin,baselineBundle:f.bundle,assertOffline:()=>{},readReport:report}));
+    expect(phase('compare',()=>compareExpandedArchives(f.bundle,result))).toMatchObject({baselineDigest:baseline.digest,resultDigest:manifest.digest,bitIdenticalWorldRerun:false});
+    expect(()=>phase('reject-report-drift',()=>restoreExpandedArchive(result,f.output,()=>({n:999})))).toThrow('native report');expect(existsSync(f.output)).toBeFalse();
+    phase('result-restore',()=>restoreExpandedArchive(result,f.output,report));expect(report(join(f.output,'workspace'))).toEqual({balance_gp:42});
+    const unrelated=phase('unrelated-fixture',expandedFixture),otherPin=phase('unrelated-prepare',()=>prepareExpandedBaseline(unrelated.root,unrelated.selected));
+    phase('unrelated-capture',()=>captureExpandedArchive({...unrelated,output:unrelated.bundle,kind:'baseline',pin:otherPin,assertOffline:()=>{}}));
+    expect(()=>phase('reject-unrelated',()=>compareExpandedArchives(unrelated.bundle,result))).toThrow('Unrelated');
+    expect(phase('baseline-verify',()=>verifySocietyArchive(f.bundle)).digest).toBe(baseline.digest);
+// Three archive captures, two restore paths and two SQLite-backed worlds exceeded the generic5 s timer
+// under the focused consumer run (6.876 s); isolated phase tracing measured2.128 s. Keep each phase visible.
+},15000);
 test('WAL-only checkpoint rows survive native state pinning and archive reopen',()=>{
     const f=expandedFixture(),db=new Database(join(f.directory,'wal.sqlite'),{create:true}),copies=join(f.directory,'wal-copy');mkdirSync(copies);
     try{db.run('PRAGMA journal_mode=WAL');db.run('PRAGMA wal_autocheckpoint=0');db.run('CREATE TABLE proof(value INTEGER)');db.run('INSERT INTO proof VALUES(42)');

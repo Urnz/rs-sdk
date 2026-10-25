@@ -7,6 +7,8 @@ export const nativeMiningDemandSessionId=randomUUID();
 export interface NativeMiningIntent {
     demandId:string;owner:NativeToolOwner;outputItemId:436|438;contextDigest:string;authorityDigest:string;
     maximumWallMilliseconds:number;expiresAtWallTime:string;
+    /** Absent on legacy records; no fresh-admission claim may be inferred for them. */
+    attemptSequenceAtAdmission?:number;
 }
 export interface NativeMiningIntentRecord {
     schemaVersion:1;intent:NativeMiningIntent;revision:number;phase:'pending'|'fulfilled'|'cancelled'|'expired';

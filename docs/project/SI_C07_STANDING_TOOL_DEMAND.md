@@ -53,15 +53,13 @@ A kontrollált negatív fixture FAIL-je nem egy lefuttatott hosszú C07 gazdasá
 
 ## Még nem kész belépési feltételek
 
-**A production `gather-loc` admission-bekötés még hiányzik.** A trackernek van
-kötelező trusted authorizer portja, a natív próbák saját explicit admissiont adnak.
-A normál runtime observer admission-portja fail-closed; nincs új SDK/HTTP parancs,
-és önmagában egy kapott digest vagy modellüzenet nem nyithat igényt.
-Az integrációs próbák explicit fixture portokat használnak; az admitted gather
-start→managed World sampler→output teljes production út még külön belépési próba.
-Következő konkrét munka: az executor admitted run/step/parameters/checksum és
-active-skill marker forrásából, a kiválasztott avatarhoz kötött start/cancel
-csatorna; timeout/abort/disconnect/retarget hibahatár; teljes cohort coverage.
+**A production `gather-loc` admission-bekötés később elkészült:**
+[executor-instance/source/SDK/gateway/HTTP/tick és natív proof](SI_C07_GATHER_ADMISSION.md).
+A root/current-step/parameters/checksum/marker és pontos avatar kötött,
+ismétlés külön operationSequence, retarget közös request. A végpont saját
+mezőlistás és a meglévő auth mögött van; önmagában kapott digest/model output
+nem authorizál. Abort/disconnect/late-open és régi suspended output tesztelt.
+Következő konkrét munka a teljes founder-cohort/source coverage-watermark.
 Régi `interact-loc`, unbound és hiányzó identity továbbra lefedettségi rés.
 
 A teljes17 szabály/8 integrity gate assessment, housing exposure, founder

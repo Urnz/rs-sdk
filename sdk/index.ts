@@ -1174,6 +1174,9 @@ export class BotSDK {
     async sendSocietyTool(request: import('./society-tools').SocietyToolRequest): Promise<ActionResult> {
         return this.sendAction({ type: 'societyTool', request, reason: 'SDK' });
     }
+    async sendMiningDemand(request: import('./mining-demand').MiningDemandRequest): Promise<ActionResult> {
+        return this.sendAction({ type: 'miningDemand', request, reason: 'SDK' });
+    }
 
     /** Send walk command to coordinates. */
     async sendWalk(x: number, z: number, running: boolean = true): Promise<ActionResult> {

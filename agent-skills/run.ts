@@ -12,6 +12,7 @@ import { FileSkillRunJournal } from './journal';
 import { createHash } from 'node:crypto';
 import { resolveSkillParameters } from './validation.js';
 import type { SkillRunResult, SkillRuntimeAuthorization } from './types';
+import { persistMiningOperationAdmission,sealMiningOperationAdmission } from './mining-admission.js';
 
 const args = process.argv.slice(2);
 const positional = args.filter(arg => !arg.startsWith('--'));
@@ -113,6 +114,8 @@ const run = await runScript(async ({ bot, sdk }) => {
         heartbeatAt: new Date().toISOString(),
         progressAt: new Date().toISOString(),
         progressSequence: 0,
+        miningOperationSequence: null as number|null,
+        miningAdmissionDigest: null as string|null,
         pid: process.pid
     };
     await mkdir(markerDirectory, { recursive: true });
@@ -135,7 +138,16 @@ const run = await runScript(async ({ bot, sdk }) => {
             runId: actualRunId,
             parameters,
             allowDraft,
+            onMiningAdmission:async request=>{
+                const admission=persistMiningOperationAdmission(process.cwd(),botName.toLowerCase(),registered.checksum,request);
+                marker.miningOperationSequence=request.context.operationSequence;marker.miningAdmissionDigest=admission.digest;
+                await persistMarker();
+            },
+            onMiningClosed:async request=>{sealMiningOperationAdmission(process.cwd(),request);},
             onEvent: event => {
+                if(event.type==='step.started'||event.type==='step.succeeded'||event.type==='step.failed'){
+                    marker.miningOperationSequence=null;marker.miningAdmissionDigest=null;
+                }
                 marker.runId = event.runId;
                 marker.progressAt = event.timestamp;
                 marker.progressSequence++;

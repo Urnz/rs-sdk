@@ -23,7 +23,7 @@ test('a relaxed minimum in a copied definition cannot pass the original-policy g
     const original=await inspectMinimumRunPreparation(root,fixture),copy=mkdtempSync(join(tmpdir(),'si-c07-minimum-drift-'));
     try{
         cpSync(join(root,'config'),join(copy,'config'),{recursive:true});cpSync(join(root,'agent-skills/catalog'),join(copy,'agent-skills/catalog'),{recursive:true});
-        for(const source of original.sources.filter(s=>!s.path.startsWith('config/')&&!s.path.startsWith('agent-skills/'))){
+        for(const source of original.sources.filter(s=>!s.path.startsWith('config/')&&!s.path.startsWith('agent-skills/catalog/'))){
             mkdirSync(dirname(join(copy,source.path)),{recursive:true});writeFileSync(join(copy,source.path),readFileSync(join(root,source.path)));}
         const path=join(copy,'config/society-minimum-policy.json'),policy=JSON.parse(readFileSync(path,'utf8'));
         policy.needs.minimumSatisfiedPersonTimeBasisPoints=9400;writeFileSync(path,JSON.stringify(policy));

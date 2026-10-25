@@ -2502,3 +2502,83 @@ Utóellenőrzés: `20261025-104422-944-si-c07-intent-preflight-and-benchmark`:
 artifact +sourcehash/link PASS9,702 s. Továbbra27/45, C07 nyitott. A17 eredeti
 requirement/8 integrity gate, approved minimum forráshash,0 provider authorization
 és a külön hosszú futási jóváhagyás követelménye változatlan.
+
+## 2026-10-25 – SI-C07 source-backed gather-loc admission és natív végrehajtási határ
+
+[Hitelesített igénybekötés](SI_C07_GATHER_ADMISSION.md): executor run/step és
+operationSequence, pontos feloldott args/parameters/checksum/current marker
+nyugta megvárt kiírással. Repeat új id, retarget közös igény. Native source a
+learned/verified skillt, kiválasztott avatar control/population/lifecycle/clock
+kötését is újraolvassa; önmagában digest/modellválasz nem nyit requestet.
+SDK/gateway/belső HTTP/tick→packed Mining→readonly proof közös út elkészült.
+A gateway saját session targetet használ, a socket observe/identity és engine
+admin token guard változatlan. Közös auth-alapot nem írtunk át.
+
+Native lifetime az eredeti executor-deadline-ra kötött, késői ACK nem hosszabbít.
+Close előtt immutable tombstone, executor finally-ben seal, friss bounded
+cleanup-signal. Disconnect/lost close/late open/retarget/abort hibahatár próbázva.
+Attempt-cursor és request-index: régi suspended Mining késői érce nem szolgálhat
+új request proofjaként. Valódi natív receipt kell; inventory/XP vagy transport
+ACK nem gazdasági siker. Source/permission-gap unknown, nem feltételezett nulla.
+
+Own sidecarok és additív valid-JSON request-index, opcionális intent cursor;
+a meglévő DB user_version, run journal formátuma és eredeti17 rule/8 gate,
+küszöb, clock/needs/asset-commit invariáns változatlan. Legacy adatokból nincs
+backfill vagy friss grant. Rollback aligned runtime/SDK forrással, bizonyítékot
+megtartva; sémát/indexet az új baseline előtt kell pinelni. Provider0, nincs
+live world/új genesis/import/publication/enrollment vagy történeti payload-read.
+C07 nyitott27/45, NO-GO; következő a teljes founder-cohort/source coverage,
+majd teljes minimum bridge/baseline/ratio/SI-A14 és külön hosszú futási engedély.
+
+Ellenőrzések és megtartott hibák:
+- `20261025-110623-039-si-c07-mining-admission-early-types`:FAIL48,642 s;
+  engine-runtime type-import a root projektbe húzta a motor aliasait, illetve
+  a closure proof-return annotáció hiányzott. Javítás tiszta SDK-command típus
+  és explicit proof-return, globális TS-config lazítás nélkül.
+- `20261025-111035-311-si-c07-mining-source-thin`:0 PASS/5 FAIL1,063 s,
+  új fixture nem kapott shared clockot. `111111-671`:4 PASS/1 FAIL1,362 s,
+  a skill-knowledge teszt expectedRevision hibás volt. Mindkét fixture javítva.
+- `20261025-111228-254-si-c07-mining-source-runtime`:11 PASS2,056 s.
+  `20261025-111659-251-si-c07-mining-admission-native`:6 natív +1 wrapper
+  PASS4,031 s. Szűk executor/retarget/abort/disconnect/ownership/native határ.
+- `20261025-112122-525-si-c07-mining-admission-consumers`:169 PASS/1 FAIL,
+  16 fájl99,071 s. Egy C06 compound result/restore teszt6,876 s-nál az5 s
+  runner timerbe ütközött; sem más assertion, sem más runtime eset nem bukott.
+  Változatlan limittel izolált PASS2,615 s (`112343-749`); per-phase naplóval
+  PASS2,668 s, body2,128 s (`112453-151`). Fixture470/381 ms, capture203/245/224,
+  restore172/137 ms, további compare/prepare/verify fázisok külön megmaradnak.
+  Ez az egy3 capture/több restore/2 SQLite világ teszt explicit15 s I/O-budgetet
+  kapott; runtime/clock/soak-limit és assertion nem lazult.
+- `20261025-112620-636-si-c07-mining-restore-budget-and-types`:a módosított
+  restore eset PASS2,062 s body; a kör root TS tesztadat-duplicate field miatt
+  FAIL51,930 s. `112903-193-si-c07-mining-admission-final-types`:5 source eset
+  és root TS PASS, engine TS közös CJS fixture import.meta miatt FAIL85,952 s.
+  A shared fixture statikus JSON-importot használ; config/tesztfelderítés nem
+  változott és a sikeres169 eset nem futott újra.
+- `20261025-113401-579-si-c07-mining-shared-fixture-and-types`:18 érintett
+  source/runtime/native ellenőrzés, root+engine+webclient TS PASS183,099 s;
+  runtime5,69 s. Mindhárom TS-projektet a közös SDK BotAction típus érintette.
+
+Full regresszió nem futott. A nested és átfedő körök számai/idői nem összeadandók;
+a részleges PASS nem full-suite vagy M3 PASS. A teljes log/result `.local/verification/`
+alatt marad, a negatív eredmények nem törlődtek.
+
+C07 admission preflight utómunka: `20261025-114144-899-si-c07-mining-admission-preflight-artifact`
+2 PASS/1 FAIL1,959 s; a másolt negatív fixture a catalog kivételével minden
+agent-skills fájlt kizárt, így az új source-lista kódja hiányzott. Pontosítás
+csak a már külön másolt catalog prefixre. `20261025-114216-650-si-c07-mining-admission-preflight-copy`:
+3 preparer próba +NO-GO artifact/sourcehash/link PASS1,709 s. A9500→9400
+lazítás továbbra blocked,17/8 és provider0 változatlan. Nincs új runtime vagy
+TypeScript szerződésváltozás az utómunkában; a sikeres consumer/TS kör nem ismétlődött.
+
+C07 admission utolsó konzervatív hibahatár: a goal-cancel nem játékcsomag-
+visszavonás, ezért minden sikertelen bekötött gather retryable:false, normál
+retarget ugyanazon igényen belül marad. A változott helper és közvetlen natív
+fogyasztó külön negatív esete: `20261025-114922-832-si-c07-mining-timeout-no-retry`,
+14 PASS +root/engine TS PASS244,154 s, runtime33,87 s. A változatlan webclient
+és a sikeres169 fogyasztói eset nem futott újra. A végső preflight-hash erre a
+forrásra regenerálandó; hosszú run és providerköltség továbbra0, C07 nyitott.
+
+Végső artifact frissítve: `20261025-115804-236-si-c07-mining-admission-final-artifact`,
+NO-GO/sourcehash/digest/link PASS3,873 s. Ez diagnosztikai siker, nem run-engedély,
+nincs selectedWorld/baseline vagy M3 PASS. A következő kódmunka cohort coverage.

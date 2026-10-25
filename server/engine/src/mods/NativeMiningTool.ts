@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Database } from 'bun:sqlite';
+import { fileURLToPath } from 'node:url';
 import InvType from '../cache/config/InvType.js';
 import LocType from '../cache/config/LocType.js';
 import ObjType from '../cache/config/ObjType.js';
@@ -12,11 +13,13 @@ import type { NativeFoodContext } from './NativeFoodConsumptionStore.js';
 import type { EngineTradeEvidence } from './TradeEvidenceStore.js';
 import { NativeToolWorkStore } from '../../../../production-workflow/native-tool-work.js';
 import { NativeMiningDemandStore, type NativeMiningDemandObservation } from '../../../../item-lifecycle/native-mining-demand.js';
-import { NativeMiningIntentStore,nativeMiningDemandSessionId } from '../../../../item-lifecycle/native-mining-intent.js';
+import { NativeMiningIntentStore,nativeMiningDemandSessionId,type NativeMiningIntentRecord } from '../../../../item-lifecycle/native-mining-intent.js';
+import { miningIntentFulfillmentAllowed } from '../../../../agent-skills/mining-demand-source.js';
 import { NativeToolStore, NATIVE_PICKAXE, nativeToolCatalog, nativeToolCycles, nativeToolDigest,
     type NativeToolBinding, type NativeToolOwner } from '../../../../item-lifecycle/native-tool.js';
 
-export interface NativeMiningPorts { market: MarketStore; identity: typeof populationFoodContext; checkpoint(players: Player[]): void }
+export interface NativeMiningPorts { market: MarketStore; identity: typeof populationFoodContext; checkpoint(players: Player[]): void;
+    intentFulfillmentAllowed?(record:NativeMiningIntentRecord):boolean }
 type Position = NativeToolBinding['position'];
 type Token = { reference: {id:number;count:number}; position: Position };
 const tokens = new WeakMap<Player, Token>();
@@ -25,6 +28,7 @@ function ports(player: Player): NativeMiningPorts | null {
     if (player.nativeMiningPorts) return player.nativeMiningPorts;
     const market = playerSaveStore();
     return market ? { market, identity: populationFoodContext,
+        intentFulfillmentAllowed:record=>miningIntentFulfillmentAllowed(fileURLToPath(new URL('../../../../',import.meta.url)),record.intent),
         checkpoint: players => { for (const player of players) World.checkpointPlayers(player); } } : null;
 }
 function storeFor(player: Player): { ports: NativeMiningPorts; store: NativeToolStore } | null {
@@ -216,7 +220,11 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
             observeDemand(p,context,id,binding,state.nativeMiningSource,'committed');
             if(NativeMiningIntentStore.present(p.market.db)){
                 const intents=new NativeMiningIntentStore(p.market.db),pending=intents.pending().find(r=>r.intent.owner.username===player.username);
-                if(pending&&pending.intent.outputItemId===item){
+                const admitted=pending&&store.db.query<{sequence:number},[string]>(`SELECT sequence FROM native_mining_demand_event
+                    WHERE json_valid(payload) AND json_extract(payload,'$.requestId')=? AND json_extract(payload,'$.phase')='admitted'
+                    ORDER BY sequence LIMIT 1`).get(id);
+                if(pending&&pending.intent.outputItemId===item&&pending.intent.attemptSequenceAtAdmission!==undefined
+                    &&admitted&&admitted.sequence>pending.intent.attemptSequenceAtAdmission&&p.intentFulfillmentAllowed?.(pending)!==false){
                     if(nativeToolDigest(pending.intent.owner)!==nativeToolDigest(binding.owner))throw Error('Mining intent output owner differs');
                     const expired=Date.parse(context.clock.wallTime)>=Date.parse(pending.intent.expiresAtWallTime);
                     intents.write({...pending,revision:pending.revision+1,phase:expired?'expired':'fulfilled',completionEventId:expired?null:id,

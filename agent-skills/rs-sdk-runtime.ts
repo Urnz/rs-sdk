@@ -1,6 +1,8 @@
 import type { BotActions } from '../sdk/actions';
 import type { BotSDK } from '../sdk';
 import { travelToSocietySite } from './society-travel.js';
+import { isMiningDemandGather } from '../sdk/mining-demand.js';
+import { executeBoundMiningGather } from './mining-gather.js';
 import type {
     SkillConditionName,
     SkillOperationName,
@@ -104,7 +106,7 @@ export class RsSdkSkillRuntime implements SkillRuntime {
     ) {}
 
     async execute(operation: SkillOperationName, args: Record<string, unknown>, signal: AbortSignal,
-        context?: import('../sdk/society-food').SocietyFoodContext): Promise<SkillOperationResult> {
+        context?: import('../sdk/society-food').SocietyFoodContext & {operationSequence?:number}): Promise<SkillOperationResult> {
         if (signal.aborted) return { success: false, message: 'Skill cancelled', code: 'cancelled' };
         const authorizationFailure = this.authorize(operation, args);
         if (authorizationFailure) return authorizationFailure;
@@ -282,6 +284,7 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 return this.executeThievingOperation(operation, args, signal);
             case 'gather-loc':
             case 'gather-npc': {
+                const gather=async(nativeDeadline=Infinity):Promise<SkillOperationResult>=>{
                 const target = selector(stringArg(args, 'name'), args.match);
                 const itemName = stringArg(args, 'item');
                 const item = selector(itemName, 'contains');
@@ -292,7 +295,7 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                 const beforeXp = skill ? (this.sdk.getSkillXp(skill) ?? 0) : 0;
                 const timeoutMs = numberArg(args, 'timeoutMs', 15_000, 100, 300_000);
                 const maxRetargets = numberArg(args, 'maxRetargets', 20, 1, 100);
-                const deadline = Date.now() + timeoutMs;
+                const deadline = Math.min(Date.now()+timeoutMs,nativeDeadline);
                 let interactions = 0;
                 let lastInteraction: SkillOperationResult | null = null;
                 while (Date.now() < deadline && interactions < maxRetargets) {
@@ -331,6 +334,8 @@ export class RsSdkSkillRuntime implements SkillRuntime {
                     data: { interactions, target: { kind: operation === 'gather-loc' ? 'loc' : 'npc',
                         name: stringArg(args, 'name') }, lastInteraction }
                 };
+                };
+                return context&&isMiningDemandGather(operation,args)?executeBoundMiningGather(this.sdk,args,context,signal,gather):gather();
             }
             case 'smith-at-anvil': {
                 const bar = typeof args.bar === 'string'
