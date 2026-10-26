@@ -1089,6 +1089,8 @@ jóváhagyás, hosszú run és offline eredményrestore. Ez nem7 biztos chatkör
 2026-10-26: a [17/8 kvantoros kiértékelőmag, source-map és4 alsókorlát-adapter](SI_C07_MINIMUM_ASSESSMENT.md)
 elkészült. A2. csomag még nyitott: teljes population/needs/food/housing/capacity/
 request és8 integrity forrásadapter kell.6 maradt, SI-C07 nem kész.
+Az applied founder-roster és natív terminal-death upper bound bekötött;
+folyamatos mortality/boundary és needs exposure még hiányos. A2. csomag nyitott.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

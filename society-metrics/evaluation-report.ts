@@ -79,7 +79,7 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
                 targetNodeId: row.targetNodeId, affectedProductionEventCount: row.affectedProductionEventCount, affectedEvidenceIds: row.affectedEvidenceIds })) : [] },
         selfSufficiencyObservations: { food: selfSufficiency.food, tools: selfSufficiency.tools, housing: selfSufficiency.housing, inputs: selfSufficiency.inputs },
         unavailableReasons: {
-            survival: 'No exact opening-cohort/end-survival reader in this facade; admissions and current headcounts are not founder survival.',
+            survival: 'Optional applied-founder/death sources provide upper survival bounds; complete historical mortality coverage is not yet available.',
             'self-sufficiency': 'Existing readers expose diagnostic observations, not complete internal final-use/demand denominators.',
             mobility: observations.mobility ? undefined : 'No matched opening/closing native wealth history for the selected cohort.',
             'wealth-distribution': observations.wealth ? undefined : 'No matched GP-only native wealth boundaries; debt and noncash valuation remain separate.',

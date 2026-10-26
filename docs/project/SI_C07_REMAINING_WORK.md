@@ -9,6 +9,8 @@ beszélgetési körök vagy fejlesztési időbecslések.
 **6 csomag maradt (2–7).** [Dispatch-eredmény](SI_C07_NATIVE_DISPATCH.md).
 2026-10-26: a2. csomag [17/8 számítási magja és részleges natív bekötése](SI_C07_MINIMUM_ASSESSMENT.md)
 elkészült; a teljes natív források még hiányosak, ezért a2. továbbra folyamatban.
+Az applied founder-roster és natív terminal-death upper bound is bekötött;
+teljes történeti mortality/boundary és physiological exposure még kell.
 
 1. **KÉSZ – Executor → SDK → natív belépés pontos kötése.** Egyszer használható,
    forrásból hitelesített dispatch/target; replay/cancel/late-ACK és másik raw

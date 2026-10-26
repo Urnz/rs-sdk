@@ -159,3 +159,10 @@ Nincs teljes népességi/needs/food/housing/capacity/request/integrity attestác
 ezért a2. csomag és a preflight továbbra nyitott/NO-GO;6 csomag maradt.
 A következő task C07, nem C08; a hosszú futási
 jóváhagyás még nem esedékes.
+
+2026-10-26 további rész: applied/frozen eredeti roster és natív halálesetek
+két külön readonly csatornán bekötve. A halál a későbbi domain-projekció előtt
+is FAIL-t bizonyíthat, a meghalt/offline founder nem esik ki a nevezőből.
+Üres ledger/heartbeat nem survival PASS; teljes mortality/boundary, physiological
+exposure és a többi ismert adapter továbbra hiányzik. A2. csomag nyitott,
+6 maradt,27/45, NO-GO. Nincs új run/baseline/providerköltség.

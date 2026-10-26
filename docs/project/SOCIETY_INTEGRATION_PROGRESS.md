@@ -2754,3 +2754,36 @@ Végső aktuális artifact-kör: `20261026-171721-788-si-c07-minimum-final-resto
 1 kiválasztott benchmark/native-report/offline restore +új NO-GO/sourcehash/
 digest/dokumentációlink PASS5,877 s. Nincs új provider/run jogosultság vagy
 minimum PASS; a2. csomag nyitott, a hátralévő csomagszám6 maradt.
+
+### 2026-10-26 – SI-C07/2 applied founder-roster és terminal-death adapter
+
+Az új readonly populationBaseline az explicit applied resultId/resultDigest,
+finite policy, ellenőrzött integrity anchor és teljes eredeti roster alapján köt.
+A populationDeaths az eredeti AgentState tagság/lifecycle, engine finite-avatar
+binding és ellenőrzött death/damage chain/tail alapján ad halálesetet. A deceased
+és offline founder nem tűnik el a nevezőből; engine-halál a domain-projekció
+előtt is számít. A roster pontos szám, living/survival egyoldalú felső korlát.
+Warmup és boundary-egyenlőség számít, későbbi halál nem dátumozható vissza.
+Eredeti kezdőpontú részablakban a terminal sértés diagnostic FAIL marad; nem
+állítunk teljes hétből származó eredményt. Üres ledger/heartbeat nem survival
+PASS. A benchmark backend archived planból és selected workspace pathokból köt;
+HTTP/LLM továbbra sem választhat forrást vagy tölthet fel mérést.
+
+`20261026-191112-252-si-c07-native-founder-binding`:7 új teszt és root TS
+PASS55,325 s. A korai sértés/profile-guard után
+`20261026-191438-622-si-c07-founder-direct-consumers`:31 pontos population/
+projection/native-outcome/evaluation/preflight teszt +1 kijelölt benchmark/
+offline restore +root TS PASS85,172 s. Runtime14,52 s +restore5,95 s;
+átfedő körök, nem összeadandó tesztszám. Nincs full/engine/webclient TS: csak
+root readonly komponens és közvetlen fogyasztók változtak, közös alap nem.
+
+A17/8 minimum változatlan;4 work/tool +3 population részleges adapter.
+Teljes mortality/enforcement/boundary coverage, needs satisfied/critical time,
+food/reserve/retention, legal housing, capacity/request és8 integrity még kell.
+A2. csomag nyitott,6 maradt,27/45; preflight NO-GO, SI-M3/MVS nem PASS.
+Nincs schema/migration/backfill, baseline-tuning, új világ/hosszú run, provider
+vagy történeti backup DB-read. Következő a történeti mortality/boundary és
+physiological exposure natív forráskötés; C08 nem indul.
+
+Végső artifact: `20261026-191739-029-si-c07-founder-final-artifact`, friss
+NO-GO +17/8/sourcehash/digest/kapcsolt dokumentációlink PASS1,048 s.

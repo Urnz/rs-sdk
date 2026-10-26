@@ -14,11 +14,13 @@ import { outcomeCheck as check,outcomeRows as rows,outcomeTable as table,outcome
 import { validateEvaluationScope,type EvaluationScope } from './evaluation.js';
 import { readNativeToolDemandObservations } from './tool-demand.js';
 import { loadSocietyMinimumPolicy } from '../society-minimum/policy.js';
+import { readNativeFounderBaseline,readNativeFounderDeaths,type NativePopulationSelection } from './population-outcomes.js';
 
 /** Backend-owned export capability. Query parameters cannot widen actors, observers or source paths. */
 export interface NativeOutcomeOptions {
     workspace:string;worldId:string;agentPath:string;checkpointPath?:string;businessPath?:string;tradePath?:string;clockPath?:string;
     auditPath?:string;queuePath?:string;wallWindow?:OutcomeWallWindow;
+    population?:NativePopulationSelection;
     allowedActorAgentIds:readonly string[];allowedObserverAgentIds:readonly string[];
 }
 type Source<T>={status:'available';value:T;digest:string}|{status:'unavailable'|'invalid';reason:string};
@@ -39,6 +41,11 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
     const scope=validateEvaluationScope(query);
     check(scope.actorAgentIds.every(id=>options.allowedActorAgentIds.includes(id)),'Outcome export exceeds backend actor scope');
     const observers=options.allowedObserverAgentIds.filter(id=>scope.actorAgentIds.includes(id));
+    const populationBaseline=capture(()=>{configured(options.population,'Population baseline not configured');
+        return readNativeFounderBaseline(scope,{...options,population:options.population});});
+    const populationDeaths=capture(()=>{configured(options.population,'Population deaths not configured');
+        check(populationBaseline.status==='available','Population baseline unavailable');
+        return readNativeFounderDeaths(scope,{...options,population:options.population},populationBaseline.value);});
     const agent=capture(()=>database(options,options.agentPath,db=>readOutcomeAgents(db,scope,observers)));
     const work=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
         return database(options,options.checkpointPath,db=>readNativeWorkerEvidence(db,scope,options.worldId,agent.value.actors));});
@@ -95,7 +102,7 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
                 physicalWorkerMatchesAssignment:b.assignedWorkerAgentId===w.workerAgentId})):[],
         interpretation:'Actual worker is bound by native receipt; registered requester and assigned worker remain separate.'})):null;
     const definition={schemaVersion:1,artifactKind:'native-society-outcome-report',scope,worldId:options.worldId,observerAgentIds:observers,
-        sources:{agent,work,toolDemand,business,trades,provider,goalClock},labor,physicalSpecialization,roleBindings,
+        sources:{agent,work,toolDemand,business,trades,provider,goalClock,populationBaseline,populationDeaths},labor,physicalSpecialization,roleBindings,
         registeredResponsibility:'Existing evaluation specialization remains registered recipe responsibility; physical-stage receipt HHI is separate.',
         availability:{status:'inconclusive',availableAndWillingPersonMs:null,unemploymentRate:null},
         limitations:['Read-only per-source snapshots; no cross-database atomicity or complete event coverage.',

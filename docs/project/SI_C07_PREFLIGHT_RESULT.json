@@ -63,7 +63,7 @@
           "applied-genesis",
           "frozen-founder-boundary"
         ],
-        "missing": "Current population and selected IDs are not the exact opening founders."
+        "missing": "Exact applied-genesis roster and native bootstrap anchor must be explicitly bound; current active IDs cannot replace them."
       },
       {
         "requirementId": "minimum-living-founders",
@@ -76,7 +76,7 @@
           "population-death",
           "complete-native-boundaries"
         ],
-        "missing": "All frozen founders, including offline members, at every native boundary."
+        "missing": "Verified terminal deaths give upper bounds; continuous mortality and complete native boundary coverage are still required for PASS."
       },
       {
         "requirementId": "founder-survival",
@@ -89,7 +89,7 @@
           "frozen-founder-boundary",
           "population-death"
         ],
-        "missing": "Exact closing survivors of the original founder lifecycles."
+        "missing": "Verified original-lifecycle deaths bound closing survival from above; an empty death ledger or fresh wall heartbeat does not prove survival."
       },
       {
         "requirementId": "hunger-satisfied-time",
@@ -329,8 +329,8 @@
         "applied-genesis",
         "frozen-founder-boundary"
       ],
-      "missing": "Current population and selected IDs are not the exact opening founders.",
-      "status": "source-map-only",
+      "missing": "Exact applied-genesis roster and native bootstrap anchor must be explicitly bound; current active IDs cannot replace them.",
+      "status": "minimum-population-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -343,8 +343,8 @@
         "population-death",
         "complete-native-boundaries"
       ],
-      "missing": "All frozen founders, including offline members, at every native boundary.",
-      "status": "source-map-only",
+      "missing": "Verified terminal deaths give upper bounds; continuous mortality and complete native boundary coverage are still required for PASS.",
+      "status": "minimum-population-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -357,8 +357,8 @@
         "frozen-founder-boundary",
         "population-death"
       ],
-      "missing": "Exact closing survivors of the original founder lifecycles.",
-      "status": "source-map-only",
+      "missing": "Verified original-lifecycle deaths bound closing survival from above; an empty death ledger or fresh wall heartbeat does not prove survival.",
+      "status": "minimum-population-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -586,7 +586,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "The17/8 quantifier/rational-bound assessor and work/tool lower-bound adapters exist. Population/needs/food/housing/capacity histories, complete request denominators and eight native integrity adapters remain incomplete."
+      "reason": "The17/8 assessor, work/tool lower bounds and applied-founder/death upper bounds exist. Continuous mortality/boundaries, needs/food/housing/capacity histories, complete request denominators and eight native integrity adapters remain incomplete."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -642,11 +642,39 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "ce73b5b4afcf8db6d9df0854ed942f198e9ae8db37ffc3b9521a6637e303e658"
+      "sha256": "3a160f4b03ad973c9a5a11857b5e9a79e816e5903f2ff88756495125298e6710"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "f9608c3a1d2599757bdba356dd093af0ab8df10daaf15fad4e291d4287843f35"
+      "sha256": "f6700c122242e78d7af962853733a3e2556d2b3bd425a428016d6792b32b6f70"
+    },
+    {
+      "path": "society-metrics/population-outcomes.ts",
+      "sha256": "e82709c9989ca3a842dcf013c7fbce9083007e2a113795346b12442a556a35b7"
+    },
+    {
+      "path": "population-lifecycle/genesis.ts",
+      "sha256": "c2f25c1dcb683b0a7bf2e452507ef928b35536b8b56a2d7075b70a73b354c397"
+    },
+    {
+      "path": "population-lifecycle/death.ts",
+      "sha256": "53f4342203512ae39ec156d91b74f1d75f45c2bf7471c591cc9b746ce6c98723"
+    },
+    {
+      "path": "server/engine/src/mods/PlayerHealthEvidenceStore.ts",
+      "sha256": "866edb9efd07af369b6168a5a8ffe226d093779a9d8ef3e33fff1cfca50344fa"
+    },
+    {
+      "path": "world-genesis/run-store.ts",
+      "sha256": "eab7e12734a0588278fd37f89dc85f21e707f850c952e9a9905be0c885778034"
+    },
+    {
+      "path": "world-genesis/result.ts",
+      "sha256": "6625deb4519f8d0c9dd92a8248b99b13564b63a642fff7311f85a48055f81ae9"
+    },
+    {
+      "path": "society-integrity/store.ts",
+      "sha256": "897ee86e03aec562659a02649871489c9e76f2a7ead220f7edeeca9467111199"
     },
     {
       "path": "society-metrics/integration-report.ts",
@@ -654,7 +682,7 @@
     },
     {
       "path": "society-metrics/evaluation-report.ts",
-      "sha256": "fc30c08cea022b8a0c765877eed4a59c81023aa207825dc1d8a36a9fedd3a514"
+      "sha256": "98939d9b66ee4eb588582471e08d1a322e82d1dd3d78c776f08e5303368c19d7"
     },
     {
       "path": "society-metrics/outcome-work.ts",
@@ -674,11 +702,11 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "632871668923743291002efe14a9f1e52f8afcc1644cc38253910e70f841e8ae"
+      "sha256": "e376eccbf618f496d4a92006128cf33c9098e9b09d6ed1d430a7cfb81febb0ce"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
-      "sha256": "a0b026c7e678174170c683aece401094be418bf4404612829cf2b24e8cca4a69"
+      "sha256": "89087ba0a2aac6e8fbc330d9cd1075bf9260ca278af21c48217a0188d31bc792"
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
@@ -802,7 +830,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "a05d3e3f1d3c411982468ca3fdfb839fe530c85f2441c8700a9f87e8a1610743"
+      "sha256": "6e208a86806726cf1fa74e79aeb6ff78c3da9c3cfd025dd79d6def0bba963ea8"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -831,5 +859,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "e86797c0144655bd3479d8c7df99aa6dbf55c5baeece80260fa8d6e3cd132489"
+  "digest": "e615e58c0c2ea787183b65eac19c94103de9c6961ed6110bb83bbba529dbe2ca"
 }

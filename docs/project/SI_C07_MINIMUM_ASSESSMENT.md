@@ -49,8 +49,8 @@ A preflight gépi riport is tartalmazza a térképet és a konkrét hiányt; nem
 állít mért értéket a még hiányzó olvasók helyére.
 
 `society-metrics/minimum-assessment.ts` a már validált natív outcome-readerekből
-4 szabályhoz ad korlátos bizonyítékot, backend által kijelölt eredeti run frame
-esetén. A frame nem választható HTTP query/body vagy LLM-output alapján.
+4 work/tool és3 population szabályhoz ad bizonyítékot, backend által kijelölt
+eredeti források esetén. A frame nem választható HTTP query/body vagy LLM-output alapján.
 
 - Natív completed repair/effect: tool-maintenance alsó darabszám a támogatott
   bronze cycle-re, tényleges helyreállított kapacitással.
@@ -65,7 +65,8 @@ esetén. A frame nem választható HTTP query/body vagy LLM-output alapján.
 `evaluation.minimumAssessment` mindig tartalmazza az eredeti17 és8 sort.
 Hiányzó run frame-nél `bindingStatus:unbound`, hibás frame-nél redaktált invalid.
 A `bound` csak strukturálisan egyező backend frame-et jelent, nem applied-
-genesis/baseline attestációt. A natív builder egyik integrity gate-hez sem
+genesis/baseline attestációt. Az új population-forrás ettől külön ellenőrzi az
+alkalmazott genesist és annak journal-anchorját. A natív builder egyik integrity gate-hez sem
 szintetizál PASS-t konfigurációból vagy egy adatbázis létezéséből.
 Az outcome riport clock/profile/actor/window scope-jának is egyeznie kell;
 idegen vagy hiányzó scope-ból még diagnostic FAIL sem vehető át.
@@ -76,10 +77,47 @@ egy még el sem indított hosszú SI-C07 run hitelesített végeredménye.
 Hiányzó új csatorna nem rejti el a korábbi igazolt sértést. A facade jelenlegi
 natív kimenete nem tud teljes minimum PASS-t vagy qualifiesMinimum:true-t adni.
 
+## Alapítók és natív halálesetek
+
+`society-metrics/population-outcomes.ts` két külön csatornát olvas. A
+`populationBaseline` az explicit resultId/resultDigest szerinti applied genesis,
+validált finite world/policy és ellenőrzött integrity-journal alkalmazási ideje
+alapján a teljes eredeti alapítói névsort adja. Az összes ID-t ki kell választani;
+három túlélő lekérdezése nem használhatja a négy alapító nevezőjét. Nem az
+aktuális active/online lista a forrás. A native scope/profile világpolicyjának
+az eredeti minimum contract függőségeivel is egyeznie kell.
+
+A `populationDeaths` az AgentState immutable tagság/életciklus és a natív
+PlayerHealthEvidenceStore ellenőrzött death/damage/binding auditjai alapján
+köt. Az engine finite-avatar binding és a death membershipDigest is egyezik.
+Az authoritative engine-halál az AgentState későbbi deceased-projekciója előtt
+is számít; a projekció után is megmarad az eredeti founder. Más lifecycle vagy
+clock/profile nem adhat halálesetet ehhez a cohorthoz.
+
+A nyitó founder-szám az alkalmazott eredeti roster pontos mérete. Az igazolt
+halálesetek a living-count és closing-survival **felső** korlátját adják, pontos
+`remaining*10000/originalFounders` aránnyal. Warmup alatti és a boundaryvel
+egyidejű halál számít; a későbbi halál nem dátumozható vissza. Az eredeti kezdő
+időponttól induló, még befejezetlen evaluationban a már bizonyított sértés
+`diagnosticViolations` útján FAIL marad; ettől nincs teljes7 napos assessment.
+
+Üres death ledger, current-active státusz vagy friss wall heartbeat nem bizonyít
+folyamatos mortality coverage-et, így nem ad survival/living PASS-t. Teljes
+boundary inventory és történeti mortality/enforcement lefedettség még kell.
+Mind a8 integrity gate továbbra inconclusive. Hiányzó/sérült death authority
+mellett a külön hiteles roster továbbra olvasható; idegen source path és privát
+parserhiba redaktált, nincs fallback vagy migration.
+
+A reader readonly, store-onként256 MiB/100000 sor limittel, snapshot-digesttel
+és olvasás közben változó adatbázis elutasításával működik; nem állít cross-store
+atomicitást. A benchmark backend az archivált run eredeti planjából köti az
+azonosságokat és a kijelölt workspace-ből a source pathokat. Health source
+hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag feladata.
+
 ## A2. munkacsomag megmaradó munkája
 
-1. Applied genesis, frozen lifecycle roster és teljes boundary/death forrás
-   kötése a nyitó, mindenhatári és záró population-mérésekhez.
+1. A már bekötött applied/frozen roster és terminal-death upper bound után
+   teljes native boundary inventory és történeti mortality/enforcement coverage.
 2. Needs critical/satisfied intervallumok, nutrition mutations és player-time
    pontos összekötése minden founder/bucket/whole-window scope-ban. Pillanatnyi
    szükségletszint nem időbeli elégedettség.
@@ -94,7 +132,7 @@ natív kimenete nem tud teljes minimum PASS-t vagy qualifiesMinimum:true-t adni.
 Ezek az ismert2. csomag részei. Nem csökkent a hátralévő csomagszám, nem indult
 a3. baseline-csomag, C08, live világ vagy hosszú run. Nincs új providerjog/költség.
 Nincs adatbázisséma-változás, migráció vagy történeti backup-read; csak readonly
-reader-projekció és belső számítás. Runtime/SDK/engine/webclient változatlan.
+reader-projekció és belső számítás. Gameplay/SDK/engine/webclient változatlan.
 
 Ellenőrzés: pontos racionalitás, egyetlen hiányzó/rossz actor-nap, directional
 bounds, opportunity/denominator, sparse boundaries, roster-ellentmondás,

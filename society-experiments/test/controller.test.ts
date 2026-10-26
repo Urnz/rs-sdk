@@ -189,6 +189,9 @@ test('benchmark result restores native Phase12, clock and XP evidence into an is
             {role:'clock',path:'.local/simulation/simulation-clock.sqlite',requiredTables:['simulation_clock']}]};
     const enriched=readBenchmarkReport(root,f.plan,selected),expandedBundle=join(f.directory,'expanded-report'),expandedRestore=join(f.directory,'expanded-restore');
     expect(enriched.protocol).toBe('society-benchmark-report-v2-expanded');
+    if(!('minimumAssessment' in enriched.evaluation))throw Error('Native evaluation missing');
+    expect(enriched.evaluation.nativeOutcomes!.sources.populationBaseline.status).toBe('available');
+    expect(enriched.evaluation.nativeOutcomes!.sources.populationDeaths.status).toBe('unavailable');
     captureSocietyArchive({root,output:expandedBundle,kind:'result',plan:f.plan,assertOffline:()=>{},readReport:base=>readBenchmarkReport(base,f.plan,selected)});
     restoreSocietyArchive(expandedBundle,expandedRestore,(base,m)=>expect(readBenchmarkReport(base,f.plan,selected).digest).toBe((m.report as {digest:string}).digest));
     expect(readBenchmarkReport(join(expandedRestore,'workspace'),f.plan,selected)).toEqual(enriched);

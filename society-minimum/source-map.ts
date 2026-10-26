@@ -1,9 +1,9 @@
 import type { SocietyMinimumContract } from './contract.js';
 /** Reader capability inventory, not a certificate of source completeness or a measured value. */
 const requirements:Record<string,{channels:string[];missing:string}>={
-    'founders-at-start':{channels:['applied-genesis','frozen-founder-boundary'],missing:'Current population and selected IDs are not the exact opening founders.'},
-    'minimum-living-founders':{channels:['population-death','complete-native-boundaries'],missing:'All frozen founders, including offline members, at every native boundary.'},
-    'founder-survival':{channels:['frozen-founder-boundary','population-death'],missing:'Exact closing survivors of the original founder lifecycles.'},
+    'founders-at-start':{channels:['applied-genesis','frozen-founder-boundary'],missing:'Exact applied-genesis roster and native bootstrap anchor must be explicitly bound; current active IDs cannot replace them.'},
+    'minimum-living-founders':{channels:['population-death','complete-native-boundaries'],missing:'Verified terminal deaths give upper bounds; continuous mortality and complete native boundary coverage are still required for PASS.'},
+    'founder-survival':{channels:['frozen-founder-boundary','population-death'],missing:'Verified original-lifecycle deaths bound closing survival from above; an empty death ledger or fresh wall heartbeat does not prove survival.'},
     'hunger-satisfied-time':{channels:['needs-history','player-time','nutrition'],missing:'Exact per-founder/per-bucket satisfied person-time and complete physiological mutations.'},
     'fatigue-satisfied-time':{channels:['needs-history','player-time','sleep-effects'],missing:'Exact per-founder/per-bucket satisfied person-time, including sleep and offline transitions.'},
     'hunger-continuous-critical-time':{channels:['needs-history','nutrition'],missing:'Longest continuous critical interval over the entire evaluation, including bucket crossings.'},

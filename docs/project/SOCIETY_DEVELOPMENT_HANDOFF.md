@@ -34,9 +34,9 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   elutasítás. Abort/deadline a teljes gatherre érvényes; késői SDK-send megáll.
 - **Következő konkrét feladat:** [2. munkacsomag, teljes minimum-assessment](SI_C07_REMAINING_WORK.md).
   **Kezdéskor7 csomag volt,1 kész,6 maradt.** Ezek nem garantált chatkörök.
-  Először17 eredeti requirement/8 integrity gate source-map, window/cohort/
-  nevezők és meglévő readerek összekötése; külön high-level demand teljesség
-  és legal housing/needs exposure. A source-bound native ingress nem bizonyítja
+  A17/8 mag/source-map és7 részleges adapter már kész; még teljes történeti
+  coverage/nevezők, high-level demand teljesség és legal housing/needs exposure
+  kell. A source-bound native ingress nem bizonyítja
   az összes high-level igényt, ezért completeDemandCoverage:false még helyes.
   Üres queue/nincs kérés továbbra sem nulla demand. C08 nem indul.
 - **2. csomag részeredmény:** [17/8 kiértékelőmag és forrástérkép](SI_C07_MINIMUM_ASSESSMENT.md)
@@ -45,8 +45,13 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   SQLite-native outcome→evaluation.minimumAssessment bekötve;4 work/tool
   lower-bound adapter. Default frame unbound; sem config, sem DB-létezés nem
   ad integrity PASS-t, natív teljes PASS továbbra nincs. Scoped tool FAIL megmarad.
-- **Következő kódhatár a2. csomagon belül:** applied/frozen genesis roster,
-  teljes boundary/death inventory és needs történet natív bekötése. A17/8
+- **Új population-rész kész:** applied/frozen genesis roster +integrity anchor,
+  teljes eredeti founder-kiválasztás, immutable finite-avatar/lifecycle/death
+  kötés. Engine-halál a későbbi AgentState-projekció előtt is számít; upper
+  living/survival bound, korai terminal diagnostic FAIL. Nincs absence-of-death
+  vagy heartbeat-alapú PASS. Részletek a [minimum-dokumentumban](SI_C07_MINIMUM_ASSESSMENT.md).
+- **Következő kódhatár a2. csomagon belül:** teljes történeti mortality/
+  enforcement és boundary inventory; needs történet natív bekötése. A17/8
   source-map minden missing mezője ismert további munka: physiological
   satisfied/critical exposure, napi food relief/lineage, reserve/stock/capacity,
   legal housing history, high-level demand és8 integrity adapter. **6 csomag
@@ -101,53 +106,27 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- `20261026-171721-788-si-c07-minimum-final-restore-artifact`:végső1 kiválasztott
-  benchmark/native-report/offline restore +friss NO-GO/sourcehash/digest/link
-  PASS5,877 s. Nincs runtime/TS széles kör ismétlés vagy provider/live indítás.
-- `20261026-171412-822-si-c07-minimum-scope-binding-final`:15 adapter/native
-  SQLite→evaluation próba +root TS PASS53,737 s. Előtte egyetlen célzott negatív
-  eset FAIL0,499 s (`20261026-171354-764-si-c07-minimum-foreign-scope-red`):
-  az új projekció átvette volna más actor/window/clock scope diagnostic FAIL-jét.
-  Pontos normalizált scope-egyezés kell; idegen riport nem adhat evidenciát.
-- `20261026-171120-241-si-c07-minimum-benchmark-restore`:1 kiválasztott
-  benchmark/native-report/offline restore próba PASS15,459 s, a végső scope-guard
-  előtt. Ugyanez a megváltozott output-digest miatt a végső artifact-kör része.
-- `20261026-170224-509-si-c07-minimum-roster-consistency`:13 core/adapter
-  teszt és root TS PASS37,328 s. Roster3 nem használhat openingCount4-et;
-  tényleges3 founder az eredeti minimumon FAIL. Az57 sikeres fogyasztó nem ismétlődött.
-- `20261026-165946-415-si-c07-minimum-assessor-consumers`:57 célzott core/
-  contract/survival/native outcome/evaluation/preflight teszt és root TS
-  PASS70,080 s, runtime9,22 s. Engine/SDK/webclient változatlan, TS nem futott.
-- `20261026-165619-663-si-c07-minimum-assessment-core`:23 core/adapter/
-  SQLite-native ellenőrzés PASS11,740 s. Körök átfednek, nem összeadandók.
-- `20261025-232300-047-si-c07-dispatch-final-artifact`:friss NO-GO,
-  sourcehash/digest és5 kapcsolt dokumentum linkje PASS0,808 s;17/8 változatlan.
-- **`20261025-231507-910-si-c07-dispatch-consumers-final`:113 célzott/nested
-  ellenőrzés, köztük3 selected-source restore, és root+engine+webclient TS
-  PASS189,906 s.** A root runtime71 teszt30,93 s, az archive3 eset4,91 s;
-  nested wrapper és belső számok átfednek, nem összeadandók. A pontos fájllista
-  és teljes command a helyi result.json-ban, részletes log azonos nevű.log-ban.
-- `20261025-230418-667-si-c07-dispatch-source-thin`:11 PASS1,745 s.
-  `20261025-231025-927-si-c07-dispatch-native-cooldown-and-types`:20 runtime
-  ellenőrzés és root TS PASS, kör engine TS miatt FAIL143,339 s. Loc-option
-  null-guard és closure-ben rögzített source javította; TS/config nem lazult.
-- Korai natív FAIL-ek16,369/17,726/2,654/14,830 s: a régi direkt-script fixture
-  FOREVER köve nem szerepelt a World.getLoc nyilvántartásban; egyetlen esetre
-  szűkített target-stage diagnosztika után valóban indexed dynamic fixture loc,
-  majd a régi f.mine-nal egyező cooldown/tick előkészítés javította. Raw rejection
-  előtt az actionId még nem került a scriptbe; ore/wear nulla külön assertion.
-  Nincs generic timeout-emelés vagy production target/range check lazítás.
-  Pontos ID-k és a sikertelen naplók a [progressben](SOCIETY_INTEGRATION_PROGRESS.md).
-- Korábbi cohort:70 ellenőrzés +root/engine TS PASS154,490 s
-  (`20261025-224306-585-si-c07-cohort-coverage-consumers`), végső19 ellenőrzés
-  +root/engine TS PASS120,674 s (`20261025-224729-890-si-c07-cohort-prefix-restore-final`).
-  Történeti bizonyíték, nem helyettesíti az aktuális final checket.
-- Full nem futott: új szűk, már meglévő SDK target/observe és internal token
-  guard mögötti ág; saját additív dispatch séma; változatlan közös clock,
-  migrátor és gazdasági commit. Minden megváltozott natív/source/SDK/archive
-  határ célzottan ellenőrzött; dokumentációs utómunkához runtime/TS nem ismételt.
+- `20261026-191739-029-si-c07-founder-final-artifact`:friss NO-GO artifact,
+ 17/8, sourcehash/digest és kapcsolt dokumentumlinkek PASS1,048 s.
+- **`20261026-191438-622-si-c07-founder-direct-consumers`:32 célzott teszt és
+  root TS PASS85,172 s.**31 új population/projection/native-outcome/evaluation/
+  preflight ellenőrzés14,52 s +1 konkrét native benchmark/offline restore5,95 s;
+  a teljes kör tartalmazza a TS-t. Fájllista és command a helyi result.json-ban.
+- `20261026-191112-252-si-c07-native-founder-binding`:első7 új natív SQLite
+  teszt és root TS PASS55,325 s, a korai diagnostic guard előtt; a végső kör
+  a megváltozott adaptert is ellenőrizte. Nem összeadandó tesztszámok.
+- Az új ellenőrzések: eredeti4 founder/offline, üres ledger nem PASS,
+  authoritative halál későbbi domain-projekció előtt/után, warmup/end/future
+  határok, leszűkített cohort/idegen clock, sérült audit/identity, hiányzó
+  health source, genesis reset, korai evaluation FAIL és readonly stabilitás.
+- Korábbi mag/dispatch/cohort bizonyíték a [minimum-dokumentumban](SI_C07_MINIMUM_ASSESSMENT.md)
+  és a [progressben](SOCIETY_INTEGRATION_PROGRESS.md). Legutóbbi scope-guard:
+  `20261026-171412-822`15 célzott teszt +root TS PASS53,737 s; előtte idegen
+  report scope-ból származó FAIL-re célzott reprodukció és javítás történt.
+- Full, engine/webclient TS és packed runtime most nem futott: kizárólag
+  root readonly metric/projection és közvetlen preflight/benchmark fogyasztók
+  változtak. Nincs közös clock/auth/transaction/migration/SDK runtime módosítás.
 - Hosszú run, providerhívás, új live selection/baseline és történeti DB-read0.
-
 ## Megőrzendő döntések
 
 - Csak helyi/private LostCity. Nincs live world-indítás, import, enrollment,
