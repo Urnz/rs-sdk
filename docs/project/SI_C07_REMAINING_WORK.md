@@ -24,6 +24,9 @@ mortality/enforcement és8 integrity még kell; a2. csomag továbbra nyitott.
 Az [executor requested-use producer és natív watermark](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
 is bekötött, pozitív opportunity upper bounddal. A restricted/offline/source
 coverage és a további integrity még hiányos; a2. csomag nyitott,6 maradt.
+Az [igazolt online sleep observation](SI_C07_SLEEP_OBSERVATION.md) is bekötött;
+offline/terminal/proof nélküli restriction továbbra gap, pending lifetime nincs
+csökkentve. Következő a teljes natív maintenance-ciklus és belső eredet.
 
 1. **KÉSZ – Executor → SDK → natív belépés pontos kötése.** Egyszer használható,
    forrásból hitelesített dispatch/target; replay/cancel/late-ACK és másik raw

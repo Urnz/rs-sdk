@@ -79,8 +79,13 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   A native admission előtt elakadt kérés is számít; pozitív opportunity esetén
   teljes outstanding időből conservative upper, nulla opportunity nem PASS.
   Átfedő/szomszédos azonos-actor kérések uniója; lower FAIL nem vész el.
-- **Következő kódhatár a2. csomagon belül:** megfigyelt alvó/restricted állapot
-  és ismeretlen offline/identity megkülönböztetése a native observerben. Továbbra
+- **Sleep-observer rész kész:** [igazolt online alvás](SI_C07_SLEEP_OBSERVATION.md).
+  Readonly aktuális witness/paid lease/Property/identity/clock/bed/HP ellenőrzés;
+  observed-sleeping frame és offline visszaolvasott native audit/payment kötés.
+  Puszta sleep-flag, terminal, offline vagy hibás identity/source továbbra gap.
+  A pending request és teljes conservative lifetime upper alvás alatt is megmarad.
+- **Következő kódhatár a2. csomagon belül:** natív use/wear→maintenance→új
+  usable service ciklus és belső input/successor provenance bekötése. Továbbra
   kell teljes történeti mortality/enforcement és boundary inventory,
   housing/access/source coverage, maintenance origin és8 integrity adapter. **6 csomag
   maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
@@ -134,35 +139,27 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261026-224815-233-si-c07-executor-focused-final`:72 célzott eset és
-  root TS PASS112,078 s.** Request/coverage/producer/gather, population/minimum/
-  outcomes/evaluation/preflight és source-backed SDK→valódi natív fulfillment.
-- `20261026-224543-363-si-c07-executor-thin-boundaries`:2 producer-root próba
-  és5 packed native coverage eset +wrapper PASS11,503 s. A natív admissiont
-  el nem érő kérés is megjelenik a valódi engine tick vízjelében.
-- `20261026-224929-373-si-c07-executor-restore-engine-final`:új selected-source
-  descriptor/DB offline restore,5 request-próba és engine TS PASS35,267 s.
-  Korábbi root+engine TS: `20261026-224508-456-si-c07-executor-source-types`,
-  PASS139,274 s; a végső fixture-kód után az engine ellenőrzése megtörtént.
-- `20261026-225108-613-si-c07-executor-lifetime-final`:6 request-próba +root TS
-  PASS58,419 s. Azonos actor szomszédos kérései nem nullázzák a lehetséges
-  várakozást; a runtime nem interpolál wall→simulation időt.
-- `20261026-225433-722-si-c07-executor-write-failure-final`:3 producer-próba
-  és root TS PASS57,079 s. SQLite append-hiba sticky failure witness-szel,
-  native source-unavailable, későbbi siker nem rejti el a hibát.
-- `20261026-225540-900-si-c07-executor-artifact`:friss NO-GO,17/8 és17
-  részleges adapter, sourcehash/digest és11 dokumentumlink PASS0,852 s.
-- **`20261026-225932-531-si-c07-executor-managed-final`:4 producer-próba,
-  root TS és végső artifact PASS63,076 s.** Managed srv/workspace/checkpoint,
-  retained failure marker és nem selected actor izoláció. A managed path-guard
-  a tényleges server ID-t használja; részletek a progress végén.
-- Own install/reopen/rollback/immutable/history, old selection, zero/positive
-  opportunity, source/head/clock gap, sidecar-publication hiba, native authority,
-  minimum lower/upper merge és FAIL-megőrzés, külön restore ellenőrzött.
-- Korábbi capacity/housing/food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
+- **`20261026-231030-428-si-c07-sleep-final-boundaries`:41 célzott eset,
+  root és engine TS PASS129,834 s.** Coverage/request/minimum/outcomes/preflight
+  és6 packed native observer eset. Offline/restricted/identity/clock/fake-proof
+  negatív ágak, meglévő lower FAIL-megőrzés.
+- `20261026-230757-279-si-c07-sleep-thin-native`:26 packed housing +2 gateway
+  eset PASS16,071 s; a readonly reader kiemelése után az összes korábbi24
+  natív housing eset is sikeres. Új fizikai sleep→observer közös út korán próbázva.
+- `20261026-231139-296-si-c07-sleep-pending-final`:2 kijelölt native sleep
+  próba +wrapper PASS2,565 s; élő pending intent megmarad a frame-ben.
+- **`20261026-231502-087-si-c07-sleep-offline-final`:ugyanez a2 native próba
+  külön offline snapshot-újraolvasással és engine TS PASS59,075 s.** A változatlan
+ 24 housing-esetet nem ismételtük a tesztadat szigorítása után.
+- `20261026-231651-608-si-c07-sleep-artifact`:friss NO-GO,17/8 és17 részleges
+  adapter, sourcehash/digest és12 dokumentumlink PASS0,846 s.
+- Sleep flag önmagában nem proof; paid native witness/lease/Property/identity/
+  clock/bed/HP szükséges. Expiry/early end/identity loss és rossz pozíció gap;
+  az observation nem ébreszt és nem csökkenti a pending lifetime uppert.
+- Korábbi executor/capacity/housing/food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
   progressben; nem jelenlegi full-suite PASS.
-- Full és webclient TS nem futott: saját additív Mining producer/coverage és
-  közvetlen source/authority fogyasztók változtak. Közös clock/global auth,
+- Full és webclient TS nem futott: housing/mining readonly observer-adat és
+  közvetlen source-fogyasztók változtak. Közös clock/global auth,
   gazdasági transaction/migration, függőség vagy gameplay nem módosult. A scope
   pontos fájllistái a helyi `.local/verification/*.result.json` fájlokban vannak.
 - Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.

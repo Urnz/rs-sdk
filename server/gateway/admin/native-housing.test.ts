@@ -9,7 +9,7 @@ import { reservePopulationRental } from './native-housing.js';
 import { populationNeedsBinding } from './needs-runtime.js';
 import { runNativeFoodIntegration } from './native-food-test-runtime.js';
 test('SI-A10 native rent escrow, Property entitlement, physical sleep and durable fatigue integration', async () => {
-    await runNativeFoodIntegration('NativeHousing.test.ts', 24);
+    await runNativeFoodIntegration('NativeHousing.test.ts', 26);
 }, 60000);
 test('trusted rental admission derives actor/lifecycle/price from population, Property title and catalog', () => {
     const workspace = mkdtempSync(join(tmpdir(), 'rental-admission-'));

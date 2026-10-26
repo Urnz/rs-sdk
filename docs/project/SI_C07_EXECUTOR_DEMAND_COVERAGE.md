@@ -88,7 +88,8 @@ törlünk és nem töltünk vissza. Nincs live install, providerhívás/költsé
 történeti backup DB-read. Full regresszió nem szükséges: a változás Mining-
 komponenshez kötött producer/source-protokoll, nem közös auth/clock/transaction.
 
-Következő: a megfigyelt alvó/restricted állapot és az ismeretlen offline/identity
-szétválasztása, majd a további source coverage, mortality/enforcement,
-maintenance origin és8 integrity adapter. A hosszú próba nincs engedélyezhető
+Azóta az [igazolt online alvó állapot](SI_C07_SLEEP_OBSERVATION.md) is megfigyelt;
+offline/terminal és igazolatlan restriction továbbra gap, a pending idő nem csökken.
+Következő a maintenance-ciklus/belső eredet, majd további source coverage,
+mortality/enforcement és8 integrity adapter. A hosszú próba nincs engedélyezhető
 állapotban. Eredmény-ID-k/idők a [rövid átadásban](SOCIETY_DEVELOPMENT_HANDOFF.md).

@@ -12,24 +12,14 @@ import type { SimulationClockStore } from '../../../../simulation-clock/store.js
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
 import { initializeRentJournal, writeRentJournal, rentIds, type NativeHousingCommand, type NativeRentReceipt, type NativeRentBinding } from '../../../../housing/native-rent.js';
 import { NativeRentSource, readNativeRentReceipt } from '../../../../housing/native-rent-source.js';
-interface SleepWitness { id: string; operationId: string; bindingDigest: string; username: string; lifecycleId: string;
-    x: number; z: number; level: number; clock: SimulationClockObservation; checkpointDigest: string }
+import { readHousingSleep,type SleepWitness,type NativeHousingSleepObservation } from '../../../../housing/native-sleep.js';
+export { readHousingSleep } from '../../../../housing/native-sleep.js';
 export function initializeHousingSleep(db: Database): void {
     db.transaction(() => {
         db.run('CREATE TABLE IF NOT EXISTS native_housing_sleep(sequence INTEGER PRIMARY KEY,witness_id TEXT NOT NULL UNIQUE,json TEXT NOT NULL,previous_hash TEXT,hash TEXT NOT NULL)');
         db.run('CREATE TABLE IF NOT EXISTS native_housing_sleep_head(id INTEGER PRIMARY KEY CHECK(id=1),sequence INTEGER NOT NULL,hash TEXT)');
         db.run('INSERT OR IGNORE INTO native_housing_sleep_head VALUES(1,0,NULL)'); readHousingSleep(db);
     }).immediate();
-}
-export function readHousingSleep(db: Database): SleepWitness[] {
-    let previous: string | null = null;
-    const rows = db.query('SELECT * FROM native_housing_sleep ORDER BY sequence').all() as { sequence: number; witness_id: string; json: string; previous_hash: string | null; hash: string }[];
-    const records = rows.map((row, index) => { const { hash, ...facts } = row, witness = JSON.parse(row.json) as SleepWitness;
-        if (row.sequence !== index + 1 || row.previous_hash !== previous || witness.id !== row.witness_id || foodDigest(facts) !== hash) throw new Error('Housing sleep witness audit differs');
-        previous = hash; return witness;
-    });
-    const head = db.query('SELECT * FROM native_housing_sleep_head WHERE id=1').get() as { sequence: number; hash: string | null } | null;
-    if (!head || head.sequence !== rows.length || head.hash !== previous) throw new Error('Housing sleep witness coverage differs'); return records;
 }
 export interface NativeHousingPorts { market: MarketStore; source: NativeRentSource; time: SimulationClockStore;
     clock(): SimulationClockObservation; identity: typeof populationFoodContext; checkpoint(): void }
@@ -109,6 +99,23 @@ export class NativeHousingExecutor {
                 writeRentJournal(p.market.db, 'native_rent', { ...facts, digest: foodDigest(facts) }); readNativeRentReceipt(p.market.db, b);
             }).immediate(); return 'paid';
         } catch (error) { for (const { inv, items } of snapshots) items.forEach((item, slot) => inv.set(slot, item)); throw error; }
+    }
+    /** Read-only observer path. The fail-closed populationSleeping flag is never itself an entitlement. */
+    observeSleeper(username:string,player:Player,clock:SimulationClockObservation):NativeHousingSleepObservation|null{
+        if(clock.status!=='running'||clock.engineTick===null||!Number.isSafeInteger(clock.engineTick)||clock.engineTick<0)return null;
+        const p=this.p,state=p.time.getPlayerTimeState(clock.clockId,username);
+        if(!player.populationSleeping||player.populationTerminal||player.loggingOut||state?.rest!=='sleeping'||!state.sleepContext?.access.evidenceId.startsWith('housing:'))return null;
+        const witness=readHousingSleep(p.market.db).find(w=>`housing:${w.id}`===state.sleepContext!.access.evidenceId);
+        if(!witness||foodDigest(witness)!==state.sleepContext.access.sourceDigest||witness.username!==username)throw Error('Missing sleep observer witness');
+        const {order,access}=p.source.entitlement(witness.operationId,clock),i=order.binding.intent,context=p.identity(username,witness.id,0,clock.engineTick!);
+        const bed=i.catalogs.native.beds.find(b=>b.bedSlotId===i.bedSlotId)!;
+        if(!context||context.action.actorId!==i.tenant.agentId||context.action.username!==username||context.action.lifecycleId!==witness.lifecycleId
+            ||context.action.worldId!==i.worldId||context.action.clockId!==clock.clockId||context.action.clockProfileDigest!==clock.profileDigest
+            ||context.clock.engineTick!==clock.engineTick||context.clock.status!=='running'||context.clock.simulationTime<clock.simulationTime
+            ||order.binding.digest!==witness.bindingDigest||state.sleepContext.sleepPlaceId!==i.bedSlotId||witness.clock.simulationTime>clock.simulationTime
+            ||player.levels[PlayerStat.HITPOINTS]!<=0||player.level!==bed.level||Math.max(Math.abs(player.x-bed.x),Math.abs(player.z-bed.z))>1)throw Error('Sleep observer authority/position differs');
+        return{kind:'native-housing-sleep-v1',witnessId:witness.id,witnessDigest:foodDigest(witness),bindingDigest:witness.bindingDigest,
+            username,lifecycleId:witness.lifecycleId,observedAtSimulationTime:clock.simulationTime,validUntilSimulationTime:access.validUntilSimulationTime};
     }
     /** Reopened sleep witness, current lease and lifecycle govern online and explicitly sleeping offline tenants. */
     validateSleeper(username: string, player: Player | null): void {

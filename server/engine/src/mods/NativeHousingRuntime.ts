@@ -12,6 +12,8 @@ import { openSimulationClockRuntime } from '../../../../simulation-clock/config.
 import { NativeHousingExecutor } from './NativeHousing.js';
 import type { NativeHousingCommand, NativeHousingResponse } from '../../../../housing/native-rent.js';
 import { registerHousingTenantAccess } from './HousingAccess.js';
+import type Player from '../engine/entity/Player.js';
+import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
 const queue: { command: NativeHousingCommand; expiresAt: number; resolve(result: NativeHousingResponse): void }[] = [];
 let runtime: { engine: NativeHousingExecutor; source: NativeRentSource; time: ReturnType<typeof openSimulationClockRuntime> } | null = null;
 function getRuntime() {
@@ -54,6 +56,9 @@ export function refreshNativeHousing(): void {
             catch { if (player) { player.populationSleeping = true; player.stopAction(); player.clearWaypoints(); } }
         }
     }
+}
+export function observeNativeHousingSleeper(username:string,player:Player,clock:SimulationClockObservation){
+    return getRuntime()?.engine.observeSleeper(username,player,clock)??null;
 }
 export function tickNativeHousing(): void {
     refreshNativeHousing();

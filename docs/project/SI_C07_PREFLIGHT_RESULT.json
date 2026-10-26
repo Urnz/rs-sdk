@@ -224,7 +224,7 @@
           "cohort-coverage",
           "executor-requests"
         ],
-        "missing": "Native unusable intervals give lower bounds; explicit prospective executor admissions/closures and clean producer/native watermarks give whole-request upper bounds. Positive original-cohort opportunity and policy-bounded full window are required; legacy/offline/restricted gaps remain unknown."
+        "missing": "Native unusable intervals give lower bounds; prospective executor/native watermarks give whole-request upper bounds including verified online housing sleep. Original positive opportunity and full policy-bounded window remain required; offline/terminal/unproved restriction and source gaps stay unknown."
       },
       {
         "requirementId": "tool-service-capacity-retention",
@@ -502,7 +502,7 @@
         "cohort-coverage",
         "executor-requests"
       ],
-      "missing": "Native unusable intervals give lower bounds; explicit prospective executor admissions/closures and clean producer/native watermarks give whole-request upper bounds. Positive original-cohort opportunity and policy-bounded full window are required; legacy/offline/restricted gaps remain unknown.",
+      "missing": "Native unusable intervals give lower bounds; prospective executor/native watermarks give whole-request upper bounds including verified online housing sleep. Original positive opportunity and full policy-bounded window remain required; offline/terminal/unproved restriction and source gaps stay unknown.",
       "status": "minimum-lower-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
@@ -591,7 +591,7 @@
     {
       "id": "tool-unusable-demand-coverage",
       "status": "blocked",
-      "reason": "Prospective executor requested-use admissions/closures and native prefix/producer witnesses now provide conditional positive-lifetime upper bounds. No C07 producer descriptor/selection/full window is pinned; legacy, offline/restricted gaps and broader planner/queue waiting remain incomplete. An empty source cannot yield zero-opportunity PASS."
+      "reason": "Prospective executor request lifetimes and native watermarks include verified online housing sleep without deducting its time. No C07 producer/source/full window is pinned; legacy, offline/terminal/unproved restriction and source gaps remain incomplete. An empty source cannot yield zero-opportunity PASS."
     },
     {
       "id": "legal-housing-exposure",
@@ -642,7 +642,7 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "4b884e7a4da629996ac45ef0a76b63e74a728370f2164bde8addb6241f213b43"
+      "sha256": "6c66e87c261ba2a50e630d2690ca3821693e251e0eb1ca90d58641f9abe63de0"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
@@ -707,6 +707,18 @@
     {
       "path": "housing/native-rent-source.ts",
       "sha256": "b463f49a15ed85b4f6bc85150acd771c342eaa8b0f55adf9ee41f2c4a58a8be6"
+    },
+    {
+      "path": "housing/native-sleep.ts",
+      "sha256": "dbd3858f0cd64339c5e00335a3c456d6c338fdae3992c7a7a30b89b207598843"
+    },
+    {
+      "path": "server/engine/src/mods/NativeHousing.ts",
+      "sha256": "dc193dd9ec479474bf0d653e914adfca4a33a18061af82477ce39cb4f08716a5"
+    },
+    {
+      "path": "server/engine/src/mods/NativeHousingRuntime.ts",
+      "sha256": "91f8d118574958765c04ee2f154e043e1efe2299ca5dd38a5c779b6e4a3715a7"
     },
     {
       "path": "society-metrics/tool-capacity.ts",
@@ -870,15 +882,15 @@
     },
     {
       "path": "item-lifecycle/native-mining-coverage.ts",
-      "sha256": "7b41c31d24cd02fd690aae0f5ed891fd5de3a95dac50b491241bed581879720d"
+      "sha256": "f7764fcb0c73ed44723aad2e8dac97c19be635f68383a3bc994d1d35ecc91f65"
     },
     {
       "path": "society-metrics/tool-demand-coverage.ts",
-      "sha256": "b9cf84d2e398ac67b8e1c4dcae3bc7036e8bf25b70f86634f2f07ae530b7018b"
+      "sha256": "c74bea395b7e2e3069286e2a91f55a7ca85c09818aafa3710302b4e7320597b9"
     },
     {
       "path": "server/engine/src/mods/NativeMiningCoverage.ts",
-      "sha256": "7870cb0603da0a2641cecbd6f16f6648096b26f3b4b9d2fe660d28b249ef3cf0"
+      "sha256": "fd3bb1c21a0d66f3cad1b7dbaeae2a89a3b15989ad3657ab3ed45b9eac15823d"
     },
     {
       "path": "item-lifecycle/native-mining-requests.ts",
@@ -978,7 +990,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "50bb919a342a87863b9fcb87696d72e90d485209d048fefa3edd376e7277151b"
+      "sha256": "ea2469e5ddcb7dd6050fad2d3391905a2785f7fcd671d87ce00f33005b01c256"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1007,5 +1019,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "da25e7cf21cfea13c83dd602f6b1d0497908bb2c1be967f6baf7052c5d29a44f"
+  "digest": "39eb28d573afdba93f1608beda2f5eba386a46bbe11eb0c39a47dab78e084b58"
 }

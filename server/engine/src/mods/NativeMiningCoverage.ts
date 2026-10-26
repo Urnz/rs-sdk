@@ -9,6 +9,8 @@ import { NativeMiningIntentStore,nativeMiningDemandSessionId } from '../../../..
 import { NativeMiningCoverageStore,miningCoverageSourceHeads,miningRosterDigest,type NativeMiningCoverageSample,type NativeMiningCoverageIngress } from '../../../../item-lifecycle/native-mining-coverage.js';
 import { miningIntentFulfillmentAllowed,miningOwner } from '../../../../agent-skills/mining-demand-source.js';
 import { miningExecutorSourceAvailable } from '../../../../agent-skills/mining-request-source.js';
+import { observeNativeHousingSleeper } from './NativeHousingRuntime.js';
+import type { NativeHousingSleepObservation } from '../../../../housing/native-sleep.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
 import { NativeMiningDispatchStore } from '../../../../item-lifecycle/native-mining-dispatch.js';
 
@@ -17,6 +19,7 @@ export interface MiningCoveragePorts {
     db:Database;workspace:string;clock():SimulationClockObservation|null;identity:NativeMiningPorts['identity'];
     player(username:string):Player|null;roster():ReturnType<typeof populationMiningCoverageRoster>;
     admitted(record:NonNullable<ReturnType<NativeMiningIntentStore['get']>>):boolean;
+    sleeping?(username:string,player:Player,clock:SimulationClockObservation):NativeHousingSleepObservation|null;
 }
 const ingressFailures=new WeakSet<Database>();
 function production():MiningCoveragePorts|null{
@@ -24,7 +27,7 @@ function production():MiningCoveragePorts|null{
     const workspace=fileURLToPath(new URL('../../../../',import.meta.url));
     return{db:market.db,workspace,clock:()=>populationFoodTickClock(World.currentTick),identity:populationFoodContext,
         player:name=>World.getPlayerByUsername(name)??null,roster:populationMiningCoverageRoster,
-        admitted:r=>miningIntentFulfillmentAllowed(workspace,r.intent)};
+        admitted:r=>miningIntentFulfillmentAllowed(workspace,r.intent),sleeping:observeNativeHousingSleeper};
 }
 function inWindow(store:NativeMiningCoverageStore,c:SimulationClockObservation){
     const s=store.selection(),at=Date.parse(c.simulationTime);
@@ -45,13 +48,16 @@ export function tickNativeMiningCoverage(override?:MiningCoveragePorts){
         const actors:NativeMiningCoverageSample['actors']=s.actors.map(owner=>{
             const row=intents.find(r=>r.intent.owner.username===owner.username),result={actorId:owner.actorId,demandId:row?.intent.demandId??null};
             const player=p.player(owner.username);if(!player||player.loggingOut)return{...result,status:'offline'};
-            if(player.populationTerminal||player.populationSleeping)return{...result,status:'restricted'};
+            if(player.populationTerminal)return{...result,status:'restricted'};
             try{
                 const context=p.identity(owner.username,s.selectionId,0,World.currentTick);
                 if(!context||miningRosterDigest([miningOwner(context.action)])!==miningRosterDigest([owner])
                     ||!sameClock(context.clock,clock))return{...result,status:'identity-unavailable'};
             }catch{return{...result,status:'identity-unavailable'};}
             if(row&&(miningRosterDigest([row.intent.owner])!==miningRosterDigest([owner])||!p.admitted(row)))return{...result,status:'source-unavailable'};
+            if(player.populationSleeping){try{const sleep=p.sleeping?.(owner.username,player,clock);
+                    return sleep?{...result,status:'observed-sleeping',sleep}:{...result,status:'restricted'};
+                }catch{return{...result,status:'source-unavailable'};}}
             return{...result,status:'observed'};
         });
         store.append({kind:'sample',clock,sessionId:nativeMiningDemandSessionId,rosterDigest,heads:miningCoverageSourceHeads(p.db),actors,

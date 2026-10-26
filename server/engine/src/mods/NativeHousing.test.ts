@@ -37,6 +37,15 @@ import { nativeHousingCatalogs, rentIds, type NativeRentIntent, type HousingNati
 import { HousingTenancyStore } from '../../../../housing/tenancy-store.js';
 import { SimulationClockStore } from '../../../../simulation-clock/store.js';
 import { foodDigest, FOOD_POLICY, NativeFoodConsumptionStore } from './NativeFoodConsumptionStore.js';
+import { NativeMiningCoverageStore,miningCoverageSourceHeads } from '../../../../item-lifecycle/native-mining-coverage.js';
+import { NativeMiningDemandStore } from '../../../../item-lifecycle/native-mining-demand.js';
+import { NativeMiningIntentStore } from '../../../../item-lifecycle/native-mining-intent.js';
+import { installMiningExecutorSource } from '../../../../agent-skills/mining-request-source.js';
+import { miningOwner } from '../../../../agent-skills/mining-demand-source.js';
+import { persistMiningOperationAdmission,sealMiningOperationAdmission,miningDemandId } from '../../../../agent-skills/mining-admission.js';
+import { miningGatherArgs } from '../../../../sdk/mining-demand.js';
+import { tickNativeMiningCoverage,type MiningCoveragePorts } from './NativeMiningCoverage.js';
+import { readNativeMiningCohortCoverage } from '../../../../society-metrics/tool-demand-coverage.js';
 import { NeedsStore, type NeedsBinding } from '../../../../needs/store.js';
 import { loadNeedsPolicyCatalog, loadNeedsDynamicsPolicyCatalog } from '../../../../needs/config.js';
 import { handleInternalAdminRequest } from '../web/pages/internal-admin.js';
@@ -107,6 +116,47 @@ test('housing observes identity before binding sleep and invalidation on a progr
     f.tenant.x += 10; f.engine().validateSleeper(f.tenant.username, f.tenant);
     expect(f.time.getPlayerTimeState(f.intent.clockId, f.tenant.username)?.rest).toBe('awake');
     expect(f.tenant.populationSleeping).toBeFalse();
+});
+
+test('SI-C07 paid physical sleep is observed without losing a positive executor request; invalidation and offline remain gaps',()=>{
+    const f=fixture();f.lease();f.command('sleep');new NativeMiningDemandStore(f.market.db);new NativeMiningIntentStore(f.market.db);
+    const others=['guestone','guesttwo'].map(n=>{const p=new Player(n,2n,2n);p.levels.fill(20);return p;}),players=[f.tenant,f.landlord,...others],start=f.clock();
+    const actors=players.map(p=>miningOwner(f.identity(p.username,'observer',0,World.currentTick)!.action)),s={schemaVersion:1 as const,selectionId:randomUUID(),
+        worldId:f.options.worldId,clockId:start.clockId,clockProfileDigest:start.profileDigest,fromSimulationTime:start.simulationTime,
+        toSimulationTime:new Date(Date.parse(start.simulationTime)+1200).toISOString(),actors};
+    installMiningExecutorSource(f.workspace,f.options.checkpointPath,s);const coverage=new NativeMiningCoverageStore(f.market.db,{...s,maximumSimulationGapMs:600,maximumWallGapMs:1000,
+        openingHeads:miningCoverageSourceHeads(f.market.db),executorSelectionDigest:foodDigest(s)});
+    const ports:MiningCoveragePorts={db:f.market.db,workspace:f.workspace,clock:f.clock,identity:f.identity,roster:()=>actors,player:name=>players.find(p=>p.username===name)??null,
+        admitted:()=>true,sleeping:(name,player,clock)=>f.engine().observeSleeper(name,player,clock)};
+    tickNativeMiningCoverage(ports);const request={operation:'open' as const,args:miningGatherArgs({name:'copper',item:'copper ore',skill:'Mining',timeoutMs:1000}),
+        context:{runId:randomUUID(),skill:{id:'mining.fixture',version:'1.0.0'},stepId:'gather',parametersDigest:'c'.repeat(64),operationSequence:1}};
+    const admission=persistMiningOperationAdmission(f.workspace,'tenant','d'.repeat(64),request,Date.parse(start.wallTime)),intents=new NativeMiningIntentStore(f.market.db);
+    const pending=intents.write({schemaVersion:1,intent:{demandId:miningDemandId(request),owner:actors[0]!,outputItemId:436,contextDigest:foodDigest({args:request.args,context:request.context}),
+        authorityDigest:'d'.repeat(64),maximumWallMilliseconds:1000,expiresAtWallTime:admission.expiresAtWallTime,nativeDispatchRequired:true,attemptSequenceAtAdmission:0},
+        revision:1,phase:'pending',completionEventId:null,sample:{clock:start,sessionId:'sleep-fixture',availability:'unknown',itemInstanceId:null,itemRevision:null,reason:'sleeping'}});
+    f.advance(10);World.currentTick++;tickNativeMiningCoverage(ports);sealMiningOperationAdmission(f.workspace,request);
+    intents.write({...pending,revision:2,phase:'cancelled',sample:{...pending.sample,clock:f.clock()}});f.advance(10);World.currentTick++;tickNativeMiningCoverage(ports);
+    const before=f.market.db.serialize(),report=readNativeMiningCohortCoverage(f.market.db,{...s,actorAgentIds:actors.map(a=>a.actorId)},s.worldId,
+        actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId})));
+    expect(report.observerCoverageComplete).toBeTrue();expect(report.completeDemandCoverage).toBeTrue();if(!('observedSleepingSamples'in report))throw Error('No sleep source');
+    expect(report.observedSleepingSamples).toBe(3);expect(report.executorCoverage.longestOutstandingUpperSimulationMs).toBe(1200);expect(f.market.db.serialize()).toEqual(before);
+    const frozenPath=join(f.workspace,'sleep-observer-frozen.sqlite');writeFileSync(frozenPath,before);
+    const frozen=new OwnedDatabase(frozenPath,{readonly:true});try{expect(readNativeMiningCohortCoverage(frozen,{...s,actorAgentIds:actors.map(a=>a.actorId)},s.worldId,
+        actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId})))).toEqual(report);}finally{frozen.close(true);}
+    expect(report.executorCoverage.requests[0]?.nativeIntentObserved).toBeTrue();
+    const middle=coverage.read().entries[1]!.event;if(middle.kind!=='sample')throw Error('No middle sample');expect(middle.actors[0]!.demandId).toBe(miningDemandId(request));
+    const proof=f.engine().observeSleeper('tenant',f.tenant,f.clock())!;expect(proof.kind).toBe('native-housing-sleep-v1');
+    expect(f.tenant.populationSleeping).toBeTrue();f.tenant.x+=10;expect(()=>f.engine().observeSleeper('tenant',f.tenant,f.clock())).toThrow('position');
+    f.advance(10);World.currentTick++;tickNativeMiningCoverage(ports);const invalid=coverage.read().entries.at(-1)!.event;
+    if(invalid.kind!=='sample')throw Error('No invalidation sample');expect(invalid.actors[0]!.status).toBe('source-unavailable');
+});
+test('SI-C07 sleep observation cannot survive expiry, early lease end or missing identity and never changes player rest',()=>{
+    for(const mode of ['expiry','ended','identity'] as const){const f=fixture();f.lease();f.command('sleep');
+        if(mode==='expiry')f.advance(86400000/60);
+        else if(mode==='ended'){const store=new HousingTenancyStore(f.options.housingPath,f.intent.catalogs.units);try{const t=store.get(rentIds(f.intent.operationId).tenancyId)!;store.end(t.tenancyId,t.revision,f.clock().simulationTime);}finally{store.close();}}
+        else f.death();
+        expect(()=>f.engine().observeSleeper('tenant',f.tenant,f.clock())).toThrow();expect(f.tenant.populationSleeping).toBeTrue();
+    }
 });
 
 test('actual rent escrow atomically debits payer, credits landlord and activates exactly one prepaid tenancy after reopen', () => {

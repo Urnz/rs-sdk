@@ -82,6 +82,10 @@ is bekötött. Új selectionben producer digest/üres head és tick-witness köt
 az admission előtti kéréseket; pozitív opportunitynél teljes outstanding-idő
 upper adható. Legacy vagy üres producer nem automatikus minimum-PASS.
 Restricted/offline és a teljes source/integrity coverage még hiányos.
+Azóta az [igazolt online sleep observation](SI_C07_SLEEP_OBSERVATION.md) is
+bekötött: friss native housing/identity/clock proof mellett observed-sleeping,
+pending request és lifetime upper megtartásával. Offline/terminal/proof nélküli
+restriction továbbra gap; a teljes source/integrity coverage még kell.
 
 ## Ellenőrzési kör
 

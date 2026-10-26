@@ -1104,6 +1104,9 @@ historical mortality/enforcement és8 integrity még kell; a2. csomag nyitott.
 Bekötött a [prospektív executor requested-use source és natív watermark](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
 is; pozitív opportunity esetén idő-upper, üres naplóból nincs PASS. A restricted/
 offline és teljes source/integrity coverage még hiányos;6 csomag maradt,27/45.
+Az [igazolt online sleep observation](SI_C07_SLEEP_OBSERVATION.md) is kész;
+offline/terminal/igazolatlan restriction továbbra gap. A2. csomag nyitott,
+következő a teljes maintenance-ciklus és belső eredet;6 maradt,27/45, NO-GO.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

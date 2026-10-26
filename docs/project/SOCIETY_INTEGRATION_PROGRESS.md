@@ -3072,3 +3072,56 @@ kijelölt cohortot korlátozza. `20261026-225932-531-si-c07-executor-managed-fin
 Managed srv/workspace/engine-data authority és retained failure marker valóban
 próbázott; a guard managed környezetben a tényleges server ID-t használja,
 nem descriptor/failure segédcímkét. Nem selected actor guardja változatlan.
+
+### 2026-10-26 – SI-C07/2: igazolt online sleep observation és unknown offline
+
+Új readonly NativeHousingExecutor.observeSleeper: aktuális native witness,
+paid/aktív lease/prepaid és Property authority, player-time rest, exact owner/
+lifecycle/world/clock/tick, bed/level/HP. A fail-closed populationSleeping flag
+önmagában nem bizonyíték. Native Mining observer az identity/source ellenőrzés
+után, csak e friss observation mellett ad observed-sleeping frame-et.
+Offline/logging-out, terminal, generic restricted, stale/missing identity és
+hibás housing source továbbra gap. Nincs korábbi restricted-adatokból backfill.
+
+A sleep witness readonly audit olvasó housing/native-sleep.ts tiszta modulban,
+engine-kompatibilis re-exporttal;100000 row guard, eredeti SQL/hash szabály.
+Frame validálás fresh owner/time/expiry kötésre, metrics-oldalon valódi native
+sleep audit és committed rent receipt újraolvasása. Hiányzó/fiktív proof nem
+complete. A pillanatkori housing ellenőrzés nem teljes legal-access history.
+
+Pending native demandId alvás alatt is a frame része; a producer request és
+teljes conservative lifetime upper nem csökken. Availability továbbra lehet
+unknown; nincs alvásból usable tool, nulla demand vagy nulla opportunity PASS.
+Régi generic restricted továbbra gap. Saját JSON observation-változat, új SQL
+séma/migráció/user_version/backfill nincs. Rollback régi readerrel elutasíthatja
+az új státuszt; új strict baseline/source/build pin nélkül nincs folytatott
+complete coverage. Evidence nem íródik át.
+
+Ellenőrzések `.local/verification/` result/log párokban, mind PASS:
+
+- `20261026-230757-279-si-c07-sleep-thin-native`:26 native housing +2 gateway
+  eset16,071 s. A24 korábbi housing eset a reader kiemelése után is sikeres.
+- `20261026-231030-428-si-c07-sleep-final-boundaries`:41 célzott eset +root és
+  engine TS129,834 s; coverage/request/minimum/native outcomes/preflight és6
+  packed Mining observer eset. Puszta flag/terminal/identity/clock/proof error,
+  új státusz forráskötése és legacy restricted negatív ágak.
+- `20261026-231139-296-si-c07-sleep-pending-final`:2 kijelölt új native sleep
+  eset +wrapper2,565 s, actual paid physical sleep és pending native intent,
+  closure és teljes positive lifetime upper megtartásával.
+- `20261026-231502-087-si-c07-sleep-offline-final`:ugyanez külön readonly
+  frozen SQLite példányból azonos reporttal és végső engine TS59,075 s.
+  Expiry, early tenancy end, identity loss és rossz pozíció próbázott; a pure
+  observer nem változtatja meg a player rest állapotát. Változatlan24-es housing
+  scope a tesztadat szigorítása miatt nem ismétlődött.
+- `20261026-231651-608-si-c07-sleep-artifact`:friss NO-GO,17/8 és17 részleges
+  adapter, sourcehash/digest és12 dokumentumlink0,846 s.
+
+Full/webclient TS nem futott: komponenshez kötött readonly observer/source
+adat, nem közös clock/global auth/transaction/migration/dependency vagy gameplay
+változás. Natív housing/mining határok és root/engine projektek célzottan
+ellenőrzöttek. C07/2 nyitott,6 csomag maradt,27/45, NO-GO; SI-M3/MVS nem PASS.
+Következő a natív használat/kopás→maintenance→új használat ciklus és belső
+input/successor provenance, majd további source/mortality/enforcement és8
+integrity adapter. Nincs live világ/baseline/hosszú run, providerhívás/költség,
+történeti backup DB-read vagy minimum-/világconfig-tuning.
+[Komponensleírás](SI_C07_SLEEP_OBSERVATION.md).

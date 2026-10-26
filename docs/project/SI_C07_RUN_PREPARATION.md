@@ -202,3 +202,9 @@ pozitív opportunity mellett conservative lifetime upper. Legacy/unselected,
 offline/restricted, source gap vagy üres producer nem ad automatikus minimum-
 PASS-t. A konkrét C07 producer/descriptor/full window nincs pinelve; továbbra
 NO-GO, a2. nyitott,6 csomag maradt. Nincs új run vagy providerköltség.
+
+További rész: [igazolt online alvás megfigyelése](SI_C07_SLEEP_OBSERVATION.md).
+Friss natív housing/identity/clock/bed proof mellett observed-sleeping,
+offline/terminal és igazolatlan restriction továbbra gap. A pending request
+és teljes lifetime upper nem csökken. A C07 baseline/full coverage/maintenance
+origin és8 integrity hiánya miatt továbbra NO-GO,6 csomag maradt.

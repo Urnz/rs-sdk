@@ -35,12 +35,12 @@ test('prospective four-founder frames bind the full window and heads, but an emp
     expect(f.db.serialize()).toEqual(before);
 });
 test('missing observer, restart, offline founder, identity/source loss, changed roster and write failure remain explicit gaps',()=>{
-    for(const mode of ['missing','restart','offline','identity-unavailable','source-unavailable','roster','write','clock'] as const){
+    for(const mode of ['missing','restart','offline','restricted','identity-unavailable','source-unavailable','roster','write','clock'] as const){
         const f=fixture();f.store.append(f.sample(0));
         if(mode!=='missing'){
             const middle=f.sample(1);
             if(mode==='restart')middle.sessionId='session-2';
-            else if(['offline','identity-unavailable','source-unavailable'].includes(mode))middle.actors[3]!.status=mode as 'offline';
+            else if(['offline','restricted','identity-unavailable','source-unavailable'].includes(mode))middle.actors[3]!.status=mode as 'offline';
             else if(mode==='roster')middle.rosterDigest=null;
             else if(mode==='write')middle.ingressWriteFailed=true;
             else if(mode==='clock')middle.clock.wallTime=new Date(Date.parse(middle.clock.wallTime)+1100).toISOString();
@@ -107,4 +107,15 @@ test('unversioned component initialization rolls back its DDL; no selection mean
     db.exec('CREATE TABLE native_mining_coverage_head(singleton INTEGER,sequence INTEGER,digest TEXT);INSERT INTO native_mining_coverage_head VALUES(1,2,NULL)');
     expect(()=>new NativeMiningCoverageStore(db,f.selection)).toThrow('Unversioned');
     expect(db.query("SELECT name FROM sqlite_master WHERE name='native_mining_coverage_selection'").get()).toBeNull();
+});
+test('observed sleeping requires a fresh owner-bound proof and its real native witness; legacy restricted stays a gap',()=>{
+    const f=fixture(),sample=f.sample(0),actor=sample.actors[0]!;actor.status='observed-sleeping';
+    expect(()=>f.store.append(sample)).toThrow('sleep observer');
+    actor.sleep={kind:'native-housing-sleep-v1',witnessId:randomUUID(),witnessDigest:'c'.repeat(64),bindingDigest:'d'.repeat(64),username:f.actors[0]!.username,
+        lifecycleId:f.actors[0]!.lifecycleId,observedAtSimulationTime:sample.clock.simulationTime,validUntilSimulationTime:'2001-01-02T00:00:00.000Z'};
+    actor.sleep.lifecycleId='foreign';expect(()=>f.store.append(sample)).toThrow('sleep observer');actor.sleep.lifecycleId=f.actors[0]!.lifecycleId;
+    actor.sleep.validUntilSimulationTime=sample.clock.simulationTime;expect(()=>f.store.append(sample)).toThrow('sleep observer');actor.sleep.validUntilSimulationTime='2001-01-02T00:00:00.000Z';
+    f.store.append(sample);f.store.append(f.sample(1));f.store.append(f.sample(2));expect(f.read).toThrow(); // A plausible JSON proof without native housing/payment sources is never enough.
+    const g=fixture();for(let tick=0;tick<3;tick++){const s=g.sample(tick);s.actors[0]!.status='restricted';g.store.append(s);}
+    expect(g.read().observerCoverageComplete).toBeFalse();
 });

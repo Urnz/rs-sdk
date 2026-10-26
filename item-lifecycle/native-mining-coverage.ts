@@ -2,6 +2,7 @@ import type { Database } from 'bun:sqlite';
 import { nativeToolDigest as digest,type NativeToolOwner } from './native-tool.js';
 import type { SimulationClockObservation } from '../simulation-clock/types.js';
 import { NativeMiningRequestStore } from './native-mining-requests.js';
+import type { NativeHousingSleepObservation } from '../housing/native-sleep.js';
 
 export interface MiningSourceHead {sequence:number;digest:string|null}
 /** Installed explicitly before a baseline. This selects observation, never grants gameplay authority. */
@@ -13,7 +14,7 @@ export interface NativeMiningCoverageSelection {
 export interface NativeMiningCoverageSample {
     kind:'sample';clock:SimulationClockObservation;sessionId:string;rosterDigest:string|null;
     heads:{attempt:MiningSourceHead;intent:MiningSourceHead;executor?:MiningSourceHead};
-    actors:Array<{actorId:string;status:'observed'|'offline'|'restricted'|'identity-unavailable'|'source-unavailable';demandId:string|null}>;
+    actors:Array<{actorId:string;status:'observed'|'observed-sleeping'|'offline'|'restricted'|'identity-unavailable'|'source-unavailable';demandId:string|null;sleep?:NativeHousingSleepObservation}>;
     ingressWriteFailed:boolean;
     executorSourceAvailable?:boolean;
 }
@@ -62,8 +63,12 @@ function validate(s:NativeMiningCoverageSelection,e:NativeMiningCoverageEvent){
         check((e.rosterDigest===null||hex(e.rosterDigest))&&typeof e.ingressWriteFailed==='boolean'
             &&Array.isArray(e.actors)&&e.actors.length===s.actors.length&&new Set(e.actors.map(a=>a.actorId)).size===s.actors.length,'Invalid Mining coverage sample');
         for(const a of e.actors)check(s.actors.some(o=>o.actorId===a.actorId)
-            &&['observed','offline','restricted','identity-unavailable','source-unavailable'].includes(a.status)
+            &&['observed','observed-sleeping','offline','restricted','identity-unavailable','source-unavailable'].includes(a.status)
             &&(a.demandId===null||uuid(a.demandId)),'Invalid Mining coverage actor sample');
+        for(const a of e.actors){if(a.status!=='observed-sleeping'){check(a.sleep===undefined,'Unexpected sleep observer proof');continue;}
+            const p=a.sleep,owner=s.actors.find(o=>o.actorId===a.actorId)!;
+            check(p?.kind==='native-housing-sleep-v1'&&uuid(p.witnessId)&&hex(p.witnessDigest)&&hex(p.bindingDigest)&&p.username===owner.username&&p.lifecycleId===owner.lifecycleId
+                &&p.observedAtSimulationTime===c.simulationTime&&stamp(p.validUntilSimulationTime)&&Date.parse(p.validUntilSimulationTime)>Date.parse(c.simulationTime),'Invalid sleep observer proof');}
     }else{
         validHead(e.heads.attempt);validHead(e.heads.intent);
         check(e.kind==='ingress'&&s.actors.some(a=>a.username===e.username)&&uuid(e.nativeActionId)

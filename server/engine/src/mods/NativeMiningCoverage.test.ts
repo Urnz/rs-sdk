@@ -55,6 +55,17 @@ test('SI-C07 cohort observer samples all four founders through the real tick hoo
     const tail=f.store.read().entries.at(-1)!.event;if(tail.kind!=='sample')throw Error('No cohort frame');
     expect(tail.actors.find(a=>a.actorId==='actor-dave')?.status).toBe('offline');
 });
+test('SI-C07 sleep flag alone, terminal avatars and missing or stale identity never become observed sleepers',()=>{
+    for(const mode of ['flag-only','terminal','identity','stale-clock','proof-error'] as const){const f=harness();f.players[0]!.populationSleeping=true;
+        if(mode==='terminal')f.players[0]!.populationTerminal=true;
+        else if(mode==='identity')f.p.identity=()=>null;
+        else if(mode==='stale-clock'){const original=f.p.identity;f.p.identity=(...args)=>{const c=original(...args)!;return{...c,clock:{...c.clock,engineTick:c.clock.engineTick!+1}};};}
+        else if(mode==='proof-error')f.coverage.sleeping=()=>{throw Error('missing native lease source');};
+        tickNativeMiningIntents(f.local);const event=f.store.read().entries.at(-1)!.event;if(event.kind!=='sample')throw Error('Missing sample');
+        expect(event.actors[0]!.status).toBe(mode==='identity'||mode==='stale-clock'?'identity-unavailable':mode==='proof-error'?'source-unavailable':'restricted');
+        expect(event.actors[0]!.sleep).toBeUndefined();
+    }
+});
 test('SI-C07 selected cohort raw packed Mining is observed as a legacy gap and rejected without ore or wear',()=>{
     const f=harness();const state=f.mine(),events=f.store.read().entries.map(e=>e.event).filter(e=>e.kind==='ingress');
     expect(events.length).toBeGreaterThan(0);expect(events.every(e=>e.reason==='no-standing-request'&&e.demandId===null)).toBeTrue();

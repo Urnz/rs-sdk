@@ -8,6 +8,10 @@ import { outcomeCheck as check,outcomeTime as time,type OutcomeActor } from './o
 import { NativeMiningDispatchStore } from '../item-lifecycle/native-mining-dispatch.js';
 import { miningRequestDigest } from '../agent-skills/mining-demand-source.js';
 import { readMiningExecutorCoverage } from './tool-demand-executor.js';
+import { readHousingSleep,type SleepWitness } from '../housing/native-sleep.js';
+import { readRentJournal,type NativeRentReceipt } from '../housing/native-rent.js';
+import { readNativeRentReceipt } from '../housing/native-rent-source.js';
+import { outcomeRows } from './outcome-work.js';
 
 /** Cohort/window/prefix watermark. Observer completeness is distinct from all high-level demand. */
 export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[]){
@@ -33,10 +37,27 @@ export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope
     const selected=new Map(s.actors.map(a=>[a.username,a])),ingresses=new Set<string>(),firstAttempts=new Map<string,number>();
     for(const a of attempts.entries)if(!firstAttempts.has(a.observation.requestId))firstAttempts.set(a.observation.requestId,a.sequence);
     let selectedIngresses=0,compatibleIntentIngresses=0,sourceBoundIngresses=0;
+    let sleepWitnesses:Map<string,SleepWitness>|undefined;const paid=new Map<string,NativeRentReceipt>(),sleepingSamples=new Set<string>();
+    const sleepProof=(e:NativeMiningCoverageSample,actor:NativeMiningCoverageSample['actors'][number])=>{
+        const p=actor.sleep!,owner=s.actors.find(o=>o.actorId===actor.actorId)!;
+        if(!sleepWitnesses){outcomeRows(db,'native_housing_sleep');sleepWitnesses=new Map(readHousingSleep(db).map(w=>[w.id,w]));}
+        const w=sleepWitnesses.get(p.witnessId);check(w&&digest(w)===p.witnessDigest&&w.bindingDigest===p.bindingDigest&&w.username===owner.username
+            &&w.lifecycleId===owner.lifecycleId&&w.clock.clockId===s.clockId&&w.clock.profileDigest===s.clockProfileDigest
+            &&time(w.clock.simulationTime)<=time(e.clock.simulationTime),'Sleep coverage witness differs');
+        if(!paid.has(w.operationId)){outcomeRows(db,'native_rent_audit');outcomeRows(db,'native_rent_operation');
+            const receipt=readRentJournal<NativeRentReceipt>(db,'native_rent').find(r=>r.binding.intent.operationId===w.operationId);
+            check(receipt,'Sleep coverage native payment absent');const verified=readNativeRentReceipt(db,receipt.binding);check(verified?.phase==='paid','Sleep coverage payment differs');paid.set(w.operationId,verified);}
+        const receipt=paid.get(w.operationId)!,i=receipt.binding.intent,bed=i.catalogs.native.beds.find(b=>b.bedSlotId===i.bedSlotId);
+        check(receipt.binding.digest===w.bindingDigest&&i.worldId===worldId&&i.clockId===s.clockId&&i.clockProfileDigest===s.clockProfileDigest
+            &&i.tenant.agentId===owner.actorId&&i.tenant.username===owner.username&&i.tenant.lifecycleId===owner.lifecycleId
+            &&p.validUntilSimulationTime===i.endsAt&&time(i.startsAt)<=time(w.clock.simulationTime)&&time(receipt.clock.simulationTime)<=time(w.clock.simulationTime)
+            &&time(e.clock.simulationTime)<time(i.endsAt)&&bed&&bed.level===w.level&&Math.max(Math.abs(w.x-bed.x),Math.abs(w.z-bed.z))<=1,'Sleep coverage lease/identity differs');
+    };
     const sampleGaps=(e:NativeMiningCoverageSample,sequence:number|undefined)=>{
         if(e.rosterDigest!==rosterDigest)add('observer','roster-source-differs-or-unavailable',sequence);
         if(e.ingressWriteFailed)add('observer','ingress-write-failed',sequence);
-        for(const actor of e.actors)if(actor.status!=='observed')add('observer',actor.status,sequence,actor.actorId);
+        for(const actor of e.actors)if(actor.status==='observed-sleeping'){sleepProof(e,actor);sleepingSamples.add(`${sequence}:${actor.actorId}`);}
+            else if(actor.status!=='observed')add('observer',actor.status,sequence,actor.actorId);
     };
     for(const entry of source.entries){
         const e=entry.event,c=e.clock,at=time(c.simulationTime);
@@ -111,6 +132,7 @@ export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope
         selectionDigest:digest(s),rosterDigest,sourceHead:source.head,sourceHeads:{attempt:attempts.head,intent:intents.head},
         maximumSimulationGapMs:s.maximumSimulationGapMs,maximumWallGapMs:s.maximumWallGapMs,
         observerCoverageComplete:!gaps.some(g=>g.kind==='observer'),completeDemandCoverage:executorCoverage.completeDemandCoverage,executorCoverage,selectedIngresses,compatibleIntentIngresses,sourceBoundIngresses,
+        observedSleepingSamples:sleepingSamples.size,
         dispatchSourceDigest:digest(dispatches),gaps,
         limitation:'Prospective executor selection and native prefix watermarks are required for requested-use coverage. Legacy, offline/observer gaps and an empty queue cannot establish zero demand or a minimum PASS. Broader planner/queue waiting and run-wide integrity remain separate.'};
     return{...body,digest:digest(body)};

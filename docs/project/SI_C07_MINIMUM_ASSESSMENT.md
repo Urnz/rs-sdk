@@ -142,6 +142,9 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
    és upper egy cellában egyesül; hiteles lower FAIL nem vész el. A megfigyelt
    restricted/sleep állapot és unknown offline/identity még külön rendezendő;
    ez nem teljes source-universe integrity PASS.
+   Az [igazolt online alvás](SI_C07_SLEEP_OBSERVATION.md) azóta külön megfigyelt
+   státusz, valódi natív witness/payment visszaolvasással; a kérések idejét nem
+   csökkenti. Offline/terminal és igazolatlan restriction továbbra unknown.
 
 Ezek az ismert2. csomag részei. Nem csökkent a hátralévő csomagszám, nem indult
 a3. baseline-csomag, C08, live világ vagy hosszú run. Nincs új providerjog/költség.
