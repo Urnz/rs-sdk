@@ -36,6 +36,7 @@ import {transitionBenchmarkClock} from '../benchmark-clock.js';
 import type { ExpandedSelection } from '../expanded-baseline.js';
 import {defaultLongExperimentSources} from '../runtime.js';
 import {readdirSync} from 'node:fs';
+import {TradeEvidenceStore} from '../../server/engine/src/mods/TradeEvidenceStore.js';
 
 const directories:string[]=[],base=Date.parse('2030-01-01T00:00:00.000Z'),wall=(minute:number)=>new Date(base+minute*60000).toISOString();
 const held:Array<{close():void}>=[];
@@ -182,16 +183,19 @@ test('benchmark result restores native Phase12, clock and XP evidence into an is
     restoreSocietyArchive(bundle,restored);
     expect(readBenchmarkReport(join(restored,'workspace'),f.plan)).toEqual(original);
     expect(verifySocietyArchive(bundle).digest).toBe(manifest.digest);
+    const selectedTradePath='server/engine/data/mods/selected-trades.sqlite';new TradeEvidenceStore(join(root,selectedTradePath)).close();
     const selected:ExpandedSelection={worldId:'si-c06-report-fixture',clockId:original.execution.started.clockId,
         clockProfileDigest:original.execution.started.profileDigest,seed:f.result.seed,runId:f.plan.sessionId,
         provider:{provider:'mock',model:'deterministic-scripted-v1',reasoningEffort:null},reportVersion:'si-c05.v1',
         stores:[{role:'agent',path:'.local/agent-state/agents.sqlite',requiredTables:['agent_population_member']},
-            {role:'clock',path:'.local/simulation/simulation-clock.sqlite',requiredTables:['simulation_clock']}]};
+            {role:'clock',path:'.local/simulation/simulation-clock.sqlite',requiredTables:['simulation_clock']},
+            {role:'trades',path:selectedTradePath,requiredTables:['engine_trade_evidence','engine_trade_evidence_audit']}]};
     const enriched=readBenchmarkReport(root,f.plan,selected),expandedBundle=join(f.directory,'expanded-report'),expandedRestore=join(f.directory,'expanded-restore');
     expect(enriched.protocol).toBe('society-benchmark-report-v2-expanded');
     if(!('minimumAssessment' in enriched.evaluation))throw Error('Native evaluation missing');
     expect(enriched.evaluation.nativeOutcomes!.sources.populationBaseline.status).toBe('available');
     expect(enriched.evaluation.nativeOutcomes!.sources.populationDeaths.status).toBe('unavailable');
+    expect(enriched.evaluation.nativeIntegration!.sources.trades.status).toBe('available');
     captureSocietyArchive({root,output:expandedBundle,kind:'result',plan:f.plan,assertOffline:()=>{},readReport:base=>readBenchmarkReport(base,f.plan,selected)});
     restoreSocietyArchive(expandedBundle,expandedRestore,(base,m)=>expect(readBenchmarkReport(base,f.plan,selected).digest).toBe((m.report as {digest:string}).digest));
     expect(readBenchmarkReport(join(expandedRestore,'workspace'),f.plan,selected)).toEqual(enriched);

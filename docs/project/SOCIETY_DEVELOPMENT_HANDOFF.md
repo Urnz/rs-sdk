@@ -34,8 +34,8 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   elutasítás. Abort/deadline a teljes gatherre érvényes; késői SDK-send megáll.
 - **Következő konkrét feladat:** [2. munkacsomag, teljes minimum-assessment](SI_C07_REMAINING_WORK.md).
   **Kezdéskor7 csomag volt,1 kész,6 maradt.** Ezek nem garantált chatkörök.
-  A17/8 mag/source-map és7 részleges adapter már kész; még teljes történeti
-  coverage/nevezők, high-level demand teljesség és legal housing/needs exposure
+  A17/8 mag/source-map és11 részleges adapter már kész; még teljes történeti
+  coverage/nevezők, high-level demand teljesség és legal housing exposure
   kell. A source-bound native ingress nem bizonyítja
   az összes high-level igényt, ezért completeDemandCoverage:false még helyes.
   Üres queue/nincs kérés továbbra sem nulla demand. C08 nem indul.
@@ -50,10 +50,14 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   kötés. Engine-halál a későbbi AgentState-projekció előtt is számít; upper
   living/survival bound, korai terminal diagnostic FAIL. Nincs absence-of-death
   vagy heartbeat-alapú PASS. Részletek a [minimum-dokumentumban](SI_C07_MINIMUM_ASSESSMENT.md).
-- **Következő kódhatár a2. csomagon belül:** teljes történeti mortality/
-  enforcement és boundary inventory; needs történet natív bekötése. A17/8
-  source-map minden missing mezője ismert további munka: physiological
-  satisfied/critical exposure, napi food relief/lineage, reserve/stock/capacity,
+- **Needs-rész kész:** [éhség/fáradtság történeti replay és4 időfeltétel](SI_C07_NEEDS_EXPOSURE.md).
+  Eredeti genesis/lifecycle/admission/policy-kötés; auditált modes, sleep-expiry
+  és native meals/watermark. Naponta külön satisfied lower/upper és longest
+  critical egész ablakon. Azonos időbélyegnél a needs mode-cursor dönt; hibás
+  későbbi állapot nem törli az igazolt prefixet. Benchmark/restore bekötve.
+- **Következő kódhatár a2. csomagon belül:** napi food relief/final-use lineage
+  és opening/closing reserve/stock adapter a meglévő natív forrásokból. Továbbra
+  kell teljes történeti mortality/enforcement és boundary inventory, capacity,
   legal housing history, high-level demand és8 integrity adapter. **6 csomag
   maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
@@ -106,27 +110,34 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- `20261026-191739-029-si-c07-founder-final-artifact`:friss NO-GO artifact,
- 17/8, sourcehash/digest és kapcsolt dokumentumlinkek PASS1,048 s.
-- **`20261026-191438-622-si-c07-founder-direct-consumers`:32 célzott teszt és
-  root TS PASS85,172 s.**31 új population/projection/native-outcome/evaluation/
-  preflight ellenőrzés14,52 s +1 konkrét native benchmark/offline restore5,95 s;
-  a teljes kör tartalmazza a TS-t. Fájllista és command a helyi result.json-ban.
-- `20261026-191112-252-si-c07-native-founder-binding`:első7 új natív SQLite
-  teszt és root TS PASS55,325 s, a korai diagnostic guard előtt; a végső kör
-  a megváltozott adaptert is ellenőrizte. Nem összeadandó tesztszámok.
-- Az új ellenőrzések: eredeti4 founder/offline, üres ledger nem PASS,
-  authoritative halál későbbi domain-projekció előtt/után, warmup/end/future
-  határok, leszűkített cohort/idegen clock, sérült audit/identity, hiányzó
-  health source, genesis reset, korai evaluation FAIL és readonly stabilitás.
-- Korábbi mag/dispatch/cohort bizonyíték a [minimum-dokumentumban](SI_C07_MINIMUM_ASSESSMENT.md)
-  és a [progressben](SOCIETY_INTEGRATION_PROGRESS.md). Legutóbbi scope-guard:
-  `20261026-171412-822`15 célzott teszt +root TS PASS53,737 s; előtte idegen
-  report scope-ból származó FAIL-re célzott reprodukció és javítás történt.
-- Full, engine/webclient TS és packed runtime most nem futott: kizárólag
-  root readonly metric/projection és közvetlen preflight/benchmark fogyasztók
-  változtak. Nincs közös clock/auth/transaction/migration/SDK runtime módosítás.
-- Hosszú run, providerhívás, új live selection/baseline és történeti DB-read0.
+- `20261026-194111-931-si-c07-needs-selected-archive-final`:az egyetlen
+  érintett benchmark/offline restore és root TS PASS70,284 s, runtime8,46 s.
+  Az integration is a selected trades pathot használja; egyedi fájlnéven is
+  available marad az archívumban/visszaállításban. A többi PASS nem ismétlődött.
+- `20261026-194150-024-si-c07-needs-selected-artifact`:végső sourcehash/
+  digest/NO-GO és7 dokumentumlink PASS1,393 s.
+- **`20261026-193412-004-si-c07-needs-boundary-final`:44 célzott teszt és
+  root TS PASS107,200 s.**43 needs/population/minimum/integration/evaluation/
+  preflight eset38,32 s +1 kiválasztott benchmark/offline restore8,67 s.
+  A pontos fájllista és command a helyi result.json-ban; log ugyanott.log.
+- `20261026-193712-804-si-c07-needs-critical-prefix`:1 új negatív eset és
+  root TS PASS61,010 s. Runtime0,747 s; hash-consistent, de nem újrajátszható
+  későbbi állapot nem törölheti az igazolt16 óra critical prefixet, és nem
+  szolgáltathat post-gap időt. A44 sikeres teszt nem ismétlődött.
+- `20261026-193832-889-si-c07-needs-final-artifact`:friss NO-GO artifact,
+ 17/8 és11 adapter, sourcehash/digest és7 dokumentumlink PASS1,117 s.
+- Korai diagnosztikák: needs-exposure-first FAIL2,583 s, azonos timestampű
+  mode write és needs snapshot cursor-sorrendje miatt. Javítva, guard nem lazult.
+  needs-cursor-order6 runtime PASS, root TS miatt FAIL58,195 s; callbackben
+  rögzített typed actor source javította. needs-native-binding FAIL16,963 s:
+  az új fixture food watermark clockjából hiányzott a kötelező engineTick;
+  fixture javítva, natív validálás változatlan. Részletes ID-k a progressben.
+- Korábbi founder/mag/dispatch bizonyíték a kapcsolt komponensdokumentumokban
+  és a [progressben](SOCIETY_INTEGRATION_PROGRESS.md); nem aktuális full-suite PASS.
+- Full, engine/webclient TS és packed runtime most nem futott: root readonly
+  projection és közvetlen evaluation/integration/preflight/benchmark fogyasztók
+  változtak. Közös clock/auth/transaction/migration/SDK runtime nem módosult.
+- Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.
 ## Megőrzendő döntések
 
 - Csak helyi/private LostCity. Nincs live world-indítás, import, enrollment,

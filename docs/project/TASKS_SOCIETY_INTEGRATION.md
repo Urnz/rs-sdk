@@ -1091,6 +1091,8 @@ elkészült. A2. csomag még nyitott: teljes population/needs/food/housing/capac
 request és8 integrity forrásadapter kell.6 maradt, SI-C07 nem kész.
 Az applied founder-roster és natív terminal-death upper bound bekötött;
 folyamatos mortality/boundary és needs exposure még hiányos. A2. csomag nyitott.
+Az [éhség/fáradtság történeti replay és4 időfeltétel](SI_C07_NEEDS_EXPOSURE.md)
+adaptere is kész; a teljes baseline source coverage és többi gate még kell.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

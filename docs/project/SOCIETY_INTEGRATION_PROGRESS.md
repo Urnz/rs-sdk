@@ -2787,3 +2787,56 @@ physiological exposure natív forráskötés; C08 nem indul.
 
 Végső artifact: `20261026-191739-029-si-c07-founder-final-artifact`, friss
 NO-GO +17/8/sourcehash/digest/kapcsolt dokumentációlink PASS1,048 s.
+
+### 2026-10-26 – SI-C07/2 natív needs-exposure és4 minimum-időfeltétel
+
+A meglévő readonly integration collector needs/mode/nutrition auditjaira épülő
+új needs-exposure újrajátszza a physiology revisionöket, külön hunger/fatigue
+csatornán. A küszöbátlépés a natív integer/signed-remainder szabály szerint
+simulation-ms pontosságú; online/offline, sleep recovery és lejárat is számít.
+Azonos timestampnél a snapshot playerTimeRevision kurzora rögzíti a sorrendet.
+Napi satisfied bounds a teljes eredeti nap nevezőjével; longest critical a teljes
+ablakon át, nem napi maximumok összege. Hiányzó idő unknown, nem elégedett.
+Pending/hiányzó natív étkezési proof nem ad hunger exposure-t, fatigue külön
+kiértékelhető. Későbbi nem újrajátszható állapot után nincs új evidencia, de az
+igazolt prefix megmarad. Eredeti genesis/admission/username/lifecycle/policy
+kötés kell; külső scope, késői inicializálás és replacement nem adhat cellát.
+A tényleges SQLite→evaluation és archived expanded benchmark bekötve.
+
+Korai célzott diagnosztikák:
+- `20261026-192902-486-si-c07-needs-exposure-first`:5 PASS/1 FAIL2,583 s.
+  Az új replay előrehozta volna az állapotmentés után, azonos timestampen
+  rögzített sleep mode-ot; a rögzített needs cursor alapján javítva.
+- `20261026-192958-316-si-c07-needs-cursor-order`:6 runtime PASS, root TS
+  callback-narrowing miatt FAIL58,195 s. Typed actor source const javította;
+  sem típusellenőrzést, sem assertiont nem tiltottunk le.
+- `20261026-193248-315-si-c07-needs-native-binding`:14 PASS/1 FAIL16,963 s.
+  Az új mechanikai fixture watermark clockjából hiányzott az engineTick;
+  fixture kapott kötelező tick-et, production clock/validator változatlan.
+
+Végső `20261026-193412-004-si-c07-needs-boundary-final`:43 pontos needs/
+population/minimum/integration/evaluation/preflight eset +1 kijelölt natív
+benchmark/offline restore +root TS PASS107,200 s. Runtime38,32 s +restore8,67 s.
+`20261026-193712-804-si-c07-needs-critical-prefix`:1 új negatív eset +root TS
+PASS61,010 s, runtime0,747 s. A44 korábbi PASS nem ismétlődött; összesen45
+külön célzott eset. Source/artifact `20261026-193832-889-si-c07-needs-final-artifact`
+PASS1,117 s: NO-GO/17/8/11 adapter, digest/sourcehash és7 dokumentációlink.
+
+Full, engine/webclient TS és packed runtime nem futott: root readonly projection
+és közvetlen fogyasztók változtak, közös runtime/clock/auth/persistence alap nem.
+17/8 és eredeti küszöbök változatlanok.11/17 adapter nem11 mért PASS.
+A2. csomag nyitott,6 maradt,27/45, NO-GO; SI-M3/MVS nem PASS. Következő a napi
+food relief/final-use lineage és reserve/stock adapter; továbbra kell teljes
+mortality/enforcement/boundary, legal housing, capacity/high-level demand és8
+integrity gate. Nincs schema/migration/backfill, tuning, live világ, hosszú run,
+providerhívás/költség vagy történeti backup DB-read. C08 nem indult.
+
+Végső source-selection review: az új benchmark integration ág is explicit
+`nativeFoodTradePath`-ot kap az expanded selectionből; nem választhat implicit
+default/environment pathot egyedi archived trades fájlnév mellett.
+`20261026-194111-931-si-c07-needs-selected-archive-final`:csak az érintett
+benchmark/offline restore eset és root TS PASS70,284 s, runtime8,46 s; tényleges
+egyedi selected-trades.sqlite, integration channel available és restore-egyezés.
+Más sikeres teszt nem ismétlődött. `20261026-194150-024-si-c07-needs-selected-artifact`:
+végső hash/digest/NO-GO/7 dokumentumlink PASS1,393 s. A45 külön eset száma nem
+nőtt ettől az újrafuttatástól; nincs full regression.

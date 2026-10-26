@@ -1,5 +1,5 @@
 import { afterEach,expect,test } from 'bun:test';
-import { mkdtempSync,rmSync,readFileSync } from 'node:fs';
+import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -20,6 +20,12 @@ import { loadSocietyMinimumContract } from '../../society-minimum/contract.js';
 import { reportNativeOutcomes,type NativeOutcomeOptions } from '../native-outcomes.js';
 import { projectNativeMinimumAssessment } from '../minimum-assessment.js';
 import { reportSocietyEvaluation } from '../evaluation-report.js';
+import { nativeIntegrationOptions } from '../integration-sources.js';
+import { FoodNeedsPersistence } from '../../food-loop/needs-persistence.js';
+import { populationNeedsBinding } from '../../needs/population-binding.js';
+import { loadFoodLoopCatalog } from '../../food-loop/catalog.js';
+import { NativeFoodConsumptionStore } from '../../server/engine/src/mods/NativeFoodConsumptionStore.js';
+import { closeFoodDeliveryTick } from '../../server/engine/src/mods/NativeFoodDeliveryStore.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -119,4 +125,34 @@ test('native SQLite-to-evaluation facade retains population FAIL with unavailabl
         dependencies:{agentPath:f.agentPath,clockPath:f.clockPath,productionPath:join(f.root,'absent-business.sqlite'),enginePath:join(f.root,'absent-trades.sqlite')}});
     expect(evaluation.societyMinimumVerdict).toBe('fail');expect(evaluation.minimumAssessment.bindingStatus).toBe('bound');
     expect(evaluation.minimumAssessment.requirements.find(r=>r.requirementId==='founder-survival')!.verdict).toBe('fail');
+});
+test('native applied founders, physiology journals and food watermark reach all four minimum exposure rules in the real evaluation facade',()=>{
+    const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});
+    mkdirSync(join(f.root,'server/engine/data'),{recursive:true});mkdirSync(join(f.root,'.local/simulation'),{recursive:true});
+    const checkpoint=join(f.root,'server/engine/data/checkpoints.sqlite'),path=join(f.root,'.local/simulation/food-needs.sqlite');
+    const db=new OwnedDatabase(checkpoint),clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,undefined,true),
+        persistence=new FoodNeedsPersistence(path,contract.dependencies.needs,contract.dependencies.dynamics,loadFoodLoopCatalog(join(configDirectory,'food-loops.json')));
+    try{
+        new NativeFoodConsumptionStore({db});
+        const bindings=f.scope.actorAgentIds.map(id=>populationNeedsBinding('fixture',agents.getPopulationMember(id)!)),opening=clock.observe('world',wall);
+        for(const binding of bindings)persistence.needs.initialize({binding,clock:opening,history:[],playerTime:null,
+            admission:{kind:'genesis',evidenceId:f.options.population!.genesisResultId,evidenceDigest:f.options.population!.genesisResultDigest}});
+        const closing=clock.observe('world',new Date(Date.parse(wall)+8*86400000).toISOString(),42);closeFoodDeliveryTick(db,closing);
+        for(const binding of bindings)persistence.needs.advance({binding,clock:closing,history:[],playerTime:null,expectedRevision:1});
+    }finally{persistence.close();agents.close();clock.close();db.close(true);}
+    const nativeIntegration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath,databasePath:path,nativeFoodCheckpointPath:checkpoint};
+    const options={configDirectory:join(f.root,'config'),nativeOutcomes:f.options,nativeIntegration,
+        dependencies:{agentPath:f.agentPath,clockPath:f.clockPath,productionPath:join(f.root,'absent-business.sqlite'),enginePath:join(f.root,'absent-trades.sqlite')}};
+    const before=[...f.hashes(),readFileSync(path),readFileSync(checkpoint)],evaluation=reportSocietyEvaluation(f.scope,options),minimum=evaluation.minimumAssessment;
+    expect(minimum.sources.needsExposure.status).toBe('available');expect(minimum.bindingStatus).toBe('bound');
+    for(const id of ['hunger-satisfied-time','fatigue-satisfied-time','hunger-continuous-critical-time','fatigue-continuous-critical-time'])
+        expect(minimum.requirements.find(r=>r.requirementId===id)!.verdict).toBe('fail');
+    expect(minimum.assessment!.requirements.find(r=>r.requirementId==='fatigue-satisfied-time')!.cells).toHaveLength(28);
+    expect(evaluation.societyMinimumVerdict).toBe('fail');expect(minimum.qualifiesMinimum).toBeFalse();
+    expect([...f.hashes(),readFileSync(path),readFileSync(checkpoint)]).toEqual(before);
+    const partial={...f.scope,toSimulationTime:'2001-01-04T00:00:00.000Z'};
+    expect(reportSocietyEvaluation(partial,options).minimumAssessment.diagnosticViolations.some(r=>r.requirementId==='fatigue-continuous-critical-time')).toBeTrue();
+    const invalid=projectNativeMinimumAssessment(contract,f.scope,f.outcomes(),undefined,
+        {...evaluation.nativeIntegration!,scope:{...f.scope,clockProfileDigest:'f'.repeat(64)}});
+    expect(invalid.sources.needsExposure.status).toBe('invalid');expect(invalid.verdict).toBe('inconclusive');
 });

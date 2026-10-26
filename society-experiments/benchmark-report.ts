@@ -8,6 +8,7 @@ import { defaultLongExperimentSources, nativeLongExperimentDependencies, readLon
 import { readLongExperimentBinding } from './source.js';
 import type { ExpandedSelection } from './expanded-baseline.js';
 import type { NativeOutcomeOptions } from '../society-metrics/native-outcomes.js';
+import { nativeIntegrationOptions } from '../society-metrics/integration-sources.js';
 
 export function validateBenchmarkBaseline(root: string, raw: LongExperimentPlan) {
     const plan = validateLongExperimentPlan(raw), paths = defaultLongExperimentSources(root);
@@ -50,7 +51,13 @@ export function readBenchmarkReport(baseRoot: string, raw: LongExperimentPlan, e
     const evaluation = Date.parse(to) > Date.parse(from) ? reportSocietyEvaluation({
         fromSimulationTime: from, toSimulationTime: to, actorAgentIds: execution.definition.binding.founders.map(row => row.agentId),
         clockId: execution.started.clockId, clockProfileDigest: execution.started.profileDigest
-    }, { configDirectory: paths.configDirectory, nativeOutcomes, dependencies: {
+    }, { configDirectory: paths.configDirectory, nativeOutcomes,
+        ...(expanded?{nativeIntegration:{...nativeIntegrationOptions(root),worldId:expanded.worldId,
+            databasePath:source('needs','.local/simulation/food-needs.sqlite'),clockPath:source('clock','.local/simulation/simulation-clock.sqlite'),
+            nativeFoodCheckpointPath:source('checkpoint','server/engine/data/player-checkpoints.sqlite'),
+            nativeFoodTradePath:source('trades','server/engine/data/mods/trade-evidence.sqlite'),
+            businessPath:source('business','.local/economy/businesses.sqlite'),treasuryPath:source('treasury','.local/economy/institution-treasury.sqlite')}}:{}),
+        dependencies: {
         enginePath: join(root, 'server/engine/data/mods/trade-evidence.sqlite'), productionPath: join(root, '.local/economy/businesses.sqlite'),
         agentPath: paths.agentPath, clockPath: paths.clockPath
     } }) : { status: 'inconclusive', reason: 'No positive observed evaluation window after warmup.' };

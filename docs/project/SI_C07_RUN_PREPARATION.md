@@ -166,3 +166,10 @@ is FAIL-t bizonyíthat, a meghalt/offline founder nem esik ki a nevezőből.
 Üres ledger/heartbeat nem survival PASS; teljes mortality/boundary, physiological
 exposure és a többi ismert adapter továbbra hiányzik. A2. csomag nyitott,
 6 maradt,27/45, NO-GO. Nincs új run/baseline/providerköltség.
+
+További2. csomagbeli rész: [natív needs-exposure](SI_C07_NEEDS_EXPOSURE.md),
+genesis/lifecycle-kötött4 időfeltétel, naponta külön satisfied lower/upper bound
+és napváltáson át mért longest critical. A módváltás-kurzor és natív étkezési
+application/watermark újrajátszva; hiányos idő unknown.11/17 szabályhoz van
+adapter, ez nem11 feltétel mért PASS-a. A8 integrity és a többi source-adapter
+miatt továbbra NO-GO;6 csomag maradt.

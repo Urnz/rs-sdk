@@ -103,7 +103,7 @@
           "player-time",
           "nutrition"
         ],
-        "missing": "Exact per-founder/per-bucket satisfied person-time and complete physiological mutations."
+        "missing": "Replayed per-founder/day time requires original admission, matching policies, complete mode cursors and processed native meals; missing time stays unknown."
       },
       {
         "requirementId": "hunger-continuous-critical-time",
@@ -116,7 +116,7 @@
           "needs-history",
           "nutrition"
         ],
-        "missing": "Longest continuous critical interval over the entire evaluation, including bucket crossings."
+        "missing": "Replayed longest critical interval crosses buckets; native meal/watermark gaps cannot become relief or a duration upper bound."
       },
       {
         "requirementId": "fatigue-satisfied-time",
@@ -130,7 +130,7 @@
           "player-time",
           "sleep-effects"
         ],
-        "missing": "Exact per-founder/per-bucket satisfied person-time, including sleep and offline transitions."
+        "missing": "Replayed per-founder/day time requires original admission and exact mode/sleep-expiry history; missing time stays unknown."
       },
       {
         "requirementId": "fatigue-continuous-critical-time",
@@ -144,7 +144,7 @@
           "player-time",
           "sleep-effects"
         ],
-        "missing": "Longest continuous critical interval; discontinuities cannot be interpolated."
+        "missing": "Replayed longest critical interval crosses buckets; missing mode/history coverage cannot become a duration upper bound."
       },
       {
         "requirementId": "internal-food-relief-share",
@@ -372,8 +372,8 @@
         "player-time",
         "nutrition"
       ],
-      "missing": "Exact per-founder/per-bucket satisfied person-time and complete physiological mutations.",
-      "status": "source-map-only",
+      "missing": "Replayed per-founder/day time requires original admission, matching policies, complete mode cursors and processed native meals; missing time stays unknown.",
+      "status": "minimum-needs-exposure-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -386,8 +386,8 @@
         "needs-history",
         "nutrition"
       ],
-      "missing": "Longest continuous critical interval over the entire evaluation, including bucket crossings.",
-      "status": "source-map-only",
+      "missing": "Replayed longest critical interval crosses buckets; native meal/watermark gaps cannot become relief or a duration upper bound.",
+      "status": "minimum-needs-exposure-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -401,8 +401,8 @@
         "player-time",
         "sleep-effects"
       ],
-      "missing": "Exact per-founder/per-bucket satisfied person-time, including sleep and offline transitions.",
-      "status": "source-map-only",
+      "missing": "Replayed per-founder/day time requires original admission and exact mode/sleep-expiry history; missing time stays unknown.",
+      "status": "minimum-needs-exposure-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -416,8 +416,8 @@
         "player-time",
         "sleep-effects"
       ],
-      "missing": "Longest continuous critical interval; discontinuities cannot be interpolated.",
-      "status": "source-map-only",
+      "missing": "Replayed longest critical interval crosses buckets; missing mode/history coverage cannot become a duration upper bound.",
+      "status": "minimum-needs-exposure-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -586,7 +586,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "The17/8 assessor, work/tool lower bounds and applied-founder/death upper bounds exist. Continuous mortality/boundaries, needs/food/housing/capacity histories, complete request denominators and eight native integrity adapters remain incomplete."
+      "reason": "The17/8 assessor, work/tool and population bounds plus replayed per-founder needs exposure exist. Continuous mortality/boundaries, food/housing/capacity histories, complete request denominators and eight native integrity adapters remain incomplete; physiology requires complete native sources."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -642,15 +642,39 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "3a160f4b03ad973c9a5a11857b5e9a79e816e5903f2ff88756495125298e6710"
+      "sha256": "4a1ff419d2c3fd61447bd3f75f3c339fdcb7b11d3a41dd3cf2d3bcf0b6139e19"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "f6700c122242e78d7af962853733a3e2556d2b3bd425a428016d6792b32b6f70"
+      "sha256": "5dbcb8cbd6de87336d633c22c7ce5a3d9f68886c6ec23a1bf301750d0f072673"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
       "sha256": "e82709c9989ca3a842dcf013c7fbce9083007e2a113795346b12442a556a35b7"
+    },
+    {
+      "path": "society-metrics/needs-exposure.ts",
+      "sha256": "cf551d57d94ce9f33ac8d66247ddfcc96b3788c58fead345057cfac6b11180fc"
+    },
+    {
+      "path": "needs/store.ts",
+      "sha256": "62294903a2455253e4a9dfaccc46ecc78951482b0b8a2bdbbe6edc3d294f5ee9"
+    },
+    {
+      "path": "needs/dynamics.ts",
+      "sha256": "51ffb231b0047a3a11551e889282d5fec3ececeb255ab17316bc364225dfb83d"
+    },
+    {
+      "path": "needs/profile.ts",
+      "sha256": "63cb60a93f43aa09eca2dac4086383fb1727635c5f834ee594d57076e2486836"
+    },
+    {
+      "path": "food-loop/native-consumption-store.ts",
+      "sha256": "2b5508e52d71c854acef79e27d27cee3cb2c4e9674094cad64c8874d74c8e814"
+    },
+    {
+      "path": "simulation-clock/store.ts",
+      "sha256": "65bf7d0eae0ec6c9b530b97eff0424260b753afbc938e8d3343133e019627ec8"
     },
     {
       "path": "population-lifecycle/genesis.ts",
@@ -678,11 +702,11 @@
     },
     {
       "path": "society-metrics/integration-report.ts",
-      "sha256": "ae42b52a1e8a7d0860c5d16c21db09e11eb5ecec869844a38fdb07658156a7e5"
+      "sha256": "8be4c24c31cd30065e84af0a06019f36c89e1962da97ab0d94d36a060542f265"
     },
     {
       "path": "society-metrics/evaluation-report.ts",
-      "sha256": "98939d9b66ee4eb588582471e08d1a322e82d1dd3d78c776f08e5303368c19d7"
+      "sha256": "b4df3d47b6d23698d67e941934036179b32ced71f7f47144717c7789f9db39db"
     },
     {
       "path": "society-metrics/outcome-work.ts",
@@ -706,7 +730,7 @@
     },
     {
       "path": "society-experiments/benchmark-report.ts",
-      "sha256": "89087ba0a2aac6e8fbc330d9cd1075bf9260ca278af21c48217a0188d31bc792"
+      "sha256": "3313f08d7ccc8edae2d5279d54bcd91ee1cdf74dc5f66d17a80190b8ee728e3d"
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
@@ -830,7 +854,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "6e208a86806726cf1fa74e79aeb6ff78c3da9c3cfd025dd79d6def0bba963ea8"
+      "sha256": "ce3553fdd263478f5f61137af19f582f728a3102a69163b47142e04506b715a3"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -859,5 +883,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "e615e58c0c2ea787183b65eac19c94103de9c6961ed6110bb83bbba529dbe2ca"
+  "digest": "4d7e79f3a26389e2a10e75749d205c7d60958f794606020eff43f0385e32b724"
 }

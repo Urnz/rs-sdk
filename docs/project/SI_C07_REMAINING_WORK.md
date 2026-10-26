@@ -10,7 +10,9 @@ beszélgetési körök vagy fejlesztési időbecslések.
 2026-10-26: a2. csomag [17/8 számítási magja és részleges natív bekötése](SI_C07_MINIMUM_ASSESSMENT.md)
 elkészült; a teljes natív források még hiányosak, ezért a2. továbbra folyamatban.
 Az applied founder-roster és natív terminal-death upper bound is bekötött;
-teljes történeti mortality/boundary és physiological exposure még kell.
+teljes történeti mortality/boundary és a konkrét baseline fiziológiai forráslefedettsége még kell.
+Az éhség/fáradtság replay és4 minimum-időfeltétel adaptere is elkészült;
+a teljes kiválasztott run source coverage továbbra előfeltétel, a2. nyitott.
 
 1. **KÉSZ – Executor → SDK → natív belépés pontos kötése.** Egyszer használható,
    forrásból hitelesített dispatch/target; replay/cancel/late-ACK és másik raw

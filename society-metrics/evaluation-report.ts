@@ -31,7 +31,7 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
     const selfSufficiency = reportSelfSufficiency(scope, options);
     const minimumContract=loadSocietyMinimumContract(options.configDirectory);
     if(minimumContract.digest!==selfSufficiency.bindings.contractDigest)throw Error('Minimum definition changed during native collection');
-    const minimumAssessment=projectNativeMinimumAssessment(minimumContract,scope,outcomes,options.minimumFrame);
+    const minimumAssessment=projectNativeMinimumAssessment(minimumContract,scope,outcomes,options.minimumFrame,integration);
     const economic = collectEconomicRiskEvidence({ from: scope.fromSimulationTime, to: scope.toSimulationTime, basis: 'simulation',
         clockId: scope.clockId, clockProfileDigest: scope.clockProfileDigest }, options.dependencies);
     const economicRisk = economic.risk;

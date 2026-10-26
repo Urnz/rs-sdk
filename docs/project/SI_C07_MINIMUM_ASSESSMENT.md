@@ -49,7 +49,7 @@ A preflight gépi riport is tartalmazza a térképet és a konkrét hiányt; nem
 állít mért értéket a még hiányzó olvasók helyére.
 
 `society-metrics/minimum-assessment.ts` a már validált natív outcome-readerekből
-4 work/tool és3 population szabályhoz ad bizonyítékot, backend által kijelölt
+4 work/tool,3 population és4 needs szabályhoz ad bizonyítékot, backend által kijelölt
 eredeti források esetén. A frame nem választható HTTP query/body vagy LLM-output alapján.
 
 - Natív completed repair/effect: tool-maintenance alsó darabszám a támogatott
@@ -118,9 +118,11 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
 
 1. A már bekötött applied/frozen roster és terminal-death upper bound után
    teljes native boundary inventory és történeti mortality/enforcement coverage.
-2. Needs critical/satisfied intervallumok, nutrition mutations és player-time
-   pontos összekötése minden founder/bucket/whole-window scope-ban. Pillanatnyi
-   szükségletszint nem időbeli elégedettség.
+2. A [needs critical/satisfied replay](SI_C07_NEEDS_EXPOSURE.md) bekötött:
+   player-time cursor, native meal mutations, sleep-expiry, founder/nap és
+   longest critical bounds. A konkrét baseline hiánytalan fiziológiai történetét
+   és forráslefedettségét még a run előtt kell igazolni; headcount/current need
+   nem időbeli bizonyíték.
 3. Napi belső food relief/final-use lineage, mindenhatári reserve és comparable
    opening/closing stock; nem a whole-window arány szétosztása napokra.
 4. Legal housing ownership/access történet és minimum-tier exposure; a tenancy
