@@ -11,6 +11,7 @@ import { SIMULATION_CLOCK_STORE_SCHEMA_VERSION } from '../simulation-clock/types
 import { readWorkBindings } from '../business-work/binding.js';
 import { NativeMiningIntentStore } from '../item-lifecycle/native-mining-intent.js';
 import { NativeMiningCoverageStore } from '../item-lifecycle/native-mining-coverage.js';
+import { NativeMiningRequestStore } from '../item-lifecycle/native-mining-requests.js';
 import { readNativeMiningCohortCoverage } from '../society-metrics/tool-demand-coverage.js';
 import { NativeMiningDispatchStore } from '../item-lifecycle/native-mining-dispatch.js';
 import { captureSocietyArchive,verifySocietyArchive,restoreSocietyArchive,offlineArchiveIO as io,type ArchiveManifest } from './archive.js';
@@ -43,6 +44,8 @@ function stores(root:string,selected:ExpandedSelection){
             if(s.requiredTables.includes('native_tool_work'))for(const job of NativeToolWorkStore.read(db))check(job.intent.owner.worldId===selected.worldId
                 &&job.intent.owner.clockId===selected.clockId&&job.intent.owner.clockProfileDigest===selected.clockProfileDigest,'Native work belongs to another world/clock');
             if(s.requiredTables.includes('native_food_production_schema'))assertFoodProductionSchema(db);
+            if(s.requiredTables.includes('native_mining_request_selection')){const requests=new NativeMiningRequestStore(db).read(),owner=requests.selection;
+                check(owner.worldId===selected.worldId&&owner.clockId===selected.clockId&&owner.clockProfileDigest===selected.clockProfileDigest,'Executor requests belong to another world/clock');}
             if(s.requiredTables.includes('native_mining_intent_state'))for(const {record} of NativeMiningIntentStore.read(db).entries)
                 check(record.intent.owner.worldId===selected.worldId&&record.intent.owner.clockId===selected.clockId
                     &&record.intent.owner.clockProfileDigest===selected.clockProfileDigest,'Native mining demand belongs to another world/clock');

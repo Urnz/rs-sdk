@@ -2999,3 +2999,76 @@ high-level demand és observer/source coverage bekötése. Konkrét frozen captu
 archive source-lista és pin az5. csomagban. Nincs live világ/baseline/hosszú run,
 providerhívás/költség, történeti backup DB-read, új séma/migráció/backfill.
 [Komponensleírás](SI_C07_TOOL_CAPACITY.md).
+
+### 2026-10-26 – SI-C07/2: prospektív executor requested-use és native watermark
+
+Új native_mining_request selection/event/head saját schema1; explicit offline
+install és immutable relatív checkpoint/selection descriptor. Executor Mining
+admission előtt és finally-seal után append-only requested/closed, exact owner/
+world/clock/lifecycle/context/checksum/deadline. A sidecar-publication vagy
+transport előtti hibánál a request megmarad. Selected native authorization
+visszaellenőrzi az aktív producer requestet. Append/get/head hot-path indexelt;
+teljes readonly audit100000 eseménylimittel, nincs shared user_version változás.
+
+Új optional producer digest/head a cohort selectionben és natív prefix/forrás-
+availability witness minden engine tickben. Descriptor/checkpoint/prefix eltérés,
+raw ingress, observer/offline/restricted gap vagy hiányzó producer nem complete.
+Sticky producer write-failure witness nem törlődik későbbi sikerrel. A source/IO
+integrity és felügyeleti stop teljes igazolása külön megmaradó gate.
+
+Reader a producer kérését akkor is számolja, ha nincs native intent. Native
+watermark és admission-wall közrefogás, wall→simulation interpoláció nélkül.
+Teljes outstanding idő conservative unusable-time upper; azonos actor átfedő/
+szomszédos kéréseinek uniója, actorok ideje nem összeadható. Eredeti cohort és
+policy-bounded full scope +pozitív opportunity mellett az upper a minimum
+tool-unusable cellába kötött. Üres covered napló nem0 idő/PASS; hosszú upper
+önmagában nem FAIL. Meglévő hiteles lower FAIL megmarad; lower/upper egy cella,
+ellentmondó upper nem törölhet native lowert. Planner/queue/absztrakt cél nem
+automatikus requested unusable-tool demand; nincs teljes source-universe PASS.
+
+C06 explicit required request tables validált selection/audit/headje, külön
+workspace-be descriptor+DB restore. Concrete C07 capture/source-lista/pin még
+az5. csomagban, nincsenek automatikus live selectionök vagy történeti backfill.
+Rollback táblák megtartásával; régi binary nem adja az új witness-t, így nincs
+complete folytatás. Új strict selection csak új explicit baseline/pin mellett.
+
+Ellenőrzések `.local/verification/` result/log párokban, mind PASS:
+
+- `20261026-224305-755-si-c07-executor-coverage-core`:14 request/legacy-coverage
+  eset1,117 s; old selection továbbra nem teljes demand-proof.
+- `20261026-224508-456-si-c07-executor-source-types`:root és engine TS139,274 s.
+- `20261026-224543-363-si-c07-executor-thin-boundaries`:2 root producer +5
+  packed native coverage eset és wrapper11,503 s. Admission nélküli request is
+  a valódi native tick-prefixbe jut, a legacy/raw/identity enforcement megmarad.
+- `20261026-224815-233-si-c07-executor-focused-final`:72 célzott eset +root TS
+ 112,078 s; pontos scope a commandban: request/coverage/producer/gather,
+  population/minimum/outcomes/evaluation/preflight és valós source-backed
+  SDK→native admission/fulfillment, cancel/late request/immutable sources.
+- `20261026-224929-373-si-c07-executor-restore-engine-final`:1 új selected-source
+  offline descriptor/DB restore +5 request eset és végső engine TS35,267 s.
+- `20261026-225108-613-si-c07-executor-lifetime-final`:6 request eset +root TS
+ 58,419 s, azonos actor szomszédos kéréseinek conservative uniójával.
+- `20261026-225433-722-si-c07-executor-write-failure-final`:3 producer eset és
+  root TS57,079 s; injected SQLite append-hiba retained failure markerrel,
+  source-unavailable és hiba utáni fail-closed működés.
+- `20261026-225540-900-si-c07-executor-artifact`:friss NO-GO,17/8 és17 részleges
+  adapter, sourcehash/digest és11 dokumentumlink0,852 s.
+
+Full/webclient TS nem futott: saját additív Mining source-protokoll és helyi
+authority predicate, nem közös clock/global auth/economic transaction/migration,
+dependency vagy gameplay-változás. A root+engine projektek, valódi packed
+határok és restore célzottan ellenőrzöttek; a már sikeres független scope-ok
+nem ismétlődtek.17/17 részleges adapter nem17 feltétel mért PASS-a; a2. csomag
+nyitott,6 maradt;27/45, NO-GO, SI-M3/MVS nem PASS. Következő a megfigyelt alvó/
+restricted és unknown offline/identity szétválasztása, majd source/integrity,
+mortality/enforcement és maintenance origin. Nincs live világ/baseline/hosszú
+run, providerhívás/költség vagy történeti backup DB-read.
+[Komponensleírás](SI_C07_EXECUTOR_DEMAND_COVERAGE.md).
+
+Végső scope-ellenőrzések: `20261026-225756-803-si-c07-executor-final-scope`,
+3 producer eset +root TS és artifact PASS62,769 s; sticky failure csak a
+kijelölt cohortot korlátozza. `20261026-225932-531-si-c07-executor-managed-final`,
+4 producer eset +root TS és végső sourcehash/digest/11-doc artifact PASS63,076 s.
+Managed srv/workspace/engine-data authority és retained failure marker valóban
+próbázott; a guard managed környezetben a tényleges server ID-t használja,
+nem descriptor/failure segédcímkét. Nem selected actor guardja változatlan.

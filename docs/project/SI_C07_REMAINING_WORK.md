@@ -21,6 +21,9 @@ Ezután a [legal housing exposure adapter](SI_C07_HOUSING_ACCESS.md) is elkész�
 Azóta a [comparable tool-service capacity](SI_C07_TOOL_CAPACITY.md) is bekötött:
 17/17 részleges adapter, nem17 PASS. Teljes coverage/demand, maintenance origin,
 mortality/enforcement és8 integrity még kell; a2. csomag továbbra nyitott.
+Az [executor requested-use producer és natív watermark](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
+is bekötött, pozitív opportunity upper bounddal. A restricted/offline/source
+coverage és a további integrity még hiányos; a2. csomag nyitott,6 maradt.
 
 1. **KÉSZ – Executor → SDK → natív belépés pontos kötése.** Egyszer használható,
    forrásból hitelesített dispatch/target; replay/cancel/late-ACK és másik raw

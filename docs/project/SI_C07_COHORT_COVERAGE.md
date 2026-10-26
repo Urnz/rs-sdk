@@ -77,6 +77,12 @@ igénylefedettség és17 requirement/8 integrity gate assessment,
 founder tool/food/housing baseline, ratio-validálás, SI-A14 és külön jóváhagyható
 hosszú terv. Nincs C08-továbblépés vagy M3/MVS PASS.
 
+2026-10-26: a [prospektív executor request source](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
+is bekötött. Új selectionben producer digest/üres head és tick-witness köti
+az admission előtti kéréseket; pozitív opportunitynél teljes outstanding-idő
+upper adható. Legacy vagy üres producer nem automatikus minimum-PASS.
+Restricted/offline és a teljes source/integrity coverage még hiányos.
+
 ## Ellenőrzési kör
 
 Saját upgrade/reopen/rollback/immutability, négy-founder üresqueue/hiányosframe,

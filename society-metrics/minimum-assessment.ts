@@ -174,6 +174,18 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             if(contract.policy.tools.cycleIds.includes(standing.cycleId)&&standing.longestConfirmedUnusableSimulationMs!==null)
                 lower('tool-unusable-demand-time',{cycleId:standing.cycleId},standing.longestConfirmedUnusableSimulationMs,tool.digest);
         }
+        if(tool?.status==='available'&&populationCompatible&&population?.status==='available'){const coverage=tool.value.cohortCoverage;
+            if('executorCoverage' in coverage&&coverage.completeDemandCoverage&&coverage.maximumSimulationGapMs<=contract.policy.window.maximumTraceGapSimulationMilliseconds
+                &&coverage.maximumWallGapMs<=5000&&coverage.executorCoverage.positiveOpportunity&&coverage.executorCoverage.longestOutstandingUpperSimulationMs!==null
+                &&contract.policy.tools.cycleIds.includes(tool.value.cycleId)){
+                const upper={numerator:String(coverage.executorCoverage.longestOutstandingUpperSimulationMs),denominator:'1'},
+                    known=cells.find(c=>c.requirementId==='tool-unusable-demand-time'&&c.subject.cycleId===tool.value.cycleId);
+                // A conflicting upper certificate cannot erase an independently verified lower-bound failure.
+                if(known){if(!known.lower||BigInt(known.lower.numerator)<=BigInt(upper.numerator)*BigInt(known.lower.denominator)){
+                    known.upper=upper;known.evidenceDigests=[...new Set([...known.evidenceDigests,population.digest])];}}
+                else cells.push({requirementId:'tool-unusable-demand-time',subject:{cycleId:tool.value.cycleId},opportunity:'positive',upper,evidenceDigests:[tool.digest,population.digest]});
+            }
+        }
         assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],[]);
     }catch{bindingStatus='invalid';assessment=null;}
     // No gate is synthesized from configuration or partial ledger presence. Native PASS is unavailable until their adapters exist.

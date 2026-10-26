@@ -7,6 +7,7 @@ import type { EvaluationScope } from './evaluation.js';
 import { outcomeCheck as check,outcomeTime as time,type OutcomeActor } from './outcome-work.js';
 import { NativeMiningDispatchStore } from '../item-lifecycle/native-mining-dispatch.js';
 import { miningRequestDigest } from '../agent-skills/mining-demand-source.js';
+import { readMiningExecutorCoverage } from './tool-demand-executor.js';
 
 /** Cohort/window/prefix watermark. Observer completeness is distinct from all high-level demand. */
 export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[]){
@@ -105,11 +106,12 @@ export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope
         check(miningRosterDigest([d.owner])===miningRosterDigest([owner]),'Mining dispatch belongs to another cohort lifecycle/world/clock');
         if(time(d.clock.simulationTime)>=from&&time(d.clock.simulationTime)<=to&&!ingresses.has(d.dispatchId))add('ingress','native-dispatch-without-ingress',undefined,d.owner.actorId);
     }
+    const executorCoverage=readMiningExecutorCoverage(db,scope,source,intents.entries,gaps.length===0);
     const body={protocol:'native-mining-cohort-coverage-v1',status:gaps.length?'gaps':'observed-window',scope,worldId,
         selectionDigest:digest(s),rosterDigest,sourceHead:source.head,sourceHeads:{attempt:attempts.head,intent:intents.head},
         maximumSimulationGapMs:s.maximumSimulationGapMs,maximumWallGapMs:s.maximumWallGapMs,
-        observerCoverageComplete:!gaps.some(g=>g.kind==='observer'),completeDemandCoverage:false,selectedIngresses,compatibleIntentIngresses,sourceBoundIngresses,
+        observerCoverageComplete:!gaps.some(g=>g.kind==='observer'),completeDemandCoverage:executorCoverage.completeDemandCoverage,executorCoverage,selectedIngresses,compatibleIntentIngresses,sourceBoundIngresses,
         dispatchSourceDigest:digest(dispatches),gaps,
-        limitation:'Exact native dispatch is distinguished from legacy/compatible ingress. Complete high-level request coverage is not yet attested; an empty queue or no requests cannot establish zero demand or a minimum PASS.'};
+        limitation:'Prospective executor selection and native prefix watermarks are required for requested-use coverage. Legacy, offline/observer gaps and an empty queue cannot establish zero demand or a minimum PASS. Broader planner/queue waiting and run-wide integrity remain separate.'};
     return{...body,digest:digest(body)};
 }

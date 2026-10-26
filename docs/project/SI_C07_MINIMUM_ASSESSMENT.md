@@ -136,6 +136,12 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
    bizonytalan identity/access upper-only, záró auditprefix a nyitó folytatása.
    Teljes high-level demand/source coverage, maintenance origin, mortality/
    enforcement és mind a8 natív integrity gate továbbra kell.
+6. [Prospektív executor requested-use coverage](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
+   bekötve: admission előtt is látható request, natív producer/prefix witness,
+   policy/original-cohort/pozitív opportunity alapján lifetime upper. A lower
+   és upper egy cellában egyesül; hiteles lower FAIL nem vész el. A megfigyelt
+   restricted/sleep állapot és unknown offline/identity még külön rendezendő;
+   ez nem teljes source-universe integrity PASS.
 
 Ezek az ismert2. csomag részei. Nem csökkent a hátralévő csomagszám, nem indult
 a3. baseline-csomag, C08, live világ vagy hosszú run. Nincs új providerjog/költség.

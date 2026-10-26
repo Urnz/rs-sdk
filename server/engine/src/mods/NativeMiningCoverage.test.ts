@@ -10,23 +10,43 @@ import { NativeMiningIntentTracker } from './NativeMiningIntent.js';
 import type { MiningCoveragePorts } from './NativeMiningCoverage.js';
 import { NativeToolStore } from '../../../../item-lifecycle/native-tool.js';
 import InvType from '../cache/config/InvType.js';
+import { installMiningExecutorSource } from '../../../../agent-skills/mining-request-source.js';
+import { persistMiningOperationAdmission,sealMiningOperationAdmission } from '../../../../agent-skills/mining-admission.js';
+import { miningGatherArgs } from '../../../../sdk/mining-demand.js';
+import { nativeToolDigest } from '../../../../item-lifecycle/native-tool.js';
+import { readNativeMiningCohortCoverage } from '../../../../society-metrics/tool-demand-coverage.js';
 beforeAll(loadPackedContent);afterEach(closeNativeMiningFixtures);
-function harness(){
+function harness(executor=false){
     const f=fixture(undefined,{username:'alice'}),players=[f.miner,...['bob','carol','dave'].map(name=>f.player(name))];
     const originalIdentity=f.p.identity,clock=()=>originalIdentity('alice','coverage',0,World.currentTick)!.clock;
     const actors=players.map(player=>miningOwner(originalIdentity(player.username,'coverage',0,World.currentTick)!.action)),c=clock();
     const selection:NativeMiningCoverageSelection={schemaVersion:1,selectionId:randomUUID(),worldId:actors[0]!.worldId,
         clockId:c.clockId,clockProfileDigest:c.profileDigest,fromSimulationTime:c.simulationTime,
-        toSimulationTime:new Date(Date.parse(c.simulationTime)+60000).toISOString(),maximumSimulationGapMs:5000,maximumWallGapMs:5000,
+        toSimulationTime:new Date(Date.parse(c.simulationTime)+(executor?1200:60000)).toISOString(),maximumSimulationGapMs:5000,maximumWallGapMs:5000,
         actors,openingHeads:miningCoverageSourceHeads(f.market.db)};
+    if(executor){const s={schemaVersion:1 as const,selectionId:selection.selectionId,worldId:selection.worldId,clockId:selection.clockId,clockProfileDigest:selection.clockProfileDigest,
+        fromSimulationTime:selection.fromSimulationTime,toSimulationTime:selection.toSimulationTime,actors};
+        installMiningExecutorSource(f.workspace,f.checkpointPath,s);selection.executorSelectionDigest=nativeToolDigest(s);selection.openingHeads=miningCoverageSourceHeads(f.market.db);}
     const store=new NativeMiningCoverageStore(f.market.db,selection);let online=true;
-    const coverage:MiningCoveragePorts={db:f.market.db,workspace:'.',clock,identity:(...args)=>f.p.identity(...args),
+    const coverage:MiningCoveragePorts={db:f.market.db,workspace:f.workspace,clock,identity:(...args)=>f.p.identity(...args),
         roster:()=>actors,player:name=>!online&&name==='dave'?null:players.find(p=>p.username===name)??null,admitted:()=>false};
     f.p.miningCoverage=coverage;
     const tracker=new NativeMiningIntentTracker({...f.p,clock,authorizeStart:()=>({authorityDigest:'d'.repeat(64)})});
     const local={workspace:'.',tracker,player:coverage.player,coverage};
     return{...f,players,selection,store,coverage,local,offline(){online=false;}};
 }
+test('SI-C07 real native tick witnesses executor requests even when no native admission was reached',()=>{
+    const f=harness(true),at=f.coverage.clock()!.wallTime;tickNativeMiningIntents(f.local);
+    const request={operation:'open' as const,args:miningGatherArgs({name:'copper',skill:'Mining',item:'copper ore',timeoutMs:1000}),
+        context:{runId:randomUUID(),skill:{id:'mining.fixture',version:'1.0.0'},stepId:'gather',parametersDigest:'c'.repeat(64),operationSequence:1}};
+    persistMiningOperationAdmission(f.workspace,'alice','d'.repeat(64),request,Date.parse(at));World.currentTick++;tickNativeMiningIntents(f.local);
+    sealMiningOperationAdmission(f.workspace,request);World.currentTick++;tickNativeMiningIntents(f.local);
+    const report=readNativeMiningCohortCoverage(f.market.db,{clockId:f.selection.clockId,clockProfileDigest:f.selection.clockProfileDigest,
+        fromSimulationTime:f.selection.fromSimulationTime,toSimulationTime:f.selection.toSimulationTime,actorAgentIds:f.selection.actors.map(a=>a.actorId)},f.selection.worldId,
+        f.selection.actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId})));
+    expect(report.completeDemandCoverage).toBeTrue();if(!('executorCoverage'in report))throw Error('No executor source');
+    expect(report.executorCoverage.positiveOpportunity).toBeTrue();expect(report.executorCoverage.requests[0]?.nativeIntentObserved).toBeFalse();
+});
 test('SI-C07 cohort observer samples all four founders through the real tick hook with no standing requests',()=>{
     const f=harness();tickNativeMiningIntents(f.local);const event=f.store.read().entries[0]!.event;
     expect(event.kind).toBe('sample');if(event.kind!=='sample')throw Error('No cohort frame');

@@ -97,5 +97,5 @@ export function fixture(longInstanceId?:string,options?:{identity?:NativeMiningP
         op.secondary();op.state.pushInt(offer);op.state.pushInt(InvType.INV);InvOps[ScriptOpcode.BOTH_MOVEINV]!(op.state);
         return{witness,receipt};
     }
-    return{market,store,p,miner,mine,player,reload,move,trade,dead(){alive=false;},fail(value:boolean){failCheckpoint=value;}};
+    return{workspace:dir,checkpointPath:options?.checkpointPath??join(dir,'checkpoints.sqlite'),market,store,p,miner,mine,player,reload,move,trade,dead(){alive=false;},fail(value:boolean){failCheckpoint=value;}};
 }

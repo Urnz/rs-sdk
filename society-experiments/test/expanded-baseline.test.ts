@@ -11,6 +11,21 @@ import { randomUUID } from 'node:crypto';
 import { NativeMiningDemandStore } from '../../item-lifecycle/native-mining-demand.js';
 import { NativeMiningCoverageStore,miningCoverageSourceHeads } from '../../item-lifecycle/native-mining-coverage.js';
 import { NativeMiningDispatchStore } from '../../item-lifecycle/native-mining-dispatch.js';
+import { NativeMiningRequestStore } from '../../item-lifecycle/native-mining-requests.js';
+import { installMiningExecutorSource } from '../../agent-skills/mining-request-source.js';
+
+test('selected executor request source and descriptor restore offline; a missing prefix prevents another pin',()=>{
+    const f=expandedFixture(),s={schemaVersion:1 as const,selectionId:randomUUID(),worldId:f.selected.worldId,clockId:f.selected.clockId,clockProfileDigest:f.selected.clockProfileDigest,
+        fromSimulationTime:'2001-01-01T00:00:00.000Z',toSimulationTime:'2001-01-02T00:00:00.000Z',actors:[{actorId:'worker',username:'worker',lifecycleId:'fixture-life',
+            worldId:f.selected.worldId,clockId:f.selected.clockId,clockProfileDigest:f.selected.clockProfileDigest}]};
+    installMiningExecutorSource(f.root,join(f.root,f.checkpoint),s);
+    f.selected.stores.find(s=>s.role==='checkpoint')!.requiredTables.push('native_mining_request_selection','native_mining_request_event','native_mining_request_head');
+    const pin=prepareExpandedBaseline(f.root,f.selected);captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});restoreExpandedArchive(f.bundle,f.output);
+    const db=new Database(join(f.output,'workspace',f.checkpoint),{readonly:true});try{expect(new NativeMiningRequestStore(db).read().selection).toEqual(s);}finally{db.close();}
+    expect(readFileSync(join(f.output,'workspace/.local/agent-skills/mining-request-source.json'),'utf8')).toBe(readFileSync(join(f.root,'.local/agent-skills/mining-request-source.json'),'utf8'));
+    const changed=new Database(join(f.root,f.checkpoint));try{changed.run('UPDATE native_mining_request_head SET sequence=1,digest=?',['a'.repeat(64)]);}finally{changed.close();}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('prefix');
+});
 
 test('selected native Mining dispatch schema is pinned, restored offline and rejects incompatible versions',()=>{
     const f=expandedFixture(),db=new Database(join(f.root,f.checkpoint));try{new NativeMiningDispatchStore(db,true);}finally{db.close();}

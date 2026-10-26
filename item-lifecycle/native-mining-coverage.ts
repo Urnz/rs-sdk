@@ -1,23 +1,25 @@
 import type { Database } from 'bun:sqlite';
 import { nativeToolDigest as digest,type NativeToolOwner } from './native-tool.js';
 import type { SimulationClockObservation } from '../simulation-clock/types.js';
+import { NativeMiningRequestStore } from './native-mining-requests.js';
 
 export interface MiningSourceHead {sequence:number;digest:string|null}
 /** Installed explicitly before a baseline. This selects observation, never grants gameplay authority. */
 export interface NativeMiningCoverageSelection {
     schemaVersion:1;selectionId:string;worldId:string;clockId:string;clockProfileDigest:string;
     fromSimulationTime:string;toSimulationTime:string;maximumSimulationGapMs:number;maximumWallGapMs:number;
-    actors:NativeToolOwner[];openingHeads:{attempt:MiningSourceHead;intent:MiningSourceHead};
+    actors:NativeToolOwner[];openingHeads:{attempt:MiningSourceHead;intent:MiningSourceHead;executor?:MiningSourceHead};executorSelectionDigest?:string;
 }
 export interface NativeMiningCoverageSample {
     kind:'sample';clock:SimulationClockObservation;sessionId:string;rosterDigest:string|null;
-    heads:{attempt:MiningSourceHead;intent:MiningSourceHead};
+    heads:{attempt:MiningSourceHead;intent:MiningSourceHead;executor?:MiningSourceHead};
     actors:Array<{actorId:string;status:'observed'|'offline'|'restricted'|'identity-unavailable'|'source-unavailable';demandId:string|null}>;
     ingressWriteFailed:boolean;
+    executorSourceAvailable?:boolean;
 }
 export interface NativeMiningCoverageIngress {
     kind:'ingress';clock:SimulationClockObservation;sessionId:string;username:string;nativeActionId:string;
-    heads:{attempt:MiningSourceHead;intent:MiningSourceHead};
+    heads:{attempt:MiningSourceHead;intent:MiningSourceHead;executor?:MiningSourceHead};
     dispatchId?:string;
     demandId:string|null;reason:'source-bound-request'|'compatible-request'|'no-standing-request'|'identity-unavailable'|'admission-unavailable'|'unsupported-native-path'|'pre-admission-action';
 }
@@ -45,6 +47,7 @@ export function validateMiningCoverageSelection(s:NativeMiningCoverageSelection)
         &&typeof a.lifecycleId==='string'&&a.lifecycleId.length>0&&a.lifecycleId.length<=256
         &&a.worldId===s.worldId&&a.clockId===s.clockId&&a.clockProfileDigest===s.clockProfileDigest,'Mining coverage owner differs');
     validHead(s.openingHeads.attempt);validHead(s.openingHeads.intent);
+    if(s.executorSelectionDigest!==undefined){check(hex(s.executorSelectionDigest),'Invalid executor selection digest');validHead(s.openingHeads.executor!);}
 }
 function validate(s:NativeMiningCoverageSelection,e:NativeMiningCoverageEvent){
     const c=e?.clock;
@@ -52,7 +55,9 @@ function validate(s:NativeMiningCoverageSelection,e:NativeMiningCoverageEvent){
         &&stamp(c.wallTime)&&stamp(c.simulationTime)&&Number.isSafeInteger(c.revision)&&c.revision>=0
         &&Number.isSafeInteger(c.engineTick)&&Number(c.engineTick)>=0
         &&typeof e.sessionId==='string'&&e.sessionId.length>0&&e.sessionId.length<=128,'Invalid Mining coverage clock/session');
+    if(s.executorSelectionDigest!==undefined||e.heads?.executor!==undefined)validHead(e.heads.executor!);
     if(e.kind==='sample'){
+        if(s.executorSelectionDigest!==undefined)check(typeof e.executorSourceAvailable==='boolean','Missing executor producer witness');
         validHead(e.heads.attempt);validHead(e.heads.intent);
         check((e.rosterDigest===null||hex(e.rosterDigest))&&typeof e.ingressWriteFailed==='boolean'
             &&Array.isArray(e.actors)&&e.actors.length===s.actors.length&&new Set(e.actors.map(a=>a.actorId)).size===s.actors.length,'Invalid Mining coverage sample');
@@ -80,7 +85,7 @@ export function miningCoverageSourceHeads(db:Database){
         const tail=db.query<MiningSourceHead,[]>(`SELECT sequence,digest FROM ${table} ORDER BY sequence DESC LIMIT 1`).get();
         check(current.sequence===(tail?.sequence??0)&&current.digest===(tail?.digest??null),'Mining coverage source tail differs');return current;
     };
-    return{attempt:read('attempt'),intent:read('intent')};
+    return{attempt:read('attempt'),intent:read('intent'),...(NativeMiningRequestStore.present(db)?{executor:new NativeMiningRequestStore(db).head()}:{})};
 }
 function head(db:Database):MiningSourceHead{
     const rows=db.query<MiningSourceHead,[]>('SELECT sequence,digest FROM native_mining_coverage_head').all();

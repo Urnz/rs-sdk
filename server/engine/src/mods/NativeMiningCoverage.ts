@@ -8,6 +8,7 @@ import type { NativeMiningPorts } from './NativeMiningTool.js';
 import { NativeMiningIntentStore,nativeMiningDemandSessionId } from '../../../../item-lifecycle/native-mining-intent.js';
 import { NativeMiningCoverageStore,miningCoverageSourceHeads,miningRosterDigest,type NativeMiningCoverageSample,type NativeMiningCoverageIngress } from '../../../../item-lifecycle/native-mining-coverage.js';
 import { miningIntentFulfillmentAllowed,miningOwner } from '../../../../agent-skills/mining-demand-source.js';
+import { miningExecutorSourceAvailable } from '../../../../agent-skills/mining-request-source.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
 import { NativeMiningDispatchStore } from '../../../../item-lifecycle/native-mining-dispatch.js';
 
@@ -54,6 +55,7 @@ export function tickNativeMiningCoverage(override?:MiningCoveragePorts){
             return{...result,status:'observed'};
         });
         store.append({kind:'sample',clock,sessionId:nativeMiningDemandSessionId,rosterDigest,heads:miningCoverageSourceHeads(p.db),actors,
+            ...(s.executorSelectionDigest?{executorSourceAvailable:miningExecutorSourceAvailable(p.workspace,p.db,s.executorSelectionDigest)}:{}),
             ingressWriteFailed:ingressFailures.has(p.db)});ingressFailures.delete(p.db);
     }catch{console.error('[NativeMiningCoverage] source unavailable; no coverage claimed');}
 }

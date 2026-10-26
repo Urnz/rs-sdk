@@ -7,6 +7,7 @@ import { assertNativeFoodDomainPath } from '../food-loop/native-source.js';
 import { nativeToolDigest,type NativeToolOwner } from '../item-lifecycle/native-tool.js';
 import { validateMiningDemandRequest,type MiningDemandRequest } from '../sdk/mining-demand.js';
 import { miningAdmissionDigest as hash,miningDemandId,readMiningOperationAdmission,miningOperationAdmissionPath } from './mining-admission.js';
+import { requireMiningExecutorAdmission } from './mining-request-source.js';
 
 const idCheck=(id:string)=>{if(!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(id))throw Error('Invalid Mining demand identity');};
 function file(root:string,owner:NativeToolOwner,path:string){
@@ -56,6 +57,7 @@ export function authorizeMiningDemand(root:string,owner:NativeToolOwner,raw:Mini
         const run=file(root,owner,join(root,'.local/agent-skills/runs',`${c.runId}.admission.json`));
         file(root,owner,miningOperationAdmissionPath(root,request)); // Path/size validation before the typed parser.
         const step=readMiningOperationAdmission(root,request);
+        requireMiningExecutorAdmission(root,owner,step);
         const marker=file(root,owner,join(root,'.local/admin/active-skills',`${owner.username}.json`));
         if(run.schemaVersion!==1||run.runId!==c.runId||run.username!==owner.username||hash(run.skill)!==hash(c.skill)
             ||run.checksum!==registered.checksum||run.parametersDigest!==c.parametersDigest

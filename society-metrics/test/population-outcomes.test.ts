@@ -91,6 +91,19 @@ function fixture(){
 }
 const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.assessment!.requirements.find(v=>v.requirementId===id)!;
 
+test('positive prospective executor lifetime upper reaches the minimum only with bound cohort/policy coverage; zero and conflicting proofs never hide failure',()=>{
+    const f=fixture(),base=f.outcomes(),covered={completeDemandCoverage:true,maximumSimulationGapMs:600,maximumWallGapMs:1000,
+        executorCoverage:{positiveOpportunity:true,longestOutstandingUpperSimulationMs:1200}};
+    const project=(coverage:any,lower:number|null=null)=>projectNativeMinimumAssessment(contract,f.scope,{...base,sources:{...base.sources,toolDemand:{status:'available',digest:'e'.repeat(64),
+        value:{cycleId:'bronze-pickaxe-mining',minimumVerdict:lower&&lower>3600000?'fail':'inconclusive',cohortCoverage:coverage,
+            standingRequests:{cycleId:'bronze-pickaxe-mining',longestConfirmedUnusableSimulationMs:lower}}}}} as any);
+    expect(rule(project(covered),'tool-unusable-demand-time').verdict).toBe('pass');
+    for(const coverage of [{...covered,completeDemandCoverage:false},{...covered,maximumSimulationGapMs:3600001},
+        {...covered,executorCoverage:{...covered.executorCoverage,positiveOpportunity:false}}])expect(rule(project(coverage),'tool-unusable-demand-time').verdict).toBe('inconclusive');
+    const merged=project(covered,600);expect(merged.bindingStatus).toBe('bound');expect(rule(merged,'tool-unusable-demand-time').verdict).toBe('pass');
+    const fail=project(covered,3600001);expect(fail.verdict).toBe('fail');expect(rule(fail,'tool-unusable-demand-time').verdict).toBe('fail');expect(fail.qualifiesMinimum).toBeFalse();
+});
+
 test('native lifecycle repair and frozen physical checkpoints assess comparable founder tool capacity and reopen offline',()=>{
     const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
     const integration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath},checkpoint=join(f.root,'server/engine/data/capacity.sqlite');integration.nativeFoodCheckpointPath=checkpoint;

@@ -1101,6 +1101,9 @@ coverage/demand és8 integrity még kell. A2. csomag nyitott,6 maradt,27/45.
 Elkészült a [fagyasztott tool-service capacity retention](SI_C07_TOOL_CAPACITY.md)
 is:17/17 részleges adapter, nem17 PASS. Teljes source/demand, maintenance origin,
 historical mortality/enforcement és8 integrity még kell; a2. csomag nyitott.
+Bekötött a [prospektív executor requested-use source és natív watermark](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
+is; pozitív opportunity esetén idő-upper, üres naplóból nincs PASS. A restricted/
+offline és teljes source/integrity coverage még hiányos;6 csomag maradt,27/45.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

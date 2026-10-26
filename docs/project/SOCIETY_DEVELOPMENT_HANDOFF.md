@@ -36,9 +36,9 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   **Kezdéskor7 csomag volt,1 kész,6 maradt.** Ezek nem garantált chatkörök.
   A17/8 mag/source-map és17 részleges adapter már kész; még teljes történeti
   coverage/nevezők, high-level demand teljesség és maintenance origin
-  kell. A source-bound native ingress nem bizonyítja
-  az összes high-level igényt, ezért completeDemandCoverage:false még helyes.
-  Üres queue/nincs kérés továbbra sem nulla demand. C08 nem indul.
+  kell. Az új prospektív producer és natív watermark feltételesen teljes
+  executor requested-use coverage-et ad; legacy/kijelöletlen C07-ben továbbra
+  false. Üres queue/nincs kérés nem pozitív opportunity vagy nulla idő. C08 nem indul.
 - **2. csomag részeredmény:** [17/8 kiértékelőmag és forrástérkép](SI_C07_MINIMUM_ASSESSMENT.md)
   kész. Exact rational lower/upper bound, minden actor/bucket/cycle/boundary
   kötelező cella, zero-opportunity és hiányos boundary schedule védelem.
@@ -73,8 +73,14 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   Pontos original cohort/health/needs/custody, bank/quarantine/dupla/stale
   példány upper-only. A záró audit/native events a nyitó folytatása;100→50
   capacity egy tool mellett is FAIL.17/17 részleges adapter, nem17 PASS.
-- **Következő kódhatár a2. csomagon belül:** teljes high-level request/demand
-  coverage és a natív observer/source lefedettség bekötése. Továbbra
+- **Executor-demand rész kész:** [prospektív requested-use coverage](SI_C07_EXECUTOR_DEMAND_COVERAGE.md).
+  Admission előtt saját append-only request source, finally-seal utáni close,
+  natív tick-prefix/descriptor witness, eredeti owner és policy-gap kötés.
+  A native admission előtt elakadt kérés is számít; pozitív opportunity esetén
+  teljes outstanding időből conservative upper, nulla opportunity nem PASS.
+  Átfedő/szomszédos azonos-actor kérések uniója; lower FAIL nem vész el.
+- **Következő kódhatár a2. csomagon belül:** megfigyelt alvó/restricted állapot
+  és ismeretlen offline/identity megkülönböztetése a native observerben. Továbbra
   kell teljes történeti mortality/enforcement és boundary inventory,
   housing/access/source coverage, maintenance origin és8 integrity adapter. **6 csomag
   maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
@@ -128,27 +134,36 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261026-222818-025-si-c07-capacity-focused-final`:51 célzott teszt és
-  root TS PASS63,012 s.** Capacity/population/food/minimum/integration/
-  evaluation/preflight fájlok, plusz1 kijelölt natív benchmark/offline restore.
-- `20261026-223034-619-si-c07-capacity-prefix-final`:a prefix/event lookup
-  lineáris Map-indexelése után4 capacity és1 native próba +root TS PASS24,374 s.
-  A többi már sikeres consumer-tesztet nem ismételtük változatlanul.
-- `20261026-223203-975-si-c07-capacity-artifact`:friss NO-GO,17/8 és17
-  részleges adapter, sourcehash/digest és10 dokumentumlink PASS0,824 s.
-- Valódi NativeToolStore/ItemRepairService és fagyasztott health/needs/physical
-  checkpoint→eredeti founder minimum;100→50 capacity FAIL, bank/quarantine/
-  dupla/stale identity, transfer/replacement, audit/current/schema/future
-  sérülés, záró prefix, idegen admission és offline másolat ellenőrzött.
-- Első typecheck FAIL20,150 s: az index-signature SQL-row spreadjének típusa
-  csak a retired mezőt őrizte meg. Explicit domain projection javította;
-  assertion vagy product-validator nem lazult. Részletek/ID-k a
-  [progressben](SOCIETY_INTEGRATION_PROGRESS.md).
-- Korábbi housing/food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
+- **`20261026-224815-233-si-c07-executor-focused-final`:72 célzott eset és
+  root TS PASS112,078 s.** Request/coverage/producer/gather, population/minimum/
+  outcomes/evaluation/preflight és source-backed SDK→valódi natív fulfillment.
+- `20261026-224543-363-si-c07-executor-thin-boundaries`:2 producer-root próba
+  és5 packed native coverage eset +wrapper PASS11,503 s. A natív admissiont
+  el nem érő kérés is megjelenik a valódi engine tick vízjelében.
+- `20261026-224929-373-si-c07-executor-restore-engine-final`:új selected-source
+  descriptor/DB offline restore,5 request-próba és engine TS PASS35,267 s.
+  Korábbi root+engine TS: `20261026-224508-456-si-c07-executor-source-types`,
+  PASS139,274 s; a végső fixture-kód után az engine ellenőrzése megtörtént.
+- `20261026-225108-613-si-c07-executor-lifetime-final`:6 request-próba +root TS
+  PASS58,419 s. Azonos actor szomszédos kérései nem nullázzák a lehetséges
+  várakozást; a runtime nem interpolál wall→simulation időt.
+- `20261026-225433-722-si-c07-executor-write-failure-final`:3 producer-próba
+  és root TS PASS57,079 s. SQLite append-hiba sticky failure witness-szel,
+  native source-unavailable, későbbi siker nem rejti el a hibát.
+- `20261026-225540-900-si-c07-executor-artifact`:friss NO-GO,17/8 és17
+  részleges adapter, sourcehash/digest és11 dokumentumlink PASS0,852 s.
+- **`20261026-225932-531-si-c07-executor-managed-final`:4 producer-próba,
+  root TS és végső artifact PASS63,076 s.** Managed srv/workspace/checkpoint,
+  retained failure marker és nem selected actor izoláció. A managed path-guard
+  a tényleges server ID-t használja; részletek a progress végén.
+- Own install/reopen/rollback/immutable/history, old selection, zero/positive
+  opportunity, source/head/clock gap, sidecar-publication hiba, native authority,
+  minimum lower/upper merge és FAIL-megőrzés, külön restore ellenőrzött.
+- Korábbi capacity/housing/food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
   progressben; nem jelenlegi full-suite PASS.
-- Full, engine/webclient TS és packed runtime most nem futott: csak readonly
-  backend source/projection és közvetlen fogyasztói változtak. Közös clock,
-  auth, transaction, migration, függőség vagy gameplay nem módosult. A scope
+- Full és webclient TS nem futott: saját additív Mining producer/coverage és
+  közvetlen source/authority fogyasztók változtak. Közös clock/global auth,
+  gazdasági transaction/migration, függőség vagy gameplay nem módosult. A scope
   pontos fájllistái a helyi `.local/verification/*.result.json` fájlokban vannak.
 - Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.
 ## Megőrzendő döntések

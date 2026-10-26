@@ -195,3 +195,10 @@ prefix záró folytatásával.100 nyitó és50 javított záró kapacitás egy t
 is FAIL. Bank/quarantine/dupla vagy stale identity nem lower.17/17 részleges
 adapter kész, nem17 PASS: teljes coverage/demand, maintenance origin, történeti
 mortality/enforcement és8 integrity kell. NO-GO, a2. nyitott,6 csomag maradt.
+
+További rész: [prospektív executor requested-use coverage](SI_C07_EXECUTOR_DEMAND_COVERAGE.md).
+Admission előtti immutable request, close és natív tick-prefix/producer witness,
+pozitív opportunity mellett conservative lifetime upper. Legacy/unselected,
+offline/restricted, source gap vagy üres producer nem ad automatikus minimum-
+PASS-t. A konkrét C07 producer/descriptor/full window nincs pinelve; továbbra
+NO-GO, a2. nyitott,6 csomag maradt. Nincs új run vagy providerköltség.
