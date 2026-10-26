@@ -198,7 +198,7 @@
           "ownership-history",
           "player-time"
         ],
-        "missing": "Legal minimum-tier access per founder/bucket; rent or sleep receipts alone do not prove it."
+        "missing": "Explicit frozen exact-clock points bound original-founder daily legal access using unchanged title versions, audited capacity and native prepaid rent; missing intervals and visitor rights stay unknown, complete point inventory still required."
       },
       {
         "requirementId": "tool-maintenance-cycles",
@@ -474,8 +474,8 @@
         "ownership-history",
         "player-time"
       ],
-      "missing": "Legal minimum-tier access per founder/bucket; rent or sleep receipts alone do not prove it.",
-      "status": "source-map-only",
+      "missing": "Explicit frozen exact-clock points bound original-founder daily legal access using unchanged title versions, audited capacity and native prepaid rent; missing intervals and visitor rights stay unknown, complete point inventory still required.",
+      "status": "minimum-housing-exposure-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -586,7 +586,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "The17/8 assessor, work/tool/population/needs bounds and four food/final-use adapters exist. Complete frozen boundary/custody coverage, mortality/enforcement, housing/capacity, high-level demand and eight native integrity proofs remain incomplete; partial source evidence cannot certify a full run."
+      "reason": "The17/8 assessor and16 partial work/tool/population/needs/food/housing adapters exist. Complete frozen boundary/custody/access coverage, mortality/enforcement, tool capacity, high-level demand and eight native integrity proofs remain incomplete; partial source evidence cannot certify a full run."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -596,7 +596,7 @@
     {
       "id": "legal-housing-exposure",
       "status": "unverified",
-      "reason": "Two tenant slots and current rent/sleep receipts do not attest95% legal housing access for every founder; full ownership/access history is required."
+      "reason": "Frozen exact-clock points now bound legal housing time with ownership versions, audited reservation capacity and paid native rent. Two tenant slots alone still do not attest95% access for all founders; complete pinned point inventory and visitor/access history remain required."
     },
     {
       "id": "clock-ratio",
@@ -642,11 +642,11 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "cf8aa3aecedfe57eebd1b65a9a64bc86a5daa6eba86515efd5783524c7de5ac3"
+      "sha256": "835e8147e3ab16992992f8dcb28a0773f3a8e7663a9c6e8453557c754599f90a"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "70389bba8b13bf410a2b8a2f817d964296ae6919121ebd173779c3a279caaaf4"
+      "sha256": "6daf75253335523702df41c4c8e89fc3312598b23444862952bbfef3909fe785"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -686,11 +686,51 @@
     },
     {
       "path": "society-metrics/integration-sources.ts",
-      "sha256": "afaa86486546a748122d459392c8be5ed777c6df0c7e753fb8488ced0480aaa8"
+      "sha256": "c18470d934ae96285ab06dd73546ceef1c5464c986a48db2c17fa8a83b14bb3b"
     },
     {
       "path": "server/gateway/admin/save-reader.ts",
       "sha256": "f4b5e38241df365127833f4f9c0d773d74c8684cd32c8e16f480785be0cc91e9"
+    },
+    {
+      "path": "society-metrics/housing-access.ts",
+      "sha256": "fed373bac002f1f638ade8e13ac2ee86bc783e1f62a9de2701718d0f96008764"
+    },
+    {
+      "path": "society-metrics/housing-minimum.ts",
+      "sha256": "35600d5bf4388aeac0948b4d7dcc7d78981c7c158ae363212fef026420e80aa0"
+    },
+    {
+      "path": "housing/native-rent.ts",
+      "sha256": "dd7a1f1a70631a34d095b77e674d989bd6a8bb1162e2e922e975d421570f11a4"
+    },
+    {
+      "path": "housing/native-rent-source.ts",
+      "sha256": "b463f49a15ed85b4f6bc85150acd771c342eaa8b0f55adf9ee41f2c4a58a8be6"
+    },
+    {
+      "path": "housing/tenancy-store.ts",
+      "sha256": "d42d1b9c70b1ef7d8973816fa6219b8c4e6bbc594ab03bc6a1fc3abfef2cfc8e"
+    },
+    {
+      "path": "server/engine/src/mods/PropertyStore.ts",
+      "sha256": "3cc329407a334eff677827b8bc545ccf687542ab7700acdf18f3a765103a96a8"
+    },
+    {
+      "path": "server/engine/src/mods/Properties.ts",
+      "sha256": "4efa3f436b3eb6137a72c29c12f54f38f4459e84c0f1157a2af5c96c9c9b69b8"
+    },
+    {
+      "path": "config/properties.json",
+      "sha256": "15a7d1c427977d958026c06df6940031a081d249fb26293af4ae22cd93969915"
+    },
+    {
+      "path": "config/housing-units.json",
+      "sha256": "ffee24fa6d35c4d2a6398e5f4fa7cd9f8d5cf14999e894a88bb40d0c9221e93a"
+    },
+    {
+      "path": "config/native-housing.json",
+      "sha256": "1ec6824dd38b506e10817f980977c236393267ddbbfda8d2bdb0374eadcfc6ee"
     },
     {
       "path": "food-loop/lineage.ts",
@@ -738,7 +778,7 @@
     },
     {
       "path": "society-metrics/integration-report.ts",
-      "sha256": "c3e5e7d4600cfe95d50aa80c201d47066347230c7334e4083711df6b77ac8557"
+      "sha256": "1a5eedac0725db5cb940cff61c5d83f90c072cb314ac830456d5d30d1053bd36"
     },
     {
       "path": "society-metrics/evaluation-report.ts",
@@ -890,7 +930,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "4d3432e6ad95ff043d753b3f1558042dba236078c94fe2518bed5378ed1064f9"
+      "sha256": "c472558f0b4a4847fe697e6b31f28ebe3fc9a4c1e3f6350d77bc41ba69fa1eff"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -919,5 +959,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "687757be05224ebdced7e2d782c2725a38d0d4b114c8cac2392a1348226c29d2"
+  "digest": "f3b8c395b11b9e259cbdb5327e9ceeaa9cceb5bc67cee6fcf6612f974fde8a84"
 }

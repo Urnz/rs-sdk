@@ -15,7 +15,9 @@ Az éhség/fáradtság replay és4 minimum-időfeltétel adaptere is elkészült
 a teljes kiválasztott run source coverage továbbra előfeltétel, a2. nyitott.
 Napi food share/final-use és frozen reserve/stock adapter is elkészült:
 [15/17 részleges adapter](SI_C07_FOOD_MINIMUM.md). Ez nem minimum PASS;
-legal housing/capacity, teljes coverage/demand és8 integrity még kell.
+Ezután a [legal housing exposure adapter](SI_C07_HOUSING_ACCESS.md) is elkészült:
+16/17 részleges adapter. Teljes coverage/access history, tool capacity/demand
+és8 integrity még kell; továbbra6 csomag maradt.
 
 1. **KÉSZ – Executor → SDK → natív belépés pontos kötése.** Egyszer használható,
    forrásból hitelesített dispatch/target; replay/cancel/late-ACK és másik raw

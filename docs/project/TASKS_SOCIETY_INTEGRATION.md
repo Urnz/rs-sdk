@@ -1095,6 +1095,9 @@ Az [éhség/fáradtság történeti replay és4 időfeltétel](SI_C07_NEEDS_EXPO
 adaptere is kész; a teljes baseline source coverage és többi gate még kell.
 Elkészült a [napi food share/final-use és frozen reserve/retention adapter](SI_C07_FOOD_MINIMUM.md)
 is.15/17 részleges adapter, nem15 PASS; a2. csomag és SI-C07 továbbra nyitott.
+Azóta a [legal housing access/exposure adapter](SI_C07_HOUSING_ACCESS.md) is
+elkészült;16/17 részleges adapter, nem16 PASS. Tool-service capacity, teljes
+coverage/demand és8 integrity még kell. A2. csomag nyitott,6 maradt,27/45.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

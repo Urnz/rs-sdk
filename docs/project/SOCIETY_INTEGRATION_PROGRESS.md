@@ -2892,3 +2892,55 @@ régi backup DB-read, új séma/migráció/backfill vagy a C07 gazdaságának tu
 
 Végső artifact: `20261026-201402-046-si-c07-food-final-artifact`, friss NO-GO,
 17/8 és15 részleges adapter, sourcehash/digest és8 dokumentumlink PASS1,084 s.
+
+### 2026-10-26 – SI-C07/2: frozen legal housing access/exposure
+
+Új readonly housing-access reader és housing-minimum projekció; explicit backend
+housingBoundaries, exact paused clock/roster/needs/title/housing/checkpoint
+pontok. Property version és native rent/payment/tenancy audit-head bizonyítja
+a változatlan authority-epochot legfeljebb1 simh gap mellett. Current tenancy
+projection teljes audit-replayből ellenőrzött; aktív prepaid entitlement hibája
+az egész pontot elutasítja. Jövőbeli séma, sérült/missing köztes pont vagy
+authority/cohort/policy-váltás nem hidalható át. Native order+tenancy deduplikált
+fizikai férőhely, nincs dupla owner/tenant lower credit; expiry pontos vágás.
+
+Applied eredeti genesis/lifecycle/admission-kötés, alapítónkénti napi95% lower/
+upper exposure, natív halálig vágott nevező és korai bizonyított FAIL diagnostic.
+Unknown visitor/employee/public jog és hiányzó idő nem lesz homelessness vagy
+biztos hozzáférés. A mért legal access nem azonos a tényleges alvási idővel.
+Vékony natív fixture: valódi PropertyStore/NativeRentCoordinator/committed
+escrow/prepaid audit→frozen pontok→evaluation, külön offline másolat, hibás
+prepaid és tenancy projection, idegen admission és sérült point-inventory.
+
+Ellenőrzések `.local/verification/` result/log párokban:
+
+- `20261026-220616-455-si-c07-housing-first-types`:root TS PASS63,533 s.
+- `20261026-220814-759-si-c07-housing-projector`:6 kezdeti eset PASS0,830 s.
+- `20261026-220850-032-si-c07-housing-native-first`:FAIL0,967 s, a fixture
+  createSaveData hívásából hiányzott az üres options; javítva.
+- `20261026-220900-990-si-c07-housing-native-reader`:1 native eset PASS3,291 s.
+- `20261026-221017-022-si-c07-housing-direct-consumers`:39 runtime eset
+  PASS53,43 s population/minimum/integration/evaluation/preflight fájlokból;
+  összes gate FAIL115,724 s, az új controlled fixture null admission típusa
+  miatt. Eredeti genesis-shaped fixture javítva, nincs validator/assertion lazítás.
+- `20261026-221251-685-si-c07-housing-types-and-restore`:7 intervallumteszt,
+  1 kijelölt natív benchmark/offline restore és root TS PASS79,128 s.
+- `20261026-221348-585-si-c07-housing-payment-gap`:1 szigorított native eset
+  PASS3,357 s; hibás prepaid nem adhat áthidalt lower creditet.
+- `20261026-221438-001-si-c07-housing-final-reader-types`:végső native eset
+  és root TS PASS64,195 s, schema99 negatív próbával.47 külön célzott eset
+  sikeres a komponens és közvetlen fogyasztói scope-okban.
+- `20261026-221515-419-si-c07-housing-artifact`:friss NO-GO,17/8,16 részleges
+  adapter, minden sourcehash/digest és9 dokumentumlink PASS0,780 s.
+- `20261026-221619-544-si-c07-housing-staged-docs`:staged format és artifact/
+  linkellenőrzés PASS0,920 s; végső evidence-doc sorok után format újra.
+
+Full/engine/webclient TS/packed runtime nem futott: readonly backend adapter
+és közvetlen fogyasztók, nincs közös clock/auth/transaction/migration vagy
+dependency/gameplay változás. A frozen pontok C07 archive source-listája és
+pinje még az5. csomag része.16/17 részleges adapter, nem16 mért PASS;27/45,
+NO-GO, SI-M3/MVS nem PASS. A2. csomag nyitott,6 maradt. Következő a comparable
+tool-service capacity retention, utána teljes coverage/demand/mortality és8
+integrity. Nincs live világ/baseline/hosszú run, providerhívás/költség,
+történeti backup DB-read, új séma vagy visszatöltés. Részletes komponensleírás:
+[housing access](SI_C07_HOUSING_ACCESS.md).

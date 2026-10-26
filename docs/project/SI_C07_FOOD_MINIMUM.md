@@ -95,6 +95,7 @@ változás. A tesztkészletek mechanikai fixture-ök, nem új C07 világ/endowme
 Nem indult live világ/hosszú run, providerhívás vagy történeti backup DB-read.
 Legal housing, tool-service capacity, teljes high-level demand, mortality/
 boundary history és8 native integrity gate továbbra kell a2. csomag lezárásához.
-Következő a legal housing access/exposure bekötése. Az aktuális eredmény és
+Azóta a [legal housing access/exposure](SI_C07_HOUSING_ACCESS.md) is bekötött;
+következő a tool-service capacity retention. Az aktuális eredmény és
 ellenőrzési azonosítók a [rövid átadásban](SOCIETY_DEVELOPMENT_HANDOFF.md),
 a diagnosztikák a [progressben](SOCIETY_INTEGRATION_PROGRESS.md) találhatók.

@@ -126,9 +126,11 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
 3. [Napi food share/final-use és frozen reserve/stock bounds](SI_C07_FOOD_MINIMUM.md)
    bekötve. A pontos mindenhatári inventory, frozen source-lista és teljes
    custody/access coverage még kell; jelenlegi készletből nincs történeti határ.
-4. Legal housing ownership/access történet és minimum-tier exposure; a tenancy
-   reservation, rent receipt vagy tényleges alvás önmagában nem teljes jogi
-   hozzáférési nevező.
+4. [Frozen legal housing access/exposure](SI_C07_HOUSING_ACCESS.md) adapter
+   bekötve: változatlan ownership/reservation/payment epoch, auditált capacity,
+   paid native tenant és szabad owner-hely; lejárat, gap és founder/nap nevező.
+   A teljes kiválasztott point-inventory és visitor/access history még kell;
+   a tényleges alvás önmagában nem teljes jogi hozzáférési nevező.
 5. Teljes high-level request/demand coverage, comparable tool-service capacity,
    napi distinct-producer→consumer final-use és mind a8 natív integrity gate.
 

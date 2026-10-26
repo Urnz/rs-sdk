@@ -36,6 +36,11 @@ import { InstitutionTreasuryStore } from '../../server/gateway/admin/institution
 import { PlayerInventoryEscrowStore } from '../../server/engine/src/mods/PlayerInventoryEscrowStore.js';
 import { createSaveData } from '../../sdk/test/utils/save-generator.js';
 import {readNativeFoodBoundary,type NativeFoodBoundaryPaths} from '../food-boundaries.js';
+import { PropertyStore } from '../../server/engine/src/mods/PropertyStore.js';
+import { loadPropertyCatalog } from '../../server/engine/src/mods/Properties.js';
+import { NativeRentCoordinator } from '../../housing/native-rent-runtime.js';
+import { nativeHousingCatalogs,initializeRentJournal,writeRentJournal,rentIds } from '../../housing/native-rent.js';
+import { readHousingAccessPoint,type NativeHousingBoundaryPaths } from '../housing-access.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -81,6 +86,84 @@ function fixture(){
     return{root,scope,options,agentPath,healthPath,genesisPath,integrityPath,clockPath,kill,outcomes,report,hashes};
 }
 const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.assessment!.requirements.find(v=>v.requirementId===id)!;
+
+test('native paid rent and frozen authority snapshots reach original-founder daily housing exposure and reopen offline',()=>{
+    const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
+    const integration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath},checkpoint=join(f.root,'server/engine/data/housing-checkpoints.sqlite');
+    const native={workspace:f.root,worldId:'fixture',housingPath:integration.housingPath,propertyPath:join(f.root,'.local/admin/properties.sqlite'),checkpointPath:checkpoint};
+    const title=new PropertyStore(loadPropertyCatalog(join(f.root,'config/properties.json')),native.propertyPath);
+    try{title.assignGenesis('opening-house','falador.south-house',1,{kind:'player',id:'ada'},wall);}finally{title.close();}
+    const clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,{store:clock,clockId:'world'}),db=new OwnedDatabase(checkpoint),
+        persistence=new FoodNeedsPersistence(integration.databasePath,contract.dependencies.needs,contract.dependencies.dynamics,loadFoodLoopCatalog(join(configDirectory,'food-loops.json'))),
+        rent=new NativeRentCoordinator(native),snapshots:Array<{at:string;paths:NativeHousingBoundaryPaths}>=[];
+    try{
+        const bindings=f.scope.actorAgentIds.map(id=>populationNeedsBinding('fixture',agents.getPopulationMember(id)!)),admitted=clock.observe('world',wall,1);
+        for(const binding of bindings)persistence.needs.initialize({binding,clock:admitted,history:[],playerTime:null,
+            admission:{kind:'genesis',evidenceId:f.options.population!.genesisResultId,evidenceDigest:f.options.population!.genesisResultDigest}});
+        const paidAt=clock.observe('world',new Date(Date.parse(wall)+86400000).toISOString(),2),catalogs=nativeHousingCatalogs(f.root);
+        const actor=(id:string)=>{const b=bindings.find(b=>b.actorId===id)!;return{agentId:id,username:id,lifecycleId:b.lifecycleId};};
+        const order=rent.reserve({operationId:'housing-measurement-rent',worldId:'fixture',clockId:paidAt.clockId,clockProfileDigest:paidAt.profileDigest,
+            tenant:actor('bea'),landlord:actor('ada'),housingUnitId:catalogs.native.housingUnitId,bedSlotId:catalogs.native.beds[0]!.bedSlotId,
+            startsAt:paidAt.simulationTime,endsAt:'2001-01-03T00:00:00.000Z',expiresAt:new Date(Date.parse(paidAt.wallTime)+300000).toISOString(),amountGp:500,propertyVersion:2,catalogs},paidAt);
+        initializeRentJournal(db,'native_rent');
+        const escrow=new PlayerInventoryEscrowStore({db,checkpoint:()=>{}}),ids=rentIds(order.binding.intent.operationId);
+        const wallet=(initial:number)=>{let gp=initial;return{count:()=>gp,remove:(_id:number,n:number)=>{gp-=n;return n;},add:(_id:number,n:number)=>{gp+=n;return n;}};};
+        const tenant=wallet(1000),landlord=wallet(0),account=(id:string)=>({owner:id,save:()=>createSaveData({}),rollback:()=>{}});
+        escrow.mutateWithCheckpoint({operation:'hold',escrowId:ids.escrowId,username:'bea',assets:{gp:500,items:[]}},tenant,account('bea'),paidAt.wallTime,order.binding.digest);
+        escrow.mutateWithCheckpoint({operation:'commit',escrowId:ids.escrowId,username:'bea',payeeUsername:'ada'},landlord,account('ada'),paidAt.wallTime,order.binding.digest);
+        const facts={binding:order.binding,phase:'paid' as const,clock:paidAt,before:{tenant:1000,landlord:0},after:{tenant:500,landlord:500},
+            checkpoints:{tenant:'a'.repeat(64),landlord:'b'.repeat(64)}};
+        db.transaction(()=>writeRentJournal(db,'native_rent',{...facts,digest:foodDigest(facts)})).immediate();rent.finalize(order.binding.intent.operationId);
+        for(const hour of [0,1,2]){
+            const wallAt=new Date(Date.parse(paidAt.wallTime)+hour*3600000).toISOString(),observed=clock.observe('world',wallAt,hour+3);
+            for(const binding of bindings)persistence.needs.advance({binding,clock:observed,history:[],playerTime:null,expectedRevision:persistence.needs.get(binding)!.revision});
+            clock.pause('world',clock.get('world')!.revision,wallAt);
+            const directory=join(f.root,'.local/frozen-housing',String(hour));mkdirSync(directory,{recursive:true});
+            const sources:NativeHousingBoundaryPaths={clockPath:f.clockPath,agentPath:f.agentPath,needsPath:integration.databasePath,
+                housingPath:native.housingPath,propertyPath:native.propertyPath,checkpointPath:checkpoint};
+            const paths=Object.fromEntries(Object.entries(sources).map(([key,path])=>{
+                const connection=new OwnedDatabase(path);connection.run('PRAGMA wal_checkpoint(TRUNCATE)');connection.close(true);
+                const target=join(directory,`${key}.sqlite`);copyFileSync(path,target);return[key,target];
+            })) as unknown as NativeHousingBoundaryPaths;
+            snapshots.push({at:observed.simulationTime,paths});if(hour<2)clock.resume('world',clock.get('world')!.revision,wallAt);
+        }
+    }finally{rent.close();persistence.close();db.close(true);agents.close();clock.close();}
+    for(const p of snapshots){const point=readHousingAccessPoint(f.scope,integration,p.paths,p.at);expect(point.grants).toHaveLength(1);}
+    const options={configDirectory:join(f.root,'config'),nativeOutcomes:f.options,nativeIntegration:{...integration,housingBoundaries:snapshots},
+        dependencies:{agentPath:f.agentPath,clockPath:f.clockPath,productionPath:integration.businessPath,enginePath:join(f.root,'absent-trades.sqlite')}};
+    const read=()=>reportSocietyEvaluation(f.scope,options),good=read(),housing=good.nativeIntegration!.minimumHousing;
+    expect(housing.intervals).toHaveLength(2);expect(housing.intervals.every(i=>i.lowerActorIds.includes('bea'))).toBeTrue();
+    expect(good.minimumAssessment.sources.housingAccess.status).toBe('available');
+    const cell=good.minimumAssessment.assessment!.requirements.find(r=>r.requirementId==='legal-housing-access-time')!.cells.find(c=>c.subject.actorAgentId==='bea'&&c.subject.bucket===0)!;
+    expect(cell.lower).toEqual({numerator:'72000000000',denominator:'86400000'});expect(cell.verdict).toBe('inconclusive');
+    expect(good.minimumAssessment.qualifiesMinimum).toBeFalse();
+    // Controlled adapter-boundary failures: verified uncovered time survives a partial run; a foreign original admission cannot donate time.
+    const absent={...housing,intervals:housing.intervals.map(i=>({...i,lowerActorIds:[],upperActorIds:[]}))};
+    const partialScope={...f.scope,toSimulationTime:snapshots[2]!.at},partialOutcomes=reportNativeOutcomes(partialScope,f.options);
+    const early=projectNativeMinimumAssessment(contract,partialScope,partialOutcomes,undefined,{...good.nativeIntegration!,scope:partialScope,
+        minimumHousing:{...absent,scope:partialScope}});
+    expect(early.diagnosticViolations.some(v=>v.requirementId==='legal-housing-access-time')).toBeTrue();expect(early.verdict).toBe('fail');
+    const foreign=projectNativeMinimumAssessment(contract,f.scope,f.outcomes(),undefined,{...good.nativeIntegration!,minimumHousing:{...absent,
+        intervals:absent.intervals.map(i=>({...i,cohort:i.cohort.map(a=>({...a,admission:{kind:'genesis',evidenceId:'foreign',evidenceDigest:'f'.repeat(64)}}))}))}});
+    expect(foreign.requirements.find(r=>r.requirementId==='legal-housing-access-time')!.verdict).toBe('inconclusive');
+    const clone=join(f.root,'.local/housing-copy');cpSync(join(f.root,'.local/frozen-housing'),clone,{recursive:true});
+    const copied=snapshots.map((s,i)=>({at:s.at,paths:Object.fromEntries(Object.keys(s.paths).map(key=>[key,join(clone,String(i),`${key}.sqlite`)])) as unknown as NativeHousingBoundaryPaths}));
+    expect(reportSocietyEvaluation(f.scope,{...options,nativeIntegration:{...integration,housingBoundaries:copied}}).nativeIntegration!.minimumHousing).toEqual(housing);
+    mutate(copied[1]!.paths.housingPath,"UPDATE housing_prepaid_period SET source_digest='PRIVATE BAD'");
+    const badPayment=reportSocietyEvaluation(f.scope,{...options,nativeIntegration:{...integration,housingBoundaries:copied}});
+    expect(badPayment.nativeIntegration!.minimumHousing.intervals).toHaveLength(0);
+    expect(JSON.stringify(badPayment.nativeIntegration!.minimumHousing)).not.toContain('PRIVATE BAD');
+    mutate(copied[0]!.paths.housingPath,'PRAGMA user_version=99');
+    expect(()=>readHousingAccessPoint(f.scope,integration,copied[0]!.paths,copied[0]!.at)).toThrow();
+    // A rejected middle point must break both adjacent intervals; it cannot be silently removed then bridged.
+    mutate(snapshots[1]!.paths.housingPath,"UPDATE housing_tenancy SET arrears_gp=1");
+    const corrupted=read();expect(corrupted.nativeIntegration!.minimumHousing.intervals).toHaveLength(0);
+    expect(corrupted.minimumAssessment.requirements.find(r=>r.requirementId==='legal-housing-access-time')!.verdict).toBe('inconclusive');
+    // Original admission is mandatory even when a point's owner/payment facts are otherwise native.
+    const wrong={...options,nativeIntegration:{...integration,housingBoundaries:[{...snapshots[0]!,at:'PRIVATE BAD'}]}};
+    const invalid=reportSocietyEvaluation(f.scope,wrong);expect(invalid.nativeIntegration!.minimumHousing.intervals).toHaveLength(0);
+    expect(JSON.stringify(invalid.nativeIntegration!.minimumHousing)).not.toContain('PRIVATE BAD');
+},20000);
 
 test('native applied original roster binds automatically; offline members and empty verified death ledger never imply survival PASS',()=>{
     const f=fixture(),before=f.hashes(),r=f.report();expect(r.bindingStatus).toBe('bound');expect(rule(r,'founders-at-start').verdict).toBe('pass');

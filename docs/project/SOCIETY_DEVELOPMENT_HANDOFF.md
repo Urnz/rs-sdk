@@ -34,8 +34,8 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   elutasítás. Abort/deadline a teljes gatherre érvényes; késői SDK-send megáll.
 - **Következő konkrét feladat:** [2. munkacsomag, teljes minimum-assessment](SI_C07_REMAINING_WORK.md).
   **Kezdéskor7 csomag volt,1 kész,6 maradt.** Ezek nem garantált chatkörök.
-  A17/8 mag/source-map és15 részleges adapter már kész; még teljes történeti
-  coverage/nevezők, high-level demand teljesség és legal housing exposure
+  A17/8 mag/source-map és16 részleges adapter már kész; még teljes történeti
+  coverage/nevezők, high-level demand teljesség és tool-service capacity
   kell. A source-bound native ingress nem bizonyítja
   az összes high-level igényt, ezért completeDemandCoverage:false még helyes.
   Üres queue/nincs kérés továbbra sem nulla demand. C08 nem indul.
@@ -61,10 +61,16 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   Explicit paused checkpoint/needs/clock/agent/health/business/treasury pontok,
   actual HP és finite census; bank/WIP nem biztosan usable inventory. Sparse
   endpoints nem complete, sérült másik pont nem törli a hiteles reserve FAIL-t.
-- **Következő kódhatár a2. csomagon belül:** legal housing access és95% napi
-  founder exposure a meglévő sleep/rent/capacity/ownership forrásokból. Továbbra
-  kell teljes történeti mortality/enforcement és boundary inventory, capacity,
-  legal housing history, high-level demand és8 integrity adapter. **6 csomag
+- **Housing-rész kész:** [legal housing access/exposure](SI_C07_HOUSING_ACCESS.md).
+  Explicit exact-paused clock/agent/needs/title/housing/payment pontok;
+  változatlan verzió/head és legfeljebb1h gap, auditált tenancy és paid native
+  bérlet. Nincs dupla férőhelycredit; expiry és death clip, founder/nap bounds.
+  Hiányzó köztes pont nem hidalható át, visitor-jog unknown.16/17 részleges
+  adapter, nem16 PASS; teljes source-inventory/pin még nincs.
+- **Következő kódhatár a2. csomagon belül:** tool-service capacity retention,
+  comparable opening/closing native item-lifecycle kapacitással. Továbbra
+  kell teljes történeti mortality/enforcement és boundary inventory,
+  housing/access source coverage, high-level demand és8 integrity adapter. **6 csomag
   maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
@@ -116,33 +122,33 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- `20261026-201402-046-si-c07-food-final-artifact`:friss NO-GO,17/8 és15
-  adapter, sourcehash/digest és8 dokumentumlink PASS1,084 s.
-- **`20261026-200603-746-si-c07-food-direct-consumers-final`:54 célzott teszt
-  és root TS PASS108,072 s.**51 food/population/minimum/needs/integration/
-  evaluation/preflight eset47,10 s,2 save-reader eset0,09 s,1 kijelölt natív
-  benchmark/offline restore5,95 s. Pontos command/fájllista a helyi result.json-ban.
-- Napi tényleges relief vs demand, éjféli bucket, clamp/zero/no-use/mixed,
-  actual native producer→trade→consumer, eredeti genesis→food-share, frozen
-  census/health/current HP/needs/custody, inventory vs bank/raw/burnt, sparse
-  boundaries, reserve/retention FAIL és másik pont sérülése melletti FAIL,
-  offline újraolvasás és alapértelmezett save-shape változatlansága ellenőrzött.
-- Korai szűk diagnosztikák: food-core-first FAIL6,477 s (hiányzó agent channel
-  a régi controlled projection fixture-ben; valamint1800 helyett200-ra várt
-  napi relief). Null-guard és a fixture helyes tényleges relief-elvárása javította.
-  food-native-boundaries/source-diagnostic FAIL5,437/1,540 s: az új fixture-ből
-  hiányzott a business_production_material séma; rendes WIP init pótolta.
-  food-native-proof-and-types FAIL5,841 s: a native lineage proofhoz az üres
-  trade auditot is létre kellett hozni. Ezután runtime PASS, root TS miatt
-  FAIL53,794 s (assertion narrowing, Map key és literal típusok); típusok javítva,
-  nincs assertion/séma/validator lazítás. Pontos ID-k a progressben.
-- Korábbi needs/founder/mag bizonyíték a komponensdokumentumokban és a
-  [progressben](SOCIETY_INTEGRATION_PROGRESS.md); nem jelenlegi full-suite PASS.
-- Full, engine/webclient TS és packed runtime most nem futott: readonly backend
-  source/projection és opt-in save-reader adatmező változott. Az engine fixture
-  a kétargumentumos save-olvasást használja dinamikus importtal; az alapértelmezett
-  shape/értékek byte-azonosak. Közös clock/auth/transaction/migration és gameplay
-  nem módosult. A root TS és tényleges közvetlen fogyasztók célzottan ellenőrzöttek.
+- `20261026-221017-022-si-c07-housing-direct-consumers`:39 runtime teszt
+  PASS53,43 s: population/minimum/integration/evaluation/preflight. Az egész
+  gate FAIL115,724 s lett a controlled housing-fixture null admission típusa
+  miatt; a fixture javítva, assertion vagy termékvalidator nem lazult.
+- `20261026-221251-685-si-c07-housing-types-and-restore`:7 intervallumteszt,
+  1 kijelölt benchmark/offline restore és root TS PASS79,128 s.
+- **`20261026-221438-001-si-c07-housing-final-reader-types`:végső natív
+  reader→evaluation próba és root TS PASS64,195 s.** Aktív bérlet hibás prepaid
+  projekciója az egész pontot elutasítja; jövőbeli tenancy-séma sem olvasható.
+  Összesen47 külön célzott eset sikeres a fenti scope-okban; nem full-suite.
+- `20261026-221515-419-si-c07-housing-artifact`:friss NO-GO,17/8,16 részleges
+  adapter, sourcehash/digest és9 dokumentumlink PASS0,780 s.
+- `20261026-221619-544-si-c07-housing-staged-docs`:staged format és artifact/
+  linkellenőrzés PASS0,920 s; a végső dokumentált eredmény után format újra.
+- Owner/tenant napi idő, lejárat, közös ágy és capacity, audit/epoch/clock/
+  cohort-gap, unknown visitor, natív committed escrow/prepaid tenancy,
+  eredeti genesis→housing exposure, korai FAIL, idegen admission, offline
+  másolat és sérült köztes fizetési/tenancy projection ellenőrzött.
+- Korai native-first FAIL0,967 s: az új fixture createSaveData hívásából
+  hiányzott az üres options objektum; javítva. A sikertelen és sikeres szűk
+  próbák ID-i a [progressben](SOCIETY_INTEGRATION_PROGRESS.md) szerepelnek.
+- Korábbi food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
+  progressben; nem jelenlegi full-suite PASS.
+- Full, engine/webclient TS és packed runtime most nem futott: csak readonly
+  backend source/projection és közvetlen fogyasztói változtak. Közös clock,
+  auth, transaction, migration, függőség vagy gameplay nem módosult. A scope
+  pontos fájllistái a helyi `.local/verification/*.result.json` fájlokban vannak.
 - Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.
 ## Megőrzendő döntések
 

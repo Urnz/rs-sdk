@@ -30,6 +30,7 @@ import { NativeFoodConsumptionProjection } from '../food-loop/native-consumption
 import { loadFoodLoopCatalog } from '../food-loop/catalog.js';
 import { readNativeTravelFares } from '../server/engine/src/mods/NativeTravelFareStore.js';
 import { readNativeFoodBoundary,type NativeFoodBoundaryPaths } from './food-boundaries.js';
+import { readHousingAccessPoint,type NativeHousingBoundaryPaths } from './housing-access.js';
 
 export interface NativeWealthPaths { checkpointPath: string; businessPath: string; treasuryPath: string; clockPath: string; needsPath: string }
 
@@ -40,6 +41,7 @@ export interface NativeIntegrationOptions extends PopulationNeedsOptions {
     openingBoundary?: NativeWealthPaths; closingBoundary?: NativeWealthPaths;
     /** Explicit frozen snapshots only; no inferred/current-state boundary or HTTP-supplied path. */
     foodBoundaries?:Array<{at:string;paths:NativeFoodBoundaryPaths}>;
+    housingBoundaries?:Array<{at:string;paths:NativeHousingBoundaryPaths}>;
 }
 export function nativeIntegrationOptions(workspace: string): NativeIntegrationOptions {
     return { ...populationNeedsOptions(workspace), clockPath: join(workspace, '.local/simulation/simulation-clock.sqlite'),
@@ -321,7 +323,17 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
             }catch{throw new Error('Native food boundary validation failed');}
         })}))};
     });
+    const housingAccess=capture(()=>{
+        if(!options.housingBoundaries?.length)throw new AbsentSource('Frozen housing access points not configured');
+        check(options.housingBoundaries.length<=1000&&new Set(options.housingBoundaries.map(p=>p.at)).size===options.housingBoundaries.length,'Invalid housing point inventory');
+        check(options.housingBoundaries.every(p=>new Date(p.at).toISOString()===p.at&&p.at>=scope.fromSimulationTime&&p.at<=scope.toSimulationTime),'Housing inventory outside scope');
+        return{points:options.housingBoundaries.map(p=>({at:p.at,source:capture(()=>{
+            try{check(new Date(p.at).toISOString()===p.at&&p.at>=scope.fromSimulationTime&&p.at<=scope.toSimulationTime,'Housing point outside scope');
+                return readHousingAccessPoint(scope,options,p.paths,p.at);
+            }catch{throw new Error('Native housing point validation failed');}
+        })}))};
+    });
     return { needs, modes, nutrition, lineage,foodCatalog, production, kitchen, commerce, rent, custody, wip, commerceOrders, rentalOrders, work, treasury, rewards, trades,
-        currentAssets, openingAssets, closingAssets,foodBoundaries, sleep, journalHeads, consumption, fares };
+        currentAssets, openingAssets, closingAssets,foodBoundaries,housingAccess, sleep, journalHeads, consumption, fares };
 }
 export type NativeIntegrationSources = ReturnType<typeof collectNativeIntegrationSources>;

@@ -180,3 +180,11 @@ Actual paused snapshot, census/health/HP és custody alapján fizikai alsó/fels
 korlátok; két endpoint nem teljes boundary coverage.15/17 részleges adapter,
 nem15 mért PASS. A konkrét C07 frozen source-lista/pin még nincs. A2. csomag
 és a preflight nyitott/NO-GO,6 csomag maradt; új run/baseline/providerköltség0.
+
+További rész: [fagyasztott legal housing exposure](SI_C07_HOUSING_ACCESS.md),
+változatlan tulajdonosi/reservation/payment epoch és natív prepaid tenancy,
+kapacitás, expiry, founder/nap és halálig vágott nevező. Hiányzó pont vagy
+nem modellezett visitor-jog unknown, a sleep receipt önmagában nem95% access.
+16/17 részleges adapter; csak a tool-service capacity retention source-map-only.
+A teljes source coverage/demand és8 integrity hiányában továbbra NO-GO,
+6 csomag maradt, a2. nyitott; nincs új run/baseline/providerköltség.
