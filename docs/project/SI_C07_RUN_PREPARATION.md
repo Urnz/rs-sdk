@@ -173,3 +173,10 @@ genesis/lifecycle-kötött4 időfeltétel, naponta külön satisfied lower/upper
 application/watermark újrajátszva; hiányos idő unknown.11/17 szabályhoz van
 adapter, ez nem11 feltétel mért PASS-a. A8 integrity és a többi source-adapter
 miatt továbbra NO-GO;6 csomag maradt.
+
+További rész: [napi food share/final-use és frozen reserve/retention](SI_C07_FOOD_MINIMUM.md).
+A belső tényleges relief arányát méri, nem a korábbi relief/demand képletet.
+Actual paused snapshot, census/health/HP és custody alapján fizikai alsó/felső
+korlátok; két endpoint nem teljes boundary coverage.15/17 részleges adapter,
+nem15 mért PASS. A konkrét C07 frozen source-lista/pin még nincs. A2. csomag
+és a preflight nyitott/NO-GO,6 csomag maradt; új run/baseline/providerköltség0.

@@ -158,7 +158,7 @@
           "nutrition",
           "food-lineage"
         ],
-        "missing": "All relief and verified internal lineage in each original bucket, not a whole-window average."
+        "missing": "Native actual-relief share is measured per original bucket; complete applications and bound gather/process ancestry are required, zero relief is inconclusive."
       },
       {
         "requirementId": "food-reserve-coverage",
@@ -171,7 +171,7 @@
           "native-asset-boundaries",
           "needs-demand"
         ],
-        "missing": "Usable food reserve against measured physiological demand at every native boundary."
+        "missing": "Explicit frozen checkpoint/needs/clock/agent/health/custody snapshots give usable-capacity forecast bounds; all-boundary inventory and access coverage still required."
       },
       {
         "requirementId": "food-stock-retention",
@@ -184,7 +184,7 @@
           "native-asset-boundaries",
           "food-custody"
         ],
-        "missing": "Comparable opening/closing usable stock with complete custody; WIP mirrors are not additional stock."
+        "missing": "Frozen opening/closing relief-capacity bounds per required chain; bank/business/escrow stock is upper-only until access is proved, no WIP double credit."
       },
       {
         "requirementId": "legal-housing-access-time",
@@ -274,7 +274,7 @@
           "food-lineage",
           "native-final-use"
         ],
-        "missing": "Producer-to-distinct-consumer final-use lineage in every bucket, not transfers or trades."
+        "missing": "A bound native gather/process/trade/consume chain supplies one daily lower-bound final use; no zero or upper count from missing lineage."
       }
     ],
     "integrity": [
@@ -431,8 +431,8 @@
         "nutrition",
         "food-lineage"
       ],
-      "missing": "All relief and verified internal lineage in each original bucket, not a whole-window average.",
-      "status": "source-map-only",
+      "missing": "Native actual-relief share is measured per original bucket; complete applications and bound gather/process ancestry are required, zero relief is inconclusive.",
+      "status": "minimum-food-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -445,8 +445,8 @@
         "native-asset-boundaries",
         "needs-demand"
       ],
-      "missing": "Usable food reserve against measured physiological demand at every native boundary.",
-      "status": "source-map-only",
+      "missing": "Explicit frozen checkpoint/needs/clock/agent/health/custody snapshots give usable-capacity forecast bounds; all-boundary inventory and access coverage still required.",
+      "status": "minimum-food-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -459,8 +459,8 @@
         "native-asset-boundaries",
         "food-custody"
       ],
-      "missing": "Comparable opening/closing usable stock with complete custody; WIP mirrors are not additional stock.",
-      "status": "source-map-only",
+      "missing": "Frozen opening/closing relief-capacity bounds per required chain; bank/business/escrow stock is upper-only until access is proved, no WIP double credit.",
+      "status": "minimum-food-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -556,8 +556,8 @@
         "food-lineage",
         "native-final-use"
       ],
-      "missing": "Producer-to-distinct-consumer final-use lineage in every bucket, not transfers or trades.",
-      "status": "source-map-only",
+      "missing": "A bound native gather/process/trade/consume chain supplies one daily lower-bound final use; no zero or upper count from missing lineage.",
+      "status": "minimum-food-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     }
@@ -586,7 +586,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "The17/8 assessor, work/tool and population bounds plus replayed per-founder needs exposure exist. Continuous mortality/boundaries, food/housing/capacity histories, complete request denominators and eight native integrity adapters remain incomplete; physiology requires complete native sources."
+      "reason": "The17/8 assessor, work/tool/population/needs bounds and four food/final-use adapters exist. Complete frozen boundary/custody coverage, mortality/enforcement, housing/capacity, high-level demand and eight native integrity proofs remain incomplete; partial source evidence cannot certify a full run."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -642,15 +642,15 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "4a1ff419d2c3fd61447bd3f75f3c339fdcb7b11d3a41dd3cf2d3bcf0b6139e19"
+      "sha256": "cf8aa3aecedfe57eebd1b65a9a64bc86a5daa6eba86515efd5783524c7de5ac3"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "5dbcb8cbd6de87336d633c22c7ce5a3d9f68886c6ec23a1bf301750d0f072673"
+      "sha256": "70389bba8b13bf410a2b8a2f817d964296ae6919121ebd173779c3a279caaaf4"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
-      "sha256": "e82709c9989ca3a842dcf013c7fbce9083007e2a113795346b12442a556a35b7"
+      "sha256": "1a6826a651e9c0d861a4332aafc11ce7a6dfbda1094ef567eb0f78f73a7ef88c"
     },
     {
       "path": "society-metrics/needs-exposure.ts",
@@ -675,6 +675,42 @@
     {
       "path": "simulation-clock/store.ts",
       "sha256": "65bf7d0eae0ec6c9b530b97eff0424260b753afbc938e8d3343133e019627ec8"
+    },
+    {
+      "path": "society-metrics/food-minimum.ts",
+      "sha256": "d28fbadaeca6f64347fd29615f17dbec06388906fa79d33a890889802b3e0d8a"
+    },
+    {
+      "path": "society-metrics/food-boundaries.ts",
+      "sha256": "04b3f8d1bc56d9de4005ede3366162db9bf1a4d279374605edabba4d132e9e2c"
+    },
+    {
+      "path": "society-metrics/integration-sources.ts",
+      "sha256": "afaa86486546a748122d459392c8be5ed777c6df0c7e753fb8488ced0480aaa8"
+    },
+    {
+      "path": "server/gateway/admin/save-reader.ts",
+      "sha256": "f4b5e38241df365127833f4f9c0d773d74c8684cd32c8e16f480785be0cc91e9"
+    },
+    {
+      "path": "food-loop/lineage.ts",
+      "sha256": "d5b1a82b995699695979ee74bc8166437c3a259277a8bae3a00db572b05e028a"
+    },
+    {
+      "path": "food-loop/native-source.ts",
+      "sha256": "86ca5d420420b9a39c1b2edb40cde0e71a8f53c45f2550f6baa1becbfebe4e28"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodLineageStore.ts",
+      "sha256": "f5108915c456775c5716880bb46a3970e70b342fca304d61eaecf3cb12fb951b"
+    },
+    {
+      "path": "population-lifecycle/mortality.ts",
+      "sha256": "fbd10ccf085fcf7ee71683959684adef7e47556f0a2164e44e50c5025f81b3c3"
+    },
+    {
+      "path": "population-lifecycle/age.ts",
+      "sha256": "714f4a18cbee95b23a12346e0f49e50dc9fa68f669c21f876ff2a796f29c15bc"
     },
     {
       "path": "population-lifecycle/genesis.ts",
@@ -702,7 +738,7 @@
     },
     {
       "path": "society-metrics/integration-report.ts",
-      "sha256": "8be4c24c31cd30065e84af0a06019f36c89e1962da97ab0d94d36a060542f265"
+      "sha256": "c3e5e7d4600cfe95d50aa80c201d47066347230c7334e4083711df6b77ac8557"
     },
     {
       "path": "society-metrics/evaluation-report.ts",
@@ -854,7 +890,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "ce3553fdd263478f5f61137af19f582f728a3102a69163b47142e04506b715a3"
+      "sha256": "4d3432e6ad95ff043d753b3f1558042dba236078c94fe2518bed5378ed1064f9"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -883,5 +919,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "4d7e79f3a26389e2a10e75749d205c7d60958f794606020eff43f0385e32b724"
+  "digest": "687757be05224ebdced7e2d782c2725a38d0d4b114c8cac2392a1348226c29d2"
 }

@@ -1,5 +1,5 @@
 import { afterEach,expect,test } from 'bun:test';
-import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync } from 'node:fs';
+import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync,copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -20,12 +20,22 @@ import { loadSocietyMinimumContract } from '../../society-minimum/contract.js';
 import { reportNativeOutcomes,type NativeOutcomeOptions } from '../native-outcomes.js';
 import { projectNativeMinimumAssessment } from '../minimum-assessment.js';
 import { reportSocietyEvaluation } from '../evaluation-report.js';
-import { nativeIntegrationOptions } from '../integration-sources.js';
+import { nativeIntegrationOptions,readWealthBoundary } from '../integration-sources.js';
 import { FoodNeedsPersistence } from '../../food-loop/needs-persistence.js';
 import { populationNeedsBinding } from '../../needs/population-binding.js';
 import { loadFoodLoopCatalog } from '../../food-loop/catalog.js';
-import { NativeFoodConsumptionStore } from '../../server/engine/src/mods/NativeFoodConsumptionStore.js';
+import { NativeFoodConsumptionStore,foodDigest,FOOD_POLICY } from '../../server/engine/src/mods/NativeFoodConsumptionStore.js';
+import { NativeFoodProductionStore,type FoodProductionAction } from '../../server/engine/src/mods/NativeFoodProductionStore.js';
+import { NativeFoodSource } from '../../food-loop/native-source.js';
+import { ProductionWorkInProgressStore,loadDefaultProductionWorkflowCatalog } from '../../production-workflow/index.js';
+import { TradeEvidenceStore } from '../../server/engine/src/mods/TradeEvidenceStore.js';
 import { closeFoodDeliveryTick } from '../../server/engine/src/mods/NativeFoodDeliveryStore.js';
+import { BusinessManagerStore } from '../../server/gateway/admin/business-manager.js';
+import { BusinessAssetStore } from '../../business-assets/store.js';
+import { InstitutionTreasuryStore } from '../../server/gateway/admin/institution-treasury.js';
+import { PlayerInventoryEscrowStore } from '../../server/engine/src/mods/PlayerInventoryEscrowStore.js';
+import { createSaveData } from '../../sdk/test/utils/save-generator.js';
+import {readNativeFoodBoundary,type NativeFoodBoundaryPaths} from '../food-boundaries.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -79,6 +89,62 @@ test('native applied original roster binds automatically; offline members and em
     expect(r.integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();expect(r.verdict).toBe('inconclusive');expect(f.hashes()).toEqual(before);
     expect(f.report().digest).toBe(r.digest);
 });
+test('frozen physical food bounds reach reserve/retention rules, exclude inaccessible stock, retain scoped failures and reopen offline',()=>{
+    const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});mkdirSync(join(f.root,'.local/simulation'),{recursive:true});
+    const integration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath},checkpoint=join(f.root,'server/engine/data/checkpoints.sqlite');
+    integration.nativeFoodCheckpointPath=checkpoint;
+    new BusinessManagerStore(integration.businessPath).close();new BusinessAssetStore(integration.businessPath).close();new InstitutionTreasuryStore(integration.treasuryPath).close();
+    new ProductionWorkInProgressStore(integration.businessPath,loadDefaultProductionWorkflowCatalog(),undefined,false).close();
+    const clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,{store:clock,clockId:'world'}),db=new OwnedDatabase(checkpoint),
+        persistence=new FoodNeedsPersistence(integration.databasePath,contract.dependencies.needs,contract.dependencies.dynamics,loadFoodLoopCatalog(join(configDirectory,'food-loops.json')));
+    const snapshots:Array<{at:string;paths:NativeFoodBoundaryPaths}>=[];
+    try{
+        new NativeFoodConsumptionStore({db});new PlayerInventoryEscrowStore({db,checkpoint:()=>{}});db.run('CREATE TABLE accounts(owner TEXT PRIMARY KEY,save BLOB NOT NULL)');
+        const bindings=f.scope.actorAgentIds.map(id=>{
+            agents.setCharacterBirth(id,agents.getCharacterLifecycle(id)!.revision,initial,'born',wall);
+            db.run('INSERT INTO accounts VALUES(?1,?2)',[id,createSaveData({inventory:[{id:379,count:100}],bank:[]})]);
+            return populationNeedsBinding('fixture',agents.getPopulationMember(id)!);
+        });
+        const admitted=clock.observe('world',wall,1);
+        for(const binding of bindings)persistence.needs.initialize({binding,clock:admitted,history:[],playerTime:null,
+            admission:{kind:'genesis',evidenceId:f.options.population!.genesisResultId,evidenceDigest:f.options.population!.genesisResultDigest}});
+        for(const [index,elapsed] of [86400000,8*86400000].entries()){
+            const at=new Date(Date.parse(initial)+elapsed).toISOString(),wallAt=new Date(Date.parse(wall)+elapsed).toISOString(),observed=clock.observe('world',wallAt,index+2);
+            closeFoodDeliveryTick(db,observed);
+            for(const binding of bindings)persistence.needs.advance({binding,clock:observed,history:[],playerTime:null,expectedRevision:persistence.needs.get(binding)!.revision});
+            clock.pause('world',clock.get('world')!.revision,wallAt);
+            const directory=join(f.root,'.local/frozen',String(index));mkdirSync(directory,{recursive:true});
+            const sources:NativeFoodBoundaryPaths={checkpointPath:checkpoint,needsPath:integration.databasePath,clockPath:f.clockPath,businessPath:integration.businessPath,
+                treasuryPath:integration.treasuryPath,agentPath:f.agentPath,healthPath:f.healthPath};
+            const paths=Object.fromEntries(Object.entries(sources).map(([key,path])=>{
+                const connection=new OwnedDatabase(path);connection.run('PRAGMA wal_checkpoint(TRUNCATE)');connection.close(true);
+                const target=join(directory,`${key}.sqlite`);copyFileSync(path,target);return[key,target];
+            })) as unknown as NativeFoodBoundaryPaths;snapshots.push({at,paths});
+            if(index===0)clock.resume('world',clock.get('world')!.revision,wallAt);
+        }
+    }finally{persistence.close();db.close(true);agents.close();clock.close();}
+    const options={configDirectory:join(f.root,'config'),nativeOutcomes:f.options,nativeIntegration:{...integration,foodBoundaries:snapshots},
+        dependencies:{agentPath:f.agentPath,clockPath:f.clockPath,productionPath:integration.businessPath,enginePath:join(f.root,'absent-trades.sqlite')}};
+    for(const s of snapshots)readNativeFoodBoundary(f.scope,options.nativeIntegration,s.paths,readWealthBoundary(f.scope,options.nativeIntegration,s.paths,s.at));
+    const read=()=>reportSocietyEvaluation(f.scope,options),good=read();
+    expect(good.nativeIntegration!.minimumFood.boundaries.every(b=>b.source.status==='available')).toBeTrue();
+    expect(good.minimumAssessment.requirements.find(r=>r.requirementId==='food-stock-retention')!.verdict).toBe('pass');
+    const reserve=good.minimumAssessment.assessment!.requirements.find(r=>r.requirementId==='food-reserve-coverage')!;
+    expect(reserve.cells.every(c=>c.verdict==='pass')).toBeTrue();expect(reserve.verdict).toBe('inconclusive'); // Two endpoints are not every native boundary.
+    const clone=join(f.root,'.local/frozen-copy');cpSync(join(f.root,'.local/frozen'),clone,{recursive:true});
+    const cloned=snapshots.map((s,i)=>({at:s.at,paths:Object.fromEntries(Object.keys(s.paths).map(key=>[key,join(clone,String(i),`${key}.sqlite`)])) as unknown as NativeFoodBoundaryPaths}));
+    expect(reportSocietyEvaluation(f.scope,{...options,nativeIntegration:{...integration,foodBoundaries:cloned}}).nativeIntegration!.minimumFood).toEqual(good.nativeIntegration!.minimumFood);
+    const closing=new OwnedDatabase(snapshots[1]!.paths.checkpointPath);
+    try{closing.run('UPDATE accounts SET save=?1',[createSaveData({inventory:[{id:377,count:100}],bank:[{id:379,count:100}]})]);}finally{closing.close(true);}
+    expect(read().minimumAssessment.requirements.find(r=>r.requirementId==='food-stock-retention')!.verdict).toBe('inconclusive');
+    const empty=new OwnedDatabase(snapshots[1]!.paths.checkpointPath);try{empty.run('UPDATE accounts SET save=?1',[createSaveData({inventory:[{id:377,count:100},{id:381,count:100}],bank:[]})]);}finally{empty.close(true);}
+    const failed=read();expect(failed.minimumAssessment.requirements.find(r=>r.requirementId==='food-stock-retention')!.verdict).toBe('fail');
+    expect(failed.minimumAssessment.requirements.find(r=>r.requirementId==='food-reserve-coverage')!.verdict).toBe('fail');
+    expect(failed.minimumAssessment.qualifiesMinimum).toBeFalse();
+    mutate(snapshots[0]!.paths.healthPath,"UPDATE engine_health_audit_tail SET entry_hash='PRIVATE BAD' WHERE domain='death'");
+    const partial=read();expect(partial.minimumAssessment.requirements.find(r=>r.requirementId==='food-reserve-coverage')!.verdict).toBe('fail');
+    expect(JSON.stringify(partial.nativeIntegration!.minimumFood)).not.toContain('PRIVATE BAD');
+},20000);
 test('engine death before delayed AgentState projection fails original four-founder survival; projecting it does not drop the founder',()=>{
     for(const project of [false,true]){const f=fixture();f.kill('2001-01-04T00:00:00.000Z',project);const r=f.report();
         expect(r.bindingStatus).toBe('bound');expect(r.assessment!.frame.founderAgentIds).toHaveLength(4);
@@ -133,12 +199,29 @@ test('native applied founders, physiology journals and food watermark reach all 
     const db=new OwnedDatabase(checkpoint),clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,undefined,true),
         persistence=new FoodNeedsPersistence(path,contract.dependencies.needs,contract.dependencies.dynamics,loadFoodLoopCatalog(join(configDirectory,'food-loops.json')));
     try{
-        new NativeFoodConsumptionStore({db});
+        const consumption=new NativeFoodConsumptionStore({db}),production=new NativeFoodProductionStore(db);
+        new TradeEvidenceStore(join(f.root,'server/engine/data/mods/trade-evidence.sqlite')).close();
         const bindings=f.scope.actorAgentIds.map(id=>populationNeedsBinding('fixture',agents.getPopulationMember(id)!)),opening=clock.observe('world',wall);
         for(const binding of bindings)persistence.needs.initialize({binding,clock:opening,history:[],playerTime:null,
             admission:{kind:'genesis',evidenceId:f.options.population!.genesisResultId,evidenceDigest:f.options.population!.genesisResultDigest}});
+        const b=bindings[0]!,observe=(hours:number)=>clock.observe('world',new Date(Date.parse(wall)+hours*3600000).toISOString(),Math.round(hours*100));
+        for(const [kind,hours] of [['gather',25],['cook',26]] as const){
+            const action:FoodProductionAction=production.admit({actionId:crypto.randomUUID(),worldId:b.worldId,actorId:b.actorId,username:b.playerId,lifecycleId:b.lifecycleId,
+                clockId:b.clockId,clockProfileDigest:b.clockProfileDigest,kind,runId:'native-food',batchId:'batch',policyDigest:'a'.repeat(64),catalogDigest:'b'.repeat(64),
+                source:{kind:kind==='gather'?'npc':'loc',sourceId:'finite-source',typeId:1,x:3200,z:3200,level:0},recipeId:'food.cook-lobster',recipeVersion:'1.0.0'});
+            db.transaction(()=>production.finish({schemaVersion:1,action,requestDigest:foodDigest(action),outcome:kind==='gather'?'raw-gained':'cooked',
+                inputs:kind==='gather'?[]:[{itemId:377,quantity:1}],outputs:[{itemId:kind==='gather'?377:379,quantity:1}],before:{raw:kind==='gather'?0:1,cooked:0,burnt:0},
+                after:{raw:kind==='gather'?1:0,cooked:kind==='cook'?1:0,burnt:0},quota:kind==='gather'?production.takeQuota(action,1):null,
+                clock:observe(hours),checkpointId:`food-production:${action.actionId}`,checkpointDigest:'d'.repeat(64)})).immediate();
+        }
+        const action=consumption.admit({actionId:crypto.randomUUID(),worldId:b.worldId,actorId:b.actorId,username:b.playerId,lifecycleId:b.lifecycleId,
+            clockId:b.clockId,clockProfileDigest:b.clockProfileDigest,itemId:379,quantity:1,slot:0,policyDigest:foodDigest(FOOD_POLICY)}),mealClock=observe(27);
+        db.transaction(()=>consumption.finish({action,outcome:'consumed',receipt:{...action,schemaVersion:1,cause:'content:consume_effect_stat',before:1,after:0,hpBefore:10,hpAfter:10,
+            clock:mealClock,checkpointId:`food:${action.actionId}`,checkpointDigest:'d'.repeat(64),requestDigest:foodDigest(action)}},mealClock)).immediate();closeFoodDeliveryTick(db,mealClock);
+        const source=new NativeFoodSource({workspace:f.root,worldId:'fixture',checkpointPath:checkpoint});
+        try{persistence.nativeFood.apply(source,1,{binding:b,clock:mealClock,history:[],playerTime:null,expectedRevision:1});}finally{source.close();}
         const closing=clock.observe('world',new Date(Date.parse(wall)+8*86400000).toISOString(),42);closeFoodDeliveryTick(db,closing);
-        for(const binding of bindings)persistence.needs.advance({binding,clock:closing,history:[],playerTime:null,expectedRevision:1});
+        for(const binding of bindings)persistence.needs.advance({binding,clock:closing,history:[],playerTime:null,expectedRevision:persistence.needs.get(binding)!.revision});
     }finally{persistence.close();agents.close();clock.close();db.close(true);}
     const nativeIntegration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath,databasePath:path,nativeFoodCheckpointPath:checkpoint};
     const options={configDirectory:join(f.root,'config'),nativeOutcomes:f.options,nativeIntegration,
@@ -148,6 +231,8 @@ test('native applied founders, physiology journals and food watermark reach all 
     for(const id of ['hunger-satisfied-time','fatigue-satisfied-time','hunger-continuous-critical-time','fatigue-continuous-critical-time'])
         expect(minimum.requirements.find(r=>r.requirementId===id)!.verdict).toBe('fail');
     expect(minimum.assessment!.requirements.find(r=>r.requirementId==='fatigue-satisfied-time')!.cells).toHaveLength(28);
+    expect(minimum.sources.foodMinimum.status).toBe('available');
+    expect(minimum.assessment!.requirements.find(r=>r.requirementId==='internal-food-relief-share')!.cells[0]!.verdict).toBe('pass');
     expect(evaluation.societyMinimumVerdict).toBe('fail');expect(minimum.qualifiesMinimum).toBeFalse();
     expect([...f.hashes(),readFileSync(path),readFileSync(checkpoint)]).toEqual(before);
     const partial={...f.scope,toSimulationTime:'2001-01-04T00:00:00.000Z'};

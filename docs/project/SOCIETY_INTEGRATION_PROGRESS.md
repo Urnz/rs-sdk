@@ -2840,3 +2840,55 @@ egyedi selected-trades.sqlite, integration channel available és restore-egyezé
 Más sikeres teszt nem ismétlődött. `20261026-194150-024-si-c07-needs-selected-artifact`:
 végső hash/digest/NO-GO/7 dokumentumlink PASS1,393 s. A45 külön eset száma nem
 nőtt ettől az újrafuttatástól; nincs full regression.
+
+### 2026-10-26 – SI-C07/2 napi food minimum és frozen stock/reserve
+
+Új food-minimum és food-boundaries komponensek: napi actual internal relief /
+all actual relief (külön a korábbi SI-A12 relief/demand mutatótól), native
+ancestry és egy consumption actionből egyszer számolt inter-actor final use.
+Ismeretlen/mixed eredet nem belső credit; zero/no-use nem sikeres arány, pozitív
+bootstrap/import relief már sérti100%-ot pending más alkalmazás mellett is.
+Eredeti genesis/admission/lifecycle/username/policy/clock kötés minden credithez;
+actual native gather/cook receipt és consumer különbség kell, nem trade/skill ACK.
+
+Explicit frozen checkpoint/needs/clock/business/treasury/agent/health pontokon
+closed custody, finite cohort, death audit/current HP és natural-mortality due
+ellenőrzés. Inventory-only biztos lower, bank/business/escrow upper-only;
+raw/burnt és WIP tükrök nem cooked lower credit. Racionális reserve forecast
+és required-chain retention bounds; sparse endpoints nem teljes inventory.
+Egy invalid boundary nem rejti el egy másik hiteles reserve FAIL-jét.
+A default save-reader alak/base level változatlan; current HP csak külön opt-in.
+
+Szűk diagnosztikák és javítások:
+- `20261026-195859-587-si-c07-food-core-first`:7 PASS/3 FAIL6,477 s.
+  Hiányzó agent channellel a régi controlled adapter fixture kivételt dobott;
+  null-guard pótolva. A24h-s meal tényleges relief1800, nem az1h-nál clampelt200;
+  tesztelvárás javítva, produktív képlet/katalógus/küszöb nem változott.
+- `20261026-200045-309-si-c07-food-native-boundaries`:10 PASS/1 FAIL5,437 s;
+  `20261026-200112-659-si-c07-food-boundary-source-diagnostic`:1 FAIL1,540 s.
+  Az új fixture nem initelte a business_production_material táblát; a meglévő
+  rendes WIP store init javította. Nem engedtük át hiányzó forrással a boundaryt.
+- `20261026-200241-710-si-c07-food-native-proof-and-types`:1 PASS/1 FAIL5,841 s.
+  A pozitív native lineage-hoz az üres trade audit DB is kötelező; a fixture
+  natív store initet kapott. `20261026-200327-660-si-c07-food-native-proof-types`:
+  runtime1 PASS, root TS miatt FAIL53,794 s. Assertion narrowing, Map string-key
+  és literal origin típusok javítva; check/assertion/schema nem lazult.
+
+Végső `20261026-200603-746-si-c07-food-direct-consumers-final`:51 pontos food/
+population/minimum/needs/integration/evaluation/preflight teszt +2 admin save-reader
++1 kiválasztott benchmark/offline restore +root TS PASS108,072 s. Runtime47,10 s,
+save-reader0,09 s, restore5,95 s. Az actual frozen boundary stock-kiértékelése
+külön másolt adatbázisokból is azonos; a teljes C07 expanded boundary source-pin
+és valódi result-archive még az5–7. csomag része, nem most lezárt teljesítmény.
+
+Full/engine/webclient TS és packed runtime nem futott: readonly root backend és
+opt-in parser kimenet változott, a default kétargumentumos engine fixture nézete
+azonos marad. Nincs közös clock/auth/persistence/transaction alapmódosítás.
+15/17 részleges adapter; az eredeti17/8, küszöbök és világconfig változatlanok.
+A2. csomag nyitott,6 maradt,27/45, NO-GO; SI-M3/MVS nem PASS. Következő legal
+housing access/exposure, majd capacity/full demand, mortality/boundary history
+és8 integrity adapter. Nincs live world/baseline/hosszú run, providerhívás/költség,
+régi backup DB-read, új séma/migráció/backfill vagy a C07 gazdaságának tuningja.
+
+Végső artifact: `20261026-201402-046-si-c07-food-final-artifact`, friss NO-GO,
+17/8 és15 részleges adapter, sourcehash/digest és8 dokumentumlink PASS1,084 s.

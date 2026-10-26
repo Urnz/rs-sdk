@@ -8,6 +8,7 @@ import type { NeedsPolicy } from '../needs/types.js';
 import { collectNativeIntegrationSources, type NativeIntegrationOptions, type NativeIntegrationSources } from './integration-sources.js';
 import { validateEvaluationScope, type EvaluationScope } from './evaluation.js';
 import { projectNativeNeedsExposure } from './needs-exposure.js';
+import { projectNativeFoodMinimum } from './food-minimum.js';
 
 export class NativeIntegrationError extends Error {
     constructor(message: string, readonly status: 400 | 404 | 409 = 400) { super(message); }
@@ -354,6 +355,7 @@ export function projectNativeIntegration(scope: EvaluationScope, options: Pick<N
     }
     const definition = { schemaVersion: 1, artifactKind: 'native-society-integration-report', scope, worldId: options.worldId,
         needsExposure:projectNativeNeedsExposure(scope,options.worldId,sources),
+        minimumFood:projectNativeFoodMinimum(scope,options.worldId,sources),
         measurementStatus: 'partial-native-observations', completePopulationCoverage,
         bounds: { events: '(from,to]', exposure: '[from,to)', requiredActors: 4 },
         temporalScopes: { needsAndFood: 'selected four actor lifecycles in the requested simulation window',

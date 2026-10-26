@@ -57,8 +57,8 @@ export function fixture(initialize = true, zeroRates = false) {
         for (const binding of bindings) { const current = persistence.needs.get(binding); if (current) persistence.needs.advance({ binding, clock,
             history: [], playerTime: null, expectedRevision: current.revision }); }
     };
-    const produce = (kind: 'gather' | 'cook', hours: number) => {
-        const binding = bindings[0]!, action: FoodProductionAction = production.admit({ actionId: randomUUID(), worldId: binding.worldId,
+    const produce = (kind: 'gather' | 'cook', hours: number,actorIndex=0) => {
+        const binding = bindings[actorIndex]!, action: FoodProductionAction = production.admit({ actionId: randomUUID(), worldId: binding.worldId,
             actorId: binding.actorId, username: binding.playerId, lifecycleId: binding.lifecycleId, clockId: binding.clockId,
             clockProfileDigest: binding.clockProfileDigest, kind, runId: 'food-run', batchId: 'batch', policyDigest: 'a'.repeat(64), catalogDigest: 'b'.repeat(64),
             source: { kind: kind === 'gather' ? 'npc' : 'loc', sourceId: 'finite-source', typeId: 1, x: 3200, z: 3200, level: 0 },
@@ -69,6 +69,7 @@ export function fixture(initialize = true, zeroRates = false) {
             quota: kind === 'gather' ? production.takeQuota(action, 1) : null, clock: observation(hours), checkpointId: `food-production:${action.actionId}`, checkpointDigest: 'd'.repeat(64) })).immediate();
         return action;
     };
+    let consumptionSequence=0;
     const consume = (hours = 1, noUse = false) => {
         const b = bindings[0]!, action = native.admit({ actionId: randomUUID(), worldId: b.worldId, actorId: b.actorId, username: b.playerId,
             lifecycleId: b.lifecycleId, clockId: b.clockId, clockProfileDigest: b.clockProfileDigest, itemId: 379, quantity: 1, slot: 0, policyDigest: foodDigest(FOOD_POLICY) });
@@ -77,7 +78,7 @@ export function fixture(initialize = true, zeroRates = false) {
             before: 1, after: 0, hpBefore: 20, hpAfter: 20, clock, checkpointId: `food:${action.actionId}`, checkpointDigest: 'd'.repeat(64), requestDigest: foodDigest(action) } }, clock)).immediate();
         closeFoodDeliveryTick(db, clock);
         const source = new NativeFoodSource({ workspace: root, worldId: options.worldId, checkpointPath: options.nativeFoodCheckpointPath });
-        try { persistence.nativeFood.apply(source, 1, { binding: b, clock, history: [], playerTime: null, expectedRevision: persistence.needs.get(b)!.revision }); }
+        try { persistence.nativeFood.apply(source, ++consumptionSequence, { binding: b, clock, history: [], playerTime: null, expectedRevision: persistence.needs.get(b)!.revision }); }
         finally { source.close(); } return action;
     };
     const read = () => reportNativeIntegration(scope, options);

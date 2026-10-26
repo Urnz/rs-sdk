@@ -14,6 +14,7 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     expect(report.readerCoverage.filter(r=>r.status==='minimum-lower-bound-adapter')).toHaveLength(4);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-population-bound-adapter')).toHaveLength(3);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-needs-exposure-adapter')).toHaveLength(4);
+    expect(report.readerCoverage.filter(r=>r.status==='minimum-food-bound-adapter')).toHaveLength(4);
     expect(report.candidate).toMatchObject({warmupSimulationMs:86400000,evaluationSimulationMs:604800000,nominalWallMs:2400000,
         proposedSampleWallMs:5000,providerRequestsAuthorized:0,providerCostMicrosAuthorized:0,selectedWorldId:null});
     expect(report.liveRunStarted).toBeFalse();expect(report.readyForRunApproval).toBeFalse();

@@ -13,6 +13,9 @@ Az applied founder-roster és natív terminal-death upper bound is bekötött;
 teljes történeti mortality/boundary és a konkrét baseline fiziológiai forráslefedettsége még kell.
 Az éhség/fáradtság replay és4 minimum-időfeltétel adaptere is elkészült;
 a teljes kiválasztott run source coverage továbbra előfeltétel, a2. nyitott.
+Napi food share/final-use és frozen reserve/stock adapter is elkészült:
+[15/17 részleges adapter](SI_C07_FOOD_MINIMUM.md). Ez nem minimum PASS;
+legal housing/capacity, teljes coverage/demand és8 integrity még kell.
 
 1. **KÉSZ – Executor → SDK → natív belépés pontos kötése.** Egyszer használható,
    forrásból hitelesített dispatch/target; replay/cancel/late-ACK és másik raw

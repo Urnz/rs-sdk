@@ -8,16 +8,16 @@ const requirements:Record<string,{channels:string[];missing:string}>={
     'fatigue-satisfied-time':{channels:['needs-history','player-time','sleep-effects'],missing:'Replayed per-founder/day time requires original admission and exact mode/sleep-expiry history; missing time stays unknown.'},
     'hunger-continuous-critical-time':{channels:['needs-history','nutrition'],missing:'Replayed longest critical interval crosses buckets; native meal/watermark gaps cannot become relief or a duration upper bound.'},
     'fatigue-continuous-critical-time':{channels:['needs-history','player-time','sleep-effects'],missing:'Replayed longest critical interval crosses buckets; missing mode/history coverage cannot become a duration upper bound.'},
-    'internal-food-relief-share':{channels:['native-integration','nutrition','food-lineage'],missing:'All relief and verified internal lineage in each original bucket, not a whole-window average.'},
-    'food-reserve-coverage':{channels:['native-asset-boundaries','needs-demand'],missing:'Usable food reserve against measured physiological demand at every native boundary.'},
-    'food-stock-retention':{channels:['native-asset-boundaries','food-custody'],missing:'Comparable opening/closing usable stock with complete custody; WIP mirrors are not additional stock.'},
+    'internal-food-relief-share':{channels:['native-integration','nutrition','food-lineage'],missing:'Native actual-relief share is measured per original bucket; complete applications and bound gather/process ancestry are required, zero relief is inconclusive.'},
+    'food-reserve-coverage':{channels:['native-asset-boundaries','needs-demand'],missing:'Explicit frozen checkpoint/needs/clock/agent/health/custody snapshots give usable-capacity forecast bounds; all-boundary inventory and access coverage still required.'},
+    'food-stock-retention':{channels:['native-asset-boundaries','food-custody'],missing:'Frozen opening/closing relief-capacity bounds per required chain; bank/business/escrow stock is upper-only until access is proved, no WIP double credit.'},
     'legal-housing-access-time':{channels:['housing-access-history','ownership-history','player-time'],missing:'Legal minimum-tier access per founder/bucket; rent or sleep receipts alone do not prove it.'},
     'tool-maintenance-cycles':{channels:['native-work'],missing:'Verified repair effects provide a lower count; absent receipts do not prove zero maintenance.'},
     'tool-unusable-demand-time':{channels:['native-tool-demand','cohort-coverage','executor-requests'],missing:'Native intervals provide a lower duration bound; complete high-level demand coverage is still required.'},
     'tool-service-capacity-retention':{channels:['native-tool-boundaries','item-lifecycle'],missing:'Exact comparable opening/closing service capacity, not current durability or number of tools.'},
     'productive-participants':{channels:['native-work'],missing:'Distinct physical producers in each bucket; a receipt subset provides only a lower count.'},
     'productive-stage-kinds':{channels:['native-work'],missing:'Verified food-gathering, food-processing and tool-maintenance; Mining/smelting alone do not replace these stages.'},
-    'inter-actor-final-use-chains':{channels:['food-lineage','native-final-use'],missing:'Producer-to-distinct-consumer final-use lineage in every bucket, not transfers or trades.'}
+    'inter-actor-final-use-chains':{channels:['food-lineage','native-final-use'],missing:'A bound native gather/process/trade/consume chain supplies one daily lower-bound final use; no zero or upper count from missing lineage.'}
 };
 const gates:Record<string,string>={
     'applied-genesis-baseline':'Applied result, exact native opening state and genesis identity.',

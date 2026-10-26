@@ -1093,6 +1093,8 @@ Az applied founder-roster és natív terminal-death upper bound bekötött;
 folyamatos mortality/boundary és needs exposure még hiányos. A2. csomag nyitott.
 Az [éhség/fáradtság történeti replay és4 időfeltétel](SI_C07_NEEDS_EXPOSURE.md)
 adaptere is kész; a teljes baseline source coverage és többi gate még kell.
+Elkészült a [napi food share/final-use és frozen reserve/retention adapter](SI_C07_FOOD_MINIMUM.md)
+is.15/17 részleges adapter, nem15 PASS; a2. csomag és SI-C07 továbbra nyitott.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

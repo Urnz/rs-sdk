@@ -31,7 +31,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         channels:r.channels,missing:r.missing,
         status:['tool-maintenance-cycles','tool-unusable-demand-time','productive-participants','productive-stage-kinds'].includes(r.requirementId)?'minimum-lower-bound-adapter'
             :['founders-at-start','minimum-living-founders','founder-survival'].includes(r.requirementId)?'minimum-population-bound-adapter'
-            :['hunger-satisfied-time','fatigue-satisfied-time','hunger-continuous-critical-time','fatigue-continuous-critical-time'].includes(r.requirementId)?'minimum-needs-exposure-adapter':'source-map-only',
+            :['hunger-satisfied-time','fatigue-satisfied-time','hunger-continuous-critical-time','fatigue-continuous-critical-time'].includes(r.requirementId)?'minimum-needs-exposure-adapter'
+            :['internal-food-relief-share','food-reserve-coverage','food-stock-retention','inter-actor-final-use-chains'].includes(r.requirementId)?'minimum-food-bound-adapter':'source-map-only',
         assessedValue:null,verdict:'inconclusive'}));
     const gates=[
         {id:'unchanged-minimum',status:sourceHash(root,'config/society-minimum-policy.json')===APPROVED_MINIMUM_SOURCE_SHA256?'passed':'blocked',
@@ -40,7 +41,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         {id:'finite-food-envelope',status:'unverified',
             reason:`No-burn provisioning headroom ${headroom??'unknown'} portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence.`},
         {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:'Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity.'},
-        {id:'minimum-assessor',status:'blocked',reason:'The17/8 assessor, work/tool and population bounds plus replayed per-founder needs exposure exist. Continuous mortality/boundaries, food/housing/capacity histories, complete request denominators and eight native integrity adapters remain incomplete; physiology requires complete native sources.'},
+        {id:'minimum-assessor',status:'blocked',reason:'The17/8 assessor, work/tool/population/needs bounds and four food/final-use adapters exist. Complete frozen boundary/custody coverage, mortality/enforcement, housing/capacity, high-level demand and eight native integrity proofs remain incomplete; partial source evidence cannot certify a full run.'},
         {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Exact executor→SDK→typed native dispatch and selected-cohort raw Mining rejection are implemented. Complete high-level request denominators and a selected C07 watermark are still unproven; an empty queue or idle/offline cannot establish zero demand.'},
         {id:'legal-housing-exposure',status:'unverified',reason:'Two tenant slots and current rent/sleep receipts do not attest95% legal housing access for every founder; full ownership/access history is required.'},
         {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
@@ -51,6 +52,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     const sourcePaths=['society-minimum/contract.ts','config/society-minimum-policy.json','config/survival-rules.json','needs/survival.ts',
         'society-minimum/assessment.ts','society-minimum/source-map.ts','society-metrics/minimum-assessment.ts','society-metrics/population-outcomes.ts',
         'society-metrics/needs-exposure.ts','needs/store.ts','needs/dynamics.ts','needs/profile.ts','food-loop/native-consumption-store.ts','simulation-clock/store.ts',
+        'society-metrics/food-minimum.ts','society-metrics/food-boundaries.ts','society-metrics/integration-sources.ts','server/gateway/admin/save-reader.ts',
+        'food-loop/lineage.ts','food-loop/native-source.ts','server/engine/src/mods/NativeFoodLineageStore.ts','population-lifecycle/mortality.ts','population-lifecycle/age.ts',
         'population-lifecycle/genesis.ts','population-lifecycle/death.ts','server/engine/src/mods/PlayerHealthEvidenceStore.ts',
         'world-genesis/run-store.ts','world-genesis/result.ts','society-integrity/store.ts',
         'society-metrics/integration-report.ts','society-metrics/evaluation-report.ts','society-metrics/outcome-work.ts',

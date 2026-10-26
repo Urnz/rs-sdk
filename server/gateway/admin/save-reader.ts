@@ -143,7 +143,7 @@ export async function readPlayerSave(path: string): Promise<OfflineSaveSnapshot>
 }
 
 /** Decode an authoritative native checkpoint without creating a save file or using its mtime as simulation time. */
-export function parsePlayerSaveBytes(bytes: Uint8Array, savedAt: string, requireCompleteAssetContainers = false): OfflineSaveSnapshot {
+export function parsePlayerSaveBytes(bytes: Uint8Array, savedAt: string, requireCompleteAssetContainers = false, includeVitals = false): OfflineSaveSnapshot & {currentHitpoints?:number} {
     try {
         if (bytes.length < 8) throw new Error('Save file is too short');
         const storedCrc = new DataView(bytes.buffer, bytes.byteOffset + bytes.length - 4, 4).getUint32(0, false);
@@ -161,10 +161,11 @@ export function parsePlayerSaveBytes(bytes: Uint8Array, savedAt: string, require
         reader.u16(); // run energy
         if (version >= 2) reader.i32(); else reader.u16();
 
-        const skills: AdminSkill[] = [];
+        const skills: AdminSkill[] = []; let currentHitpoints:number|undefined;
         for (let index = 0; index < SKILL_NAMES.length; index++) {
             const experience = reader.i32();
-            reader.u8(); // current boosted/drained level; the base level is stable for admin reporting
+            const current = reader.u8(); // Keep the stable base level for admin reporting.
+            if(index===3)currentHitpoints=current;
             skills.push({ name: SKILL_NAMES[index]!, level: levelForXp(experience), experience });
         }
 
@@ -214,6 +215,7 @@ export function parsePlayerSaveBytes(bytes: Uint8Array, savedAt: string, require
 
         return {
             valid: true,
+            ...(includeVitals?{currentHitpoints}:{}),
             version,
             savedAt,
             position,

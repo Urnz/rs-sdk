@@ -23,7 +23,7 @@ export interface NativePopulationSelection {
 }
 interface PopulationOptions {workspace:string;worldId:string;agentPath:string;population:NativePopulationSelection}
 /** Bound work before domain readers allocate/verify full journals. Reject a changing store rather than claiming an atomic cross-store snapshot. */
-function stable<T>(options:PopulationOptions,path:string,read:(db:Database)=>T){
+export function readStableOutcomeStore<T>(options:{workspace:string;worldId:string},path:string,read:(db:Database)=>T){
     try{assertNativeFoodPath({...options,checkpointPath:path});}catch{assertNativeFoodDomainPath({...options,checkpointPath:path});}
     check(statSync(path).size<=256*1024*1024,'Population source exceeds byte limit');
     const db=new OwnedDatabase(path,{readonly:true,strict:true});
@@ -36,6 +36,7 @@ function stable<T>(options:PopulationOptions,path:string,read:(db:Database)=>T){
         check(before===snapshot(),'Population source changed while reading');return{...value,sourceSnapshotDigest:before};
     }finally{db.close(true);}
 }
+const stable=readStableOutcomeStore;
 export function readNativeFounderBaseline(scope:EvaluationScope,options:PopulationOptions){
     const selected=options.population;
     const genesis=stable(options,selected.genesisPath,db=>{

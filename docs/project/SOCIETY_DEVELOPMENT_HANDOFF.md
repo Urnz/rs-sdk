@@ -34,7 +34,7 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   elutasítás. Abort/deadline a teljes gatherre érvényes; késői SDK-send megáll.
 - **Következő konkrét feladat:** [2. munkacsomag, teljes minimum-assessment](SI_C07_REMAINING_WORK.md).
   **Kezdéskor7 csomag volt,1 kész,6 maradt.** Ezek nem garantált chatkörök.
-  A17/8 mag/source-map és11 részleges adapter már kész; még teljes történeti
+  A17/8 mag/source-map és15 részleges adapter már kész; még teljes történeti
   coverage/nevezők, high-level demand teljesség és legal housing exposure
   kell. A source-bound native ingress nem bizonyítja
   az összes high-level igényt, ezért completeDemandCoverage:false még helyes.
@@ -55,8 +55,14 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   és native meals/watermark. Naponta külön satisfied lower/upper és longest
   critical egész ablakon. Azonos időbélyegnél a needs mode-cursor dönt; hibás
   későbbi állapot nem törli az igazolt prefixet. Benchmark/restore bekötve.
-- **Következő kódhatár a2. csomagon belül:** napi food relief/final-use lineage
-  és opening/closing reserve/stock adapter a meglévő natív forrásokból. Továbbra
+- **Food-rész kész:** [napi food share/final-use és frozen stock/reserve](SI_C07_FOOD_MINIMUM.md).
+  Tényleges relief a nevező, nem demand; exact napi bounds, valódi native
+  gather/cook/trade/consume és egyszer számolt külön producer→consumer chain.
+  Explicit paused checkpoint/needs/clock/agent/health/business/treasury pontok,
+  actual HP és finite census; bank/WIP nem biztosan usable inventory. Sparse
+  endpoints nem complete, sérült másik pont nem törli a hiteles reserve FAIL-t.
+- **Következő kódhatár a2. csomagon belül:** legal housing access és95% napi
+  founder exposure a meglévő sleep/rent/capacity/ownership forrásokból. Továbbra
   kell teljes történeti mortality/enforcement és boundary inventory, capacity,
   legal housing history, high-level demand és8 integrity adapter. **6 csomag
   maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
@@ -110,33 +116,33 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- `20261026-194111-931-si-c07-needs-selected-archive-final`:az egyetlen
-  érintett benchmark/offline restore és root TS PASS70,284 s, runtime8,46 s.
-  Az integration is a selected trades pathot használja; egyedi fájlnéven is
-  available marad az archívumban/visszaállításban. A többi PASS nem ismétlődött.
-- `20261026-194150-024-si-c07-needs-selected-artifact`:végső sourcehash/
-  digest/NO-GO és7 dokumentumlink PASS1,393 s.
-- **`20261026-193412-004-si-c07-needs-boundary-final`:44 célzott teszt és
-  root TS PASS107,200 s.**43 needs/population/minimum/integration/evaluation/
-  preflight eset38,32 s +1 kiválasztott benchmark/offline restore8,67 s.
-  A pontos fájllista és command a helyi result.json-ban; log ugyanott.log.
-- `20261026-193712-804-si-c07-needs-critical-prefix`:1 új negatív eset és
-  root TS PASS61,010 s. Runtime0,747 s; hash-consistent, de nem újrajátszható
-  későbbi állapot nem törölheti az igazolt16 óra critical prefixet, és nem
-  szolgáltathat post-gap időt. A44 sikeres teszt nem ismétlődött.
-- `20261026-193832-889-si-c07-needs-final-artifact`:friss NO-GO artifact,
- 17/8 és11 adapter, sourcehash/digest és7 dokumentumlink PASS1,117 s.
-- Korai diagnosztikák: needs-exposure-first FAIL2,583 s, azonos timestampű
-  mode write és needs snapshot cursor-sorrendje miatt. Javítva, guard nem lazult.
-  needs-cursor-order6 runtime PASS, root TS miatt FAIL58,195 s; callbackben
-  rögzített typed actor source javította. needs-native-binding FAIL16,963 s:
-  az új fixture food watermark clockjából hiányzott a kötelező engineTick;
-  fixture javítva, natív validálás változatlan. Részletes ID-k a progressben.
-- Korábbi founder/mag/dispatch bizonyíték a kapcsolt komponensdokumentumokban
-  és a [progressben](SOCIETY_INTEGRATION_PROGRESS.md); nem aktuális full-suite PASS.
-- Full, engine/webclient TS és packed runtime most nem futott: root readonly
-  projection és közvetlen evaluation/integration/preflight/benchmark fogyasztók
-  változtak. Közös clock/auth/transaction/migration/SDK runtime nem módosult.
+- `20261026-201402-046-si-c07-food-final-artifact`:friss NO-GO,17/8 és15
+  adapter, sourcehash/digest és8 dokumentumlink PASS1,084 s.
+- **`20261026-200603-746-si-c07-food-direct-consumers-final`:54 célzott teszt
+  és root TS PASS108,072 s.**51 food/population/minimum/needs/integration/
+  evaluation/preflight eset47,10 s,2 save-reader eset0,09 s,1 kijelölt natív
+  benchmark/offline restore5,95 s. Pontos command/fájllista a helyi result.json-ban.
+- Napi tényleges relief vs demand, éjféli bucket, clamp/zero/no-use/mixed,
+  actual native producer→trade→consumer, eredeti genesis→food-share, frozen
+  census/health/current HP/needs/custody, inventory vs bank/raw/burnt, sparse
+  boundaries, reserve/retention FAIL és másik pont sérülése melletti FAIL,
+  offline újraolvasás és alapértelmezett save-shape változatlansága ellenőrzött.
+- Korai szűk diagnosztikák: food-core-first FAIL6,477 s (hiányzó agent channel
+  a régi controlled projection fixture-ben; valamint1800 helyett200-ra várt
+  napi relief). Null-guard és a fixture helyes tényleges relief-elvárása javította.
+  food-native-boundaries/source-diagnostic FAIL5,437/1,540 s: az új fixture-ből
+  hiányzott a business_production_material séma; rendes WIP init pótolta.
+  food-native-proof-and-types FAIL5,841 s: a native lineage proofhoz az üres
+  trade auditot is létre kellett hozni. Ezután runtime PASS, root TS miatt
+  FAIL53,794 s (assertion narrowing, Map key és literal típusok); típusok javítva,
+  nincs assertion/séma/validator lazítás. Pontos ID-k a progressben.
+- Korábbi needs/founder/mag bizonyíték a komponensdokumentumokban és a
+  [progressben](SOCIETY_INTEGRATION_PROGRESS.md); nem jelenlegi full-suite PASS.
+- Full, engine/webclient TS és packed runtime most nem futott: readonly backend
+  source/projection és opt-in save-reader adatmező változott. Az engine fixture
+  a kétargumentumos save-olvasást használja dinamikus importtal; az alapértelmezett
+  shape/értékek byte-azonosak. Közös clock/auth/transaction/migration és gameplay
+  nem módosult. A root TS és tényleges közvetlen fogyasztók célzottan ellenőrzöttek.
 - Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.
 ## Megőrzendő döntések
 

@@ -6,6 +6,7 @@ import type { reportNativeOutcomes } from './native-outcomes.js';
 import { validateEvaluationScope,type EvaluationScope } from './evaluation.js';
 import type { reportNativeIntegration } from './integration-report.js';
 import { needsExposureCells } from './needs-exposure.js';
+import { foodMinimumCells,type FoodActorContext } from './food-minimum.js';
 
 /** Internal projection from the existing verified native readers; never an uploaded observation endpoint. */
 export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,scope:EvaluationScope,
@@ -24,6 +25,16 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
     const populationCompatible=population?.status==='available'&&population.value.worldId===outcomes?.worldId
         &&population.value.clockId===scope.clockId&&population.value.clockProfileDigest===scope.clockProfileDigest
         &&contract.dependencies.worlds.some(w=>w.profile.digest===population.value.worldProfile.digest&&w.lifecyclePolicy.digest===population.value.lifecyclePolicy.digest);
+    const actorSource=nativeScopeMatches&&outcomes?.sources.agent?.status==='available'?outcomes.sources.agent:null;
+    const original=(a:FoodActorContext)=>{
+        if(!populationCompatible||population?.status!=='available'||!actorSource||!a.binding)return false;
+        const p=population.value,actor=actorSource.value.actors.find(n=>n.agentId===a.binding!.actorId);
+        return a.binding.lifecycleId===actor?.lifecycleId&&a.binding.playerId===actor.username
+            &&a.binding.playerId===p.founders.find(f=>f.agentId===a.binding!.actorId)?.playerUsername
+            &&a.binding.worldProfileDigest===p.worldProfile.digest&&a.binding.lifecyclePolicyDigest===p.lifecyclePolicy.digest
+            &&a.admission?.kind==='genesis'&&a.admission.evidenceId===p.genesisResultId&&a.admission.evidenceDigest===p.genesisResultDigest
+            &&a.initializedAt===p.genesisAppliedAtSimulationTime;
+    };
     let needsCells:MinimumCell[]=[],needsStatus='unavailable';
     if(integration)try{
         const exposure=integration.needsExposure;
@@ -33,17 +44,33 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             ||exposure.dynamicsDigest!==contract.dependencies.dynamics.digest)throw Error('Native physiology scope/policy differs');
         needsStatus='unbound';
         if(populationCompatible&&population?.status==='available'&&outcomes?.sources.agent.status==='available'){
-            const p=population.value,nativeActors=outcomes.sources.agent.value.actors,actorDigest=outcomes.sources.agent.digest;
-            const actors=exposure.actors.filter(a=>a.binding&&a.binding.lifecycleId===nativeActors.find(n=>n.agentId===a.actorAgentId)?.lifecycleId
-                &&a.binding.playerId===nativeActors.find(n=>n.agentId===a.actorAgentId)?.username
-                &&a.binding.playerId===p.founders.find(f=>f.agentId===a.actorAgentId)?.playerUsername
-                &&a.binding.worldProfileDigest===p.worldProfile.digest&&a.binding.lifecyclePolicyDigest===p.lifecyclePolicy.digest
-                &&a.admission?.kind==='genesis'&&a.admission.evidenceId===p.genesisResultId&&a.admission.evidenceDigest===p.genesisResultDigest
-                &&a.initializedAt===p.genesisAppliedAtSimulationTime);
+            const p=population.value,actorDigest=outcomes.sources.agent.digest;
+            const actors=exposure.actors.filter(original);
             needsCells=needsExposureCells(contract,{...exposure,actors}).map(c=>({...c,
                 evidenceDigests:[...new Set([...c.evidenceDigests,population.digest,actorDigest])]}));needsStatus='available';
         }
     }catch{needsStatus='invalid';needsCells=[];}
+    let foodStatus='unavailable',foodCells:MinimumCell[]=[],foodBoundaryTimes:string[]=[],foodViolations:ReturnType<typeof foodMinimumCells>['violations']=[];
+    if(integration)try{
+        const food=integration.minimumFood;
+        if(!nativeScopeMatches||digest(validateEvaluationScope(integration.scope))!==digest(validateEvaluationScope(scope))
+            ||digest(validateEvaluationScope(food.scope))!==digest(validateEvaluationScope(scope))||integration.worldId!==outcomes?.worldId||food.worldId!==outcomes?.worldId
+            ||food.catalogDigest!==contract.dependencies.food.catalogDigest||food.policyDigest!==contract.dependencies.needs.digest
+            ||food.dynamicsDigest!==contract.dependencies.dynamics.digest)throw Error('Native food scope/policy differs');
+        foodStatus='unbound';
+        if(populationCompatible&&population?.status==='available'&&actorSource){
+            const p=population.value,natives=actorSource.value.actors,result=foodMinimumCells(contract,food,original,producer=>{
+                const actor=natives.find(a=>a.agentId===producer.actorAgentId);
+                return actor?.lifecycleId===producer.lifecycleId&&actor.username===producer.username&&producer.at>=p.genesisAppliedAtSimulationTime;
+            });
+            foodCells=result.cells.map(c=>({...c,evidenceDigests:[...new Set([...c.evidenceDigests,population.digest,actorSource.digest])]}));
+            foodBoundaryTimes=result.boundaryTimes;foodViolations=result.violations;foodStatus='available';
+        }
+    }catch{foodStatus='invalid';foodCells=[];foodBoundaryTimes=[];foodViolations=[];}
+    if(binding&&foodBoundaryTimes.length){const times=[...new Set([...(binding.boundaries?.times??[scope.fromSimulationTime,scope.toSimulationTime]),...foodBoundaryTimes])].sort();
+        if(!binding.boundaries||times.length!==binding.boundaries.times.length)binding={...binding,boundaries:{times,complete:false,
+            sourceDigest:digest({prior:binding.boundaries?.sourceDigest??null,food:integration!.minimumFood.digest})}};
+    }
     if(populationCompatible&&population?.status==='available'){
         const p=population.value,from=Date.parse(p.genesisAppliedAtSimulationTime)+contract.policy.window.warmupSimulationMilliseconds,
             to=from+contract.policy.window.evaluationSimulationMilliseconds;
@@ -60,10 +87,14 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 meaning:'Original-cohort count or terminal-death upper bound already violates the minimum; complete evaluation and integrity coverage remain separate.'});
             const planned:MinimumFrame={contractDigest:contract.digest,worldId:p.worldId,clockId:p.clockId,clockProfileDigest:p.clockProfileDigest,
                 founderAgentIds:p.founders.map(f=>f.agentId),genesisAppliedAtSimulationTime:p.genesisAppliedAtSimulationTime,
-                fromSimulationTime:scope.fromSimulationTime,toSimulationTime:new Date(to).toISOString()};
-            for(const row of assessSocietyMinimum(contract,planned,needsCells,[]).requirements.filter(r=>r.verdict==='fail'))
-                diagnosticViolations.push({requirementId:row.requirementId,sourceDigest:integration?.needsExposure.digest??null,scope,
-                    meaning:'Verified physiology time already violates an original minimum bound; unobserved time and other gates remain separate.'});
+                fromSimulationTime:scope.fromSimulationTime,toSimulationTime:new Date(to).toISOString(),
+                boundaries:{times:[...new Set([scope.fromSimulationTime,...foodBoundaryTimes,new Date(to).toISOString()])].sort(),complete:false,sourceDigest:digest(foodBoundaryTimes)}};
+            for(const row of assessSocietyMinimum(contract,planned,[...needsCells,...foodCells],[]).requirements.filter(r=>r.verdict==='fail'))
+                diagnosticViolations.push({requirementId:row.requirementId,sourceDigest:row.requirementId.startsWith('hunger-')||row.requirementId.startsWith('fatigue-')
+                    ?integration?.needsExposure.digest??null:integration?.minimumFood.digest??null,scope,
+                    meaning:'Verified native time/food evidence already violates an original minimum bound; unobserved time and other gates remain separate.'});
+            for(const violation of foodViolations)diagnosticViolations.push({requirementId:violation.requirementId,sourceDigest:integration!.minimumFood.digest,scope,
+                meaning:'A verified positive bootstrap/import relief violates100% internal supply even if other native applications are pending.'});
         }
     }
     const diagnosticFailure=diagnosticViolations.length>0;
@@ -111,7 +142,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             if(contract.policy.tools.cycleIds.includes(standing.cycleId)&&standing.longestConfirmedUnusableSimulationMs!==null)
                 lower('tool-unusable-demand-time',{cycleId:standing.cycleId},standing.longestConfirmedUnusableSimulationMs,tool.digest);
         }
-        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells],[]);
+        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells],[]);
     }catch{bindingStatus='invalid';assessment=null;}
     // No gate is synthesized from configuration or partial ledger presence. Native PASS is unavailable until their adapters exist.
     const body={protocol:'native-society-minimum-assessment-v1',scope,contractDigest:contract.digest,bindingStatus,
@@ -122,6 +153,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
         sources:{work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
             needsExposure:{status:needsStatus,...(needsStatus==='available'?{digest:integration!.needsExposure.digest}:{})},
+            foodMinimum:{status:foodStatus,...(foodStatus==='available'?{digest:integration!.minimumFood.digest}:{})},
             populationBaseline:population?.status==='available'?{status:'available',digest:population.digest}:{status:population?.status??'unavailable'},
             populationDeaths:deaths?.status==='available'?{status:'available',digest:deaths.digest}:{status:deaths?.status??'unavailable'},
             toolDemand:tool?.status==='available'?{status:'available',digest:tool.digest}:{status:tool?.status??'unavailable'}},

@@ -29,6 +29,7 @@ import { readFoodDeliveries } from '../server/engine/src/mods/NativeFoodDelivery
 import { NativeFoodConsumptionProjection } from '../food-loop/native-consumption-store.js';
 import { loadFoodLoopCatalog } from '../food-loop/catalog.js';
 import { readNativeTravelFares } from '../server/engine/src/mods/NativeTravelFareStore.js';
+import { readNativeFoodBoundary,type NativeFoodBoundaryPaths } from './food-boundaries.js';
 
 export interface NativeWealthPaths { checkpointPath: string; businessPath: string; treasuryPath: string; clockPath: string; needsPath: string }
 
@@ -37,6 +38,8 @@ export interface NativeIntegrationOptions extends PopulationNeedsOptions {
     clockPath: string; businessPath: string; housingPath: string; treasuryPath: string; rewardsPath: string;
     /** Optional frozen native database sets selected by the backend, never a report JSON upload. */
     openingBoundary?: NativeWealthPaths; closingBoundary?: NativeWealthPaths;
+    /** Explicit frozen snapshots only; no inferred/current-state boundary or HTTP-supplied path. */
+    foodBoundaries?:Array<{at:string;paths:NativeFoodBoundaryPaths}>;
 }
 export function nativeIntegrationOptions(workspace: string): NativeIntegrationOptions {
     return { ...populationNeedsOptions(workspace), clockPath: join(workspace, '.local/simulation/simulation-clock.sqlite'),
@@ -75,6 +78,7 @@ function database<T>(options: NativeIntegrationOptions, path: string, tables: st
 export interface NativeAssetLocation { location: string; owner: string; itemId: number; count: string; evidence: unknown }
 function readWealth(options: NativeIntegrationOptions, paths: NativeWealthPaths) {
     const assets: NativeAssetLocation[] = [];
+    const playerVitals:Array<{username:string;currentHitpoints:number|null}>=[];
     const pendingEffects: string[] = [];
     const add = (location: string, owner: string, itemId: number, count: number, evidence: unknown) => {
         check(Number.isSafeInteger(count) && count >= 0 && Number.isSafeInteger(itemId) && itemId >= 0 && itemId <= 65535,
@@ -84,8 +88,9 @@ function readWealth(options: NativeIntegrationOptions, paths: NativeWealthPaths)
     const players = database(options, paths.checkpointPath, ['accounts', 'player_inventory_escrow', 'player_inventory_escrow_audit'], db => {
         const players = db.query('SELECT owner,save FROM accounts ORDER BY owner').all() as { owner: string; save: Uint8Array }[];
         for (const player of players) {
-            const save = parsePlayerSaveBytes(player.save, '1970-01-01T00:00:00.000Z', true), checkpointDigest = digest([...player.save]);
+            const save = parsePlayerSaveBytes(player.save, '1970-01-01T00:00:00.000Z', true,true), checkpointDigest = digest([...player.save]);
             check(save.valid, `Invalid canonical player checkpoint: ${player.owner}`);
+            playerVitals.push({username:player.owner,currentHitpoints:save.currentHitpoints??null});
             for (const container of ['inventory', 'equipment', 'bank'] as const) for (const item of save[container])
                 add(`player-${container}`, player.owner, item.id, item.count, { checkpointDigest, container, slot: item.slot });
         }
@@ -130,7 +135,7 @@ function readWealth(options: NativeIntegrationOptions, paths: NativeWealthPaths)
             add('institution-treasury', `${row.actor_kind}:${row.actor_id}`, 995, row.balance_gp, row);
         }
     });
-    return { assets, playerUsernames: players.owners, pendingEffects };
+    return { assets, playerUsernames: players.owners, pendingEffects,playerVitals };
 }
 export function readWealthBoundary(scope: EvaluationScope, options: NativeIntegrationOptions, paths: NativeWealthPaths | undefined, at: string) {
     if (!paths) throw new AbsentSource('Frozen native boundary databases not configured');
@@ -201,6 +206,7 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
         });
         return { policy, dynamics, histories };
     }));
+    const foodCatalog=capture(()=>loadFoodLoopCatalog(join(options.configDirectory,'food-loops.json')));
     const modes = capture(() => database(options, options.clockPath,
         ['simulation_clock', 'simulation_player_time_history', 'simulation_player_time_state'], db => {
             check((db.query('PRAGMA user_version').get() as { user_version: number }).user_version === SIMULATION_CLOCK_STORE_SCHEMA_VERSION,
@@ -305,7 +311,17 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
         businessPath: options.businessPath, treasuryPath: options.treasuryPath, clockPath: options.clockPath, needsPath: options.databasePath })) : authority;
     const openingAssets = capture(() => readWealthBoundary(scope, options, options.openingBoundary, scope.fromSimulationTime));
     const closingAssets = capture(() => readWealthBoundary(scope, options, options.closingBoundary, scope.toSimulationTime));
-    return { needs, modes, nutrition, lineage, production, kitchen, commerce, rent, custody, wip, commerceOrders, rentalOrders, work, treasury, rewards, trades,
-        currentAssets, openingAssets, closingAssets, sleep, journalHeads, consumption, fares };
+    const foodBoundaries=capture(()=>{
+        if(!options.foodBoundaries?.length)throw new AbsentSource('Frozen native food boundaries not configured');
+        check(options.foodBoundaries.length<=1000&&new Set(options.foodBoundaries.map(b=>b.at)).size===options.foodBoundaries.length,'Invalid food boundary inventory');
+        return{boundaries:options.foodBoundaries.map(b=>({at:b.at,source:capture(()=>{
+            try{
+                check(new Date(b.at).toISOString()===b.at&&b.at>=scope.fromSimulationTime&&b.at<=scope.toSimulationTime,'Food boundary outside scope');
+                return readNativeFoodBoundary(scope,options,b.paths,readWealthBoundary(scope,options,b.paths,b.at));
+            }catch{throw new Error('Native food boundary validation failed');}
+        })}))};
+    });
+    return { needs, modes, nutrition, lineage,foodCatalog, production, kitchen, commerce, rent, custody, wip, commerceOrders, rentalOrders, work, treasury, rewards, trades,
+        currentAssets, openingAssets, closingAssets,foodBoundaries, sleep, journalHeads, consumption, fares };
 }
 export type NativeIntegrationSources = ReturnType<typeof collectNativeIntegrationSources>;
