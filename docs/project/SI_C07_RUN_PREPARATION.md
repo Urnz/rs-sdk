@@ -188,3 +188,10 @@ nem modellezett visitor-jog unknown, a sleep receipt önmagában nem95% access.
 16/17 részleges adapter; csak a tool-service capacity retention source-map-only.
 A teljes source coverage/demand és8 integrity hiányában továbbra NO-GO,
 6 csomag maradt, a2. nyitott; nincs új run/baseline/providerköltség.
+
+További rész: [natív tool-service capacity retention](SI_C07_TOOL_CAPACITY.md),
+fagyasztott fizikai checkpoint és teljes lifecycle-replay, ugyanazon opening
+prefix záró folytatásával.100 nyitó és50 javított záró kapacitás egy tool mellett
+is FAIL. Bank/quarantine/dupla vagy stale identity nem lower.17/17 részleges
+adapter kész, nem17 PASS: teljes coverage/demand, maintenance origin, történeti
+mortality/enforcement és8 integrity kell. NO-GO, a2. nyitott,6 csomag maradt.

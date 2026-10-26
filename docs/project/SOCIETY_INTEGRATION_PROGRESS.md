@@ -2944,3 +2944,58 @@ tool-service capacity retention, utána teljes coverage/demand/mortality és8
 integrity. Nincs live világ/baseline/hosszú run, providerhívás/költség,
 történeti backup DB-read, új séma vagy visszatöltés. Részletes komponensleírás:
 [housing access](SI_C07_HOUSING_ACCESS.md).
+
+### 2026-10-26 – SI-C07/2: comparable frozen native tool-service capacity
+
+Új readonly tool-capacity-ledger és tool-capacity adapter, explicit backend
+toolBoundaries. Native borrowed lifecycle schema3, hash-láncos audit/operation
+bijection és current-state replay: created/used/repaired/replaced/transferred.
+Opening revision, bound owner/world/clock/lifecycle, raw save hash és canonical
+asset hash külön kötött; a fizikai identity sosem stackből kitalált új példány.
+Replaced előd nem számolható újra, transfer nem frissít tartósságot. Native
+event/prefix lookup lineáris indexekkel, nem páronkénti történetkereséssel.
+
+Fagyasztott paused clock/native tick/needs/custody és teljes founder census/
+health/birth/HP. A meglévő food boundary additív eligible usernames mezőjét
+használja a native bound inventory/equipment lower. Bank/quarantine/stale vagy
+dupla identity, bizonytalan fizikailag jelenlévő és nem lokalizált auditált
+példány upper-only; exact identity nem számolható még egyszer virgin toolként.
+Kapacitás=floor(durability/wear)×output/action, nem GP/darabszám/quality.
+Closing audit prefix és opening native events folytatása szükséges; required
+típusonkénti exact lower/upper arányból a leggyengébb dönt. Pozitív opening
+lower nélkül nincs PASS; maintenance origin és source-universe gate külön marad.
+
+Valódi NativeToolStore/ItemRepairService fixture→frozen physical checkpoint→
+eredeti genesis/founder minimum. Egy tool100 nyitó és kopás/szabályos repair
+utáni50 záró kapacitása FAIL. Külön offline másolat azonos reportot ad.
+Bank, duplicate/stale/quarantined identity, transzfer/replacement, future/schema/
+audit/current-row és truncated/foreign prefix próbázott. Ez mechanikai fixture,
+nem új packed Mining vagy hosszú C07 gazdaság, nem belső input/provenance PASS.
+
+Ellenőrzések `.local/verification/` result/log párokban:
+
+- `20261026-222321-048-si-c07-capacity-first-types`:FAIL20,150 s; a SQL-row
+  index-signature spreadből a TypeScript csak a retired mezőt vezette le.
+  Explicit domain projection javította; nincs validator/assertion lazítás.
+- `20261026-222441-001-si-c07-capacity-ledger-core`:4 teszt PASS0,596 s.
+- `20261026-222540-954-si-c07-capacity-native-first`:1 native fizikai próba
+  PASS4,801 s; thin integration korán, új hosszú próba nélkül.
+- `20261026-222818-025-si-c07-capacity-focused-final`:51 célzott teszt +root TS
+  PASS63,012 s. Capacity/population/food/minimum/integration/evaluation/preflight
+  és1 kijelölt benchmark/offline restore. Pontos scope a result.json commandban.
+- `20261026-223034-619-si-c07-capacity-prefix-final`:lineáris prefix/event
+  indexelés után4 capacity és1 native teszt +root TS PASS24,374 s; változatlan
+  consumer-fájlok sikeres futásai nem ismétlődtek.
+- `20261026-223203-975-si-c07-capacity-artifact`:friss NO-GO,17/8 és17
+  részleges adapter, sourcehash/digest és10 dokumentumlink PASS0,824 s.
+
+Full/engine/webclient TS/packed runtime nem futott: readonly backend source/
+projection és közvetlen fogyasztók, nincs közös persistence/transaction/clock/
+auth/migration, függőség vagy gameplay módosítás.17/17 részleges adapter nem
+17 feltétel PASS-a: teljes source-universe/coverage, high-level demand,
+maintenance origin, történeti mortality/enforcement és8 integrity még kell.
+A2. csomag nyitott,6 maradt;27/45, NO-GO, SI-M3/MVS nem PASS. Következő a teljes
+high-level demand és observer/source coverage bekötése. Konkrét frozen capture/
+archive source-lista és pin az5. csomagban. Nincs live világ/baseline/hosszú run,
+providerhívás/költség, történeti backup DB-read, új séma/migráció/backfill.
+[Komponensleírás](SI_C07_TOOL_CAPACITY.md).

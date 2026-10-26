@@ -33,7 +33,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
             :['founders-at-start','minimum-living-founders','founder-survival'].includes(r.requirementId)?'minimum-population-bound-adapter'
             :['hunger-satisfied-time','fatigue-satisfied-time','hunger-continuous-critical-time','fatigue-continuous-critical-time'].includes(r.requirementId)?'minimum-needs-exposure-adapter'
             :['internal-food-relief-share','food-reserve-coverage','food-stock-retention','inter-actor-final-use-chains'].includes(r.requirementId)?'minimum-food-bound-adapter'
-            :r.requirementId==='legal-housing-access-time'?'minimum-housing-exposure-adapter':'source-map-only',
+            :r.requirementId==='legal-housing-access-time'?'minimum-housing-exposure-adapter'
+            :r.requirementId==='tool-service-capacity-retention'?'minimum-tool-capacity-bound-adapter':'source-map-only',
         assessedValue:null,verdict:'inconclusive'}));
     const gates=[
         {id:'unchanged-minimum',status:sourceHash(root,'config/society-minimum-policy.json')===APPROVED_MINIMUM_SOURCE_SHA256?'passed':'blocked',
@@ -42,7 +43,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         {id:'finite-food-envelope',status:'unverified',
             reason:`No-burn provisioning headroom ${headroom??'unknown'} portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence.`},
         {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:'Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity.'},
-        {id:'minimum-assessor',status:'blocked',reason:'The17/8 assessor and16 partial work/tool/population/needs/food/housing adapters exist. Complete frozen boundary/custody/access coverage, mortality/enforcement, tool capacity, high-level demand and eight native integrity proofs remain incomplete; partial source evidence cannot certify a full run.'},
+        {id:'minimum-assessor',status:'blocked',reason:'All17 requirements have partial native adapters, including comparable frozen tool service capacity. Complete boundary/custody/access coverage, mortality/enforcement, maintenance provenance, high-level demand and eight native integrity proofs remain incomplete; adapter presence cannot certify a full run.'},
         {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Exact executor→SDK→typed native dispatch and selected-cohort raw Mining rejection are implemented. Complete high-level request denominators and a selected C07 watermark are still unproven; an empty queue or idle/offline cannot establish zero demand.'},
         {id:'legal-housing-exposure',status:'unverified',reason:'Frozen exact-clock points now bound legal housing time with ownership versions, audited reservation capacity and paid native rent. Two tenant slots alone still do not attest95% access for all founders; complete pinned point inventory and visitor/access history remain required.'},
         {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
@@ -55,6 +56,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'society-metrics/needs-exposure.ts','needs/store.ts','needs/dynamics.ts','needs/profile.ts','food-loop/native-consumption-store.ts','simulation-clock/store.ts',
         'society-metrics/food-minimum.ts','society-metrics/food-boundaries.ts','society-metrics/integration-sources.ts','server/gateway/admin/save-reader.ts',
         'society-metrics/housing-access.ts','society-metrics/housing-minimum.ts','housing/native-rent.ts','housing/native-rent-source.ts',
+        'society-metrics/tool-capacity.ts','society-metrics/tool-capacity-ledger.ts','item-lifecycle/native-tool.ts','item-lifecycle/store.ts',
+        'item-lifecycle/production-cycle.ts','item-lifecycle/repair-policy.ts','config/item-lifecycle.json','config/production-tool-cycles.json','config/item-repair-policies.json',
         'housing/tenancy-store.ts','server/engine/src/mods/PropertyStore.ts','server/engine/src/mods/Properties.ts',
         'config/properties.json','config/housing-units.json','config/native-housing.json',
         'food-loop/lineage.ts','food-loop/native-source.ts','server/engine/src/mods/NativeFoodLineageStore.ts','population-lifecycle/mortality.ts','population-lifecycle/age.ts',

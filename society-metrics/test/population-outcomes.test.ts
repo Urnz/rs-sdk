@@ -41,6 +41,10 @@ import { loadPropertyCatalog } from '../../server/engine/src/mods/Properties.js'
 import { NativeRentCoordinator } from '../../housing/native-rent-runtime.js';
 import { nativeHousingCatalogs,initializeRentJournal,writeRentJournal,rentIds } from '../../housing/native-rent.js';
 import { readHousingAccessPoint,type NativeHousingBoundaryPaths } from '../housing-access.js';
+import { NativeToolStore,nativeToolDigest,nativeToolCatalog,nativeToolCycles } from '../../item-lifecycle/native-tool.js';
+import { ItemRepairService,loadItemRepairPolicyCatalog } from '../../item-lifecycle/repair-policy.js';
+import { validateCompetenceSnapshot } from '../../character-attributes/index.js';
+import { readNativeToolCapacityBoundary } from '../tool-capacity.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -86,6 +90,77 @@ function fixture(){
     return{root,scope,options,agentPath,healthPath,genesisPath,integrityPath,clockPath,kill,outcomes,report,hashes};
 }
 const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.assessment!.requirements.find(v=>v.requirementId===id)!;
+
+test('native lifecycle repair and frozen physical checkpoints assess comparable founder tool capacity and reopen offline',()=>{
+    const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
+    const integration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath},checkpoint=join(f.root,'server/engine/data/capacity.sqlite');integration.nativeFoodCheckpointPath=checkpoint;
+    new BusinessManagerStore(integration.businessPath).close();new BusinessAssetStore(integration.businessPath).close();new InstitutionTreasuryStore(integration.treasuryPath).close();
+    new ProductionWorkInProgressStore(integration.businessPath,loadDefaultProductionWorkflowCatalog(),undefined,false).close();
+    const clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,{store:clock,clockId:'world'}),db=new OwnedDatabase(checkpoint),
+        persistence=new FoodNeedsPersistence(integration.databasePath,contract.dependencies.needs,contract.dependencies.dynamics,loadFoodLoopCatalog(join(configDirectory,'food-loops.json'))),
+        snapshots:Array<{at:string;paths:NativeFoodBoundaryPaths}>=[];
+    try{
+        new NativeFoodConsumptionStore({db});new PlayerInventoryEscrowStore({db,checkpoint:()=>{}});db.run('CREATE TABLE accounts(owner TEXT PRIMARY KEY,save BLOB NOT NULL)');
+        const bindings=f.scope.actorAgentIds.map(id=>{agents.setCharacterBirth(id,agents.getCharacterLifecycle(id)!.revision,initial,'born',wall);
+            db.run('INSERT INTO accounts VALUES(?1,?2)',[id,createSaveData({inventory:id==='ada'?[{id:1265,count:1}]:[],bank:[]})]);return populationNeedsBinding('fixture',agents.getPopulationMember(id)!);});
+        const admitted=clock.observe('world',wall,1);for(const binding of bindings)persistence.needs.initialize({binding,clock:admitted,history:[],playerTime:null,
+            admission:{kind:'genesis',evidenceId:f.options.population!.genesisResultId,evidenceDigest:f.options.population!.genesisResultDigest}});
+        const tool=new NativeToolStore(db),item=tool.lifecycle.create({itemInstanceId:'capacity-pick',lifecycleTypeId:'bronze-pickaxe',ownerActorId:'ada',qualityBasisPoints:10000,
+            provenanceDigest:'a'.repeat(64),atSimulationTime:initial}),b=bindings[0]!,owner={actorId:b.actorId,username:b.playerId,lifecycleId:b.lifecycleId,worldId:b.worldId,clockId:b.clockId,clockProfileDigest:b.clockProfileDigest};
+        tool.append(`opening:${item.itemInstanceId}`,{kind:'explicit-opening',itemInstanceId:item.itemInstanceId,item,owner,evidenceDigest:'b'.repeat(64)});
+        for(const [index,elapsed] of [86400000,8*86400000].entries()){
+            if(index===1){
+                const start='2001-01-04T00:00:00.000Z',finish='2001-01-04T00:10:00.000Z';
+                tool.lifecycle.use('capacity-wear',item.itemInstanceId,1,100,'c'.repeat(64),start);
+                const competence=validateCompetenceSnapshot({schemaVersion:1,snapshotId:'capacity-repair',characterAgentId:'ada',observedAtSimulationTime:start,
+                    personalSkills:[{kind:'personal-rs-skill',characterAgentId:'ada',skillId:'smithing',level:1}],learnedProcedures:[],
+                    providedCapabilities:[{kind:'provided-capability',characterAgentId:'ada',capabilityId:'work-surface',provider:{kind:'facility',providerId:'workshop'},grantId:'grant'}]});
+                new ItemRepairService(tool.lifecycle,loadItemRepairPolicyCatalog(join(configDirectory,'item-repair-policies.json'),nativeToolCatalog)).repair({operationId:'capacity-repair',
+                    policyId:'bronze-pickaxe-workshop-repair',itemInstanceId:item.itemInstanceId,actorId:'ada',expectedRevision:2,startedAtSimulationTime:start,finishedAtSimulationTime:finish,
+                    competenceSnapshot:competence,materialReceipt:{receiptId:'capacity-material',actorId:'ada',itemInstanceId:item.itemInstanceId,consumedItems:[{itemId:2349,quantity:1}],
+                        consumedAtSimulationTime:start,sourceEvidenceDigest:'d'.repeat(64)},facilityReceipt:{receiptId:'capacity-facility',actorId:'ada',capabilityId:'work-surface',providerId:'workshop',grantId:'grant',
+                        validFromSimulationTime:start,validUntilSimulationTime:finish,sourceEvidenceDigest:'e'.repeat(64)}});
+            }
+            const at=new Date(Date.parse(initial)+elapsed).toISOString(),wallAt=new Date(Date.parse(wall)+elapsed).toISOString(),observed=clock.observe('world',wallAt,index+2);
+            closeFoodDeliveryTick(db,observed);for(const binding of bindings)persistence.needs.advance({binding,clock:observed,history:[],playerTime:null,expectedRevision:persistence.needs.get(binding)!.revision});
+            const save=(db.query('SELECT save FROM accounts WHERE owner=?').get('ada') as {save:Uint8Array}).save;
+            tool.put({schemaVersion:1,itemInstanceId:item.itemInstanceId,owner,position:{inventory:93,slot:0},status:'bound',reason:null,
+                catalogDigest:nativeToolCatalog.digest,cycleDigest:nativeToolCycles.digest,checkpointDigest:nativeToolDigest([...save])});
+            clock.pause('world',clock.get('world')!.revision,wallAt);const directory=join(f.root,'.local/capacity',String(index));mkdirSync(directory,{recursive:true});
+            const sources:NativeFoodBoundaryPaths={checkpointPath:checkpoint,needsPath:integration.databasePath,clockPath:f.clockPath,businessPath:integration.businessPath,treasuryPath:integration.treasuryPath,agentPath:f.agentPath,healthPath:f.healthPath};
+            const paths=Object.fromEntries(Object.entries(sources).map(([key,path])=>{const connection=new OwnedDatabase(path);connection.run('PRAGMA wal_checkpoint(TRUNCATE)');connection.close(true);
+                const target=join(directory,`${key}.sqlite`);copyFileSync(path,target);return[key,target];})) as unknown as NativeFoodBoundaryPaths;snapshots.push({at,paths});
+            if(index===0)clock.resume('world',clock.get('world')!.revision,wallAt);
+        }
+    }finally{persistence.close();db.close(true);agents.close();clock.close();}
+    const options={configDirectory:join(f.root,'config'),nativeOutcomes:f.options,nativeIntegration:{...integration,toolBoundaries:snapshots},
+        dependencies:{agentPath:f.agentPath,clockPath:f.clockPath,productionPath:integration.businessPath,enginePath:join(f.root,'absent-trades.sqlite')}};
+    const points=snapshots.map(s=>readNativeToolCapacityBoundary(f.scope,integration,s.paths,readWealthBoundary(f.scope,integration,s.paths,s.at)));
+    expect(points.map(p=>[p.cycles[0]!.lower,p.cycles[0]!.upper])).toEqual([['100','100'],['50','50']]);
+    const read=()=>reportSocietyEvaluation(f.scope,options),good=read(),retention=()=>read().minimumAssessment.requirements.find(r=>r.requirementId==='tool-service-capacity-retention')!.verdict;
+    expect(retention()).toBe('fail');expect(good.minimumAssessment.sources.toolCapacity.status).toBe('available');expect(good.minimumAssessment.qualifiesMinimum).toBeFalse();
+    const clone=join(f.root,'.local/capacity-copy');cpSync(join(f.root,'.local/capacity'),clone,{recursive:true});
+    const copied=snapshots.map((s,i)=>({at:s.at,paths:Object.fromEntries(Object.keys(s.paths).map(key=>[key,join(clone,String(i),`${key}.sqlite`)])) as unknown as NativeFoodBoundaryPaths}));
+    expect(reportSocietyEvaluation(f.scope,{...options,nativeIntegration:{...integration,toolBoundaries:copied}}).nativeIntegration!.minimumToolCapacity).toEqual(good.nativeIntegration!.minimumToolCapacity);
+    const copyDb=new OwnedDatabase(copied[1]!.paths.checkpointPath);
+    try{
+        const row=copyDb.query('SELECT payload FROM native_tool_binding').get() as {payload:string},binding=JSON.parse(row.payload);
+        const source=(inventory:{id:number;count:number}[],bank:{id:number;count:number}[],position:number,stale=false)=>{
+            const save=createSaveData({inventory,bank});binding.position={inventory:position,slot:0};binding.checkpointDigest=stale?'f'.repeat(64):nativeToolDigest([...save]);
+            copyDb.run('UPDATE accounts SET save=? WHERE owner=?',[save,'ada']);copyDb.run('UPDATE native_tool_binding SET payload=?,digest=?',[JSON.stringify(binding),nativeToolDigest(binding)]);
+            return readNativeToolCapacityBoundary(f.scope,integration,copied[1]!.paths,readWealthBoundary(f.scope,integration,copied[1]!.paths,copied[1]!.at)).cycles[0]!;
+        };
+        expect(source([],[{id:1265,count:1}],95)).toMatchObject({lower:'0',upper:'50'});
+        expect(source([{id:1265,count:1},{id:1265,count:1}],[],93)).toMatchObject({lower:'0',upper:'250'});
+        expect(source([{id:1265,count:1}],[],93,true)).toMatchObject({lower:'0',upper:'150'});
+    }finally{copyDb.close(true);}
+    const changed=new OwnedDatabase(snapshots[1]!.paths.checkpointPath);
+    try{const row=changed.query('SELECT payload FROM native_tool_binding').get() as {payload:string},binding=JSON.parse(row.payload);binding.status='quarantined';binding.reason='unwitnessed';
+        changed.run('UPDATE native_tool_binding SET payload=?,digest=?',[JSON.stringify(binding),nativeToolDigest(binding)]);
+    }finally{changed.close(true);}
+    expect(retention()).toBe('inconclusive');mutate(snapshots[1]!.paths.checkpointPath,'UPDATE item_instance SET durability=100');
+    expect(retention()).toBe('inconclusive');
+},20000);
 
 test('native paid rent and frozen authority snapshots reach original-founder daily housing exposure and reopen offline',()=>{
     const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});

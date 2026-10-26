@@ -31,6 +31,7 @@ import { loadFoodLoopCatalog } from '../food-loop/catalog.js';
 import { readNativeTravelFares } from '../server/engine/src/mods/NativeTravelFareStore.js';
 import { readNativeFoodBoundary,type NativeFoodBoundaryPaths } from './food-boundaries.js';
 import { readHousingAccessPoint,type NativeHousingBoundaryPaths } from './housing-access.js';
+import { readNativeToolCapacityBoundary } from './tool-capacity.js';
 
 export interface NativeWealthPaths { checkpointPath: string; businessPath: string; treasuryPath: string; clockPath: string; needsPath: string }
 
@@ -42,6 +43,7 @@ export interface NativeIntegrationOptions extends PopulationNeedsOptions {
     /** Explicit frozen snapshots only; no inferred/current-state boundary or HTTP-supplied path. */
     foodBoundaries?:Array<{at:string;paths:NativeFoodBoundaryPaths}>;
     housingBoundaries?:Array<{at:string;paths:NativeHousingBoundaryPaths}>;
+    toolBoundaries?:Array<{at:string;paths:NativeFoodBoundaryPaths}>;
 }
 export function nativeIntegrationOptions(workspace: string): NativeIntegrationOptions {
     return { ...populationNeedsOptions(workspace), clockPath: join(workspace, '.local/simulation/simulation-clock.sqlite'),
@@ -333,7 +335,16 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
             }catch{throw new Error('Native housing point validation failed');}
         })}))};
     });
+    const toolBoundaries=capture(()=>{
+        if(!options.toolBoundaries?.length)throw new AbsentSource('Frozen native tool boundaries not configured');
+        check(options.toolBoundaries.length<=1000&&new Set(options.toolBoundaries.map(b=>b.at)).size===options.toolBoundaries.length,'Invalid tool boundary inventory');
+        check(options.toolBoundaries.every(b=>new Date(b.at).toISOString()===b.at&&b.at>=scope.fromSimulationTime&&b.at<=scope.toSimulationTime),'Tool boundary outside scope');
+        return{boundaries:options.toolBoundaries.map(b=>({at:b.at,source:capture(()=>{
+            try{return readNativeToolCapacityBoundary(scope,options,b.paths,readWealthBoundary(scope,options,b.paths,b.at));}
+            catch{throw Error('Native tool boundary validation failed');}
+        })}))};
+    });
     return { needs, modes, nutrition, lineage,foodCatalog, production, kitchen, commerce, rent, custody, wip, commerceOrders, rentalOrders, work, treasury, rewards, trades,
-        currentAssets, openingAssets, closingAssets,foodBoundaries,housingAccess, sleep, journalHeads, consumption, fares };
+        currentAssets, openingAssets, closingAssets,foodBoundaries,housingAccess,toolBoundaries, sleep, journalHeads, consumption, fares };
 }
 export type NativeIntegrationSources = ReturnType<typeof collectNativeIntegrationSources>;

@@ -96,6 +96,7 @@ Nem indult live világ/hosszú run, providerhívás vagy történeti backup DB-r
 Legal housing, tool-service capacity, teljes high-level demand, mortality/
 boundary history és8 native integrity gate továbbra kell a2. csomag lezárásához.
 Azóta a [legal housing access/exposure](SI_C07_HOUSING_ACCESS.md) is bekötött;
-következő a tool-service capacity retention. Az aktuális eredmény és
+azóta a [tool-service capacity](SI_C07_TOOL_CAPACITY.md) is bekötött.
+Következő a teljes high-level demand/source coverage. Az aktuális eredmény és
 ellenőrzési azonosítók a [rövid átadásban](SOCIETY_DEVELOPMENT_HANDOFF.md),
 a diagnosztikák a [progressben](SOCIETY_INTEGRATION_PROGRESS.md) találhatók.

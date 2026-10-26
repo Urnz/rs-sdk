@@ -8,6 +8,7 @@ import type { reportNativeIntegration } from './integration-report.js';
 import { needsExposureCells } from './needs-exposure.js';
 import { foodMinimumCells,type FoodActorContext } from './food-minimum.js';
 import { housingExposureCells } from './housing-minimum.js';
+import { toolCapacityCells } from './tool-capacity.js';
 
 /** Internal projection from the existing verified native readers; never an uploaded observation endpoint. */
 export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,scope:EvaluationScope,
@@ -83,10 +84,23 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             housingBoundaryTimes=housing.boundaryTimes;housingStatus='available';
         }
     }catch{housingStatus='invalid';housingCells=[];housingBoundaryTimes=[];}
-    const boundaryTimes=[...new Set([...foodBoundaryTimes,...housingBoundaryTimes])];
+    let capacityStatus='unavailable',capacityCells:MinimumCell[]=[],capacityBoundaryTimes:string[]=[];
+    if(integration?.minimumToolCapacity?.sourceDigest)try{
+        const capacity=integration.minimumToolCapacity;
+        if(!nativeScopeMatches||digest(validateEvaluationScope(integration.scope))!==digest(validateEvaluationScope(scope))
+            ||digest(validateEvaluationScope(capacity.scope))!==digest(validateEvaluationScope(scope))||integration.worldId!==outcomes?.worldId
+            ||capacity.worldId!==outcomes?.worldId)throw Error('Native tool capacity scope differs');
+        capacityStatus='unbound';
+        if(populationCompatible&&population?.status==='available'&&actorSource){
+            capacityCells=toolCapacityCells(contract,capacity,original).map(c=>({...c,evidenceDigests:[...new Set([...c.evidenceDigests,population.digest,actorSource.digest])]}));
+            capacityBoundaryTimes=capacity.boundaries.filter(b=>b.source.status==='available').map(b=>b.at);capacityStatus='available';
+        }
+    }catch{capacityStatus='invalid';capacityCells=[];capacityBoundaryTimes=[];}
+    const boundaryTimes=[...new Set([...foodBoundaryTimes,...housingBoundaryTimes,...capacityBoundaryTimes])];
     if(binding&&boundaryTimes.length){const times=[...new Set([...(binding.boundaries?.times??[scope.fromSimulationTime,scope.toSimulationTime]),...boundaryTimes])].sort();
         if(!binding.boundaries||times.length!==binding.boundaries.times.length)binding={...binding,boundaries:{times,complete:false,
-            sourceDigest:digest({prior:binding.boundaries?.sourceDigest??null,food:integration!.minimumFood.digest,housing:integration!.minimumHousing?.digest??null})}};
+            sourceDigest:digest({prior:binding.boundaries?.sourceDigest??null,food:integration!.minimumFood.digest,housing:integration!.minimumHousing?.digest??null,
+                capacity:integration!.minimumToolCapacity?.digest??null})}};
     }
     if(populationCompatible&&population?.status==='available'){
         const p=population.value,from=Date.parse(p.genesisAppliedAtSimulationTime)+contract.policy.window.warmupSimulationMilliseconds,
@@ -106,10 +120,11 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 founderAgentIds:p.founders.map(f=>f.agentId),genesisAppliedAtSimulationTime:p.genesisAppliedAtSimulationTime,
                 fromSimulationTime:scope.fromSimulationTime,toSimulationTime:new Date(to).toISOString(),
                 boundaries:{times:[...new Set([scope.fromSimulationTime,...boundaryTimes,new Date(to).toISOString()])].sort(),complete:false,sourceDigest:digest(boundaryTimes)}};
-            for(const row of assessSocietyMinimum(contract,planned,[...needsCells,...foodCells,...housingCells],[]).requirements.filter(r=>r.verdict==='fail'))
+            for(const row of assessSocietyMinimum(contract,planned,[...needsCells,...foodCells,...housingCells,...capacityCells],[]).requirements.filter(r=>r.verdict==='fail'))
                 diagnosticViolations.push({requirementId:row.requirementId,sourceDigest:row.requirementId.startsWith('hunger-')||row.requirementId.startsWith('fatigue-')
-                    ?integration?.needsExposure.digest??null:row.requirementId==='legal-housing-access-time'?integration?.minimumHousing.digest??null:integration?.minimumFood.digest??null,scope,
-                    meaning:'Verified native time/food/housing evidence already violates an original minimum bound; unobserved time and other gates remain separate.'});
+                    ?integration?.needsExposure.digest??null:row.requirementId==='legal-housing-access-time'?integration?.minimumHousing.digest??null
+                    :row.requirementId==='tool-service-capacity-retention'?integration?.minimumToolCapacity.digest??null:integration?.minimumFood.digest??null,scope,
+                    meaning:'Verified native time/food/housing/tool evidence already violates an original minimum bound; unobserved time and other gates remain separate.'});
             for(const violation of foodViolations)diagnosticViolations.push({requirementId:violation.requirementId,sourceDigest:integration!.minimumFood.digest,scope,
                 meaning:'A verified positive bootstrap/import relief violates100% internal supply even if other native applications are pending.'});
         }
@@ -159,7 +174,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             if(contract.policy.tools.cycleIds.includes(standing.cycleId)&&standing.longestConfirmedUnusableSimulationMs!==null)
                 lower('tool-unusable-demand-time',{cycleId:standing.cycleId},standing.longestConfirmedUnusableSimulationMs,tool.digest);
         }
-        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells],[]);
+        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],[]);
     }catch{bindingStatus='invalid';assessment=null;}
     // No gate is synthesized from configuration or partial ledger presence. Native PASS is unavailable until their adapters exist.
     const body={protocol:'native-society-minimum-assessment-v1',scope,contractDigest:contract.digest,bindingStatus,
@@ -172,6 +187,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             needsExposure:{status:needsStatus,...(needsStatus==='available'?{digest:integration!.needsExposure.digest}:{})},
             foodMinimum:{status:foodStatus,...(foodStatus==='available'?{digest:integration!.minimumFood.digest}:{})},
             housingAccess:{status:housingStatus,...(housingStatus==='available'?{digest:integration!.minimumHousing.digest}:{})},
+            toolCapacity:{status:capacityStatus,...(capacityStatus==='available'?{digest:integration!.minimumToolCapacity.digest}:{})},
             populationBaseline:population?.status==='available'?{status:'available',digest:population.digest}:{status:population?.status??'unavailable'},
             populationDeaths:deaths?.status==='available'?{status:'available',digest:deaths.digest}:{status:deaths?.status??'unavailable'},
             toolDemand:tool?.status==='available'?{status:'available',digest:tool.digest}:{status:tool?.status??'unavailable'}},

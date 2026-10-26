@@ -18,6 +18,9 @@ Napi food share/final-use és frozen reserve/stock adapter is elkészült:
 Ezután a [legal housing exposure adapter](SI_C07_HOUSING_ACCESS.md) is elkészült:
 16/17 részleges adapter. Teljes coverage/access history, tool capacity/demand
 és8 integrity még kell; továbbra6 csomag maradt.
+Azóta a [comparable tool-service capacity](SI_C07_TOOL_CAPACITY.md) is bekötött:
+17/17 részleges adapter, nem17 PASS. Teljes coverage/demand, maintenance origin,
+mortality/enforcement és8 integrity még kell; a2. csomag továbbra nyitott.
 
 1. **KÉSZ – Executor → SDK → natív belépés pontos kötése.** Egyszer használható,
    forrásból hitelesített dispatch/target; replay/cancel/late-ACK és másik raw

@@ -77,7 +77,8 @@ közvetlen fogyasztóként külön ellenőrzött.
 
 A konkrét C07 point-inventory, archive source-lista és pin még az5. csomag
 része. A teljes mortality/enforcement, high-level demand és8 integrity gate
-továbbra hiányos. Következő kódhatár a tool-service capacity retention.
+továbbra hiányos. A [tool-service capacity adapter](SI_C07_TOOL_CAPACITY.md)
+azóta elkészült; következő a teljes high-level demand/source coverage.
 Nincs új séma/migráció/backfill, közös clock/auth/transaction vagy gameplay
 változás, live világ/hosszú run, providerköltség vagy történeti backup DB-read.
 Ellenőrzési ID-k és idők a [rövid átadásban](SOCIETY_DEVELOPMENT_HANDOFF.md).

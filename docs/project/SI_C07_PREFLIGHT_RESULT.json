@@ -237,7 +237,7 @@
           "native-tool-boundaries",
           "item-lifecycle"
         ],
-        "missing": "Exact comparable opening/closing service capacity, not current durability or number of tools."
+        "missing": "Explicit frozen physical checkpoints and original cohorts bound remaining mechanical output per required type. Audited lifecycle/native-event prefixes must extend opening; unbound, bank or ambiguous copies are upper-only. Complete source universe/enforcement and maintenance origin remain separate."
       },
       {
         "requirementId": "productive-participants",
@@ -516,8 +516,8 @@
         "native-tool-boundaries",
         "item-lifecycle"
       ],
-      "missing": "Exact comparable opening/closing service capacity, not current durability or number of tools.",
-      "status": "source-map-only",
+      "missing": "Explicit frozen physical checkpoints and original cohorts bound remaining mechanical output per required type. Audited lifecycle/native-event prefixes must extend opening; unbound, bank or ambiguous copies are upper-only. Complete source universe/enforcement and maintenance origin remain separate.",
+      "status": "minimum-tool-capacity-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -586,7 +586,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "The17/8 assessor and16 partial work/tool/population/needs/food/housing adapters exist. Complete frozen boundary/custody/access coverage, mortality/enforcement, tool capacity, high-level demand and eight native integrity proofs remain incomplete; partial source evidence cannot certify a full run."
+      "reason": "All17 requirements have partial native adapters, including comparable frozen tool service capacity. Complete boundary/custody/access coverage, mortality/enforcement, maintenance provenance, high-level demand and eight native integrity proofs remain incomplete; adapter presence cannot certify a full run."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -642,11 +642,11 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "835e8147e3ab16992992f8dcb28a0773f3a8e7663a9c6e8453557c754599f90a"
+      "sha256": "db99531a28d61e217370e0237848265afa6d7b727ae94d1f4f1af4b5c7198b78"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "6daf75253335523702df41c4c8e89fc3312598b23444862952bbfef3909fe785"
+      "sha256": "0a1df1bd7302e822952f9415f9569ebea67c2b68a442d990140e7d621c2885db"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -682,11 +682,11 @@
     },
     {
       "path": "society-metrics/food-boundaries.ts",
-      "sha256": "04b3f8d1bc56d9de4005ede3366162db9bf1a4d279374605edabba4d132e9e2c"
+      "sha256": "dcd8057130674f74e864a87e4a7c2edc7069bf90f11b76cd0b656ecad7b353df"
     },
     {
       "path": "society-metrics/integration-sources.ts",
-      "sha256": "c18470d934ae96285ab06dd73546ceef1c5464c986a48db2c17fa8a83b14bb3b"
+      "sha256": "8759521827ab63c961a3fc73744f266a028d1857d2e6008649618ff913ee8b64"
     },
     {
       "path": "server/gateway/admin/save-reader.ts",
@@ -707,6 +707,42 @@
     {
       "path": "housing/native-rent-source.ts",
       "sha256": "b463f49a15ed85b4f6bc85150acd771c342eaa8b0f55adf9ee41f2c4a58a8be6"
+    },
+    {
+      "path": "society-metrics/tool-capacity.ts",
+      "sha256": "44364e9b82ee5f4c38664177152f4d653cdfea9c9b2debf114909b4a683df0b1"
+    },
+    {
+      "path": "society-metrics/tool-capacity-ledger.ts",
+      "sha256": "f99127819567253362872917d9f50d897695ec75c79bf9d46fb3464ffb002b2d"
+    },
+    {
+      "path": "item-lifecycle/native-tool.ts",
+      "sha256": "6fedd176717c419cdc0f6a5166255232a37e14e25cf3ecb13037975778f192e5"
+    },
+    {
+      "path": "item-lifecycle/store.ts",
+      "sha256": "b6cf73fb14f33e3d9637dcce42bc344d327da520ffeb8b0892da763afc4b4706"
+    },
+    {
+      "path": "item-lifecycle/production-cycle.ts",
+      "sha256": "58789b37af49dd9e7cb588f906af9c5b3081048e5d536c04103d583d4c2223b6"
+    },
+    {
+      "path": "item-lifecycle/repair-policy.ts",
+      "sha256": "a0f3bf03121024131a56afb7158c4f8de66f716406094239dcd917629108404c"
+    },
+    {
+      "path": "config/item-lifecycle.json",
+      "sha256": "2b34ef6b2b378c060f0005c71f520fbc6fb6d9231f83aa18bd556f8c484d2976"
+    },
+    {
+      "path": "config/production-tool-cycles.json",
+      "sha256": "1222b5bf2c5e54d29cb5e9cdbdefdddfd7b24cb65a6a4fd68b55ec2908aeee8a"
+    },
+    {
+      "path": "config/item-repair-policies.json",
+      "sha256": "3cee27159aa7b6d290e652cf17622a7ab90e388d7f12211df3c22c0012879ce1"
     },
     {
       "path": "housing/tenancy-store.ts",
@@ -778,7 +814,7 @@
     },
     {
       "path": "society-metrics/integration-report.ts",
-      "sha256": "1a5eedac0725db5cb940cff61c5d83f90c072cb314ac830456d5d30d1053bd36"
+      "sha256": "33865f6aa48960b4a333cbf1b42d2082d106c6311eabdd2be4b11fcb186e7760"
     },
     {
       "path": "society-metrics/evaluation-report.ts",
@@ -930,7 +966,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "c472558f0b4a4847fe697e6b31f28ebe3fc9a4c1e3f6350d77bc41ba69fa1eff"
+      "sha256": "04769f8651a734ce50d7a4b27b32d5268352720ec1e1a616a981b5fd3e4dceab"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -959,5 +995,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "f3b8c395b11b9e259cbdb5327e9ceeaa9cceb5bc67cee6fcf6612f974fde8a84"
+  "digest": "eeef7deda99b6f7e72c7a2f100f19c9af438e990b070daa06920ead9e15c4d8d"
 }

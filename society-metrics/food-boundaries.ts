@@ -60,7 +60,7 @@ export function readNativeFoodBoundary(scope:EvaluationScope,options:NativeInteg
     return{at,worldId:options.worldId,clockId:scope.clockId,clockProfileDigest:scope.clockProfileDigest,contractDigest:contract.digest,
         cohort:wealth.cohort.map(n=>{const first=initialized.rows.find(r=>digest(r.binding)===digest(n.binding));
             check(first&&digest(first.admission)===digest(n.admission));return{binding:n.binding,admission:n.admission,initializedAt:first!.state.observedAtSimulationTime};}),
-        hungerRateLower,hungerRateUpper,chains:contract.dependencies.food.chains.map(chain=>{
+        eligiblePlayerUsernames:health.eligible,hungerRateLower,hungerRateUpper,chains:contract.dependencies.food.chains.map(chain=>{
             const upper=wealth.assets.filter(a=>a.itemId===chain.cookedItem.itemId).reduce((n,a)=>n+BigInt(a.count),0n),
                 lower=wealth.assets.filter(a=>a.itemId===chain.cookedItem.itemId&&a.location==='player-inventory'&&health.eligible.includes(a.owner)).reduce((n,a)=>n+BigInt(a.count),0n);
             return{chainId:chain.foodChainId,lowerRelief:String(lower*BigInt(chain.hungerRelief)),upperRelief:String(upper*BigInt(chain.hungerRelief))};

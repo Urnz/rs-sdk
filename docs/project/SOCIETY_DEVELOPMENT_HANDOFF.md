@@ -34,8 +34,8 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   elutasítás. Abort/deadline a teljes gatherre érvényes; késői SDK-send megáll.
 - **Következő konkrét feladat:** [2. munkacsomag, teljes minimum-assessment](SI_C07_REMAINING_WORK.md).
   **Kezdéskor7 csomag volt,1 kész,6 maradt.** Ezek nem garantált chatkörök.
-  A17/8 mag/source-map és16 részleges adapter már kész; még teljes történeti
-  coverage/nevezők, high-level demand teljesség és tool-service capacity
+  A17/8 mag/source-map és17 részleges adapter már kész; még teljes történeti
+  coverage/nevezők, high-level demand teljesség és maintenance origin
   kell. A source-bound native ingress nem bizonyítja
   az összes high-level igényt, ezért completeDemandCoverage:false még helyes.
   Üres queue/nincs kérés továbbra sem nulla demand. C08 nem indul.
@@ -67,10 +67,16 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   bérlet. Nincs dupla férőhelycredit; expiry és death clip, founder/nap bounds.
   Hiányzó köztes pont nem hidalható át, visitor-jog unknown.16/17 részleges
   adapter, nem16 PASS; teljes source-inventory/pin még nincs.
-- **Következő kódhatár a2. csomagon belül:** tool-service capacity retention,
-  comparable opening/closing native item-lifecycle kapacitással. Továbbra
+- **Capacity-rész kész:** [fagyasztott tool-service capacity](SI_C07_TOOL_CAPACITY.md).
+  Borrowed native lifecycle schema3, teljes audit/current-state replay,
+  wear/repair/replacement/transfer és opening revision/physical save kötése.
+  Pontos original cohort/health/needs/custody, bank/quarantine/dupla/stale
+  példány upper-only. A záró audit/native events a nyitó folytatása;100→50
+  capacity egy tool mellett is FAIL.17/17 részleges adapter, nem17 PASS.
+- **Következő kódhatár a2. csomagon belül:** teljes high-level request/demand
+  coverage és a natív observer/source lefedettség bekötése. Továbbra
   kell teljes történeti mortality/enforcement és boundary inventory,
-  housing/access source coverage, high-level demand és8 integrity adapter. **6 csomag
+  housing/access/source coverage, maintenance origin és8 integrity adapter. **6 csomag
   maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
@@ -122,28 +128,23 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- `20261026-221017-022-si-c07-housing-direct-consumers`:39 runtime teszt
-  PASS53,43 s: population/minimum/integration/evaluation/preflight. Az egész
-  gate FAIL115,724 s lett a controlled housing-fixture null admission típusa
-  miatt; a fixture javítva, assertion vagy termékvalidator nem lazult.
-- `20261026-221251-685-si-c07-housing-types-and-restore`:7 intervallumteszt,
-  1 kijelölt benchmark/offline restore és root TS PASS79,128 s.
-- **`20261026-221438-001-si-c07-housing-final-reader-types`:végső natív
-  reader→evaluation próba és root TS PASS64,195 s.** Aktív bérlet hibás prepaid
-  projekciója az egész pontot elutasítja; jövőbeli tenancy-séma sem olvasható.
-  Összesen47 külön célzott eset sikeres a fenti scope-okban; nem full-suite.
-- `20261026-221515-419-si-c07-housing-artifact`:friss NO-GO,17/8,16 részleges
-  adapter, sourcehash/digest és9 dokumentumlink PASS0,780 s.
-- `20261026-221619-544-si-c07-housing-staged-docs`:staged format és artifact/
-  linkellenőrzés PASS0,920 s; a végső dokumentált eredmény után format újra.
-- Owner/tenant napi idő, lejárat, közös ágy és capacity, audit/epoch/clock/
-  cohort-gap, unknown visitor, natív committed escrow/prepaid tenancy,
-  eredeti genesis→housing exposure, korai FAIL, idegen admission, offline
-  másolat és sérült köztes fizetési/tenancy projection ellenőrzött.
-- Korai native-first FAIL0,967 s: az új fixture createSaveData hívásából
-  hiányzott az üres options objektum; javítva. A sikertelen és sikeres szűk
-  próbák ID-i a [progressben](SOCIETY_INTEGRATION_PROGRESS.md) szerepelnek.
-- Korábbi food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
+- **`20261026-222818-025-si-c07-capacity-focused-final`:51 célzott teszt és
+  root TS PASS63,012 s.** Capacity/population/food/minimum/integration/
+  evaluation/preflight fájlok, plusz1 kijelölt natív benchmark/offline restore.
+- `20261026-223034-619-si-c07-capacity-prefix-final`:a prefix/event lookup
+  lineáris Map-indexelése után4 capacity és1 native próba +root TS PASS24,374 s.
+  A többi már sikeres consumer-tesztet nem ismételtük változatlanul.
+- `20261026-223203-975-si-c07-capacity-artifact`:friss NO-GO,17/8 és17
+  részleges adapter, sourcehash/digest és10 dokumentumlink PASS0,824 s.
+- Valódi NativeToolStore/ItemRepairService és fagyasztott health/needs/physical
+  checkpoint→eredeti founder minimum;100→50 capacity FAIL, bank/quarantine/
+  dupla/stale identity, transfer/replacement, audit/current/schema/future
+  sérülés, záró prefix, idegen admission és offline másolat ellenőrzött.
+- Első typecheck FAIL20,150 s: az index-signature SQL-row spreadjének típusa
+  csak a retired mezőt őrizte meg. Explicit domain projection javította;
+  assertion vagy product-validator nem lazult. Részletek/ID-k a
+  [progressben](SOCIETY_INTEGRATION_PROGRESS.md).
+- Korábbi housing/food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
   progressben; nem jelenlegi full-suite PASS.
 - Full, engine/webclient TS és packed runtime most nem futott: csak readonly
   backend source/projection és közvetlen fogyasztói változtak. Közös clock,

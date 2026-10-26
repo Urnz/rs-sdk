@@ -131,8 +131,11 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
    paid native tenant és szabad owner-hely; lejárat, gap és founder/nap nevező.
    A teljes kiválasztott point-inventory és visitor/access history még kell;
    a tényleges alvás önmagában nem teljes jogi hozzáférési nevező.
-5. Teljes high-level request/demand coverage, comparable tool-service capacity,
-   napi distinct-producer→consumer final-use és mind a8 natív integrity gate.
+5. [Comparable tool-service capacity](SI_C07_TOOL_CAPACITY.md) bekötve:
+   auditált wear/repair/replacement/transfer és fagyasztott fizikai checkpoint;
+   bizonytalan identity/access upper-only, záró auditprefix a nyitó folytatása.
+   Teljes high-level demand/source coverage, maintenance origin, mortality/
+   enforcement és mind a8 natív integrity gate továbbra kell.
 
 Ezek az ismert2. csomag részei. Nem csökkent a hátralévő csomagszám, nem indult
 a3. baseline-csomag, C08, live világ vagy hosszú run. Nincs új providerjog/költség.
