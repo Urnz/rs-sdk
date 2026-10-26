@@ -10,6 +10,8 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     const fixture=loadIntegrationFixture(join(root,'config/fixtures/society-lobster-four-accelerated-test-native-travel-v1.json'));
     const report=await inspectMinimumRunPreparation(root,fixture);
     expect(report.readerCoverage).toHaveLength(17);expect(report.requiredIntegrityGates).toHaveLength(8);
+    expect(report.minimumSourceMap.requirements).toHaveLength(17);expect(report.minimumSourceMap.integrity).toHaveLength(8);
+    expect(report.readerCoverage.filter(r=>r.status==='minimum-lower-bound-adapter')).toHaveLength(4);
     expect(report.candidate).toMatchObject({warmupSimulationMs:86400000,evaluationSimulationMs:604800000,nominalWallMs:2400000,
         proposedSampleWallMs:5000,providerRequestsAuthorized:0,providerCostMicrosAuthorized:0,selectedWorldId:null});
     expect(report.liveRunStarted).toBeFalse();expect(report.readyForRunApproval).toBeFalse();

@@ -50,6 +50,268 @@
       "Founder death or proven original minimum violation; retain FAIL evidence, do not lower thresholds"
     ]
   },
+  "minimumSourceMap": {
+    "requirements": [
+      {
+        "requirementId": "founders-at-start",
+        "comparison": "at-least",
+        "threshold": 4,
+        "unit": "count",
+        "scope": "opening-boundary",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "applied-genesis",
+          "frozen-founder-boundary"
+        ],
+        "missing": "Current population and selected IDs are not the exact opening founders."
+      },
+      {
+        "requirementId": "minimum-living-founders",
+        "comparison": "at-least",
+        "threshold": 4,
+        "unit": "count",
+        "scope": "all-observation-boundaries",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "population-death",
+          "complete-native-boundaries"
+        ],
+        "missing": "All frozen founders, including offline members, at every native boundary."
+      },
+      {
+        "requirementId": "founder-survival",
+        "comparison": "at-least",
+        "threshold": 9000,
+        "unit": "basis-points",
+        "scope": "closing-boundary",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "frozen-founder-boundary",
+          "population-death"
+        ],
+        "missing": "Exact closing survivors of the original founder lifecycles."
+      },
+      {
+        "requirementId": "hunger-satisfied-time",
+        "comparison": "at-least",
+        "threshold": 9500,
+        "unit": "basis-points",
+        "scope": "every-member-every-bucket",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "needs-history",
+          "player-time",
+          "nutrition"
+        ],
+        "missing": "Exact per-founder/per-bucket satisfied person-time and complete physiological mutations."
+      },
+      {
+        "requirementId": "hunger-continuous-critical-time",
+        "comparison": "at-most",
+        "threshold": 21600000,
+        "unit": "simulation-milliseconds",
+        "scope": "every-member-whole-window",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "needs-history",
+          "nutrition"
+        ],
+        "missing": "Longest continuous critical interval over the entire evaluation, including bucket crossings."
+      },
+      {
+        "requirementId": "fatigue-satisfied-time",
+        "comparison": "at-least",
+        "threshold": 9500,
+        "unit": "basis-points",
+        "scope": "every-member-every-bucket",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "needs-history",
+          "player-time",
+          "sleep-effects"
+        ],
+        "missing": "Exact per-founder/per-bucket satisfied person-time, including sleep and offline transitions."
+      },
+      {
+        "requirementId": "fatigue-continuous-critical-time",
+        "comparison": "at-most",
+        "threshold": 21600000,
+        "unit": "simulation-milliseconds",
+        "scope": "every-member-whole-window",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "needs-history",
+          "player-time",
+          "sleep-effects"
+        ],
+        "missing": "Longest continuous critical interval; discontinuities cannot be interpolated."
+      },
+      {
+        "requirementId": "internal-food-relief-share",
+        "comparison": "at-least",
+        "threshold": 10000,
+        "unit": "basis-points",
+        "scope": "every-bucket",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-integration",
+          "nutrition",
+          "food-lineage"
+        ],
+        "missing": "All relief and verified internal lineage in each original bucket, not a whole-window average."
+      },
+      {
+        "requirementId": "food-reserve-coverage",
+        "comparison": "at-least",
+        "threshold": 86400000,
+        "unit": "simulation-milliseconds",
+        "scope": "all-observation-boundaries",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-asset-boundaries",
+          "needs-demand"
+        ],
+        "missing": "Usable food reserve against measured physiological demand at every native boundary."
+      },
+      {
+        "requirementId": "food-stock-retention",
+        "comparison": "at-least",
+        "threshold": 10000,
+        "unit": "basis-points",
+        "scope": "closing-boundary",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-asset-boundaries",
+          "food-custody"
+        ],
+        "missing": "Comparable opening/closing usable stock with complete custody; WIP mirrors are not additional stock."
+      },
+      {
+        "requirementId": "legal-housing-access-time",
+        "comparison": "at-least",
+        "threshold": 9500,
+        "unit": "basis-points",
+        "scope": "every-member-every-bucket",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "housing-access-history",
+          "ownership-history",
+          "player-time"
+        ],
+        "missing": "Legal minimum-tier access per founder/bucket; rent or sleep receipts alone do not prove it."
+      },
+      {
+        "requirementId": "tool-maintenance-cycles",
+        "comparison": "at-least",
+        "threshold": 1,
+        "unit": "count",
+        "scope": "every-tool-type-whole-window",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-work"
+        ],
+        "missing": "Verified repair effects provide a lower count; absent receipts do not prove zero maintenance."
+      },
+      {
+        "requirementId": "tool-unusable-demand-time",
+        "comparison": "at-most",
+        "threshold": 3600000,
+        "unit": "simulation-milliseconds",
+        "scope": "every-tool-type-whole-window",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-tool-demand",
+          "cohort-coverage",
+          "executor-requests"
+        ],
+        "missing": "Native intervals provide a lower duration bound; complete high-level demand coverage is still required."
+      },
+      {
+        "requirementId": "tool-service-capacity-retention",
+        "comparison": "at-least",
+        "threshold": 10000,
+        "unit": "basis-points",
+        "scope": "closing-boundary",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-tool-boundaries",
+          "item-lifecycle"
+        ],
+        "missing": "Exact comparable opening/closing service capacity, not current durability or number of tools."
+      },
+      {
+        "requirementId": "productive-participants",
+        "comparison": "at-least",
+        "threshold": 2,
+        "unit": "count",
+        "scope": "every-bucket",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-work"
+        ],
+        "missing": "Distinct physical producers in each bucket; a receipt subset provides only a lower count."
+      },
+      {
+        "requirementId": "productive-stage-kinds",
+        "comparison": "at-least",
+        "threshold": 3,
+        "unit": "count",
+        "scope": "whole-window",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "native-work"
+        ],
+        "missing": "Verified food-gathering, food-processing and tool-maintenance; Mining/smelting alone do not replace these stages."
+      },
+      {
+        "requirementId": "inter-actor-final-use-chains",
+        "comparison": "at-least",
+        "threshold": 1,
+        "unit": "count",
+        "scope": "every-bucket",
+        "zeroDemand": "inconclusive",
+        "channels": [
+          "food-lineage",
+          "native-final-use"
+        ],
+        "missing": "Producer-to-distinct-consumer final-use lineage in every bucket, not transfers or trades."
+      }
+    ],
+    "integrity": [
+      {
+        "gateId": "applied-genesis-baseline",
+        "missing": "Applied result, exact native opening state and genesis identity."
+      },
+      {
+        "gateId": "complete-source-coverage",
+        "missing": "Every required denominator, source head, native boundary and complete request history."
+      },
+      {
+        "gateId": "finite-lifecycle-no-respawn",
+        "missing": "Bound finite lifecycles and complete death/respawn enforcement history."
+      },
+      {
+        "gateId": "frozen-founder-roster",
+        "missing": "The original applied founders, without silently replacing missing or dead members."
+      },
+      {
+        "gateId": "no-external-shop-or-import-value",
+        "missing": "Complete source history for imports, external shop value and fallback replenishment."
+      },
+      {
+        "gateId": "no-post-genesis-admin-or-fallback-value",
+        "missing": "Complete administrative/value mutation history after genesis, including warmup."
+      },
+      {
+        "gateId": "unchanged-clock-and-world-policy",
+        "missing": "Pinned world build/mod/config/clock history over warmup and evaluation."
+      },
+      {
+        "gateId": "verified-internal-lineage-and-final-use",
+        "missing": "Verified internal production ancestry through distinct-consumer final use."
+      }
+    ]
+  },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
     "nominalEightDayPortions": 32,
@@ -63,7 +325,12 @@
       "comparison": "at-least",
       "threshold": 4,
       "scope": "opening-boundary",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "applied-genesis",
+        "frozen-founder-boundary"
+      ],
+      "missing": "Current population and selected IDs are not the exact opening founders.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -72,7 +339,12 @@
       "comparison": "at-least",
       "threshold": 4,
       "scope": "all-observation-boundaries",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "population-death",
+        "complete-native-boundaries"
+      ],
+      "missing": "All frozen founders, including offline members, at every native boundary.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -81,7 +353,12 @@
       "comparison": "at-least",
       "threshold": 9000,
       "scope": "closing-boundary",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "frozen-founder-boundary",
+        "population-death"
+      ],
+      "missing": "Exact closing survivors of the original founder lifecycles.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -90,7 +367,13 @@
       "comparison": "at-least",
       "threshold": 9500,
       "scope": "every-member-every-bucket",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "needs-history",
+        "player-time",
+        "nutrition"
+      ],
+      "missing": "Exact per-founder/per-bucket satisfied person-time and complete physiological mutations.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -99,7 +382,12 @@
       "comparison": "at-most",
       "threshold": 21600000,
       "scope": "every-member-whole-window",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "needs-history",
+        "nutrition"
+      ],
+      "missing": "Longest continuous critical interval over the entire evaluation, including bucket crossings.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -108,7 +396,13 @@
       "comparison": "at-least",
       "threshold": 9500,
       "scope": "every-member-every-bucket",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "needs-history",
+        "player-time",
+        "sleep-effects"
+      ],
+      "missing": "Exact per-founder/per-bucket satisfied person-time, including sleep and offline transitions.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -117,7 +411,13 @@
       "comparison": "at-most",
       "threshold": 21600000,
       "scope": "every-member-whole-window",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "needs-history",
+        "player-time",
+        "sleep-effects"
+      ],
+      "missing": "Longest continuous critical interval; discontinuities cannot be interpolated.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -126,7 +426,13 @@
       "comparison": "at-least",
       "threshold": 10000,
       "scope": "every-bucket",
-      "status": "partial-native-reader",
+      "channels": [
+        "native-integration",
+        "nutrition",
+        "food-lineage"
+      ],
+      "missing": "All relief and verified internal lineage in each original bucket, not a whole-window average.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -135,7 +441,12 @@
       "comparison": "at-least",
       "threshold": 86400000,
       "scope": "all-observation-boundaries",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "native-asset-boundaries",
+        "needs-demand"
+      ],
+      "missing": "Usable food reserve against measured physiological demand at every native boundary.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -144,7 +455,12 @@
       "comparison": "at-least",
       "threshold": 10000,
       "scope": "closing-boundary",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "native-asset-boundaries",
+        "food-custody"
+      ],
+      "missing": "Comparable opening/closing usable stock with complete custody; WIP mirrors are not additional stock.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -153,7 +469,13 @@
       "comparison": "at-least",
       "threshold": 9500,
       "scope": "every-member-every-bucket",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "housing-access-history",
+        "ownership-history",
+        "player-time"
+      ],
+      "missing": "Legal minimum-tier access per founder/bucket; rent or sleep receipts alone do not prove it.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -162,7 +484,11 @@
       "comparison": "at-least",
       "threshold": 1,
       "scope": "every-tool-type-whole-window",
-      "status": "partial-native-reader",
+      "channels": [
+        "native-work"
+      ],
+      "missing": "Verified repair effects provide a lower count; absent receipts do not prove zero maintenance.",
+      "status": "minimum-lower-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -171,7 +497,13 @@
       "comparison": "at-most",
       "threshold": 3600000,
       "scope": "every-tool-type-whole-window",
-      "status": "partial-native-reader",
+      "channels": [
+        "native-tool-demand",
+        "cohort-coverage",
+        "executor-requests"
+      ],
+      "missing": "Native intervals provide a lower duration bound; complete high-level demand coverage is still required.",
+      "status": "minimum-lower-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -180,7 +512,12 @@
       "comparison": "at-least",
       "threshold": 10000,
       "scope": "closing-boundary",
-      "status": "not-aggregated-for-minimum",
+      "channels": [
+        "native-tool-boundaries",
+        "item-lifecycle"
+      ],
+      "missing": "Exact comparable opening/closing service capacity, not current durability or number of tools.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -189,7 +526,11 @@
       "comparison": "at-least",
       "threshold": 2,
       "scope": "every-bucket",
-      "status": "partial-native-reader",
+      "channels": [
+        "native-work"
+      ],
+      "missing": "Distinct physical producers in each bucket; a receipt subset provides only a lower count.",
+      "status": "minimum-lower-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -198,7 +539,11 @@
       "comparison": "at-least",
       "threshold": 3,
       "scope": "whole-window",
-      "status": "partial-native-reader",
+      "channels": [
+        "native-work"
+      ],
+      "missing": "Verified food-gathering, food-processing and tool-maintenance; Mining/smelting alone do not replace these stages.",
+      "status": "minimum-lower-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -207,7 +552,12 @@
       "comparison": "at-least",
       "threshold": 1,
       "scope": "every-bucket",
-      "status": "partial-native-reader",
+      "channels": [
+        "food-lineage",
+        "native-final-use"
+      ],
+      "missing": "Producer-to-distinct-consumer final-use lineage in every bucket, not transfers or trades.",
+      "status": "source-map-only",
       "assessedValue": null,
       "verdict": "inconclusive"
     }
@@ -236,7 +586,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "A proven native tool-demand violation can now surface FAIL;17 scoped rules and8 integrity gates still need the complete source-backed assessment bridge."
+      "reason": "The17/8 quantifier/rational-bound assessor and work/tool lower-bound adapters exist. Population/needs/food/housing/capacity histories, complete request denominators and eight native integrity adapters remain incomplete."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -287,12 +637,24 @@
       "sha256": "49ac20c778a394c52b88e12bdbf148d4ad7077c2c7cb2283a11ac61000b47328"
     },
     {
+      "path": "society-minimum/assessment.ts",
+      "sha256": "7570a33f5538af7ec06670775368dabf5f9d26987bf8f90a0914a9c7b066250b"
+    },
+    {
+      "path": "society-minimum/source-map.ts",
+      "sha256": "ce73b5b4afcf8db6d9df0854ed942f198e9ae8db37ffc3b9521a6637e303e658"
+    },
+    {
+      "path": "society-metrics/minimum-assessment.ts",
+      "sha256": "f9608c3a1d2599757bdba356dd093af0ab8df10daaf15fad4e291d4287843f35"
+    },
+    {
       "path": "society-metrics/integration-report.ts",
       "sha256": "ae42b52a1e8a7d0860c5d16c21db09e11eb5ecec869844a38fdb07658156a7e5"
     },
     {
       "path": "society-metrics/evaluation-report.ts",
-      "sha256": "ddb83f0b8e3842f6712246ced10c3085dfe673cff00456ab8baf0d9ab4e64c90"
+      "sha256": "fc30c08cea022b8a0c765877eed4a59c81023aa207825dc1d8a36a9fedd3a514"
     },
     {
       "path": "society-metrics/outcome-work.ts",
@@ -440,7 +802,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "7a1b099c3ebaea60848c34c66e41cd442883c9753be5719cf8a0bfeba0900e32"
+      "sha256": "a05d3e3f1d3c411982468ca3fdfb839fe530c85f2441c8700a9f87e8a1610743"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -469,5 +831,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "19815440147d90cfddfcff961d01ec3110aa760cddde658c3213e0498baee6c7"
+  "digest": "e86797c0144655bd3479d8c7df99aa6dbf55c5baeece80260fa8d6e3cd132489"
 }

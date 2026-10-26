@@ -151,5 +151,11 @@ hiányos, ezért coverage továbbra nem teljes vagy minimum PASS.
 [rögzített7 csomagból az1. kész,6 maradt](SI_C07_REMAINING_WORK.md).
 Következő a17/8 minimum-assessment bridge és a teljes high-level demand/
 housing/exposure forráskötés; ismert NO-GO mellett nincs hosszú run-jóváhagyás.
+
+2026-10-26: [17/8 kiértékelőmag és natív source-map](SI_C07_MINIMUM_ASSESSMENT.md)
+elkészült. A meglévő SQLite-native reader→evaluation út17/8 mátrixot ad,
+megőrzi az igazolt scoped tool FAIL-t;4 work/tool alsókorlát-adapter működik.
+Nincs teljes népességi/needs/food/housing/capacity/request/integrity attestáció,
+ezért a2. csomag és a preflight továbbra nyitott/NO-GO;6 csomag maradt.
 A következő task C07, nem C08; a hosszú futási
 jóváhagyás még nem esedékes.

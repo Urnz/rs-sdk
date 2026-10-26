@@ -2696,3 +2696,61 @@ preflight NO-GO; C08 nem indul, SI-M3/MVS nem PASS.
 Végső artifact: `20261025-232300-047-si-c07-dispatch-final-artifact`, NO-GO
 sourcehash/digest és5 kapcsolt dokumentum linkje PASS0,808 s. A17/8 minimum
 és a0 provider-jogosultság változatlan; a113 sikeres ellenőrzés nem ismétlődött.
+
+### 2026-10-26 – SI-C07/2 kvantoros minimum-mag és natív forrástérkép
+
+[Részletes eredmény és megmaradó határok](SI_C07_MINIMUM_ASSESSMENT.md).
+Az eredeti contract17 requirement/8 integrity gate-je alapján teljes scope-
+mátrix készül: külön actor/bucket/cycle/opening/closing/native boundary cellák.
+Exact BigInt-racionális lower/upper bound, kerekítés előtti összevetés,
+opportunity és denominator kezelés. At-least lower elég lehet PASS-hoz;
+at-most lower csak igazolt sértéshez. A hiányzó cella/schedule/gate inconclusive,
+egy bizonyított cella/gate FAIL-je megmarad; matematikai all-PASS csak mind a25
+feltétel minden szükséges scope-jának teljes bizonyítékával. Ez belső számítás,
+nem feltöltött adatot hitelesítő API vagy élő társadalmi eredmény.
+
+Új minimum source-map a17/8 feltételek ismert csatornáival és konkrét hiányaival;
+a preparer artifact is ezt jelenti. Native outcome→evaluation.minimumAssessment
+bekötés:4 work/tool lower-bound adapter (napi distinct producer, három kötelező
+stage kind, valódi repair count és longest unusable duration). A `(start,end]`
+bucket-határ megmarad. A hiányzó/hibás backend frame vagy más unavailable
+csatorna nem rejti el a korábbi SQLite-forrásból bizonyított scoped tool FAIL-t.
+Egyelőre egyik8 integrity gate sem kap natív PASS-t; konfiguráció vagy DB-létezés
+nem attestáció. Natív qualifiesMinimum mindig false, preflight továbbra NO-GO.
+
+`20261026-165619-663-si-c07-minimum-assessment-core`:23 core/adapter és valódi
+SQLite-native reader→evaluation ellenőrzés PASS11,740 s.
+`20261026-165946-415-si-c07-minimum-assessor-consumers`:57 célzott contract/
+survival/evaluation/native outcome/preparer próba és root TS PASS70,080 s,
+runtime9,22 s. Utolsó roster-konzisztenciahatár után
+`20261026-170224-509-si-c07-minimum-roster-consistency`:13 core/adapter próba
+és root TS PASS37,328 s;3 eredeti founder nem használhat4-es nyitószámot,
+az igazolt3 founder az eredeti minimumon FAIL. Az57 sikeres fogyasztó nem
+ismétlődött. Körök átfednek, számok/idők nem összeadandók. Full, engine/webclient
+TS és packed-runtime nem futott: csak root readonly értékelési komponens és
+közvetlen fogyasztói változtak, közös runtime/clock/auth/persistence alap nem.
+
+A2. csomag NEM kész: applied/frozen genesis roster és boundary/death,
+needs satisfied/critical exposure, napi food relief/lineage, reserve/stock/
+capacity, legal housing, teljes high-level demand és8 natív integrity adapter
+még hiányzik. Ezek a korábban rögzített2. csomag részei; **6 csomag maradt**.
+SI-C07 nyitott27/45; nincs C08, baseline-tuning, küszöblazítás, új live world,
+hosszú run, providerhívás vagy költség. Történeti backup DB nem lett megnyitva.
+
+A megváltozott evaluation output közvetlen archive-fogyasztója:
+`20261026-171120-241-si-c07-minimum-benchmark-restore`,1 kiválasztott natív
+benchmark/result/report offline restore próba PASS15,459 s. A végső projekció-
+review után `20261026-171354-764-si-c07-minimum-foreign-scope-red`:egyetlen
+negatív eset szándékosan reprodukált FAIL0,499 s. Az új adapter trusted reader
+bemenetének scope-ját is ellenőrizni kell, különben téves összekötéskor egy
+idegen ablak diagnostic FAIL-je átkerülhetett volna. A javítás normalizált
+actor/window/clock/profile egyezést kér, még a diagnostic átvétele előtt is.
+`20261026-171412-822-si-c07-minimum-scope-binding-final`:15 adapter/native
+SQLite→evaluation teszt és root TS PASS53,737 s; az57 fogyasztó nem ismétlődött.
+A végső scope-guard output-digestjére a benchmark restore és artifact frissítés
+külön, TS/runtime széles kör újrafuttatása nélkül következik.
+
+Végső aktuális artifact-kör: `20261026-171721-788-si-c07-minimum-final-restore-artifact`,
+1 kiválasztott benchmark/native-report/offline restore +új NO-GO/sourcehash/
+digest/dokumentációlink PASS5,877 s. Nincs új provider/run jogosultság vagy
+minimum PASS; a2. csomag nyitott, a hátralévő csomagszám6 maradt.

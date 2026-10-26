@@ -1,6 +1,6 @@
 # Rövid fejlesztési átadás
 
-Frissítve: 2026-10-25. Belépő, nem futási napló.
+Frissítve: 2026-10-26. Belépő, nem futási napló.
 Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő kódmunka
@@ -39,6 +39,18 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   és legal housing/needs exposure. A source-bound native ingress nem bizonyítja
   az összes high-level igényt, ezért completeDemandCoverage:false még helyes.
   Üres queue/nincs kérés továbbra sem nulla demand. C08 nem indul.
+- **2. csomag részeredmény:** [17/8 kiértékelőmag és forrástérkép](SI_C07_MINIMUM_ASSESSMENT.md)
+  kész. Exact rational lower/upper bound, minden actor/bucket/cycle/boundary
+  kötelező cella, zero-opportunity és hiányos boundary schedule védelem.
+  SQLite-native outcome→evaluation.minimumAssessment bekötve;4 work/tool
+  lower-bound adapter. Default frame unbound; sem config, sem DB-létezés nem
+  ad integrity PASS-t, natív teljes PASS továbbra nincs. Scoped tool FAIL megmarad.
+- **Következő kódhatár a2. csomagon belül:** applied/frozen genesis roster,
+  teljes boundary/death inventory és needs történet natív bekötése. A17/8
+  source-map minden missing mezője ismert további munka: physiological
+  satisfied/critical exposure, napi food relief/lineage, reserve/stock/capacity,
+  legal housing history, high-level demand és8 integrity adapter. **6 csomag
+  maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
   Lower-bound longest unusable-time, nem más actorok/kérések összege; restart,
@@ -89,6 +101,25 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
+- `20261026-171721-788-si-c07-minimum-final-restore-artifact`:végső1 kiválasztott
+  benchmark/native-report/offline restore +friss NO-GO/sourcehash/digest/link
+  PASS5,877 s. Nincs runtime/TS széles kör ismétlés vagy provider/live indítás.
+- `20261026-171412-822-si-c07-minimum-scope-binding-final`:15 adapter/native
+  SQLite→evaluation próba +root TS PASS53,737 s. Előtte egyetlen célzott negatív
+  eset FAIL0,499 s (`20261026-171354-764-si-c07-minimum-foreign-scope-red`):
+  az új projekció átvette volna más actor/window/clock scope diagnostic FAIL-jét.
+  Pontos normalizált scope-egyezés kell; idegen riport nem adhat evidenciát.
+- `20261026-171120-241-si-c07-minimum-benchmark-restore`:1 kiválasztott
+  benchmark/native-report/offline restore próba PASS15,459 s, a végső scope-guard
+  előtt. Ugyanez a megváltozott output-digest miatt a végső artifact-kör része.
+- `20261026-170224-509-si-c07-minimum-roster-consistency`:13 core/adapter
+  teszt és root TS PASS37,328 s. Roster3 nem használhat openingCount4-et;
+  tényleges3 founder az eredeti minimumon FAIL. Az57 sikeres fogyasztó nem ismétlődött.
+- `20261026-165946-415-si-c07-minimum-assessor-consumers`:57 célzott core/
+  contract/survival/native outcome/evaluation/preflight teszt és root TS
+  PASS70,080 s, runtime9,22 s. Engine/SDK/webclient változatlan, TS nem futott.
+- `20261026-165619-663-si-c07-minimum-assessment-core`:23 core/adapter/
+  SQLite-native ellenőrzés PASS11,740 s. Körök átfednek, nem összeadandók.
 - `20261025-232300-047-si-c07-dispatch-final-artifact`:friss NO-GO,
   sourcehash/digest és5 kapcsolt dokumentum linkje PASS0,808 s;17/8 változatlan.
 - **`20261025-231507-910-si-c07-dispatch-consumers-final`:113 célzott/nested

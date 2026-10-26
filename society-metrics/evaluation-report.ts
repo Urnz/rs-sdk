@@ -9,8 +9,13 @@ import type { NativeIntegrationOptions } from './integration-sources.js';
 import { reportNativeFinance } from './native-finance.js';
 import type { NativeFinanceOptions } from './finance-sources.js';
 import { reportNativeOutcomes,type NativeOutcomeOptions } from './native-outcomes.js';
+import { projectNativeMinimumAssessment } from './minimum-assessment.js';
+import { loadSocietyMinimumContract } from '../society-minimum/contract.js';
+import type { MinimumFrame } from '../society-minimum/assessment.js';
 
-export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions; nativeIntegration?: NativeIntegrationOptions; nativeFinance?: NativeFinanceOptions; nativeOutcomes?: NativeOutcomeOptions }
+export interface SocietyEvaluationOptions extends SelfSufficiencyOptions { dependencies?: DependencyOptions; nativeIntegration?: NativeIntegrationOptions; nativeFinance?: NativeFinanceOptions; nativeOutcomes?: NativeOutcomeOptions;
+    /** Backend-selected original run frame; never accepted from HTTP query/body. */
+    minimumFrame?:MinimumFrame }
 
 /** Read-only native facade. No uploaded observations, migration, clock advance or experiment dispatch. */
 export function reportSocietyEvaluation(query: EvaluationScope, options: SocietyEvaluationOptions) {
@@ -24,6 +29,9 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
     const outcomes = options.nativeOutcomes ? reportNativeOutcomes(scope,options.nativeOutcomes) : null;
     const integration = options.nativeIntegration && scope.actorAgentIds.length === 4 ? reportNativeIntegration(scope, options.nativeIntegration) : null;
     const selfSufficiency = reportSelfSufficiency(scope, options);
+    const minimumContract=loadSocietyMinimumContract(options.configDirectory);
+    if(minimumContract.digest!==selfSufficiency.bindings.contractDigest)throw Error('Minimum definition changed during native collection');
+    const minimumAssessment=projectNativeMinimumAssessment(minimumContract,scope,outcomes,options.minimumFrame);
     const economic = collectEconomicRiskEvidence({ from: scope.fromSimulationTime, to: scope.toSimulationTime, basis: 'simulation',
         clockId: scope.clockId, clockProfileDigest: scope.clockProfileDigest }, options.dependencies);
     const economicRisk = economic.risk;
@@ -58,7 +66,7 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
     const definition = { schemaVersion: 1, artifactKind: 'native-society-multi-objective-report',
         measurementStatus: observedObjectives ? 'partial-observed-channels' : 'inconclusive', scope,
         evidenceAuthority: 'native-readers-with-partial-coverage', contract: societyEvaluationContract(), calculation, sources,
-        nativeIntegration: integration, nativeFinance: finance, nativeOutcomes: outcomes,
+        nativeIntegration: integration, nativeFinance: finance, nativeOutcomes: outcomes,minimumAssessment,
         metricScopes: { specialization: 'selected-registered-responsible-agents-in-observed-production',
             mobility: 'matched-opening-closing-native-cohort; GP-only-personal-cash',
             wealth: 'GP-only-personal-physical-and-custodial-cash; company-equity/claims/debt/noncash-separate',
@@ -79,8 +87,7 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
             unemployment: 'No available-and-willing person-time history; offline or skill-idle does not prove unemployment.',
             'innovation-investment': 'No native commissioning/capital-expense history; production, XP and recipe availability do not prove innovation.',
             crime: 'No complete window/cohort victimization and at-risk exposure source; discoveries do not prove true incidence.' },
-        totalScore: null, societyMinimumVerdict: outcomes?.sources.toolDemand.status==='available'
-            &&outcomes.sources.toolDemand.value.minimumVerdict==='fail'?'fail':'inconclusive', completePopulationCoverage: false,
+        totalScore: null, societyMinimumVerdict: minimumAssessment.verdict, completePopulationCoverage: false,
         limitations: [...selfSufficiency.limitations, ...economicRisk.limitations,
             'Specialization counts recorded recipe-stage responsibilities, not physical worker execution, productive efficiency or opportunity.',
             'Systemic risk describes the observed economic window, not only the selected cohort and not future adaptive behavior.',

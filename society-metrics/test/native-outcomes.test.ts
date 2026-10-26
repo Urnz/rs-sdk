@@ -228,6 +228,9 @@ test('a scoped native unusable-demand violation is surfaced through evaluation w
         wallTime:new Date(initialWall+i*600).toISOString(),simulationTime:new Date(Date.parse(sim)+i*600000).toISOString()}}};store.write(r);}
     const options={configDirectory:resolve(import.meta.dir,'../../config'),nativeOutcomes:f.options};
     expect(reportSocietyEvaluation(f.scope,options).societyMinimumVerdict).toBe('fail');
+    const minimum=reportSocietyEvaluation(f.scope,options).minimumAssessment;
+    expect(minimum.requirements).toHaveLength(17);expect(minimum.integrity).toHaveLength(8);
+    expect(minimum.bindingStatus).toBe('unbound');expect(minimum.verdict).toBe('fail');expect(minimum.qualifiesMinimum).toBeFalse();
     const channel=f.read().sources.toolDemand;expect(channel.status).toBe('available');if(channel.status!=='available')throw Error('demand channel');
     expect(channel.value.standingRequests).toMatchObject({verdict:'fail',longestConfirmedUnusableSimulationMs:4200000,completeDemandCoverage:false});
     db.exec("CREATE TABLE native_mining_coverage_selection(singleton INTEGER,payload TEXT,digest TEXT);INSERT INTO native_mining_coverage_selection VALUES(1,'PRIVATE CORRUPTION','bad')");
