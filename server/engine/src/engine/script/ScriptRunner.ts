@@ -25,6 +25,7 @@ import { ScriptOpcode, ScriptOpcodeNameMap } from '#/engine/script/ScriptOpcode.
 import ScriptPointer from '#/engine/script/ScriptPointer.js';
 import ScriptState from '#/engine/script/ScriptState.js';
 import World from '#/engine/World.js';
+import { beginNativeLifecycleAttempt } from '#/mods/NativeLifecycleAttempts.js';
 import Environment from '#/util/Environment.js';
 import { printError, printWarning } from '#/util/Logger.js';
 import { finishNativeFoodProductionSegment } from '#/mods/NativeFoodProduction.js';
@@ -147,6 +148,8 @@ export default class ScriptRunner {
                     throw new Error('Second worker is occupied by native tool work');
                 if (state._activePlayer?.populationTerminal || state._activePlayer2?.populationTerminal
                     || (state.self instanceof Player && state.self.populationTerminal)) {
+                    const terminals=new Set([state._activePlayer,state._activePlayer2,state.self instanceof Player?state.self:null]);
+                    for(const player of terminals)if(player?.populationTerminal)beginNativeLifecycleAttempt('terminal-script-abort',player.username,World.currentTick,player,state.script.name)?.finish('blocked-terminal',player,ScriptState.ABORTED);
                     state.execution = ScriptState.ABORTED;
                     break;
                 }

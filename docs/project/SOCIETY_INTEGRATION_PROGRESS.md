@@ -3217,3 +3217,34 @@ login/load/respawn kísérlet és terminal reject journal.6 csomag maradt, a2. n
 27/45, SI-C07 NO-GO. Nincs C08/live install/run/baseline/provider vagy backup-read.
 Artifact: `20261027-173828-826-si-c07-mortality-artifact`friss NO-GO,16 család/
 17 requirement/8 gate, sourcehash/digest és15 doclink PASS0,861 s.
+
+### 2026-10-27 – SI-C07/2 natív lifecycle attempt és terminal-reject journal
+
+Saját schema1 immutable selection/event/head és monotone fault counter a már
+kijelölt mortality-rosterhez. Save parse külön login guard/world admission/
+reconnect/eviction és packed death-script dispatch/terminal interpreter abort.
+Begin/result, eredeti lifecycle/member/clock/health/death prefix; missing context
+vagy fél pár unknown, observerhiba nem változtat gameplay döntést. World receipt
+az onLogin/onReconnect hook előtt; meglévő save/guard/terminal szemantika maradt.
+Readonly lifecycleAttempts és scoped finite-lifecycle-no-respawn FAIL pozitív
+natív halál utáni admission/respawn bizonyítéknál; partial coverage/fault nem
+rejti el a sértést. CompleteLifecycleEnforcement továbbrafalse, nincs üres
+journalból enforcement PASS. Saját explicit init, user_version változatlan,
+C06 selected archive/isolated restore, nincs backfill vagy evidence-törlés.
+
+`20261027-175432-095-si-c07-lifecycle-thin-native`4 packed native +wrapper PASS
+16,146 s. `20261027-175947-519-si-c07-lifecycle-final-boundaries`86 jelentett
+eset PASS (73 root/wrapper +13 packed Mining), test116,99 s; root/engine TS is
+PASS, összes242,420 s. Kontrollált adapter-fixture valódi health/death authority,
+scoped violation/frozen reread/foreign/stale/missing/rollback/audit/head és C06
+restore. Teljes World-login run nem történt. Végső receipt-placement után csak
+engine TS ismétlődött: `20261027-180613-403-si-c07-lifecycle-entry-point-types`
+PASS15,933 s. Thin körrel91 jelentett eset. Full/webclient nem indokolt saját
+observer és célzottan ellenőrzött közvetlen fogyasztói határok esetén.
+
+Részletek: SI_C07_LIFECYCLE_ATTEMPTS.md. Következő a lifecycle head/fault
+prospektív tick-watermark kötése és terminal guard utáni tényleges World-census/
+finite flags.6 csomag maradt, a2. nyitott;27/45, SI-C07 NO-GO,17/8 változatlan.
+Nincs C08/live install/run/baseline/providerköltség vagy historical backup-read.
+Artifact: `20261027-181111-079-si-c07-lifecycle-artifact`friss NO-GO/sourcehash/
+digest és16 doclink PASS1,210 s. Runtime authority továbbra0.

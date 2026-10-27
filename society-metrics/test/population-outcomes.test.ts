@@ -49,6 +49,8 @@ import { NativeMortalityCoverageStore,nativeMortalityActor,type MortalityCoverag
 import { recordNativeMortalityPass } from '../../population-lifecycle/native-observer.js';
 import { admitNaturalPopulationDeaths } from '../../server/engine/src/mods/PopulationDeathRuntime.js';
 import { readNativeMortalityCoverage } from '../mortality-coverage.js';
+import { NativeLifecycleAttemptStore,type LifecycleAttemptEvent } from '../../population-lifecycle/native-attempts.js';
+import { readNativeLifecycleAttempts } from '../lifecycle-attempts.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -142,6 +144,51 @@ test('prospective mortality own schema/selection/audit reopen and rollback stay 
         f.db.run('DROP TRIGGER mortality_event_no_delete');f.db.run('DELETE FROM native_mortality_event WHERE sequence=2');expect(f.read).toThrow('chain');
         f.kill('2001-01-03T00:00:00.000Z');expect(f.report().verdict).toBe('fail');
         expect(f.report().integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();
+    }finally{f.close();}
+});
+
+test('native lifecycle parsing and terminal rejections remain observations; actual post-death admission yields a scoped integrity FAIL',()=>{
+    const f=mortalityFixture();try{
+        const store=new NativeLifecycleAttemptStore(f.db,true);f.sample(0);f.kill('2001-01-01T00:00:00.600Z');
+        const c=f.clock.observe('world',new Date(Date.parse(wall)+600).toISOString(),42),actor=f.actors.find(a=>a.actorId==='ada')!,
+            authority={actor,clock:c,healthHeads:f.health.coverageHeads(),deathEventId:f.health.deathFor('ada')!.eventId,restricted:true},
+            emit=(kind:LifecycleAttemptEvent['kind'],outcome:NonNullable<LifecycleAttemptEvent['outcome']>,context:LifecycleAttemptEvent['authority']=authority)=>{
+                const begin:LifecycleAttemptEvent={attemptId:randomUUID(),sessionId:'native',username:'ada',kind,phase:'begin',wallTime:c.wallTime,authority:context,
+                    vitals:{hitpoints:10,terminal:false,finite:true},scriptName:null,outcome:null,scriptState:null};
+                store.append(begin);store.append({...begin,phase:'result',outcome});return begin;};
+        emit('load','parsed');emit('login-guard','blocked-restricted');
+        const read=()=>readNativeLifecycleAttempts(f.db,f.scope,f.options,initial,f.actors);
+        expect(read().violations).toEqual([]);expect(read().completeLifecycleEnforcement).toBeFalse();
+        const admitted=emit('world-admission','admitted');store.fault();expect(read().violations[0]).toMatchObject({attemptId:admitted.attemptId,reason:'native-terminal-avatar-admitted-or-respawned'});
+        const result=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));
+        expect(result.verdict).toBe('fail');expect(result.integrity.find(g=>g.gateId==='finite-lifecycle-no-respawn')!.verdict).toBe('fail');
+        expect(result.qualifiesMinimum).toBeFalse();
+        const frozen=join(f.root,'server/engine/data/lifecycle-offline.sqlite');writeFileSync(frozen,f.db.serialize());const offline=new OwnedDatabase(frozen,{readonly:true});
+        try{expect(readNativeLifecycleAttempts(offline,f.scope,f.options,initial,f.actors)).toEqual(read());}finally{offline.close(true);}
+        const foreign={...f.scope,clockId:'foreign'},mismatch=projectNativeMinimumAssessment(contract,foreign,reportNativeOutcomes(f.scope,f.options));
+        expect(mismatch.lifecycleIntegrityViolations).toEqual([]);
+    }finally{f.close();}
+});
+
+test('native lifecycle missing results, unknown or stale authority and altered identities never become confirmed admissions; own audit stays immutable',()=>{
+    const f=mortalityFixture();try{const store=new NativeLifecycleAttemptStore(f.db,true);f.db.run('PRAGMA user_version=42');f.sample(0);
+        const begin:LifecycleAttemptEvent={attemptId:randomUUID(),sessionId:'native',username:'ada',kind:'load',phase:'begin',wallTime:wall,
+            authority:null,vitals:null,scriptName:null,outcome:null,scriptState:null};store.append(begin);
+        expect(()=>store.append({...begin,attemptId:randomUUID(),phase:'result',outcome:'parsed'})).toThrow('lacks begin');
+        expect(()=>f.db.transaction(()=>{store.append({...begin,attemptId:randomUUID()});throw Error('rollback');}).immediate()).toThrow('rollback');
+        const read=()=>readNativeLifecycleAttempts(f.db,f.scope,f.options,initial,f.actors);
+        expect(read().attempts[0]!.status).toBe('unproven');expect(read().violations).toEqual([]);
+        store.append({...begin,phase:'result',outcome:'parsed'});expect(read().attempts[0]!.status).toBe('unproven');
+        expect(f.db.query('PRAGMA user_version').get()).toEqual({user_version:42});
+        const c=f.store.read().entries[0]!.sample.clock;
+        for(const variant of ['foreign','stale']){const e={...begin,attemptId:randomUUID(),kind:'world-admission' as const,
+            wallTime:variant==='stale'?new Date(Date.parse(wall)+5000).toISOString():wall,
+            authority:{actor:variant==='foreign'?{...f.actors[0]!,lifecycleId:'f'.repeat(64)}:f.actors[0]!,clock:c,healthHeads:f.health.coverageHeads(),deathEventId:null,restricted:false}};
+            store.append(e);store.append({...e,phase:'result',outcome:'admitted'});}
+        expect(read().attempts.every(a=>a.status==='unproven')).toBeTrue();expect(read().violations).toEqual([]);
+        expect(()=>f.db.run('DELETE FROM native_lifecycle_event WHERE sequence=1')).toThrow('immutable');
+        f.db.run('DROP TRIGGER lifecycle_event_no_delete');f.db.run('DELETE FROM native_lifecycle_event WHERE sequence=1');expect(read).toThrow('chain');
+        f.kill('2001-01-03T00:00:00.000Z');expect(f.report().verdict).toBe('fail');
     }finally{f.close();}
 });
 

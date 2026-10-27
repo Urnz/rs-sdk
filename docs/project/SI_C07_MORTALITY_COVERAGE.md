@@ -1,5 +1,10 @@
 # SI-C07 – Forráscsalád-jegyzék és prospektív mortality-pass megfigyelés
 
+**Ugyanaznapi folytatás:** a [natív lifecycle-attempt journal](SI_C07_LIFECYCLE_ATTEMPTS.md)
+már külön figyeli a parsert, login guardot, World admission/reconnect/evictiont
+és terminal respawn-script abortot. Ebből scoped sértés felismerhető; teljes
+route/watermark/World-census coverage továbbra kell a pozitív enforcement kapuhoz.
+
 2026-10-27, a2. munkacsomag részeredménye. SI-C07 továbbra NO-GO,27/45;
 [6 munkacsomag maradt](SI_C07_REMAINING_WORK.md). Az eredeti17 requirement,
 8 integrity gate és minden idő-/értékküszöb változatlan.

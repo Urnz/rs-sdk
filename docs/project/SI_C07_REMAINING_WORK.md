@@ -86,3 +86,9 @@ bekötött, az eredeti17/8 forrás- és időbeli kötelezettségeivel. SelectedS
 még null, teljes login/load/respawn és8 integrity továbbra hiányos. Következő
 a natív belépési/újratöltési/respawn próbálkozások és terminal elutasítások naplója.
 6 csomag maradt, a2. nyitott,27/45, SI-C07 NO-GO.
+
+2026-10-27-i további rész: [natív lifecycle-attempt journal](SI_C07_LIFECYCLE_ATTEMPTS.md)
+bekötött parser/guard/World admission/reconnect/eviction/respawn-abort route-okkal.
+Hiteles native death utáni admission scoped integrity FAIL, de a teljes
+route/watermark/World-census coverage továbbra hiányos. Ez a következő kódhatár;
+a2. nyitott,6 csomag maradt,27/45, C07 NO-GO, C08 nem indul.

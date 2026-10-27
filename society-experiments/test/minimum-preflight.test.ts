@@ -16,6 +16,7 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     expect(report.requiredSourceInventory.requirements.every(r=>r.sourceIds.length>0)).toBeTrue();
     expect(report.requiredSourceInventory.integrity.every(r=>r.sourceIds.length>0)).toBeTrue();
     expect(report.requiredSourceInventory.definitions.find(d=>d.id==='login-respawn-enforcement')!.gap).toContain('No complete');
+    expect(report.requiredSourceInventory.definitions.find(d=>d.id==='login-respawn-enforcement')!.tables).toContain('native_lifecycle_event');
     expect(report.readerCoverage.filter(r=>r.status==='minimum-lower-bound-adapter')).toHaveLength(3);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-maintenance-origin-adapter')).toHaveLength(1);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-population-bound-adapter')).toHaveLength(3);

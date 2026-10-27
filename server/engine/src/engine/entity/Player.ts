@@ -1,4 +1,5 @@
 import { playerSaveStore } from '#/engine/market/MarketStore.js';
+import { beginNativeLifecycleAttempt,isNativeRespawnScript } from '#/mods/NativeLifecycleAttempts.js';
 import { PlayerInfoProt, Visibility } from '#/network/rsbuf/index.js';
 import { CollisionFlag, CollisionType } from '#/engine/routefinder/index.js';
 
@@ -2247,11 +2248,16 @@ export default class Player extends PathingEntity {
     // ----
 
     runScript(script: ScriptState, protect: boolean = false, force: boolean = false) {
-        if (this.populationTerminal || this.populationSleeping) return ScriptState.ABORTED;
+        const scriptName=script.script?.name,lifecycleAttempt=typeof scriptName==='string'&&isNativeRespawnScript(scriptName)
+            ?beginNativeLifecycleAttempt('respawn-script',this.username,World.currentTick,this,scriptName):undefined;
+        if (this.populationTerminal || this.populationSleeping) {
+            if(this.populationTerminal&&!lifecycleAttempt)beginNativeLifecycleAttempt('terminal-script-abort',this.username,World.currentTick,this,scriptName??null)?.finish('blocked-terminal',this,ScriptState.ABORTED);
+            lifecycleAttempt?.finish(this.populationTerminal?'blocked-terminal':'blocked-sleeping',this,ScriptState.ABORTED);return ScriptState.ABORTED;
+        }
         if (!force && protect && (this.protect || this.delayed)) {
             // can't get protected access, bye-bye
             // printDebug('No protected access:', script.script.name, protect, this.protect);
-            return -1;
+            lifecycleAttempt?.finish('blocked-busy',this,-1);return -1;
         }
 
         if (protect) {
@@ -2260,6 +2266,7 @@ export default class Player extends PathingEntity {
         }
 
         const state = ScriptRunner.execute(script);
+        lifecycleAttempt?.finish('returned',this,state);
 
         if (protect) {
             this.protect = false;

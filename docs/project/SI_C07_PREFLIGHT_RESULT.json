@@ -398,9 +398,14 @@
       },
       {
         "id": "login-respawn-enforcement",
-        "authority": "complete native login/load/respawn attempts and terminal rejection history",
+        "authority": "prospective native parser/login guard/world-entry/respawn observations and terminal rejections",
         "span": "warmup-and-evaluation",
-        "tables": [],
+        "tables": [
+          "native_lifecycle_selection",
+          "native_lifecycle_event",
+          "native_lifecycle_head",
+          "native_lifecycle_fault"
+        ],
         "requirements": [
           "founders-at-start",
           "minimum-living-founders",
@@ -409,7 +414,7 @@
         "gates": [
           "finite-lifecycle-no-respawn"
         ],
-        "gap": "No complete native login/load/respawn history adapter yet; mortality-pass coverage cannot replace it."
+        "gap": "No complete route/source-head coverage certificate yet; paired observations can prove violations, never absence of attempts or full enforcement PASS."
       },
       {
         "id": "clock-world-policy",
@@ -863,7 +868,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "a09d973cd1a1b844f77f12c488ef01052d1a1e6a757f216cd5d946521bb91d89"
+    "digest": "c7d8626471ae57242546e7cf6348f6e4e0d9f582636b722d21db5c7b33e23226"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1181,7 +1186,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "469572d9c1f962383c89f9b6aa6a022d212f9faff2221a5a046dc6a14505b467"
+      "sha256": "942fcda9df882ebc74c14b7084b1682128d6306c7a77014b711079a5c7ff1ff6"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1206,6 +1211,30 @@
     {
       "path": "society-metrics/mortality-coverage.ts",
       "sha256": "43fdaacfe1c52ad620c0fe6041a699d0b3daaf6b5e3175783373c7249b8165d5"
+    },
+    {
+      "path": "population-lifecycle/native-attempts.ts",
+      "sha256": "d9e043452bb6e4dc7f142f6ca4f7086d40337ec1a2d3234d7716a23934fc287f"
+    },
+    {
+      "path": "society-metrics/lifecycle-attempts.ts",
+      "sha256": "1483aebda2bc0ad12c25cb510677be361d44529b04a69a0dc92724915ef939de"
+    },
+    {
+      "path": "server/engine/src/mods/NativeLifecycleAttempts.ts",
+      "sha256": "cc55f18e72c4c4635ac602a9530ac13d3cd1bbd43355bfe3a981d53144590cc4"
+    },
+    {
+      "path": "server/engine/src/engine/entity/Player.ts",
+      "sha256": "b836b1553782225875690395ab94a8c3596c0eb315357d69e7196cfec2cb89f1"
+    },
+    {
+      "path": "server/engine/src/engine/entity/PlayerLoading.ts",
+      "sha256": "feae0af9831fecdaab23ab4674aadb9f34529c48d608d0caaa24eeb5bc1dee57"
+    },
+    {
+      "path": "server/engine/src/engine/script/ScriptRunner.ts",
+      "sha256": "6bf720bedb9263409cd750fb9f322cdfe02524f2df3bcdcefdc314e3b9e1770b"
     },
     {
       "path": "server/engine/src/mods/NativeMortalityCoverageRuntime.ts",
@@ -1233,7 +1262,7 @@
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "301f4a2ab29a705366adf9fa74c4094c5e84b58f9a74f58cfc17fb0687c03ab8"
+      "sha256": "e063b7893b281225e4156cdf77a9bbb61f6b1ace63e1600ccbddfa27229ec5f7"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1481,7 +1510,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "7770fd43d677a0b250c2d40b09184ca40a3f097168e11bb1385520e2976f7ebc"
+      "sha256": "8f68344dea357dcb1752bd0b1466cf2b55281ece3faba806f7ec846c4befe2a0"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -1489,7 +1518,7 @@
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "f7592bb07cc0115ace42c82cec2a011a9371411dbbee53dd747cbeb81feb34bb"
+      "sha256": "b0dbdab505baf82b2319630e01e0cbcf7bdbed53c59e5280c78b083913896d60"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -1505,7 +1534,7 @@
     },
     {
       "path": "server/engine/src/engine/World.ts",
-      "sha256": "8d655c2b51f88431f8d707017137bf80175846b0d5c7537142c53fcb7b9a131d"
+      "sha256": "ffdf0658ecf1063df3f97833e4307b0ea5fe94b011ab01a106f3508c9102ca31"
     },
     {
       "path": "society-metrics/tool-demand-intervals.ts",
@@ -1537,7 +1566,7 @@
     },
     {
       "path": "server/engine/src/mods/PopulationDeathRuntime.ts",
-      "sha256": "3bedb3ca96f3caf1d9316bfcada2ae92638ab5e52712a23fc52d584db345121f"
+      "sha256": "2b4479bbbdf032f7dfc3aafba8c05eb23d8da5ee04c79b4ea011f0b9d6dc5c8b"
     },
     {
       "path": "sdk/mining-demand.ts",
@@ -1621,7 +1650,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "df03305e15b7fef652a68303e50d7260408b7524d1f54d06172725a9be0422c7"
+      "sha256": "fefa7ba2df82dee872e52b5bf99038383c0f3c5340d755415149aa4a91c5055a"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1650,5 +1679,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "520ed553213f310c880f0e67d9d5f4af9ffd77feee3cc584d35706b86fd10613"
+  "digest": "a3c9caeb0ec1e8c56a2faa23868ff77e6b385252226cf710a861842b63a909dc"
 }

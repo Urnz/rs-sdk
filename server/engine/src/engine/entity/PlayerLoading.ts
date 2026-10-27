@@ -10,6 +10,7 @@ import World from '#/engine/World.js';
 import Packet from '#/io/Packet.js';
 import ClientSocket from '#/server/ClientSocket.js';
 import { fromBase37, toBase37 } from '#/util/JString.js';
+import { beginNativeLifecycleAttempt } from '#/mods/NativeLifecycleAttempts.js';
 
 export class PlayerLoading {
     public static readonly SAV_MAGIC: number = 0x2004;
@@ -31,6 +32,12 @@ export class PlayerLoading {
     }
 
     static load(name: string, sav: Packet, client: ClientSocket | null) {
+        const attempt=beginNativeLifecycleAttempt('load',fromBase37(toBase37(name)),World.currentTick);
+        try{const player=PlayerLoading.decode(name,sav,client);attempt?.finish('parsed',player);return player;}
+        catch(error){attempt?.finish('failed');throw error;}
+    }
+
+    private static decode(name:string,sav:Packet,client:ClientSocket|null){
         const hash64 = toBase37(name); // username or email.
         const name37 = toBase37(name); // always username.
         const safeName = fromBase37(name37); // always safe username.

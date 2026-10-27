@@ -1117,6 +1117,10 @@ Teljes source-coverage integrity és mortality/enforcement a következő;6 marad
 További rész: [forráscsalád-jegyzék és natív mortality-pass coverage](SI_C07_MORTALITY_COVERAGE.md)
 bekötött. Teljes login/load/respawn enforcement és8 integrity még hiányos;
 ez a következő kódhatár.6 maradt, a2. nyitott,27/45, NO-GO.
+További rész: [natív lifecycle-attempt journal](SI_C07_LIFECYCLE_ATTEMPTS.md) kész
+komponensszinten. Hiteles terminal admission/respawn scoped integrity FAIL lehet;
+pozitív enforcementhez lifecycle watermark és World-census még kell.
+6 maradt, a2. nyitott,27/45, C07 NO-GO.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

@@ -7,6 +7,7 @@ import { check } from '../external-trade/source.js';
 import { NativeToolWorkStore } from '../production-workflow/native-tool-work.js';
 import { NativeMaterialStore } from '../production-workflow/native-material.js';
 import { NativeMortalityCoverageStore } from '../population-lifecycle/native-coverage.js';
+import { NativeLifecycleAttemptStore } from '../population-lifecycle/native-attempts.js';
 import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFoodProductionStore.js';
 import { AGENT_STATE_SCHEMA_VERSION } from '../agent-state/types.js';
 import { SIMULATION_CLOCK_STORE_SCHEMA_VERSION } from '../simulation-clock/types.js';
@@ -50,6 +51,9 @@ function stores(root:string,selected:ExpandedSelection){
             if(s.requiredTables.includes('native_mortality_selection')){const {selection}=new NativeMortalityCoverageStore(db).read();
                 check(selection.worldId===selected.worldId&&selection.clockId===selected.clockId&&selection.clockProfileDigest===selected.clockProfileDigest,
                     'Native mortality coverage belongs to another world/clock');}
+            if(s.requiredTables.includes('native_lifecycle_selection')){const {mortality}=new NativeLifecycleAttemptStore(db).read();
+                check(mortality.worldId===selected.worldId&&mortality.clockId===selected.clockId&&mortality.clockProfileDigest===selected.clockProfileDigest,
+                    'Native lifecycle attempts belong to another world/clock');}
             if(s.requiredTables.includes('native_food_production_schema'))assertFoodProductionSchema(db);
             if(s.requiredTables.includes('native_mining_request_selection')){const requests=new NativeMiningRequestStore(db).read(),owner=requests.selection;
                 check(owner.worldId===selected.worldId&&owner.clockId===selected.clockId&&owner.clockProfileDigest===selected.clockProfileDigest,'Executor requests belong to another world/clock');}

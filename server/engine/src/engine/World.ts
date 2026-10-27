@@ -7,6 +7,7 @@ import { closeNativeFoodTick } from '#/mods/NativeFoodDeliveryRuntime.js';
 import { recordNativeFoodOpening } from '#/mods/NativeFoodOpening.js';
 import { tickPopulationDeaths, populationAvatarRestricted, populationAvatarIsFinite } from '#/mods/PopulationDeathRuntime.js';
 import { tickNativeMortalityCoverage } from '#/mods/NativeMortalityCoverageRuntime.js';
+import { beginNativeLifecycleAttempt,observeNativePopulationLogin } from '#/mods/NativeLifecycleAttempts.js';
 import { executeCheckpointDetection, executeCheckpointSearch, loadEngineCheckpointConfiguration,
     type CheckpointDetectionCommand, type CheckpointSearchCommand } from '#/mods/CheckpointInspection.js';
 import { getCheckpointEvidenceStore, type EngineCheckpointDetectionRecord,
@@ -700,7 +701,8 @@ class World {
                     if (player.populationFinite && player.levels[PlayerStat.HITPOINTS] === 0) player.populationTerminal = true;
                 }
                 catch { player.populationTerminal = true; }
-                if (player.populationTerminal) { player.stopAction(); player.clearWaypoints(); this.removePlayer(player); }
+                if (player.populationTerminal) {const attempt=beginNativeLifecycleAttempt('world-eviction',player.username,this.currentTick,player);
+                    player.stopAction(); player.clearWaypoints(); this.removePlayer(player);attempt?.finish('evicted',player); }
             }
 
             // world processing
@@ -2303,8 +2305,9 @@ class World {
 
         player: for (const player of this.newPlayers) {
             try {
-                player.populationFinite = populationAvatarIsFinite(player.username);
-                if (populationAvatarRestricted(player.username) || (player.populationFinite && player.levels[PlayerStat.HITPOINTS] === 0)) {
+                const lifecycleGuard=observeNativePopulationLogin(player,this.currentTick);
+                if(lifecycleGuard==='source-unavailable')throw Error('Population login authority unavailable');
+                if (lifecycleGuard==='blocked') {
                     if (isClientConnected(player)) { player.client.send(Uint8Array.from([4])); player.client.close(); }
                     continue;
                 }
@@ -2330,6 +2333,7 @@ class World {
                     if (player.username !== other.username) {
                         continue;
                     }
+                    const lifecycleReconnect=beginNativeLifecycleAttempt('world-reconnect',other.username,this.currentTick,other);
 
                     // Save current state on reconnect to prevent progress loss from browser crashes
                     // Without this, fast reconnects prevent timeout-triggered saves from ever firing
@@ -2352,6 +2356,7 @@ class World {
 
                     rsbuf.cleanupPlayerBuildArea(other.slot);
 
+                    lifecycleReconnect?.finish('reconnected',other);
                     other.onReconnect();
 
                     this.friendThread.postMessage({
@@ -2450,6 +2455,7 @@ class World {
                 continue;
             }
 
+            const lifecycleAdmission=beginNativeLifecycleAttempt('world-admission',player.username,this.currentTick,player);
             if (isClientConnected(player)) {
                 if (player.reconnecting) {
                     player.addSessionLog(LoggerEventType.MODERATOR, 'Logged in (client reports reconnecting)');
@@ -2500,6 +2506,8 @@ class World {
             player.moveClickRequest = false;
 
             this.gameMap.getZone(player.x, player.z, player.level).enter(player);
+            // Capture the admission itself before login hooks can legitimately change HP or other state.
+            lifecycleAdmission?.finish('admitted',player);
             player.onLogin();
             onWorldModPlayerLogin(player);
 

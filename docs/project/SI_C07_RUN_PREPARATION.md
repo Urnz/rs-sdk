@@ -226,3 +226,9 @@ source pin nélkül nem coverage PASS. Original roster/health prefixhez kötött
 offline tagokat is vizsgáló native pass journal, gapeket nem áthidaló readonly
 reader. Teljes login/load/respawn enforcement és8 integrity még kell;6 csomag
 maradt, a2. nyitott, NO-GO. Nincs új run/install/baseline/providerköltség.
+
+2026-10-27-i további rész: [natív lifecycle-attempt journal](SI_C07_LIFECYCLE_ATTEMPTS.md).
+Save-parse külön az admissiontől; original native death utáni actual belépés/
+respawn scoped finite-lifecycle-no-respawn FAIL-t adhat. Teljes journal/route
+coverage nincs, üres napló nem PASS. Következő head/fault→tick watermark és
+post-terminal-guard World-census.6 maradt, a2. nyitott, NO-GO; nincs live install/run.

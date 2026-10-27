@@ -130,7 +130,12 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 meaning:'A verified positive bootstrap/import relief violates100% internal supply even if other native applications are pending.'});
         }
     }
-    const diagnosticFailure=diagnosticViolations.length>0;
+    const lifecycle=nativeScopeMatches?outcomes?.sources.lifecycleAttempts:undefined;
+    const lifecycleIntegrityViolations=lifecycle?.status==='available'&&lifecycle.value.worldId===outcomes?.worldId&&digest(lifecycle.value.scope)===digest(scope)
+        ?lifecycle.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycle.digest,scope,attemptId:v.attemptId,meaning:v.reason})):[];
+    const integrityFailures=lifecycleIntegrityViolations.length?[{gateId:'finite-lifecycle-no-respawn',verdict:'fail' as const,
+        evidenceDigests:[...new Set(lifecycleIntegrityViolations.map(v=>v.sourceDigest))]}]:[];
+    const diagnosticFailure=diagnosticViolations.length>0||lifecycleIntegrityViolations.length>0;
     const lower=(requirementId:string,subject:MinimumSubject,value:number,sourceDigest:string)=>{
         if(value>0)cells.push({requirementId,subject,opportunity:'positive',lower:{numerator:String(value),denominator:'1'},evidenceDigests:[sourceDigest]});
     };
@@ -196,14 +201,14 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 else cells.push({requirementId:'tool-unusable-demand-time',subject:{cycleId:tool.value.cycleId},opportunity:'positive',upper,evidenceDigests:[tool.digest,population.digest]});
             }
         }
-        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],[]);
+        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],integrityFailures);
     }catch{bindingStatus='invalid';assessment=null;}
     // No gate is synthesized from configuration or partial ledger presence. Native PASS is unavailable until their adapters exist.
     const body={protocol:'native-society-minimum-assessment-v1',scope,contractDigest:contract.digest,bindingStatus,
         nativeScopeStatus:!outcomes?'unavailable':nativeScopeMatches?'matched':'mismatch',
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
-        integrity:sourceMap.integrity.map(g=>({...g,verdict:'inconclusive' as const})),assessment,
-        diagnosticViolations,requiredSourceInventory:minimumSourceInventory(contract),
+        integrity:sourceMap.integrity.map(g=>({...g,verdict:integrityFailures.some(f=>f.gateId===g.gateId)?'fail' as const:'inconclusive' as const})),assessment,
+        diagnosticViolations,lifecycleIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
         sources:{work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
             toolMaintenance:nativeScopeMatches&&outcomes?.sources.toolMaintenance?.status==='available'
@@ -217,6 +222,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             mortalityCoverage:nativeScopeMatches&&outcomes?.sources.mortalityCoverage?.status==='available'
                 ?{status:'available',digest:outcomes.sources.mortalityCoverage.digest,completeMortalityTickCoverage:outcomes.sources.mortalityCoverage.value.completeMortalityTickCoverage,
                     completeLifecycleEnforcement:false}:{status:nativeScopeMatches?outcomes?.sources.mortalityCoverage?.status??'unavailable':'unavailable'},
+            lifecycleAttempts:lifecycle?.status==='available'?{status:'available',digest:lifecycle.digest}:{status:lifecycle?.status??'unavailable'},
             toolDemand:tool?.status==='available'?{status:'available',digest:tool.digest}:{status:tool?.status??'unavailable'}},
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',

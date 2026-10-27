@@ -99,10 +99,16 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   prefixszel; hiányzó birth/tick/session/roster/write/policy gap. Frozen readonly
   és C06 restore próbázott. Ez nem continuous HP vagy login/respawn enforcement,
   ezért completeLifecycleEnforcement=false, mind8 integrity továbbra unknown.
-- **Következő kódhatár a2. csomagon belül:** natív login/load/respawn kísérletek
-  és terminal elutasítások prospektív naplója. Ezután teljes konkrét producer/
-  source/boundary/access history és8 integrity adapter kell. **6 csomag maradt,
-  a2. még nyitott**; nincs3. baseline vagy C08. C07 továbbra NO-GO.
+- **Lifecycle-attempt rész kész:** [natív parser/login/entry/respawn journal](SI_C07_LIFECYCLE_ATTEMPTS.md).
+  Saját immutable selection és begin/result/head/fault, mortality-selectionhöz
+  kötve. Parser siker nem admission; actual natív halál utáni belépés/respawn
+  scoped finite-lifecycle-no-respawn FAIL lehet. Missing/stale/foreign context
+  unproven, observerhiba nem módosítja a guardot. Teljes enforcement még false.
+- **Következő kódhatár a2. csomagon belül:** lifecycle head/fault és prospektív
+  tick-watermark összekötése, terminal guard utáni valódi World-census/finite
+  állapot tanúsítása. Ezután teljes concrete source/boundary/access history
+  és8 integrity adapter kell. **6 csomag maradt, a2. még nyitott**; nincs3.
+  baseline vagy C08. C07 továbbra NO-GO, nincs pozitív minimum/enforcement PASS.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
   Lower-bound longest unusable-time, nem más actorok/kérések összege; restart,
@@ -153,42 +159,33 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261027-172757-651-si-c07-mortality-final-boundaries`:68 PASS,1 régi
-  fixture FAIL;64,156 s (test63,55 s).** Population/outcomes/minimum, death,
-  expanded baseline és preflight6 pontos fájlja. A v22 migration fixture
-  v26–v29 táblákat hagyott bent; csak a disposable tesztadat alakja javult,
-  produkciós migráció nem változott. Typecheck ekkor nem indult el.
-- `20261027-173043-086-si-c07-mortality-death-types`:2 célzott death/migrációs
-  próba PASS;41,649 s után root TS FAIL. Az új World-observer runtime value
-  MarketStore-importja root alias-határt lépett át, és a forrásjegyzék inferred
-  unionje never[] lett. Engine-only bekötés külön modulba került, explicit
-  inventory adattípus javította a szűkítést. Nincs új compiler alias/config.
-- **`20261027-173313-243-si-c07-mortality-source-types`:8 célzott death/
-  mortality/preflight próba és root/engine TS PASS98,608 s.** A passing
-  minimum/outcomes/expanded egész fájlkört nem ismételtük. Teljes scope a
-  `.local/verification/*.result.json` fájlokban; a korábbi failure log megmaradt.
-- `20261027-172924-157-si-c07-mortality-selected-restore`:az új explicit
-  mortality-selection C06 archive/izolált restore próba PASS1,939 s;
-  corrupted head új baseline-t tilt. A még nem betöltött új eset külön futott.
-- **`20261027-173413-018-si-c07-mortality-native-import`:6 packed native
-  observer eset +wrapper PASS2,433 s.** Az új World/engine-only importhatár
-  meglévő native cohort/identity/sleep/ingress próbái. Nem teljes live World-run.
-- `20261027-172516-705-si-c07-mortality-thin`:2 új SQLite/native pass próba
-  korán PASS2,830 s. A végső3 mortality próba már ismert birth-et is megkövetel;
-  unknown birth, hiányzó tick/session/roster/write és foreign lifecycle gap.
-- Négy offline founder, natív passz és byteazonos frozen readonly reread;
-  valós esedékes offline natural death terminal-frame/native head kötése;
-  user_version42, journal rollback, immutable history/head és eredeti founder
-  FAIL-megőrzés.16 forráscsalád lefedi a17/8 hivatkozást, selectedSources=null,
-  qualifiesCoverage=false. Mind8 integrity kapu unknown marad.
-- Full/webclient TS nem futott: saját observer/journal, readonly health-head
-  metódus, egy World megfigyelési hívás és közvetlen metrics/restore fogyasztók
-  érintettek. Meglévő mortality/admission/HP/login guard, clock, gazdasági
-  transaction/persistence/global auth és compiler/runtime dependency változatlan.
-- `20261027-173828-826-si-c07-mortality-artifact`:friss NO-GO,16 család/17/8,
-  sourcehash/digest és15 dokumentumlink PASS0,861 s. A lezáráskor
-  staged format ellenőrzés történik. Korábbi bizonyíték a komponensdokumentumokban/progressben.
+- **`20261027-175432-095-si-c07-lifecycle-thin-native`:4 actual packed native
+  próba +wrapper PASS16,146 s.** Valódi save-parse/failure, változatlan login
+  guard, lethal native source +packed respawn/interpreter terminal abort és
+  observer fault/null context. Nem teljes World-login futtatás.
+- **`20261027-175947-519-si-c07-lifecycle-final-boundaries`:86 jelentett eset
+  PASS,0 FAIL; test116,99 s, teljes parancs242,420 s. Root és engine TS PASS.**
+  Population-outcomes, native-outcomes, minimum-assessment, death, expanded
+  baseline, minimum-preflight és native-mining-tool pontos fájlkör:73 root
+  (wrapperrel) +13 packed Mining. A külön thin körrel összesen91 jelentett eset.
+- **`20261027-180613-403-si-c07-lifecycle-entry-point-types`:engine TS PASS
+  15,933 s.** Végső World-receipt az onLogin/onReconnect hook elé került:
+  későbbi jogos HP-változás nem téves terminal admission. Csak az érintett
+  engine TS ismétlődött; root és passing tesztkör nem futott újra.
+- Kontrollált SQLite adapter-fixture valódi native health/death forrással:
+  parser/block nem FAIL, admission scoped FAIL; frozen readonly reread,
+  foreign/stale authority, fél pár, shared user_version42, rollback, immutable
+  audit/head és pozitív founder FAIL megőrzése. C06 required journal archive/
+  izolált restore; sérült head új pint tilt. Ez nem teljes live World-run.
+- Full/webclient TS nem futott: saját additive observer/journal és közvetlen
+  parser/login/interpreter/metrics/restore határok érintettek. Az eredeti guard,
+  save formátum, mortality/HP tiltás, shared clock/economic/persistence/auth
+  foundation változatlan. A célzott native és root próbák lefedik a módosítást.
+- `20261027-181111-079-si-c07-lifecycle-artifact`:friss NO-GO sourcehash/digest
+  és16 dokumentumlink PASS1,210 s; selectedSources=null, qualifiesCoverage=false. A17 részleges
+  adapter nem mért PASS. Korábbi bizonyíték a komponensdokumentumokban/progressben.
   Nincs hosszú run, providerhívás, új live install/selection/baseline vagy historical DB-read.
+
 ## Megőrzendő döntések
 
 - Csak helyi/private LostCity. Nincs live world-indítás, import, enrollment,

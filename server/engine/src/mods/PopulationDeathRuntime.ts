@@ -17,6 +17,8 @@ import { createPopulationStarvationDeath } from '../../../../population-lifecycl
 import { loadSurvivalProfile } from '../../../../needs/survival.js';
 import { resolve } from 'node:path';
 import type { AgentPopulationMember } from '../../../../agent-state/types.js';
+import { nativeMortalityActor } from '../../../../population-lifecycle/native-coverage.js';
+import type { LifecycleAuthority } from '../../../../population-lifecycle/native-attempts.js';
 
 const root = new URL('../../../../', import.meta.url);
 const path = (relative: string) => fileURLToPath(new URL(relative, root));
@@ -173,6 +175,18 @@ export function nativePopulationMortalityPass(engineTick:number){
     const pass=completedMortalityPass;if(failed||!pass||pass.clock.engineTick!==engineTick)throw Error('No completed native mortality pass for this tick');
     return{clock:pass.clock,members:pass.local.agents.listPopulationMembers(),source:pass.source,agePolicyDigest:pass.local.age.digest,
         mortalityPolicyDigest:pass.local.mortality.digest,survivalSelectionDigest:loadSurvivalProfile(fileURLToPath(root))?.selection.digest??null};
+}
+
+/** Readonly current-tick observation for parser/admission instrumentation; never advances the clock or admits an avatar. */
+export function nativePopulationLifecycleAuthority(username:string,engineTick:number):LifecycleAuthority|null {
+    const pass=completedMortalityPass;if(failed||!pass||pass.clock.engineTick!==engineTick)throw Error('No current native population authority');
+    const member=memberFor(username);if(!member)return null;
+    const c=pass.local.shared.store.get(pass.clock.clockId);
+    if(!c||c.status!=='running'||c.profileDigest!==pass.clock.profileDigest)throw Error('Lifecycle observer clock unavailable');
+    const death=pass.source.deathFor(username);
+    return{actor:nativeMortalityActor(member),clock:{clockId:c.clockId,profileDigest:c.profileDigest,status:c.status,revision:c.revision,
+        engineTick,simulationTime:c.lastSimulationTime,wallTime:c.lastObservedWallTime},healthHeads:pass.source.coverageHeads(),deathEventId:death?.eventId??null,
+        restricted:!!death||member.status!=='active'||member.characterLifecycle.status!=='active'};
 }
 
 export function populationAvatarRestricted(username: string): boolean {
