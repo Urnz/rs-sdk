@@ -1122,6 +1122,11 @@ komponensszinten. Hiteles terminal admission/respawn scoped integrity FAIL lehet
 pozitív enforcementhez lifecycle watermark és World-census még kell.
 6 maradt, a2. nyitott,27/45, C07 NO-GO.
 
+További rész: [lifecycle tick-watermark és World-slot census](SI_C07_LIFECYCLE_WATERMARKS.md)
+kész komponensszinten. Hiányzó tick/stage/cursor/context gap; hiteles post-guard
+terminal/zero-HP/non-finite/dupla avatar scoped FAIL lehet. Teljes route/build/
+clock-policy/source history még kell;6 maradt, a2. nyitott,27/45, C07 NO-GO.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

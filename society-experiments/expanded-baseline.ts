@@ -8,6 +8,7 @@ import { NativeToolWorkStore } from '../production-workflow/native-tool-work.js'
 import { NativeMaterialStore } from '../production-workflow/native-material.js';
 import { NativeMortalityCoverageStore } from '../population-lifecycle/native-coverage.js';
 import { NativeLifecycleAttemptStore } from '../population-lifecycle/native-attempts.js';
+import { NativeLifecycleWatermarkStore } from '../population-lifecycle/native-watermarks.js';
 import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFoodProductionStore.js';
 import { AGENT_STATE_SCHEMA_VERSION } from '../agent-state/types.js';
 import { SIMULATION_CLOCK_STORE_SCHEMA_VERSION } from '../simulation-clock/types.js';
@@ -54,6 +55,13 @@ function stores(root:string,selected:ExpandedSelection){
             if(s.requiredTables.includes('native_lifecycle_selection')){const {mortality}=new NativeLifecycleAttemptStore(db).read();
                 check(mortality.worldId===selected.worldId&&mortality.clockId===selected.clockId&&mortality.clockProfileDigest===selected.clockProfileDigest,
                     'Native lifecycle attempts belong to another world/clock');}
+            if(s.requiredTables.includes('native_lifecycle_watermark_selection')){const {mortality,selection,entries}=new NativeLifecycleWatermarkStore(db).read(),
+                attempts=new NativeLifecycleAttemptStore(db).read(),passes=new NativeMortalityCoverageStore(db).read(),
+                prefix=(h:{sequence:number;digest:string|null},events:Array<{sequence:number;digest:string}>)=>h.sequence===0?h.digest===null:events[h.sequence-1]?.digest===h.digest;
+                check(mortality.worldId===selected.worldId&&mortality.clockId===selected.clockId&&mortality.clockProfileDigest===selected.clockProfileDigest,
+                    'Native lifecycle watermarks belong to another world/clock');
+                check(prefix(selection.openingAttemptCursor.head,attempts.entries)&&entries.every(e=>prefix(e.sample.attemptHead,attempts.entries)
+                    &&prefix(e.sample.mortalityHead,passes.entries)),'Native lifecycle watermark source prefix differs');}
             if(s.requiredTables.includes('native_food_production_schema'))assertFoodProductionSchema(db);
             if(s.requiredTables.includes('native_mining_request_selection')){const requests=new NativeMiningRequestStore(db).read(),owner=requests.selection;
                 check(owner.worldId===selected.worldId&&owner.clockId===selected.clockId&&owner.clockProfileDigest===selected.clockProfileDigest,'Executor requests belong to another world/clock');}

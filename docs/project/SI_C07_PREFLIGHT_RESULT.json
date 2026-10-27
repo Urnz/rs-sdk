@@ -398,13 +398,17 @@
       },
       {
         "id": "login-respawn-enforcement",
-        "authority": "prospective native parser/login guard/world-entry/respawn observations and terminal rejections",
-        "span": "warmup-and-evaluation",
+        "authority": "prospective native attempts plus paired post-guard/end-tick actual World slot census and attempt head/fault witnesses",
+        "span": "every-native-tick",
         "tables": [
           "native_lifecycle_selection",
           "native_lifecycle_event",
           "native_lifecycle_head",
-          "native_lifecycle_fault"
+          "native_lifecycle_fault",
+          "native_lifecycle_watermark_selection",
+          "native_lifecycle_watermark_event",
+          "native_lifecycle_watermark_head",
+          "native_lifecycle_watermark_fault"
         ],
         "requirements": [
           "founders-at-start",
@@ -412,9 +416,10 @@
           "founder-survival"
         ],
         "gates": [
-          "finite-lifecycle-no-respawn"
+          "finite-lifecycle-no-respawn",
+          "complete-source-coverage"
         ],
-        "gap": "No complete route/source-head coverage certificate yet; paired observations can prove violations, never absence of attempts or full enforcement PASS."
+        "gap": "No complete route/build/source history or continuous HP certificate yet; paired tick observations can prove violations, never full lifecycle enforcement PASS."
       },
       {
         "id": "clock-world-policy",
@@ -810,6 +815,7 @@
         "gateId": "complete-source-coverage",
         "sourceIds": [
           "native-mortality-passes",
+          "login-respawn-enforcement",
           "clock-world-policy",
           "physiology-modes",
           "frozen-physical-boundaries",
@@ -868,7 +874,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "c7d8626471ae57242546e7cf6348f6e4e0d9f582636b722d21db5c7b33e23226"
+    "digest": "52991685ac0e5771bfddc17c6df694aacec1a2ba5fdd277be5a46192040a3501"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1186,7 +1192,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "942fcda9df882ebc74c14b7084b1682128d6306c7a77014b711079a5c7ff1ff6"
+      "sha256": "97bc620aa5910469a1df6851ccfbe8d7e455e029a05d73e609859892d2194aca"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1214,15 +1220,23 @@
     },
     {
       "path": "population-lifecycle/native-attempts.ts",
-      "sha256": "d9e043452bb6e4dc7f142f6ca4f7086d40337ec1a2d3234d7716a23934fc287f"
+      "sha256": "4b42f55dd23b882c9b6052bc90212f1b3b4b7089b334064512c37314e3bd9f3a"
     },
     {
       "path": "society-metrics/lifecycle-attempts.ts",
-      "sha256": "1483aebda2bc0ad12c25cb510677be361d44529b04a69a0dc92724915ef939de"
+      "sha256": "f0cf35d5e2e0ec3188c9fcc2018724998525f83b552cb1621b2de88848e08d1b"
     },
     {
       "path": "server/engine/src/mods/NativeLifecycleAttempts.ts",
-      "sha256": "cc55f18e72c4c4635ac602a9530ac13d3cd1bbd43355bfe3a981d53144590cc4"
+      "sha256": "b9337c05fca7d0ed66e8d143c634e6f28e6e4e98953b37cd8c15c84ed195fb9d"
+    },
+    {
+      "path": "population-lifecycle/native-watermarks.ts",
+      "sha256": "3d50fb288aa7cc0ff337544cf48931c0b79b99a4d8e37e3ed02a8b0b257eae81"
+    },
+    {
+      "path": "society-metrics/lifecycle-watermarks.ts",
+      "sha256": "680597124ac9d05ef15f4b6c3bdacff314a0f08e8e834034698a435859c4709e"
     },
     {
       "path": "server/engine/src/engine/entity/Player.ts",
@@ -1262,7 +1276,7 @@
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "e063b7893b281225e4156cdf77a9bbb61f6b1ace63e1600ccbddfa27229ec5f7"
+      "sha256": "8bc50ddf8358dcbd2917361c5d5eb699cfca34a93e48c0d5db5ce5c62c13388e"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1510,7 +1524,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "8f68344dea357dcb1752bd0b1466cf2b55281ece3faba806f7ec846c4befe2a0"
+      "sha256": "cdbf81bf6726dfef0985558486b6dd8a8175c26aac185c0a0c28f7714dfdde79"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -1518,7 +1532,7 @@
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "b0dbdab505baf82b2319630e01e0cbcf7bdbed53c59e5280c78b083913896d60"
+      "sha256": "95fd4b8f542c88281bcca4c6264311211ffc43d77d60105329f729e7c6a1e0f8"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -1534,7 +1548,7 @@
     },
     {
       "path": "server/engine/src/engine/World.ts",
-      "sha256": "ffdf0658ecf1063df3f97833e4307b0ea5fe94b011ab01a106f3508c9102ca31"
+      "sha256": "60fdbf49fbf26221b8e79460846fe8725918b5afde670b65c7125d826f0d8f43"
     },
     {
       "path": "society-metrics/tool-demand-intervals.ts",
@@ -1650,7 +1664,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "fefa7ba2df82dee872e52b5bf99038383c0f3c5340d755415149aa4a91c5055a"
+      "sha256": "6eb1dddcde0936928cd6b3372590f68bb8b42a6d7d74a7db5e46d37451d111ed"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1679,5 +1693,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "a3c9caeb0ec1e8c56a2faa23868ff77e6b385252226cf710a861842b63a909dc"
+  "digest": "66bd79f769315558a68b14b5f5b1652147df1130f0b9a3626248b2eaedfbd9aa"
 }

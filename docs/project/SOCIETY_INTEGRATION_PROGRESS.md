@@ -3248,3 +3248,38 @@ finite flags.6 csomag maradt, a2. nyitott;27/45, SI-C07 NO-GO,17/8 változatlan.
 Nincs C08/live install/run/baseline/providerköltség vagy historical backup-read.
 Artifact: `20261027-181111-079-si-c07-lifecycle-artifact`friss NO-GO/sourcehash/
 digest és16 doclink PASS1,210 s. Runtime authority továbbra0.
+
+### 2026-10-27 – SI-C07/2 lifecycle tick-watermark és World-slot census
+
+Saját schema1 immutable selection/event/head és monotone fault journal a már
+kijelölt lifecycle-selection/opening cursor mellett. Actual World.players
+slotok guard után és tick végén; offline founder is authority sor, dupla slot
+nem deduplikálódik. Native mortality prefix, original actor/clock/health/death
+és attempt head/fault witness. Hiányzó stage/tick/session/context, prefix/fault,
+pending vagy late-tail gap; observerhiba nem módosítja gameplay állapotát.
+Readonly lifecycleWatermarks és scoped finite-lifecycle-no-respawn FAIL hiteles
+post-guard dead/terminal/zero-HP/non-finite/duplicate original avatar esetén.
+Más sourcegap/attempt-source corruption nem törli a hiteles census-sértést.
+CompletePostGuardCensusCoverage/completeRecordedAttemptWindow csak részleges
+megfigyelési tanúsítvány, completeLifecycleEnforcementfalse, nincs minimum PASS.
+C06 explicit journal validation/isolated restore; user_version változatlan,
+legacy backfill nincs, rollback előtt stop/új pin, nincs evidence-törlés.
+
+`20261027-182642-250-si-c07-census-thin-native`6 actual packed +wrapper PASS
+2,745 s: valódi World-slot orphan, köztes save-parser, két stage és observerfault.
+`20261027-182749-521-si-c07-census-thin-reader`3 korai eset PASS4,012 s.
+`20261027-182832-847-si-c07-census-final-boundaries`59 PASS2 timeout59,614 s:
+11/4 SQLite-próba egy-egy5 s default időkeretbe került (9,181/6,715 s).
+Test.each alá bontva külön mért esetek, limit változatlan; nem assertionhiba.
+`20261027-183022-284-si-c07-census-cases-types`20 célzott eset +root/engine TS
+PASS41,280 s, teszt7,77 s;11 gap/4 violation külön200–589 ms. A teljes fogyasztói
+fájlkört nem ismételtük. `20261027-183222-151-si-c07-census-prefix-order`
+2 új equal-timestamp/native-health-prefix eset +root TS PASS18,700 s; engine nem
+változott. Full/webclient nem indokolt observer és célzott fogyasztók esetén.
+
+Részletek: SI_C07_LIFECYCLE_WATERMARKS.md. Következő lifecycle route/build manifest
+explicit pinje és clock/world-policy continuity adapter; concrete boundary/
+custody/access/admin/external source universe és8 integrity még kell.6 csomag
+maradt, a2. nyitott;27/45, SI-C07 NO-GO. Nincs C08/live install/run/baseline/provider.
+Artifact: `20261027-183355-627-si-c07-census-artifact`NO-GO/sourcehash/digest és17
+dokumentumlink PASS0,862 s. Runtime authority továbbra0.

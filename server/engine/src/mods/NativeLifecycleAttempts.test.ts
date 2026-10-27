@@ -21,6 +21,8 @@ import { createPopulationDeathEvidence } from '../../../../population-lifecycle/
 import { PlayerHealthEvidenceStore } from './PlayerHealthEvidenceStore.js';
 import { NativeMortalityCoverageStore,nativeMortalityActor } from '../../../../population-lifecycle/native-coverage.js';
 import { NativeLifecycleAttemptStore } from '../../../../population-lifecycle/native-attempts.js';
+import { NativeLifecycleWatermarkStore } from '../../../../population-lifecycle/native-watermarks.js';
+import { recordNativeMortalityPass } from '../../../../population-lifecycle/native-observer.js';
 import { withNativeLifecycleObservation,observeNativePopulationLogin,beginNativeLifecycleAttempt,type LifecycleObservationPorts } from './NativeLifecycleAttempts.js';
 const closers:Array<()=>void>=[];beforeAll(loadPackedContent);afterEach(()=>{for(const close of closers.splice(0).reverse())close();});
 function fixture(){
@@ -47,7 +49,9 @@ function fixture(){
         restricted:!!health.deathFor('alice')})};
     const run=<T>(f:()=>T)=>withNativeLifecycleObservation(ports,f);
     const guard={finite:(name:string)=>!!health.finiteAvatar(name),restricted:(name:string)=>!!health.deathFor(name)};
-    return{db,store,player,ports,run,guard,kill(){const damageEventId=randomUUID(),event=createPopulationDeathEvidence(member,c,age,mortality,{damageEventId,sessionId:'native',engineTick:100});
+    return{db,store,player,ports,run,guard,watermarks(){const watermarks=new NativeLifecycleWatermarkStore(db,true);
+        recordNativeMortalityPass(db,'fixture','native-mortality',c,[member],health,age.digest,mortality.digest,null);return watermarks;},
+        kill(){const damageEventId=randomUUID(),event=createPopulationDeathEvidence(member,c,age,mortality,{damageEventId,sessionId:'native',engineTick:100});
         health.record({username:'alice',sessionId:'native',engineTick:100,occurredAt:c.wallTime,hpBefore:10,hpAfter:0,maxHp:10,damageType:1},damageEventId,event);return event;}};
 }
 test('SI-C07 actual save parsing records parsed and failed loads without calling either world admission',()=>{
@@ -56,6 +60,29 @@ test('SI-C07 actual save parsing records parsed and failed loads without calling
     expect(()=>f.run(()=>PlayerLoading.load('alice',new Packet(new Uint8Array([1,2,3])),null))).toThrow('Invalid save');
     const r=f.store.read();expect([...r.attempts.values()].map(p=>p.result?.outcome)).toEqual(['parsed','failed']);
     expect(r.entries.every(e=>e.event.kind==='load')).toBeTrue();expect(r.faults).toBe(0);
+});
+
+test('SI-C07 actual World slots include an orphan terminal avatar and seal parser attempts at the tick end',()=>{
+    const f=fixture();f.kill();const store=f.watermarks(),slot=1901,previous=World.players[slot];
+    closers.push(()=>{World.players[slot]=previous!;});World.players[slot]=f.player;f.player.populationFinite=true;f.player.populationTerminal=true;
+    const before=f.player.save(false);
+    f.run(()=>World['observePopulationLifecycle']('after-terminal-guard'));
+    f.run(()=>PlayerLoading.load('alice',new Packet(before),null));
+    f.run(()=>World['observePopulationLifecycle']('end-of-tick'));
+    const r=store.read();expect(r.entries.map(e=>e.sample.stage)).toEqual(['after-terminal-guard','end-of-tick']);
+    expect(r.entries[0]!.sample.avatars).toEqual([{username:'alice',slot,vitals:{hitpoints:10,terminal:true,finite:true}}]);
+    expect(r.entries[0]!.sample.actors[0]!.authority!.healthHeads.death.sequence).toBe(1);
+    expect(r.entries[0]!.sample.attemptHead.sequence).toBe(0);expect(r.entries[1]!.sample.attemptHead.sequence).toBe(2);
+    expect(f.player.save(false)).toEqual(before);expect(r.faults).toBe(0);
+});
+
+test('SI-C07 census write failure is durable and a missing current authority never creates a World witness',()=>{
+    const f=fixture(),store=f.watermarks(),before=f.player.save(false);
+    f.db.run("CREATE TRIGGER fail_census BEFORE INSERT ON native_lifecycle_watermark_event BEGIN SELECT RAISE(ABORT,'injected');END");
+    expect(()=>f.run(()=>World['observePopulationLifecycle']('after-terminal-guard'))).not.toThrow();f.db.run('DROP TRIGGER fail_census');
+    withNativeLifecycleObservation({...f.ports,context:()=>null},()=>World['observePopulationLifecycle']('end-of-tick'));
+    expect(store.read().entries).toEqual([]);expect(store.read().faults).toBe(2);expect(f.player.save(false)).toEqual(before);
+    expect(()=>f.db.run('UPDATE native_lifecycle_watermark_fault SET count=0')).toThrow('reset');
 });
 test('SI-C07 original login guard still blocks terminal and zero-HP finite actors and fails closed on source loss',()=>{
     const f=fixture();expect(f.run(()=>observeNativePopulationLogin(f.player,100,f.guard))).toBe('passed');

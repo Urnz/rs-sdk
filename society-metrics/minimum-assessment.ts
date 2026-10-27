@@ -131,8 +131,12 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         }
     }
     const lifecycle=nativeScopeMatches?outcomes?.sources.lifecycleAttempts:undefined;
-    const lifecycleIntegrityViolations=lifecycle?.status==='available'&&lifecycle.value.worldId===outcomes?.worldId&&digest(lifecycle.value.scope)===digest(scope)
-        ?lifecycle.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycle.digest,scope,attemptId:v.attemptId,meaning:v.reason})):[];
+    const lifecycleWatermarks=nativeScopeMatches?outcomes?.sources.lifecycleWatermarks:undefined;
+    const lifecycleIntegrityViolations=[...lifecycle?.status==='available'&&lifecycle.value.worldId===outcomes?.worldId&&digest(lifecycle.value.scope)===digest(scope)
+        ?lifecycle.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycle.digest,scope,attemptId:v.attemptId,meaning:v.reason})):[],
+        ...lifecycleWatermarks?.status==='available'&&lifecycleWatermarks.value.worldId===outcomes?.worldId&&digest(lifecycleWatermarks.value.scope)===digest(scope)
+            ?lifecycleWatermarks.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycleWatermarks.digest,scope,
+                attemptId:`census:${v.sampleSequence}:${v.actorId}`,meaning:v.reason})):[]];
     const integrityFailures=lifecycleIntegrityViolations.length?[{gateId:'finite-lifecycle-no-respawn',verdict:'fail' as const,
         evidenceDigests:[...new Set(lifecycleIntegrityViolations.map(v=>v.sourceDigest))]}]:[];
     const diagnosticFailure=diagnosticViolations.length>0||lifecycleIntegrityViolations.length>0;
@@ -223,6 +227,9 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 ?{status:'available',digest:outcomes.sources.mortalityCoverage.digest,completeMortalityTickCoverage:outcomes.sources.mortalityCoverage.value.completeMortalityTickCoverage,
                     completeLifecycleEnforcement:false}:{status:nativeScopeMatches?outcomes?.sources.mortalityCoverage?.status??'unavailable':'unavailable'},
             lifecycleAttempts:lifecycle?.status==='available'?{status:'available',digest:lifecycle.digest}:{status:lifecycle?.status??'unavailable'},
+            lifecycleWatermarks:lifecycleWatermarks?.status==='available'?{status:'available',digest:lifecycleWatermarks.digest,
+                completePostGuardCensusCoverage:lifecycleWatermarks.value.completePostGuardCensusCoverage,completeLifecycleEnforcement:false}
+                :{status:lifecycleWatermarks?.status??'unavailable'},
             toolDemand:tool?.status==='available'?{status:'available',digest:tool.digest}:{status:tool?.status??'unavailable'}},
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',

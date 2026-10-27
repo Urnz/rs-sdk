@@ -104,9 +104,13 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   kötve. Parser siker nem admission; actual natív halál utáni belépés/respawn
   scoped finite-lifecycle-no-respawn FAIL lehet. Missing/stale/foreign context
   unproven, observerhiba nem módosítja a guardot. Teljes enforcement még false.
-- **Következő kódhatár a2. csomagon belül:** lifecycle head/fault és prospektív
-  tick-watermark összekötése, terminal guard utáni valódi World-census/finite
-  állapot tanúsítása. Ezután teljes concrete source/boundary/access history
+- **Lifecycle-watermark rész kész:** [páros tickpont és actual World-slot census](SI_C07_LIFECYCLE_WATERMARKS.md).
+  Guard után és tick végén eredeti actor/HP/finite/terminal, mortality prefix
+  és attempt head/fault. Missing stage/tick/session/context/source/fault/pending
+  gap; hiteles post-guard terminal/zero-HP/non-finite/duplicate scoped FAIL.
+  A teljes megfigyelési ablak sem teljes enforcement, intratick HP vagy PASS.
+- **Következő kódhatár a2. csomagon belül:** lifecycle route/build manifest
+  explicit pinje és clock/world-policy continuity adapter. Teljes concrete source/boundary/access history
   és8 integrity adapter kell. **6 csomag maradt, a2. még nyitott**; nincs3.
   baseline vagy C08. C07 továbbra NO-GO, nincs pozitív minimum/enforcement PASS.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
@@ -159,32 +163,40 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261027-175432-095-si-c07-lifecycle-thin-native`:4 actual packed native
-  próba +wrapper PASS16,146 s.** Valódi save-parse/failure, változatlan login
-  guard, lethal native source +packed respawn/interpreter terminal abort és
-  observer fault/null context. Nem teljes World-login futtatás.
-- **`20261027-175947-519-si-c07-lifecycle-final-boundaries`:86 jelentett eset
-  PASS,0 FAIL; test116,99 s, teljes parancs242,420 s. Root és engine TS PASS.**
-  Population-outcomes, native-outcomes, minimum-assessment, death, expanded
-  baseline, minimum-preflight és native-mining-tool pontos fájlkör:73 root
-  (wrapperrel) +13 packed Mining. A külön thin körrel összesen91 jelentett eset.
-- **`20261027-180613-403-si-c07-lifecycle-entry-point-types`:engine TS PASS
-  15,933 s.** Végső World-receipt az onLogin/onReconnect hook elé került:
-  későbbi jogos HP-változás nem téves terminal admission. Csak az érintett
-  engine TS ismétlődött; root és passing tesztkör nem futott újra.
-- Kontrollált SQLite adapter-fixture valódi native health/death forrással:
-  parser/block nem FAIL, admission scoped FAIL; frozen readonly reread,
-  foreign/stale authority, fél pár, shared user_version42, rollback, immutable
-  audit/head és pozitív founder FAIL megőrzése. C06 required journal archive/
-  izolált restore; sérült head új pint tilt. Ez nem teljes live World-run.
-- Full/webclient TS nem futott: saját additive observer/journal és közvetlen
-  parser/login/interpreter/metrics/restore határok érintettek. Az eredeti guard,
-  save formátum, mortality/HP tiltás, shared clock/economic/persistence/auth
-  foundation változatlan. A célzott native és root próbák lefedik a módosítást.
-- `20261027-181111-079-si-c07-lifecycle-artifact`:friss NO-GO sourcehash/digest
-  és16 dokumentumlink PASS1,210 s; selectedSources=null, qualifiesCoverage=false. A17 részleges
-  adapter nem mért PASS. Korábbi bizonyíték a komponensdokumentumokban/progressben.
-  Nincs hosszú run, providerhívás, új live install/selection/baseline vagy historical DB-read.
+- **`20261027-182642-250-si-c07-census-thin-native`:6 actual packed native
+  eset +wrapper PASS2,745 s.** A korábbi parser/guard/respawn próbák mellett
+  valódi World-slot orphan terminal census, köztes save-parser és két tickpont;
+  write/null-context failure nem változtat player-save-en. Nem teljes World.cycle.
+- `20261027-182749-521-si-c07-census-thin-reader`:3 korai SQLite watermark/
+  gap/immutable próba PASS4,012 s. A pozitív post-guard eset ekkor még nem
+  szerepelt a regexben, a következő teljes fogyasztói kör már futtatta.
+- **`20261027-182832-847-si-c07-census-final-boundaries`:59 PASS,2 timeout;
+  59,614 s (teszt59,08 s).** Population-outcomes, native-outcomes, minimum-
+  assessment, expanded-baseline és minimum-preflight5 pontos fájlja. Két új
+  eset11/4 adatbázisos belső próbát fogott össze5 s alatt;9,181/6,715 s lett.
+  Nem assertionhiba. Az esetek test.each alá bontva külön névvel/idővel futnak,
+  az5 s limit változatlan. Root/engine TS a fail miatt ekkor nem indult.
+- **`20261027-183022-284-si-c07-census-cases-types`:20 célzott eset és
+  root/engine TS PASS41,280 s (teszt7,77 s).** A11 gap és4 pozitív sértés külön
+  próbázott,200–589 ms/eset; plusz complete/frozen reread, intratick end-HP,
+  own rollback/audit és exact C06 selected-source restore. A teljes fogyasztói
+  fájlkört nem ismételtük; a regex egy physiology-watermark esetet is ért.
+- **`20261027-183222-151-si-c07-census-prefix-order`:2 új eset és root TS
+  PASS18,700 s.** Valódi equal-timestamp lethal damage a korábbi post-guard
+  health-prefixet nem invalidálja; attempt health-prefix nem léphet vissza.
+  Csak az érintett root reader/types futott újra, engine nem változott.
+- Complete original offline roster/tick/stage/session/mortality/attempt prefix;
+  foreign/null authority, write fault, pending/late tail, non-finite/duplicate/
+  zero-HP/dead post-guard scoped FAIL; frozen readonly byteazonos reread.
+  Sérült attempt-source nem rejti el a hiteles census FAIL-t. Saját schema1,
+  user_version42, immutable selection/audit, rollback és C06 restore ellenőrzött.
+- Full/webclient TS nem futott: additive observer/journal, két World-megfigyelés
+  és közvetlen metrics/minimum/restore/preflight határok. Shared clock/economic/
+  persistence/global auth és a gameplay guard változatlan. Nincs live install,
+  új baseline, hosszú run, providerhívás vagy történeti backup-read.
+- `20261027-183355-627-si-c07-census-artifact`:friss NO-GO artifact/sourcehash/
+  digest és17 dokumentumlink PASS0,862 s.16 forráscsalád/17 requirement/8 gate változatlan;
+  selectedSources=null, qualifiesCoverage=false, completeLifecycleEnforcement=false.
 
 ## Megőrzendő döntések
 

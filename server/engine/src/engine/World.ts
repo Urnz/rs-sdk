@@ -7,7 +7,8 @@ import { closeNativeFoodTick } from '#/mods/NativeFoodDeliveryRuntime.js';
 import { recordNativeFoodOpening } from '#/mods/NativeFoodOpening.js';
 import { tickPopulationDeaths, populationAvatarRestricted, populationAvatarIsFinite } from '#/mods/PopulationDeathRuntime.js';
 import { tickNativeMortalityCoverage } from '#/mods/NativeMortalityCoverageRuntime.js';
-import { beginNativeLifecycleAttempt,observeNativePopulationLogin } from '#/mods/NativeLifecycleAttempts.js';
+import { beginNativeLifecycleAttempt,observeNativePopulationLogin,observeNativeLifecycleWatermark } from '#/mods/NativeLifecycleAttempts.js';
+import type { LifecycleWatermarkStage } from '../../../../population-lifecycle/native-watermarks.js';
 import { executeCheckpointDetection, executeCheckpointSearch, loadEngineCheckpointConfiguration,
     type CheckpointDetectionCommand, type CheckpointSearchCommand } from '#/mods/CheckpointInspection.js';
 import { getCheckpointEvidenceStore, type EngineCheckpointDetectionRecord,
@@ -704,6 +705,7 @@ class World {
                 if (player.populationTerminal) {const attempt=beginNativeLifecycleAttempt('world-eviction',player.username,this.currentTick,player);
                     player.stopAction(); player.clearWaypoints(); this.removePlayer(player);attempt?.finish('evicted',player); }
             }
+            this.observePopulationLifecycle('after-terminal-guard');
 
             // world processing
             // - world queue
@@ -939,6 +941,7 @@ class World {
 
             try { closeNativeFoodTick(this.currentTick); }
             catch (error) { console.error('[NativeFood] Closed-tick source blocked:', error); }
+            this.observePopulationLifecycle('end-of-tick');
             this.currentTick++;
             try { recordPlayerHealthHeartbeat(); }
             catch (error) { console.error('[PopulationHealth] Engine source heartbeat failed:', error); }
@@ -2285,6 +2288,10 @@ class World {
         }
 
         this.cycleStats[WorldStat.LOGOUT] = Date.now() - start;
+    }
+
+    private observePopulationLifecycle(stage:LifecycleWatermarkStage):void {
+        observeNativeLifecycleWatermark(stage,this.currentTick,this.players);
     }
 
     private processLogins(): void {

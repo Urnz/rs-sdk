@@ -1,5 +1,5 @@
 import type { Database } from 'bun:sqlite';
-import { NativeLifecycleAttemptStore,type LifecycleAttemptEvent } from '../population-lifecycle/native-attempts.js';
+import { NativeLifecycleAttemptStore,type LifecycleAttemptEvent,type LifecycleAuthority } from '../population-lifecycle/native-attempts.js';
 import { mortalityRosterDigest,type MortalityActor } from '../population-lifecycle/native-coverage.js';
 import { PlayerHealthEvidenceStore } from '../server/engine/src/mods/PlayerHealthEvidenceStore.js';
 import { readStableOutcomeStore } from './population-outcomes.js';
@@ -15,23 +15,7 @@ export function readNativeLifecycleAttempts(db:Database,scope:EvaluationScope,op
     const source=new NativeLifecycleAttemptStore(db).read(),s=source.mortality;
     check(s.worldId===options.worldId&&s.clockId===scope.clockId&&s.clockProfileDigest===scope.clockProfileDigest&&s.fromSimulationTime===genesisAt
         &&mortalityRosterDigest(s.actors)===mortalityRosterDigest(founders),'Lifecycle attempt original scope differs');
-    const health=readStableOutcomeStore(options,options.population.healthPath,healthDb=>{
-        for(const table of ['engine_health_damage','engine_population_death','engine_health_audit_tail'])rows(healthDb,table);
-        const store=new PlayerHealthEvidenceStore(options.population!.healthPath,true);
-        try{return{deaths:store.listDeaths(),heads:store.coverageHeads(),prefixes:{
-            damage:new Map(rows(healthDb,'engine_health_damage').map(r=>[r.sequence,r.entry_hash as string])),
-            death:new Map(rows(healthDb,'engine_population_death').map(r=>[r.sequence,r.entry_hash as string]))}};}finally{store.close();}
-    });
-    const byUsername=new Map(founders.map(a=>[a.username,a])),deaths=new Map(health.deaths.map(d=>[d.agentId,d]));
-    const verify=(e:LifecycleAttemptEvent)=>{const a=e.authority,original=byUsername.get(e.username);
-        if(!a||!original||digest(a.actor)!==digest(original)||a.clock.clockId!==scope.clockId||a.clock.profileDigest!==scope.clockProfileDigest
-            ||a.clock.simulationTime<genesisAt||a.clock.simulationTime>scope.toSimulationTime||Date.parse(e.wallTime)-Date.parse(a.clock.wallTime)>s.maximumWallGapMs
-            ||digest(a.healthHeads.binding)!==digest(health.heads.binding))return null;
-        for(const d of ['damage','death'] as const){const h=a.healthHeads[d];if(h.digest!==(h.sequence===0?'0'.repeat(64):health.prefixes[d].get(h.sequence)))return null;}
-        const death=deaths.get(original.actorId),known=death&&death.sequence<=a.healthHeads.death.sequence&&death.membershipDigest===original.membershipDigest
-            &&death.atSimulationTime<=a.clock.simulationTime&&death.recordedAt<=e.wallTime?death:null;
-        return{actorId:original.actorId,death:known};
-    };
+    const {health,verify}=nativeLifecycleAuthorityVerifier(options,scope,genesisAt,founders,s.maximumWallGapMs);
     const violations:Array<{attemptId:string;actorId:string;kind:string;atSimulationTime:string;reason:string;deathEventId:string|null}>=[],attempts:Array<{
         attemptId:string;username:string;kind:string;outcome:string|null;status:'observed'|'unproven';atSimulationTime:string|null}>=[];
     for(const [attemptId,pair] of source.attempts){const event=pair.result??pair.begin,
@@ -55,4 +39,30 @@ export function readNativeLifecycleAttempts(db:Database,scope:EvaluationScope,op
         completeLifecycleEnforcement:false,coverage:'partial-attempt-observations',verdict:violations.length?'fail':'inconclusive',
         meaning:'Prospective parser, guard, world-entry and script observations. Missing result/authority stays unknown; no absence-of-attempt or full enforcement PASS.'};
     return{...body,digest:digest(body)};
+}
+
+/** Shared original-cohort/native-health verifier; census and attempt readers use the same anchored authority. */
+export function nativeLifecycleAuthorityVerifier(options:NativeOutcomeOptions,scope:EvaluationScope,genesisAt:string,founders:MortalityActor[],maximumWallGapMs:number){
+    check(options.population,'Lifecycle authority not configured');
+    const health=readStableOutcomeStore(options,options.population.healthPath,healthDb=>{
+        for(const table of ['engine_health_damage','engine_population_death','engine_health_audit_tail'])rows(healthDb,table);
+        const store=new PlayerHealthEvidenceStore(options.population!.healthPath,true);
+        try{return{deaths:store.listDeaths(),heads:store.coverageHeads(),prefixes:{
+            damage:new Map(rows(healthDb,'engine_health_damage').map(r=>[r.sequence,r.entry_hash as string])),
+            death:new Map(rows(healthDb,'engine_population_death').map(r=>[r.sequence,r.entry_hash as string]))}};}finally{store.close();}
+    });
+    const byUsername=new Map(founders.map(a=>[a.username,a])),deaths=new Map(health.deaths.map(d=>[d.agentId,d]));
+    const verify=(e:{username:string;authority:LifecycleAuthority|null;wallTime:string})=>{const a=e.authority,original=byUsername.get(e.username);
+        if(!a||!original||digest(a.actor)!==digest(original)||a.clock.clockId!==scope.clockId||a.clock.profileDigest!==scope.clockProfileDigest
+            ||a.clock.status!=='running'||a.clock.simulationTime<genesisAt||a.clock.simulationTime>scope.toSimulationTime
+            ||!Number.isSafeInteger(a.clock.engineTick)||!Number.isSafeInteger(a.clock.revision)
+            ||!Number.isFinite(Date.parse(e.wallTime))||!Number.isFinite(Date.parse(a.clock.wallTime))||e.wallTime<a.clock.wallTime
+            ||Date.parse(e.wallTime)-Date.parse(a.clock.wallTime)>maximumWallGapMs
+            ||digest(a.healthHeads.binding)!==digest(health.heads.binding))return null;
+        for(const d of ['damage','death'] as const){const h=a.healthHeads[d];if(h.digest!==(h.sequence===0?'0'.repeat(64):health.prefixes[d].get(h.sequence)))return null;}
+        const death=deaths.get(original.actorId),known=death&&death.sequence<=a.healthHeads.death.sequence&&death.membershipDigest===original.membershipDigest
+            &&death.atSimulationTime<=a.clock.simulationTime&&death.recordedAt<=e.wallTime?death:null;
+        return{actorId:original.actorId,death:known};
+    };
+    return{health,verify};
 }

@@ -232,3 +232,9 @@ Save-parse külön az admissiontől; original native death utáni actual belép�
 respawn scoped finite-lifecycle-no-respawn FAIL-t adhat. Teljes journal/route
 coverage nincs, üres napló nem PASS. Következő head/fault→tick watermark és
 post-terminal-guard World-census.6 maradt, a2. nyitott, NO-GO; nincs live install/run.
+
+2026-10-27-i további rész: [lifecycle tick-watermark és actual World-census](SI_C07_LIFECYCLE_WATERMARKS.md).
+Két stage tickenként, eredeti roster/health/mortality prefix és attempt cursor;
+hiányzó vagy hibás megfigyelés nem nulla-kísérlet igazolás. Hiteles post-guard
+sértés külön finite-lifecycle-no-respawn FAIL lehet. Teljes route/build/clock/
+policy/source history még kell.6 maradt, a2. nyitott, NO-GO; nincs live run/install.

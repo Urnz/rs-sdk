@@ -18,6 +18,7 @@ import { readNativeFounderBaseline,readNativeFounderDeaths,type NativePopulation
 import { readNativeToolMaintenance } from './tool-maintenance.js';
 import { readNativeMortalityCoverage } from './mortality-coverage.js';
 import { readNativeLifecycleAttempts } from './lifecycle-attempts.js';
+import { readNativeLifecycleWatermarks } from './lifecycle-watermarks.js';
 
 /** Backend-owned export capability. Query parameters cannot widen actors, observers or source paths. */
 export interface NativeOutcomeOptions {
@@ -54,6 +55,9 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
             populationDeaths.value.founderBindings));});
     const lifecycleAttempts=capture(()=>{check(populationBaseline.status==='available'&&populationDeaths.status==='available','Lifecycle cohort unavailable');
         return database(options,options.checkpointPath,db=>readNativeLifecycleAttempts(db,scope,options,populationBaseline.value.genesisAppliedAtSimulationTime,
+            populationDeaths.value.founderBindings));});
+    const lifecycleWatermarks=capture(()=>{check(populationBaseline.status==='available'&&populationDeaths.status==='available','Lifecycle census cohort unavailable');
+        return database(options,options.checkpointPath,db=>readNativeLifecycleWatermarks(db,scope,options,populationBaseline.value.genesisAppliedAtSimulationTime,
             populationDeaths.value.founderBindings));});
     const agent=capture(()=>database(options,options.agentPath,db=>readOutcomeAgents(db,scope,observers)));
     const work=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
@@ -114,7 +118,7 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
                 physicalWorkerMatchesAssignment:b.assignedWorkerAgentId===w.workerAgentId})):[],
         interpretation:'Actual worker is bound by native receipt; registered requester and assigned worker remain separate.'})):null;
     const definition={schemaVersion:1,artifactKind:'native-society-outcome-report',scope,worldId:options.worldId,observerAgentIds:observers,
-        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,mortalityCoverage,lifecycleAttempts},labor,physicalSpecialization,roleBindings,
+        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks},labor,physicalSpecialization,roleBindings,
         registeredResponsibility:'Existing evaluation specialization remains registered recipe responsibility; physical-stage receipt HHI is separate.',
         availability:{status:'inconclusive',availableAndWillingPersonMs:null,unemploymentRate:null},
         limitations:['Read-only per-source snapshots; no cross-database atomicity or complete event coverage.',

@@ -1,5 +1,9 @@
 # SI-C07 – Natív lifecycle-kísérletek és terminal elutasítások
 
+**Ugyanaznapi folytatás:** [páros tick-watermark és actual World-census](SI_C07_LIFECYCLE_WATERMARKS.md)
+köti az attempt head/faultot a post-guard/end-tick pontokhoz. Teljes route/build/
+source-history és continuous HP tanúsítvány még nincs; enforcement továbbrafalse.
+
 2026-10-27, a2. munkacsomag részeredménye. SI-C07 továbbra NO-GO,27/45;
 [6 munkacsomag maradt](SI_C07_REMAINING_WORK.md). A17 eredeti követelmény és8
 integrity gate/küszöb változatlan. Előzmény: [mortality-pass coverage](SI_C07_MORTALITY_COVERAGE.md).

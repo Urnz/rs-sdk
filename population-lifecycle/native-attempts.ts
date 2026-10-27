@@ -82,6 +82,11 @@ export class NativeLifecycleAttemptStore {
         }).immediate();
     }
     fault(){this.db.run('UPDATE native_lifecycle_fault SET count=count+1 WHERE singleton=1');}
+    cursor(){const head=this.db.query('SELECT sequence,digest FROM native_lifecycle_head WHERE singleton=1').get() as {sequence:number;digest:string|null}|null,
+        tail=this.db.query('SELECT sequence,digest FROM native_lifecycle_event ORDER BY sequence DESC LIMIT 1').get() as {sequence:number;digest:string}|null,
+        fault=this.db.query('SELECT count FROM native_lifecycle_fault WHERE singleton=1').get() as {count:number}|null;
+        check(head&&head.sequence===(tail?.sequence??0)&&head.digest===(tail?.digest??null)&&fault&&Number.isSafeInteger(fault.count)&&fault.count>=0,'Lifecycle cursor differs');
+        return{head,faultCount:fault.count};}
     read(){const {selection,mortality}=this.selection();
         check((this.db.query('SELECT count(*) n FROM native_lifecycle_event').get() as {n:number}).n<=100000,'Lifecycle attempt row budget exceeded');
         let previous:string|null=null;const attempts=new Map<string,{begin:LifecycleAttemptEvent;result:LifecycleAttemptEvent|null}>();

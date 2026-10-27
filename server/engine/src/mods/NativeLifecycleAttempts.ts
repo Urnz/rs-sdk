@@ -5,6 +5,7 @@ import { playerSaveStore } from '../engine/market/MarketStore.js';
 import { PlayerStat } from '../engine/entity/PlayerStat.js';
 import { nativePopulationLifecycleAuthority,populationAvatarIsFinite,populationAvatarRestricted } from './PopulationDeathRuntime.js';
 import { NativeLifecycleAttemptStore,type LifecycleAuthority,type LifecycleAttemptKind,type LifecycleAttemptOutcome,type LifecycleAttemptEvent } from '../../../../population-lifecycle/native-attempts.js';
+import { NativeLifecycleWatermarkStore,type LifecycleWatermarkStage } from '../../../../population-lifecycle/native-watermarks.js';
 
 interface ObservedAvatar {username:string;levels:ArrayLike<number>;populationTerminal:boolean;populationFinite:boolean}
 export interface LifecycleObservationPorts {db:Database;context(username:string,tick:number):LifecycleAuthority|null;wallTime():string}
@@ -48,4 +49,25 @@ export function observeNativePopulationLogin(player:ObservedAvatar,tick:number,
             attempt?.finish(player.populationFinite&&player.levels[PlayerStat.HITPOINTS]===0?'blocked-hp-zero':'blocked-restricted',player);return'blocked';}
         attempt?.finish('passed',player);return'passed';
     }catch{attempt?.finish('source-unavailable',player);return'source-unavailable';}
+}
+
+/** Observe the actual indexed World collection, including avatars missing from the processing loop. Never mutates it. */
+export function observeNativeLifecycleWatermark(stage:LifecycleWatermarkStage,tick:number,players:ReadonlyArray<ObservedAvatar|undefined>){
+    let p:LifecycleObservationPorts|null=null;
+    try{
+        p=overrides.getStore()??production();if(!p||!NativeLifecycleWatermarkStore.present(p.db))return;
+        const store=new NativeLifecycleWatermarkStore(p.db),s=store.selection().mortality;
+        const actors=s.actors.map(a=>{let authority:LifecycleAuthority|null=null;try{authority=p!.context(a.username,tick);}catch{ /* Unknown remains unknown. */ }
+            return{username:a.username,authority};});
+        const clock=actors.find(a=>a.authority)?.authority?.clock;if(!clock)throw Error('No current lifecycle census clock');
+        if(clock.simulationTime<s.fromSimulationTime||clock.simulationTime>s.toSimulationTime)return;
+        const avatars:Array<{username:string;slot:number;vitals:{hitpoints:number;terminal:boolean;finite:boolean}}>=[];
+        for(let slot=0;slot<players.length;slot++){const a=players[slot];if(a&&s.actors.some(m=>m.username===a.username))
+            avatars.push({username:a.username,slot,vitals:{hitpoints:a.levels[PlayerStat.HITPOINTS]!,terminal:a.populationTerminal,finite:a.populationFinite}});}
+        const mortalityHead=p.db.query('SELECT sequence,digest FROM native_mortality_head WHERE singleton=1').get() as {sequence:number;digest:string|null}|null;
+        if(!mortalityHead||mortalityHead.sequence===0)throw Error('No mortality witness for lifecycle census');
+        const cursor=new NativeLifecycleAttemptStore(p.db).cursor();
+        store.append({sessionId,clock,wallTime:p.wallTime(),stage,mortalityHead,attemptHead:cursor.head,attemptFaultCount:cursor.faultCount,actors,avatars});
+    }catch{if(p)try{new NativeLifecycleWatermarkStore(p.db).fault();}catch{ /* A failed DB cannot attest census coverage. */ }
+        console.error('[NativeLifecycleWatermarks] census unavailable; gap retained');}
 }

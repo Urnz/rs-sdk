@@ -51,6 +51,8 @@ import { admitNaturalPopulationDeaths } from '../../server/engine/src/mods/Popul
 import { readNativeMortalityCoverage } from '../mortality-coverage.js';
 import { NativeLifecycleAttemptStore,type LifecycleAttemptEvent } from '../../population-lifecycle/native-attempts.js';
 import { readNativeLifecycleAttempts } from '../lifecycle-attempts.js';
+import { NativeLifecycleWatermarkStore,type LifecycleWatermarkSample } from '../../population-lifecycle/native-watermarks.js';
+import { readNativeLifecycleWatermarks } from '../lifecycle-watermarks.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -189,6 +191,105 @@ test('native lifecycle missing results, unknown or stale authority and altered i
         expect(()=>f.db.run('DELETE FROM native_lifecycle_event WHERE sequence=1')).toThrow('immutable');
         f.db.run('DROP TRIGGER lifecycle_event_no_delete');f.db.run('DELETE FROM native_lifecycle_event WHERE sequence=1');expect(read).toThrow('chain');
         f.kill('2001-01-03T00:00:00.000Z');expect(f.report().verdict).toBe('fail');
+    }finally{f.close();}
+});
+
+function watermarkFixture(){const f=mortalityFixture(),attempts=new NativeLifecycleAttemptStore(f.db,true),store=new NativeLifecycleWatermarkStore(f.db,true);
+    const frame=(stage:LifecycleWatermarkSample['stage'],change:Partial<LifecycleWatermarkSample>={})=>{
+        const mortality=f.store.read(),c=mortality.entries.at(-1)!.sample.clock,cursor=attempts.cursor();
+        const sample:LifecycleWatermarkSample={sessionId:'watermark-session',clock:c,wallTime:c.wallTime,stage,mortalityHead:mortality.head,
+            attemptHead:cursor.head,attemptFaultCount:cursor.faultCount,actors:f.actors.map(actor=>({username:actor.username,
+                authority:{actor,clock:c,healthHeads:f.health.coverageHeads(),deathEventId:f.health.deathFor(actor.username)?.eventId??null,restricted:!!f.health.deathFor(actor.username)}})),avatars:[],...change};
+        store.append(sample);return sample;};
+    const attempt=(sample:LifecycleWatermarkSample,finish=true,authority=sample.actors[0]!.authority)=>{const e:LifecycleAttemptEvent={
+        attemptId:randomUUID(),sessionId:sample.sessionId,username:'ada',kind:'load',phase:'begin',wallTime:sample.wallTime,authority,vitals:null,scriptName:null,outcome:null,scriptState:null};
+        attempts.append(e);if(finish)attempts.append({...e,phase:'result',outcome:'parsed'});return e;};
+    return{...f,attempts,watermarks:store,frame,attempt,readWatermarks:()=>readNativeLifecycleWatermarks(f.db,f.scope,f.options,initial,f.actors)};
+}
+
+test('paired lifecycle tick watermarks cover actual offline census and recorded attempts without claiming full enforcement; frozen reread is byte stable',()=>{
+    const f=watermarkFixture();try{for(let n=0;n<3;n++){f.sample(n);const sample=f.frame('after-terminal-guard');if(n===1)f.attempt(sample);f.frame('end-of-tick');}
+        const before=f.db.serialize(),r=f.readWatermarks();expect(r.gaps).toEqual([]);expect(r.sampleCount).toBe(6);
+        expect(r.completePostGuardCensusCoverage).toBeTrue();expect(r.completeRecordedAttemptWindow).toBeTrue();expect(r.completeLifecycleEnforcement).toBeFalse();
+        expect(r.verdict).toBe('inconclusive');expect(f.db.serialize()).toEqual(before);
+        const path=join(f.root,'server/engine/data/census-frozen.sqlite');writeFileSync(path,before);const offline=new OwnedDatabase(path,{readonly:true});
+        try{expect(readNativeLifecycleWatermarks(offline,f.scope,f.options,initial,f.actors)).toEqual(r);}finally{offline.close(true);}
+        const outcomes=reportNativeOutcomes(f.scope,f.options);expect(outcomes.sources.lifecycleWatermarks.status).toBe('available');
+        expect(projectNativeMinimumAssessment(contract,f.scope,outcomes).integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();
+    }finally{f.close();}
+});
+
+test.each(['missing-tick','missing-seal','session','fault','attempt-fault','pending','unknown','foreign','prefix','late-tail','unknown-attempt'])(
+    'lifecycle watermark gap remains unknown: %s',variant=>{
+        const f=watermarkFixture();try{for(let n=0;n<3;n++){
+            f.sample(n);if(variant==='missing-tick'&&n===1)continue;
+            const sample=f.frame('after-terminal-guard',variant==='session'&&n===1?{sessionId:'restart'}:{});
+            if(n===1){
+                if(variant==='fault')f.watermarks.fault();if(variant==='attempt-fault')f.attempts.fault();
+                if(variant==='pending'||variant==='unknown-attempt')f.attempt(sample,variant!=='pending',variant==='unknown-attempt'?null:undefined);
+            }
+            if(variant==='missing-seal'&&n===1)continue;
+            f.frame('end-of-tick',n!==1?{}:variant==='unknown'?{actors:sample.actors.map((a,i)=>i? a:{...a,authority:null})}
+                :variant==='foreign'?{actors:sample.actors.map((a,i)=>i?a:{...a,authority:{...a.authority!,actor:{...a.authority!.actor,lifecycleId:'f'.repeat(64)}}})}
+                :variant==='prefix'?{mortalityHead:{sequence:1,digest:'f'.repeat(64)}}:{});
+        }
+            if(variant==='late-tail')f.attempt(f.watermarks.read().entries.at(-1)!.sample);
+            const r=f.readWatermarks();expect(r.completePostGuardCensusCoverage,variant).toBeFalse();expect(r.completeRecordedAttemptWindow,variant).toBeFalse();
+            expect(r.completeLifecycleEnforcement).toBeFalse();expect(r.gaps.length,variant).toBeGreaterThan(0);expect(r.violations).toEqual([]);
+        }finally{f.close();}
+});
+
+test.each(['death','zero-hp','duplicate','finite'])(
+    'post-guard original avatar yields a scoped failure despite other gaps: %s',variant=>{
+    const f=watermarkFixture();try{
+        f.sample(0);f.frame('after-terminal-guard');f.frame('end-of-tick');
+        if(variant==='death')f.kill('2001-01-01T00:00:00.600Z');f.sample(1);
+        const avatar={username:'ada',slot:1,vitals:{hitpoints:variant==='zero-hp'?0:10,terminal:false,finite:variant!=='finite'}};
+        f.frame('after-terminal-guard',{avatars:variant==='duplicate'?[avatar,{...avatar,slot:2}]:[avatar]});f.watermarks.fault();f.frame('end-of-tick');
+        const r=f.readWatermarks();expect(r.verdict,variant).toBe('fail');expect(r.violations).toHaveLength(1);expect(r.completePostGuardCensusCoverage).toBeFalse();
+        const report=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));
+        expect(report.integrity.find(g=>g.gateId==='finite-lifecycle-no-respawn')!.verdict).toBe('fail');expect(report.qualifiesMinimum).toBeFalse();
+        const foreign=projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},reportNativeOutcomes(f.scope,f.options));expect(foreign.lifecycleIntegrityViolations).toEqual([]);
+    }finally{f.close();}
+});
+
+test('end-of-tick terminal HP can await the next guard without a false failed-eviction verdict',()=>{
+    const f=watermarkFixture();try{f.sample(0);f.frame('after-terminal-guard');
+        f.frame('end-of-tick',{avatars:[{username:'ada',slot:1,vitals:{hitpoints:0,terminal:true,finite:true}}]});
+        expect(f.readWatermarks().violations).toEqual([]);
+    }finally{f.close();}
+});
+
+test('lifecycle watermark native damage at an equal timestamp preserves prefix order instead of retroactively invalidating the earlier guard',()=>{
+    const f=watermarkFixture();try{f.sample(0);const before=f.frame('after-terminal-guard'),c=before.clock,id=randomUUID(),
+        event=createPopulationDeathEvidence(f.agents.getPopulationMember('ada')!,c,age,mortality,{damageEventId:id,sessionId:'native',engineTick:0});
+        f.health.record({username:'ada',sessionId:'native',engineTick:0,occurredAt:c.wallTime,hpBefore:10,hpAfter:0,maxHp:10,damageType:1},id,event);
+        f.frame('end-of-tick',{avatars:[{username:'ada',slot:1,vitals:{hitpoints:0,terminal:true,finite:true}}]});
+        for(let n=1;n<3;n++){f.sample(n);f.frame('after-terminal-guard');f.frame('end-of-tick');}
+        const r=f.readWatermarks();expect(r.gaps).toEqual([]);expect(r.violations).toEqual([]);expect(r.completePostGuardCensusCoverage).toBeTrue();
+    }finally{f.close();}
+});
+
+test('lifecycle watermark attempt authority cannot regress to an earlier genuine native health prefix',()=>{
+    const f=watermarkFixture();try{f.sample(0);const before=f.frame('after-terminal-guard'),c=before.clock;
+        f.health.record({username:'ada',sessionId:'native',engineTick:0,occurredAt:c.wallTime,hpBefore:10,hpAfter:9,maxHp:10,damageType:1});
+        const begin=f.attempt(before,false,{...before.actors[0]!.authority!,healthHeads:f.health.coverageHeads()});
+        f.attempts.append({...begin,phase:'result',outcome:'parsed',authority:before.actors[0]!.authority});f.frame('end-of-tick');
+        for(let n=1;n<3;n++){f.sample(n);f.frame('after-terminal-guard');f.frame('end-of-tick');}
+        const r=f.readWatermarks();expect(r.gaps).toContain('attempt-health-prefix-regression');expect(r.completeRecordedAttemptWindow).toBeFalse();expect(r.violations).toEqual([]);
+    }finally{f.close();}
+});
+
+test('lifecycle watermark selection, rollback and immutable source chains keep their own version; corrupted attempts do not hide a verified census violation',()=>{
+    const f=watermarkFixture();try{f.db.run('PRAGMA user_version=42');f.sample(0);f.frame('after-terminal-guard',{avatars:[{username:'ada',slot:1,vitals:{hitpoints:0,terminal:false,finite:true}}]});
+        const sample=f.frame('end-of-tick'),before=f.db.serialize();
+        expect(()=>f.db.transaction(()=>{f.watermarks.append({...sample,sessionId:'rollback'});throw Error('rollback');}).immediate()).toThrow('rollback');
+        expect(f.db.serialize()).toEqual(before);expect(f.db.query('PRAGMA user_version').get()).toEqual({user_version:42});
+        expect(new NativeLifecycleWatermarkStore(f.db).read().entries).toHaveLength(2);
+        expect(()=>f.db.run('DELETE FROM native_lifecycle_watermark_event WHERE sequence=1')).toThrow('immutable');
+        expect(()=>f.db.run('UPDATE native_lifecycle_watermark_selection SET digest=\'bad\'')).toThrow('immutable');
+        f.db.run('UPDATE native_lifecycle_head SET sequence=1');expect(f.readWatermarks().violations).toHaveLength(1);
+        f.db.run('UPDATE native_lifecycle_watermark_head SET sequence=1');expect(f.readWatermarks).toThrow('head');
     }finally{f.close();}
 });
 

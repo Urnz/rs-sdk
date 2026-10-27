@@ -92,3 +92,10 @@ bekötött parser/guard/World admission/reconnect/eviction/respawn-abort route-o
 Hiteles native death utáni admission scoped integrity FAIL, de a teljes
 route/watermark/World-census coverage továbbra hiányos. Ez a következő kódhatár;
 a2. nyitott,6 csomag maradt,27/45, C07 NO-GO, C08 nem indul.
+
+2026-10-27-i további rész: [páros lifecycle-watermark és World-slot census](SI_C07_LIFECYCLE_WATERMARKS.md)
+bekötött. Guard után és tick végén a tényleges slotok, native mortality prefix és
+attempt head/fault megfigyelése; hiányzó tick/stage/context/fault/pending gap.
+Hiteles bent maradt terminal/zero-HP/non-finite/dupla original avatar scoped FAIL.
+Következő a lifecycle route/build manifest explicit pinje és a clock/world-policy
+continuity adapter.6 csomag maradt, a2. nyitott,27/45, C07 NO-GO; C08 nem indul.

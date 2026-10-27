@@ -56,6 +56,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     const sourcePaths=['society-minimum/contract.ts','society-minimum/source-inventory.ts','config/society-minimum-policy.json','config/survival-rules.json','needs/survival.ts',
         'population-lifecycle/native-coverage.ts','population-lifecycle/native-observer.ts','society-metrics/mortality-coverage.ts',
         'population-lifecycle/native-attempts.ts','society-metrics/lifecycle-attempts.ts','server/engine/src/mods/NativeLifecycleAttempts.ts',
+        'population-lifecycle/native-watermarks.ts','society-metrics/lifecycle-watermarks.ts',
         'server/engine/src/engine/entity/Player.ts','server/engine/src/engine/entity/PlayerLoading.ts','server/engine/src/engine/script/ScriptRunner.ts',
         'server/engine/src/mods/NativeMortalityCoverageRuntime.ts',
         'config/population-age-policy.json','config/population-mortality-policy.json','population-lifecycle/death.ts',
