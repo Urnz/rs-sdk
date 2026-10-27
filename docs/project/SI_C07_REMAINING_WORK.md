@@ -68,3 +68,8 @@ indoklást kap.
 valós gazdasági próba pedig elbukhat. Ezek javítási/újrapróbálási köröket
 igényelhetnek. A7 csomag ezért nem garantált7 kör vagy biztos elsőre sikeres
 futás. Sikertelen eredményt megőrzünk; SI-C08 nem indul automatikusan.
+
+2026-10-27: [natív kopás→repair→reuse és auditált inputfogyasztás](SI_C07_TOOL_MAINTENANCE.md)
+bekötött. A puszta javításszámból képzett cyclecredit javítva; belső material-lot/
+custody ancestry továbbra unproven. Ez a következő konkrét kódhatár a2. csomagon
+belül; a csomagszám változatlan6, a fő számláló27/45, C07 NO-GO.

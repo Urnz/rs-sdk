@@ -11,7 +11,8 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     const report=await inspectMinimumRunPreparation(root,fixture);
     expect(report.readerCoverage).toHaveLength(17);expect(report.requiredIntegrityGates).toHaveLength(8);
     expect(report.minimumSourceMap.requirements).toHaveLength(17);expect(report.minimumSourceMap.integrity).toHaveLength(8);
-    expect(report.readerCoverage.filter(r=>r.status==='minimum-lower-bound-adapter')).toHaveLength(4);
+    expect(report.readerCoverage.filter(r=>r.status==='minimum-lower-bound-adapter')).toHaveLength(3);
+    expect(report.readerCoverage.filter(r=>r.status==='minimum-maintenance-mechanics-adapter')).toHaveLength(1);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-population-bound-adapter')).toHaveLength(3);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-needs-exposure-adapter')).toHaveLength(4);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-food-bound-adapter')).toHaveLength(4);

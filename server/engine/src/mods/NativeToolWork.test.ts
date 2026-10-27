@@ -22,6 +22,9 @@ import { readNativeWorkerEvidence,laborProjection } from '../../../../society-me
 import { expandedFixture,put } from '../../../../society-experiments/test/expanded-fixture.js';
 import { captureSocietyArchive,restoreSocietyArchive } from '../../../../society-experiments/archive.js';
 import { join } from 'node:path';
+import { writeFileSync,readFileSync } from 'node:fs';
+import { OwnedDatabase } from '../io/OwnedDatabase.js';
+import { readNativeToolMaintenance } from '../../../../society-metrics/tool-maintenance.js';
 beforeAll(loadPackedContent);afterEach(closeNativeMiningFixtures);
 function harness(){
     const f=fixture(),originalIdentity=f.p.identity;let offset=0;
@@ -123,8 +126,47 @@ test('SI-C03 complete100 native use chain procures copper and tin, smelts, repai
     const mined=f.market.db.query<{event_id:string},[]>('SELECT event_id FROM native_tool_event WHERE json_extract(payload,\'$.kind\')=\'mined\' ORDER BY rowid').all();
     const bankedCopper=f.miner.getInventory(bank)!.getItemCount(436),auditValid=f.store.lifecycle.verifyAuditChain();
     expect(mined).toHaveLength(101);expect(bankedCopper).toBe(98);expect(auditValid).toBeTrue();
+    const scope={clockId:'si-c02-clock',clockProfileDigest:'b'.repeat(64),fromSimulationTime:'2001-01-01T00:00:00.000Z',
+        toSimulationTime:'2001-01-02T00:00:00.000Z',actorAgentIds:[`actor-${f.miner.username}`]},
+        actors=[{agentId:scope.actorAgentIds[0]!,username:f.miner.username,lifecycleId:`life-${f.miner.username}`}],config=join(import.meta.dir,'../../../../config');
+    const before=f.market.db.serialize(),maintenance=readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',actors,config);
+    expect(f.market.db.serialize()).toEqual(before);expect(maintenance.candidates).toHaveLength(1);
+    expect(maintenance.candidates[0]).toMatchObject({operationId:repair.operationId,itemInstanceId:id,mechanicalCycleComplete:true,
+        materialConsumption:'verified',inputOrigin:'unproven',qualifiesMinimum:false});
+    expect(maintenance.candidates[0]!.wearEventId).not.toBeNull();expect(maintenance.candidates[0]!.reuseEventId).not.toBeNull();
+    const frozen=join(f.workspace,'maintenance-offline.sqlite');writeFileSync(frozen,before);const bytes=readFileSync(frozen),offline=new OwnedDatabase(frozen,{readonly:true});
+    try{expect(readNativeToolMaintenance(offline,scope,'si-c02-fixture',actors,config)).toEqual(maintenance);}finally{offline.close(true);}
+    expect(readFileSync(frozen)).toEqual(bytes);
+    const noWear=readNativeToolMaintenance(f.market.db,{...scope,fromSimulationTime:f.executor().work.get(smelt.operationId)!.started.simulationTime},'si-c02-fixture',actors,config);
+    expect(noWear.candidates[0]).toMatchObject({wearEventId:null,mechanicalCycleComplete:false});
+    const noReuse=readNativeToolMaintenance(f.market.db,{...scope,toSimulationTime:f.executor().work.get(repair.operationId)!.last.clock.simulationTime},'si-c02-fixture',actors,config);
+    expect(noReuse.candidates[0]).toMatchObject({reuseEventId:null,mechanicalCycleComplete:false});
+    expect(readNativeToolMaintenance(f.market.db,{...scope,toSimulationTime:f.executor().work.get(smelt.operationId)!.last.clock.simulationTime},'si-c02-fixture',actors,config).candidates).toHaveLength(0);
+    // A self-consistent event JSON hash is insufficient without the independent lifecycle receipt/revision.
+    const reuseId=maintenance.candidates[0]!.reuseEventId!,corrupt=f.store.event(reuseId)!;
+    corrupt.source.checkpointDigest='f'.repeat(64);f.market.db.run('DROP TRIGGER native_tool_event_no_update');
+    f.market.db.run('UPDATE native_tool_event SET payload=?,digest=? WHERE event_id=?',[JSON.stringify(corrupt),nativeToolDigest(corrupt),reuseId]);
+    expect(()=>readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',actors,config)).toThrow('use proof');
     console.log('SI-C03_ACCEPTANCE',JSON.stringify({instanceId:id,nativeMiningOutputs:mined.length,nativeMiningActionIds:mined.map(row=>row.event_id),bankedCopper,auditValid,
         smelt:f.executor().work.get(smelt.operationId),repair:f.executor().work.get(repair.operationId),afterUse:tool}));
+});
+
+test('SI-C07 maintenance excludes manual breakage, missing reuse, foreign lifecycle and a corrupt consumed-input binding',()=>{
+    const f=harness(),id=`tool-${f.miner.username}`;
+    f.store.lifecycle.use('manual-break',id,1,100,'e'.repeat(64),'2001-01-01T00:00:00.000Z');
+    f.miner.invAdd(InvType.INV,2349,1);f.place('repair');const repair=f.command('repair');f.executor().start(repair,f.miner);
+    const scope={clockId:'si-c02-clock',clockProfileDigest:'b'.repeat(64),fromSimulationTime:'2001-01-01T00:00:00.000Z',
+        toSimulationTime:'2001-01-02T00:00:00.000Z',actorAgentIds:[`actor-${f.miner.username}`]},
+        actors=[{agentId:scope.actorAgentIds[0]!,username:f.miner.username,lifecycleId:`life-${f.miner.username}`}],config=join(import.meta.dir,'../../../../config'),
+        read=()=>readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',actors,config);
+    expect(read().candidates).toHaveLength(0);f.tick(repair.operationId,600000);
+    expect(read().candidates[0]).toMatchObject({wearEventId:null,reuseEventId:null,mechanicalCycleComplete:false});
+    expect(f.mine().execution).not.toBe(-1);
+    expect(read().candidates[0]).toMatchObject({wearEventId:null,mechanicalCycleComplete:false,inputOrigin:'unproven'});
+    expect(read().candidates[0]!.reuseEventId).not.toBeNull();
+    expect(()=>readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',[{...actors[0]!,lifecycleId:'foreign'}],config)).toThrow('lifecycle');
+    f.market.db.run('UPDATE player_inventory_escrow_business_binding SET binding_digest=?',['f'.repeat(64)]);
+    expect(read).toThrow('escrow audit');
 });
 test('SI-C03 no material, missing source, insufficient skill, missing procedure or access never starts free work',()=>{
     const f=harness();f.place('smelt');const command=f.command('smelt');

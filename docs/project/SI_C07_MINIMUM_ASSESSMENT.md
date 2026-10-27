@@ -49,11 +49,13 @@ A preflight gépi riport is tartalmazza a térképet és a konkrét hiányt; nem
 állít mért értéket a még hiányzó olvasók helyére.
 
 `society-metrics/minimum-assessment.ts` a már validált natív outcome-readerekből
-4 work/tool,3 population,4 needs és4 food/final-use szabályhoz ad bizonyítékot, backend által kijelölt
+3 work/tool,3 population,4 needs és4 food/final-use szabályhoz ad boundot, backend által kijelölt
 eredeti források esetén. A frame nem választható HTTP query/body vagy LLM-output alapján.
 
-- Natív completed repair/effect: tool-maintenance alsó darabszám a támogatott
-  bronze cycle-re, tényleges helyreállított kapacitással.
+- A korábbi completed-repair darabszám cyclecreditje 2026-10-27-én megszűnt:
+  a [natív maintenance-reader](SI_C07_TOOL_MAINTENANCE.md) exact kopás/repair/reuse
+  és inputfogyasztás bizonyítékot ad, de a belső material-lot/custody eredet még
+  unproven. Emiatt javításból önmagában nincs maintenance minimumcredit vagy PASS.
 - Native work: külön napi distinct physical producer alsó darabszám. Egy actor
   több receiptje egyszer számít. Az eseményablak `(start,end]`, így éjfél az
   előző naphoz tartozik.

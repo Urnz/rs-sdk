@@ -208,3 +208,8 @@ Friss natív housing/identity/clock/bed proof mellett observed-sleeping,
 offline/terminal és igazolatlan restriction továbbra gap. A pending request
 és teljes lifetime upper nem csökken. A C07 baseline/full coverage/maintenance
 origin és8 integrity hiánya miatt továbbra NO-GO,6 csomag maradt.
+
+2026-10-27: [natív maintenance mechanika és anyagelfogyasztás](SI_C07_TOOL_MAINTENANCE.md)
+bekötött. A puszta repair-count minimumcredit javítva; a material-lot/custody
+belső eredet még unproven. A maintenance reader capability külön jelölt,
+17 részleges adapter továbbra nem17 PASS. NO-GO,6 csomag maradt, a2. nyitott.

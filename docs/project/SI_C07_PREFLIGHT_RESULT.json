@@ -208,9 +208,11 @@
         "scope": "every-tool-type-whole-window",
         "zeroDemand": "inconclusive",
         "channels": [
-          "native-work"
+          "native-maintenance",
+          "item-lifecycle",
+          "native-material-custody"
         ],
-        "missing": "Verified repair effects provide a lower count; absent receipts do not prove zero maintenance."
+        "missing": "Exact native wear, policy-bound repair, audited input consumption and new use are joined by instance/revision. Internal material/successor lot ancestry is still unproved; repair counts or matching smelt quantities cannot certify a cycle."
       },
       {
         "requirementId": "tool-unusable-demand-time",
@@ -485,10 +487,12 @@
       "threshold": 1,
       "scope": "every-tool-type-whole-window",
       "channels": [
-        "native-work"
+        "native-maintenance",
+        "item-lifecycle",
+        "native-material-custody"
       ],
-      "missing": "Verified repair effects provide a lower count; absent receipts do not prove zero maintenance.",
-      "status": "minimum-lower-bound-adapter",
+      "missing": "Exact native wear, policy-bound repair, audited input consumption and new use are joined by instance/revision. Internal material/successor lot ancestry is still unproved; repair counts or matching smelt quantities cannot certify a cycle.",
+      "status": "minimum-maintenance-mechanics-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -642,11 +646,11 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "6c66e87c261ba2a50e630d2690ca3821693e251e0eb1ca90d58641f9abe63de0"
+      "sha256": "3cc0033f5764dad1dc9c2f0cd577c9fef6a43b1b9a474089b00eaaa06640a89c"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "bd9e47ffdf482cc47ac1836663ecd2566a5699059b48a9fa6f6ee6134d800edc"
+      "sha256": "e722e6f8fd2ede04a0bfd345c810efc7109c13169fa0b1d062b8d6ab14243176"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -726,7 +730,11 @@
     },
     {
       "path": "society-metrics/tool-capacity-ledger.ts",
-      "sha256": "f99127819567253362872917d9f50d897695ec75c79bf9d46fb3464ffb002b2d"
+      "sha256": "a1fb602032d3ee4d1fb9286d7e361d40a532bd394d821468c1b25f3d98c39ddf"
+    },
+    {
+      "path": "society-metrics/tool-maintenance.ts",
+      "sha256": "5fcd1c14aa3240692dcd0d50a2631a05dcd9ff5487e36dc159f000d5f98c9443"
     },
     {
       "path": "item-lifecycle/native-tool.ts",
@@ -743,6 +751,34 @@
     {
       "path": "item-lifecycle/repair-policy.ts",
       "sha256": "a0f3bf03121024131a56afb7158c4f8de66f716406094239dcd917629108404c"
+    },
+    {
+      "path": "item-lifecycle/repair-authorization.ts",
+      "sha256": "d83b4d26c529292c279a609a348a83670e9af860c4f31b5f0e5faddb98c12d82"
+    },
+    {
+      "path": "production-workflow/native-tool-work.ts",
+      "sha256": "9b345206161d1c41fecd7e242e9373324da42927c86d8091ed538e82eaa304d5"
+    },
+    {
+      "path": "production-workflow/native-tool-work-policy.ts",
+      "sha256": "6ea906df66a98b9e44ba185516bafac252bcd0edcf93ea7127cbce26d87eb1db"
+    },
+    {
+      "path": "server/engine/src/mods/NativeToolWork.ts",
+      "sha256": "e926c17cf9a6ca9c056173152f7075f1e7f9e4f52c1d0242db7ded076fbde21e"
+    },
+    {
+      "path": "server/engine/src/mods/PlayerInventoryEscrowStore.ts",
+      "sha256": "e3a627675113d457e34188870b0974a0c5b8b0b2cf743aed3fa3f146beef13dd"
+    },
+    {
+      "path": "config/native-tool-work.json",
+      "sha256": "a1e80bf4a617ce514b74537e1e0cf259b826c52b438dfa0bc2e925e60ac70651"
+    },
+    {
+      "path": "config/production-workflows.json",
+      "sha256": "e8fe17100c04d73b26b2345045b9f4c1e75e1e5361fba1113d55ac01d55624ba"
     },
     {
       "path": "config/item-lifecycle.json",
@@ -850,7 +886,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "e376eccbf618f496d4a92006128cf33c9098e9b09d6ed1d430a7cfb81febb0ce"
+      "sha256": "4770c0267133f9d290d727f1e9ae1409e2de1f1f2ff16d85bae3990e58d2187f"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -990,7 +1026,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "ea2469e5ddcb7dd6050fad2d3391905a2785f7fcd671d87ce00f33005b01c256"
+      "sha256": "724319ccdba4f1d5ea58147828a0a812fd5323dd5cab0feb3115e0992b7ce3fd"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1019,5 +1055,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "39eb28d573afdba93f1608beda2f5eba386a46bbe11eb0c39a47dab78e084b58"
+  "digest": "6de915e07fb1f468672e149d73a003d03c8fee2ce39cff6260a5d02deb1cee08"
 }

@@ -1,6 +1,6 @@
 # Rövid fejlesztési átadás
 
-Frissítve: 2026-10-26. Belépő, nem futási napló.
+Frissítve: 2026-10-27. Belépő, nem futási napló.
 Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő kódmunka
@@ -84,11 +84,16 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   observed-sleeping frame és offline visszaolvasott native audit/payment kötés.
   Puszta sleep-flag, terminal, offline vagy hibás identity/source továbbra gap.
   A pending request és teljes conservative lifetime upper alvás alatt is megmarad.
-- **Következő kódhatár a2. csomagon belül:** natív use/wear→maintenance→új
-  usable service ciklus és belső input/successor provenance bekötése. Továbbra
-  kell teljes történeti mortality/enforcement és boundary inventory,
-  housing/access/source coverage, maintenance origin és8 integrity adapter. **6 csomag
-  maradt, a2. még nyitott**; nem kezdődött el a3. baseline vagy C08.
+- **Maintenance-rész kész:** [natív kopás→repair→reuse és inputfogyasztás](SI_C07_TOOL_MAINTENANCE.md).
+  Exact instance/revision, auditált lifecycle/native output/WIP/escrow/purpose
+  kötés; frozen offline reread. Korábbi puszta repair-count cyclecredit javítva.
+  A material elfogyasztása igazolt, a belső lot/custody eredet még unproven;
+  teljes mechanikai láncból sincs maintenance minimum PASS.
+- **Következő kódhatár a2. csomagon belül:** prospektív ore→smelt→bar→repair
+  material-lot/custody forrás és mennyiségi megmaradás, idegen/kevert input
+  negatív próbáival. Replacement eredet szintén unproven. Továbbra kell
+  historical mortality/enforcement és teljes source/boundary/access coverage,
+  valamint8 integrity adapter. **6 csomag maradt, a2. még nyitott**; C08 nem indul.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
   Lower-bound longest unusable-time, nem más actorok/kérések összege; restart,
@@ -139,30 +144,32 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261026-231030-428-si-c07-sleep-final-boundaries`:41 célzott eset,
-  root és engine TS PASS129,834 s.** Coverage/request/minimum/outcomes/preflight
-  és6 packed native observer eset. Offline/restricted/identity/clock/fake-proof
-  negatív ágak, meglévő lower FAIL-megőrzés.
-- `20261026-230757-279-si-c07-sleep-thin-native`:26 packed housing +2 gateway
-  eset PASS16,071 s; a readonly reader kiemelése után az összes korábbi24
-  natív housing eset is sikeres. Új fizikai sleep→observer közös út korán próbázva.
-- `20261026-231139-296-si-c07-sleep-pending-final`:2 kijelölt native sleep
-  próba +wrapper PASS2,565 s; élő pending intent megmarad a frame-ben.
-- **`20261026-231502-087-si-c07-sleep-offline-final`:ugyanez a2 native próba
-  külön offline snapshot-újraolvasással és engine TS PASS59,075 s.** A változatlan
- 24 housing-esetet nem ismételtük a tesztadat szigorítása után.
-- `20261026-231651-608-si-c07-sleep-artifact`:friss NO-GO,17/8 és17 részleges
-  adapter, sourcehash/digest és12 dokumentumlink PASS0,846 s.
-- Sleep flag önmagában nem proof; paid native witness/lease/Property/identity/
-  clock/bed/HP szükséges. Expiry/early end/identity loss és rossz pozíció gap;
-  az observation nem ébreszt és nem csökkenti a pending lifetime uppert.
-- Korábbi executor/capacity/housing/food/needs/founder/mag bizonyíték a komponensdokumentumokban és a
-  progressben; nem jelenlegi full-suite PASS.
-- Full és webclient TS nem futott: housing/mining readonly observer-adat és
-  közvetlen source-fogyasztók változtak. Közös clock/global auth,
-  gazdasági transaction/migration, függőség vagy gameplay nem módosult. A scope
-  pontos fájllistái a helyi `.local/verification/*.result.json` fájlokban vannak.
-- Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.
+- **`20261027-165252-538-si-c07-maintenance-boundaries`:36 root +2 packed native
+  eset PASS;1 preflight-inventory teszt FAIL,38,234 s.** Maintenance/gateway,
+  minimum/outcomes/capacity/population/preflight pontos fájlkör. A preflight
+  régi4 lower-adapter helyett3 lower +1 mechanics adaptert kell számoljon.
+  Runtime assertion nem gyengült; a hamis repair-only cyclecredit szűnt meg.
+- **`20261027-165456-995-si-c07-maintenance-preflight-types`:3 preflight teszt,
+  root és engine TS PASS62,818 s.** A sikertelen inventoryteszt javítva;
+  a korábban sikeres native és metrics fájlokat nem ismételtük.
+  A teljes kijelölt kör így37 root +2 packed native egyedi sikeres eset.
+- `20261027-165210-343-si-c07-maintenance-thin-fix`:2 kijelölt native +wrapper
+  PASS2,719 s. Előtte az első thin run3,272 s alatt FAIL: a material receipt
+  canonical digestet használ, az első reader raw hash-t várt. A reader javítva;
+  a meglévő receipt/hashszabály változatlan. Az első failure naplója megmaradt.
+- A valódi100 wear→repair→reuse pozitív és frozen offline byteazonos reread;
+  WIP/manual breakage, hiányzó/ablakon kívüli wear vagy reuse, foreign lifecycle,
+  újrahashelt hamis native source és sérült material purpose negatív ágak.
+  Igazolt fogyasztásból és közeli smeltből nincs kitalált belső lot ancestry.
+- Korábbi sleep/executor/capacity/housing/food/needs/founder/mag bizonyíték
+  a komponensdokumentumokban és a progressben; nem jelenlegi full-suite PASS.
+- Full és webclient TS nem futott: readonly metrics/join, minimum-adapter és
+  közvetlen source-fogyasztók változtak. Közös persistence/clock/global auth,
+  gazdasági transaction/migration, függőség vagy gameplay nem módosult.
+  Pontos fájllisták: `.local/verification/*.result.json`.
+- 20261027-165648-362-si-c07-maintenance-artifact:friss NO-GO/sourcehash/
+  digest és13 dokumentumlink PASS0,807 s. Staged format a lezáráskor.
+  Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.
 ## Megőrzendő döntések
 
 - Csak helyi/private LostCity. Nincs live world-indítás, import, enrollment,

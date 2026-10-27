@@ -5,6 +5,7 @@ import { nativeToolDigest as hash,nativeToolCatalog,nativeToolCycles,NATIVE_PICK
 import { societyMinimumDigest as digest } from '../society-minimum/policy.js';
 import { outcomeCheck as check,outcomeRows as rows } from './outcome-work.js';
 import { join } from 'node:path';
+import type { ItemInstanceState } from '../item-lifecycle/types.js';
 
 /** Native borrowed-DB schema. Never constructs the writable ItemLifecycleStore or infers state from current durability alone. */
 export function readToolCapacityLedger(db:Database,contract:SocietyMinimumContract,configDirectory:string,at:string){
@@ -19,7 +20,7 @@ export function readToolCapacityLedger(db:Database,contract:SocietyMinimumContra
     for(const a of audits){const p=JSON.parse(a.payload_json);if(p.kind==='transferred'&&!firstTransfers.has(p.instanceId))firstTransfers.set(p.instanceId,p.detail.fromActorId);}
     const canonical=(v:unknown):v is string=>typeof v==='string'&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v;
     const positive=(v:unknown)=>Number.isSafeInteger(v)&&Number(v)>0;
-    let previous='0'.repeat(64),repairCount=0,replacementCount=0;const auditDigests:string[]=[],seen=new Set<string>(),versions=new Map<string,unknown>();
+    let previous='0'.repeat(64),repairCount=0,replacementCount=0;const auditDigests:string[]=[],seen=new Set<string>(),versions=new Map<string,ItemInstanceState>();
     const remember=(id:string,state:typeof states extends Map<string,infer S>?S:never)=>versions.set(`${id}:${state.revision}`,{
         itemInstanceId:id,lifecycleTypeId:state.row.lifecycle_type_id,itemId:state.row.item_id,ownerActorId:state.owner,durability:state.durability,
         maxDurability:state.row.max_durability,status:state.durability>0?'usable':'broken',qualityBasisPoints:state.row.quality_bps,
@@ -86,5 +87,7 @@ export function readToolCapacityLedger(db:Database,contract:SocietyMinimumContra
     });
     check(new Set(bindings.map(b=>b.owner.username)).size===bindings.length,'Duplicate native tool owner');
     return{instances:[...states.values()].map(s=>({itemInstanceId:String(s.row.item_instance_id),lifecycleTypeId:String(s.row.lifecycle_type_id),durability:s.durability,retired:s.retired})),bindings,auditDigests,
-        events:events.map(({id,digest})=>({id,digest})),catalogDigest:catalog.digest,cycleDigest:cycles.digest};
+        events:events.map(({id,digest})=>({id,digest})),catalogDigest:catalog.digest,cycleDigest:cycles.digest,
+        // Internal readonly joins; boundary exports retain only their existing compact heads.
+        versions,history:audits.map(a=>({sequence:a.sequence,digest:a.entry_hash,...JSON.parse(a.payload_json)})),nativeEvents:events};
 }

@@ -29,7 +29,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     const minimumSources=minimumSourceMap(contract);
     const readerCoverage=minimumSources.requirements.map(r=>({requirementId:r.requirementId,comparison:r.comparison,threshold:r.threshold,scope:r.scope,
         channels:r.channels,missing:r.missing,
-        status:['tool-maintenance-cycles','tool-unusable-demand-time','productive-participants','productive-stage-kinds'].includes(r.requirementId)?'minimum-lower-bound-adapter'
+        status:r.requirementId==='tool-maintenance-cycles'?'minimum-maintenance-mechanics-adapter'
+            :['tool-unusable-demand-time','productive-participants','productive-stage-kinds'].includes(r.requirementId)?'minimum-lower-bound-adapter'
             :['founders-at-start','minimum-living-founders','founder-survival'].includes(r.requirementId)?'minimum-population-bound-adapter'
             :['hunger-satisfied-time','fatigue-satisfied-time','hunger-continuous-critical-time','fatigue-continuous-critical-time'].includes(r.requirementId)?'minimum-needs-exposure-adapter'
             :['internal-food-relief-share','food-reserve-coverage','food-stock-retention','inter-actor-final-use-chains'].includes(r.requirementId)?'minimum-food-bound-adapter'
@@ -57,8 +58,12 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'society-metrics/food-minimum.ts','society-metrics/food-boundaries.ts','society-metrics/integration-sources.ts','server/gateway/admin/save-reader.ts',
         'society-metrics/housing-access.ts','society-metrics/housing-minimum.ts','housing/native-rent.ts','housing/native-rent-source.ts',
         'housing/native-sleep.ts','server/engine/src/mods/NativeHousing.ts','server/engine/src/mods/NativeHousingRuntime.ts',
-        'society-metrics/tool-capacity.ts','society-metrics/tool-capacity-ledger.ts','item-lifecycle/native-tool.ts','item-lifecycle/store.ts',
-        'item-lifecycle/production-cycle.ts','item-lifecycle/repair-policy.ts','config/item-lifecycle.json','config/production-tool-cycles.json','config/item-repair-policies.json',
+        'society-metrics/tool-capacity.ts','society-metrics/tool-capacity-ledger.ts','society-metrics/tool-maintenance.ts',
+        'item-lifecycle/native-tool.ts','item-lifecycle/store.ts',
+        'item-lifecycle/production-cycle.ts','item-lifecycle/repair-policy.ts','item-lifecycle/repair-authorization.ts',
+        'production-workflow/native-tool-work.ts','production-workflow/native-tool-work-policy.ts','server/engine/src/mods/NativeToolWork.ts',
+        'server/engine/src/mods/PlayerInventoryEscrowStore.ts','config/native-tool-work.json','config/production-workflows.json',
+        'config/item-lifecycle.json','config/production-tool-cycles.json','config/item-repair-policies.json',
         'housing/tenancy-store.ts','server/engine/src/mods/PropertyStore.ts','server/engine/src/mods/Properties.ts',
         'config/properties.json','config/housing-units.json','config/native-housing.json',
         'food-loop/lineage.ts','food-loop/native-source.ts','server/engine/src/mods/NativeFoodLineageStore.ts','population-lifecycle/mortality.ts','population-lifecycle/age.ts',

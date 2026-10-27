@@ -3125,3 +3125,29 @@ input/successor provenance, majd további source/mortality/enforcement és8
 integrity adapter. Nincs live világ/baseline/hosszú run, providerhívás/költség,
 történeti backup DB-read vagy minimum-/világconfig-tuning.
 [Komponensleírás](SI_C07_SLEEP_OBSERVATION.md).
+
+### 2026-10-27 – SI-C07/2 natív maintenance mechanika és inputfogyasztás
+
+Új readonly `sources.toolMaintenance`: teljes lifecycle-replay revisionjaihoz
+kötött native Mining breakage→policy repair/WIP→új Mining output, auditált
+escrow/purpose/consume/material receipt kötés. A korábbi repair-only minimum
+cyclecredit megszűnt. Igazolt mechanikából/fogyasztásból nincs belső inputeredet:
+lot/custody ancestry és replacement továbbra unproven, minimum inconclusive.
+Új schema, migration, gameplay/clock vagy gazdasági transaction változás nincs.
+
+Thin: `20261027-165145-117-si-c07-maintenance-thin-native` FAIL3,272 s, raw vs
+canonical material-receipt hash az új readerben; javítva, meglévő hash változatlan.
+`20261027-165210-343-si-c07-maintenance-thin-fix`2 native +wrapper PASS2,719 s.
+`20261027-165252-538-si-c07-maintenance-boundaries`36 root +2 native PASS és1
+régi preflight-inventory assertion FAIL38,234 s; a3 lower +1 mechanics besorolás
+várakozása javítva. `20261027-165456-995-si-c07-maintenance-preflight-types`3
+preflight +root/engine TS PASS62,818 s. Összesen37 root +2 natív egyedi eset
+sikeres a kijelölt körből; a passing metrics/native scope nem ismétlődött.
+`20261027-165648-362-si-c07-maintenance-artifact`friss NO-GO/sourcehash/digest és
+13 doclink PASS0,807 s. Full/webclient TS nem indokolt readonly metrics/joinnál.
+
+A100 native use→smelt→repair→reuse frozen offline fájlban byteazonos újraolvasás;
+manual breakage, WIP, hiányzó/ablakon kívüli wear/reuse, foreign life, rehashed
+fake source és corrupted escrow-purpose negatív esetek. Következő a prospektív
+ore→smelt→bar→repair lot/custody és quantity conservation.6 csomag maradt,
+a2. nyitott,27/45, SI-C07 NO-GO; nincs C08, live run/baseline/providerköltség.

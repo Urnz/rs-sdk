@@ -1107,6 +1107,9 @@ offline és teljes source/integrity coverage még hiányos;6 csomag maradt,27/45
 Az [igazolt online sleep observation](SI_C07_SLEEP_OBSERVATION.md) is kész;
 offline/terminal/igazolatlan restriction továbbra gap. A2. csomag nyitott,
 következő a teljes maintenance-ciklus és belső eredet;6 maradt,27/45, NO-GO.
+2026-10-27: [natív kopás→repair→reuse és inputfogyasztás](SI_C07_TOOL_MAINTENANCE.md)
+bekötött; a puszta repair-count cyclecredit javítva. Belső material-lot/custody
+provenance továbbra unproven, ez a következő határ.6 maradt,27/45, NO-GO.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

@@ -167,8 +167,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 if(row.stage==='repair'&&row.serviceCapacityAfter!==null&&row.serviceCapacityAfter>0)stages.add('tool-maintenance');
             }
             lower('productive-stage-kinds',{},contract.policy.labor.requiredStageKinds.filter(s=>stages.has(s)).length,work.digest);
-            if(contract.policy.tools.cycleIds.includes('bronze-pickaxe-mining'))lower('tool-maintenance-cycles',{cycleId:'bronze-pickaxe-mining'},
-                rows.filter(r=>r.stage==='repair'&&r.serviceCapacityAfter!==null&&r.serviceCapacityAfter>0).length,work.digest);
+            // A positive repair is physical labor, not a certified internal wear/maintenance/reuse cycle.
+            // toolMaintenance exposes verified mechanics/consumption but cannot yet prove fungible input origin.
         }
         if(tool?.status==='available'&&tool.value.standingRequests){const standing=tool.value.standingRequests;
             if(contract.policy.tools.cycleIds.includes(standing.cycleId)&&standing.longestConfirmedUnusableSimulationMs!==null)
@@ -196,6 +196,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         diagnosticViolations,
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
         sources:{work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
+            toolMaintenance:nativeScopeMatches&&outcomes?.sources.toolMaintenance?.status==='available'
+                ?{status:'available',digest:outcomes.sources.toolMaintenance.digest}:{status:nativeScopeMatches?outcomes?.sources.toolMaintenance?.status??'unavailable':'unavailable'},
             needsExposure:{status:needsStatus,...(needsStatus==='available'?{digest:integration!.needsExposure.digest}:{})},
             foodMinimum:{status:foodStatus,...(foodStatus==='available'?{digest:integration!.minimumFood.digest}:{})},
             housingAccess:{status:housingStatus,...(housingStatus==='available'?{digest:integration!.minimumHousing.digest}:{})},

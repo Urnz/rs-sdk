@@ -22,6 +22,19 @@ test('native adapter maps positive receipt lower bounds into separate day bucket
     const producers=r.assessment!.requirements.find(v=>v.requirementId==='productive-participants')!;
     expect(producers.cells[0]!.verdict).toBe('pass');expect(producers.cells[1]!.verdict).toBe('inconclusive');expect(producers.verdict).toBe('inconclusive');
     expect(r.requirements.find(v=>v.requirementId==='productive-stage-kinds')!.verdict).toBe('pass');expect(r.verdict).toBe('inconclusive');
+    expect(r.requirements.find(v=>v.requirementId==='tool-maintenance-cycles')!.verdict).toBe('inconclusive');
+    expect(r.assessment!.requirements.find(v=>v.requirementId==='tool-maintenance-cycles')!.cells.every(c=>!c.lower)).toBeTrue();
+});
+
+test('even complete native mechanics and consumed input cannot certify internal maintenance without material ancestry',()=>{
+    const outcomes={scope,worldId:'world',sources:{work:{status:'available',digest:'b'.repeat(64),value:{rows:[
+        {workerAgentId:'alice',stage:'repair',simulationTime:'2001-01-03T00:00:00.000Z',serviceCapacityAfter:50}]}},
+        toolMaintenance:{status:'available',digest:'c'.repeat(64),value:{candidates:[{mechanicalCycleComplete:true,
+            materialConsumption:'verified',inputOrigin:'unproven',qualifiesMinimum:false}]}},toolDemand:{status:'unavailable'}}} as any;
+    const r=projectNativeMinimumAssessment(contract,scope,outcomes,frame);
+    expect(r.sources.toolMaintenance.status).toBe('available');
+    expect(r.requirements.find(v=>v.requirementId==='tool-maintenance-cycles')!.verdict).toBe('inconclusive');
+    expect(r.integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();expect(r.qualifiesMinimum).toBeFalse();
 });
 test('native diagnostic violation remains fail with an invalid run binding; private malformed binding is not echoed',()=>{
     const outcomes={scope,worldId:'world',sources:{work:{status:'invalid'},toolDemand:{status:'available',digest:'c'.repeat(64),value:{minimumVerdict:'fail'}}}} as any;
