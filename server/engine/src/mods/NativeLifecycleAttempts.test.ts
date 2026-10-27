@@ -22,6 +22,9 @@ import { PlayerHealthEvidenceStore } from './PlayerHealthEvidenceStore.js';
 import { NativeMortalityCoverageStore,nativeMortalityActor } from '../../../../population-lifecycle/native-coverage.js';
 import { NativeLifecycleAttemptStore } from '../../../../population-lifecycle/native-attempts.js';
 import { NativeLifecycleWatermarkStore } from '../../../../population-lifecycle/native-watermarks.js';
+import { NativeLifecyclePolicyStore } from '../../../../population-lifecycle/native-policy.js';
+import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../../../../population-lifecycle/native-policy-manifest.js';
+import { getActiveWorldModPolicy } from './WorldMods.js';
 import { recordNativeMortalityPass } from '../../../../population-lifecycle/native-observer.js';
 import { withNativeLifecycleObservation,observeNativePopulationLogin,beginNativeLifecycleAttempt,type LifecycleObservationPorts } from './NativeLifecycleAttempts.js';
 const closers:Array<()=>void>=[];beforeAll(loadPackedContent);afterEach(()=>{for(const close of closers.splice(0).reverse())close();});
@@ -49,7 +52,10 @@ function fixture(){
         restricted:!!health.deathFor('alice')})};
     const run=<T>(f:()=>T)=>withNativeLifecycleObservation(ports,f);
     const guard={finite:(name:string)=>!!health.finiteAvatar(name),restricted:(name:string)=>!!health.deathFor(name)};
-    return{db,store,player,ports,run,guard,watermarks(){const watermarks=new NativeLifecycleWatermarkStore(db,true);
+    return{db,store,player,ports,run,guard,clock,c,policySnapshot(){const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..'));
+        return{clock:clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),survivalDigest:null,
+            modsDigest:'b'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(join(import.meta.dir,'../../../..'))};},
+        watermarks(){const watermarks=new NativeLifecycleWatermarkStore(db,true);
         recordNativeMortalityPass(db,'fixture','native-mortality',c,[member],health,age.digest,mortality.digest,null);return watermarks;},
         kill(){const damageEventId=randomUUID(),event=createPopulationDeathEvidence(member,c,age,mortality,{damageEventId,sessionId:'native',engineTick:100});
         health.record({username:'alice',sessionId:'native',engineTick:100,occurredAt:c.wallTime,hpBefore:10,hpAfter:0,maxHp:10,damageType:1},damageEventId,event);return event;}};
@@ -60,6 +66,30 @@ test('SI-C07 actual save parsing records parsed and failed loads without calling
     expect(()=>f.run(()=>PlayerLoading.load('alice',new Packet(new Uint8Array([1,2,3])),null))).toThrow('Invalid save');
     const r=f.store.read();expect([...r.attempts.values()].map(p=>p.result?.outcome)).toEqual(['parsed','failed']);
     expect(r.entries.every(e=>e.event.kind==='load')).toBeTrue();expect(r.faults).toBe(0);
+});
+
+test('SI-C07 actual World policy observation retains a clock change after census context loss without changing gameplay or the clock',()=>{
+    const f=fixture();f.watermarks();const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..')),opening=f.policySnapshot(),
+        store=new NativeLifecyclePolicyStore(f.db,{manifest,opening}),policy=()=>({position:f.c,worldId:'fixture',snapshot:f.policySnapshot()}),
+        ports={...f.ports,policy,bootManifest:manifest},before=f.player.save(false),clockBefore=f.clock.get('world');
+    const mods=getActiveWorldModPolicy();expect(getActiveWorldModPolicy()).toEqual(mods);
+    withNativeLifecycleObservation(ports,()=>World['observePopulationLifecycle']('after-terminal-guard'));
+    expect(f.clock.get('world')).toEqual(clockBefore);
+    const changed=f.clock.reconfigure('world',clockBefore!.revision,{...clockBefore!.profile,seed:'changed'},f.c.wallTime);
+    withNativeLifecycleObservation({...ports,context:()=>null},()=>World['observePopulationLifecycle']('end-of-tick'));
+    const r=store.read();expect(r.entries).toHaveLength(2);expect(r.entries[1]!.sample.snapshot!.clock).toEqual(changed);
+    expect(r.entries[1]!.sample.position.profileDigest).toBe(clockBefore!.profileDigest);expect(r.entries[1]!.sample.snapshot!.clock.profileDigest).not.toBe(clockBefore!.profileDigest);
+    expect(f.clock.get('world')).toEqual(changed);expect(f.player.save(false)).toEqual(before);expect(r.faults).toBe(0);
+});
+
+test('SI-C07 native policy observer records null authority and durable write faults without altering player or shared clock state',()=>{
+    const f=fixture();f.watermarks();const store=new NativeLifecyclePolicyStore(f.db,{manifest:lifecycleRouteManifest(join(import.meta.dir,'../../../..')),opening:f.policySnapshot()}),
+        before=f.clock.get('world');
+    f.run(()=>World['observePopulationLifecycle']('after-terminal-guard'));expect(store.read().entries[0]!.sample.snapshot).toBeNull();
+    f.db.run("CREATE TRIGGER fail_policy BEFORE INSERT ON native_lifecycle_policy_event BEGIN SELECT RAISE(ABORT,'injected');END");
+    expect(()=>f.run(()=>World['observePopulationLifecycle']('end-of-tick'))).not.toThrow();f.db.run('DROP TRIGGER fail_policy');
+    expect(store.read().faults).toBeGreaterThan(0);expect(f.clock.get('world')).toEqual(before);
+    expect(()=>f.db.run('UPDATE native_lifecycle_policy_fault SET count=0')).toThrow('reset');
 });
 
 test('SI-C07 actual World slots include an orphan terminal avatar and seal parser attempts at the tick end',()=>{

@@ -99,3 +99,9 @@ attempt head/fault megfigyelése; hiányzó tick/stage/context/fault/pending gap
 Hiteles bent maradt terminal/zero-HP/non-finite/dupla original avatar scoped FAIL.
 Következő a lifecycle route/build manifest explicit pinje és a clock/world-policy
 continuity adapter.6 csomag maradt, a2. nyitott,27/45, C07 NO-GO; C08 nem indul.
+
+2026-10-27-i további rész: [lifecycle route/build pin és clock/world-policy observer](SI_C07_LIFECYCLE_POLICY.md)
+bekötött. Importkori declared file identity, aktuális cached policy és clock
+revision/anchor snapshot; igazolt drift scoped integrity FAIL lehet. Teljes
+packed/environment/dependency és intratick mod/director history még kell.
+Ez a következő kódhatár;6 csomag maradt, a2. nyitott,27/45, C07 NO-GO.

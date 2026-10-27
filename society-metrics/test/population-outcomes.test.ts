@@ -53,6 +53,9 @@ import { NativeLifecycleAttemptStore,type LifecycleAttemptEvent } from '../../po
 import { readNativeLifecycleAttempts } from '../lifecycle-attempts.js';
 import { NativeLifecycleWatermarkStore,type LifecycleWatermarkSample } from '../../population-lifecycle/native-watermarks.js';
 import { readNativeLifecycleWatermarks } from '../lifecycle-watermarks.js';
+import { NativeLifecyclePolicyStore,type LifecyclePolicySample } from '../../population-lifecycle/native-policy.js';
+import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../../population-lifecycle/native-policy-manifest.js';
+import { readNativeLifecyclePolicy } from '../lifecycle-policy.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -206,6 +209,80 @@ function watermarkFixture(){const f=mortalityFixture(),attempts=new NativeLifecy
         attempts.append(e);if(finish)attempts.append({...e,phase:'result',outcome:'parsed'});return e;};
     return{...f,attempts,watermarks:store,frame,attempt,readWatermarks:()=>readNativeLifecycleWatermarks(f.db,f.scope,f.options,initial,f.actors)};
 }
+
+function policyFixture(){const f=watermarkFixture(),root=join(import.meta.dir,'../..'),manifest=lifecycleRouteManifest(root),
+    snapshot=()=>({clock:f.clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),
+        survivalDigest:null,modsDigest:'b'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(root)}),
+    pin={manifest,opening:snapshot()},store=new NativeLifecyclePolicyStore(f.db,pin);
+    const emit=(stage:LifecyclePolicySample['stage'],changes:Partial<LifecyclePolicySample>={},withCensus=true)=>{
+        if(withCensus)f.frame(stage);const m=f.store.read(),position=m.entries.at(-1)!.sample.clock;
+        const sample:LifecyclePolicySample={sessionId:'watermark-session',worldId:'fixture',position,wallTime:position.wallTime,stage,mortalityHead:m.head,
+            watermarkHead:f.watermarks.read().head,bootManifest:manifest,snapshot:snapshot(),...changes};store.append(sample);return sample;};
+    return{...f,policyStore:store,pin,snapshot,emit,readPolicy:()=>readNativeLifecyclePolicy(f.db,f.scope,f.options,initial,f.actors)};
+}
+
+test('lifecycle policy explicit manifest and paired effective clock snapshots are readonly and never imply full world-policy PASS',()=>{
+    const f=policyFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emit('after-terminal-guard');f.emit('end-of-tick');}
+        const before=f.db.serialize(),r=f.readPolicy();expect(r.gaps).toEqual([]);expect(r.violations).toEqual([]);expect(r.completePinnedPolicyObservations).toBeTrue();
+        expect(r.completeWorldPolicyEnforcement).toBeFalse();expect(r.verdict).toBe('inconclusive');expect(f.db.serialize()).toEqual(before);
+        const path=join(f.root,'server/engine/data/policy-frozen.sqlite');writeFileSync(path,before);const db=new OwnedDatabase(path,{readonly:true});
+        try{expect(readNativeLifecyclePolicy(db,f.scope,f.options,initial,f.actors)).toEqual(r);}finally{db.close(true);}
+        expect(reportNativeOutcomes(f.scope,f.options).sources.lifecyclePolicy.status).toBe('available');
+        expect(projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options)).integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();
+    }finally{f.close();}
+});
+
+test.each(['profile','pause-resume','away-and-back','effective','config','source','boot'])(
+    'lifecycle policy drift remains a scoped integrity FAIL despite incomplete census: %s',variant=>{
+    const f=policyFixture();try{f.sample(0);f.emit('after-terminal-guard');f.emit('end-of-tick');f.sample(1);f.emit('after-terminal-guard');
+        const original=f.clock.get('world')!,at=original.lastObservedWallTime;
+        if(variant==='profile'||variant==='away-and-back'){const changed=f.clock.reconfigure('world',original.revision,{...original.profile,seed:'changed'},at);
+            if(variant==='away-and-back')f.clock.reconfigure('world',changed.revision,original.profile,at);}
+        if(variant==='pause-resume'){const paused=f.clock.pause('world',original.revision,at);f.clock.resume('world',paused.revision,at);}
+        const snapshot=structuredClone(f.snapshot()),boot=structuredClone(f.pin.manifest);
+        if(variant==='effective')snapshot.effective.modsDigest='f'.repeat(64);
+        if(variant==='config')snapshot.files.find(f=>f.sha256!==null)!.sha256='f'.repeat(64);
+        if(variant==='source')snapshot.sources[0]!.sha256='f'.repeat(64);
+        if(variant==='boot')boot.sources[0]!.sha256='f'.repeat(64);
+        f.policyStore.fault();f.emit('end-of-tick',{snapshot,bootManifest:boot},false);
+        const r=f.readPolicy();expect(r.verdict,variant).toBe('fail');expect(r.violations.length,variant).toBeGreaterThan(0);expect(r.completePinnedPolicyObservations).toBeFalse();
+        const outcomes=reportNativeOutcomes(f.scope,f.options),report=projectNativeMinimumAssessment(contract,f.scope,outcomes);
+        expect(report.integrity.find(g=>g.gateId==='unchanged-clock-and-world-policy')!.verdict).toBe('fail');expect(report.qualifiesMinimum).toBeFalse();
+        expect(projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},outcomes).policyIntegrityViolations).toEqual([]);
+        if(variant==='pause-resume'||variant==='away-and-back')expect(f.clock.get('world')!.profileDigest).toBe(original.profileDigest);
+    }finally{f.close();}
+});
+
+test.each(['missing','session','null-policy','null-boot','foreign','prefix','fault'])(
+    'lifecycle policy coverage cannot bridge missing or foreign evidence: %s',variant=>{
+    const f=policyFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emit('after-terminal-guard');if(n===1&&variant==='missing')continue;
+        f.emit('end-of-tick',n!==1?{}:variant==='session'?{sessionId:'restart'}:variant==='null-policy'?{snapshot:null}:variant==='null-boot'?{bootManifest:null}
+            :variant==='foreign'?{worldId:'other'}:variant==='prefix'?{mortalityHead:{sequence:1,digest:'f'.repeat(64)}}:{});}
+        if(variant==='fault')f.policyStore.fault();const r=f.readPolicy();expect(r.completePinnedPolicyObservations,variant).toBeFalse();expect(r.violations).toEqual([]);
+        expect(r.gaps.length,variant).toBeGreaterThan(0);
+    }finally{f.close();}
+});
+
+test('lifecycle policy source faults and unknown boot cannot erase a separately bound actual clock violation',()=>{
+    const f=policyFixture();try{f.sample(0);f.emit('after-terminal-guard');const c=f.clock.get('world')!;
+        f.clock.reconfigure('world',c.revision,{...c.profile,seed:'changed'},c.lastObservedWallTime);
+        f.db.run('UPDATE native_lifecycle_watermark_head SET sequence=999');
+        f.policyStore.append({sessionId:'watermark-session',worldId:'fixture',position:f.store.read().entries.at(-1)!.sample.clock,wallTime:c.lastObservedWallTime,
+            stage:'end-of-tick',mortalityHead:f.store.read().head,watermarkHead:{sequence:999,digest:'f'.repeat(64)},bootManifest:null,snapshot:f.snapshot()});
+        expect(f.readPolicy().verdict).toBe('fail');
+    }finally{f.close();}
+});
+
+test('lifecycle policy own schema selection, immutable audit, reopen and rollback leave shared user_version unchanged',()=>{
+    const f=policyFixture();try{f.db.run('PRAGMA user_version=42');f.sample(0);const sample=f.emit('after-terminal-guard'),before=f.db.serialize();
+        expect(()=>f.db.transaction(()=>{f.policyStore.append({...sample,sessionId:'rollback'});throw Error('rollback');}).immediate()).toThrow('rollback');
+        expect(f.db.serialize()).toEqual(before);expect(f.db.query('PRAGMA user_version').get()).toEqual({user_version:42});new NativeLifecyclePolicyStore(f.db,f.pin);
+        expect(()=>new NativeLifecyclePolicyStore(f.db,{...f.pin,opening:{...f.pin.opening,effective:{...f.pin.opening.effective,modsDigest:'f'.repeat(64)}}})).toThrow('differs');
+        expect(()=>f.db.run('DELETE FROM native_lifecycle_policy_event WHERE sequence=1')).toThrow('immutable');
+        f.db.run('UPDATE native_lifecycle_policy_head SET sequence=9');expect(f.readPolicy).toThrow('head');
+        f.kill('2001-01-03T00:00:00.000Z');expect(f.report().verdict).toBe('fail');
+    }finally{f.close();}
+});
 
 test('paired lifecycle tick watermarks cover actual offline census and recorded attempts without claiming full enforcement; frozen reread is byte stable',()=>{
     const f=watermarkFixture();try{for(let n=0;n<3;n++){f.sample(n);const sample=f.frame('after-terminal-guard');if(n===1)f.attempt(sample);f.frame('end-of-tick');}

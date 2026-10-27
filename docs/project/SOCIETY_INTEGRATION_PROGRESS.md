@@ -3283,3 +3283,38 @@ custody/access/admin/external source universe és8 integrity még kell.6 csomag
 maradt, a2. nyitott;27/45, SI-C07 NO-GO. Nincs C08/live install/run/baseline/provider.
 Artifact: `20261027-183355-627-si-c07-census-artifact`NO-GO/sourcehash/digest és17
 dokumentumlink PASS0,862 s. Runtime authority továbbra0.
+
+### 2026-10-27 – SI-C07/2 lifecycle route/build pin és clock/world-policy megfigyelés
+
+Explicit7-route entrypoint manifest, declared source/config fájl byte/hash és
+opcionális jelenlét. Importkori lemezidentity külön a tényleges cached age/
+mortality/binding/survival/mod policy és clock state/revision/anchor sample-től.
+Két World tickpont, sikeres current native mortality prefix mellett; census
+sikertelensége nem tiltja a külön policy observert. Readonly getterek, nincs
+clock observe/set/reload/metrics-refresh/lazy store. Saját schema1 immutable
+selection/audit/head és monotone fault; explicit init, nincs shared user_version
+vagy schema/migrátor módosítás és nincs backfill. Scoped unchanged-clock-and-
+world-policy FAIL driftből, null boot/hibás census nem törli az igazolt clock
+sértést; idegen query nem vehet át bizonyítékot. CompletePinnedPolicyObservations
+részleges, full world-policy/lifecycle enforcementfalse. C06 actual source pin,
+archive inventory inclusion és isolated restore; rollback előtt stop/új pin.
+
+`20261027-184901-272-si-c07-policy-thin-native`8 packed native +wrapper PASS3,909 s.
+Használati limit miatt egy eszközhívás nem futott; következő kérésre állapotból
+folytatva. `20261027-215230-426-si-c07-policy-thin-readers`17 PASS1 fixture FAIL
+17,318 s: absent optional file sha módosult bytes=null mellett. Csak tesztadat
+javult létező fájlra. `20261027-215338-251-si-c07-policy-final-boundaries`94 PASS
+1 C06 aggregate timeout123,250 s: capture/restore/negatives együtt6,662 s az5 s
+alatt. Külön esetekre bontva, változatlan limit, fázislog. `20261027-215630-010-si-c07-policy-archive-types`
+2 C06 PASS/root TS PASS/engine nullable test-compare FAIL91,682 s. Positive3267 ms
+(fixture637, prepare153, capture1213, restore1105, reread8); negatives1064 ms.
+Clock setter result váltotta a nullable gettert. `20261027-215954-469-si-c07-policy-engine-types`
+engine TS PASS34,920 s; passing nagy fájlkör/root TS nem ismételt. `20261027-215838-420-si-c07-policy-archive-excluded-source`
+1 külön archive-exclusion negatív eset PASS1,303 s. `20261027-220101-336-si-c07-policy-artifact`
+3 preflight +friss NO-GO/sourcehash/digest/18 doclink PASS2,594 s. Full/webclient
+nem indokolt saját observer és readonly/direct fogyasztók esetén.
+
+Részletek: SI_C07_LIFECYCLE_POLICY.md. Következő a teljes build/config/packed/
+environment inventory és mod/director változtatási history; továbbra kell a
+boundary/custody/access/admin/external producer universe és8 integrity.6 csomag
+maradt, a2. nyitott;27/45, SI-C07 NO-GO. Nincs C08/live install/run/baseline/provider.

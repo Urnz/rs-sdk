@@ -423,11 +423,15 @@
       },
       {
         "id": "clock-world-policy",
-        "authority": "clock/profile segments and pinned build/config/mod policy history",
-        "span": "warmup-and-evaluation",
+        "authority": "declared lifecycle route/source pin plus paired actual clock revision/anchors and cached mortality/mod policy observations",
+        "span": "every-native-tick",
         "tables": [
           "simulation_clock",
-          "simulation_event_stamp"
+          "simulation_event_stamp",
+          "native_lifecycle_policy_selection",
+          "native_lifecycle_policy_event",
+          "native_lifecycle_policy_head",
+          "native_lifecycle_policy_fault"
         ],
         "requirements": [
           "founders-at-start",
@@ -451,7 +455,8 @@
         "gates": [
           "unchanged-clock-and-world-policy",
           "complete-source-coverage"
-        ]
+        ],
+        "gap": "Declared file/cached-policy observations can prove drift. Full dependency, packed/environment and intratick mod/director history remain unproven."
       },
       {
         "id": "physiology-modes",
@@ -874,7 +879,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "52991685ac0e5771bfddc17c6df694aacec1a2ba5fdd277be5a46192040a3501"
+    "digest": "52ed9c117921b033f062ab3f07e0efbfe3302ab6c323f29ac8679c77f679fa37"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1192,7 +1197,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "97bc620aa5910469a1df6851ccfbe8d7e455e029a05d73e609859892d2194aca"
+      "sha256": "013fa9ddb3357d7850c5f86f2f18cbbb99da8b6492838c60d71d21ac1b49c001"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1228,7 +1233,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeLifecycleAttempts.ts",
-      "sha256": "b9337c05fca7d0ed66e8d143c634e6f28e6e4e98953b37cd8c15c84ed195fb9d"
+      "sha256": "8826162a4674c9eeb625557baff840b3450c37b7738cbb4b34fc45448b8f41d8"
     },
     {
       "path": "population-lifecycle/native-watermarks.ts",
@@ -1237,6 +1242,22 @@
     {
       "path": "society-metrics/lifecycle-watermarks.ts",
       "sha256": "680597124ac9d05ef15f4b6c3bdacff314a0f08e8e834034698a435859c4709e"
+    },
+    {
+      "path": "population-lifecycle/native-policy-manifest.ts",
+      "sha256": "13fbe62b58dfe0bcb56990126b21358752155f12e0111e4b2157426d6a63a09d"
+    },
+    {
+      "path": "population-lifecycle/native-policy.ts",
+      "sha256": "85ee4cadbc1d3ff4b4f761b267e29157544c2e77285c2cfddddc84137ede00da"
+    },
+    {
+      "path": "society-metrics/lifecycle-policy.ts",
+      "sha256": "67cd355986e6d691deb9abc6ce25da8a034824f14e7285fbe873b70d4fffe264"
+    },
+    {
+      "path": "server/engine/src/mods/WorldMods.ts",
+      "sha256": "e1cb189ebfbee44bc7b9171d32cfea25fc2aa72fd74f5eb795963669279e2017"
     },
     {
       "path": "server/engine/src/engine/entity/Player.ts",
@@ -1276,7 +1297,7 @@
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "8bc50ddf8358dcbd2917361c5d5eb699cfca34a93e48c0d5db5ce5c62c13388e"
+      "sha256": "7ea4a01bf29fd79636fef19552b67924846012007f32d1fe5f80dbaf46d45016"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1524,7 +1545,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "cdbf81bf6726dfef0985558486b6dd8a8175c26aac185c0a0c28f7714dfdde79"
+      "sha256": "6fca139043848d7a2e244f5fafa2faf2b05df10498417fc50dc6af7705c267e9"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -1532,7 +1553,7 @@
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "95fd4b8f542c88281bcca4c6264311211ffc43d77d60105329f729e7c6a1e0f8"
+      "sha256": "de4f65241d855ebce7bf58da155c87d17fcd0b0e8fc3c71ba9dddd54794b0aec"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -1548,7 +1569,7 @@
     },
     {
       "path": "server/engine/src/engine/World.ts",
-      "sha256": "60fdbf49fbf26221b8e79460846fe8725918b5afde670b65c7125d826f0d8f43"
+      "sha256": "a7df099efdb6884e7e0a95de87a6b5136aed5be9d9270ce0b7df72ba987ed1bc"
     },
     {
       "path": "society-metrics/tool-demand-intervals.ts",
@@ -1580,7 +1601,7 @@
     },
     {
       "path": "server/engine/src/mods/PopulationDeathRuntime.ts",
-      "sha256": "2b4479bbbdf032f7dfc3aafba8c05eb23d8da5ee04c79b4ea011f0b9d6dc5c8b"
+      "sha256": "faf2a79eb3f229784e20aa0a935d60b22ae04253f408d5d148c0c84c7666a8d8"
     },
     {
       "path": "sdk/mining-demand.ts",
@@ -1664,7 +1685,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "6eb1dddcde0936928cd6b3372590f68bb8b42a6d7d74a7db5e46d37451d111ed"
+      "sha256": "a3be80fbd21ad291e2d0893328a2ed8a4593b441cae7a3e4ed73a1f57e25faef"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1693,5 +1714,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "66bd79f769315558a68b14b5f5b1652147df1130f0b9a3626248b2eaedfbd9aa"
+  "digest": "7d64dc3aa8bedf088a93d72bf31c39ebb70999e77511c084b70ed6bf53eca83a"
 }

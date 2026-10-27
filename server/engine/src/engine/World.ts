@@ -7,7 +7,7 @@ import { closeNativeFoodTick } from '#/mods/NativeFoodDeliveryRuntime.js';
 import { recordNativeFoodOpening } from '#/mods/NativeFoodOpening.js';
 import { tickPopulationDeaths, populationAvatarRestricted, populationAvatarIsFinite } from '#/mods/PopulationDeathRuntime.js';
 import { tickNativeMortalityCoverage } from '#/mods/NativeMortalityCoverageRuntime.js';
-import { beginNativeLifecycleAttempt,observeNativePopulationLogin,observeNativeLifecycleWatermark } from '#/mods/NativeLifecycleAttempts.js';
+import { beginNativeLifecycleAttempt,observeNativePopulationLogin,observeNativeLifecycleWatermark,observeNativeLifecyclePolicy } from '#/mods/NativeLifecycleAttempts.js';
 import type { LifecycleWatermarkStage } from '../../../../population-lifecycle/native-watermarks.js';
 import { executeCheckpointDetection, executeCheckpointSearch, loadEngineCheckpointConfiguration,
     type CheckpointDetectionCommand, type CheckpointSearchCommand } from '#/mods/CheckpointInspection.js';
@@ -2292,6 +2292,7 @@ class World {
 
     private observePopulationLifecycle(stage:LifecycleWatermarkStage):void {
         observeNativeLifecycleWatermark(stage,this.currentTick,this.players);
+        observeNativeLifecyclePolicy(stage,this.currentTick);
     }
 
     private processLogins(): void {

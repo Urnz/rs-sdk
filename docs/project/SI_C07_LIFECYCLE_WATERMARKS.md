@@ -1,5 +1,9 @@
 # SI-C07 – Lifecycle tick-watermark és tényleges World-census
 
+**Ugyanaznapi folytatás:** a [lifecycle route/build pin és policy observer](SI_C07_LIFECYCLE_POLICY.md)
+külön köti az importkori declared forrásokat az aktuális cached policy/clock
+state-hez. Igazolt drift scoped FAIL lehet, teljes world-policy enforcement még nincs.
+
 2026-10-27, a2. munkacsomag részeredménye. SI-C07 továbbra NO-GO,27/45;
 [6 munkacsomag maradt](SI_C07_REMAINING_WORK.md). Az eredeti17 követelmény,
 8 integrity gate és valamennyi küszöb változatlan. Előzmény:

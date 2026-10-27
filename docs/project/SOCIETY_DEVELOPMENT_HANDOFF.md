@@ -109,8 +109,14 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   és attempt head/fault. Missing stage/tick/session/context/source/fault/pending
   gap; hiteles post-guard terminal/zero-HP/non-finite/duplicate scoped FAIL.
   A teljes megfigyelési ablak sem teljes enforcement, intratick HP vagy PASS.
-- **Következő kódhatár a2. csomagon belül:** lifecycle route/build manifest
-  explicit pinje és clock/world-policy continuity adapter. Teljes concrete source/boundary/access history
+- **Lifecycle policy/build rész kész:** [declared route/source pin és tényleges clock/policy observer](SI_C07_LIFECYCLE_POLICY.md).
+  Saját explicit selection/event/head/fault, importkori forrásidentity és aktuális
+  cached age/mortality/binding/survival/mod policy, clock state/revision/anchors.
+  Hiteles drift scoped unchanged-clock-and-world-policy FAIL lehet, census-gap
+  nem rejti el. Teljes world-policy enforcement még false. C06 az actual
+  source/config pin egyezését és az archive inventoryba kerülést is ellenőrzi.
+- **Következő kódhatár a2. csomagon belül:** teljes build/config/packed/environment
+  producer inventory és intratick mod/director változtatások tartós története. Teljes concrete source/boundary/access history
   és8 integrity adapter kell. **6 csomag maradt, a2. még nyitott**; nincs3.
   baseline vagy C08. C07 továbbra NO-GO, nincs pozitív minimum/enforcement PASS.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
@@ -163,40 +169,45 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261027-182642-250-si-c07-census-thin-native`:6 actual packed native
-  eset +wrapper PASS2,745 s.** A korábbi parser/guard/respawn próbák mellett
-  valódi World-slot orphan terminal census, köztes save-parser és két tickpont;
-  write/null-context failure nem változtat player-save-en. Nem teljes World.cycle.
-- `20261027-182749-521-si-c07-census-thin-reader`:3 korai SQLite watermark/
-  gap/immutable próba PASS4,012 s. A pozitív post-guard eset ekkor még nem
-  szerepelt a regexben, a következő teljes fogyasztói kör már futtatta.
-- **`20261027-182832-847-si-c07-census-final-boundaries`:59 PASS,2 timeout;
-  59,614 s (teszt59,08 s).** Population-outcomes, native-outcomes, minimum-
-  assessment, expanded-baseline és minimum-preflight5 pontos fájlja. Két új
-  eset11/4 adatbázisos belső próbát fogott össze5 s alatt;9,181/6,715 s lett.
-  Nem assertionhiba. Az esetek test.each alá bontva külön névvel/idővel futnak,
-  az5 s limit változatlan. Root/engine TS a fail miatt ekkor nem indult.
-- **`20261027-183022-284-si-c07-census-cases-types`:20 célzott eset és
-  root/engine TS PASS41,280 s (teszt7,77 s).** A11 gap és4 pozitív sértés külön
-  próbázott,200–589 ms/eset; plusz complete/frozen reread, intratick end-HP,
-  own rollback/audit és exact C06 selected-source restore. A teljes fogyasztói
-  fájlkört nem ismételtük; a regex egy physiology-watermark esetet is ért.
-- **`20261027-183222-151-si-c07-census-prefix-order`:2 új eset és root TS
-  PASS18,700 s.** Valódi equal-timestamp lethal damage a korábbi post-guard
-  health-prefixet nem invalidálja; attempt health-prefix nem léphet vissza.
-  Csak az érintett root reader/types futott újra, engine nem változott.
-- Complete original offline roster/tick/stage/session/mortality/attempt prefix;
-  foreign/null authority, write fault, pending/late tail, non-finite/duplicate/
-  zero-HP/dead post-guard scoped FAIL; frozen readonly byteazonos reread.
-  Sérült attempt-source nem rejti el a hiteles census FAIL-t. Saját schema1,
-  user_version42, immutable selection/audit, rollback és C06 restore ellenőrzött.
-- Full/webclient TS nem futott: additive observer/journal, két World-megfigyelés
-  és közvetlen metrics/minimum/restore/preflight határok. Shared clock/economic/
-  persistence/global auth és a gameplay guard változatlan. Nincs live install,
-  új baseline, hosszú run, providerhívás vagy történeti backup-read.
-- `20261027-183355-627-si-c07-census-artifact`:friss NO-GO artifact/sourcehash/
-  digest és17 dokumentumlink PASS0,862 s.16 forráscsalád/17 requirement/8 gate változatlan;
-  selectedSources=null, qualifiesCoverage=false, completeLifecycleEnforcement=false.
+- **`20261027-184901-272-si-c07-policy-thin-native`:8 actual packed native
+  eset +wrapper PASS3,909 s.** World policy observer valódi clock reconfigure-val,
+  census-context elvesztése mellett is snapshot; write/null authority fault,
+  readonly mod-policy getter és változatlan player-save/clock. A korábbi natív
+  parser/guard/respawn/census határok is PASS. Nem teljes World.cycle vagy live run.
+- `20261027-215230-426-si-c07-policy-thin-readers`:17 PASS1 fixture FAIL17,318 s.
+  A config-drift teszt egy absent optional file hashét módosította, bytes=null
+  mellett. A validátor helyesen visszautasította. Most létező fájl hashét módosítja;
+  termékkód nem lazult. A használati limit miatti eszközhívás-kimaradás nem tesztFAIL.
+- **`20261027-215338-251-si-c07-policy-final-boundaries`:94 PASS1 timeout;
+  123,250 s (teszt122,75 s).** Population-outcomes/native-outcomes/minimum-
+  assessment/expanded-baseline/minimum-preflight5 pontos fájl. A javított config
+  eset PASS. Az új C06 capture+restore+2 negatív ág együtt6,662 s lett5 s alatt;
+  nem assertionhiba. A nagy fogyasztói fájlkört nem ismételtük.
+- **`20261027-215630-010-si-c07-policy-archive-types`:2 külön C06 eset PASS,
+  root TS PASS; engine TS nullable tesztösszehasonlítás FAIL,91,682 s.**
+  Az5 s limit változatlan. Phase log: fixture637 ms, prepare153 ms, capture1213 ms,
+  restore1105 ms, reread8 ms; positive test3267 ms. Negative fixture906 ms,
+  head54 ms, source44 ms; test1064 ms. A clock setter garantált visszatérési
+  értéke váltotta a nullable test-gettert; runtime clock/gameplay nem változott.
+- **`20261027-215954-469-si-c07-policy-engine-types`:engine TS PASS34,920 s.**
+  Csak a javított tesztet típusellenőrző engine ismétlődött, root és passing
+  runtime fogyasztói kör nem. A forráspin metadata későbbi kiegészítését külön
+  preflight kör ellenőrizte, nincs új compiler/runtime dependency.
+- `20261027-215838-420-si-c07-policy-archive-excluded-source`:1 új negatív
+  archive-inventory eset PASS1,303 s. Egyező hash mellett is tilos baseline-t
+  készíteni, ha a declared file-t az archive kihagyná.
+- **`20261027-220101-336-si-c07-policy-artifact`:3 preflight eset +friss
+  NO-GO artifact/sourcehash/digest és18 dokumentumlink PASS2,594 s.** Az új readonly
+  WorldMods getter explicit source pinben.16 forráscsalád/17 requirement/8 gate
+  változatlan; selectedSources=null, qualifiesCoverage=false.
+- Stable/frozen readonly policy report, külön profile/pause-resume/oda-vissza/
+  effective/config/source/boot drift; null/foreign/session/prefix/missing/fault,
+  census corruption mellett megmaradó clock FAIL, scoped minimum diagnosztika,
+  immutable own schema/audit/reopen/rollback/shared user_version42 és C06 restore.
+- Full/webclient TS nem futott: saját additive journal/manifest, readonly
+  native clock/mod policy getter és a közvetlen metrics/minimum/C06/preflight
+  fogyasztók érintettek. Shared clock setter/schema/economic/auth/persistence
+  foundation változatlan. Nincs live install/run/baseline/provider vagy historical DB-read.
 
 ## Megőrzendő döntések
 

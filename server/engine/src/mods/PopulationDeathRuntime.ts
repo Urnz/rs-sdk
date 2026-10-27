@@ -177,6 +177,15 @@ export function nativePopulationMortalityPass(engineTick:number){
         mortalityPolicyDigest:pass.local.mortality.digest,survivalSelectionDigest:loadSurvivalProfile(fileURLToPath(root))?.selection.digest??null};
 }
 
+/** Read the actual cached policy and current clock state even after a mid-tick pause/reconfiguration. Never observes or repairs it. */
+export function nativePopulationPolicyAuthority(engineTick:number){
+    const pass=completedMortalityPass;if(failed||!pass||pass.clock.engineTick!==engineTick)throw Error('No current native policy authority');
+    const clock=pass.local.shared.store.get(pass.clock.clockId);if(!clock)throw Error('Native policy clock unavailable');
+    return{position:pass.clock,clock,worldId:managedContext()?.id??`local:${foodDigest(fileURLToPath(root))}`,
+        effective:{agePolicyDigest:pass.local.age.digest,mortalityPolicyDigest:pass.local.mortality.digest,bindingsDigest:foodDigest(pass.local.bindings),
+            survivalDigest:loadSurvivalProfile(fileURLToPath(root))?.selection.digest??null}};
+}
+
 /** Readonly current-tick observation for parser/admission instrumentation; never advances the clock or admits an avatar. */
 export function nativePopulationLifecycleAuthority(username:string,engineTick:number):LifecycleAuthority|null {
     const pass=completedMortalityPass;if(failed||!pass||pass.clock.engineTick!==engineTick)throw Error('No current native population authority');

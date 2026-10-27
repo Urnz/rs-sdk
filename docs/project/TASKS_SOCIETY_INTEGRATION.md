@@ -1127,6 +1127,11 @@ kész komponensszinten. Hiányzó tick/stage/cursor/context gap; hiteles post-gu
 terminal/zero-HP/non-finite/dupla avatar scoped FAIL lehet. Teljes route/build/
 clock-policy/source history még kell;6 maradt, a2. nyitott,27/45, C07 NO-GO.
 
+További rész: [lifecycle route/build pin és clock/world-policy megfigyelés](SI_C07_LIFECYCLE_POLICY.md)
+bekötött. Explicit declared source pin, importkori identity és tényleges cached
+policy/clock revision/anchors; drift scoped integrity FAIL lehet. Teljes
+dependency/packed/environment és mod/director history még kell.6 maradt, a2. nyitott, NO-GO.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

@@ -238,3 +238,9 @@ Két stage tickenként, eredeti roster/health/mortality prefix és attempt curso
 hiányzó vagy hibás megfigyelés nem nulla-kísérlet igazolás. Hiteles post-guard
 sértés külön finite-lifecycle-no-respawn FAIL lehet. Teljes route/build/clock/
 policy/source history még kell.6 maradt, a2. nyitott, NO-GO; nincs live run/install.
+
+2026-10-27-i további rész: [lifecycle route/build pin és clock/world-policy observer](SI_C07_LIFECYCLE_POLICY.md).
+Declared források, tényleges cached policy/clock revision/anchors, saját journal
+és scope-olt unchanged-clock-and-world-policy FAIL. C06 source-file inclusion
+és isolated restore ellenőrzött; teljes dependency/packed/environment és mod/
+director változtatási history még hiányzik.6 maradt, NO-GO; nincs új live install/run.

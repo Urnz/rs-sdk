@@ -17,7 +17,54 @@ import { NativeMaterialStore } from '../../production-workflow/native-material.j
 import { NativeMortalityCoverageStore } from '../../population-lifecycle/native-coverage.js';
 import { NativeLifecycleAttemptStore } from '../../population-lifecycle/native-attempts.js';
 import { NativeLifecycleWatermarkStore } from '../../population-lifecycle/native-watermarks.js';
+import { NativeLifecyclePolicyStore } from '../../population-lifecycle/native-policy.js';
+import { lifecycleRouteManifest,lifecyclePolicyFiles,lifecycleSourcePaths,lifecyclePolicyPaths } from '../../population-lifecycle/native-policy-manifest.js';
+import { SimulationClockStore } from '../../simulation-clock/store.js';
 import { OwnedDatabase } from '../../server/engine/src/io/OwnedDatabase.js';
+
+function lifecyclePolicyArchiveFixture(){
+    const f=expandedFixture(),repo=join(import.meta.dir,'../..');
+    for(const path of lifecycleSourcePaths)put(f.root,path,readFileSync(join(repo,path)));
+    for(const path of lifecyclePolicyPaths.filter(p=>p.startsWith('config/')&&existsSync(join(repo,p))))put(f.root,path,readFileSync(join(repo,path)));
+    const clocks=new SimulationClockStore(join(f.root,f.selected.stores.find(s=>s.role==='clock')!.path)),clock=clocks.get('world')!;clocks.close();
+    const db=new OwnedDatabase(join(f.root,f.checkpoint)),zero={sequence:0,digest:'0'.repeat(64)},manifest=lifecycleRouteManifest(f.root);
+    try{new NativeMortalityCoverageStore(db,{schemaVersion:1,selectionId:randomUUID(),worldId:f.selected.worldId,clockId:f.selected.clockId,
+        clockProfileDigest:f.selected.clockProfileDigest,fromSimulationTime:'2001-01-01T00:00:00.000Z',toSimulationTime:'2001-01-02T00:00:00.000Z',
+        maximumSimulationGapMs:1000,maximumWallGapMs:1000,agePolicyDigest:'a'.repeat(64),mortalityPolicyDigest:'b'.repeat(64),survivalSelectionDigest:null,
+        actors:[{actorId:'worker',username:'worker',lifecycleId:'a'.repeat(64),membershipDigest:'b'.repeat(64)}],openingHealthHeads:{damage:zero,death:zero,binding:zero}});
+        new NativeLifecycleAttemptStore(db,true);new NativeLifecycleWatermarkStore(db,true);
+        new NativeLifecyclePolicyStore(db,{manifest,opening:{clock,effective:{agePolicyDigest:'a'.repeat(64),mortalityPolicyDigest:'b'.repeat(64),bindingsDigest:'c'.repeat(64),
+            survivalDigest:null,modsDigest:'d'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(f.root)}});
+    }finally{db.close(true);}
+    f.selected.stores.find(s=>s.role==='checkpoint')!.requiredTables.push('native_lifecycle_policy_schema','native_lifecycle_policy_selection',
+        'native_lifecycle_policy_event','native_lifecycle_policy_head','native_lifecycle_policy_fault');
+    return{...f,manifest};
+}
+function policyPhase<T>(name:string,run:()=>T):T{const start=performance.now();try{return run();}
+    finally{console.info('[lifecycle-policy-archive-phase]',JSON.stringify({name,wallMs:Math.round(performance.now()-start)}));}}
+
+test('explicit lifecycle policy manifest is archived with its source files and restored',()=>{
+    const f=policyPhase('fixture',lifecyclePolicyArchiveFixture),pin=policyPhase('prepare',()=>prepareExpandedBaseline(f.root,f.selected));
+    policyPhase('capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
+    policyPhase('restore',()=>restoreExpandedArchive(f.bundle,f.output));
+    policyPhase('reread',()=>{const read=new OwnedDatabase(join(f.output,'workspace',f.checkpoint),{readonly:true});
+        try{expect(new NativeLifecyclePolicyStore(read).read().selection.manifest).toEqual(f.manifest);}finally{read.close(true);}});
+});
+
+test('explicit lifecycle policy bad head or changed source pin prevents another baseline',()=>{
+    const f=policyPhase('negative-fixture',lifecyclePolicyArchiveFixture);
+    const bad=new OwnedDatabase(join(f.root,f.checkpoint));try{bad.run('UPDATE native_lifecycle_policy_head SET sequence=1');}finally{bad.close(true);}
+    policyPhase('reject-head',()=>expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('head'));
+    const reset=new OwnedDatabase(join(f.root,f.checkpoint));try{reset.run('UPDATE native_lifecycle_policy_head SET sequence=0');}finally{reset.close(true);}
+    put(f.root,lifecycleSourcePaths[0]!,readFileSync(join(f.root,lifecycleSourcePaths[0]!), 'utf8')+'\n// source drift\n');
+    policyPhase('reject-source',()=>expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('source pin'));
+});
+
+test('explicit lifecycle policy file excluded from archive inventory prevents a baseline despite a matching file hash',()=>{
+    const f=policyPhase('excluded-source-fixture',lifecyclePolicyArchiveFixture);
+    put(f.root,'.gitignore',readFileSync(join(f.root,'.gitignore'),'utf8')+'\n/'+lifecycleSourcePaths[0]+'\n');
+    policyPhase('reject-excluded-source',()=>expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('archive inventory'));
+});
 
 test('selected native mortality observation schema is pinned and restored; invalid head prevents a new baseline',()=>{
     const f=expandedFixture(),db=new OwnedDatabase(join(f.root,f.checkpoint)),zero={sequence:0,digest:'0'.repeat(64)};

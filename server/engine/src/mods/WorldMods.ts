@@ -176,6 +176,9 @@ export function getActiveWorldMods(): ActiveWorldModSnapshot {
     return structuredClone(snapshot);
 }
 
+/** Readonly policy identity without metrics refresh, file reload or lazy store initialization. */
+export function getActiveWorldModPolicy(){return structuredClone({available:snapshot.loadError===null,revision:snapshot.revision,mods:snapshot.mods});}
+
 export function isWorldModEnabled(modId: string): boolean {
     return snapshot.mods[modId]?.enabled === true;
 }

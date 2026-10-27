@@ -9,6 +9,8 @@ import { NativeMaterialStore } from '../production-workflow/native-material.js';
 import { NativeMortalityCoverageStore } from '../population-lifecycle/native-coverage.js';
 import { NativeLifecycleAttemptStore } from '../population-lifecycle/native-attempts.js';
 import { NativeLifecycleWatermarkStore } from '../population-lifecycle/native-watermarks.js';
+import { NativeLifecyclePolicyStore } from '../population-lifecycle/native-policy.js';
+import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../population-lifecycle/native-policy-manifest.js';
 import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFoodProductionStore.js';
 import { AGENT_STATE_SCHEMA_VERSION } from '../agent-state/types.js';
 import { SIMULATION_CLOCK_STORE_SCHEMA_VERSION } from '../simulation-clock/types.js';
@@ -62,6 +64,12 @@ function stores(root:string,selected:ExpandedSelection){
                     'Native lifecycle watermarks belong to another world/clock');
                 check(prefix(selection.openingAttemptCursor.head,attempts.entries)&&entries.every(e=>prefix(e.sample.attemptHead,attempts.entries)
                     &&prefix(e.sample.mortalityHead,passes.entries)),'Native lifecycle watermark source prefix differs');}
+            if(s.requiredTables.includes('native_lifecycle_policy_selection')){const {mortality,selection:policy,entries}=new NativeLifecyclePolicyStore(db).read(),
+                watermarks=new NativeLifecycleWatermarkStore(db).read(),passes=new NativeMortalityCoverageStore(db).read(),
+                prefix=(h:{sequence:number;digest:string|null},events:Array<{sequence:number;digest:string}>)=>h.sequence===0?h.digest===null:events[h.sequence-1]?.digest===h.digest;
+                check(mortality.worldId===selected.worldId&&mortality.clockId===selected.clockId&&mortality.clockProfileDigest===selected.clockProfileDigest,'Native lifecycle policy belongs to another world/clock');
+                check(digest(lifecycleRouteManifest(root))===digest(policy.manifest)&&digest(lifecyclePolicyFiles(root))===digest(policy.opening.files),'Native lifecycle policy source pin differs');
+                check(entries.every(e=>prefix(e.sample.watermarkHead,watermarks.entries)&&prefix(e.sample.mortalityHead,passes.entries)),'Native lifecycle policy source prefix differs');}
             if(s.requiredTables.includes('native_food_production_schema'))assertFoodProductionSchema(db);
             if(s.requiredTables.includes('native_mining_request_selection')){const requests=new NativeMiningRequestStore(db).read(),owner=requests.selection;
                 check(owner.worldId===selected.worldId&&owner.clockId===selected.clockId&&owner.clockProfileDigest===selected.clockProfileDigest,'Executor requests belong to another world/clock');}
@@ -107,6 +115,10 @@ export function prepareExpandedBaseline(root:string,input:ExpandedSelection){
         &&(provider.reasoningEffort??null)===selected.provider.reasoningEffort,'Declared provider/model differs from native configuration');
     const sources=stores(root,selected),inventory=io.inventory(root);
     check(sources.every(s=>inventory.files.some(f=>f.path===s.path)),'Required source escapes archive coverage');
+    if(selected.stores.some(s=>s.requiredTables.includes('native_lifecycle_policy_selection'))){
+        const manifest=lifecycleRouteManifest(root),files=lifecyclePolicyFiles(root);
+        check(manifest.sources.every(p=>inventory.sourceFiles.includes(p.path)&&inventory.files.some(f=>f.path===p.path&&f.sha256===p.sha256&&f.size===p.bytes))
+            &&files.filter(p=>p.sha256!==null).every(p=>inventory.files.some(f=>f.path===p.path&&f.sha256===p.sha256&&f.size===p.bytes)),'Lifecycle policy pin escapes archive inventory');}
     const definition={protocol:EXPANDED_BASELINE_PROTOCOL,selection:selected,environment:environment(inventory.files,inventory.sourceTreeDigest),stores:sources};
     return{...definition,digest:digest(definition)};
 }

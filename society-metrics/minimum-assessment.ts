@@ -137,9 +137,14 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         ...lifecycleWatermarks?.status==='available'&&lifecycleWatermarks.value.worldId===outcomes?.worldId&&digest(lifecycleWatermarks.value.scope)===digest(scope)
             ?lifecycleWatermarks.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycleWatermarks.digest,scope,
                 attemptId:`census:${v.sampleSequence}:${v.actorId}`,meaning:v.reason})):[]];
-    const integrityFailures=lifecycleIntegrityViolations.length?[{gateId:'finite-lifecycle-no-respawn',verdict:'fail' as const,
-        evidenceDigests:[...new Set(lifecycleIntegrityViolations.map(v=>v.sourceDigest))]}]:[];
-    const diagnosticFailure=diagnosticViolations.length>0||lifecycleIntegrityViolations.length>0;
+    const lifecyclePolicy=nativeScopeMatches?outcomes?.sources.lifecyclePolicy:undefined;
+    const policyIntegrityViolations=lifecyclePolicy?.status==='available'&&lifecyclePolicy.value.worldId===outcomes?.worldId&&digest(lifecyclePolicy.value.scope)===digest(scope)
+        ?lifecyclePolicy.value.violations.map(v=>({gateId:'unchanged-clock-and-world-policy',sourceDigest:lifecyclePolicy.digest,scope,sampleSequence:v.sampleSequence,meaning:v.reason})):[];
+    const integrityFailures=[...lifecycleIntegrityViolations.length?[{gateId:'finite-lifecycle-no-respawn',verdict:'fail' as const,
+        evidenceDigests:[...new Set(lifecycleIntegrityViolations.map(v=>v.sourceDigest))]}]:[],
+        ...policyIntegrityViolations.length?[{gateId:'unchanged-clock-and-world-policy',verdict:'fail' as const,
+            evidenceDigests:[...new Set(policyIntegrityViolations.map(v=>v.sourceDigest))]}]:[]];
+    const diagnosticFailure=diagnosticViolations.length>0||lifecycleIntegrityViolations.length>0||policyIntegrityViolations.length>0;
     const lower=(requirementId:string,subject:MinimumSubject,value:number,sourceDigest:string)=>{
         if(value>0)cells.push({requirementId,subject,opportunity:'positive',lower:{numerator:String(value),denominator:'1'},evidenceDigests:[sourceDigest]});
     };
@@ -212,7 +217,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         nativeScopeStatus:!outcomes?'unavailable':nativeScopeMatches?'matched':'mismatch',
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
         integrity:sourceMap.integrity.map(g=>({...g,verdict:integrityFailures.some(f=>f.gateId===g.gateId)?'fail' as const:'inconclusive' as const})),assessment,
-        diagnosticViolations,lifecycleIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),
+        diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
         sources:{work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
             toolMaintenance:nativeScopeMatches&&outcomes?.sources.toolMaintenance?.status==='available'
@@ -227,6 +232,9 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 ?{status:'available',digest:outcomes.sources.mortalityCoverage.digest,completeMortalityTickCoverage:outcomes.sources.mortalityCoverage.value.completeMortalityTickCoverage,
                     completeLifecycleEnforcement:false}:{status:nativeScopeMatches?outcomes?.sources.mortalityCoverage?.status??'unavailable':'unavailable'},
             lifecycleAttempts:lifecycle?.status==='available'?{status:'available',digest:lifecycle.digest}:{status:lifecycle?.status??'unavailable'},
+            lifecyclePolicy:lifecyclePolicy?.status==='available'?{status:'available',digest:lifecyclePolicy.digest,
+                completePinnedPolicyObservations:lifecyclePolicy.value.completePinnedPolicyObservations,completeWorldPolicyEnforcement:false}
+                :{status:lifecyclePolicy?.status??'unavailable'},
             lifecycleWatermarks:lifecycleWatermarks?.status==='available'?{status:'available',digest:lifecycleWatermarks.digest,
                 completePostGuardCensusCoverage:lifecycleWatermarks.value.completePostGuardCensusCoverage,completeLifecycleEnforcement:false}
                 :{status:lifecycleWatermarks?.status??'unavailable'},
