@@ -19,6 +19,8 @@ import { validateCompetenceSnapshot } from '../../../../character-attributes/com
 import { NativeToolWorkStore, type NativeToolWorkKind, type NativeToolWorkRecord, type ToolWorkAccess } from '../../../../production-workflow/native-tool-work.js';
 import { nativeRepairPolicies, nativeRepairPolicy, nativeSmeltRecipe, nativeToolWorkPolicy, TOOL_WORK_SKILLS } from '../../../../production-workflow/native-tool-work-policy.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
+import { NativeMaterialStore } from '../../../../production-workflow/native-material.js';
+import { nativeMaterialInputs,nativeMaterialMint,nativeMaterialReferences } from './NativeMaterial.js';
 
 export interface NativeToolWorkCommand {operationId:string;kind:NativeToolWorkKind;username:string;businessId:string|null;contextDigest:string}
 export interface NativeToolWorkPorts extends NativeMiningPorts {
@@ -71,6 +73,7 @@ export class NativeToolWorkExecutor {
             escrowId:randomUUID(),policyDigest:nativeToolWorkPolicy.digest,authorityDigest:verified.access.digest,skill:verified.access.skill};
         delete (intent as Partial<NativeToolWorkCommand>).username;
         const intentDigest=nativeToolDigest(intent),inv=player.getInventory(InvType.INV)!;
+        const materialInputs=nativeMaterialInputs(this.ports.market.db,player,verified.owner,command.kind);
         const original=[...inv.items],counts=original.map(item=>item?.count);
         const restore=()=>original.forEach((item,slot)=>{if(item)item.count=counts[slot]!;inv.set(slot,item);});let result!:NativeToolWorkRecord;
         try{this.ports.market.db.transaction(()=>{
@@ -78,6 +81,8 @@ export class NativeToolWorkExecutor {
             const account={owner:player.username,save:()=>this.save(player),rollback:restore};
             escrow.mutateWithCheckpoint({operation:'hold',escrowId:intent.escrowId,username:player.username,assets:{gp:0,items:inputs(command.kind)}},wallet,account,clock.wallTime,intentDigest);
             if(command.kind==='repair')escrow.mutateWithCheckpoint({operation:'consume',escrowId:intent.escrowId,username:player.username},wallet,account,clock.wallTime,intentDigest);
+            if(materialInputs)new NativeMaterialStore(this.ports.market.db).append({kind:'hold',operationId:command.operationId,workKind:command.kind,
+                intentDigest,escrowId:intent.escrowId,owner:verified.owner,clock,inputs:materialInputs});
             const capability=verified.access.facility;
             const competence=command.kind==='repair'?validateCompetenceSnapshot({schemaVersion:1,snapshotId:`repair:${command.operationId}`,
                 characterAgentId:verified.owner.actorId,observedAtSimulationTime:clock.simulationTime,
@@ -128,6 +133,7 @@ export class NativeToolWorkExecutor {
         const inv=player?.getInventory(InvType.INV),original=inv?[...inv.items]:null;
         const counts=original?.map(item=>item?.count);
         const stats=player?.stats.slice(),levels=player?.levels.slice(),base=player?.baseLevels.slice(),xp=player?[...player.nativeAttributeXpReceipts]:null;
+        const materialBefore=player?nativeMaterialReferences(player):null;let publishMaterial:(()=>void)|null=null;
         try{this.ports.market.db.transaction(()=>{
             if(verified&&player&&progressMs>=duration&&(prior.intent.kind==='repair'||record.workTicks>=nativeToolWorkPolicy.smelt.durationTicks)){
                 const escrow=new PlayerInventoryEscrowStore(this.ports.market),held=escrow.get(prior.intent.escrowId);
@@ -163,6 +169,8 @@ export class NativeToolWorkExecutor {
                 record.phase='completed';record.reason=null;
                 store.append(`work:${id}`,{kind:prior.intent.kind==='repair'?'repaired':'smelted',intent:prior.intent,clock,workSimulationMs:progressMs,
                     nativeWorkTicks:record.workTicks,materialDigest:prior.materialDigest,result:record.result});
+                if(prior.intent.kind==='smelt')publishMaterial=nativeMaterialMint(this.ports.market.db,player,prior.intent.owner,clock,
+                    `work:${id}`,nativeToolDigest(store.event(`work:${id}`)),2349,materialBefore!,id);
             }
             this.work.write(record);
         }).immediate();}catch(error){
@@ -171,6 +179,7 @@ export class NativeToolWorkExecutor {
             throw error;
         }
         if(player&&record.phase==='completed')player.nativeToolWorkOperationId=null;
+        if(publishMaterial)(publishMaterial as ()=>void)();
         return record;
     }
 }

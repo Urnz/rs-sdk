@@ -213,3 +213,9 @@ origin és8 integrity hiánya miatt továbbra NO-GO,6 csomag maradt.
 bekötött. A puszta repair-count minimumcredit javítva; a material-lot/custody
 belső eredet még unproven. A maintenance reader capability külön jelölt,
 17 részleges adapter továbbra nem17 PASS. NO-GO,6 csomag maradt, a2. nyitott.
+
+2026-10-27-i folytatás: [közvetlen prospektív native material-origin](SI_C07_MATERIAL_ORIGIN.md)
+igazolja az actual érc→smelt→bar→repair inputláncot. Legacy/copied/mixed/reloaded
+unheld inputból nincs eredetcredit. A teljes natív ciklus original-genesis kötés
+mellett lower bound lehet; teljes source/enforcement/integrity és konkrét baseline
+még hiányos. NO-GO,6 csomag maradt, a2. nyitott, nincs live install vagy run.

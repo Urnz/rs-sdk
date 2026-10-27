@@ -1,5 +1,11 @@
 # SI-C07 – Natív karbantartási ciklus és anyagfelhasználás
 
+**Ugyanaznapi folytatás:** a [prospektív natív material-origin](SI_C07_MATERIAL_ORIGIN.md)
+bekötése az alábbi első lépcsőt kiegészíti. A közvetlen érc→smelt→bar→repair
+lánc már igazolhat belső inputeredetet; másolt/kevert/ismeretlen anyag, nem
+holdolt reload és replacement továbbra unproven. Az alábbi eredethiány az
+első mechanikai lépcső történeti állapota, nem a jelenlegi teljes kép.
+
 2026-10-27, a2. munkacsomag részeredménye. SI-C07 nyitott,27/45, preflight
 NO-GO; [6 munkacsomag maradt](SI_C07_REMAINING_WORK.md). Az eredeti17 feltétel,
 8 integrity gate és minden küszöb változatlan.

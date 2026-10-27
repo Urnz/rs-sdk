@@ -54,8 +54,10 @@ eredeti források esetén. A frame nem választható HTTP query/body vagy LLM-ou
 
 - A korábbi completed-repair darabszám cyclecreditje 2026-10-27-én megszűnt:
   a [natív maintenance-reader](SI_C07_TOOL_MAINTENANCE.md) exact kopás/repair/reuse
-  és inputfogyasztás bizonyítékot ad, de a belső material-lot/custody eredet még
-  unproven. Emiatt javításból önmagában nincs maintenance minimumcredit vagy PASS.
+  és inputfogyasztás bizonyítékot ad. Az ugyanaznapi
+  [prospektív material-origin](SI_C07_MATERIAL_ORIGIN.md) a közvetlen lánchoz már
+  belső eredetet is igazolhat; original founder/genesis/scope mellett teljes ciklus
+  lower boundot ad. Javításból önmagában továbbra nincs minimumcredit vagy PASS.
 - Native work: külön napi distinct physical producer alsó darabszám. Egy actor
   több receiptje egyszer számít. Az eseményablak `(start,end]`, így éjfél az
   előző naphoz tartozik.

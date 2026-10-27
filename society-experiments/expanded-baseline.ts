@@ -5,6 +5,7 @@ import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
 import { digest } from '../external-trade/policy.js';
 import { check } from '../external-trade/source.js';
 import { NativeToolWorkStore } from '../production-workflow/native-tool-work.js';
+import { NativeMaterialStore } from '../production-workflow/native-material.js';
 import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFoodProductionStore.js';
 import { AGENT_STATE_SCHEMA_VERSION } from '../agent-state/types.js';
 import { SIMULATION_CLOCK_STORE_SCHEMA_VERSION } from '../simulation-clock/types.js';
@@ -43,6 +44,8 @@ function stores(root:string,selected:ExpandedSelection){
             for(const table of s.requiredTables)check(schema.some(r=>r.type==='table'&&r.name===table),`Missing required native table: ${s.role}/${table}`);
             if(s.requiredTables.includes('native_tool_work'))for(const job of NativeToolWorkStore.read(db))check(job.intent.owner.worldId===selected.worldId
                 &&job.intent.owner.clockId===selected.clockId&&job.intent.owner.clockProfileDigest===selected.clockProfileDigest,'Native work belongs to another world/clock');
+            if(s.requiredTables.includes('native_material_event'))for(const {fact} of NativeMaterialStore.read(db).entries)check(fact.owner.worldId===selected.worldId
+                &&fact.owner.clockId===selected.clockId&&fact.owner.clockProfileDigest===selected.clockProfileDigest,'Native materials belong to another world/clock');
             if(s.requiredTables.includes('native_food_production_schema'))assertFoodProductionSchema(db);
             if(s.requiredTables.includes('native_mining_request_selection')){const requests=new NativeMiningRequestStore(db).read(),owner=requests.selection;
                 check(owner.worldId===selected.worldId&&owner.clockId===selected.clockId&&owner.clockProfileDigest===selected.clockProfileDigest,'Executor requests belong to another world/clock');}

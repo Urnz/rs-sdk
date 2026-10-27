@@ -3151,3 +3151,36 @@ manual breakage, WIP, hiányzó/ablakon kívüli wear/reuse, foreign life, rehas
 fake source és corrupted escrow-purpose negatív esetek. Következő a prospektív
 ore→smelt→bar→repair lot/custody és quantity conservation.6 csomag maradt,
 a2. nyitott,27/45, SI-C07 NO-GO; nincs C08, live run/baseline/providerköltség.
+
+### 2026-10-27 – SI-C07/2 prospektív native material-origin
+
+Saját schema1 event/head/lot journal: actual Mining output→physical object token→
+egyetlen WIP hold→packed smelt→actual bar token→repair consume. Minden lot egy
+item; copied/unknown/mixed input és nem holdolt reload nem örököl eredetet.
+Tartós held WIP ancestry újratöltés után is megmarad. Natív output és journal
+ugyanabban a checkpoint Tx-ban, volatile token csak sikeres commit után.
+Readonly source reader native lifecycle/work/escrow/purpose/consume/projection
+kötéssel; original founder/genesis/contract/scope esetén teljes ciklus lower
+bound, külön8 unknown integrity. Replacement továbbra unproven. Nincs közös
+Inventory/persistence/clock/economic transaction módosítás; saját séma explicit
+nyitáskor init, shared user_version változatlan, legacy backfill nincs.
+C06 explicit requiredTables material-journal validation és izolált restore.
+
+`20261027-170229-902-si-c07-material-thin-native`2 native +wrapper PASS16,829 s.
+`20261027-170438-625-si-c07-material-origin-thin`FAIL4,267 s: reader local-name
+collision; javítva, `20261027-170454-711-si-c07-material-origin-thin-fix`PASS4,579 s.
+`20261027-170739-602-si-c07-material-final-boundaries`87 jelentett eset PASS
+(58 root +4/12/13 native, test81,01 s), script134,089 s után TS narrow hiba.
+Assertion-signature javítva; `20261027-171101-475-si-c07-material-store-types`
+4 érintett store teszt és root/engine TS PASS116,277 s. A sikeres native/
+integrációs fájlkör nem ismétlődött, full/webclient TS nem indokolt.
+
+Pozitív100-use→smelt→repair→reuse belső eredettel és byteazonos offline reread;
+ore/bar copy, mixed input, bank, unheld reload, WIP reload, failed checkpoint,
+single-spend, foreign/time/projection/head/history és eredeti-genesis/scope
+negatív ágak. Részletek: SI_C07_MATERIAL_ORIGIN.md. A17/8 minimum és küszöbök
+változatlanok;6 csomag maradt, a2. nyitott,27/45, C07 NO-GO. Következő a teljes
+source-coverage integrity forrásjegyzéke és mortality/enforcement proof.
+Nincs live install/run/baseline/providerköltség vagy történeti backup-read.
+Artifact: `20261027-171411-756-si-c07-material-artifact`friss NO-GO/sourcehash/
+digest és14 doclink PASS1,401 s. Source-fájl pin friss, authority továbbra0.

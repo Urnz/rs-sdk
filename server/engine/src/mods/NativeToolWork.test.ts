@@ -25,6 +25,7 @@ import { join } from 'node:path';
 import { writeFileSync,readFileSync } from 'node:fs';
 import { OwnedDatabase } from '../io/OwnedDatabase.js';
 import { readNativeToolMaintenance } from '../../../../society-metrics/tool-maintenance.js';
+import { NativeMaterialStore } from '../../../../production-workflow/native-material.js';
 beforeAll(loadPackedContent);afterEach(closeNativeMiningFixtures);
 function harness(){
     const f=fixture(),originalIdentity=f.p.identity;let offset=0;
@@ -132,7 +133,7 @@ test('SI-C03 complete100 native use chain procures copper and tin, smelts, repai
     const before=f.market.db.serialize(),maintenance=readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',actors,config);
     expect(f.market.db.serialize()).toEqual(before);expect(maintenance.candidates).toHaveLength(1);
     expect(maintenance.candidates[0]).toMatchObject({operationId:repair.operationId,itemInstanceId:id,mechanicalCycleComplete:true,
-        materialConsumption:'verified',inputOrigin:'unproven',qualifiesMinimum:false});
+        materialConsumption:'verified',inputOrigin:'internal',qualifiesMinimum:true});
     expect(maintenance.candidates[0]!.wearEventId).not.toBeNull();expect(maintenance.candidates[0]!.reuseEventId).not.toBeNull();
     const frozen=join(f.workspace,'maintenance-offline.sqlite');writeFileSync(frozen,before);const bytes=readFileSync(frozen),offline=new OwnedDatabase(frozen,{readonly:true});
     try{expect(readNativeToolMaintenance(offline,scope,'si-c02-fixture',actors,config)).toEqual(maintenance);}finally{offline.close(true);}
@@ -167,6 +168,39 @@ test('SI-C07 maintenance excludes manual breakage, missing reuse, foreign lifecy
     expect(()=>readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',[{...actors[0]!,lifecycleId:'foreign'}],config)).toThrow('lifecycle');
     f.market.db.run('UPDATE player_inventory_escrow_business_binding SET binding_digest=?',['f'.repeat(64)]);
     expect(read).toThrow('escrow audit');
+});
+
+test('SI-C07 material copies, mixed inputs, bank movement and reload never borrow physical provenance',()=>{
+    for(const variant of ['ore-copy','mixed','bar-copy','bank','reload']){
+        const f=harness();if(variant==='mixed')f.miner.invAdd(InvType.INV,436,1);
+        expect(f.mine().execution).not.toBe(-1);expect(f.mine(4096,f.miner,undefined,undefined,'tinrock1').execution).not.toBe(-1);
+        if(variant==='ore-copy'){f.miner.invDel(InvType.INV,436,1);f.miner.invAdd(InvType.INV,436,1);}
+        if(variant==='bank'){const bank=InvType.getId('bank');f.move(f.miner,InvType.INV,bank,f.miner.getInventory(InvType.INV)!.getItemIndex(436));
+            f.move(f.miner,bank,InvType.INV,f.miner.getInventory(bank)!.getItemIndex(436));}
+        const worker=variant==='reload'?f.reload():f.miner;f.place('smelt',worker);const smelt=f.command('smelt');f.executor().start(smelt,worker);
+        for(let n=0;n<3;n++)f.tick(smelt.operationId,40000,worker);
+        expect(f.executor().work.get(smelt.operationId)!.phase).toBe('completed');
+        expect(NativeMaterialStore.read(f.market.db).lots.get(`smelt:${smelt.operationId}`)!.internal).toBe(variant==='bar-copy');
+        if(variant==='bar-copy'){worker.invDel(InvType.INV,2349,1);worker.invAdd(InvType.INV,2349,1);}
+        const tool=f.store.lifecycle.get(`tool-${worker.username}`)!;
+        f.store.lifecycle.use(`manual-${variant}`,tool.itemInstanceId,tool.revision,tool.durability,'e'.repeat(64),f.p.clock().simulationTime);
+        f.place('repair',worker);const repair=f.command('repair');f.executor().start(repair,worker);f.tick(repair.operationId,600000,worker);
+        const scope={clockId:'si-c02-clock',clockProfileDigest:'b'.repeat(64),fromSimulationTime:'2001-01-01T00:00:00.000Z',
+            toSimulationTime:'2001-01-02T00:00:00.000Z',actorAgentIds:[`actor-${worker.username}`]},actors=[{agentId:scope.actorAgentIds[0]!,username:worker.username,lifecycleId:`life-${worker.username}`}];
+        const result=readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',actors,join(import.meta.dir,'../../../../config'));
+        expect(result.candidates[0]).toMatchObject({materialConsumption:'verified',inputOrigin:'unproven',qualifiesMinimum:false});
+    }
+});
+
+test('SI-C07 material WIP retains held ancestry across Player reload and failed hold rolls back its single-spend claim',()=>{
+    const f=harness();f.mine();f.mine(4096,f.miner,undefined,undefined,'tinrock1');f.place('smelt');const smelt=f.command('smelt');
+    const before=f.market.db.serialize();f.fail(true);expect(()=>f.executor().start(smelt,f.miner)).toThrow('checkpoint');f.fail(false);
+    expect(f.market.db.serialize()).toEqual(before);expect(NativeMaterialStore.read(f.market.db).holds.size).toBe(0);
+    f.executor().start(smelt,f.miner);const loaded=f.reload();f.place('smelt',loaded);f.restart();f.tick(smelt.operationId,40000,loaded);
+    for(let n=0;n<3;n++)f.tick(smelt.operationId,40000,loaded);
+    expect(f.executor().work.get(smelt.operationId)!.phase).toBe('completed');
+    const material=NativeMaterialStore.read(f.market.db);expect(material.holds.get(smelt.operationId)!.inputs.every(i=>i.lotId!==null)).toBeTrue();
+    expect(material.lots.get(`smelt:${smelt.operationId}`)!.internal).toBeTrue();expect(material.lots.size).toBe(3);
 });
 test('SI-C03 no material, missing source, insufficient skill, missing procedure or access never starts free work',()=>{
     const f=harness();f.place('smelt');const command=f.command('smelt');

@@ -1110,6 +1110,10 @@ következő a teljes maintenance-ciklus és belső eredet;6 maradt,27/45, NO-GO.
 2026-10-27: [natív kopás→repair→reuse és inputfogyasztás](SI_C07_TOOL_MAINTENANCE.md)
 bekötött; a puszta repair-count cyclecredit javítva. Belső material-lot/custody
 provenance továbbra unproven, ez a következő határ.6 maradt,27/45, NO-GO.
+Ugyanaznapi folytatás: [közvetlen prospektív material-origin](SI_C07_MATERIAL_ORIGIN.md)
+bekötött. Teljes natív ciklushoz original founder/genesis/scope mellett lower bound
+járhat; copied/mixed/reloaded unheld input és replacement továbbra unproven.
+Teljes source-coverage integrity és mortality/enforcement a következő;6 maradt, NO-GO.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

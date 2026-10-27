@@ -12,6 +12,8 @@ import { populationFoodContext } from './PopulationDeathRuntime.js';
 import type { NativeFoodContext } from './NativeFoodConsumptionStore.js';
 import type { EngineTradeEvidence } from './TradeEvidenceStore.js';
 import { NativeToolWorkStore } from '../../../../production-workflow/native-tool-work.js';
+import { NativeMaterialStore } from '../../../../production-workflow/native-material.js';
+import { nativeMaterialMint,nativeMaterialReferences } from './NativeMaterial.js';
 import { NativeMiningDemandStore, type NativeMiningDemandObservation } from '../../../../item-lifecycle/native-mining-demand.js';
 import { NativeMiningIntentStore,nativeMiningDemandSessionId,type NativeMiningIntentRecord } from '../../../../item-lifecycle/native-mining-intent.js';
 import { miningIntentFulfillmentAllowed } from '../../../../agent-skills/mining-demand-source.js';
@@ -101,6 +103,7 @@ export function bindNativeMiningTool(player: Player, itemInstanceId: string, evi
             new NativeMiningDemandStore(p.market.db);
             new NativeMiningIntentStore(p.market.db);
             new NativeMiningDispatchStore(p.market.db,true);
+            new NativeMaterialStore(p.market.db,true);
             const save = player.save(false);
             store.put({ schemaVersion: 1, itemInstanceId, owner: owner(context), position: current.position,
                 status: 'bound', reason: null, catalogDigest: nativeToolCatalog.digest, cycleDigest: nativeToolCycles.digest,
@@ -219,7 +222,8 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
         throw new Error('Native mining output tool revision changed');
     if (count !== 1 || state.nativeMiningOutput !== item || !state.nativeMiningSource) throw new Error('Native mining output differs from source');
     const miningSource=state.nativeMiningSource;
-    const inventory = player.getInventory(inv)!, original = [...inventory.items];
+    const inventory = player.getInventory(inv)!, original = [...inventory.items],materialBefore=nativeMaterialReferences(player);
+    let publishMaterial:(()=>void)|null=null;
     try {
         p.market.db.transaction(() => {
             const before = store.lifecycle.get(binding.itemInstanceId)!;
@@ -232,6 +236,7 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
                 outputItemId: item, outputQuantity: 1, sourceEvidenceDigest: nativeToolDigest(source), atSimulationTime: context.clock.simulationTime });
             p.checkpoint([player]); p.market.checkpoint(player.username, player.save(false), true);
             store.append(id, { kind: 'mined', source, before, after, lifecycleAuditValid: store.lifecycle.verifyAuditChain() });
+            publishMaterial=nativeMaterialMint(p.market.db,player,binding.owner,context.clock,id,nativeToolDigest(store.event(id)),item,materialBefore);
             observeDemand(p,context,id,binding,state.nativeMiningSource,'committed');
             if(NativeMiningIntentStore.present(p.market.db)){
                 const intents=new NativeMiningIntentStore(p.market.db),pending=intents.pending().find(r=>r.intent.owner.username===player.username);
@@ -251,6 +256,7 @@ export function handleNativeMiningOutput(state: ScriptState, inv: number, item: 
             }
         }).immediate();
     } catch (error) { original.forEach((item, slot) => inventory.set(slot, item)); throw error; }
+    if(publishMaterial)(publishMaterial as ()=>void)();
     return true;
 }
 

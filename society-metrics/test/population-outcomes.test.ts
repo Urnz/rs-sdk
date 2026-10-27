@@ -91,6 +91,21 @@ function fixture(){
 }
 const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.assessment!.requirements.find(v=>v.requirementId===id)!;
 
+test('only prospective internal maintenance with the original founder/genesis and exact scope earns a cycle lower bound',()=>{
+    const f=fixture(),base=f.outcomes(),candidate={operationId:'repair-ada',cycleId:'bronze-pickaxe-mining',actorAgentId:'ada',at:'2001-01-03T00:00:00.000Z',
+        qualifiesMinimum:true,mechanicalCycleComplete:true,materialConsumption:'verified',inputOrigin:'internal',originFromSimulationTime:'2001-01-01T12:00:00.000Z'},
+        value={contractDigest:contract.digest,scope:f.scope,worldId:base.worldId,candidates:[candidate]};
+    const project=(v:any=value,population=base.sources.populationBaseline)=>projectNativeMinimumAssessment(contract,f.scope,{...base,sources:{...base.sources,
+        populationBaseline:population,toolMaintenance:{status:'available',digest:'e'.repeat(64),value:v}}} as any);
+    expect(rule(project(),'tool-maintenance-cycles').verdict).toBe('pass');expect(project().qualifiesMinimum).toBeFalse();
+    for(const c of [{...candidate,inputOrigin:'unproven'},{...candidate,mechanicalCycleComplete:false},{...candidate,qualifiesMinimum:false},
+        {...candidate,originFromSimulationTime:'2000-01-01T00:00:00.000Z'},{...candidate,actorAgentId:'foreign'}])
+        expect(rule(project({...value,candidates:[c]}),'tool-maintenance-cycles').verdict).toBe('inconclusive');
+    for(const v of [{...value,worldId:'foreign'},{...value,scope:{...f.scope,clockId:'foreign'}},{...value,candidates:[]}])
+        expect(rule(project(v),'tool-maintenance-cycles').verdict).toBe('inconclusive');
+    expect(project(value,{status:'unavailable'} as any).assessment).toBeNull();
+});
+
 test('positive prospective executor lifetime upper reaches the minimum only with bound cohort/policy coverage; zero and conflicting proofs never hide failure',()=>{
     const f=fixture(),base=f.outcomes(),covered={completeDemandCoverage:true,maximumSimulationGapMs:600,maximumWallGapMs:1000,
         executorCoverage:{positiveOpportunity:true,longestOutstandingUpperSimulationMs:1200}};

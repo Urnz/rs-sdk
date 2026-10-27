@@ -9,6 +9,7 @@ import { PlayerInventoryEscrowStore } from '../server/engine/src/mods/PlayerInve
 import { readToolCapacityLedger } from './tool-capacity-ledger.js';
 import { outcomeCheck as check,outcomeRows as rows,outcomeTime as time,readNativeWorkerEvidence,type OutcomeActor } from './outcome-work.js';
 import type { EvaluationScope } from './evaluation.js';
+import { readToolMaterialOrigin } from './tool-material-origin.js';
 
 /** Mechanical evidence and material consumption are separate from fungible input origin.
  * A nearby smelt receipt or matching inventory quantity never establishes lot ancestry. */
@@ -26,7 +27,7 @@ export function readNativeToolMaintenance(db:Database,scope:EvaluationScope,worl
     const work=readNativeWorkerEvidence(db,scope,worldId,actors),jobs=NativeToolWorkStore.present(db)?NativeToolWorkStore.read(db):[];
     const operations=new Map<string,any>(ledger.history.map(e=>[e.operationId,e]));
     const events=new Map(ledger.nativeEvents.map(e=>[e.id,e]));
-    const usesByAfter=new Map<string,any>(),usesByBefore=new Map<string,any>();
+    const usesByAfter=new Map<string,any>(),usesByBefore=new Map<string,any>(),verifiedUseIds=new Set<string>();
     for(const event of ledger.nativeEvents){const e=event.value;if(e.kind!=='mined'||!identity(e.source?.owner))continue;
         const s=e.source,cycle=nativeToolCycles.cycles.find(c=>c.lifecycleTypeId===e.before?.lifecycleTypeId),op=operations.get(event.id);
         check(cycle&&s.actionId===event.id&&s.clock.clockId===scope.clockId&&s.clock.profileDigest===scope.clockProfileDigest&&s.clock.status==='running'
@@ -39,10 +40,12 @@ export function readNativeToolMaintenance(db:Database,scope:EvaluationScope,worl
                 actorId:s.owner.actorId,expectedRevision:e.before.revision,skillName:'Mining',successfulActions:1,outputItemId:s.outputItemId,
                 outputQuantity:1,sourceEvidenceDigest:hash(s),atSimulationTime:s.clock.simulationTime}),'Native maintenance use proof differs');
         usesByAfter.set(`${op.instanceId}:${e.after.revision}`,event);usesByBefore.set(`${op.instanceId}:${e.before.revision}`,event);
+        verifiedUseIds.add(event.id);
     }
+    const materialSource=readToolMaterialOrigin(db,jobs,events,verifiedUseIds,identity);
     const candidates:Array<{operationId:string;cycleId:string;itemInstanceId:string;actorAgentId:string;at:string;
         wearEventId:string|null;reuseEventId:string|null;mechanicalCycleComplete:boolean;materialConsumption:'verified';
-        inputOrigin:'unproven';qualifiesMinimum:false;evidenceDigests:string[];gaps:string[]}>=[];
+        inputOrigin:'internal'|'unproven';originFromSimulationTime:string|null;qualifiesMinimum:boolean;evidenceDigests:string[];gaps:string[]}>=[];
     const repairJobs=jobs.filter(j=>j.intent.kind==='repair'&&j.phase==='completed'&&identity(j.intent.owner)&&within(j.last.clock.simulationTime));
     if(repairJobs.length){
         for(const name of ['player_inventory_escrow','player_inventory_escrow_audit','player_inventory_escrow_business_binding'])rows(db,name);
@@ -76,17 +79,18 @@ export function readNativeToolMaintenance(db:Database,scope:EvaluationScope,worl
                     &&wear.value.source.clock.simulationTime<=job.started.simulationTime&&hash(wear.value.source.owner)===hash(intent.owner),
                 reuseValid=!!reuse&&within(reuse.value.source.clock.simulationTime)&&reuse.value.source.clock.simulationTime>=op.at
                     &&hash(reuse.value.source.owner)===hash(intent.owner);
+            const origin=materialSource?.repairOrigins.get(intent.operationId);
             candidates.push({operationId:intent.operationId,cycleId:'bronze-pickaxe-mining',itemInstanceId:id,actorAgentId:intent.owner.actorId,at:op.at,
                 wearEventId:wearValid?wear.id:null,reuseEventId:reuseValid?reuse.id:null,mechanicalCycleComplete:wearValid&&reuseValid,
-                materialConsumption:'verified',inputOrigin:'unproven',qualifiesMinimum:false,
-                evidenceDigests:[op.digest,event!.digest,job.intentDigest,job.materialDigest,...(wearValid?[wear.digest]:[]),...(reuseValid?[reuse.digest]:[])],
+                materialConsumption:'verified',inputOrigin:origin?'internal':'unproven',originFromSimulationTime:origin?.from??null,qualifiesMinimum:wearValid&&reuseValid&&!!origin,
+                evidenceDigests:[...new Set([op.digest,event!.digest,job.intentDigest,job.materialDigest,...(wearValid?[wear.digest]:[]),...(reuseValid?[reuse.digest]:[]),...(origin?.digests??[])])],
                 gaps:[...(!wearValid?['No exact native breakage in the evaluation window.']:[]),...(!reuseValid?['No exact native reuse after this repair in the evaluation window.']:[]),
-                    'Consumed bronze has no prospective lot/custody ancestry; native mining or smelting elsewhere cannot establish its internal origin.']});
+                    ...(!origin?['Consumed bronze has no verified prospective lot/custody ancestry.']:[])]});
         }
     }
     const body={protocol:'native-tool-maintenance-v1',scope,worldId,contractDigest:contract.digest,candidates,
-        replacementCoverage:'unproven',completeCoverage:false,
+        materialSource:materialSource?{sourceId:materialSource.sourceId,head:materialSource.head}:null,replacementCoverage:'unproven',completeCoverage:false,
         sourceDigests:[digest(ledger.auditDigests),digest(ledger.events),digest(work)],
-        meaning:'Exact native wear/repair/reuse and audited input consumption; no minimum cycle credit until internal material/successor lineage is proved.'};
+        meaning:'Exact native wear/repair/reuse, audited consumption and prospective physical material ancestry; legacy/copied/reloaded unknown inputs and replacement remain unproved.'};
     return{...body,digest:digest(body)};
 }

@@ -212,7 +212,7 @@
           "item-lifecycle",
           "native-material-custody"
         ],
-        "missing": "Exact native wear, policy-bound repair, audited input consumption and new use are joined by instance/revision. Internal material/successor lot ancestry is still unproved; repair counts or matching smelt quantities cannot certify a cycle."
+        "missing": "Exact native wear, policy-bound repair and new use join a prospective single-spend physical ore/smelt/bar/escrow ancestry. Copied, mixed unknown or reloaded unheld inputs and replacement remain unproved; original founder/genesis binding and full source coverage are still required."
       },
       {
         "requirementId": "tool-unusable-demand-time",
@@ -491,8 +491,8 @@
         "item-lifecycle",
         "native-material-custody"
       ],
-      "missing": "Exact native wear, policy-bound repair, audited input consumption and new use are joined by instance/revision. Internal material/successor lot ancestry is still unproved; repair counts or matching smelt quantities cannot certify a cycle.",
-      "status": "minimum-maintenance-mechanics-adapter",
+      "missing": "Exact native wear, policy-bound repair and new use join a prospective single-spend physical ore/smelt/bar/escrow ancestry. Copied, mixed unknown or reloaded unheld inputs and replacement remain unproved; original founder/genesis binding and full source coverage are still required.",
+      "status": "minimum-maintenance-origin-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
     },
@@ -646,11 +646,11 @@
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "3cc0033f5764dad1dc9c2f0cd577c9fef6a43b1b9a474089b00eaaa06640a89c"
+      "sha256": "896d077672c60ad8198f4b1dd28ee4e943c0d37a5b494f97af57eda1f2d756e1"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "e722e6f8fd2ede04a0bfd345c810efc7109c13169fa0b1d062b8d6ab14243176"
+      "sha256": "dadc10aa0ca00c262ce4e763a444a0778582b3180d8b15092744914da42223d9"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -734,7 +734,7 @@
     },
     {
       "path": "society-metrics/tool-maintenance.ts",
-      "sha256": "5fcd1c14aa3240692dcd0d50a2631a05dcd9ff5487e36dc159f000d5f98c9443"
+      "sha256": "c980db22f372cf6f2e2ee1d23444d8ac6411fd99daa33381e7a1b7105878c8de"
     },
     {
       "path": "item-lifecycle/native-tool.ts",
@@ -766,7 +766,19 @@
     },
     {
       "path": "server/engine/src/mods/NativeToolWork.ts",
-      "sha256": "e926c17cf9a6ca9c056173152f7075f1e7f9e4f52c1d0242db7ded076fbde21e"
+      "sha256": "eec43b41d941df83f760290b19226eda2f0f687b0bc59301ef92b770bc03ade5"
+    },
+    {
+      "path": "production-workflow/native-material.ts",
+      "sha256": "6b7de407065ff9889e37bac34b4fd9f31fdf969508d330a3cdd33bbb70af39df"
+    },
+    {
+      "path": "server/engine/src/mods/NativeMaterial.ts",
+      "sha256": "dfc9d908933790e2dbd6b93bc455ef5c1a9b5d7e093c523e4c7c486390fd9e2d"
+    },
+    {
+      "path": "society-metrics/tool-material-origin.ts",
+      "sha256": "e0f64d4131003e7c492a8c2b4e31ed0c87b1aa8f3d601930929f9012db44dcb7"
     },
     {
       "path": "server/engine/src/mods/PlayerInventoryEscrowStore.ts",
@@ -874,7 +886,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeMiningTool.ts",
-      "sha256": "e580493a86066a17805ecf07bcc062b3a996725e24e0c083646042dba2948651"
+      "sha256": "6b9b163758451aab7866d75ef8c8fcbe3195e269cc1c3d0257af9cc407696fe6"
     },
     {
       "path": "item-lifecycle/native-mining-demand.ts",
@@ -894,7 +906,7 @@
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "b1e98b16b9fcb438c236ed18169ae891e74d4118d00ae6a1c4e8f02b7cd3e9f5"
+      "sha256": "e2b85ecf4a72c6a288a7687f7af975119ffb9d86b8f125d1464ef476f0c1a467"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -1026,7 +1038,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "724319ccdba4f1d5ea58147828a0a812fd5323dd5cab0feb3115e0992b7ce3fd"
+      "sha256": "d1f32d283376bd558948f32e044402ccf752764bfe6660a8d342e32fb440a245"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1055,5 +1067,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "6de915e07fb1f468672e149d73a003d03c8fee2ce39cff6260a5d02deb1cee08"
+  "digest": "5be28e4d4c99af231b3b5b5b320e41dccc2ac6ed497d8026efc975634844c56e"
 }

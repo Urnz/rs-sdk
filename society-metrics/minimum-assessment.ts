@@ -167,8 +167,17 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 if(row.stage==='repair'&&row.serviceCapacityAfter!==null&&row.serviceCapacityAfter>0)stages.add('tool-maintenance');
             }
             lower('productive-stage-kinds',{},contract.policy.labor.requiredStageKinds.filter(s=>stages.has(s)).length,work.digest);
-            // A positive repair is physical labor, not a certified internal wear/maintenance/reuse cycle.
-            // toolMaintenance exposes verified mechanics/consumption but cannot yet prove fungible input origin.
+            // A repair alone is labor; only the separate prospective material/cycle proof earns cycle credit.
+        }
+        const maintenance=nativeScopeMatches?outcomes?.sources.toolMaintenance:undefined;
+        if(maintenance?.status==='available'&&maintenance.value.contractDigest===contract.digest&&maintenance.value.worldId===outcomes?.worldId
+            &&digest(maintenance.value.scope)===digest(scope)&&populationCompatible&&population?.status==='available'){
+            for(const cycleId of contract.policy.tools.cycleIds){const cycles=maintenance.value.candidates.filter(c=>c.cycleId===cycleId&&c.qualifiesMinimum
+                &&c.mechanicalCycleComplete&&c.inputOrigin==='internal'&&c.materialConsumption==='verified'
+                &&c.originFromSimulationTime!==null&&c.originFromSimulationTime>=population.value.genesisAppliedAtSimulationTime
+                &&scope.actorAgentIds.includes(c.actorAgentId)&&c.at>scope.fromSimulationTime&&c.at<=scope.toSimulationTime);
+                if(cycles.length)lower('tool-maintenance-cycles',{cycleId},new Set(cycles.map(c=>c.operationId)).size,maintenance.digest);
+            }
         }
         if(tool?.status==='available'&&tool.value.standingRequests){const standing=tool.value.standingRequests;
             if(contract.policy.tools.cycleIds.includes(standing.cycleId)&&standing.longestConfirmedUnusableSimulationMs!==null)

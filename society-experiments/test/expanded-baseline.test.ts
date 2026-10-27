@@ -13,6 +13,18 @@ import { NativeMiningCoverageStore,miningCoverageSourceHeads } from '../../item-
 import { NativeMiningDispatchStore } from '../../item-lifecycle/native-mining-dispatch.js';
 import { NativeMiningRequestStore } from '../../item-lifecycle/native-mining-requests.js';
 import { installMiningExecutorSource } from '../../agent-skills/mining-request-source.js';
+import { NativeMaterialStore } from '../../production-workflow/native-material.js';
+import { OwnedDatabase } from '../../server/engine/src/io/OwnedDatabase.js';
+
+test('explicit prospective material journal is pinned and restored; corrupted head prevents a new baseline',()=>{
+    const f=expandedFixture(),db=new OwnedDatabase(join(f.root,f.checkpoint));
+    try{db.transaction(()=>new NativeMaterialStore(db,true)).immediate();}finally{db.close(true);}
+    f.selected.stores.find(s=>s.role==='checkpoint')!.requiredTables.push('native_material_schema','native_material_event','native_material_head','native_material_lot');
+    const pin=prepareExpandedBaseline(f.root,f.selected);captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});restoreExpandedArchive(f.bundle,f.output);
+    const read=new OwnedDatabase(join(f.output,'workspace',f.checkpoint),{readonly:true});try{expect(NativeMaterialStore.read(read).entries).toEqual([]);}finally{read.close(true);}
+    const changed=new OwnedDatabase(join(f.root,f.checkpoint));try{changed.run('UPDATE native_material_head SET sequence=1');}finally{changed.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('head');
+});
 
 test('selected executor request source and descriptor restore offline; a missing prefix prevents another pin',()=>{
     const f=expandedFixture(),s={schemaVersion:1 as const,selectionId:randomUUID(),worldId:f.selected.worldId,clockId:f.selected.clockId,clockProfileDigest:f.selected.clockProfileDigest,

@@ -73,3 +73,10 @@ futás. Sikertelen eredményt megőrzünk; SI-C08 nem indul automatikusan.
 bekötött. A puszta javításszámból képzett cyclecredit javítva; belső material-lot/
 custody ancestry továbbra unproven. Ez a következő konkrét kódhatár a2. csomagon
 belül; a csomagszám változatlan6, a fő számláló27/45, C07 NO-GO.
+
+2026-10-27-i folytatás: [prospektív native material-origin](SI_C07_MATERIAL_ORIGIN.md)
+bekötött a közvetlen Mining→smelt→repair úton. Original founder/genesis/scope
+mellett teljes mechanikai ciklushoz pozitív internal cycle lower bound járhat.
+Másolt/kevert/ismeretlen vagy nem holdolt újratöltött anyag és replacement
+unproven. Következő a teljes source-coverage integrity forrásjegyzéke és
+folyamatos mortality/enforcement.6 csomag maradt, a2. nyitott,27/45, NO-GO.

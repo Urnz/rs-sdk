@@ -42,7 +42,7 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 - **2. csomag részeredmény:** [17/8 kiértékelőmag és forrástérkép](SI_C07_MINIMUM_ASSESSMENT.md)
   kész. Exact rational lower/upper bound, minden actor/bucket/cycle/boundary
   kötelező cella, zero-opportunity és hiányos boundary schedule védelem.
-  SQLite-native outcome→evaluation.minimumAssessment bekötve;4 work/tool
+  SQLite-native outcome→evaluation.minimumAssessment bekötve;3 work/tool
   lower-bound adapter. Default frame unbound; sem config, sem DB-létezés nem
   ad integrity PASS-t, natív teljes PASS továbbra nincs. Scoped tool FAIL megmarad.
 - **Új population-rész kész:** applied/frozen genesis roster +integrity anchor,
@@ -86,14 +86,17 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   A pending request és teljes conservative lifetime upper alvás alatt is megmarad.
 - **Maintenance-rész kész:** [natív kopás→repair→reuse és inputfogyasztás](SI_C07_TOOL_MAINTENANCE.md).
   Exact instance/revision, auditált lifecycle/native output/WIP/escrow/purpose
-  kötés; frozen offline reread. Korábbi puszta repair-count cyclecredit javítva.
-  A material elfogyasztása igazolt, a belső lot/custody eredet még unproven;
-  teljes mechanikai láncból sincs maintenance minimum PASS.
-- **Következő kódhatár a2. csomagon belül:** prospektív ore→smelt→bar→repair
-  material-lot/custody forrás és mennyiségi megmaradás, idegen/kevert input
-  negatív próbáival. Replacement eredet szintén unproven. Továbbra kell
-  historical mortality/enforcement és teljes source/boundary/access coverage,
-  valamint8 integrity adapter. **6 csomag maradt, a2. még nyitott**; C08 nem indul.
+  kötés; frozen offline reread. A korábbi repair-only cyclecredit javítva.
+- **Material-origin rész kész:** [prospektív érc→smelt→bar→repair](SI_C07_MATERIAL_ORIGIN.md).
+  Saját append-only lot/event/head, fizikai object identity, egyszeri hold és
+  natív output/escrow/WIP kötés. Original founder/genesis/scope mellett a teljes
+  lánc cycle lower boundot adhat. Másolt/kevert ismeretlen anyag és nem holdolt
+  reload unproven; a durable WIP ancestry megmarad. Replacement még unproven.
+- **Következő kódhatár a2. csomagon belül:** teljes source-coverage integrity
+  explicit forrásjegyzéke és folyamatos mortality/enforcement proof bekötése.
+  Boundary/access history és igazolatlan anyagmozgatás source gapje megmarad;
+  mind a8 integrity kapuhoz valódi bound kell. **6 csomag maradt, a2. még nyitott**;
+  nincs3. baseline vagy C08. Közvetlen material-origin proof nem teljes MVS PASS.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
   Lower-bound longest unusable-time, nem más actorok/kérések összege; restart,
@@ -144,32 +147,38 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261027-165252-538-si-c07-maintenance-boundaries`:36 root +2 packed native
-  eset PASS;1 preflight-inventory teszt FAIL,38,234 s.** Maintenance/gateway,
-  minimum/outcomes/capacity/population/preflight pontos fájlkör. A preflight
-  régi4 lower-adapter helyett3 lower +1 mechanics adaptert kell számoljon.
-  Runtime assertion nem gyengült; a hamis repair-only cyclecredit szűnt meg.
-- **`20261027-165456-995-si-c07-maintenance-preflight-types`:3 preflight teszt,
-  root és engine TS PASS62,818 s.** A sikertelen inventoryteszt javítva;
-  a korábban sikeres native és metrics fájlokat nem ismételtük.
-  A teljes kijelölt kör így37 root +2 packed native egyedi sikeres eset.
-- `20261027-165210-343-si-c07-maintenance-thin-fix`:2 kijelölt native +wrapper
-  PASS2,719 s. Előtte az első thin run3,272 s alatt FAIL: a material receipt
-  canonical digestet használ, az első reader raw hash-t várt. A reader javítva;
-  a meglévő receipt/hashszabály változatlan. Az első failure naplója megmaradt.
-- A valódi100 wear→repair→reuse pozitív és frozen offline byteazonos reread;
-  WIP/manual breakage, hiányzó/ablakon kívüli wear vagy reuse, foreign lifecycle,
-  újrahashelt hamis native source és sérült material purpose negatív ágak.
-  Igazolt fogyasztásból és közeli smeltből nincs kitalált belső lot ancestry.
-- Korábbi sleep/executor/capacity/housing/food/needs/founder/mag bizonyíték
-  a komponensdokumentumokban és a progressben; nem jelenlegi full-suite PASS.
-- Full és webclient TS nem futott: readonly metrics/join, minimum-adapter és
-  közvetlen source-fogyasztók változtak. Közös persistence/clock/global auth,
-  gazdasági transaction/migration, függőség vagy gameplay nem módosult.
-  Pontos fájllisták: `.local/verification/*.result.json`.
-- 20261027-165648-362-si-c07-maintenance-artifact:friss NO-GO/sourcehash/
-  digest és13 dokumentumlink PASS0,807 s. Staged format a lezáráskor.
-  Nincs hosszú run, providerhívás, új live selection/baseline vagy történeti DB-read.
+- **`20261027-170739-602-si-c07-material-final-boundaries`:87 jelentett eset
+  PASS,0 teszthiba; a test szakasz81,01 s.**58 root +4/12/13 packed native
+  eset. Pontos9 fájlkör: material-store, native maintenance/tool-work/Mining,
+  minimum/population/outcomes, expanded baseline és preflight. A script összesen
+  134,089 s után TypeScript-hibával állt meg: az új helper nem volt assertion-
+  signature-rel deklarálva, ezért a hold típusa nem szűkült. Engine TS ekkor nem futott.
+- **`20261027-171101-475-si-c07-material-store-types`:4 érintett store teszt,
+  root és engine TS PASS116,277 s.** Assertion-signature javítva; a lot-projekció
+  érvénytelen boolean mezőjének külön negatív próbája is PASS. A korábban sikeres
+  native/integrációs fájlkört nem ismételtük; full és webclient TS nem futott.
+- Thin writer: `20261027-170229-902-si-c07-material-thin-native`2 native
+  +wrapper PASS16,829 s. Thin origin-reader elsőre4,267 s FAIL egy local material
+  változónév-ütközés miatt; javítva. `20261027-170454-711-si-c07-material-origin-thin-fix`
+  2 native +wrapper PASS4,579 s. A failure log megőrzött, assertion nem gyengült.
+- Valódi100 Mining output→breakage→packed smelt→repair→reuse és pozitív belső
+  anyageredet, frozen readonly fájlban byteazonos visszaolvasás. Kevert ismeretlen
+  érc, ore/bar copy, banki másolás, nem holdolt reload unproven; durable WIP reload,
+  failed hold/checkpoint rollback, single-spend, foreign owner/time reversal és
+  projection/head/history corruption negatív ágak. Explicit új saját séma42-es
+  shared user_version mellett, legacy backfill tiltás és C06 izolált restore PASS.
+- Eredeti founder/genesis/contract/scope és pozitív ciklus kell a minimum lower
+  boundhoz. A receipt-count továbbra nem ciklus, integrity PASS nincs. Teljes
+  17/8 értékelés, frozen source coverage, boundary és mortality/enforcement még kell.
+- Saját additív material tábla/journal és közvetlen natív output/WIP/metrics/restore
+  fogyasztók változtak. A közös Inventory, persistence/clock/global auth és
+  gazdasági tranzakcióalap nem módosult, ezért full nem indokolt. Pontos fájllisták:
+  `.local/verification/*.result.json`. A87 jelentett eset nem87 külön unique
+  üzleti forgatókönyv: a két gateway wrapper közösen is gyakorolja a100-use utat.
+- `20261027-171411-756-si-c07-material-artifact`:NO-GO/sourcehash/digest és14
+  dokumentumlink PASS1,401 s. Korábbi bizonyíték a komponensdokumentumokban/progressben. A lezáráskor
+  staged format ellenőrzés történik.
+  Nincs hosszú run, providerhívás, új live install/selection/baseline vagy historical DB-read.
 ## Megőrzendő döntések
 
 - Csak helyi/private LostCity. Nincs live world-indítás, import, enrollment,
