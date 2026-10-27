@@ -1335,8 +1335,16 @@
       "sha256": "bbb9e085906857950e83cc593e06e51f675f6e55929c1aa371b38a8dee816846"
     },
     {
+      "path": "society-minimum/source-coverage.ts",
+      "sha256": "d26790d95f78a490368c907c3218d9e5750a9fe3bcb8c46b358327673ac0d72c"
+    },
+    {
+      "path": "society-metrics/source-coverage.ts",
+      "sha256": "8c1c1ebf558b1daab59eaf7cdfd7899a40bedf82ddfa606b14bbf82a3e1ca07f"
+    },
+    {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "93e554414701a631a8a046dccfc746e165817e9cfeb0cd563c2a7369529ee320"
+      "sha256": "bde3c67faa8dd41d6410662b8937561bbf1d939c9e884d804fb1249fdbabbf6a"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1728,7 +1736,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "617dde68b5ebd65e778d10901e6ff2348c0b1b8989a5f8769a3eb3caea980135"
+      "sha256": "215d77e62a05f693a8bb2b4caf68c8953822e283aa344e44153181ec4808e3f7"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1757,5 +1765,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "de5ed8849aeabb45f00b38b01402d9211a3f5ad04de9c26ecbf9ff65c0dc99c0"
+  "digest": "c9c60056f51f884353098b3d3365075c8a67798f1490ed23b349e7ec6b2beb5c"
 }

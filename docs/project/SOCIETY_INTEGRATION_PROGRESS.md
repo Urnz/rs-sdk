@@ -3464,3 +3464,58 @@ providerhívás vagy történeti backup payload-read. Eredeti minimum változatl
 - Végleges source-komment utáni hashfrissítés és formázás:
   `20261027-225954-467-si-c07-genesis-opening-final-artifact` PASS, 1,571 s;
   NO-GO exit2, source/digest és 21 dokumentumlink, changed/staged-line format.
+
+## 2026-10-27 – SI-C07/2 P2-03 lefedettségi kiértékelő és explicit függőségek
+
+A 16 forráscsaládot számon kérő `society-minimum/source-coverage.ts` és a
+`society-metrics/source-coverage.ts` natív bridge elkészült. Minden eredeti
+17 szabály/8 kapu forráskapcsolata, szükséges head/evidence/original cohort/
+contract/world/clock/profile/genesis/window binding és időhatár szerepel az
+`evaluation.minimumAssessment.sourceCoverage` riportban. Nem feltölthető
+proof séma vagy query-selected path. Puszta available/üres ledger/queue nem
+complete; hiányos forrás unknown, nem nulla vagy önmagában minimum FAIL.
+A teljes warmup+evaluation intervallum kötelező, 1 ms gap sem interpolálható.
+Native boundary inventoryhoz exact opening/closing/evaluation pontok és az
+eredeti maximum trace-gap sűrűség kell. Idegen/dupla/malformed proof/frame
+nem kap PASS-t, private payload nem jelenik meg. Hiteles korábbi minimum/
+integritási FAIL megmarad hiányos coverage mellett is.
+
+A bridge jelenleg csak a ténylegesen létező garanciákat fogadja el: applied
+opening, immutable original roster, és megfelelő head/window mellett a
+completed native mortality-pass history. A valódi SQLite genesis-fixture
+2/16 complete családot ad, a mortality reader-contract fixture 3/16-ot;
+ezek nem C07 run-eredmények. A teljes 16/16 ág tiszta szerződéspróba,
+nem teljes natív coverage vagy társadalmi PASS.
+
+A P2-03 teljes natív lezárásának függőségei a most már gépileg is kiírt
+remainingImplementationDependencies mezőben a MEGLÉVŐ P2-04–P2-10 pontokra
+mutatnak. Nem került új feladat a listába. A jelenlegi readerek saját
+continuous-health/lifecycle/policy/full-work/custody/warmup/access/value-
+producer hiányjelzését nem írja felül a bridge. Ezért **P2-03 továbbra nyitott,
+2/11 kész, 9 nyitott pont, 2/8 pozitív natív kapuút**. A lista korábbi
+numerikus sorrendje nem volt függőségi sorrend; most explicit P2-04 → P2-05 →
+P2-06 → P2-07 → P2-08 → P2-09 → P2-10 → P2-03 végellenőrzés → P2-11.
+Következő konkrét kódmunka P2-04; nincs új P2-03 alatti observer/attestációs ág.
+Dokumentáció: SI_C07_SOURCE_COVERAGE.md, lezárási lista, remaining/handoff és roadmap.
+
+Érintett közvetlen fogyasztók: minimum-assessment és evaluation/native-outcomes
+facade, C07 preflight forráshash-leltár. Ellenőrzés, teljes log/result JSON
+`.local/verification/` alatt:
+
+- `20261027-230602-978-si-c07-source-coverage-first`: 24 PASS, 11,863 s.
+- `20261027-230729-714-si-c07-source-coverage-types`: root TS PASS, 21,633 s.
+- `20261027-230925-582-si-c07-source-coverage-reader-contract`: 10 PASS, 0,695 s.
+- **`20261027-231009-129-si-c07-source-coverage-consumers`: 42 célzott eset és
+  root TS PASS, 37,243 s (runtime 15,92 s).** Pontosan society-minimum és
+  society-metrics source-coverage, minimum-assessment, genesis-opening,
+  native-outcomes és minimum-preflight fájlok. A végső kör a későbbi frame/
+  contract/source guardok, dependency mezők és új teszttípusok miatt futott.
+
+Teljes regresszió, engine/webclient TS nem indokolt: readonly root reducer és
+projection, közvetlen fogyasztóival. Nincs shared persistence/clock/auth/
+gazdasági transaction, migráció, producer, dependency/build/discovery változás.
+Nincs live install/world/baseline/run, providerhívás vagy történeti backup DB-read.
+17/8 minimum és policy byteok változatlanok; 27/45, C07 NO-GO, MVS nem PASS.
+- `20261027-231305-853-si-c07-source-coverage-artifact`: friss NO-GO exit2,
+  sourcehash/digest, 22 dokumentumlink és changed/staged-line format PASS,
+  1,641 s. A source inventory definíciója továbbra 16/17/8; nincs futási engedély.

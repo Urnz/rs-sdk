@@ -50,3 +50,9 @@ mely eredeti feltétel kiértékelését teszi lehetővé, és be kell kötni a 
 A történeti részletek a [progressben](SOCIETY_INTEGRATION_PROGRESS.md), az
 aktuális következő lépés a [rövid átadásban](SOCIETY_DEVELOPMENT_HANDOFF.md).
 SI-C08 nem indul automatikusan; sikertelen gazdasági eredményt megőrzünk.
+
+2026-10-27: a [P2-03 lefedettségi kiértékelő és natív hiánymátrix](SI_C07_SOURCE_COVERAGE.md)
+elkészült. A pont teljes natív lezárása a már ismert P2-04–P2-10 garanciáitól
+függ, ezért továbbra nyitott; 2/11 kész, 9 nyitott pont. Következő P2-04,
+utána P2-05–P2-10, majd P2-03 végellenőrzés és P2-11. Ez függőségi sorrend,
+nem új részfeladatlista vagy új kapuk bevezetése.

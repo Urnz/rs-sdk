@@ -22,18 +22,28 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   avatar binding ellenőrzése. Halott/offline tag sem tűnik el; hibás/hiányos/
   dupla/idegen kötés és hibás frame nem PASS. Nem bizonyít túlélést vagy
   respawn-mentességet; globális `qualifiesMinimum:false` megmaradt.
-- **Most kész P2-02:** [applied-genesis/native opening](SI_C07_GENESIS_OPENING.md).
+- **Kész P2-02:** [applied-genesis/native opening](SI_C07_GENESIS_OPENING.md).
   Application/rollback/receipt + verified bootstrap snapshot/consumed permit
   és explicit paused post-apply canonical player/population/needs/Business/
   treasury/property állapot összevetése. Egyezés PASS, hiteles eltérés FAIL,
   hiány/rossz binding unknown; prefix FAIL másik hiányos source mellett megmarad.
   Backend `population.opening` választja a forrásokat; nincs current fallback.
-- **Következő konkrét pont P2-03:** `complete-source-coverage` natív adapter.
-  A meglévő 16 forráscsaládot kösd a tényleges reader/head/window/denominator
-  bizonyítékokhoz; a DB-létezés vagy status:available nem teljes history.
-  Minden szükséges forrás együtt igazolt pozitív, hiányzó/idegen/részleges
-  forrás unknown; eredeti scoped FAIL megmarad. Konkrét C07 source-kijelölés az
-  5. csomag. Ne indíts új általános naplózási ágat konkrét eredeti hiány nélkül.
+- **P2-03 számítás/bekötés elkészült, teljes natív pont nyitott:**
+  [16 családos sourceCoverage és függőségek](SI_C07_SOURCE_COVERAGE.md).
+  Kötelező source/head/cohort/warmup/evaluation/boundary időkövetelmények;
+  minden 17/8 sorhoz mapping, unknown sosem nulla vagy FAIL. A valódi SQLite
+  genesis-fixture 2/16 családot igazol; ez nem C07 run vagy 16/16 natív PASS.
+  A pure 16/16 ág csak a kiértékelő szerződéspróbája. Eredeti scoped FAIL megmarad.
+- **Következő konkrét pont P2-04:** `unchanged-clock-and-world-policy`.
+  A meglévő policy/mutation/clock/build readerekből teljes natív kapuadapter,
+  igazolt pozitív/failure/gap és a megfelelő sourceCoverage sor bekötésével.
+  A jelenlegi `completeWorldPolicyEnforcement:false` nem írható át puszta
+  available státusz alapján. Ne indíts általános új megfigyelési/host-attesztációs
+  ágat: az eredeti gate konkrét writer/history hiányát nevezd meg és zárd.
+- **Rögzített függőségi sorrend:** P2-04 → P2-05 → P2-06 → P2-07 → P2-08 →
+  P2-09 → P2-10 → P2-03 végellenőrzés → P2-11. A lista számozása nem volt
+  fejlesztési függőségi sorrend; nincs új pont. Ezért 2/11 kész, 9 nyitott maradt.
+  A P2-03 alatt ne nyiss új belső feladatsort; a hiányok a meglévő pontoké.
 - A 2. csomag implementációs képessége különválik a 3–7. csomag tényleges
   baseline/source-kijelölésétől és a hosszú run adataitól. Nem kell még nem létező
   teljes run-eredményt elvárni a kiértékelő kódjának lezárásához. A végső C07
@@ -43,6 +53,9 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 - `society-minimum/assessment.ts`: exact 17/8 mag, actor/bucket/cycle/boundary
   scope, lower/upper bounds, positive opportunity, teljes mátrix és all-PASS út.
+- `society-minimum/source-coverage.ts`, `society-metrics/source-coverage.ts` és
+  két `test/source-coverage.test.ts`: tiszta lefedettségi szerződés, natív bridge
+  és a meglévő closure-ID-kre visszavezetett hiánymátrix; új journal nincs.
 - `society-metrics/minimum-assessment.ts`, `population-outcomes.ts`,
   `genesis-opening.ts` és `test/genesis-opening.test.ts`: projection és readonly
   applied/original/death források; evaluation és native-outcomes közvetlen fogyasztó.
@@ -60,6 +73,13 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
+- `20261027-231009-129-si-c07-source-coverage-consumers`: **42 célzott eset és
+  root TS PASS, 37,243 s** (runtime 15,92 s). Source-coverage core/bridge,
+  minimum-assessment, valódi SQLite genesis opening, native-outcomes és preflight.
+  Head/cohort/foreign/warmup/1 ms gap/boundary/available-only és meglévő FAIL-védelem.
+- `20261027-230602-978-si-c07-source-coverage-first`: 24 PASS, 11,863 s;
+  `20261027-230925-582-si-c07-source-coverage-reader-contract`: 10 PASS, 0,695 s.
+  A későbbi guard/dependency mezők miatt indult a végső fogyasztói kör.
 - `20261027-225544-848-si-c07-genesis-opening-consumers`: **32 célzott eset és
   root TS PASS, 75,568 s** (runtime 24,73 s). Pontosan genesis-opening,
   minimum-assessment, native-outcomes és minimum-preflight fájlok; helyi valódi

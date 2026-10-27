@@ -99,6 +99,10 @@ test('applied genesis joins real local bootstrap receipts to canonical native op
     expect(readNativeGenesisOpening(f.scope,{...f.options,population:f.options.population!},baseline)).toMatchObject({verdict:'pass',mismatches:[]});
     expect(outcomes.sources.genesisOpening.status).toBe('available');
     const r=f.report();expect(gate(r)).toBe('pass');expect(r.integrity.filter(g=>g.verdict==='pass').map(g=>g.gateId)).toEqual(['applied-genesis-baseline','frozen-founder-roster']);
+    expect(r.sourceCoverage.rows).toHaveLength(16);expect(r.sourceCoverage.completeSourceCount).toBe(2);
+    expect(r.sourceCoverage.rows.find(s=>s.sourceId==='applied-genesis')!.status).toBe('complete');
+    expect(r.sourceCoverage.rows.find(s=>s.sourceId==='administrative-value-history')!.status).toBe('unavailable');
+    expect(r.sourceCoverage.verdict).toBe('inconclusive');
     expect(r.qualifiesMinimum).toBeFalse();expect(r.verdict).toBe('inconclusive');expect(f.report().digest).toBe(r.digest);expect(f.hashes()).toEqual(before);
 });
 for(const [label,key,command] of [

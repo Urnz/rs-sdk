@@ -1154,6 +1154,12 @@ Fizikai eltérés FAIL, hiány/rossz binding unknown; nincs új journal vagy liv
 **2/11 lezárási pont kész, 9 nyitott; 2/8 pozitív natív kapuút.** Következő P2-03:
 teljes source-coverage adapter. Globális minimum PASS még nincs; 27/45, C07 NO-GO.
 
+**P2-03 részeredmény:** a [16 családos lefedettségi kiértékelő és natív hiánymátrix](SI_C07_SOURCE_COVERAGE.md)
+elkészült; a teljes pozitív natív pont a már ismert P2-04–P2-10 forrásgaranciáitól
+függ. Ezért nincs hamis készre jelölés: 2/11 kész, 9 nyitott, 2/8 pozitív natív kapuút.
+Végrehajtási sorrend P2-04–P2-10, P2-03 végellenőrzés, P2-11; új pont nincs.
+Következő konkrét kódmunka P2-04. 27/45, C07 NO-GO, hosszú run nem indult.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

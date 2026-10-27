@@ -83,6 +83,12 @@ egy még el sem indított hosszú SI-C07 run hitelesített végeredménye.
 Hiányzó új csatorna nem rejti el a korábbi igazolt sértést. A facade jelenlegi
 natív kimenete nem tud teljes minimum PASS-t vagy qualifiesMinimum:true-t adni.
 
+Az [új sourceCoverage kiértékelés](SI_C07_SOURCE_COVERAGE.md) mind a 16 szükséges
+családhoz megmutatja a required warmup/evaluation időhatárokat, head/evidence
+kötést, teljes/hiányos/hiányzó/hibás állapotot és a meglévő lezárási pontokhoz
+tartozó hiányt. Puszta available státusz nem coverage PASS; a P2-03 teljes natív
+lezárása a P2-04–P2-10 már felsorolt forrásgaranciái után ellenőrizhető.
+
 ## Alapítók és natív halálesetek
 
 `society-metrics/population-outcomes.ts` két külön csatornát olvas. A

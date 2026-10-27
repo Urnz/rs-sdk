@@ -37,6 +37,9 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
 - [ ] **P2-03 – `complete-source-coverage`.** Minden eredeti szabály/kapu
   szükséges forrása, fejállapota, nevezője és teljes időablaka összekötve;
   hiány/eltérés kizárja a pozitív minősítést. Konkrét run-kijelölés az 5. csomag.
+  A [16 családos kiértékelő és natív hiánydiagnosztika](SI_C07_SOURCE_COVERAGE.md)
+  elkészült; a teljes natív pozitív feltétel a már felsorolt P2-04–P2-10
+  forrásgaranciáitól függ. Ezért a pont nyitott, nem új belső feladatsor indul.
 - [ ] **P2-04 – `unchanged-clock-and-world-policy`.** A meglévő policy/mutation
   readerek integrálása a teljes warmup/evaluation megítélésébe: PASS/FAIL/unknown.
 - [ ] **P2-05 – `finite-lifecycle-no-respawn`.** A meglévő mortality/attempt/
@@ -64,6 +67,11 @@ a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb me
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;
 a szükséges build/input kötést az eredeti integrity gate határaihoz mérjük.
+
+**Függőségi sorrend:** P2-04 → P2-05 → P2-06 → P2-07 → P2-08 → P2-09 → P2-10
+→ P2-03 végellenőrzés → P2-11. A P2-03 számozása nem jelentette, hogy a szükséges
+natív garanciák a későbbi pontok előtt már léteznek. A kiértékelő elkészült,
+a hiányzó producer-garanciák a meglévő pontokban zárulnak; nincs új követelmény.
 
 A 2. csomag **implementáció**, ezért elkészültnek minősíthető a fenti natív
 forráskötött integrációs próbákkal. A későbbi valódi run konkrét forráskijelölése,

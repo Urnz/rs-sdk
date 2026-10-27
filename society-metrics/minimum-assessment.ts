@@ -10,6 +10,7 @@ import { foodMinimumCells,type FoodActorContext } from './food-minimum.js';
 import { housingExposureCells } from './housing-minimum.js';
 import { toolCapacityCells } from './tool-capacity.js';
 import { minimumSourceInventory } from '../society-minimum/source-inventory.js';
+import { projectNativeSourceCoverage } from './source-coverage.js';
 
 /** Internal projection from the existing verified native readers; never an uploaded observation endpoint. */
 export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,scope:EvaluationScope,
@@ -154,6 +155,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         evidenceDigests:[...new Set(lifecycleIntegrityViolations.map(v=>v.sourceDigest))]}]:[],
         ...policyIntegrityViolations.length?[{gateId:'unchanged-clock-and-world-policy',verdict:'fail' as const,
             evidenceDigests:[...new Set(policyIntegrityViolations.map(v=>v.sourceDigest))]}]:[]];
+    const sourceCoverage=projectNativeSourceCoverage(contract,binding??{...scope,contractDigest:contract.digest,worldId:outcomes?.worldId??'',
+        founderAgentIds:scope.actorAgentIds,genesisAppliedAtSimulationTime:''},nativeScopeMatches?outcomes:null,integration);
     const diagnosticFailure=diagnosticViolations.length>0||integrityFailures.length>0;
     const lower=(requirementId:string,subject:MinimumSubject,value:number,sourceDigest:string)=>{
         if(value>0)cells.push({requirementId,subject,opportunity:'positive',lower:{numerator:String(value),denominator:'1'},evidenceDigests:[sourceDigest]});
@@ -161,6 +164,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
     let assessment:ReturnType<typeof assessSocietyMinimum>|null=null,bindingStatus:'unbound'|'bound'|'invalid'='unbound';
     if(binding)try{
         const integrityEvidence:MinimumGate[]=[...integrityFailures];
+        if(sourceCoverage.verdict==='pass')integrityEvidence.push({gateId:'complete-source-coverage',verdict:'pass',evidenceDigests:[sourceCoverage.digest]});
         if(!nativeScopeMatches||binding.worldId!==outcomes?.worldId||binding.clockId!==scope.clockId||binding.clockProfileDigest!==scope.clockProfileDigest
             ||binding.fromSimulationTime!==scope.fromSimulationTime||binding.toSimulationTime!==scope.toSimulationTime
             ||digest([...binding.founderAgentIds].sort())!==digest([...scope.actorAgentIds].sort()))throw Error('Minimum native scope differs');
@@ -238,7 +242,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
         integrity:sourceMap.integrity.map(g=>({...g,verdict:integrityFailures.some(f=>f.gateId===g.gateId)?'fail' as const
             :assessment?.integrity.find(a=>a.gateId===g.gateId)?.verdict??'inconclusive'})),assessment,
-        diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),
+        diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),sourceCoverage,
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
         sources:{genesisOpening:opening?.status==='available'?{status:'available',digest:opening.digest,verdict:opening.value.verdict,mismatches:opening.value.mismatches}:{status:opening?.status??'unavailable'},
             work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
