@@ -106,6 +106,8 @@ function fixture(){
     return{root,scope,options,agentPath,healthPath,genesisPath,integrityPath,clockPath,kill,outcomes,report,hashes};
 }
 const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.assessment!.requirements.find(v=>v.requirementId===id)!;
+const expectOnlyFrozenRosterGate=(r:ReturnType<typeof projectNativeMinimumAssessment>)=>expect(r.integrity.map(g=>({gateId:g.gateId,verdict:g.verdict})))
+    .toEqual(contract.policy.integrityGates.map(gateId=>({gateId,verdict:gateId==='frozen-founder-roster'?'pass':'inconclusive'})));
 
 function mortalityFixture(){
     const f=fixture(),checkpointPath=join(f.root,'server/engine/data/mortality.sqlite');mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
@@ -129,7 +131,7 @@ test('prospective mortality observes all original offline members through actual
         const offline=new OwnedDatabase(path,{readonly:true});try{expect(readNativeMortalityCoverage(offline,f.scope,f.options,initial,f.actors)).toEqual(r);}finally{offline.close(true);}
         const outcomes=reportNativeOutcomes(f.scope,f.options);expect(outcomes.sources.mortalityCoverage.status).toBe('available');
         if(outcomes.sources.mortalityCoverage.status==='available')expect(outcomes.sources.mortalityCoverage.value.completeMortalityTickCoverage).toBeTrue();
-        expect(f.report().integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();
+        expectOnlyFrozenRosterGate(f.report());
     }finally{f.close();}
 });
 test('prospective mortality never bridges missing ticks, restart, lost roster, failed writes or a mismatched original cohort',()=>{
@@ -153,7 +155,7 @@ test('prospective mortality own schema/selection/audit reopen and rollback stay 
         expect(()=>f.db.run('DELETE FROM native_mortality_event WHERE sequence=2')).toThrow('immutable');
         f.db.run('DROP TRIGGER mortality_event_no_delete');f.db.run('DELETE FROM native_mortality_event WHERE sequence=2');expect(f.read).toThrow('chain');
         f.kill('2001-01-03T00:00:00.000Z');expect(f.report().verdict).toBe('fail');
-        expect(f.report().integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();
+        expectOnlyFrozenRosterGate(f.report());
     }finally{f.close();}
 });
 
@@ -625,8 +627,30 @@ test('native applied original roster binds automatically; offline members and em
     const f=fixture(),before=f.hashes(),r=f.report();expect(r.bindingStatus).toBe('bound');expect(rule(r,'founders-at-start').verdict).toBe('pass');
     expect(rule(r,'founder-survival').cells[0]!.upper).toEqual({numerator:'40000',denominator:'4'});
     expect(rule(r,'founder-survival').verdict).toBe('inconclusive');expect(rule(r,'minimum-living-founders').verdict).toBe('inconclusive');
-    expect(r.integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();expect(r.verdict).toBe('inconclusive');expect(f.hashes()).toEqual(before);
+    expectOnlyFrozenRosterGate(r);expect(r.verdict).toBe('inconclusive');expect(f.hashes()).toEqual(before);
     expect(f.report().digest).toBe(r.digest);
+});
+
+test('frozen founder roster gate retains the original dead and offline founders without donating survival or full minimum PASS',()=>{
+    const f=fixture();f.kill('2001-01-04T00:00:00.000Z',true);const r=f.report();
+    expectOnlyFrozenRosterGate(r);expect(r.assessment!.integrity.find(g=>g.gateId==='frozen-founder-roster')!.verdict).toBe('pass');
+    expect(rule(r,'founder-survival').verdict).toBe('fail');expect(r.verdict).toBe('fail');expect(r.qualifiesMinimum).toBeFalse();
+    expect(f.outcomes().sources.populationDeaths.status).toBe('available');
+});
+
+test('frozen founder roster gate rejects missing, duplicate, foreign or malformed bindings and requires a valid native run frame',()=>{
+    const f=fixture(),base=f.outcomes();expect(base.sources.populationDeaths.status).toBe('available');
+    if(base.sources.populationDeaths.status!=='available')throw Error('Fixture population unavailable');const original=base.sources.populationDeaths.value;
+    for(const roster of [original.founderBindings.slice(1),[original.founderBindings[0],...original.founderBindings.slice(0,-1)],
+        original.founderBindings.map((a,i)=>i?a:{...a,username:'foreign'}),original.founderBindings.map((a,i)=>i?a:{...a,lifecycleId:'bad'})]){
+        const outcomes={...base,sources:{...base.sources,populationDeaths:{...base.sources.populationDeaths,value:{...original,founderBindings:roster}}}} as any;
+        const r=projectNativeMinimumAssessment(contract,f.scope,outcomes);expect(r.integrity.find(g=>g.gateId==='frozen-founder-roster')!.verdict).toBe('inconclusive');
+    }
+    for(const status of ['invalid','unavailable'] as const){const outcomes={...base,sources:{...base.sources,populationDeaths:{status,reason:'Unavailable'}}} as any;
+        expect(projectNativeMinimumAssessment(contract,f.scope,outcomes).integrity.find(g=>g.gateId==='frozen-founder-roster')!.verdict).toBe('inconclusive');}
+    const foreign={...f.scope,clockId:'foreign'};expect(projectNativeMinimumAssessment(contract,foreign,base).integrity.find(g=>g.gateId==='frozen-founder-roster')!.verdict).toBe('inconclusive');
+    const short={...f.scope,toSimulationTime:'2001-01-03T00:00:00.000Z'},partial=projectNativeMinimumAssessment(contract,short,reportNativeOutcomes(short,f.options));
+    expect(partial.bindingStatus).toBe('invalid');expect(partial.integrity.find(g=>g.gateId==='frozen-founder-roster')!.verdict).toBe('inconclusive');
 });
 test('frozen physical food bounds reach reserve/retention rules, exclude inaccessible stock, retain scoped failures and reopen offline',()=>{
     const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});mkdirSync(join(f.root,'.local/simulation'),{recursive:true});

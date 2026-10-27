@@ -1,6 +1,6 @@
 import type { SocietyMinimumContract } from '../society-minimum/contract.js';
 import { societyMinimumDigest as digest } from '../society-minimum/policy.js';
-import { assessSocietyMinimum,type MinimumCell,type MinimumFrame,type MinimumSubject } from '../society-minimum/assessment.js';
+import { assessSocietyMinimum,type MinimumCell,type MinimumFrame,type MinimumSubject,type MinimumGate } from '../society-minimum/assessment.js';
 import { minimumSourceMap } from '../society-minimum/source-map.js';
 import type { reportNativeOutcomes } from './native-outcomes.js';
 import { validateEvaluationScope,type EvaluationScope } from './evaluation.js';
@@ -153,6 +153,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
     };
     let assessment:ReturnType<typeof assessSocietyMinimum>|null=null,bindingStatus:'unbound'|'bound'|'invalid'='unbound';
     if(binding)try{
+        const integrityEvidence:MinimumGate[]=[...integrityFailures];
         if(!nativeScopeMatches||binding.worldId!==outcomes?.worldId||binding.clockId!==scope.clockId||binding.clockProfileDigest!==scope.clockProfileDigest
             ||binding.fromSimulationTime!==scope.fromSimulationTime||binding.toSimulationTime!==scope.toSimulationTime
             ||digest([...binding.founderAgentIds].sort())!==digest([...scope.actorAgentIds].sort()))throw Error('Minimum native scope differs');
@@ -166,6 +167,13 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             cells.push({requirementId:'founders-at-start',subject:{boundary:scope.fromSimulationTime},opportunity:'positive',
                 lower:{numerator:String(count),denominator:'1'},upper:{numerator:String(count),denominator:'1'},evidenceDigests:[population.digest]});
             if(deaths?.status==='available'){
+                // These readers already verify the applied full cohort, immutable membership and native finite-avatar identity.
+                // The roster certificate includes dead/offline founders; it does not certify survival or absence of respawn.
+                const roster=deaths.value.founderBindings,hex=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
+                if(roster.length===count&&new Set(roster.map(a=>a.actorId)).size===count&&new Set(roster.map(a=>a.username)).size===count
+                    &&p.founders.every(f=>roster.some(a=>a.actorId===f.agentId&&a.username===f.playerUsername&&hex(a.lifecycleId)&&hex(a.membershipDigest)))
+                    &&[p.genesisSnapshotDigest,p.anchorSnapshotDigest,p.anchorDigest,deaths.value.agentSnapshotDigest,deaths.value.healthSnapshotDigest].every(hex))
+                    integrityEvidence.push({gateId:'frozen-founder-roster',verdict:'pass',evidenceDigests:[population.digest,deaths.digest]});
                 const deadAt=(at:string)=>new Set(deaths.value.deaths.filter(d=>Date.parse(d.atSimulationTime)<=Date.parse(at)).map(d=>d.agentId)).size;
                 const upper=(requirementId:string,boundary:string,numerator:number,denominator=1)=>cells.push({requirementId,subject:{boundary},opportunity:'positive',
                     upper:{numerator:String(numerator),denominator:String(denominator)},evidenceDigests:[population.digest,deaths.digest]});
@@ -213,13 +221,14 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                 else cells.push({requirementId:'tool-unusable-demand-time',subject:{cycleId:tool.value.cycleId},opportunity:'positive',upper,evidenceDigests:[tool.digest,population.digest]});
             }
         }
-        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],integrityFailures);
+        assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],integrityEvidence);
     }catch{bindingStatus='invalid';assessment=null;}
-    // No gate is synthesized from configuration or partial ledger presence. Native PASS is unavailable until their adapters exist.
+    // Roster PASS uses the verified original identities. Configuration/ledger presence cannot certify the remaining gates or the full run.
     const body={protocol:'native-society-minimum-assessment-v1',scope,contractDigest:contract.digest,bindingStatus,
         nativeScopeStatus:!outcomes?'unavailable':nativeScopeMatches?'matched':'mismatch',
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
-        integrity:sourceMap.integrity.map(g=>({...g,verdict:integrityFailures.some(f=>f.gateId===g.gateId)?'fail' as const:'inconclusive' as const})),assessment,
+        integrity:sourceMap.integrity.map(g=>({...g,verdict:integrityFailures.some(f=>f.gateId===g.gateId)?'fail' as const
+            :assessment?.integrity.find(a=>a.gateId===g.gateId)?.verdict??'inconclusive'})),assessment,
         diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
         sources:{work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
@@ -246,6 +255,6 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',
             'Founder deaths bound survival from above; absent deaths or wall heartbeat do not establish continuous mortality coverage.',
-            'Needs/food/housing/capacity histories and all eight integrity adapters remain incomplete.']};
+            'Complete needs/food/housing/capacity histories and seven positive native integrity gate paths remain incomplete.']};
     return{...body,digest:digest(body)};
 }

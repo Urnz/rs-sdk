@@ -1137,6 +1137,16 @@ bekötött.5 entrypoint begin/result, független journal, natív cursor-window �
 round-trip scoped integrity FAIL. Signal/no-op nem automatikus sértés; a loaded
 runtime/input és nem regisztrált writer enforcement továbbra hiányos.6 maradt, a2. nyitott, NO-GO.
 
+**2026-10-27-i tervkorrekció:** az ismételt „6 maradt” a 2–7. nagy csomagot
+számolta; a 2. csomagban addig 15 commit készült. A jelenlegi állapot és a
+lezárás feltételei a [rögzített 11 pontos listában](SI_C07_PACKAGE2_CLOSURE.md).
+Most az eredeti, halott/offline tagokat is megtartó founder-roster kapu natív
+PASS-útja elkészült: **1/11 lezárási pont, 1/8 pozitív kapuút**; 17/17 részleges
+szabályadapter. A hét másik pozitív kapuút, population lower bounds, teljes
+boundary/access/demand integráció és globális natív PASS még nyitott.
+A 2. csomag implementációs lezárása különválik a későbbi tényleges run
+bizonyítékától. Hosszú C07 próba még nem indult; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

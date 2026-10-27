@@ -1,8 +1,10 @@
 # SI-C07/2 – Minimum-kiértékelő és natív forrástérkép
 
-2026-10-26. **A2. munkacsomag folyamatban; továbbra6 csomag maradt.**
+2026-10-27. **A 2. munkacsomag folyamatban; lezárási lista 1/11 kész.**
 Ez a [rögzített bontás](SI_C07_REMAINING_WORK.md)2. pontjának részeredménye,
 nem új munkacsomag és nem lezárt SI-C07.27/45, preflight NO-GO.
+Az aktuális, rögzített feltételek és a korábbi számláló magyarázata a
+[lezárási listában](SI_C07_PACKAGE2_CLOSURE.md); a lenti komponensleírás történeti részleteket is tartalmaz.
 
 ## Elkészült számítási mag
 
@@ -49,7 +51,7 @@ A preflight gépi riport is tartalmazza a térképet és a konkrét hiányt; nem
 állít mért értéket a még hiányzó olvasók helyére.
 
 `society-metrics/minimum-assessment.ts` a már validált natív outcome-readerekből
-3 work/tool,3 population,4 needs és4 food/final-use szabályhoz ad boundot, backend által kijelölt
+5 work/tool/capacity,3 population,4 needs,4 food/final-use és1 housing szabályhoz ad boundot, backend által kijelölt
 eredeti források esetén. A frame nem választható HTTP query/body vagy LLM-output alapján.
 
 - A korábbi completed-repair darabszám cyclecreditje 2026-10-27-én megszűnt:
@@ -108,7 +110,10 @@ időponttól induló, még befejezetlen evaluationban a már bizonyított sért�
 Üres death ledger, current-active státusz vagy friss wall heartbeat nem bizonyít
 folyamatos mortality coverage-et, így nem ad survival/living PASS-t. Teljes
 boundary inventory és történeti mortality/enforcement lefedettség még kell.
-Mind a8 integrity gate továbbra inconclusive. Hiányzó/sérült death authority
+Az eredeti roster kapuja a verified tagság és finite-avatar kötés alapján már
+PASS-képes; ez nem a túlélés igazolása. A lifecycle és clock/world-policy külön
+igazolt sértésre FAIL-t adhat; a további hét pozitív kapuút még hiányos.
+Hiányzó/sérült death authority
 mellett a külön hiteles roster továbbra olvasható; idegen source path és privát
 parserhiba redaktált, nincs fallback vagy migration.
 
@@ -139,7 +144,7 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
    auditált wear/repair/replacement/transfer és fagyasztott fizikai checkpoint;
    bizonytalan identity/access upper-only, záró auditprefix a nyitó folytatása.
    Teljes high-level demand/source coverage, maintenance origin, mortality/
-   enforcement és mind a8 natív integrity gate továbbra kell.
+   enforcement és a fennmaradó hét pozitív natív integrity kapuút továbbra kell.
 6. [Prospektív executor requested-use coverage](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
    bekötve: admission előtt is látható request, natív producer/prefix witness,
    policy/original-cohort/pozitív opportunity alapján lifetime upper. A lower
@@ -150,7 +155,8 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
    státusz, valódi natív witness/payment visszaolvasással; a kérések idejét nem
    csökkenti. Offline/terminal és igazolatlan restriction továbbra unknown.
 
-Ezek az ismert2. csomag részei. Nem csökkent a hátralévő csomagszám, nem indult
+Ezek az ismert2. csomag részei; aktuális lezárásukat a
+[rögzített lista](SI_C07_PACKAGE2_CLOSURE.md) méri. Nem indult
 a3. baseline-csomag, C08, live világ vagy hosszú run. Nincs új providerjog/költség.
 Nincs adatbázisséma-változás, migráció vagy történeti backup-read; csak readonly
 reader-projekció és belső számítás. Gameplay/SDK/engine/webclient változatlan.

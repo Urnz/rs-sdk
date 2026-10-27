@@ -1161,7 +1161,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters, including comparable frozen tool service capacity. Complete boundary/custody/access coverage, mortality/enforcement, maintenance provenance, high-level demand and eight native integrity proofs remain incomplete; adapter presence cannot certify a full run."
+      "reason": "All17 requirements have partial native adapters; the frozen original founder roster has a positive native gate path. Seven positive integrity gate paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete. Actual selected run evidence belongs to baseline/preflight/run phases; adapter presence cannot certify a full run."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1329,7 +1329,7 @@
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "8c7f3b5c801d249323a9f3063cf5da810ffdd2a22c368b5dd68dd447cf8ccf91"
+      "sha256": "e1f0e8733ecc763c7dc8a2eeddec66e080452f08a70cc2580298f9ccc89c8e43"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1717,7 +1717,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "d6590fc83b8b78ef3cc6af8f192169e19ee1a035e8a43fdb6261c0eecffe7290"
+      "sha256": "c1d1658c091637fb366fc4b2351dcbe9482e778e4172491f0322ab45c39d23ec"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1746,5 +1746,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "226750b898a319a47252429a14d94d09f462b1d4d5e5bb1f469a397f5d62e90b"
+  "digest": "2c00e3860b05a65ef048b875ca0f6b53ecb1d0b3aea864bb9754e4ff81761cca"
 }

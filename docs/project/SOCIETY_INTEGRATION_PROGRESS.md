@@ -3356,3 +3356,48 @@ Részletek: SI_C07_POLICY_MUTATIONS.md. Következő a tényleges loaded runtime/
 és a nem regisztrált value/config írók source/enforcement leltára; boundary/
 custody/access és8 integrity teljes bizonyítása még kell.6 csomag maradt,
 a2. nyitott;27/45, C07 NO-GO. Nincs C08/live install/run/baseline/providerköltség.
+
+## 2026-10-27 – SI-C07/2 tervkorrekció és az első pozitív natív integrity kapu
+
+Felhasználói jelzés: 15–20 hosszú részmunka után változatlan „6 maradt”. Audit:
+`git log e9d852b63..2785e6fee` 15 commit a 2. nagy csomagban; ezek mérési/
+provenance infrastruktúrát építettek. 17/17 részleges rule-adapter mellett a
+natív összesítő globális PASS-útja lezárt, pozitív natív integrity kapu 0/8
+volt; két adapter csak sértésre adott FAIL-t. A nagy csomagszámláló nem mérte
+a belső haladást, a következő megfigyelési lépések listája folyamatosan nőtt.
+
+A `SI_C07_REMAINING_WORK.md` és a handoff aktuális terve lecserélve.
+`SI_C07_PACKAGE2_CLOSURE.md`: rögzített 11 lezárási feltétel, jelenleg 1 kész,
+10 nyitott; nem chatkör- vagy időígéret. Implementációs elkészülés külön a
+3–7. csomag tényleges baseline/ratio/preflight/run/restore bizonyítékától.
+Új observerhez eredeti feltétel szerinti konkrét hiány és fogyasztó kell;
+loaded-runtime attesztáció nem önálló új cél. C07 hosszú próba nem indult.
+
+Implementáció: `minimum-assessment.ts` az applied genesis/full original cohort,
+integrity anchor, immutable tagság és actual finite-avatar binding már
+ellenőrzött natív forrásait az eredeti core `frozen-founder-roster` gate-jére
+köti. Eredeti dead/offline founder bennmarad. Hibás/duplikált/hiányos/idegen
+binding, unavailable authority, foreign scope és hibás 1+7 frame nem PASS.
+A túlélés, lifecycle/no-respawn és teljes minimum ettől nem kap PASS-t;
+`qualifiesMinimum:false` megmaradt. Most 1/8 pozitív natív kapuút, hét nyitott.
+Nincs új journal, tábla, migráció, producer vagy live telepítés.
+
+Érintett közvetlen fogyasztók: population-outcomes projection, native-outcomes
+és evaluation facade; preflight diagnosztikaszöveg és derived sourcehash artifact.
+Ellenőrzés (teljes napló és result JSON `.local/verification/` alatt):
+
+- `20261027-224027-847-si-c07-frozen-roster-gate`: 8 célzott eset PASS,
+  4,158 s; pozitív roster és negatív source/frame/identity, más kapuk védelme.
+- `20261027-224227-372-si-c07-roster-consumers`: 85 eset + root TS PASS,
+  111,563 s, runtime 67,83 s. Pontosan population-outcomes.test.ts,
+  minimum-assessment.test.ts, native-outcomes.test.ts. Nem a teljes metrics suite.
+- `20261027-224521-248-si-c07-roster-preflight`: 3 preflight eset PASS és
+  regenerált NO-GO exit2, sourcehash/digest, 20 dokumentum linkje PASS, 2,993 s.
+- Formázás a commit előtt az összes módosított/staged sorra ellenőrizve.
+
+Teljes regresszió és engine/webclient TS nem indokolt: readonly root adapter
+és diagnosztika változott; közös persistence/clock/auth/economic transaction,
+runtime dependency/build/test discovery változatlan. Nincs live run/baseline,
+providerköltség vagy történeti backup payload-read. 27/45, C07 NO-GO, MVS nem PASS.
+Következő P2-02: meglévő bootstrap/native opening forrásokból applied-genesis
+adapter, pozitív/eltérő/hiányzó forrás próbával; nem új általános naplózási ág.
