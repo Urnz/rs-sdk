@@ -21,6 +21,10 @@ import { NativeLifecyclePolicyStore } from '../../population-lifecycle/native-po
 import { lifecycleRouteManifest,lifecyclePolicyFiles,lifecycleSourcePaths,lifecyclePolicyPaths } from '../../population-lifecycle/native-policy-manifest.js';
 import { SimulationClockStore } from '../../simulation-clock/store.js';
 import { OwnedDatabase } from '../../server/engine/src/io/OwnedDatabase.js';
+import { PolicyMutationStore } from '../../population-lifecycle/policy-mutations.js';
+import { pinPolicyEnvironment } from '../../population-lifecycle/policy-environment.js';
+import { offlineArchiveIO } from '../archive.js';
+import { nativeToolDigest } from '../../item-lifecycle/native-tool.js';
 
 function lifecyclePolicyArchiveFixture(){
     const f=expandedFixture(),repo=join(import.meta.dir,'../..');
@@ -42,6 +46,32 @@ function lifecyclePolicyArchiveFixture(){
 }
 function policyPhase<T>(name:string,run:()=>T):T{const start=performance.now();try{return run();}
     finally{console.info('[lifecycle-policy-archive-phase]',JSON.stringify({name,wallMs:Math.round(performance.now()-start)}));}}
+
+function policyMutationArchiveFixture(){const f=lifecyclePolicyArchiveFixture(),path='.local/society-metrics/policy-mutations.sqlite',
+    authority=new OwnedDatabase(join(f.root,f.checkpoint),{readonly:true}),policy=new NativeLifecyclePolicyStore(authority).selection();authority.close(true);
+    const environment=pinPolicyEnvironment(offlineArchiveIO.inventory(f.root),{bunVersion:Bun.version,platform:process.platform});
+    mkdirSync(join(f.root,'.local/society-metrics'),{recursive:true});const db=new OwnedDatabase(join(f.root,path));
+    try{new PolicyMutationStore(db,{schemaVersion:1,worldId:f.selected.worldId,clockId:f.selected.clockId,clockProfileDigest:f.selected.clockProfileDigest,
+        fromSimulationTime:policy.mortality.fromSimulationTime,toSimulationTime:policy.mortality.toSimulationTime,maximumWallGapMs:policy.mortality.maximumWallGapMs,
+        policySelectionDigest:nativeToolDigest(policy.selection),environment});}finally{db.close(true);}
+    f.selected.stores.push({role:'policy-mutations',path,requiredTables:['policy_mutation_schema','policy_mutation_selection','policy_mutation_event','policy_mutation_head','policy_mutation_fault']});
+    return{...f,mutationPath:path,environment};}
+
+test('policy mutation archive restores the independent journal with exact environment inventory and policy source binding',()=>{
+    const f=policyPhase('mutation-fixture',policyMutationArchiveFixture),pin=policyPhase('mutation-prepare',()=>prepareExpandedBaseline(f.root,f.selected));
+    policyPhase('mutation-capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
+    policyPhase('mutation-restore',()=>restoreExpandedArchive(f.bundle,f.output));
+    const db=new OwnedDatabase(join(f.output,'workspace',f.mutationPath),{readonly:true});try{expect(new PolicyMutationStore(db).read().selection.environment).toEqual(f.environment);}finally{db.close(true);}
+// Measured whole-operation IO: fixture1141 +prepare281 +capture2210 +restore1590 ms.
+// This local sum budget covers the actual archive/restore boundary; every phase stays logged.
+},10000);
+
+test('policy mutation archive rejects changed packed inventory and broken mutation heads before another baseline',()=>{
+    const f=policyPhase('mutation-negative-fixture',policyMutationArchiveFixture),db=new OwnedDatabase(join(f.root,f.mutationPath));
+    try{db.run('UPDATE policy_mutation_head SET sequence=1');expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('cursor');db.run('UPDATE policy_mutation_head SET sequence=0');}
+    finally{db.close(true);}
+    put(f.root,'server/engine/data/pack/server/script.dat','packed drift');expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('environment inventory');
+});
 
 test('explicit lifecycle policy manifest is archived with its source files and restored',()=>{
     const f=policyPhase('fixture',lifecyclePolicyArchiveFixture),pin=policyPhase('prepare',()=>prepareExpandedBaseline(f.root,f.selected));

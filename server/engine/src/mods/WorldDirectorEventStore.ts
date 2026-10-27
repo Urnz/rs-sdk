@@ -1,6 +1,9 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { beginPolicyMutation,policyValueDigest } from '../../../../population-lifecycle/policy-mutation-observer.js';
 
 export type EngineWorldEventKind = 'economic-signal' | 'resource-signal' | 'social-signal' | 'world-flavor';
 
@@ -36,7 +39,7 @@ function record(row: EventRow): EngineWorldDirectorEventRecord {
 export class WorldDirectorEventStore {
     private readonly database: Database;
 
-    constructor(path: string) {
+    constructor(private readonly path: string) {
         mkdirSync(dirname(path), { recursive: true });
         this.database = new Database(path, { create: true, strict: true });
         this.database.run(`CREATE TABLE IF NOT EXISTS world_director_event (
@@ -55,6 +58,12 @@ export class WorldDirectorEventStore {
 
     accept(event: EngineWorldDirectorEvent, now = new Date().toISOString()):
         { event: EngineWorldDirectorEventRecord; created: boolean } {
+        const observation=beginPolicyMutation('director-event-accept',null,resolve(this.path),fileURLToPath(new URL('../../../../',import.meta.url)));
+        try{const result=this.acceptRecorded(event,now);observation?.finish(policyValueDigest(event),result.created?'applied':'no-op');return result;}
+        catch(error){observation?.finish(null,'failed');throw error;}
+    }
+
+    private acceptRecorded(event:EngineWorldDirectorEvent,now:string):{event:EngineWorldDirectorEventRecord;created:boolean}{
         const existing = this.get(event.eventId);
         if (existing) {
             if (existing.cycleKey !== event.cycleKey || existing.selectionDigest !== event.selectionDigest

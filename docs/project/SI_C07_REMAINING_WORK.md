@@ -105,3 +105,10 @@ bekötött. Importkori declared file identity, aktuális cached policy és clock
 revision/anchor snapshot; igazolt drift scoped integrity FAIL lehet. Teljes
 packed/environment/dependency és intratick mod/director history még kell.
 Ez a következő kódhatár;6 csomag maradt, a2. nyitott,27/45, C07 NO-GO.
+
+2026-10-27-i további rész: [C06 environment inventory és mod/director mutation history](SI_C07_POLICY_MUTATIONS.md)
+bekötött.5 deklarált producer begin/result naplója, külön journal és natív
+policy-cursor, oda-vissza változtatás scoped FAIL. Normál signal/no-op nem
+konfigurációs sértés, post-window művelet nem kerül vissza az ablakba.
+Következő a loaded runtime/input tanúsítása és a nem regisztrált value/config
+írók source/enforcement leltára.6 maradt, a2. nyitott,27/45, C07 NO-GO.

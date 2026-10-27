@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { beginPolicyMutation,policyValueDigest } from '../../../../population-lifecycle/policy-mutation-observer.js';
 import { fileURLToPath } from 'node:url';
 import type Player from '#/engine/entity/Player.js';
 import {armNativeXpExecution,observeNativeXpExecution} from '#/mods/XpExecutionRuntime.js';
@@ -216,10 +217,16 @@ export function recordWorldModDomainEvent(modId: string, counter: string, failed
     }
 }
 
-export function reloadHotWorldMods(): HotReloadResult {
-    const result = mergeHotReloadSnapshot(snapshot, loadSnapshot());
-    snapshot = result.snapshot;
-    return { ...result, snapshot: getActiveWorldMods() };
+/** Optional ports are internal native fixtures only; the HTTP route supplies none. */
+export function reloadHotWorldMods(backend?:{current:ActiveWorldModSnapshot;load():ActiveWorldModSnapshot;apply(next:ActiveWorldModSnapshot):void;read():ActiveWorldModSnapshot}): HotReloadResult {
+    const current=backend?.current??snapshot,identity=(s:ActiveWorldModSnapshot)=>({available:s.loadError===null,revision:s.revision,mods:s.mods}),
+        before=policyValueDigest(identity(current)),observation=beginPolicyMutation('mod-hot-reload',before,undefined,fileURLToPath(new URL('../../../../',import.meta.url)));
+    try{
+    const result = mergeHotReloadSnapshot(current, backend?backend.load():loadSnapshot());
+    if(backend)backend.apply(result.snapshot);else snapshot = result.snapshot;
+    const after=policyValueDigest(identity(result.snapshot));observation?.finish(after,after===before?'no-op':'applied');
+    return { ...result, snapshot: backend?backend.read():getActiveWorldMods() };
+    }catch(error){observation?.finish(null,'failed');throw error;}
 }
 
 export interface WorldModPlayerTarget {

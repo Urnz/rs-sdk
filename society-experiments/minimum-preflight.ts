@@ -58,6 +58,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'population-lifecycle/native-attempts.ts','society-metrics/lifecycle-attempts.ts','server/engine/src/mods/NativeLifecycleAttempts.ts',
         'population-lifecycle/native-watermarks.ts','society-metrics/lifecycle-watermarks.ts',
         'population-lifecycle/native-policy-manifest.ts','population-lifecycle/native-policy.ts','society-metrics/lifecycle-policy.ts',
+        'population-lifecycle/policy-environment.ts','population-lifecycle/policy-mutations.ts','population-lifecycle/policy-mutation-observer.ts','society-metrics/policy-mutations.ts',
+        'server/gateway/admin/world-mods.ts','server/gateway/admin/world-director-runtime.ts','server/engine/src/mods/WorldDirectorEventStore.ts',
         'server/engine/src/mods/WorldMods.ts',
         'server/engine/src/engine/entity/Player.ts','server/engine/src/engine/entity/PlayerLoading.ts','server/engine/src/engine/script/ScriptRunner.ts',
         'server/engine/src/mods/NativeMortalityCoverageRuntime.ts',

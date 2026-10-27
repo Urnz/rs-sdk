@@ -138,8 +138,11 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             ?lifecycleWatermarks.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycleWatermarks.digest,scope,
                 attemptId:`census:${v.sampleSequence}:${v.actorId}`,meaning:v.reason})):[]];
     const lifecyclePolicy=nativeScopeMatches?outcomes?.sources.lifecyclePolicy:undefined;
-    const policyIntegrityViolations=lifecyclePolicy?.status==='available'&&lifecyclePolicy.value.worldId===outcomes?.worldId&&digest(lifecyclePolicy.value.scope)===digest(scope)
-        ?lifecyclePolicy.value.violations.map(v=>({gateId:'unchanged-clock-and-world-policy',sourceDigest:lifecyclePolicy.digest,scope,sampleSequence:v.sampleSequence,meaning:v.reason})):[];
+    const policyMutations=nativeScopeMatches?outcomes?.sources.policyMutations:undefined;
+    const policyIntegrityViolations=[...lifecyclePolicy?.status==='available'&&lifecyclePolicy.value.worldId===outcomes?.worldId&&digest(lifecyclePolicy.value.scope)===digest(scope)
+        ?lifecyclePolicy.value.violations.map(v=>({gateId:'unchanged-clock-and-world-policy',sourceDigest:lifecyclePolicy.digest,scope,sampleSequence:v.sampleSequence,meaning:v.reason})):[],
+        ...policyMutations?.status==='available'&&policyMutations.value.worldId===outcomes?.worldId&&digest(policyMutations.value.scope)===digest(scope)
+            ?policyMutations.value.violations.map(v=>({gateId:'unchanged-clock-and-world-policy',sourceDigest:policyMutations.digest,scope,attemptId:v.attemptId,meaning:v.reason})):[]];
     const integrityFailures=[...lifecycleIntegrityViolations.length?[{gateId:'finite-lifecycle-no-respawn',verdict:'fail' as const,
         evidenceDigests:[...new Set(lifecycleIntegrityViolations.map(v=>v.sourceDigest))]}]:[],
         ...policyIntegrityViolations.length?[{gateId:'unchanged-clock-and-world-policy',verdict:'fail' as const,
@@ -235,6 +238,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             lifecyclePolicy:lifecyclePolicy?.status==='available'?{status:'available',digest:lifecyclePolicy.digest,
                 completePinnedPolicyObservations:lifecyclePolicy.value.completePinnedPolicyObservations,completeWorldPolicyEnforcement:false}
                 :{status:lifecyclePolicy?.status??'unavailable'},
+            policyMutations:policyMutations?.status==='available'?{status:'available',digest:policyMutations.digest,completeWorldPolicyEnforcement:false}:{status:policyMutations?.status??'unavailable'},
             lifecycleWatermarks:lifecycleWatermarks?.status==='available'?{status:'available',digest:lifecycleWatermarks.digest,
                 completePostGuardCensusCoverage:lifecycleWatermarks.value.completePostGuardCensusCoverage,completeLifecycleEnforcement:false}
                 :{status:lifecycleWatermarks?.status??'unavailable'},

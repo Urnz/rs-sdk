@@ -1,5 +1,9 @@
 # SI-C07 – Lifecycle route/build pin és clock/world-policy megfigyelés
 
+**Ugyanaznapi folytatás:** [C06 environment inventory és mod/director mutation history](SI_C07_POLICY_MUTATIONS.md)
+készült. A két mintapont közti oda-vissza állítást külön journal őrzi meg;
+teljes loaded dependency/input vagy külső writer enforcement továbbra nincs.
+
 2026-10-27, a2. munkacsomag részeredménye. SI-C07 továbbra NO-GO,27/45;
 [6 munkacsomag maradt](SI_C07_REMAINING_WORK.md). Az eredeti17 requirement,
 8 integrity gate és minden küszöb változatlan. Előzmény:

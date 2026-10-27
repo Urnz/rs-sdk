@@ -25,6 +25,10 @@ import { NativeLifecycleWatermarkStore } from '../../../../population-lifecycle/
 import { NativeLifecyclePolicyStore } from '../../../../population-lifecycle/native-policy.js';
 import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../../../../population-lifecycle/native-policy-manifest.js';
 import { getActiveWorldModPolicy } from './WorldMods.js';
+import { PolicyMutationStore } from '../../../../population-lifecycle/policy-mutations.js';
+import { pinPolicyEnvironment } from '../../../../population-lifecycle/policy-environment.js';
+import { beginPolicyMutation,withPolicyMutationObservation } from '../../../../population-lifecycle/policy-mutation-observer.js';
+import { nativeToolDigest } from '../../../../item-lifecycle/native-tool.js';
 import { recordNativeMortalityPass } from '../../../../population-lifecycle/native-observer.js';
 import { withNativeLifecycleObservation,observeNativePopulationLogin,beginNativeLifecycleAttempt,type LifecycleObservationPorts } from './NativeLifecycleAttempts.js';
 const closers:Array<()=>void>=[];beforeAll(loadPackedContent);afterEach(()=>{for(const close of closers.splice(0).reverse())close();});
@@ -90,6 +94,24 @@ test('SI-C07 native policy observer records null authority and durable write fau
     expect(()=>f.run(()=>World['observePopulationLifecycle']('end-of-tick'))).not.toThrow();f.db.run('DROP TRIGGER fail_policy');
     expect(store.read().faults).toBeGreaterThan(0);expect(f.clock.get('world')).toEqual(before);
     expect(()=>f.db.run('UPDATE native_lifecycle_policy_fault SET count=0')).toThrow('reset');
+});
+
+test('SI-C07 actual World policy frames link the independent mutation journal head and its selected policy identity',()=>{
+    const f=fixture();f.watermarks();const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..')),opening=f.policySnapshot(),
+        policy=new NativeLifecyclePolicyStore(f.db,{manifest,opening}),mutationDb=new OwnedDatabase(':memory:');closers.push(()=>mutationDb.close(true));
+    const sourceFiles=['package.json',...manifest.sources.map(p=>p.path)],environment=pinPolicyEnvironment({sourceFiles,files:[
+        ...manifest.sources.map(p=>({path:p.path,size:p.bytes!,sha256:p.sha256!})),{path:'package.json',size:1,sha256:'a'.repeat(64)},
+        {path:'server/engine/data/pack/server/script.dat',size:1,sha256:'b'.repeat(64)}]},{bunVersion:Bun.version,platform:process.platform}),
+        mutations=new PolicyMutationStore(mutationDb,{schemaVersion:1,worldId:'fixture',clockId:f.c.clockId,clockProfileDigest:f.c.profileDigest,
+            fromSimulationTime:f.c.simulationTime,toSimulationTime:'2001-01-02T00:00:00.000Z',maximumWallGapMs:1200,
+            policySelectionDigest:nativeToolDigest(policy.selection().selection),environment}),
+        mutationPorts={db:mutationDb,worldId:'fixture',clock:()=>f.c,wallTime:()=>f.c.wallTime},
+        ports={...f.ports,bootManifest:manifest,policy:()=>({position:f.c,worldId:'fixture',snapshot:f.policySnapshot()})};
+    withPolicyMutationObservation(mutationPorts,()=>withNativeLifecycleObservation(ports,()=>{
+        World['observePopulationLifecycle']('after-terminal-guard');beginPolicyMutation('mod-configure','a'.repeat(64))?.finish('b'.repeat(64),'applied');
+        World['observePopulationLifecycle']('end-of-tick');}));
+    const entries=policy.read().entries;expect(entries.map(e=>e.sample.mutationCursor?.head.sequence)).toEqual([0,2]);
+    expect(entries[1]!.sample.mutationCursor).toEqual(mutations.cursor());expect(mutations.read().attempts.size).toBe(1);
 });
 
 test('SI-C07 actual World slots include an orphan terminal avatar and seal parser attempts at the tick end',()=>{

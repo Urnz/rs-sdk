@@ -3318,3 +3318,41 @@ Részletek: SI_C07_LIFECYCLE_POLICY.md. Következő a teljes build/config/packed
 environment inventory és mod/director változtatási history; továbbra kell a
 boundary/custody/access/admin/external producer universe és8 integrity.6 csomag
 maradt, a2. nyitott;27/45, SI-C07 NO-GO. Nincs C08/live install/run/baseline/provider.
+
+### 2026-10-27 – SI-C07/2 archive environment inventory és mod/director mutation history
+
+C06 leltárból source/config/packed fájl byte/SHA pin, Bun/platform és deklarált
+inputnevek; nincs környezeti/secret payload.5 producer: gateway configure/restore,
+native hot reload, director config és native event accept. Külön explicit
+schema1 journal a .local/society-metrics/policy-mutations.sqlite slotban,
+immutable selection/begin/result/head, monotone fault. Native policy sample
+opcionális mutationCursor, closed native prefixhez kötött readonly outcome.
+Actual round-trip config change scoped unchanged-clock-and-world-policy FAIL;
+signal/no-op és after-close mutation nem kitalált sértés. Missing/pending/null/
+foreign/stale/fault gap, igazolt korábbi prefix FAIL záró frame hiányában is
+megmarad. Own schema/reopen/rollback/shared user_version42; C06 új store-role,
+policy selection binding, exact environment inventory és isolated restore.
+Teljes loaded dependency/input/external writer enforcement továbbrafalse.
+
+`20261027-221114-035-si-c07-mutations-thin-gateway`4 PASS0,777 s.
+`20261027-221403-078-si-c07-mutations-thin-native`2 native +wrapper PASS0,780 s.
+`20261027-221720-698-si-c07-mutations-thin-readers`12 FAIL7,154 s: saját journal
+hash vs canonical report hash referencia rosszul keveredett; csak adapter javult.
+`20261027-221812-782-si-c07-mutations-reader-binding`11 PASS1 C06 timeout13,010 s.
+Mért IO:1141/281/2210/1590 ms, whole5302 ms. Ennél az egy tesztnél helyi10 s
+összegkeret, minden fázis naplózott; globális limit nem emelkedett.
+`20261027-222203-064-si-c07-mutations-final-readers`13 célzott eset PASS13,969 s,
+archive5737 ms, negatív1849 ms. `20261027-222232-520-si-c07-mutations-final-boundaries`
+58 PASS/root TS literal-fixture FAIL58,584 s; schemaVersion1 típus javult.
+`20261027-222438-955-si-c07-mutations-types`root PASS/engine import.meta-CJS FAIL
+75,989 s. Explicit trusted adapter-workspace; compiler/package/alias változatlan.
+`20261027-222919-035-si-c07-mutations-module-boundaries`50 jelentett eset és
+root/engine TS PASS88,966 s; módosított határok/diagnosztika/native cursor0→2.
+Passing nagy teljes fájlkör nem ismételt. `20261027-223150-309-si-c07-mutations-artifact`
+NO-GO/sourcehash/digest/19 doclink PASS0,936 s. Full/webclient nem indokolt saját
+observer/journal és érintett közvetlen olvasók esetén; közös alap nem változott.
+
+Részletek: SI_C07_POLICY_MUTATIONS.md. Következő a tényleges loaded runtime/input
+és a nem regisztrált value/config írók source/enforcement leltára; boundary/
+custody/access és8 integrity teljes bizonyítása még kell.6 csomag maradt,
+a2. nyitott;27/45, C07 NO-GO. Nincs C08/live install/run/baseline/providerköltség.

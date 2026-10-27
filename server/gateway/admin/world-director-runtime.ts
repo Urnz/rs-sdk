@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { beginPolicyMutation,policyMutationFileDigest } from '../../../population-lifecycle/policy-mutation-observer.js';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Database } from 'bun:sqlite';
@@ -6,7 +7,7 @@ import type { BoundSimulationEventStamp } from '../../../simulation-clock/types.
 import { SimulationClockStore } from '../../../simulation-clock/store.js';
 import { BUILTIN_WORLD_EVENT_TEMPLATES, selectWorldEvent, type WorldEventKind,
     type WorldEventSelection, type WorldEventTemplate } from './world-director.js';
-import { worldDirectorConfigPath, worldDirectorDbPath, worldDirectorOverridePath } from './paths.js';
+import { worldDirectorConfigPath, worldDirectorDbPath, worldDirectorOverridePath,repoRoot } from './paths.js';
 
 export interface WorldDirectorConfig {
     schemaVersion: 1;
@@ -146,11 +147,15 @@ export function readWorldDirectorConfig(): { config: WorldDirectorConfig; source
 
 export function updateWorldDirectorConfig(input: unknown, path = worldDirectorOverridePath): WorldDirectorConfig {
     const config = validateWorldDirectorConfig(input);
+    const before=policyMutationFileDigest(path),observation=beginPolicyMutation('director-configure',before,path,repoRoot);
+    try{
     mkdirSync(dirname(path), { recursive: true });
     const temporary = `${path}.${randomUUID()}.tmp`;
     writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
     renameSync(temporary, path);
+    const after=policyMutationFileDigest(path);observation?.finish(after,before===after?'no-op':'applied');
     return config;
+    }catch(error){observation?.finish(null,'failed');throw error;}
 }
 
 export function worldDirectorCycleKey(config: WorldDirectorConfig, now: string): string | null {

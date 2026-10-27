@@ -12,6 +12,7 @@ import { lifecycleRouteManifest,lifecyclePolicyFiles,type LifecycleRouteManifest
 import { nativeToolDigest as digest } from '../../../../item-lifecycle/native-tool.js';
 import { getActiveWorldModPolicy } from './WorldMods.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
+import { readPolicyMutationCursor } from '../../../../population-lifecycle/policy-mutation-observer.js';
 
 interface ObservedAvatar {username:string;levels:ArrayLike<number>;populationTerminal:boolean;populationFinite:boolean}
 export interface LifecycleObservationPorts {db:Database;context(username:string,tick:number):LifecycleAuthority|null;wallTime():string;
@@ -99,7 +100,7 @@ export function observeNativeLifecyclePolicy(stage:LifecycleWatermarkStage,tick:
         catch{store.fault();}
         const watermarkHead=p.db.query('SELECT sequence,digest FROM native_lifecycle_watermark_head WHERE singleton=1').get() as {sequence:number;digest:string|null};
         store.append({sessionId,worldId,position,wallTime:p.wallTime(),stage,mortalityHead:{sequence:row.sequence,digest:row.digest},watermarkHead,
-            bootManifest:p.bootManifest===undefined?bootManifest:p.bootManifest,snapshot});
+            bootManifest:p.bootManifest===undefined?bootManifest:p.bootManifest,snapshot,mutationCursor:readPolicyMutationCursor(root)});
     }catch{if(p)try{new NativeLifecyclePolicyStore(p.db).fault();}catch{ /* Missing/corrupted source cannot certify policy continuity. */ }
         console.error('[NativeLifecyclePolicy] policy observation unavailable; gap retained');}
 }

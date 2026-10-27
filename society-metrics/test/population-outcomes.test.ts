@@ -56,6 +56,11 @@ import { readNativeLifecycleWatermarks } from '../lifecycle-watermarks.js';
 import { NativeLifecyclePolicyStore,type LifecyclePolicySample } from '../../population-lifecycle/native-policy.js';
 import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../../population-lifecycle/native-policy-manifest.js';
 import { readNativeLifecyclePolicy } from '../lifecycle-policy.js';
+import { PolicyMutationStore } from '../../population-lifecycle/policy-mutations.js';
+import { pinPolicyEnvironment } from '../../population-lifecycle/policy-environment.js';
+import { withPolicyMutationObservation,beginPolicyMutation,policyMutationJournalPath } from '../../population-lifecycle/policy-mutation-observer.js';
+import { readNativePolicyMutations } from '../policy-mutations.js';
+import { updateWorldDirectorConfig } from '../../server/gateway/admin/world-director-runtime.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -221,6 +226,74 @@ function policyFixture(){const f=watermarkFixture(),root=join(import.meta.dir,'.
     return{...f,policyStore:store,pin,snapshot,emit,readPolicy:()=>readNativeLifecyclePolicy(f.db,f.scope,f.options,initial,f.actors)};
 }
 
+function mutationFixture(){const f=policyFixture(),path=policyMutationJournalPath(f.root);mkdirSync(join(f.root,'.local/society-metrics'),{recursive:true});
+    const db=new OwnedDatabase(path),pkg=readFileSync(join(import.meta.dir,'../../package.json')),
+        sourceFiles=['package.json',...f.pin.manifest.sources.map(p=>p.path)],environment=pinPolicyEnvironment({sourceFiles,files:[
+            ...f.pin.manifest.sources.map(p=>({path:p.path,size:p.bytes!,sha256:p.sha256!})),{path:'package.json',size:pkg.length,sha256:createHash('sha256').update(pkg).digest('hex')},
+            {path:'server/engine/data/pack/server/script.dat',size:1,sha256:'a'.repeat(64)}]},{bunVersion:Bun.version,platform:process.platform}),
+        store=new PolicyMutationStore(db,{schemaVersion:1,worldId:'fixture',clockId:f.scope.clockId,clockProfileDigest:f.scope.clockProfileDigest,fromSimulationTime:initial,
+            toSimulationTime:f.scope.toSimulationTime,maximumWallGapMs:1200,policySelectionDigest:nativeToolDigest(f.policyStore.selection().selection),environment});
+    f.options.policyMutationsPath=path;
+    const ports={db,worldId:'fixture',clock:()=>f.store.read().entries.at(-1)!.sample.clock,wallTime:()=>f.store.read().entries.at(-1)!.sample.clock.wallTime},
+        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emit(stage,{mutationCursor:store.cursor(),...change});
+    return{...f,mutationDb:db,mutations:store,mutationPath:path,mutationPorts:ports,emitMutationFrame:emit,
+        readMutations:()=>readNativePolicyMutations(f.db,f.scope,f.options,initial,f.actors),close(){db.close(true);f.close();}};
+}
+
+test('policy mutation paired native cursors preserve actual director round trips even when sampled policies end unchanged; frozen reread stays readonly',()=>{
+    const f=mutationFixture();try{const path=join(f.root,'.local/admin/world-director.json'),config={schemaVersion:1,enabled:false,seed:'fixture',epoch:initial,intervalMinutes:30};
+        updateWorldDirectorConfig(config,path);f.sample(0);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');
+        f.sample(1);f.emitMutationFrame('after-terminal-guard');
+        withPolicyMutationObservation(f.mutationPorts,()=>{updateWorldDirectorConfig({...config,enabled:true},path);updateWorldDirectorConfig(config,path);});
+        f.emitMutationFrame('end-of-tick');f.sample(2);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');
+        const before=f.mutationDb.serialize(),r=f.readMutations();expect(r.gaps).toEqual([]);expect(r.violations).toHaveLength(2);expect(r.verdict).toBe('fail');
+        expect(r.completeRecordedMutationWindow).toBeTrue();expect(r.completeWorldPolicyEnforcement).toBeFalse();expect(f.readPolicy().violations).toEqual([]);
+        const report=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));expect(report.integrity.find(g=>g.gateId==='unchanged-clock-and-world-policy')!.verdict).toBe('fail');
+        expect(report.policyIntegrityViolations.filter(v=>'attemptId' in v)).toHaveLength(2);
+        expect(report.qualifiesMinimum).toBeFalse();expect(f.mutationDb.serialize()).toEqual(before);
+        const frozen=join(f.root,'.local/society-metrics/frozen-mutations.sqlite');writeFileSync(frozen,before);
+        expect(readNativePolicyMutations(f.db,f.scope,{...f.options,policyMutationsPath:frozen},initial,f.actors)).toEqual(r);
+        expect(projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},reportNativeOutcomes(f.scope,f.options)).policyIntegrityViolations).toEqual([]);
+    }finally{f.close();}
+});
+
+test('policy mutation normal director signals, unchanged reloads and mutations after the closing cursor never fabricate configuration failure',()=>{
+    const f=mutationFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');
+        if(n===1)withPolicyMutationObservation(f.mutationPorts,()=>{beginPolicyMutation('director-event-accept',null)?.finish('a'.repeat(64),'applied');
+            beginPolicyMutation('mod-hot-reload','b'.repeat(64))?.finish('b'.repeat(64),'no-op');});f.emitMutationFrame('end-of-tick');}
+        withPolicyMutationObservation(f.mutationPorts,()=>beginPolicyMutation('mod-configure','c'.repeat(64))?.finish('d'.repeat(64),'applied'));
+        const r=f.readMutations();expect(r.attempts).toHaveLength(2);expect(r.violations).toEqual([]);expect(r.completeRecordedMutationWindow).toBeTrue();expect(r.verdict).toBe('inconclusive');
+    }finally{f.close();}
+});
+
+test.each(['pending','unknown','foreign','stale','fault','cursor','missing-frame'])(
+    'policy mutation coverage remains unknown at missing observation boundaries: %s',variant=>{
+    const f=mutationFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');
+        if(n===1){const ports=variant==='unknown'?{...f.mutationPorts,clock:()=>null}:variant==='foreign'?{...f.mutationPorts,worldId:'other'}
+            :variant==='stale'?{...f.mutationPorts,wallTime:()=>new Date(Date.parse(wall)+6000).toISOString()}:f.mutationPorts;
+            withPolicyMutationObservation(ports,()=>{const operation=beginPolicyMutation('director-event-accept',null);if(variant!=='pending')operation?.finish('a'.repeat(64),'applied');});
+            if(variant==='fault')f.mutations.fault();if(variant==='missing-frame')continue;}
+        const change=variant==='cursor'&&n===1?{mutationCursor:{...f.mutations.cursor(),head:{sequence:999,digest:'f'.repeat(64)}}}:{};f.emitMutationFrame('end-of-tick',change);}
+        const r=f.readMutations();expect(r.completeRecordedMutationWindow,variant).toBeFalse();expect(r.gaps.length,variant).toBeGreaterThan(0);expect(r.violations).toEqual([]);
+    }finally{f.close();}
+});
+
+test('policy mutation faults do not hide a separately completed original-scope configuration change',()=>{
+    const f=mutationFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');if(n===1){
+        withPolicyMutationObservation(f.mutationPorts,()=>beginPolicyMutation('mod-configure','a'.repeat(64))?.finish('b'.repeat(64),'applied'));f.mutations.fault();}
+        f.emitMutationFrame('end-of-tick');}
+        const r=f.readMutations();expect(r.completeRecordedMutationWindow).toBeFalse();expect(r.verdict).toBe('fail');expect(r.violations).toHaveLength(1);
+    }finally{f.close();}
+});
+
+test('policy mutation earlier positive prefix remains a failure when the final frame is missing',()=>{
+    const f=mutationFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');if(n===1)
+        withPolicyMutationObservation(f.mutationPorts,()=>beginPolicyMutation('mod-configure','a'.repeat(64))?.finish('b'.repeat(64),'applied'));
+        if(n<2)f.emitMutationFrame('end-of-tick');}
+        const r=f.readMutations();expect(r.gaps).toContain('mutation-window-boundaries');expect(r.verdict).toBe('fail');expect(r.violations).toHaveLength(1);
+    }finally{f.close();}
+});
+
 test('lifecycle policy explicit manifest and paired effective clock snapshots are readonly and never imply full world-policy PASS',()=>{
     const f=policyFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emit('after-terminal-guard');f.emit('end-of-tick');}
         const before=f.db.serialize(),r=f.readPolicy();expect(r.gaps).toEqual([]);expect(r.violations).toEqual([]);expect(r.completePinnedPolicyObservations).toBeTrue();
@@ -248,6 +321,7 @@ test.each(['profile','pause-resume','away-and-back','effective','config','source
         const r=f.readPolicy();expect(r.verdict,variant).toBe('fail');expect(r.violations.length,variant).toBeGreaterThan(0);expect(r.completePinnedPolicyObservations).toBeFalse();
         const outcomes=reportNativeOutcomes(f.scope,f.options),report=projectNativeMinimumAssessment(contract,f.scope,outcomes);
         expect(report.integrity.find(g=>g.gateId==='unchanged-clock-and-world-policy')!.verdict).toBe('fail');expect(report.qualifiesMinimum).toBeFalse();
+        expect(report.policyIntegrityViolations.every(v=>!('sampleSequence' in v)||typeof v.sampleSequence==='number')).toBeTrue();
         expect(projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},outcomes).policyIntegrityViolations).toEqual([]);
         if(variant==='pause-resume'||variant==='away-and-back')expect(f.clock.get('world')!.profileDigest).toBe(original.profileDigest);
     }finally{f.close();}

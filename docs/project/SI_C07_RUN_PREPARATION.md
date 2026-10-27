@@ -244,3 +244,9 @@ Declared források, tényleges cached policy/clock revision/anchors, saját jour
 és scope-olt unchanged-clock-and-world-policy FAIL. C06 source-file inclusion
 és isolated restore ellenőrzött; teljes dependency/packed/environment és mod/
 director változtatási history még hiányzik.6 maradt, NO-GO; nincs új live install/run.
+
+2026-10-27-i további rész: [environment inventory és mod/director mutation journal](SI_C07_POLICY_MUTATIONS.md).
+A teljes rögzített archive source/config/packed fájlleltár, Bun/platform és
+inputnevek pineltek.5 valódi producer begin/result, független journal és natív
+cursor-kötés, külön signal/config értelmezés. Teljes loaded runtime/input és
+külső writer enforcement még nincs;6 maradt, a2. nyitott, NO-GO; nincs live run/install.

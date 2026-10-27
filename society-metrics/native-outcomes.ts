@@ -20,11 +20,12 @@ import { readNativeMortalityCoverage } from './mortality-coverage.js';
 import { readNativeLifecycleAttempts } from './lifecycle-attempts.js';
 import { readNativeLifecycleWatermarks } from './lifecycle-watermarks.js';
 import { readNativeLifecyclePolicy } from './lifecycle-policy.js';
+import { readNativePolicyMutations } from './policy-mutations.js';
 
 /** Backend-owned export capability. Query parameters cannot widen actors, observers or source paths. */
 export interface NativeOutcomeOptions {
     workspace:string;worldId:string;agentPath:string;checkpointPath?:string;businessPath?:string;tradePath?:string;clockPath?:string;
-    auditPath?:string;queuePath?:string;wallWindow?:OutcomeWallWindow;
+    auditPath?:string;queuePath?:string;wallWindow?:OutcomeWallWindow;policyMutationsPath?:string;
     population?:NativePopulationSelection;
     allowedActorAgentIds:readonly string[];allowedObserverAgentIds:readonly string[];
 }
@@ -63,6 +64,8 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
     const lifecyclePolicy=capture(()=>{check(populationBaseline.status==='available'&&populationDeaths.status==='available','Lifecycle policy cohort unavailable');
         return database(options,options.checkpointPath,db=>readNativeLifecyclePolicy(db,scope,options,populationBaseline.value.genesisAppliedAtSimulationTime,
             populationDeaths.value.founderBindings));});
+    const policyMutations=capture(()=>{check(populationBaseline.status==='available'&&populationDeaths.status==='available','Policy mutation cohort unavailable');
+        return database(options,options.checkpointPath,db=>readNativePolicyMutations(db,scope,options,populationBaseline.value.genesisAppliedAtSimulationTime,populationDeaths.value.founderBindings));});
     const agent=capture(()=>database(options,options.agentPath,db=>readOutcomeAgents(db,scope,observers)));
     const work=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
         return database(options,options.checkpointPath,db=>readNativeWorkerEvidence(db,scope,options.worldId,agent.value.actors));});
@@ -122,7 +125,7 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
                 physicalWorkerMatchesAssignment:b.assignedWorkerAgentId===w.workerAgentId})):[],
         interpretation:'Actual worker is bound by native receipt; registered requester and assigned worker remain separate.'})):null;
     const definition={schemaVersion:1,artifactKind:'native-society-outcome-report',scope,worldId:options.worldId,observerAgentIds:observers,
-        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy},labor,physicalSpecialization,roleBindings,
+        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy,policyMutations},labor,physicalSpecialization,roleBindings,
         registeredResponsibility:'Existing evaluation specialization remains registered recipe responsibility; physical-stage receipt HHI is separate.',
         availability:{status:'inconclusive',availableAndWillingPersonMs:null,unemploymentRate:null},
         limitations:['Read-only per-source snapshots; no cross-database atomicity or complete event coverage.',

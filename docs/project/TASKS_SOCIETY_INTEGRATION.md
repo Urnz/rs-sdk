@@ -1132,6 +1132,11 @@ bekötött. Explicit declared source pin, importkori identity és tényleges cac
 policy/clock revision/anchors; drift scoped integrity FAIL lehet. Teljes
 dependency/packed/environment és mod/director history még kell.6 maradt, a2. nyitott, NO-GO.
 
+További rész: [archive environment inventory és mod/director mutation history](SI_C07_POLICY_MUTATIONS.md)
+bekötött.5 entrypoint begin/result, független journal, natív cursor-window és
+round-trip scoped integrity FAIL. Signal/no-op nem automatikus sértés; a loaded
+runtime/input és nem regisztrált writer enforcement továbbra hiányos.6 maradt, a2. nyitott, NO-GO.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

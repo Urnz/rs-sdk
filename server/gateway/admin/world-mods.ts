@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { beginPolicyMutation,policyValueDigest } from '../../../population-lifecycle/policy-mutation-observer.js';
 import { dirname, join } from 'node:path';
-import { worldModBackupsDir, worldModManifestPath, worldModStatePath } from './paths';
+import { worldModBackupsDir, worldModManifestPath, worldModStatePath,repoRoot } from './paths';
 
 export type WorldModActivation = 'hot-reload' | 'restart-required';
 export type WorldModSettingType = 'boolean' | 'integer' | 'number' | 'string';
@@ -491,7 +492,9 @@ async function performWorldModUpdate(
     validateDisableTransitions(manifests, before, after);
     validateRelationships(manifests, after);
     const backup = await createBackupFile(before, 'configure', reason, backupsDir);
-    await writeAtomic(statePath, after);
+    const observation=beginPolicyMutation('mod-configure',policyValueDigest(before),statePath,repoRoot);
+    try{await writeAtomic(statePath, after);observation?.finish(policyValueDigest(after),'applied');}
+    catch(error){observation?.finish(null,'failed');throw error;}
     return { before, after, manifest, backup };
 }
 
@@ -540,7 +543,9 @@ export function restoreWorldModBackup(
         validateDisableTransitions(manifests, before, after);
         validateRelationships(manifests, after);
         const safetyBackup = await createBackupFile(before, 'restore', reason, backupsDir);
-        await writeAtomic(statePath, after);
+        const observation=beginPolicyMutation('mod-restore',policyValueDigest(before),statePath,repoRoot);
+        try{await writeAtomic(statePath, after);observation?.finish(policyValueDigest(after),'applied');}
+        catch(error){observation?.finish(null,'failed');throw error;}
         return {
             before, after,
             restored: {
