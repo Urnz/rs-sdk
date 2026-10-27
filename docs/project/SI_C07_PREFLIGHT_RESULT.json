@@ -320,11 +320,18 @@
     "definitions": [
       {
         "id": "applied-genesis",
-        "authority": "applied result plus native opening/bootstrap anchor",
+        "authority": "applied result/rollback/receipts plus integrity bootstrap permits and explicit paused post-apply native opening",
         "span": "applied-opening",
         "tables": [
           "world_genesis_application",
-          "integrity_run"
+          "integrity_run",
+          "integrity_event",
+          "integrity_permit",
+          "accounts",
+          "property_genesis_assignment",
+          "business_genesis_creation",
+          "business_genesis_inventory",
+          "institution_treasury_genesis"
         ],
         "requirements": [
           "founders-at-start",
@@ -883,7 +890,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "67e1bae23bb2cacc0a3df26704122bb6f14de4c724c70ffe2b9c1b47e2538c30"
+    "digest": "173405611ca2e5f641406b26e202d756611a52cf4272d285c8bc7e5bc49cefdb"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1161,7 +1168,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters; the frozen original founder roster has a positive native gate path. Seven positive integrity gate paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete. Actual selected run evidence belongs to baseline/preflight/run phases; adapter presence cannot certify a full run."
+      "reason": "All17 requirements have partial native adapters; frozen original roster and applied genesis/native opening have positive native gate paths. Six positive integrity gate paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete. Actual selected run evidence belongs to baseline/preflight/run phases; adapter presence cannot certify a full run."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1201,7 +1208,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "ee0556a0c8991b14b92f0e22d32ab1a9168958a837d5256f77459421166b99e0"
+      "sha256": "b6e266c4f0a2be0884391fa11b7a35b9f8d99017c124623ed17841cabdf3237c"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1329,11 +1336,15 @@
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "e1f0e8733ecc763c7dc8a2eeddec66e080452f08a70cc2580298f9ccc89c8e43"
+      "sha256": "93e554414701a631a8a046dccfc746e165817e9cfeb0cd563c2a7369529ee320"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
-      "sha256": "9b07012c19559d424376c76c870fe9f28bdf6a44283917b70b4dc45798f2a278"
+      "sha256": "c8f6de897740d8fe90ed1f3d1be3245d9f5174e174b37003dfabc9692d156787"
+    },
+    {
+      "path": "society-metrics/genesis-opening.ts",
+      "sha256": "15cb505ea19cfc2207c28db92d0834b7535ae5dc09084a852486f6997f01af78"
     },
     {
       "path": "society-metrics/needs-exposure.ts",
@@ -1577,7 +1588,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "54975a8c1b3b1738bbc8a7fce19262da0cea36d6af054c0f224db678d4f7d4d1"
+      "sha256": "0ee2a6e07e75406e0a5307096e1057435ac218bab95924ba141fcbce6e21319c"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -1717,7 +1728,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "c1d1658c091637fb366fc4b2351dcbe9482e778e4172491f0322ab45c39d23ec"
+      "sha256": "617dde68b5ebd65e778d10901e6ff2348c0b1b8989a5f8769a3eb3caea980135"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1746,5 +1757,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "2c00e3860b05a65ef048b875ca0f6b53ecb1d0b3aea864bb9754e4ff81761cca"
+  "digest": "de5ed8849aeabb45f00b38b01402d9211a3f5ad04de9c26ecbf9ff65c0dc99c0"
 }

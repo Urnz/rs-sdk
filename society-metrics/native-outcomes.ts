@@ -21,6 +21,7 @@ import { readNativeLifecycleAttempts } from './lifecycle-attempts.js';
 import { readNativeLifecycleWatermarks } from './lifecycle-watermarks.js';
 import { readNativeLifecyclePolicy } from './lifecycle-policy.js';
 import { readNativePolicyMutations } from './policy-mutations.js';
+import { readNativeGenesisOpening } from './genesis-opening.js';
 
 /** Backend-owned export capability. Query parameters cannot widen actors, observers or source paths. */
 export interface NativeOutcomeOptions {
@@ -52,6 +53,9 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
     const populationDeaths=capture(()=>{configured(options.population,'Population deaths not configured');
         check(populationBaseline.status==='available','Population baseline unavailable');
         return readNativeFounderDeaths(scope,{...options,population:options.population},populationBaseline.value);});
+    const genesisOpening=capture(()=>{configured(options.population?.opening,'Genesis opening not configured');
+        check(populationBaseline.status==='available','Genesis baseline unavailable');
+        return readNativeGenesisOpening(scope,{...options,population:options.population!},populationBaseline.value);});
     const mortalityCoverage=capture(()=>{check(populationBaseline.status==='available'&&populationDeaths.status==='available','Mortality cohort unavailable');
         return database(options,options.checkpointPath,db=>readNativeMortalityCoverage(db,scope,options,populationBaseline.value.genesisAppliedAtSimulationTime,
             populationDeaths.value.founderBindings));});
@@ -125,7 +129,7 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
                 physicalWorkerMatchesAssignment:b.assignedWorkerAgentId===w.workerAgentId})):[],
         interpretation:'Actual worker is bound by native receipt; registered requester and assigned worker remain separate.'})):null;
     const definition={schemaVersion:1,artifactKind:'native-society-outcome-report',scope,worldId:options.worldId,observerAgentIds:observers,
-        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy,policyMutations},labor,physicalSpecialization,roleBindings,
+        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,genesisOpening,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy,policyMutations},labor,physicalSpecialization,roleBindings,
         registeredResponsibility:'Existing evaluation specialization remains registered recipe responsibility; physical-stage receipt HHI is separate.',
         availability:{status:'inconclusive',availableAndWillingPersonMs:null,unemploymentRate:null},
         limitations:['Read-only per-source snapshots; no cross-database atomicity or complete event coverage.',

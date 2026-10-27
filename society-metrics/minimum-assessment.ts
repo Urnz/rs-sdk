@@ -143,11 +143,18 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         ?lifecyclePolicy.value.violations.map(v=>({gateId:'unchanged-clock-and-world-policy',sourceDigest:lifecyclePolicy.digest,scope,sampleSequence:v.sampleSequence,meaning:v.reason})):[],
         ...policyMutations?.status==='available'&&policyMutations.value.worldId===outcomes?.worldId&&digest(policyMutations.value.scope)===digest(scope)
             ?policyMutations.value.violations.map(v=>({gateId:'unchanged-clock-and-world-policy',sourceDigest:policyMutations.digest,scope,attemptId:v.attemptId,meaning:v.reason})):[]];
-    const integrityFailures=[...lifecycleIntegrityViolations.length?[{gateId:'finite-lifecycle-no-respawn',verdict:'fail' as const,
+    const opening=nativeScopeMatches?outcomes?.sources.genesisOpening:undefined;
+    const openingMatches=opening?.status==='available'&&populationCompatible&&population?.status==='available'
+        &&opening.value.worldId===population.value.worldId&&digest(opening.value.scope)===digest(scope)
+        &&opening.value.genesisResultId===population.value.genesisResultId&&opening.value.genesisResultDigest===population.value.genesisResultDigest
+        &&opening.value.at===population.value.genesisAppliedAtSimulationTime&&digest(opening.value.founderAgentIds)===digest(population.value.founders.map(f=>f.agentId).sort());
+    const integrityFailures=[...openingMatches&&opening?.status==='available'&&opening.value.verdict==='fail'
+        ?[{gateId:'applied-genesis-baseline',verdict:'fail' as const,evidenceDigests:[opening.digest]}]:[],
+        ...lifecycleIntegrityViolations.length?[{gateId:'finite-lifecycle-no-respawn',verdict:'fail' as const,
         evidenceDigests:[...new Set(lifecycleIntegrityViolations.map(v=>v.sourceDigest))]}]:[],
         ...policyIntegrityViolations.length?[{gateId:'unchanged-clock-and-world-policy',verdict:'fail' as const,
             evidenceDigests:[...new Set(policyIntegrityViolations.map(v=>v.sourceDigest))]}]:[]];
-    const diagnosticFailure=diagnosticViolations.length>0||lifecycleIntegrityViolations.length>0||policyIntegrityViolations.length>0;
+    const diagnosticFailure=diagnosticViolations.length>0||integrityFailures.length>0;
     const lower=(requirementId:string,subject:MinimumSubject,value:number,sourceDigest:string)=>{
         if(value>0)cells.push({requirementId,subject,opportunity:'positive',lower:{numerator:String(value),denominator:'1'},evidenceDigests:[sourceDigest]});
     };
@@ -164,6 +171,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             if(!populationCompatible||p.worldId!==binding.worldId||p.genesisAppliedAtSimulationTime!==binding.genesisAppliedAtSimulationTime
                 ||digest(p.founders.map(f=>f.agentId).sort())!==digest([...binding.founderAgentIds].sort()))throw Error('Native population frame differs');
             const count=p.founders.length;
+            if(openingMatches&&opening?.status==='available'&&opening.value.verdict==='pass')
+                integrityEvidence.push({gateId:'applied-genesis-baseline',verdict:'pass',evidenceDigests:[population.digest,opening.digest]});
             cells.push({requirementId:'founders-at-start',subject:{boundary:scope.fromSimulationTime},opportunity:'positive',
                 lower:{numerator:String(count),denominator:'1'},upper:{numerator:String(count),denominator:'1'},evidenceDigests:[population.digest]});
             if(deaths?.status==='available'){
@@ -223,7 +232,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         }
         assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],integrityEvidence);
     }catch{bindingStatus='invalid';assessment=null;}
-    // Roster PASS uses the verified original identities. Configuration/ledger presence cannot certify the remaining gates or the full run.
+    // Positive roster/opening gates use verified native identities/state. Configuration/ledger presence cannot certify the remaining gates or the full run.
     const body={protocol:'native-society-minimum-assessment-v1',scope,contractDigest:contract.digest,bindingStatus,
         nativeScopeStatus:!outcomes?'unavailable':nativeScopeMatches?'matched':'mismatch',
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
@@ -231,7 +240,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             :assessment?.integrity.find(a=>a.gateId===g.gateId)?.verdict??'inconclusive'})),assessment,
         diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
-        sources:{work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
+        sources:{genesisOpening:opening?.status==='available'?{status:'available',digest:opening.digest,verdict:opening.value.verdict,mismatches:opening.value.mismatches}:{status:opening?.status??'unavailable'},
+            work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
             toolMaintenance:nativeScopeMatches&&outcomes?.sources.toolMaintenance?.status==='available'
                 ?{status:'available',digest:outcomes.sources.toolMaintenance.digest}:{status:nativeScopeMatches?outcomes?.sources.toolMaintenance?.status??'unavailable':'unavailable'},
             needsExposure:{status:needsStatus,...(needsStatus==='available'?{digest:integration!.needsExposure.digest}:{})},
@@ -255,6 +265,6 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',
             'Founder deaths bound survival from above; absent deaths or wall heartbeat do not establish continuous mortality coverage.',
-            'Complete needs/food/housing/capacity histories and seven positive native integrity gate paths remain incomplete.']};
+            'Complete needs/food/housing/capacity histories and six positive native integrity gate paths remain incomplete.']};
     return{...body,digest:digest(body)};
 }

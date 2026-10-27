@@ -1147,6 +1147,13 @@ boundary/access/demand integráció és globális natív PASS még nyitott.
 A 2. csomag implementációs lezárása különválik a későbbi tényleges run
 bizonyítékától. Hosszú C07 próba még nem indult; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
 
+**P2-02 elkészült:** [applied genesis és natív indulóállapot](SI_C07_GENESIS_OPENING.md).
+A valódi helyi bootstrap nyugtái/permitjei és a külön kijelölt paused natív
+player/population/needs/Business/treasury/property nyitópont összekötve.
+Fizikai eltérés FAIL, hiány/rossz binding unknown; nincs új journal vagy live run.
+**2/11 lezárási pont kész, 9 nyitott; 2/8 pozitív natív kapuút.** Következő P2-03:
+teljes source-coverage adapter. Globális minimum PASS még nincs; 27/45, C07 NO-GO.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

@@ -3401,3 +3401,66 @@ runtime dependency/build/test discovery változatlan. Nincs live run/baseline,
 providerköltség vagy történeti backup payload-read. 27/45, C07 NO-GO, MVS nem PASS.
 Következő P2-02: meglévő bootstrap/native opening forrásokból applied-genesis
 adapter, pozitív/eltérő/hiányzó forrás próbával; nem új általános naplózási ág.
+
+## 2026-10-27 – SI-C07/2 P2-02: applied genesis és fagyasztott natív indulóállapot
+
+P2-02 elkészült; a rögzített lista 1/11→2/11, 10→9 nyitott feltétel.
+Pozitív natív kapuút 1/8→2/8. A fő task 27/45, C07 NO-GO marad;
+hosszú társadalmi próba és minimum PASS nincs. Következő kizárólag P2-03,
+complete-source-coverage adapter, a meglévő 16 forráscsaládra építve.
+
+Új readonly `society-metrics/genesis-opening.ts`, explicit backend
+`population.opening` post-apply source set; opcionális, legacy/unselected
+állapotban unavailable/unknown. Application result/rollback/receipt schema2,
+verified integrity opening snapshot/count/digest és consumed bootstrap permit
+before/after mutation-digest egyezését köti a pontos genesis-időn paused
+óra és canonical player save, finite population/needs, Business/stock,
+treasury és property tényleges nyitóállapotához. Natív genesis-receipt táblák
+is ellenőrzöttek. Nincs current/evaluation-opening fallback, HTTP-path vagy
+feltöltött bizonyíték. A külön visszamásolt korábbi openinget a későbbi current
+állapot eltérése nem írja felül.
+
+`native-outcomes.genesisOpening` és `minimumAssessment` pozitív/negatív
+applied-genesis-baseline kötése kész. Teljes frame kell a pozitív kapuhoz;
+korai hiteles scoped opening FAIL rövid/invalid frame-ben is megmarad. Külön
+hiányzó forrás nem törli az előző, már stabil snapshotban ellenőrzött mismatch-et;
+completeOpeningSources ilyenkor false. Hibás részolvasás nem publikál prefix
+mismatch-et. A többi kapu és globális qualifiesMinimum:false változatlan.
+A 16 családos source inventory meglévő applied-genesis sora és a preflight
+forráshash-leltár az új adapterrel bővült. A konkrét C07 opening előkészítése/
+kijelölése és archive source-leltára a 3./5. csomag feladata.
+
+Célzott ellenőrzések, teljes log/result JSON `.local/verification/` alatt:
+
+- `20261027-225230-125-si-c07-genesis-opening-first`: 1 PASS/6 FAIL, 7,371 s.
+  A fixture a clock.create running defaultját használta; az adapter helyesen
+  elutasította a nem paused nyitópontot. Nem lett lazább az órakövetelmény.
+- `20261027-225247-871-si-c07-genesis-opening-diagnostic`: 1 FAIL, 1,226 s;
+  közvetlen reader stack igazolta a paused-clock hibahatárt.
+- `20261027-225305-065-si-c07-genesis-opening-paused`: 1 PASS, 2,027 s,
+  a valóban paused nyitóponttal létrehozott fixture mellett.
+- `20261027-225354-289-si-c07-genesis-opening-types`: root TS FAIL, 46,836 s;
+  JSON token/receipt callback implicit-any és fixture coinPlacement literal.
+  Pontos token/receipt array típus és bank literal javította; runtime nem lazult.
+- `20261027-225449-769-si-c07-genesis-opening-boundaries`: 7 PASS, 10,928 s.
+- **`20261027-225544-848-si-c07-genesis-opening-consumers`: 32 célzott eset
+  és root TS PASS, 75,568 s (runtime 24,73 s).** Pontosan genesis-opening,
+  minimum-assessment, native-outcomes és minimum-preflight fájl. 13 új adapter-
+  eset: helyes bootstrap/canonical opening, player/stock/treasury/property
+  mismatch, natív nyugtasértés, unused permit, sérült opening snapshot,
+  hiányzó/idegen/késői forrás, külön offline másolt opening, prefix FAIL-védelem.
+  A valódi helyi admin/LocalLostCity genesis-adapter és natív domain SQLite-
+  store-ok futottak; hálózat/offline editor helyi fixture, nincs játékvilág.
+- **`20261027-225844-435-si-c07-genesis-opening-artifact`: 6 meglévő
+  roster/mortality határeset PASS, friss NO-GO exit2, forráshash/digest és 21
+  dokumentum linkje PASS, 4,844 s.**
+- Commit előtti changed/staged-line format ellenőrzés külön wrapperrel.
+
+Nem indokolt teljes regresszió: új readonly root reader és közvetlen riport/
+preflight fogyasztói változtak. Nincs közös persistence/clock/auth/gazdasági
+transaction, dependency/build/test discovery változás. Engine/webclient kód,
+séma, producer, migráció változatlan. Nincs live install/world/baseline/run,
+providerhívás vagy történeti backup payload-read. Eredeti minimum változatlan.
+- Végleges source-komment utáni hashfrissítés és formázás:
+  `20261027-225954-467-si-c07-genesis-opening-final-artifact` PASS, 1,571 s;
+  NO-GO exit2, source/digest és 21 dokumentumlink, changed/staged-line format.

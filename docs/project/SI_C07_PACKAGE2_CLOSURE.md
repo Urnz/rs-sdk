@@ -1,6 +1,6 @@
 # SI-C07/2 – Állapotfelmérés és rögzített lezárási lista
 
-2026-10-27. Referencia: `2785e6fee`, majd az itt dokumentált roster-kapu.
+2026-10-27. Referencia: `2785e6fee`, majd a roster- és genesis-opening kapu.
 A hét [eredeti munkacsomag](SI_C07_REMAINING_WORK.md) közül a 2. implementációs
 csomag lezárását méri ez a lista. Nem új SI-task, nem új minimum és nem futási
 engedély. A tényleges hosszú C07 próba még nem indult; SI-M3/MVS nem PASS.
@@ -19,19 +19,21 @@ kettő csak bizonyított sértésre adott FAIL-t. Ezért a sok külön ellenőrz
 komponens nem jelentett kész minimum-kiértékelőt. A terv és a kommunikáció
 hibája volt, hogy ezt a fő hiányt elfedte az ismételt „6 csomag maradt”.
 
-Most **17/17 részleges szabályadapter**, **1/8 pozitív natív kapuút** van.
-A másik hét közül a lifecycle és a clock/world-policy már felismer sértést,
-de pozitív teljességet még nem igazol. A többi ötnek sincs pozitív natív adaptere.
+Most **17/17 részleges szabályadapter**, **2/8 pozitív natív kapuút** van.
+A másik hat közül a lifecycle és a clock/world-policy már felismer sértést,
+de pozitív teljességet még nem igazol. A többi négynek sincs pozitív natív adaptere.
 A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run PASS.
 
-## Rögzített lezárási pontok: 1/11 kész
+## Rögzített lezárási pontok: 2/11 kész
 
 - [x] **P2-01 – `frozen-founder-roster`.** Az applied genesis teljes eredeti
   cohortja, immutable tagság és natív finite-avatar kötés alapján PASS-képes.
   Halott/offline alapító bennmarad; hiányos/dupla/idegen kötés vagy hibás run
   frame nem ad PASS-t. Nem ad túlélési, respawn-mentességi vagy globális PASS-t.
-- [ ] **P2-02 – `applied-genesis-baseline`.** Az alkalmazott result mellett
-  a pontos natív indulóállapot kötése is szükséges. A roster önmagában kevés.
+- [x] **P2-02 – `applied-genesis-baseline`.** Applied result/rollback/receipts,
+  integrity bootstrap snapshot és consumed permit kötése az explicit paused
+  post-apply natív player/population/needs/Business/treasury/property állapothoz.
+  Eltérés FAIL, hiány/rossz binding unknown. [Eredmény](SI_C07_GENESIS_OPENING.md).
 - [ ] **P2-03 – `complete-source-coverage`.** Minden eredeti szabály/kapu
   szükséges forrása, fejállapota, nevezője és teljes időablaka összekötve;
   hiány/eltérés kizárja a pozitív minősítést. Konkrét run-kijelölés az 5. csomag.
@@ -57,7 +59,7 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Az összes kapu/szabály együtt igazolt; puszta feltöltött cellalista kevés.
 
 Ezek lezárási feltételek, nem 11 további chatkör: egy fejlesztés többet is
-lezárhat. Jelenleg 10 pont nyitott. A már elkészült 15 commit nem vész el;
+lezárhat. Jelenleg 9 pont nyitott. A már elkészült 15 commit nem vész el;
 a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb meg kell
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;

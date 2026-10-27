@@ -16,11 +16,13 @@ import { societyMinimumDigest as digest } from '../society-minimum/policy.js';
 import { outcomeCheck as check } from './outcome-work.js';
 import type { EvaluationScope } from './evaluation.js';
 import { nativeMortalityActor } from '../population-lifecycle/native-coverage.js';
+import type { NativeGenesisOpeningPaths } from './genesis-opening.js';
 
 /** Backend-selected native sources. Neither source paths nor the result identity come from report queries. */
 export interface NativePopulationSelection {
     genesisPath:string;integrityPath:string;healthPath:string;configDirectory:string;
     genesisResultId:string;genesisResultDigest:string;
+    opening?:NativeGenesisOpeningPaths;
 }
 interface PopulationOptions {workspace:string;worldId:string;agentPath:string;population:NativePopulationSelection}
 /** Bound work before domain readers allocate/verify full journals. Reject a changing store rather than claiming an atomic cross-store snapshot. */

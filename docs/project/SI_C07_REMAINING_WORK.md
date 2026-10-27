@@ -18,8 +18,8 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    [Eredmény](SI_C07_NATIVE_DISPATCH.md).
 2. **FOLYAMATBAN – Teljes minimum-assessment implementáció.** Az eredeti
    17 szabály és 8 integritási kapu natív kiértékelése, minden szükséges
-   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **1/11 kész**;
-   17/17 részleges szabályadapter, **1/8 pozitív natív kapuút**. A maradék hét
+   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **2/11 kész**;
+   17/17 részleges szabályadapter, **2/8 pozitív natív kapuút**. A maradék hat
    kapu pozitív útja, a pozitív population-korlátok, a teljes boundary/access/
    demand integráció és az összesítő PASS-ág még nyitott. A tényleges jövőbeli
    run adatai nem ennek az implementációs csomagnak az elkészülési feltételei.
