@@ -3184,3 +3184,36 @@ source-coverage integrity forrásjegyzéke és mortality/enforcement proof.
 Nincs live install/run/baseline/providerköltség vagy történeti backup-read.
 Artifact: `20261027-171411-756-si-c07-material-artifact`friss NO-GO/sourcehash/
 digest és14 doclink PASS1,401 s. Source-fájl pin friss, authority továbbra0.
+
+### 2026-10-27 – SI-C07/2 source-inventory és mortality-pass coverage
+
+16 required source family az eredeti17 requirement/8 gate időbeli kötelezettségével;
+concrete selectedSources=null, coverage inconclusive. Új own schema1 immutable
+selection/event/head: successful current native tick után all-member natural és
+kijelölt starvation passz, offline included. Exact original lifecycle/membership,
+policy, native health/death/binding prefix; unknown birth/tick/session/roster/
+write gap nem hidalható át. Getter nem ad stale/failed tickből witness-t.
+Observerhiba nem módosít gameplay latch-et. Readonly outcome mortalityCoverage,
+frozen reread és C06 selection archive/restore. Full login/load/respawn
+history még nincs: completeLifecycleEnforcement=false, mind8 integrity unknown.
+Health/AgentState schema és közös user_version/clock/economic Tx változatlan.
+
+Thin `20261027-172516-705-si-c07-mortality-thin`2 PASS2,830 s.
+`20261027-172757-651-si-c07-mortality-final-boundaries`68 PASS1 FAIL64,156 s:
+régi v22 migration fixture bent hagyta a v26–v29 táblákat. Csak a tesztadat
+javult. `20261027-173043-086-si-c07-mortality-death-types`2 PASS, root TS FAIL
+41,649 s: value MarketStore import root alias-határ és inventory union never[].
+Engine-only runtime elválasztva, inventory explicit típus. Compiler/persistence
+alap nem változott. `20261027-173313-243-si-c07-mortality-source-types`8 célzott
+eset +root/engine TS PASS98,608 s. Passing teljes fogyasztói fájlkör nem ismételt.
+`20261027-172924-157-si-c07-mortality-selected-restore`1 új C06 eset PASS1,939 s.
+`20261027-173413-018-si-c07-mortality-native-import`6 packed observer +wrapper
+PASS2,433 s. Full/webclient nem indokolt saját observer/readonly head kiegészítésnél.
+
+Négy offline founder és readonly frozen source; valódi esedékes offline natural
+halál, native terminal event/head; unknown birth, gaps, own rollback/user_version42,
+immutable selection/audit/tail és natív founder FAIL-megőrzés. Következő a natív
+login/load/respawn kísérlet és terminal reject journal.6 csomag maradt, a2. nyitott,
+27/45, SI-C07 NO-GO. Nincs C08/live install/run/baseline/provider vagy backup-read.
+Artifact: `20261027-173828-826-si-c07-mortality-artifact`friss NO-GO,16 család/
+17 requirement/8 gate, sourcehash/digest és15 doclink PASS0,861 s.

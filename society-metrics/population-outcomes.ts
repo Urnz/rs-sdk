@@ -15,6 +15,7 @@ import { populationDeathMembershipDigest } from '../population-lifecycle/death.j
 import { societyMinimumDigest as digest } from '../society-minimum/policy.js';
 import { outcomeCheck as check } from './outcome-work.js';
 import type { EvaluationScope } from './evaluation.js';
+import { nativeMortalityActor } from '../population-lifecycle/native-coverage.js';
 
 /** Backend-selected native sources. Neither source paths nor the result identity come from report queries. */
 export interface NativePopulationSelection {
@@ -106,6 +107,6 @@ export function readNativeFounderDeaths(scope:EvaluationScope,options:Population
             })};
         }finally{store.close();}
     });
-    return{deaths:health.deaths,agentSnapshotDigest:agents.sourceSnapshotDigest,healthSnapshotDigest:health.sourceSnapshotDigest,
+    return{deaths:health.deaths,founderBindings:agents.members.map(nativeMortalityActor),agentSnapshotDigest:agents.sourceSnapshotDigest,healthSnapshotDigest:health.sourceSnapshotDigest,
         completeMortalityCoverage:false,meaning:'Verified deaths bound to the full original roster; no absence-of-death or continuous mortality coverage claim.'};
 }

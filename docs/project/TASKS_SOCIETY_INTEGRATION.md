@@ -1114,6 +1114,9 @@ Ugyanaznapi folytatás: [közvetlen prospektív material-origin](SI_C07_MATERIAL
 bekötött. Teljes natív ciklushoz original founder/genesis/scope mellett lower bound
 járhat; copied/mixed/reloaded unheld input és replacement továbbra unproven.
 Teljes source-coverage integrity és mortality/enforcement a következő;6 maradt, NO-GO.
+További rész: [forráscsalád-jegyzék és natív mortality-pass coverage](SI_C07_MORTALITY_COVERAGE.md)
+bekötött. Teljes login/load/respawn enforcement és8 integrity még hiányos;
+ez a következő kódhatár.6 maradt, a2. nyitott,27/45, NO-GO.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

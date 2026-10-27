@@ -22,6 +22,7 @@ const root = new URL('../../../../', import.meta.url);
 const path = (relative: string) => fileURLToPath(new URL(relative, root));
 let runtime: ReturnType<typeof openRuntime> | null = null;
 let failed = false;
+let completedMortalityPass:{clock:SimulationClockObservation;local:ReturnType<typeof openRuntime>;source:PlayerHealthEvidenceStore}|null=null;
 function openRuntime() {
     if (!existsSync(path('.local/simulation/simulation-clock.sqlite'))) throw new Error('Finite population clock is unavailable');
     const shared = openSimulationClockRuntime(path('config/simulation-clock.json'), path('.local/simulation/simulation-clock.sqlite'));
@@ -150,6 +151,7 @@ export function populationAttributeContext(username: string, engineTick: number)
 
 /** Called before any world/client/NPC execution. Offline members are included. */
 export function tickPopulationDeaths(engineTick: number): void {
+    completedMortalityPass=null;
     try {
         const source = engineHealthRuntime(), local = getRuntime();
         if (local) {
@@ -160,9 +162,17 @@ export function tickPopulationDeaths(engineTick: number): void {
                 if (loadSurvivalProfile(fileURLToPath(root))) admitPopulationStarvation(member, clock, source, local.age, local.mortality, starvationOptions());
             }
             admitNaturalPopulationDeaths(local.agents, clock, source, local.age, local.mortality);
+            completedMortalityPass={clock,local,source};
         }
         failed = false;
     } catch (error) { failed = true; throw error; }
+}
+
+/** Only the successful current native tick can donate an observer witness. Does not run mortality or admit gameplay. */
+export function nativePopulationMortalityPass(engineTick:number){
+    const pass=completedMortalityPass;if(failed||!pass||pass.clock.engineTick!==engineTick)throw Error('No completed native mortality pass for this tick');
+    return{clock:pass.clock,members:pass.local.agents.listPopulationMembers(),source:pass.source,agePolicyDigest:pass.local.age.digest,
+        mortalityPolicyDigest:pass.local.mortality.digest,survivalSelectionDigest:loadSurvivalProfile(fileURLToPath(root))?.selection.digest??null};
 }
 
 export function populationAvatarRestricted(username: string): boolean {

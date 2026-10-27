@@ -92,11 +92,17 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   natív output/escrow/WIP kötés. Original founder/genesis/scope mellett a teljes
   lánc cycle lower boundot adhat. Másolt/kevert ismeretlen anyag és nem holdolt
   reload unproven; a durable WIP ancestry megmarad. Replacement még unproven.
-- **Következő kódhatár a2. csomagon belül:** teljes source-coverage integrity
-  explicit forrásjegyzéke és folyamatos mortality/enforcement proof bekötése.
-  Boundary/access history és igazolatlan anyagmozgatás source gapje megmarad;
-  mind a8 integrity kapuhoz valódi bound kell. **6 csomag maradt, a2. még nyitott**;
-  nincs3. baseline vagy C08. Közvetlen material-origin proof nem teljes MVS PASS.
+- **Forrásjegyzék/mortality-pass rész kész:** [16 forráscsalád és prospektív native tick](SI_C07_MORTALITY_COVERAGE.md).
+ 17 requirement/8 gate explicit forrás- és időbeli kötelezettsége; konkrét
+  selectedSources továbbra null. Sikeres native mortality passzhoz kapcsolt
+  saját selection/event/head, offline original founderrel, health/death/binding
+  prefixszel; hiányzó birth/tick/session/roster/write/policy gap. Frozen readonly
+  és C06 restore próbázott. Ez nem continuous HP vagy login/respawn enforcement,
+  ezért completeLifecycleEnforcement=false, mind8 integrity továbbra unknown.
+- **Következő kódhatár a2. csomagon belül:** natív login/load/respawn kísérletek
+  és terminal elutasítások prospektív naplója. Ezután teljes konkrét producer/
+  source/boundary/access history és8 integrity adapter kell. **6 csomag maradt,
+  a2. még nyitott**; nincs3. baseline vagy C08. C07 továbbra NO-GO.
 - Korábbi modulok: [attempt-napló](SI_C07_NATIVE_TOOL_DEMAND.md),
   [tartós natív igény/időmérés](SI_C07_STANDING_TOOL_DEMAND.md).
   Lower-bound longest unusable-time, nem más actorok/kérések összege; restart,
@@ -147,37 +153,41 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **`20261027-170739-602-si-c07-material-final-boundaries`:87 jelentett eset
-  PASS,0 teszthiba; a test szakasz81,01 s.**58 root +4/12/13 packed native
-  eset. Pontos9 fájlkör: material-store, native maintenance/tool-work/Mining,
-  minimum/population/outcomes, expanded baseline és preflight. A script összesen
-  134,089 s után TypeScript-hibával állt meg: az új helper nem volt assertion-
-  signature-rel deklarálva, ezért a hold típusa nem szűkült. Engine TS ekkor nem futott.
-- **`20261027-171101-475-si-c07-material-store-types`:4 érintett store teszt,
-  root és engine TS PASS116,277 s.** Assertion-signature javítva; a lot-projekció
-  érvénytelen boolean mezőjének külön negatív próbája is PASS. A korábban sikeres
-  native/integrációs fájlkört nem ismételtük; full és webclient TS nem futott.
-- Thin writer: `20261027-170229-902-si-c07-material-thin-native`2 native
-  +wrapper PASS16,829 s. Thin origin-reader elsőre4,267 s FAIL egy local material
-  változónév-ütközés miatt; javítva. `20261027-170454-711-si-c07-material-origin-thin-fix`
-  2 native +wrapper PASS4,579 s. A failure log megőrzött, assertion nem gyengült.
-- Valódi100 Mining output→breakage→packed smelt→repair→reuse és pozitív belső
-  anyageredet, frozen readonly fájlban byteazonos visszaolvasás. Kevert ismeretlen
-  érc, ore/bar copy, banki másolás, nem holdolt reload unproven; durable WIP reload,
-  failed hold/checkpoint rollback, single-spend, foreign owner/time reversal és
-  projection/head/history corruption negatív ágak. Explicit új saját séma42-es
-  shared user_version mellett, legacy backfill tiltás és C06 izolált restore PASS.
-- Eredeti founder/genesis/contract/scope és pozitív ciklus kell a minimum lower
-  boundhoz. A receipt-count továbbra nem ciklus, integrity PASS nincs. Teljes
-  17/8 értékelés, frozen source coverage, boundary és mortality/enforcement még kell.
-- Saját additív material tábla/journal és közvetlen natív output/WIP/metrics/restore
-  fogyasztók változtak. A közös Inventory, persistence/clock/global auth és
-  gazdasági tranzakcióalap nem módosult, ezért full nem indokolt. Pontos fájllisták:
-  `.local/verification/*.result.json`. A87 jelentett eset nem87 külön unique
-  üzleti forgatókönyv: a két gateway wrapper közösen is gyakorolja a100-use utat.
-- `20261027-171411-756-si-c07-material-artifact`:NO-GO/sourcehash/digest és14
-  dokumentumlink PASS1,401 s. Korábbi bizonyíték a komponensdokumentumokban/progressben. A lezáráskor
-  staged format ellenőrzés történik.
+- **`20261027-172757-651-si-c07-mortality-final-boundaries`:68 PASS,1 régi
+  fixture FAIL;64,156 s (test63,55 s).** Population/outcomes/minimum, death,
+  expanded baseline és preflight6 pontos fájlja. A v22 migration fixture
+  v26–v29 táblákat hagyott bent; csak a disposable tesztadat alakja javult,
+  produkciós migráció nem változott. Typecheck ekkor nem indult el.
+- `20261027-173043-086-si-c07-mortality-death-types`:2 célzott death/migrációs
+  próba PASS;41,649 s után root TS FAIL. Az új World-observer runtime value
+  MarketStore-importja root alias-határt lépett át, és a forrásjegyzék inferred
+  unionje never[] lett. Engine-only bekötés külön modulba került, explicit
+  inventory adattípus javította a szűkítést. Nincs új compiler alias/config.
+- **`20261027-173313-243-si-c07-mortality-source-types`:8 célzott death/
+  mortality/preflight próba és root/engine TS PASS98,608 s.** A passing
+  minimum/outcomes/expanded egész fájlkört nem ismételtük. Teljes scope a
+  `.local/verification/*.result.json` fájlokban; a korábbi failure log megmaradt.
+- `20261027-172924-157-si-c07-mortality-selected-restore`:az új explicit
+  mortality-selection C06 archive/izolált restore próba PASS1,939 s;
+  corrupted head új baseline-t tilt. A még nem betöltött új eset külön futott.
+- **`20261027-173413-018-si-c07-mortality-native-import`:6 packed native
+  observer eset +wrapper PASS2,433 s.** Az új World/engine-only importhatár
+  meglévő native cohort/identity/sleep/ingress próbái. Nem teljes live World-run.
+- `20261027-172516-705-si-c07-mortality-thin`:2 új SQLite/native pass próba
+  korán PASS2,830 s. A végső3 mortality próba már ismert birth-et is megkövetel;
+  unknown birth, hiányzó tick/session/roster/write és foreign lifecycle gap.
+- Négy offline founder, natív passz és byteazonos frozen readonly reread;
+  valós esedékes offline natural death terminal-frame/native head kötése;
+  user_version42, journal rollback, immutable history/head és eredeti founder
+  FAIL-megőrzés.16 forráscsalád lefedi a17/8 hivatkozást, selectedSources=null,
+  qualifiesCoverage=false. Mind8 integrity kapu unknown marad.
+- Full/webclient TS nem futott: saját observer/journal, readonly health-head
+  metódus, egy World megfigyelési hívás és közvetlen metrics/restore fogyasztók
+  érintettek. Meglévő mortality/admission/HP/login guard, clock, gazdasági
+  transaction/persistence/global auth és compiler/runtime dependency változatlan.
+- `20261027-173828-826-si-c07-mortality-artifact`:friss NO-GO,16 család/17/8,
+  sourcehash/digest és15 dokumentumlink PASS0,861 s. A lezáráskor
+  staged format ellenőrzés történik. Korábbi bizonyíték a komponensdokumentumokban/progressben.
   Nincs hosszú run, providerhívás, új live install/selection/baseline vagy historical DB-read.
 ## Megőrzendő döntések
 

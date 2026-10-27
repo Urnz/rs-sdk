@@ -290,7 +290,7 @@
       },
       {
         "gateId": "finite-lifecycle-no-respawn",
-        "missing": "Bound finite lifecycles and complete death/respawn enforcement history."
+        "missing": "Bound finite lifecycles and prospective native mortality-pass coverage, plus complete login/load/respawn enforcement history; tick passes alone are insufficient."
       },
       {
         "gateId": "frozen-founder-roster",
@@ -313,6 +313,557 @@
         "missing": "Verified internal production ancestry through distinct-consumer final use."
       }
     ]
+  },
+  "requiredSourceInventory": {
+    "protocol": "society-minimum-source-inventory-v1",
+    "contractDigest": "d12d387d2cf06193378401dc22c5c6ee6ef27350388e047da044da36e3a5e84e",
+    "definitions": [
+      {
+        "id": "applied-genesis",
+        "authority": "applied result plus native opening/bootstrap anchor",
+        "span": "applied-opening",
+        "tables": [
+          "world_genesis_application",
+          "integrity_run"
+        ],
+        "requirements": [
+          "founders-at-start",
+          "minimum-living-founders",
+          "founder-survival"
+        ],
+        "gates": [
+          "applied-genesis-baseline",
+          "frozen-founder-roster"
+        ]
+      },
+      {
+        "id": "original-population",
+        "authority": "immutable genesis membership, lifecycle and finite-avatar binding",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "agent_population_member",
+          "agent_character_lifecycle",
+          "engine_population_binding"
+        ],
+        "requirements": [
+          "founders-at-start",
+          "minimum-living-founders",
+          "founder-survival",
+          "hunger-satisfied-time",
+          "fatigue-satisfied-time",
+          "hunger-continuous-critical-time",
+          "fatigue-continuous-critical-time"
+        ],
+        "gates": [
+          "frozen-founder-roster",
+          "finite-lifecycle-no-respawn"
+        ]
+      },
+      {
+        "id": "native-health-deaths",
+        "authority": "native HP/death audit with anchored prefixes",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "engine_health_damage",
+          "engine_population_death",
+          "engine_health_audit_tail"
+        ],
+        "requirements": [
+          "founders-at-start",
+          "minimum-living-founders",
+          "founder-survival"
+        ],
+        "gates": [
+          "finite-lifecycle-no-respawn"
+        ]
+      },
+      {
+        "id": "native-mortality-passes",
+        "authority": "prospective every-tick original-roster natural/starvation passes, offline included",
+        "span": "every-native-tick",
+        "tables": [
+          "native_mortality_selection",
+          "native_mortality_event",
+          "native_mortality_head"
+        ],
+        "requirements": [
+          "founders-at-start",
+          "minimum-living-founders",
+          "founder-survival"
+        ],
+        "gates": [
+          "complete-source-coverage",
+          "finite-lifecycle-no-respawn"
+        ]
+      },
+      {
+        "id": "login-respawn-enforcement",
+        "authority": "complete native login/load/respawn attempts and terminal rejection history",
+        "span": "warmup-and-evaluation",
+        "tables": [],
+        "requirements": [
+          "founders-at-start",
+          "minimum-living-founders",
+          "founder-survival"
+        ],
+        "gates": [
+          "finite-lifecycle-no-respawn"
+        ],
+        "gap": "No complete native login/load/respawn history adapter yet; mortality-pass coverage cannot replace it."
+      },
+      {
+        "id": "clock-world-policy",
+        "authority": "clock/profile segments and pinned build/config/mod policy history",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "simulation_clock",
+          "simulation_event_stamp"
+        ],
+        "requirements": [
+          "founders-at-start",
+          "minimum-living-founders",
+          "founder-survival",
+          "hunger-satisfied-time",
+          "hunger-continuous-critical-time",
+          "fatigue-satisfied-time",
+          "fatigue-continuous-critical-time",
+          "internal-food-relief-share",
+          "food-reserve-coverage",
+          "food-stock-retention",
+          "legal-housing-access-time",
+          "tool-maintenance-cycles",
+          "tool-unusable-demand-time",
+          "tool-service-capacity-retention",
+          "productive-participants",
+          "productive-stage-kinds",
+          "inter-actor-final-use-chains"
+        ],
+        "gates": [
+          "unchanged-clock-and-world-policy",
+          "complete-source-coverage"
+        ]
+      },
+      {
+        "id": "physiology-modes",
+        "authority": "original needs admission, audit, mode cursors and native nutrition watermark",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "needs_state",
+          "needs_event",
+          "simulation_player_time_history",
+          "native_food_consumption_event"
+        ],
+        "requirements": [
+          "hunger-satisfied-time",
+          "fatigue-satisfied-time",
+          "hunger-continuous-critical-time",
+          "fatigue-continuous-critical-time",
+          "internal-food-relief-share",
+          "food-reserve-coverage",
+          "food-stock-retention",
+          "inter-actor-final-use-chains"
+        ],
+        "gates": [
+          "complete-source-coverage"
+        ]
+      },
+      {
+        "id": "native-food-lineage",
+        "authority": "actual gather/process/trade/final-use ancestry and native deliveries",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "native_food_lineage",
+          "native_food_actions",
+          "native_food_delivery"
+        ],
+        "requirements": [
+          "internal-food-relief-share",
+          "food-reserve-coverage",
+          "food-stock-retention",
+          "inter-actor-final-use-chains",
+          "productive-participants",
+          "productive-stage-kinds"
+        ],
+        "gates": [
+          "verified-internal-lineage-and-final-use"
+        ]
+      },
+      {
+        "id": "frozen-physical-boundaries",
+        "authority": "complete exact-clock inventory of paused physical, physiology, finite health, property and custody snapshots",
+        "span": "every-native-boundary",
+        "tables": [
+          "accounts",
+          "simulation_clock",
+          "needs_state",
+          "engine_population_binding"
+        ],
+        "requirements": [
+          "minimum-living-founders",
+          "food-reserve-coverage",
+          "food-stock-retention",
+          "tool-service-capacity-retention",
+          "legal-housing-access-time"
+        ],
+        "gates": [
+          "applied-genesis-baseline",
+          "complete-source-coverage"
+        ]
+      },
+      {
+        "id": "housing-rights",
+        "authority": "versioned Property/tenancy/paid escrow and capacity history, including expiry and sleep witness",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "housing_tenancy",
+          "housing_tenancy_audit",
+          "housing_rent_payment"
+        ],
+        "requirements": [
+          "legal-housing-access-time",
+          "hunger-satisfied-time",
+          "fatigue-satisfied-time",
+          "hunger-continuous-critical-time",
+          "fatigue-continuous-critical-time"
+        ],
+        "gates": [
+          "complete-source-coverage"
+        ]
+      },
+      {
+        "id": "tool-lifecycle-work",
+        "authority": "native instance/revision/use/repair/replacement effects and exact worker WIP",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "item_lifecycle_audit",
+          "native_tool_event",
+          "native_tool_work",
+          "native_tool_work_audit"
+        ],
+        "requirements": [
+          "tool-maintenance-cycles",
+          "tool-unusable-demand-time",
+          "tool-service-capacity-retention",
+          "productive-participants",
+          "productive-stage-kinds"
+        ],
+        "gates": [
+          "verified-internal-lineage-and-final-use"
+        ]
+      },
+      {
+        "id": "tool-material-custody",
+        "authority": "prospective single-spend actual ore/bar lot ancestry and native escrow consumption",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "native_material_event",
+          "native_material_lot",
+          "native_material_head",
+          "player_inventory_escrow_audit"
+        ],
+        "requirements": [
+          "tool-maintenance-cycles"
+        ],
+        "gates": [
+          "verified-internal-lineage-and-final-use"
+        ]
+      },
+      {
+        "id": "executor-native-demand",
+        "authority": "prospective executor requests, native invocation/attempt/intent and whole-cohort watermarks",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "native_mining_request_event",
+          "native_mining_intent_audit",
+          "native_mining_coverage_event"
+        ],
+        "requirements": [
+          "tool-unusable-demand-time"
+        ],
+        "gates": [
+          "complete-source-coverage"
+        ]
+      },
+      {
+        "id": "business-treasury-custody",
+        "authority": "all player/escrow/business/storage/WIP/treasury custody and final access",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "player_inventory_escrow",
+          "business_inventory",
+          "business_storage_item",
+          "institution_treasury"
+        ],
+        "requirements": [
+          "internal-food-relief-share",
+          "food-reserve-coverage",
+          "food-stock-retention",
+          "inter-actor-final-use-chains",
+          "tool-service-capacity-retention"
+        ],
+        "gates": [
+          "complete-source-coverage",
+          "verified-internal-lineage-and-final-use"
+        ]
+      },
+      {
+        "id": "administrative-value-history",
+        "authority": "all post-genesis administrative/import/fallback value mutation producers and audit prefixes",
+        "span": "warmup-and-evaluation",
+        "tables": [
+          "integrity_event",
+          "integrity_head"
+        ],
+        "requirements": [],
+        "gates": [
+          "no-post-genesis-admin-or-fallback-value",
+          "no-external-shop-or-import-value"
+        ],
+        "gap": "An integrity journal alone cannot prove every value producer is registered and enforced."
+      },
+      {
+        "id": "external-shop-import-history",
+        "authority": "complete external shop, trade/import, reward and replenishment source universe",
+        "span": "warmup-and-evaluation",
+        "tables": [],
+        "requirements": [],
+        "gates": [
+          "no-external-shop-or-import-value",
+          "no-post-genesis-admin-or-fallback-value"
+        ],
+        "gap": "Complete producer inventory/enforcement is still required; absent imports are not a zero certificate."
+      }
+    ],
+    "requirements": [
+      {
+        "requirementId": "founders-at-start",
+        "sourceIds": [
+          "applied-genesis",
+          "original-population",
+          "native-health-deaths",
+          "native-mortality-passes",
+          "login-respawn-enforcement",
+          "clock-world-policy"
+        ]
+      },
+      {
+        "requirementId": "minimum-living-founders",
+        "sourceIds": [
+          "applied-genesis",
+          "original-population",
+          "native-health-deaths",
+          "native-mortality-passes",
+          "login-respawn-enforcement",
+          "clock-world-policy",
+          "frozen-physical-boundaries"
+        ]
+      },
+      {
+        "requirementId": "founder-survival",
+        "sourceIds": [
+          "applied-genesis",
+          "original-population",
+          "native-health-deaths",
+          "native-mortality-passes",
+          "login-respawn-enforcement",
+          "clock-world-policy"
+        ]
+      },
+      {
+        "requirementId": "hunger-satisfied-time",
+        "sourceIds": [
+          "original-population",
+          "clock-world-policy",
+          "physiology-modes",
+          "housing-rights"
+        ]
+      },
+      {
+        "requirementId": "hunger-continuous-critical-time",
+        "sourceIds": [
+          "original-population",
+          "clock-world-policy",
+          "physiology-modes",
+          "housing-rights"
+        ]
+      },
+      {
+        "requirementId": "fatigue-satisfied-time",
+        "sourceIds": [
+          "original-population",
+          "clock-world-policy",
+          "physiology-modes",
+          "housing-rights"
+        ]
+      },
+      {
+        "requirementId": "fatigue-continuous-critical-time",
+        "sourceIds": [
+          "original-population",
+          "clock-world-policy",
+          "physiology-modes",
+          "housing-rights"
+        ]
+      },
+      {
+        "requirementId": "internal-food-relief-share",
+        "sourceIds": [
+          "clock-world-policy",
+          "physiology-modes",
+          "native-food-lineage",
+          "business-treasury-custody"
+        ]
+      },
+      {
+        "requirementId": "food-reserve-coverage",
+        "sourceIds": [
+          "clock-world-policy",
+          "physiology-modes",
+          "native-food-lineage",
+          "frozen-physical-boundaries",
+          "business-treasury-custody"
+        ]
+      },
+      {
+        "requirementId": "food-stock-retention",
+        "sourceIds": [
+          "clock-world-policy",
+          "physiology-modes",
+          "native-food-lineage",
+          "frozen-physical-boundaries",
+          "business-treasury-custody"
+        ]
+      },
+      {
+        "requirementId": "legal-housing-access-time",
+        "sourceIds": [
+          "clock-world-policy",
+          "frozen-physical-boundaries",
+          "housing-rights"
+        ]
+      },
+      {
+        "requirementId": "tool-maintenance-cycles",
+        "sourceIds": [
+          "clock-world-policy",
+          "tool-lifecycle-work",
+          "tool-material-custody"
+        ]
+      },
+      {
+        "requirementId": "tool-unusable-demand-time",
+        "sourceIds": [
+          "clock-world-policy",
+          "tool-lifecycle-work",
+          "executor-native-demand"
+        ]
+      },
+      {
+        "requirementId": "tool-service-capacity-retention",
+        "sourceIds": [
+          "clock-world-policy",
+          "frozen-physical-boundaries",
+          "tool-lifecycle-work",
+          "business-treasury-custody"
+        ]
+      },
+      {
+        "requirementId": "productive-participants",
+        "sourceIds": [
+          "clock-world-policy",
+          "native-food-lineage",
+          "tool-lifecycle-work"
+        ]
+      },
+      {
+        "requirementId": "productive-stage-kinds",
+        "sourceIds": [
+          "clock-world-policy",
+          "native-food-lineage",
+          "tool-lifecycle-work"
+        ]
+      },
+      {
+        "requirementId": "inter-actor-final-use-chains",
+        "sourceIds": [
+          "clock-world-policy",
+          "physiology-modes",
+          "native-food-lineage",
+          "business-treasury-custody"
+        ]
+      }
+    ],
+    "integrity": [
+      {
+        "gateId": "applied-genesis-baseline",
+        "sourceIds": [
+          "applied-genesis",
+          "frozen-physical-boundaries"
+        ]
+      },
+      {
+        "gateId": "complete-source-coverage",
+        "sourceIds": [
+          "native-mortality-passes",
+          "clock-world-policy",
+          "physiology-modes",
+          "frozen-physical-boundaries",
+          "housing-rights",
+          "executor-native-demand",
+          "business-treasury-custody"
+        ]
+      },
+      {
+        "gateId": "finite-lifecycle-no-respawn",
+        "sourceIds": [
+          "original-population",
+          "native-health-deaths",
+          "native-mortality-passes",
+          "login-respawn-enforcement"
+        ]
+      },
+      {
+        "gateId": "frozen-founder-roster",
+        "sourceIds": [
+          "applied-genesis",
+          "original-population"
+        ]
+      },
+      {
+        "gateId": "no-external-shop-or-import-value",
+        "sourceIds": [
+          "administrative-value-history",
+          "external-shop-import-history"
+        ]
+      },
+      {
+        "gateId": "no-post-genesis-admin-or-fallback-value",
+        "sourceIds": [
+          "administrative-value-history",
+          "external-shop-import-history"
+        ]
+      },
+      {
+        "gateId": "unchanged-clock-and-world-policy",
+        "sourceIds": [
+          "clock-world-policy"
+        ]
+      },
+      {
+        "gateId": "verified-internal-lineage-and-final-use",
+        "sourceIds": [
+          "native-food-lineage",
+          "tool-lifecycle-work",
+          "tool-material-custody",
+          "business-treasury-custody"
+        ]
+      }
+    ],
+    "selectedSources": null,
+    "coverageVerdict": "inconclusive",
+    "qualifiesCoverage": false,
+    "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
+    "digest": "a09d973cd1a1b844f77f12c488ef01052d1a1e6a757f216cd5d946521bb91d89"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -629,6 +1180,10 @@
       "sha256": "922ce9a4677dfb3fa25f310e4f0e9019c25baf83972572f9578075607c7e6300"
     },
     {
+      "path": "society-minimum/source-inventory.ts",
+      "sha256": "469572d9c1f962383c89f9b6aa6a022d212f9faff2221a5a046dc6a14505b467"
+    },
+    {
       "path": "config/society-minimum-policy.json",
       "sha256": "596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a"
     },
@@ -641,20 +1196,48 @@
       "sha256": "49ac20c778a394c52b88e12bdbf148d4ad7077c2c7cb2283a11ac61000b47328"
     },
     {
+      "path": "population-lifecycle/native-coverage.ts",
+      "sha256": "c2ae0de15efa97339abd296545a43b54585d08fe8fd356c1490b8f3da2edbbeb"
+    },
+    {
+      "path": "population-lifecycle/native-observer.ts",
+      "sha256": "b25bd741ffea9d2be6ca8d229a6b58a9a47b0994ecb3f65ad7fb610227fe6eac"
+    },
+    {
+      "path": "society-metrics/mortality-coverage.ts",
+      "sha256": "43fdaacfe1c52ad620c0fe6041a699d0b3daaf6b5e3175783373c7249b8165d5"
+    },
+    {
+      "path": "server/engine/src/mods/NativeMortalityCoverageRuntime.ts",
+      "sha256": "c20bbe2b6ff6a93492e8dba9be2e6352658aa1014b55d67e7abbfa48084fa234"
+    },
+    {
+      "path": "config/population-age-policy.json",
+      "sha256": "0264ba1ca05e97ae8126acd3281629af9ab026337616056c42262d5b3456d606"
+    },
+    {
+      "path": "config/population-mortality-policy.json",
+      "sha256": "6ba1d7416ffb85a7cce21e00e9fd1e001cd8da84253a9ecd734ea115e7c3a4a7"
+    },
+    {
+      "path": "population-lifecycle/death.ts",
+      "sha256": "53f4342203512ae39ec156d91b74f1d75f45c2bf7471c591cc9b746ce6c98723"
+    },
+    {
       "path": "society-minimum/assessment.ts",
       "sha256": "7570a33f5538af7ec06670775368dabf5f9d26987bf8f90a0914a9c7b066250b"
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "896d077672c60ad8198f4b1dd28ee4e943c0d37a5b494f97af57eda1f2d756e1"
+      "sha256": "bbb9e085906857950e83cc593e06e51f675f6e55929c1aa371b38a8dee816846"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "dadc10aa0ca00c262ce4e763a444a0778582b3180d8b15092744914da42223d9"
+      "sha256": "301f4a2ab29a705366adf9fa74c4094c5e84b58f9a74f58cfc17fb0687c03ab8"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
-      "sha256": "1a6826a651e9c0d861a4332aafc11ce7a6dfbda1094ef567eb0f78f73a7ef88c"
+      "sha256": "9b07012c19559d424376c76c870fe9f28bdf6a44283917b70b4dc45798f2a278"
     },
     {
       "path": "society-metrics/needs-exposure.ts",
@@ -858,7 +1441,7 @@
     },
     {
       "path": "server/engine/src/mods/PlayerHealthEvidenceStore.ts",
-      "sha256": "866edb9efd07af369b6168a5a8ffe226d093779a9d8ef3e33fff1cfca50344fa"
+      "sha256": "78ea37aa6a8689c07bf31f1ae5ab75e858f1820087acc181429d3719e7150be7"
     },
     {
       "path": "world-genesis/run-store.ts",
@@ -898,7 +1481,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "4770c0267133f9d290d727f1e9ae1409e2de1f1f2ff16d85bae3990e58d2187f"
+      "sha256": "7770fd43d677a0b250c2d40b09184ca40a3f097168e11bb1385520e2976f7ebc"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -906,7 +1489,7 @@
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "e2b85ecf4a72c6a288a7687f7af975119ffb9d86b8f125d1464ef476f0c1a467"
+      "sha256": "f7592bb07cc0115ace42c82cec2a011a9371411dbbee53dd747cbeb81feb34bb"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -922,7 +1505,7 @@
     },
     {
       "path": "server/engine/src/engine/World.ts",
-      "sha256": "892cf6cda02e19939007891bbf8da16ad2304fd281c8b77880532ffeb36f2ef8"
+      "sha256": "8d655c2b51f88431f8d707017137bf80175846b0d5c7537142c53fcb7b9a131d"
     },
     {
       "path": "society-metrics/tool-demand-intervals.ts",
@@ -954,7 +1537,7 @@
     },
     {
       "path": "server/engine/src/mods/PopulationDeathRuntime.ts",
-      "sha256": "88d1e9789d812354bdfba5df267ef01611af3ac09e0f52bbfb4ac1aacd3eaf8f"
+      "sha256": "3bedb3ca96f3caf1d9316bfcada2ae92638ab5e52712a23fc52d584db345121f"
     },
     {
       "path": "sdk/mining-demand.ts",
@@ -1038,7 +1621,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "d1f32d283376bd558948f32e044402ccf752764bfe6660a8d342e32fb440a245"
+      "sha256": "df03305e15b7fef652a68303e50d7260408b7524d1f54d06172725a9be0422c7"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1067,5 +1650,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "5be28e4d4c99af231b3b5b5b320e41dccc2ac6ed497d8026efc975634844c56e"
+  "digest": "520ed553213f310c880f0e67d9d5f4af9ffd77feee3cc584d35706b86fd10613"
 }

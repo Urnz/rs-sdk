@@ -13,6 +13,10 @@ import { admitNaturalPopulationDeaths } from '../../server/engine/src/mods/Popul
 import { applyHealthAuditedDamage } from '../../server/engine/src/mods/PlayerHealthDamage.js';
 import { assertLocalAvatarCanAct, reconcilePopulationDeaths } from '../../server/gateway/admin/population-death-runtime.js';
 import { listAdminAgents } from '../../server/gateway/admin/agent-state.js';
+import { OwnedDatabase } from '../../server/engine/src/io/OwnedDatabase.js';
+import { NativeMortalityCoverageStore,nativeMortalityActor } from '../native-coverage.js';
+import { recordNativeMortalityPass } from '../native-observer.js';
+import { randomUUID } from 'node:crypto';
 
 const config = join(import.meta.dir, '../../config');
 const { digest: _ageDigest, ...ageDefinition } = loadPopulationAgePolicy(join(config, 'population-age-policy.json'));
@@ -55,9 +59,18 @@ describe('authoritative terminal population death', () => {
         expect(admitNaturalPopulationDeaths(local.agents, local.observe(), local.source, age, mortality)).toBe(0);
         expect(() => createPopulationDeathEvidence(local.agents.getPopulationMember('alice')!, local.observe(), age, mortality)).toThrow('not due');
         const lifespan = local.agents.getPopulationMortality('alice', age, mortality)!.traits.naturalLifespanSimulationMilliseconds;
+        const checkpoint=new OwnedDatabase(':memory:'),member=local.agents.getPopulationMember('alice')!,actor=nativeMortalityActor(member),
+            journal=new NativeMortalityCoverageStore(checkpoint,{schemaVersion:1,selectionId:randomUUID(),worldId:'private-fixture',clockId:'world',
+                clockProfileDigest:member.simulationClock.profileDigest,fromSimulationTime:initial,toSimulationTime:new Date(Date.parse(initial)+lifespan+10000).toISOString(),
+                maximumSimulationGapMs:1000,maximumWallGapMs:1000,actors:[actor],agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,
+                survivalSelectionDigest:null,openingHealthHeads:local.source.coverageHeads()});
         const observation = local.observe(lifespan + 10000);
         expect(admitNaturalPopulationDeaths(local.agents, observation, local.source, age, mortality)).toBe(1);
         expect(admitNaturalPopulationDeaths(local.agents, observation, local.source, age, mortality)).toBe(0);
+        try{recordNativeMortalityPass(checkpoint,'private-fixture','fixture-session',observation,local.agents.listPopulationMembers(),local.source,age.digest,mortality.digest,null);
+            const sample=journal.read().entries[0]!.sample;expect(sample.actors[0]).toMatchObject({actorId:'alice',state:'terminal'});
+            expect(sample.actors[0]!.deathEventId).toBe(local.source.deathFor('alice')!.eventId);expect(sample.healthHeads.death.sequence).toBe(1);
+        }finally{checkpoint.close(true);}
         expect(local.agents.getCharacterLifecycle('alice')!.status).toBe('active');
         expect(reconcilePopulationDeaths(local.agents, local.sourcePath, age, mortality)).toBe(1);
         const event = local.agents.getPopulationDeath('alice')!;
@@ -187,7 +200,9 @@ describe('authoritative terminal population death', () => {
     test('v22 AgentState and v1 engine upgrade add empty death history and preserve existing state/evidence', () => {
         const local = fixture(); local.source.record({ ...local.damage, hpAfter: 5 }, damageId);
         const database = new Database(local.statePath);
-        // Recreate the actual v22 shape, including absence of the later memory-archive schema.
+        // Recreate the actual v22 shape, including every subsequently added v23-v29 table.
+        for(const table of ['agent_economic_action','agent_institution_strategy','agent_player_strategy',
+            'agent_plan_adoption','agent_state_evaluation','agent_state_objective'])database.run(`DROP TABLE ${table}`);
         for(const row of database.query("SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'memory_%'").all() as Array<{name:string}>) database.run(`DROP TRIGGER ${row.name}`);
         for(const table of ['agent_memory_transfer','agent_population_memory_archive','agent_memory_audit','agent_memory_audit_tail'])database.run(`DROP TABLE ${table}`);
         database.run('DROP TABLE agent_population_entry');

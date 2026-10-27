@@ -148,6 +148,14 @@ export class PlayerHealthEvidenceStore {
         return this.database.query('SELECT agent_id,identity_digest FROM engine_population_binding WHERE username=?1')
             .get(username.toLowerCase()) as { agent_id: string; identity_digest: string } | null;
     }
+    /** Readonly anchors for a completed mortality-pass witness; this does not certify continuous coverage. */
+    coverageHeads():import('../../../../population-lifecycle/native-coverage.js').MortalityHealthHeads {
+        this.verify();if(this.schemaVersion!==2)throw Error('Mortality witness requires native health schema2');
+        const result={} as import('../../../../population-lifecycle/native-coverage.js').MortalityHealthHeads;
+        for(const domain of ['damage','death','binding'] as const){const row=this.database.query('SELECT sequence,entry_hash FROM engine_health_audit_tail WHERE domain=?').get(domain) as {sequence:number;entry_hash:string}|null;
+            if(!row)throw Error('Mortality health anchor missing');result[domain]={sequence:row.sequence,digest:row.entry_hash};}
+        return result;
+    }
     bindFiniteAvatar(member: AgentPopulationMember): void {
         if (this.readOnly) throw new Error('Only engine can persist finite avatar bindings');
         const identity = healthDigest({ agentId: member.agentId, username: member.playerUsername, worldProfile: member.worldProfile,

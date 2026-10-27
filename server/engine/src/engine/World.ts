@@ -6,6 +6,7 @@ import { recordPlayerHealthHeartbeat } from '#/mods/PlayerHealthEvidenceStore.js
 import { closeNativeFoodTick } from '#/mods/NativeFoodDeliveryRuntime.js';
 import { recordNativeFoodOpening } from '#/mods/NativeFoodOpening.js';
 import { tickPopulationDeaths, populationAvatarRestricted, populationAvatarIsFinite } from '#/mods/PopulationDeathRuntime.js';
+import { tickNativeMortalityCoverage } from '#/mods/NativeMortalityCoverageRuntime.js';
 import { executeCheckpointDetection, executeCheckpointSearch, loadEngineCheckpointConfiguration,
     type CheckpointDetectionCommand, type CheckpointSearchCommand } from '#/mods/CheckpointInspection.js';
 import { getCheckpointEvidenceStore, type EngineCheckpointDetectionRecord,
@@ -691,7 +692,7 @@ class World {
             this.nextTick = Math.max(this.nextTick, start - this.tickRate * 2);
             const drift: number = Math.max(0, start - this.nextTick);
 
-            try { tickPopulationDeaths(this.currentTick); }
+            try { tickPopulationDeaths(this.currentTick); tickNativeMortalityCoverage(this.currentTick); }
             catch (error) { console.error('Population death authority unavailable:', error); }
             for (const player of this.playerLoop.all()) {
                 try { player.populationFinite = populationAvatarIsFinite(player.username);

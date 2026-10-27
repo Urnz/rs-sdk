@@ -11,6 +11,11 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     const report=await inspectMinimumRunPreparation(root,fixture);
     expect(report.readerCoverage).toHaveLength(17);expect(report.requiredIntegrityGates).toHaveLength(8);
     expect(report.minimumSourceMap.requirements).toHaveLength(17);expect(report.minimumSourceMap.integrity).toHaveLength(8);
+    expect(report.requiredSourceInventory.requirements).toHaveLength(17);expect(report.requiredSourceInventory.integrity).toHaveLength(8);
+    expect(report.requiredSourceInventory.qualifiesCoverage).toBeFalse();expect(report.requiredSourceInventory.selectedSources).toBeNull();
+    expect(report.requiredSourceInventory.requirements.every(r=>r.sourceIds.length>0)).toBeTrue();
+    expect(report.requiredSourceInventory.integrity.every(r=>r.sourceIds.length>0)).toBeTrue();
+    expect(report.requiredSourceInventory.definitions.find(d=>d.id==='login-respawn-enforcement')!.gap).toContain('No complete');
     expect(report.readerCoverage.filter(r=>r.status==='minimum-lower-bound-adapter')).toHaveLength(3);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-maintenance-origin-adapter')).toHaveLength(1);
     expect(report.readerCoverage.filter(r=>r.status==='minimum-population-bound-adapter')).toHaveLength(3);

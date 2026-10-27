@@ -1,0 +1,38 @@
+import type { SocietyMinimumContract } from './contract.js';
+import { societyMinimumDigest as digest } from './policy.js';
+
+/** Definition-owned required evidence universe. Storage presence, a snapshot or this catalog itself never attests coverage. */
+export function minimumSourceInventory(contract:SocietyMinimumContract){
+    const all=contract.requirements.map(r=>r.requirementId),population=['founders-at-start','minimum-living-founders','founder-survival'],
+        needs=['hunger-satisfied-time','fatigue-satisfied-time','hunger-continuous-critical-time','fatigue-continuous-critical-time'],
+        food=['internal-food-relief-share','food-reserve-coverage','food-stock-retention','inter-actor-final-use-chains'],
+        tools=['tool-maintenance-cycles','tool-unusable-demand-time','tool-service-capacity-retention'],labor=['productive-participants','productive-stage-kinds'];
+    const definitions:Array<{id:string;authority:string;span:string;tables:string[];requirements:string[];gates:string[];gap?:string}>=[
+        {id:'applied-genesis',authority:'applied result plus native opening/bootstrap anchor',span:'applied-opening',tables:['world_genesis_application','integrity_run'],requirements:population,gates:['applied-genesis-baseline','frozen-founder-roster']},
+        {id:'original-population',authority:'immutable genesis membership, lifecycle and finite-avatar binding',span:'warmup-and-evaluation',tables:['agent_population_member','agent_character_lifecycle','engine_population_binding'],requirements:[...population,...needs],gates:['frozen-founder-roster','finite-lifecycle-no-respawn']},
+        {id:'native-health-deaths',authority:'native HP/death audit with anchored prefixes',span:'warmup-and-evaluation',tables:['engine_health_damage','engine_population_death','engine_health_audit_tail'],requirements:population,gates:['finite-lifecycle-no-respawn']},
+        {id:'native-mortality-passes',authority:'prospective every-tick original-roster natural/starvation passes, offline included',span:'every-native-tick',tables:['native_mortality_selection','native_mortality_event','native_mortality_head'],requirements:population,gates:['complete-source-coverage','finite-lifecycle-no-respawn']},
+        {id:'login-respawn-enforcement',authority:'complete native login/load/respawn attempts and terminal rejection history',span:'warmup-and-evaluation',tables:[],requirements:population,gates:['finite-lifecycle-no-respawn'],gap:'No complete native login/load/respawn history adapter yet; mortality-pass coverage cannot replace it.'},
+        {id:'clock-world-policy',authority:'clock/profile segments and pinned build/config/mod policy history',span:'warmup-and-evaluation',tables:['simulation_clock','simulation_event_stamp'],requirements:all,gates:['unchanged-clock-and-world-policy','complete-source-coverage']},
+        {id:'physiology-modes',authority:'original needs admission, audit, mode cursors and native nutrition watermark',span:'warmup-and-evaluation',tables:['needs_state','needs_event','simulation_player_time_history','native_food_consumption_event'],requirements:[...needs,...food],gates:['complete-source-coverage']},
+        {id:'native-food-lineage',authority:'actual gather/process/trade/final-use ancestry and native deliveries',span:'warmup-and-evaluation',tables:['native_food_lineage','native_food_actions','native_food_delivery'],requirements:[...food,...labor],gates:['verified-internal-lineage-and-final-use']},
+        {id:'frozen-physical-boundaries',authority:'complete exact-clock inventory of paused physical, physiology, finite health, property and custody snapshots',span:'every-native-boundary',tables:['accounts','simulation_clock','needs_state','engine_population_binding'],requirements:['minimum-living-founders','food-reserve-coverage','food-stock-retention','tool-service-capacity-retention','legal-housing-access-time'],gates:['applied-genesis-baseline','complete-source-coverage']},
+        {id:'housing-rights',authority:'versioned Property/tenancy/paid escrow and capacity history, including expiry and sleep witness',span:'warmup-and-evaluation',tables:['housing_tenancy','housing_tenancy_audit','housing_rent_payment'],requirements:['legal-housing-access-time',...needs],gates:['complete-source-coverage']},
+        {id:'tool-lifecycle-work',authority:'native instance/revision/use/repair/replacement effects and exact worker WIP',span:'warmup-and-evaluation',tables:['item_lifecycle_audit','native_tool_event','native_tool_work','native_tool_work_audit'],requirements:[...tools,...labor],gates:['verified-internal-lineage-and-final-use']},
+        {id:'tool-material-custody',authority:'prospective single-spend actual ore/bar lot ancestry and native escrow consumption',span:'warmup-and-evaluation',tables:['native_material_event','native_material_lot','native_material_head','player_inventory_escrow_audit'],requirements:['tool-maintenance-cycles'],gates:['verified-internal-lineage-and-final-use']},
+        {id:'executor-native-demand',authority:'prospective executor requests, native invocation/attempt/intent and whole-cohort watermarks',span:'warmup-and-evaluation',tables:['native_mining_request_event','native_mining_intent_audit','native_mining_coverage_event'],requirements:['tool-unusable-demand-time'],gates:['complete-source-coverage']},
+        {id:'business-treasury-custody',authority:'all player/escrow/business/storage/WIP/treasury custody and final access',span:'warmup-and-evaluation',tables:['player_inventory_escrow','business_inventory','business_storage_item','institution_treasury'],requirements:[...food,'tool-service-capacity-retention'],gates:['complete-source-coverage','verified-internal-lineage-and-final-use']},
+        {id:'administrative-value-history',authority:'all post-genesis administrative/import/fallback value mutation producers and audit prefixes',span:'warmup-and-evaluation',tables:['integrity_event','integrity_head'],requirements:[],gates:['no-post-genesis-admin-or-fallback-value','no-external-shop-or-import-value'],gap:'An integrity journal alone cannot prove every value producer is registered and enforced.'},
+        {id:'external-shop-import-history',authority:'complete external shop, trade/import, reward and replenishment source universe',span:'warmup-and-evaluation',tables:[],requirements:[],gates:['no-external-shop-or-import-value','no-post-genesis-admin-or-fallback-value'],gap:'Complete producer inventory/enforcement is still required; absent imports are not a zero certificate.'}
+    ];
+    if(new Set(definitions.map(d=>d.id)).size!==definitions.length||all.some(id=>!definitions.some(d=>d.requirements.includes(id)))
+        ||contract.policy.integrityGates.some(id=>!definitions.some(d=>d.gates.includes(id)))
+        ||definitions.some(d=>d.requirements.some(id=>!all.includes(id))||d.gates.some(id=>!(contract.policy.integrityGates as readonly string[]).includes(id))))
+        throw Error('Minimum source inventory differs from original requirements/gates');
+    const body={protocol:'society-minimum-source-inventory-v1',contractDigest:contract.digest,definitions,
+        requirements:all.map(requirementId=>({requirementId,sourceIds:definitions.filter(d=>d.requirements.includes(requirementId)).map(d=>d.id)})),
+        integrity:contract.policy.integrityGates.map(gateId=>({gateId,sourceIds:definitions.filter(d=>d.gates.includes(gateId)).map(d=>d.id)})),
+        selectedSources:null,coverageVerdict:'inconclusive',qualifiesCoverage:false,
+        meaning:'Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.'};
+    return{...body,digest:digest(body)};
+}

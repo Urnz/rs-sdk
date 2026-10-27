@@ -14,7 +14,22 @@ import { NativeMiningDispatchStore } from '../../item-lifecycle/native-mining-di
 import { NativeMiningRequestStore } from '../../item-lifecycle/native-mining-requests.js';
 import { installMiningExecutorSource } from '../../agent-skills/mining-request-source.js';
 import { NativeMaterialStore } from '../../production-workflow/native-material.js';
+import { NativeMortalityCoverageStore } from '../../population-lifecycle/native-coverage.js';
 import { OwnedDatabase } from '../../server/engine/src/io/OwnedDatabase.js';
+
+test('selected native mortality observation schema is pinned and restored; invalid head prevents a new baseline',()=>{
+    const f=expandedFixture(),db=new OwnedDatabase(join(f.root,f.checkpoint)),zero={sequence:0,digest:'0'.repeat(64)};
+    try{new NativeMortalityCoverageStore(db,{schemaVersion:1,selectionId:randomUUID(),worldId:f.selected.worldId,clockId:f.selected.clockId,
+        clockProfileDigest:f.selected.clockProfileDigest,fromSimulationTime:'2001-01-01T00:00:00.000Z',toSimulationTime:'2001-01-02T00:00:00.000Z',
+        maximumSimulationGapMs:1000,maximumWallGapMs:1000,agePolicyDigest:'a'.repeat(64),mortalityPolicyDigest:'b'.repeat(64),survivalSelectionDigest:null,
+        actors:[{actorId:'worker',username:'worker',lifecycleId:'a'.repeat(64),membershipDigest:'b'.repeat(64)}],openingHealthHeads:{damage:zero,death:zero,binding:zero}});
+    }finally{db.close(true);}
+    f.selected.stores.find(s=>s.role==='checkpoint')!.requiredTables.push('native_mortality_schema','native_mortality_selection','native_mortality_event','native_mortality_head');
+    const pin=prepareExpandedBaseline(f.root,f.selected);captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});restoreExpandedArchive(f.bundle,f.output);
+    const read=new OwnedDatabase(join(f.output,'workspace',f.checkpoint),{readonly:true});try{expect(new NativeMortalityCoverageStore(read).read().entries).toEqual([]);}finally{read.close(true);}
+    const changed=new OwnedDatabase(join(f.root,f.checkpoint));try{changed.run('UPDATE native_mortality_head SET sequence=1');}finally{changed.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('head');
+});
 
 test('explicit prospective material journal is pinned and restored; corrupted head prevents a new baseline',()=>{
     const f=expandedFixture(),db=new OwnedDatabase(join(f.root,f.checkpoint));

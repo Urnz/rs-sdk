@@ -80,3 +80,9 @@ mellett teljes mechanikai ciklushoz pozitív internal cycle lower bound járhat.
 Másolt/kevert/ismeretlen vagy nem holdolt újratöltött anyag és replacement
 unproven. Következő a teljes source-coverage integrity forrásjegyzéke és
 folyamatos mortality/enforcement.6 csomag maradt, a2. nyitott,27/45, NO-GO.
+
+2026-10-27-i további rész: [16 forráscsalád és mortality-pass coverage](SI_C07_MORTALITY_COVERAGE.md)
+bekötött, az eredeti17/8 forrás- és időbeli kötelezettségeivel. SelectedSources
+még null, teljes login/load/respawn és8 integrity továbbra hiányos. Következő
+a natív belépési/újratöltési/respawn próbálkozások és terminal elutasítások naplója.
+6 csomag maradt, a2. nyitott,27/45, SI-C07 NO-GO.

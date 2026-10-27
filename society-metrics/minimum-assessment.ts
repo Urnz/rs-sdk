@@ -9,6 +9,7 @@ import { needsExposureCells } from './needs-exposure.js';
 import { foodMinimumCells,type FoodActorContext } from './food-minimum.js';
 import { housingExposureCells } from './housing-minimum.js';
 import { toolCapacityCells } from './tool-capacity.js';
+import { minimumSourceInventory } from '../society-minimum/source-inventory.js';
 
 /** Internal projection from the existing verified native readers; never an uploaded observation endpoint. */
 export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,scope:EvaluationScope,
@@ -202,7 +203,7 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         nativeScopeStatus:!outcomes?'unavailable':nativeScopeMatches?'matched':'mismatch',
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
         integrity:sourceMap.integrity.map(g=>({...g,verdict:'inconclusive' as const})),assessment,
-        diagnosticViolations,
+        diagnosticViolations,requiredSourceInventory:minimumSourceInventory(contract),
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
         sources:{work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
             toolMaintenance:nativeScopeMatches&&outcomes?.sources.toolMaintenance?.status==='available'
@@ -213,6 +214,9 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             toolCapacity:{status:capacityStatus,...(capacityStatus==='available'?{digest:integration!.minimumToolCapacity.digest}:{})},
             populationBaseline:population?.status==='available'?{status:'available',digest:population.digest}:{status:population?.status??'unavailable'},
             populationDeaths:deaths?.status==='available'?{status:'available',digest:deaths.digest}:{status:deaths?.status??'unavailable'},
+            mortalityCoverage:nativeScopeMatches&&outcomes?.sources.mortalityCoverage?.status==='available'
+                ?{status:'available',digest:outcomes.sources.mortalityCoverage.digest,completeMortalityTickCoverage:outcomes.sources.mortalityCoverage.value.completeMortalityTickCoverage,
+                    completeLifecycleEnforcement:false}:{status:nativeScopeMatches?outcomes?.sources.mortalityCoverage?.status??'unavailable':'unavailable'},
             toolDemand:tool?.status==='available'?{status:'available',digest:tool.digest}:{status:tool?.status??'unavailable'}},
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',

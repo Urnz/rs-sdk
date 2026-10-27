@@ -1,8 +1,8 @@
 import { afterEach,expect,test } from 'bun:test';
-import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync,copyFileSync } from 'node:fs';
+import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync,copyFileSync,writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash,randomUUID } from 'node:crypto';
 import { OwnedDatabase } from '../../server/engine/src/io/OwnedDatabase.js';
 import { AgentStateStore } from '../../agent-state/store.js';
 import { SimulationClockStore } from '../../simulation-clock/store.js';
@@ -45,6 +45,10 @@ import { NativeToolStore,nativeToolDigest,nativeToolCatalog,nativeToolCycles } f
 import { ItemRepairService,loadItemRepairPolicyCatalog } from '../../item-lifecycle/repair-policy.js';
 import { validateCompetenceSnapshot } from '../../character-attributes/index.js';
 import { readNativeToolCapacityBoundary } from '../tool-capacity.js';
+import { NativeMortalityCoverageStore,nativeMortalityActor,type MortalityCoverageSelection } from '../../population-lifecycle/native-coverage.js';
+import { recordNativeMortalityPass } from '../../population-lifecycle/native-observer.js';
+import { admitNaturalPopulationDeaths } from '../../server/engine/src/mods/PopulationDeathRuntime.js';
+import { readNativeMortalityCoverage } from '../mortality-coverage.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -90,6 +94,56 @@ function fixture(){
     return{root,scope,options,agentPath,healthPath,genesisPath,integrityPath,clockPath,kill,outcomes,report,hashes};
 }
 const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.assessment!.requirements.find(v=>v.requirementId===id)!;
+
+function mortalityFixture(){
+    const f=fixture(),checkpointPath=join(f.root,'server/engine/data/mortality.sqlite');mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
+    f.options.checkpointPath=checkpointPath;const db=new OwnedDatabase(checkpointPath),health=new PlayerHealthEvidenceStore(f.healthPath),
+        clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,{store:clock,clockId:'world'});
+    for(const m of agents.listPopulationMembers())agents.setCharacterBirth(m.agentId,m.characterLifecycle.revision,initial,'born',wall);
+    const members=agents.listPopulationMembers(),
+        actors=members.map(nativeMortalityActor),scope={...f.scope,fromSimulationTime:initial,toSimulationTime:'2001-01-01T00:00:01.200Z'},
+        selection:MortalityCoverageSelection={schemaVersion:1,selectionId:randomUUID(),worldId:'fixture',clockId:'world',clockProfileDigest:f.scope.clockProfileDigest,
+            fromSimulationTime:initial,toSimulationTime:scope.toSimulationTime,maximumSimulationGapMs:1200,maximumWallGapMs:1200,agePolicyDigest:age.digest,
+            mortalityPolicyDigest:mortality.digest,survivalSelectionDigest:null,actors,openingHealthHeads:health.coverageHeads()},store=new NativeMortalityCoverageStore(db,selection);
+    const sample=(n:number,session='fixture-session',subset=members)=>{const c=clock.observe('world',new Date(Date.parse(wall)+n*600).toISOString(),n);
+        admitNaturalPopulationDeaths(agents,c,health,age,mortality);recordNativeMortalityPass(db,'fixture',session,c,subset,health,age.digest,mortality.digest,null);};
+    return{...f,db,health,agents,clock,store,actors,scope,sample,selection,read:()=>readNativeMortalityCoverage(db,scope,f.options,initial,actors),
+        close(){agents.close();health.close();clock.close();db.close(true);}};
+}
+test('prospective mortality observes all original offline members through actual native passes and rereads a frozen checkpoint without writes',()=>{
+    const f=mortalityFixture();try{f.sample(0);f.sample(1);f.sample(2);const before=f.db.serialize(),r=f.read();
+        expect(r.completeMortalityTickCoverage).toBeTrue();expect(r.completeLifecycleEnforcement).toBeFalse();expect(r.sampleCount).toBe(3);expect(r.gaps).toEqual([]);
+        expect(f.db.serialize()).toEqual(before);const path=join(f.root,'server/engine/data/mortality-offline.sqlite');writeFileSync(path,before);
+        const offline=new OwnedDatabase(path,{readonly:true});try{expect(readNativeMortalityCoverage(offline,f.scope,f.options,initial,f.actors)).toEqual(r);}finally{offline.close(true);}
+        const outcomes=reportNativeOutcomes(f.scope,f.options);expect(outcomes.sources.mortalityCoverage.status).toBe('available');
+        if(outcomes.sources.mortalityCoverage.status==='available')expect(outcomes.sources.mortalityCoverage.value.completeMortalityTickCoverage).toBeTrue();
+        expect(f.report().integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();
+    }finally{f.close();}
+});
+test('prospective mortality never bridges missing ticks, restart, lost roster, failed writes or a mismatched original cohort',()=>{
+    for(const variant of ['missing','restart','roster','write','cohort','birth']){const f=mortalityFixture();try{
+        f.sample(0);
+        if(variant==='write')f.db.run("CREATE TRIGGER fail_mortality BEFORE INSERT ON native_mortality_event BEGIN SELECT RAISE(ABORT,'injected');END");
+        const noBirth=f.agents.listPopulationMembers().map(m=>({...m,characterLifecycle:{...m.characterLifecycle,birthAtSimulationTime:null}}));
+        if(variant!=='missing')f.sample(1,variant==='restart'?'other':'fixture-session',variant==='roster'?[]:variant==='birth'?noBirth:undefined);
+        if(variant==='write')f.db.run('DROP TRIGGER fail_mortality');f.sample(2);
+        const r=variant==='cohort'?readNativeMortalityCoverage(f.db,f.scope,f.options,initial,[{...f.actors[0]!,lifecycleId:'f'.repeat(64)},...f.actors.slice(1)]):f.read();
+        expect(r.completeMortalityTickCoverage).toBeFalse();expect(r.completeLifecycleEnforcement).toBeFalse();expect(r.gaps.length).toBeGreaterThan(0);
+    }finally{f.close();}}
+});
+
+test('prospective mortality own schema/selection/audit reopen and rollback stay independent of shared user_version; gaps never erase a native founder death',()=>{
+    const f=mortalityFixture();try{f.db.run('PRAGMA user_version=42');f.sample(0);f.sample(1);f.sample(2);
+        new NativeMortalityCoverageStore(f.db,f.selection);expect(f.db.query('PRAGMA user_version').get()).toEqual({user_version:42});
+        const before=f.db.serialize(),entry=f.store.read().entries.at(-1)!.sample;
+        expect(()=>f.db.transaction(()=>{f.store.append({...entry,clock:{...entry.clock,engineTick:3}});throw Error('rollback');}).immediate()).toThrow('rollback');
+        expect(f.db.serialize()).toEqual(before);expect(()=>new NativeMortalityCoverageStore(f.db,{...f.selection,worldId:'other'})).toThrow('differs');
+        expect(()=>f.db.run('DELETE FROM native_mortality_event WHERE sequence=2')).toThrow('immutable');
+        f.db.run('DROP TRIGGER mortality_event_no_delete');f.db.run('DELETE FROM native_mortality_event WHERE sequence=2');expect(f.read).toThrow('chain');
+        f.kill('2001-01-03T00:00:00.000Z');expect(f.report().verdict).toBe('fail');
+        expect(f.report().integrity.every(g=>g.verdict==='inconclusive')).toBeTrue();
+    }finally{f.close();}
+});
 
 test('only prospective internal maintenance with the original founder/genesis and exact scope earns a cycle lower bound',()=>{
     const f=fixture(),base=f.outcomes(),candidate={operationId:'repair-ada',cycleId:'bronze-pickaxe-mining',actorAgentId:'ada',at:'2001-01-03T00:00:00.000Z',

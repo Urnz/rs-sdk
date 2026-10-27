@@ -219,3 +219,10 @@ igazolja az actual érc→smelt→bar→repair inputláncot. Legacy/copied/mixed
 unheld inputból nincs eredetcredit. A teljes natív ciklus original-genesis kötés
 mellett lower bound lehet; teljes source/enforcement/integrity és konkrét baseline
 még hiányos. NO-GO,6 csomag maradt, a2. nyitott, nincs live install vagy run.
+
+2026-10-27-i további rész: [forráscsalád-jegyzék és native mortality tick](SI_C07_MORTALITY_COVERAGE.md).
+16 család az eredeti17 requirement/8 gate időbeli kötelezettségével; konkrét
+source pin nélkül nem coverage PASS. Original roster/health prefixhez kötött,
+offline tagokat is vizsgáló native pass journal, gapeket nem áthidaló readonly
+reader. Teljes login/load/respawn enforcement és8 integrity még kell;6 csomag
+maradt, a2. nyitott, NO-GO. Nincs új run/install/baseline/providerköltség.

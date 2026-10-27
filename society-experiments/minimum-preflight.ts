@@ -7,6 +7,7 @@ import { compileSurvivalProfile } from '../needs/survival.js';
 import { validateIntegrationFixture,type IntegrationFixture } from '../society-integration/fixture.js';
 import { preflightIntegrationDefinition } from '../society-integration/bootstrap.js';
 import { minimumSourceMap } from '../society-minimum/source-map.js';
+import { minimumSourceInventory } from '../society-minimum/source-inventory.js';
 const APPROVED_MINIMUM_SOURCE_SHA256='596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a';
 const sourceHash=(root:string,path:string)=>createHash('sha256').update(readFileSync(join(root,path),'utf8').replace(/\r\n?/g,'\n')).digest('hex');
 
@@ -52,7 +53,10 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         {id:'native-regression',status:'unverified',reason:'Exact SI-A14 regression belongs after the cheap NO-GO blockers are resolved, before an approved long run.'},
         {id:'run-approval-and-budget',status:'unapproved',reason:'No new long-run/provider authority; B06 permission is scoped to its earlier trial.'}
     ];
-    const sourcePaths=['society-minimum/contract.ts','config/society-minimum-policy.json','config/survival-rules.json','needs/survival.ts',
+    const sourcePaths=['society-minimum/contract.ts','society-minimum/source-inventory.ts','config/society-minimum-policy.json','config/survival-rules.json','needs/survival.ts',
+        'population-lifecycle/native-coverage.ts','population-lifecycle/native-observer.ts','society-metrics/mortality-coverage.ts',
+        'server/engine/src/mods/NativeMortalityCoverageRuntime.ts',
+        'config/population-age-policy.json','config/population-mortality-policy.json','population-lifecycle/death.ts',
         'society-minimum/assessment.ts','society-minimum/source-map.ts','society-metrics/minimum-assessment.ts','society-metrics/population-outcomes.ts',
         'society-metrics/needs-exposure.ts','needs/store.ts','needs/dynamics.ts','needs/profile.ts','food-loop/native-consumption-store.ts','simulation-clock/store.ts',
         'society-metrics/food-minimum.ts','society-metrics/food-boundaries.ts','society-metrics/integration-sources.ts','server/gateway/admin/save-reader.ts',
@@ -98,7 +102,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
             stopConditions:['Source/profile/contract drift','Native source gap or absent required denominator','Clock-rate validation failure',
                 'Native uncertainty, unauthorized value or external import','Timeout, cost/request cap, authority expiry or operator stop',
                 'Founder death or proven original minimum violation; retain FAIL evidence, do not lower thresholds']},
-        minimumSourceMap:minimumSources,
+        minimumSourceMap:minimumSources,requiredSourceInventory:minimumSourceInventory(contract),
         supplyEnvelope:{maximumFinitePortions:capacity,nominalEightDayPortions:nominalPortions,nominalClosingReserve:closingReserve,
             optimisticNoBurnHeadroom:headroom,notAnAssessment:true},readerCoverage,gates,sources,
         nextActions:['Complete the native minimum assessment and missing demand/access history before requesting a run.',

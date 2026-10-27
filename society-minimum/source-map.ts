@@ -23,7 +23,7 @@ const gates:Record<string,string>={
     'applied-genesis-baseline':'Applied result, exact native opening state and genesis identity.',
     'complete-source-coverage':'Every required denominator, source head, native boundary and complete request history.',
     'unchanged-clock-and-world-policy':'Pinned world build/mod/config/clock history over warmup and evaluation.',
-    'finite-lifecycle-no-respawn':'Bound finite lifecycles and complete death/respawn enforcement history.',
+    'finite-lifecycle-no-respawn':'Bound finite lifecycles and prospective native mortality-pass coverage, plus complete login/load/respawn enforcement history; tick passes alone are insufficient.',
     'no-post-genesis-admin-or-fallback-value':'Complete administrative/value mutation history after genesis, including warmup.',
     'no-external-shop-or-import-value':'Complete source history for imports, external shop value and fallback replenishment.',
     'frozen-founder-roster':'The original applied founders, without silently replacing missing or dead members.',
