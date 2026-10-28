@@ -12,6 +12,17 @@ import NullClientSocket from '../server/NullClientSocket.js';
 import PlayerOps from '../engine/script/handlers/PlayerOps.js';
 import { ScriptOpcode } from '../engine/script/ScriptOpcode.js';
 import { applyHealthAuditedDamage } from './PlayerHealthDamage.js';
+import {SocietyIntegrityStore} from '../../../../society-integrity/store.js';
+import {withSocietyIntegrityBoundary} from '../../../../society-integrity/runtime.js';
+import {integrityCoverageCursor} from '../../../../society-integrity/coverage.js';
+import {buildWorldGenesisResult} from '../../../../world-genesis/result.js';
+import {loadWorldGenesisProfileCatalog} from '../../../../world-genesis/config.js';
+import ClientCheatHandler from '../network/game/client/handler/ClientCheatHandler.js';
+import ClientCheat from '../network/game/client/model/ClientCheat.js';
+import Environment from '../util/Environment.js';
+import NpcType from '../cache/config/NpcType.js';
+import LocType from '../cache/config/LocType.js';
+import VarPlayerType from '../cache/config/VarPlayerType.js';
 import Packet from '../io/Packet.js';
 import ScriptRunner from '../engine/script/ScriptRunner.js';
 import ScriptProvider from '../engine/script/ScriptProvider.js';
@@ -102,7 +113,7 @@ test('SI-C07 actual World.reload observes the loaded packed identity and preserv
 test('SI-C07 actual World policy observation retains a clock change after census context loss without changing gameplay or the clock',()=>{
     const f=fixture();f.watermarks();const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..')),opening=f.policySnapshot(),
         store=new NativeLifecyclePolicyStore(f.db,{manifest,opening}),policy=()=>({position:f.c,worldId:'fixture',snapshot:f.policySnapshot()}),
-        ports={...f.ports,policy,bootManifest:manifest},before=f.player.save(false),clockBefore=f.clock.get('world');
+        ports={...f.ports,policy,bootManifest:manifest,administrativeValue(){throw Error('value audit unavailable');}},before=f.player.save(false),clockBefore=f.clock.get('world');
     const mods=getActiveWorldModPolicy();expect(getActiveWorldModPolicy()).toEqual(mods);
     withNativeLifecycleObservation(ports,()=>World['observePopulationLifecycle']('after-terminal-guard'));
     expect(f.clock.get('world')).toEqual(clockBefore);
@@ -181,6 +192,33 @@ test.each([ScriptOpcode.STAT_ADD,ScriptOpcode.STAT_SUB,ScriptOpcode.STAT_DRAIN])
     change(50);expect(player.levels[PlayerStat.HITPOINTS]).toBe(0);expect(player.populationTerminal).toBeTrue();expect(f.health.deathFor('alice')!.cause.kind).toBe('engine-hp-zero');expect(calls).toBe(3);
     expect(f.run(()=>observeNativePopulationLogin(player,100,f.guard))).toBe('blocked');
     const result=f.run(()=>player.runScript(ScriptRunner.init(script,player)));expect(result).toBe(ScriptState.ABORTED);expect(player.levels[PlayerStat.HITPOINTS]).toBe(0);
+});
+
+test('SI-C07 actual admin variable/spawn and fallback boundaries advance the integrity seal while a read-only cheat does not',()=>{
+    const f=fixture();f.watermarks();const path=join(f.root,'integrity.sqlite'),store=new SocietyIntegrityStore(path);closers.push(()=>store.close());
+    const profile=loadWorldGenesisProfileCatalog(join(import.meta.dir,'../../../../config/world-genesis-profiles.json')).profiles.find(p=>p.profileId==='mature-society')!,
+        result=buildWorldGenesisResult({schemaVersion:1,seed:'native-admin',profile:{profileId:profile.profileId,version:profile.version,digest:profile.digest},worldBuild:'native-fixture',
+            simulationClock:{clockId:f.c.clockId,profileDigest:f.c.profileDigest,initialSimulationTime:f.c.simulationTime},parameters:{}},{assets:[]},f.c.wallTime);
+    store.begin(result,true);store.finishBootstrap(result.resultId);
+    const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..')),opening=f.policySnapshot(),policy=new NativeLifecyclePolicyStore(f.db,{manifest,opening}),
+        ports={...f.ports,bootManifest:manifest,policy:()=>({position:f.c,worldId:'fixture',snapshot:f.policySnapshot()}),administrativeValue:()=>integrityCoverageCursor(store.coverageSnapshot(result.resultId))},
+        boundary={path,observe:()=>({clockId:f.c.clockId,profileDigest:f.c.profileDigest,simulationTime:f.c.simulationTime,wallTime:f.c.wallTime})};
+    const addNpc=World.addNpc,addLoc=World.addLoc,production=Environment.node.production;let spawns=0;
+    try{World.addNpc=()=>{spawns++;};World.addLoc=()=>{spawns++;};Environment.node.production=false;f.player.staffModLevel=4;
+        withNativeLifecycleObservation(ports,()=>World['observePopulationLifecycle']('after-terminal-guard'));
+        withSocietyIntegrityBoundary(boundary,()=>{const handler=new ClientCheatHandler(),head=store.coverageSnapshot(result.resultId).head;
+            handler.handle(new ClientCheat('getcoord'),f.player);expect(store.coverageSnapshot(result.resultId).head).toEqual(head);
+            const npc=NpcType.configs.find(t=>t?.debugname)!,loc=LocType.configs.find(t=>t?.debugname)!;
+            handler.handle(new ClientCheat(`npcadd ${npc.debugname}`),f.player);handler.handle(new ClientCheat(`locadd ${loc.debugname}`),f.player);
+            const variable=Array.from({length:VarPlayerType.count},(_,id)=>VarPlayerType.get(id)).find(t=>t?.debugname&&!t.protect)!;
+            handler.handle(new ClientCheat(`setvar ${variable.debugname} 123`),f.player);
+            f.run(()=>PlayerLoading.load('alice',new Packet(new Uint8Array()),null));});
+        withNativeLifecycleObservation(ports,()=>World['observePopulationLifecycle']('end-of-tick'));
+        expect(spawns).toBe(2);expect(store.report(result.resultId).injectionCount).toBe(4);
+        const frames=policy.read().entries;expect(frames[1]!.sample.administrativeValueCursor!.head.sequence).toBeGreaterThan(frames[0]!.sample.administrativeValueCursor!.head.sequence);
+        expect(frames[1]!.sample.administrativeValueCursor).toEqual(ports.administrativeValue());
+        expect(store.report(result.resultId).events.filter(e=>e.kind==='runtime-injection').map(e=>e.mutation!.source)).toEqual(['engine.debugproc','engine.debugproc','engine.debugproc','engine.save-fallback']);
+    }finally{World.addNpc=addNpc;World.addLoc=addLoc;Environment.node.production=production;}
 });
 
 test('SI-C07 census write failure is durable and a missing current authority never creates a World witness',()=>{

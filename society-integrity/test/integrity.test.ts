@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
 import { SocietyIntegrityStore, saveCreatesValue, saveValueSnapshot, type IntegrityMutation } from '../store.js';
-import { withSocietyValueMutation, observeLegacySocietyRun, type IntegrityBoundary } from '../runtime.js';
+import { withSocietyValueMutation, observeLegacySocietyRun, withSocietyIntegrityBoundary,type IntegrityBoundary } from '../runtime.js';
+import {integrityCoverageCursor,validateAdministrativeValueCursor} from '../coverage.js';
 import { buildWorldGenesisConfiguration, buildWorldGenesisResult, loadWorldGenesisProfileCatalog, WorldGenesisRunStore } from '../../world-genesis/index.js';
 import { SimulationClockStore, simulationClockProfileDigest } from '../../simulation-clock/index.js';
 import { InstitutionTreasuryStore } from '../../server/gateway/admin/institution-treasury.js';
@@ -35,6 +36,15 @@ function fixture(invalidate=true,observing=true,snapshotDigest=profileDigest) {
 }
 const mutation:IntegrityMutation={source:'engine.cheat-value',operationId:'cheat-one',actor:'player:alice',payload:{itemId:379,count:1}};
 describe('society bootstrap and runtime integrity',()=>{
+    test('read-only native coverage seals the existing head, resolutions and permits without creating or changing schema',()=>{
+        const f=fixture(),db=new Database(f.path,{readonly:true}),before=db.serialize(),store=new SocietyIntegrityStore(f.path,true);
+        try{const first=store.coverageSnapshot(f.result.resultId),cursor=integrityCoverageCursor(first);validateAdministrativeValueCursor(cursor);
+            expect(store.coverageSnapshot(f.result.resultId)).toEqual(first);expect(db.serialize()).toEqual(before);expect(db.query('PRAGMA user_version').get()).toEqual({user_version:1});
+            withSocietyIntegrityBoundary(f.boundary,()=>withSocietyValueMutation(mutation,()=>1));
+            const after=integrityCoverageCursor(store.coverageSnapshot(f.result.resultId));expect(after.head.sequence).toBeGreaterThan(cursor.head.sequence);expect(after.stateDigest).not.toBe(cursor.stateDigest);
+            expect(()=>validateAdministrativeValueCursor({...after,head:{sequence:1,hash:'invalid'}})).toThrow('cursor');
+        }finally{store.close();db.close(true);}
+    });
     test('keeps each currency/item and embedded Business capital as a separate genesis event across restart and reset',()=>{
         const f=fixture();const report=f.report();
         expect(report.events.filter(event=>event.kind==='genesis-value')).toHaveLength(3);

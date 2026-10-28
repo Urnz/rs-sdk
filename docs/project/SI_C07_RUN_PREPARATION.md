@@ -256,3 +256,9 @@ lezárt implementációs pont. Reviewzott runtime/HP route, teljes eredeti
 mortality/health/attempt/census ablak; negatív STAT_ADD audit-bypass javítva.
 4/11 kész, 7 nyitott; 4/8 pozitív natív kapuút. Következő P2-06.
 A tényleges C07 run, pozitív survival lower bound és globális minimum PASS még nincs.
+
+2026-10-28: [P2-06 admin/fallback értékmozgás](SI_C07_ADMINISTRATIVE_VALUE_GATE.md)
+lezárt implementációs pont. Meglévő integrity audit/state és natív sealek,
+reviewzott producer-dispatch, valódi belső payment backing és C06 restore.
+5/11 kész, 6 nyitott; 5/8 pozitív natív kapuút. Következő P2-07.
+Konkrét C07 forráskijelölés/run-authority és globális minimum PASS még nincs.

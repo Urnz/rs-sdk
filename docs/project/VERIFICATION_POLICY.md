@@ -14,6 +14,12 @@ A 25.2 fejlesztése e felülvizsgálat alatt nem kezdődött el.
    Ha az érintett tesztfájlok felsorolhatók, ne válaszd automatikusan a teljes
    `server/gateway/admin/` vagy `agent-state/test/` gyűjtőmappát. A csomagnév
    nem helyettesíti a fogyasztók és az írási határok vizsgálatát.
+   Bun esetén a felsorolt fájlokhoz explicit `./` útvonalat adj:
+   `bun test ./society-integrity/test/integrity.test.ts`. A relatív útvonal
+   `./` nélkül szövegszűrő lehet, és a backupok tesztmásolatait is bevonhatja.
+   Ellenőrizd a logban a tényleges fájllistát; az ilyen tág kör nem bizonyítja
+   a kért célzott scope-ot. A FULL-sync/archívum IO-próbákat ne futtasd
+   egymás mellett, ha emiatt az egyes esetek mért időkerete sérül.
 2. Csak az érintett TypeScript-projekteket ellenőrizd: root a szerver/domain/SDK,
    engine a motorkód, webclient a kliens változásaihoz. Közös típus vagy import
    változásakor a fogyasztó projektek is érintettek. A `verify:quality` mindhárom

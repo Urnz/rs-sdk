@@ -13,6 +13,7 @@ import { NativeLifecyclePolicyStore } from '../population-lifecycle/native-polic
 import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../population-lifecycle/native-policy-manifest.js';
 import { PolicyMutationStore } from '../population-lifecycle/policy-mutations.js';
 import { WorldPolicyRuntimeStore } from '../population-lifecycle/world-policy-runtime.js';
+import {SocietyIntegrityStore} from '../society-integrity/store.js';
 import { pinPolicyEnvironment } from '../population-lifecycle/policy-environment.js';
 import { nativeToolDigest } from '../item-lifecycle/native-tool.js';
 import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFoodProductionStore.js';
@@ -73,7 +74,18 @@ function stores(root:string,selected:ExpandedSelection){
                 prefix=(h:{sequence:number;digest:string|null},events:Array<{sequence:number;digest:string}>)=>h.sequence===0?h.digest===null:events[h.sequence-1]?.digest===h.digest;
                 check(mortality.worldId===selected.worldId&&mortality.clockId===selected.clockId&&mortality.clockProfileDigest===selected.clockProfileDigest,'Native lifecycle policy belongs to another world/clock');
                 check(digest(lifecycleRouteManifest(root))===digest(policy.manifest)&&digest(lifecyclePolicyFiles(root))===digest(policy.opening.files),'Native lifecycle policy source pin differs');
-                check(entries.every(e=>prefix(e.sample.watermarkHead,watermarks.entries)&&prefix(e.sample.mortalityHead,passes.entries)),'Native lifecycle policy source prefix differs');}
+                check(entries.every(e=>prefix(e.sample.watermarkHead,watermarks.entries)&&prefix(e.sample.mortalityHead,passes.entries)),'Native lifecycle policy source prefix differs');
+                const cursors=entries.map(e=>e.sample.administrativeValueCursor).filter(c=>!!c);
+                if(cursors.length){const source=selected.stores.find(s=>s.requiredTables.includes('integrity_run'));check(source,'Administrative value integrity source excluded');
+                    io.ancestors(join(root,source.path));io.plain(join(root,source.path),false);const journal=new OwnedDatabase(join(root,source.path),{readonly:true}),store=new SocietyIntegrityStore(join(root,source.path),true);
+                    try{for(const c of cursors){const r=store.coverageSnapshot(c!.runId).report.run,row=journal.query('SELECT hash FROM integrity_event WHERE sequence=?').get(c!.head.sequence) as {hash:string}|null;
+                        check(c!.resultDigest===r.resultDigest&&c!.clockId===selected.clockId&&c!.clockProfileDigest===selected.clockProfileDigest
+                            &&c!.genesisAppliedAtSimulationTime===r.genesisAppliedAtSimulationTime&&(c!.head.sequence===0?c!.head.hash==='0'.repeat(64):row?.hash===c!.head.hash),
+                            'Administrative value source prefix differs');}}finally{store.close();journal.close(true);}}
+            }
+            if(s.requiredTables.includes('integrity_run')){const store=new SocietyIntegrityStore(path,true);try{for(const run of store.active()){
+                store.coverageSnapshot(run.runId);check(run.result.simulationClock.clockId===selected.clockId&&run.result.simulationClock.profileDigest===selected.clockProfileDigest,'Administrative value original clock differs');}
+                store.verify();}finally{store.close();}}
             if(s.requiredTables.includes('policy_mutation_selection')){const mutations=new PolicyMutationStore(db).read(),p=mutations.selection,
                 checkpoint=selected.stores.find(s=>s.requiredTables.includes('native_lifecycle_policy_selection'));
                 check(p.worldId===selected.worldId&&p.clockId===selected.clockId&&p.clockProfileDigest===selected.clockProfileDigest&&checkpoint,'Policy mutation selected world/clock differs');

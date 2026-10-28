@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import {AsyncLocalStorage} from 'node:async_hooks';
 import { Database } from 'bun:sqlite';
 import { openSimulationClockRuntime } from '../simulation-clock/config.js';
 import { SocietyIntegrityStore, type IntegrityMutation, type IntegrityStamp, type IntegrityCompensation } from './store.js';
@@ -33,6 +34,9 @@ function observe():IntegrityStamp {
     } finally {shared.store.close();}
 }
 export interface IntegrityBoundary { path:string; observe():IntegrityStamp }
+const boundaryOverrides=new AsyncLocalStorage<IntegrityBoundary>();
+/** Internal synchronous fixture/backend scope only; no model, packet or HTTP endpoint accepts this capability. */
+export function withSocietyIntegrityBoundary<T>(boundary:IntegrityBoundary,run:()=>T):T{return boundaryOverrides.run(boundary,run);}
 export function observeLegacySocietyRun(journalPath:string,runPath:string,stamp:()=>IntegrityStamp,invalidateOnInjection:boolean) {
     if(!existsSync(runPath))return;
     const source=new Database(runPath,{readonly:true,strict:true});
@@ -60,7 +64,7 @@ export function initializeNativeSocietyObserver() {
 }
 /** Legacy runs retain an explicit coverage gap. Errors leave a pending operation. */
 export function withSocietyValueMutation<T>(input:IntegrityMutation,mutate:()=>T,
-    boundary:IntegrityBoundary|false={path:societyIntegrityDbPath,observe},changed:(result:T)=>boolean=()=>true,
+    boundary:IntegrityBoundary|false=boundaryOverrides.getStore()??{path:societyIntegrityDbPath,observe},changed:(result:T)=>boolean=()=>true,
     compensated:()=>IntegrityCompensation|null=()=>null):T {
     if(boundary===false)return mutate();
     const native=boundary.path===societyIntegrityDbPath && boundary.observe===observe;

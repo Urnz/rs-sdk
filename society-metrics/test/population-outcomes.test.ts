@@ -65,6 +65,12 @@ import {WorldPolicyRuntimeStore,createWorldPolicyRuntimeContract,captureWorldPol
 import {readNativeWorldPolicy} from '../world-policy.js';
 import {readNativeLifecycleEnforcement} from '../lifecycle-enforcement.js';
 import {policyProcessSessionId} from '../../population-lifecycle/policy-process.js';
+import {integrityCoverageCursor} from '../../society-integrity/coverage.js';
+import {withSocietyValueMutation} from '../../society-integrity/runtime.js';
+import {readNativeAdministrativeValue} from '../administrative-value.js';
+import {readNativeFounderBaseline} from '../population-outcomes.js';
+import {bindSocietyInternalPayment} from '../../server/gateway/admin/society-integrity.js';
+import {PlayerRewardStore} from '../../server/engine/src/mods/PlayerRewardStore.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -262,6 +268,74 @@ function mutationFixture(strict=false,fullPolicy=false,roles:Array<'engine'|'gat
         readWorldPolicy:()=>readNativeWorldPolicy(f.db,f.scope,f.options,initial,f.actors),
         readMutations:()=>readNativePolicyMutations(f.db,f.scope,f.options,initial,f.actors),close(){db.close(true);f.close();}};
 }
+
+function administrativeFixture(full=false,legacy=false){const f=mutationFixture(true,full),runId=f.options.population!.genesisResultId;
+    if(legacy){const original=new SocietyIntegrityStore(f.options.population!.integrityPath,true),result=original.report(runId).run.result;original.close();
+        f.options.population!.integrityPath=join(f.root,'.local/simulation/legacy-integrity.sqlite');const replacement=new SocietyIntegrityStore(f.options.population!.integrityPath);
+        replacement.begin(result,true);replacement.recordCoverageGap(runId,{clockId:f.scope.clockId,profileDigest:f.scope.clockProfileDigest,simulationTime:initial,wallTime:wall});replacement.finishBootstrap(runId);replacement.close();}
+    const path=f.options.population!.integrityPath,store=new SocietyIntegrityStore(path),
+    cursor=()=>integrityCoverageCursor(store.coverageSnapshot(runId)),baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!}),
+    emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emitMutationFrame(stage,{administrativeValueCursor:cursor(),...change}),
+    boundary={path,observe:()=>{const c=f.store.read().entries.at(-1)!.sample.clock;return{clockId:c.clockId,profileDigest:c.profileDigest,simulationTime:c.simulationTime,wallTime:c.wallTime};}},
+    inject=(source:import('../../society-integrity/store.js').IntegritySource='engine.cheat-value',changed=true)=>withSocietyValueMutation({source,operationId:randomUUID(),actor:'player:ada',payload:{itemId:379,requestedCount:1}},()=>changed?1:0,boundary,r=>r>0);
+    return{...f,integrity:store,runId,cursor,boundary,emitValue:emit,inject,readValue:()=>readNativeAdministrativeValue(f.db,f.scope,f.options,baseline,f.actors),close(){store.close();f.close();}};
+}
+
+test('administrative value original 1+7 native window reaches PASS with frozen read-only seals and no global minimum PASS',()=>{
+    const f=administrativeFixture(true),start=performance.now();try{
+        f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitValue('after-terminal-guard');if(n===50)f.inject('engine.cheat-value',false);f.emitValue('end-of-tick');}}).immediate();
+        console.error(`[AdminValueFullFrame] build ${Math.round(performance.now()-start)} ms`);
+        const before=[f.db.serialize(),f.mutationDb.serialize(),f.hashes()],out=reportNativeOutcomes(f.scope,f.options),r=projectNativeMinimumAssessment(contract,f.scope,out);
+        expect(out.sources.administrativeValue.status).toBe('available');expect(r.integrity.find(g=>g.gateId==='no-post-genesis-admin-or-fallback-value')!.verdict).toBe('pass');
+        expect(r.sourceCoverage.rows.find(s=>s.sourceId==='administrative-value-history')!.status).toBe('complete');expect(r.qualifiesMinimum).toBeFalse();
+        expect([f.db.serialize(),f.mutationDb.serialize(),f.hashes()]).toEqual(before);
+        const path=join(f.root,'server/engine/data/admin-value-offline.sqlite');writeFileSync(path,f.db.serialize());const offline=new OwnedDatabase(path,{readonly:true});
+        try{const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});expect(readNativeAdministrativeValue(offline,f.scope,f.options,baseline,f.actors)).toEqual(f.readValue());}finally{offline.close(true);}
+        console.error(`[AdminValueFullFrame] total ${Math.round(performance.now()-start)} ms`);
+    }finally{f.close();}
+},15000);
+
+test.each(['engine.cheat-value','engine.save-fallback','engine.offline-save','engine.player-reward','engine.debugproc','gateway.treasury-balance','gateway.treasury-genesis','gateway.business-stock-genesis'] as const)(
+    'administrative value preserves a sealed native violation for %s even with unrelated policy evidence missing',source=>{
+    const f=administrativeFixture();try{for(let n=0;n<3;n++){f.sample(n);f.emitValue('after-terminal-guard');if(n===1)f.inject(source);f.emitValue('end-of-tick');}
+        const r=f.readValue();expect(r.verdict).toBe('fail');expect(r.completeAdministrativeValueCoverage).toBeTrue();expect(r.violations[0]!.source).toBe(source);
+        f.policyStore.fault();expect(f.readValue().verdict).toBe('fail');expect(f.readValue().completeAdministrativeValueCoverage).toBeFalse();
+        const projected=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));expect(projected.integrity.find(g=>g.gateId==='no-post-genesis-admin-or-fallback-value')!.verdict).toBe('fail');
+        expect(projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},reportNativeOutcomes(f.scope,f.options)).administrativeIntegrityViolations).toEqual([]);
+    }finally{f.close();}
+});
+
+test.each(['missing-cursor','foreign-run','prefix','pending','tail','legacy','missing-stage','regression','unproven-no-effect','future-wall-result'])(
+    'administrative value leaves concrete native gaps unknown: %s',variant=>{
+    const f=administrativeFixture(false,variant==='legacy');try{for(let n=0;n<3;n++){f.sample(n);const c=f.cursor();f.emitValue('after-terminal-guard');
+        if(n===1&&variant==='pending')expect(()=>withSocietyValueMutation({source:'engine.save-fallback',operationId:'pending',actor:'player:ada',payload:{}},()=>{throw Error('crash');},f.boundary)).toThrow('crash');
+        if(n===1&&variant==='unproven-no-effect')f.inject('engine.debugproc',false);
+        if(n===1&&variant==='future-wall-result')withSocietyValueMutation({source:'engine.cheat-value',operationId:'future-wall',actor:'player:ada',payload:{}},()=>1,
+            {...f.boundary,observe:()=>({...f.boundary.observe(),wallTime:new Date(Date.parse(wall)+10000).toISOString()})});
+        if(n===1&&variant==='missing-stage')continue;
+        f.emitValue('end-of-tick',n===1&&variant==='missing-cursor'?{administrativeValueCursor:null}:n===1&&variant==='foreign-run'?{administrativeValueCursor:{...c,runId:'foreign'}}:
+            n===1&&variant==='prefix'?{administrativeValueCursor:{...c,head:{sequence:999,hash:'f'.repeat(64)}}}:n===2&&variant==='regression'?{administrativeValueCursor:{...c,head:{sequence:0,hash:'0'.repeat(64)}}}:{});
+    }
+        if(variant==='tail')f.inject();const r=f.readValue();expect(r.verdict).toBe('inconclusive');expect(r.completeAdministrativeValueCoverage).toBeFalse();expect(r.gaps.length).toBeGreaterThan(0);
+    }finally{f.close();}
+});
+
+test.each(['complete','pending','missing-backing'])(
+    'administrative value distinguishes native internal redistribution from an unclosed or missing debit/credit: %s',variant=>{
+    const f=administrativeFixture(),path=join(f.root,'.local/economy/institution-treasury.sqlite'),treasury=new InstitutionTreasuryStore(path),
+        reward=new PlayerRewardStore(':memory:',f.boundary,f.db),settlementId=randomUUID(),reservationId='native-wage';let coins=0;
+    try{const account=treasury.ensure('business','forge',wall);treasury.setBalance('business','forge',account.revision,100,wall);
+        f.options.administrativeValue={treasuryPath:path};
+        for(let n=0;n<3;n++){f.sample(n);f.emitValue('after-terminal-guard');if(n===1){const now=f.boundary.observe().wallTime;
+            treasury.reserve('business','forge',reservationId,10,now);treasury.bindSettlement(reservationId,settlementId,now);
+            const input={settlementId,reservationId,username:'ada',amountGp:10,treasuryPath:path};bindSocietyInternalPayment(input,'reserve',f.boundary.path);
+            reward.credit(settlementId,'ada',10,{balance:()=>coins,credit:n=>(coins+=n,n),remove:n=>(coins-=n,n)},now);
+            if(variant!=='pending'){treasury.commit(reservationId,settlementId,now);bindSocietyInternalPayment(input,'commit',f.boundary.path);}
+        }f.emitValue('end-of-tick');}
+        if(variant==='missing-backing')f.options.administrativeValue=undefined;
+        const r=f.readValue();expect(r.verdict).toBe(variant==='complete'?'pass':'inconclusive');expect(r.violations).toEqual([]);expect(coins).toBe(10);
+    }finally{reward.close();treasury.close();f.close();}
+});
 
 test('world policy joins actual materialized startup inputs, two process roles and native closed cursors without writes',()=>{
     const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}

@@ -58,6 +58,14 @@ test('invalid/unbound frame is redacted, and mere raw result fields cannot uploa
     expect(projectNativeSourceCoverage(contract,frame,null).completeSourceCount).toBe(0);
 });
 
+test('administrative value coverage requires the original full native seal and genesis binding',()=>{
+    const f=fixture();f.sources.administrativeValue=available({scope,worldId:'world',fromSimulationTime:frame.genesisAppliedAtSimulationTime,toSimulationTime:frame.toSimulationTime,
+        genesisResultId:'genesis',genesisResultDigest:'c'.repeat(64),completeAdministrativeValueCoverage:true,sourceHead:{sequence:1,hash:'d'.repeat(64)},stateDigest:'e'.repeat(64)});
+    const row=()=>projectNativeSourceCoverage(contract,frame,f.outcomes).rows.find(r=>r.sourceId==='administrative-value-history')!;
+    expect(row().status).toBe('complete');f.sources.administrativeValue.value.fromSimulationTime=scope.fromSimulationTime;expect(row().status).not.toBe('complete');
+    f.sources.administrativeValue.value.fromSimulationTime=frame.genesisAppliedAtSimulationTime;f.sources.administrativeValue.value.genesisResultDigest='f'.repeat(64);expect(row().status).not.toBe('complete');
+});
+
 test('lifecycle source coverage requires the joined original full-window native guarantee, not separate empty ledgers',()=>{
     const f=fixture();f.sources.lifecycleEnforcement=available({scope,worldId:'world',fromSimulationTime:frame.genesisAppliedAtSimulationTime,
         toSimulationTime:frame.toSimulationTime,completeLifecycleEnforcement:true,completeNativeHealthCoverage:true,attemptHead:{sequence:0},censusHead:{sequence:2},healthSnapshotDigest:'c'.repeat(64)});

@@ -1175,6 +1175,14 @@ readonly/offline és C06 source-pin ellenőrzött. **4/11 kész, 7 nyitott;
 4/8 pozitív natív kapuút.** Következő P2-06. Survival lower bound külön P2-09,
 globális minimum PASS nincs. 27/45, C07 NO-GO, hosszú run nem indult.
 
+**2026-10-28 P2-06 kész:** [genesis utáni admin/fallback kapu](SI_C07_ADMINISTRATIVE_VALUE_GATE.md).
+Meglévő integrity audit/head/state és natív tickpontok teljes eredeti ablakra
+kötve, reviewzott producer-utakkal. Kimaradt privileged változó/spawn utak
+naplózva; valódi belső debit/credit fedezet, 1+7 pozitív gate/sourceCoverage,
+nyolc producer FAIL, gap/readonly/frozen/C06 restore ellenőrzött.
+**5/11 kész, 6 nyitott; 5/8 pozitív natív kapuút.** Következő P2-07.
+Nincs új journal/tábla vagy hosszú run; 27/45, C07 NO-GO, minimum PASS nincs.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

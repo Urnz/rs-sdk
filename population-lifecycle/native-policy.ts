@@ -4,6 +4,7 @@ import type { SimulationClockState,SimulationClockObservation } from '../simulat
 import { validateSimulationClockProfile,simulationClockProfileDigest } from '../simulation-clock/profile.js';
 import { NativeLifecycleWatermarkStore,type LifecycleWatermarkStage,lifecycleWatermarkStages } from './native-watermarks.js';
 import { lifecyclePolicyPaths,lifecycleSourcePaths,validateLifecycleManifest,validateLifecycleFiles,type LifecycleRouteManifest,type LifecycleFilePin } from './native-policy-manifest.js';
+import {validateAdministrativeValueCursor,type AdministrativeValueCursor} from '../society-integrity/coverage.js';
 
 export interface LifecyclePolicySnapshot {
     clock:SimulationClockState;
@@ -16,6 +17,7 @@ export interface LifecyclePolicySample {
     mortalityHead:{sequence:number;digest:string|null};watermarkHead:{sequence:number;digest:string|null};
     bootManifest:LifecycleRouteManifest|null;snapshot:LifecyclePolicySnapshot|null;
     mutationCursor?:{selectionDigest:string;head:{sequence:number;digest:string|null};faultCount:number;runtimeHead?:{sequence:number;digest:string|null}}|null;
+    administrativeValueCursor?:AdministrativeValueCursor|null;
 }
 function check(v:unknown,m:string):asserts v {if(!v)throw Error(m);}
 const hex=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
@@ -39,6 +41,7 @@ function validate(e:LifecyclePolicySample){const c=e?.position;
         &&Number.isSafeInteger(cursor.head?.sequence)&&cursor.head.sequence>=0&&(cursor.head.sequence===0?cursor.head.digest===null:hex(cursor.head.digest)),'Invalid policy mutation cursor');
     if(cursor?.runtimeHead)check(Number.isSafeInteger(cursor.runtimeHead.sequence)&&cursor.runtimeHead.sequence>=0
         &&(cursor.runtimeHead.sequence===0?cursor.runtimeHead.digest===null:hex(cursor.runtimeHead.digest)),'Invalid policy runtime cursor');
+    if(e.administrativeValueCursor)validateAdministrativeValueCursor(e.administrativeValueCursor);
     if(e.bootManifest)validateLifecycleManifest(e.bootManifest);if(e.snapshot)validateLifecyclePolicySnapshot(e.snapshot);
 }
 /** Explicit component-owned schema1. Clock/mod setters and shared schemas are untouched. */

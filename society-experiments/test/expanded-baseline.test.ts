@@ -26,6 +26,10 @@ import { pinPolicyEnvironment } from '../../population-lifecycle/policy-environm
 import { offlineArchiveIO } from '../archive.js';
 import { nativeToolDigest } from '../../item-lifecycle/native-tool.js';
 import {WorldPolicyRuntimeStore,createWorldPolicyRuntimeContract,captureWorldPolicyRuntime} from '../../population-lifecycle/world-policy-runtime.js';
+import {SocietyIntegrityStore} from '../../society-integrity/store.js';
+import {integrityCoverageCursor} from '../../society-integrity/coverage.js';
+import {buildWorldGenesisResult} from '../../world-genesis/result.js';
+import {loadWorldGenesisProfileCatalog} from '../../world-genesis/config.js';
 
 function lifecyclePolicyArchiveFixture(){
     const f=expandedFixture(),repo=join(import.meta.dir,'../..');
@@ -98,7 +102,30 @@ test('explicit lifecycle policy manifest is archived with its source files and r
     policyPhase('restore',()=>restoreExpandedArchive(f.bundle,f.output));
     policyPhase('reread',()=>{const read=new OwnedDatabase(join(f.output,'workspace',f.checkpoint),{readonly:true});
         try{expect(new NativeLifecyclePolicyStore(read).read().selection.manifest).toEqual(f.manifest);}finally{read.close(true);}});
-});
+// Expanded reviewed producer pin: measured fixture544 +prepare126 +capture2031 +restore2394 +reread11 ms, plus cleanup.
+// Same local round-trip budget as the adjacent runtime/archive cases; every IO phase stays logged.
+},10000);
+
+test('administrative value cursor and original integrity audit survive C06 restore; excluded audit and invalid cursor are rejected',()=>{
+    const f=lifecyclePolicyArchiveFixture(),path='.local/simulation/society-integrity.sqlite',
+        clockStore=new SimulationClockStore(join(f.root,f.selected.stores.find(s=>s.role==='clock')!.path)),c=clockStore.get('world')!;clockStore.close();
+    const profile=loadWorldGenesisProfileCatalog(join(import.meta.dir,'../../config/world-genesis-profiles.json')).profiles.find(p=>p.profileId==='mature-society')!,
+        result=buildWorldGenesisResult({schemaVersion:1,seed:f.selected.seed,profile:{profileId:profile.profileId,version:profile.version,digest:profile.digest},worldBuild:'c06-admin-cursor-fixture',
+            simulationClock:{clockId:c.clockId,profileDigest:c.profileDigest,initialSimulationTime:c.lastSimulationTime},parameters:{}},{assets:[]},c.lastObservedWallTime),
+        integrity=new SocietyIntegrityStore(join(f.root,path));integrity.begin(result,true);integrity.finishBootstrap(result.resultId);
+    const cursor=integrityCoverageCursor(integrity.coverageSnapshot(result.resultId));integrity.close();
+    f.selected.stores.push({role:'integrity',path,requiredTables:['integrity_run','integrity_event','integrity_head','integrity_permit']});
+    const checkpoint=new OwnedDatabase(join(f.root,f.checkpoint)),policy=new NativeLifecyclePolicyStore(checkpoint),zero={sequence:0,digest:null},
+        sample={sessionId:'archive-admin',worldId:f.selected.worldId,position:{clockId:c.clockId,profileDigest:c.profileDigest,status:'running' as const,revision:c.revision,
+            engineTick:0,simulationTime:c.lastSimulationTime,wallTime:c.lastObservedWallTime},wallTime:c.lastObservedWallTime,stage:'after-terminal-guard' as const,
+            mortalityHead:zero,watermarkHead:zero,bootManifest:f.manifest,snapshot:policy.selection().selection.opening,administrativeValueCursor:cursor};
+    try{policy.append(sample);}finally{checkpoint.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,{...f.selected,stores:f.selected.stores.filter(s=>s.role!=='integrity')})).toThrow('integrity source excluded');
+    const pin=prepareExpandedBaseline(f.root,f.selected);captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}});restoreExpandedArchive(f.bundle,f.output);
+    const restored=new SocietyIntegrityStore(join(f.output,'workspace',path),true);try{expect(integrityCoverageCursor(restored.coverageSnapshot(result.resultId))).toEqual(cursor);}finally{restored.close();}
+    const bad=new OwnedDatabase(join(f.root,f.checkpoint));try{new NativeLifecyclePolicyStore(bad).append({...sample,stage:'end-of-tick',administrativeValueCursor:{...cursor,head:{sequence:999,hash:'f'.repeat(64)}}});}finally{bad.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('source prefix');
+},10000);
 
 test('explicit lifecycle policy bad head or changed source pin prevents another baseline',()=>{
     const f=policyPhase('negative-fixture',lifecyclePolicyArchiveFixture);

@@ -19,12 +19,12 @@ kettő csak bizonyított sértésre adott FAIL-t. Ezért a sok külön ellenőrz
 komponens nem jelentett kész minimum-kiértékelőt. A terv és a kommunikáció
 hibája volt, hogy ezt a fő hiányt elfedte az ismételt „6 csomag maradt”.
 
-Most **17/17 részleges szabályadapter**, **4/8 pozitív natív kapuút** van.
-A lifecycle teljes pozitív útja is elkészült. A további négy kapunak még
+Most **17/17 részleges szabályadapter**, **5/8 pozitív natív kapuút** van.
+A lifecycle és admin/fallback pozitív útja is kész. A további három kapunak még
 nincs teljes pozitív natív adaptere.
 A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run PASS.
 
-## Rögzített lezárási pontok: 4/11 kész
+## Rögzített lezárási pontok: 5/11 kész
 
 - [x] **P2-01 – `frozen-founder-roster`.** Az applied genesis teljes eredeti
   cohortja, immutable tagság és natív finite-avatar kötés alapján PASS-képes.
@@ -49,8 +49,12 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Auditált online HP-út és végleges latch; negatív STAT_ADD audit-bypass javítva.
   Eredeti 1+7 pozitív gate/sourceCoverage, failure/gap/readonly/offline és C06 pin
   ellenőrzött. [Eredmény](SI_C07_FINITE_LIFECYCLE_GATE.md). Túlélés nem ebből PASS.
-- [ ] **P2-06 – `no-post-genesis-admin-or-fallback-value`.** A genesis utáni
-  teljes ablak admin/fallback értékmozgásainak natív kiértékelése.
+- [x] **P2-06 – `no-post-genesis-admin-or-fallback-value`.** A meglévő integrity
+  audit/head/state és natív policy tickpontok teljes eredeti ablakra kötve,
+  reviewzott producer-utakkal és valódi belső debit/credit fedezettel.
+  Kimaradt privileged variable/spawn utak naplózva; 1+7 pozitív gate/coverage,
+  nyolc producer FAIL, gap/readonly/frozen/C06 restore ellenőrzött.
+  [Eredmény](SI_C07_ADMINISTRATIVE_VALUE_GATE.md).
 - [ ] **P2-07 – `no-external-shop-or-import-value`.** Import, külső shop és
   pótló érték forrásainak teljes ablakra kötött kiértékelése.
 - [ ] **P2-08 – `verified-internal-lineage-and-final-use`.** A meglévő belső
@@ -67,7 +71,7 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Az összes kapu/szabály együtt igazolt; puszta feltöltött cellalista kevés.
 
 Ezek lezárási feltételek, nem 11 további chatkör: egy fejlesztés többet is
-lezárhat. Jelenleg 7 pont nyitott. A már elkészült 15 commit nem vész el;
+lezárhat. Jelenleg 6 pont nyitott. A már elkészült 15 commit nem vész el;
 a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb meg kell
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;

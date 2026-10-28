@@ -15,9 +15,11 @@ import { getActiveWorldModPolicy } from './WorldMods.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
 import { readPolicyMutationCursor } from '../../../../population-lifecycle/policy-mutation-observer.js';
 import {policyProcessSessionId} from '../../../../population-lifecycle/policy-process.js';
+import {readAdministrativeValueCursor,type AdministrativeValueCursor} from '../../../../society-integrity/coverage.js';
 
 interface ObservedAvatar {username:string;levels:ArrayLike<number>;populationTerminal:boolean;populationFinite:boolean}
 export interface LifecycleObservationPorts {db:Database;context(username:string,tick:number):LifecycleAuthority|null;wallTime():string;
+    administrativeValue?():AdministrativeValueCursor|null;
     policy?(tick:number):{position:SimulationClockObservation;worldId:string;snapshot:LifecyclePolicySnapshot};bootManifest?:LifecycleRouteManifest|null}
 const root=fileURLToPath(new URL('../../../../',import.meta.url));
 // Import-time disk identity, not a retrospective claim about every loaded dependency or packed script.
@@ -27,7 +29,8 @@ const overrides=new AsyncLocalStorage<LifecycleObservationPorts>(),sessionId=pol
 export function withNativeLifecycleObservation<T>(ports:LifecycleObservationPorts,run:()=>T):T{return overrides.run(ports,run);}
 function production():LifecycleObservationPorts|null {
     const market=playerSaveStore();if(!market||!NativeLifecycleAttemptStore.present(market.db))return null;
-    return{db:market.db,context:nativePopulationLifecycleAuthority,wallTime:()=>new Date().toISOString(),bootManifest,policy(tick){
+    return{db:market.db,context:nativePopulationLifecycleAuthority,wallTime:()=>new Date().toISOString(),bootManifest,
+        administrativeValue:()=>readAdministrativeValueCursor(root),policy(tick){
         const p=nativePopulationPolicyAuthority(tick),mods=getActiveWorldModPolicy();if(!mods.available)throw Error('Effective mod policy unavailable');
         return{position:p.position,worldId:p.worldId,snapshot:{clock:p.clock,effective:{...p.effective,modsDigest:digest(mods)},
             sources:lifecycleRouteManifest(root).sources,files:lifecyclePolicyFiles(root)}};}};
@@ -103,8 +106,11 @@ export function observeNativeLifecyclePolicy(stage:LifecycleWatermarkStage,tick:
         try{if(!p.policy)throw Error('Policy authority unavailable');const current=p.policy(tick);snapshot=current.snapshot;position=current.position;worldId=current.worldId;}
         catch{store.fault();}
         const watermarkHead=p.db.query('SELECT sequence,digest FROM native_lifecycle_watermark_head WHERE singleton=1').get() as {sequence:number;digest:string|null};
+        let administrativeValueCursor:AdministrativeValueCursor|null=null;
+        try{administrativeValueCursor=p.administrativeValue?.()??null;}catch{/* An unavailable value audit must not suppress independent clock/policy evidence. */}
         store.append({sessionId,worldId,position,wallTime:p.wallTime(),stage,mortalityHead:{sequence:row.sequence,digest:row.digest},watermarkHead,
-            bootManifest:p.bootManifest===undefined?bootManifest:p.bootManifest,snapshot,mutationCursor:readPolicyMutationCursor(root)});
+            bootManifest:p.bootManifest===undefined?bootManifest:p.bootManifest,snapshot,mutationCursor:readPolicyMutationCursor(root),
+            administrativeValueCursor});
     }catch{if(p)try{new NativeLifecyclePolicyStore(p.db).fault();}catch{ /* Missing/corrupted source cannot certify policy continuity. */ }
         console.error('[NativeLifecyclePolicy] policy observation unavailable; gap retained');}
 }

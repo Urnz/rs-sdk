@@ -60,7 +60,12 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
     // The requested-use reader currently proves the queried evaluation, not the preceding warmup.
     add('executor-native-demand',[s?.toolDemand],false,['warmup-request-history-unproven']);
     add('business-treasury-custody',[i?.currentAssets,i?.custody],false,['historical-custody-access-unproven']);
-    add('administrative-value-history',[],false,['administrative-value-producer-coverage-unproven']);
+    const administrative=s?.administrativeValue;
+    add('administrative-value-history',[administrative],!!original&&administrative?.status==='available'&&administrative.value.completeAdministrativeValueCoverage
+        &&scopeMatches(administrative.value.scope)&&administrative.value.worldId===frame.worldId&&administrative.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime
+        &&administrative.value.toSimulationTime===frame.toSimulationTime&&p?.status==='available'&&administrative.value.genesisResultId===p.value.genesisResultId
+        &&administrative.value.genesisResultDigest===p.value.genesisResultDigest,['administrative-value-producer-coverage-unproven'],administrative?.status==='available'?
+        {head:administrative.value.sourceHead,state:administrative.value.stateDigest}:undefined);
     add('external-shop-import-history',[],false,['external-value-producer-coverage-unproven']);
     const coverage=assessMinimumSourceCoverage(contract,frame,proofs);
     const dependencies:Record<string,string[]>={

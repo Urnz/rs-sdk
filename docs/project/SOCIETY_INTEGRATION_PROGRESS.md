@@ -3678,3 +3678,89 @@ historikus backup DB-payload read. Eredeti17/8 minimum/küszöb változatlan.
 - `20261028-180526-555-si-c07-finite-lifecycle-final-artifact`: NO-GO exit2,
   canonical forráshashek/digest, 24 dokumentum linkjei és changed/staged-line
   format PASS, 1,455 s. Nincs új run-authority; selectedSources továbbra null.
+
+## 2026-10-28 – SI-C07/2 P2-06 admin/fallback kapu lezárása
+
+[Eredmény](SI_C07_ADMINISTRATIVE_VALUE_GATE.md). P2-06 kész: 5/11 lezárási pont,
+6 nyitott; 5/8 pozitív natív kapuút és17/17 részleges szabályadapter.
+Következő P2-07 external shop/import. C07 NO-GO, 27/45; nincs hosszú run vagy
+SI-M3/MVS PASS. Rögzített lista nem bővült.
+
+A meglévő integrity audit/head és mutable resolution/permit state a natív
+policy tickpontokhoz kötött. coverageSnapshot readonly API; schema1 és before/
+commit/compensation szemantika változatlan. Opcionális administrativeValueCursor,
+nincs új journal/tábla/migráció. Eredeti genesis→warmup→evaluation, reviewzott
+nyolc producer és P2-04 immutable runtime; actual module-root/cwd ellenőrzés.
+Hiány/legacy/pending/prefix/tail/no-effect/future-wall unknown, scoped native
+FAIL megmarad. A záró cursor a frozen audit teljes aktuális state digestjével egyezik.
+
+Működési hiány javítva: setvar/setvarbit/setvarother és locadd/npcadd a meglévő
+engine.debugproc határon naplózott. Auth-döntés/callbackdarabszám változatlan;
+getcoord nem értékbevitel. Valódi ClientCheat +PlayerLoading fallback és World
+cursor izolált próbával; hibás value audit nem tünteti el a clock/policy bizonyítékot.
+Nem teljes World.cycle/live gazdasági run. Belső paymenthez exact consumed
+permit/resolution, treasury committed reservation és canonical reward coin-delta
+kell; native forrás/evidence digest is kötött. Hiány/pending nem admin minting
+vagy PASS. Eredeti minimum gate és administrative-value-history coverage pozitív
+út bekötött; external universe P2-07, global qualifiesMinimum false maradt.
+C06 integrity-source inclusion/run/prefix és izolált restore kész.
+
+**Végső scope: 95 külön aktív célzott eset PASS.** Explicit ./ Bun fájlutakkal:
+
+- `20261028-183155-783-si-c07-admin-value-exact-integrity-consumers`: 50 PASS
+  6,674 s. Hat konkrét aktív integrity/metrics/minimum/sourceCoverage/preflight fájl.
+- `20261028-183208-175-si-c07-admin-value-exact-readers`: 23 PASS/1 timeout
+  56,218 s. A15 s teljes frame párhuzamos archive IO mellett build6792/total15128 ms.
+  Külön, változatlan limittel `20261028-183344-940-si-c07-admin-value-exact-frame-serial`:
+  1 PASS7,738 s, build1496/total6680 ms. Együtt24 reader eset; admin1+7, nyolc
+  producer FAIL, native payment, gap/future-wall/no-effect és frozen readonly.
+- `20261028-183220-370-si-c07-admin-value-exact-benchmark-archive`: 5 PASS/1
+  timeout26,149 s. Az aktív benchmark/offline restore PASS; régi manifest
+  round-trip5 s kerete sérült. Külön `20261028-183406-725-si-c07-admin-value-exact-archive-serial`
+  is FAIL5,977 s, test5345 ms. Mért phase544+126+2031+2394+11=5106 ms +cleanup;
+  bővebb reviewed source inventory. Egyetlen eset helyi kerete a szomszédos
+  round-trip esetekkel azonos10 s lett; minden phase log/assertion változatlan.
+  `20261028-183522-530-si-c07-admin-value-exact-archive-budgeted`: 1 PASS5,716 s.
+  Együtt6 aktív C06/benchmark/restore/prefix/inclusion/source eset. Futási vagy
+  bootstrap-limit nem változott, minimumküszöböt nem lazítottunk.
+- Engine `20261028-182219-289-si-c07-admin-value-native-final`: 15 PASS5,165 s,
+  explicit ./src/mods/NativeLifecycleAttempts.test.ts. A private Varp mezőről
+  publikus count/get lookupra javított egy eset utolsó futása:
+  `20261028-182857-094-si-c07-admin-value-native-lookup`, 1 PASS3,138 s.
+- `20261028-182657-430-si-c07-admin-value-payment-final`: 3 payment eset és
+  végső root TS PASS50,504 s. `20261028-182731-306-si-c07-admin-value-engine-types-final`:
+  engine TS PASS36,246 s. Webclient változatlan; utána csak helyi timeout literal/docs.
+
+Korai hibák, javítva; nem eltitkolt regressziós bukások:
+
+- `20261028-181353-854-si-c07-admin-value-initial-types`: FAIL44,576 s,
+  Bun deferred() void típus; explicit snapshot visszaadás javítva.
+- `20261028-181541-392-si-c07-admin-value-readers`: 19 PASS/1 FAIL34,673 s.
+  A legacy gap csak bootstrap alatt engedélyezett; valódi legacy fixture-re javítva.
+- `20261028-181943-045-si-c07-admin-value-c06`: 4 PASS/1 FAIL13,724 s,
+  uppercase worldBuild fixture. Valid kisbetűs adat; nem validatorlazítás.
+- `20261028-182350-300-si-c07-admin-value-types-complete`: root PASS, engine
+  FAIL95,988 s; teszt private VarPlayerType.configs használatát public count/get
+  váltotta. Runtime és végső engine TS PASS.
+- **Bun scope-hiba:** a ./ nélküli tesztútvonal szövegszűrőként backupokban
+  levő másolatokat is talált. `20261028-181627-346-si-c07-admin-value-integrity`
+  171 PASS18,443 s ezért nem171 aktív eset; `20261028-182919-391-si-c07-admin-value-benchmark`
+  1 PASS/9 régi-copy FAIL56,341 s nem aktív benchmark-bug. A körök scope-evidenciája
+  kizárva, a végső95 szám csak pontos aktív fájlokból áll. Az ellenőrzött régi
+  controller fixture saját temp könyvtárban hoz létre DB-ket. A scope auditjához
+  forráskódot olvastunk, történeti DB-payloadot nem nyitottunk meg. A backup
+  tesztmásolatok futtatása nem volt szándékos. VERIFICATION_POLICY explicit ./
+  és IO-serial tanulsággal frissítve; global test discovery/config nem változott.
+
+Full regresszió nem futott: readonly seal és meglévő admin wrapper, pontos
+közvetlen fogyasztókkal. Shared write/commit/clock/auth/dependency alapok
+változatlanok. Nincs live install/start/provider. Új source pin kell; rollback
+stop +összetartozó korábbi bináris/selection, nincs backfill/evidence-átírás.
+Forráskijelölés továbbra null/NO-GO. Eredeti17/8 minimum és küszöbök változatlanok.
+- `20261028-183802-629-si-c07-admin-value-snapshot-final`: 1 teljes admin1+7/
+  frozen eset és végső root TS PASS67,303 s. Az integritySnapshotDigest külön
+  név: a native-outcomes wrapper checkpoint sourceSnapshotDigestje nem fedheti
+  el az integrity DB eredeti digestjét. Az engine-et nem ismételtük: ott nincs új kód.
+- `20261028-183832-025-si-c07-admin-value-final-artifact`: friss NO-GO exit2,
+  canonical forráshash/digest, 25 dokumentum hivatkozás és changed/staged-line
+  format PASS1,310 s. Nincs új run-authority; selectedSources továbbra null.

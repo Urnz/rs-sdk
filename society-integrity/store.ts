@@ -352,6 +352,16 @@ export class SocietyIntegrityStore {
     report(runId:string):ReturnType<SocietyIntegrityStore['reportSnapshot']> {
         return this.db.transaction(()=>this.reportSnapshot(runId))();
     }
+    /** Read-only seal of the existing audit and mutable resolution/permit state. No new schema or write semantics. */
+    coverageSnapshot(runId:string){let snapshot!:{report:ReturnType<SocietyIntegrityStore['reportSnapshot']>;head:{sequence:number;hash:string};permits:unknown[];activeRunIds:string[];stateDigest:string};
+        this.db.transaction(()=>{
+        if((this.db.query('SELECT COUNT(*) n FROM integrity_event').get() as {n:number}).n>100000)throw Error('Integrity coverage row budget exceeded');
+        const report=this.reportSnapshot(runId),head=this.db.query('SELECT sequence,hash FROM integrity_head WHERE id=1').get() as {sequence:number;hash:string},
+            permits=this.db.query('SELECT operation_id,mutation_digest,consumed FROM integrity_permit WHERE run_id=? ORDER BY operation_id').all(runId),
+            activeRunIds=this.active().map(r=>r.runId).sort(),
+            stateDigest=digest({report,permits,activeRunIds,head});
+        snapshot={report,permits,head,activeRunIds,stateDigest};
+    }).deferred();return snapshot;}
     private reportSnapshot(runId:string) {
         this.verify(); const run=this.get(runId); if(!run)throw new Error('Society integrity run is unavailable');
         const events=(this.db.query('SELECT * FROM integrity_event WHERE run_id=?1 ORDER BY sequence').all(runId) as EventRow[])

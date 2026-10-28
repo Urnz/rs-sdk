@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { nativeToolDigest as digest } from '../item-lifecycle/native-tool.js';
 import { lifecycleAttemptKinds } from './native-attempts.js';
+import {administrativeValueSourcePaths} from '../society-integrity/coverage.js';
 
 export const lifecycleRoutes=[
     {kind:'load',path:'server/engine/src/engine/entity/PlayerLoading.ts',entry:'PlayerLoading.load'},
@@ -13,7 +14,7 @@ export const lifecycleRoutes=[
     {kind:'respawn-script',path:'server/engine/src/engine/entity/Player.ts',entry:'Player.runScript'},
     {kind:'terminal-script-abort',path:'server/engine/src/engine/script/ScriptRunner.ts',entry:'ScriptRunner.execute + Player.runScript'}
 ] as const;
-export const lifecycleSourcePaths=[...new Set([...lifecycleRoutes.map(r=>r.path),
+export const lifecycleSourcePaths=[...new Set([...administrativeValueSourcePaths,...lifecycleRoutes.map(r=>r.path),
     'population-lifecycle/native-policy-manifest.ts','population-lifecycle/native-policy.ts','population-lifecycle/native-attempts.ts',
     'population-lifecycle/native-watermarks.ts','population-lifecycle/native-coverage.ts','population-lifecycle/native-observer.ts',
     'population-lifecycle/policy-environment.ts','population-lifecycle/policy-mutations.ts','population-lifecycle/policy-mutation-observer.ts',
@@ -30,6 +31,7 @@ export const lifecycleSourcePaths=[...new Set([...lifecycleRoutes.map(r=>r.path)
 export const lifecyclePolicyPaths=['config/population-age-policy.json','config/population-mortality-policy.json',
     'config/population-world-profile-bindings.json','config/population-lifecycle-policies.json','config/simulation-clock.json',
     'config/society-minimum-policy.json','config/survival-rules.json','config/world-mods.json',
+    'config/society-integrity-policy.json',
     'config/survival-profile.json','server/engine/data/config/world.json','.local/admin/world-mod-state.json','.local/admin/world-director.json'].sort();
 const optional=new Set(['config/survival-profile.json','server/engine/data/config/world.json','.local/admin/world-mod-state.json','.local/admin/world-director.json']);
 export interface LifecycleFilePin {path:string;sha256:string|null;bytes:number|null}

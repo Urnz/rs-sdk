@@ -238,10 +238,10 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                 }
 
                 if (varbit) {
-                    player.setVarBit(varbit.id, value);
+                    executeSocietyDebugProc(player.username,`setvarbit:${varbit.id}`,()=>player.setVarBit(varbit.id, value));
                     player.messageGame('set ' + varbit.debugname + ': to ' + value);
                 } else {
-                    player.setVar(varp.id, value);
+                    executeSocietyDebugProc(player.username,`setvar:${varp.id}`,()=>player.setVar(varp.id, value));
                     player.messageGame('set ' + varp.debugname + ': to ' + value);
                 }
             } else if (cmd === 'setvarother' && Environment.node.production) {
@@ -275,7 +275,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                 }
 
                 const value = Math.max(-0x80000000, Math.min(tryParseInt(args[2], 0), 0x7fffffff));
-                other.setVar(varp.id, value);
+                executeSocietyDebugProc(other.username,`setvarother:${varp.id}`,()=>other.setVar(varp.id, value));
                 player.messageGame('set ' + args[1] + ': to ' + value + ' on ' + other.username);
             } else if (cmd === 'getvar') {
                 // authentic
@@ -505,7 +505,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                 if (!type) {
                     return false;
                 }
-                World.addLoc(new Loc(player.level, player.x, player.z, type.width, type.length, EntityLifeCycle.DESPAWN, type.id, LocShape.CENTREPIECE_STRAIGHT, LocAngle.WEST), 500);
+                executeSocietyDebugProc(player.username,`locadd:${type.id}`,()=>World.addLoc(new Loc(player.level, player.x, player.z, type.width, type.length, EntityLifeCycle.DESPAWN, type.id, LocShape.CENTREPIECE_STRAIGHT, LocAngle.WEST), 500));
                 player.messageGame(`Loc Added: ${name} (ID: ${type.id})`);
             } else if (cmd === 'npcadd') {
                 // authentic - https://youtu.be/E6tQ3b3vzro?t=3412
@@ -517,7 +517,7 @@ export default class ClientCheatHandler extends ClientGameMessageHandler<ClientC
                 if (!type) {
                     return false;
                 }
-                World.addNpc(new Npc(player.level, player.x, player.z, type.size, type.size, EntityLifeCycle.DESPAWN, World.getNextNid(), type.id, type.blockwalk), 500);
+                executeSocietyDebugProc(player.username,`npcadd:${type.id}`,()=>World.addNpc(new Npc(player.level, player.x, player.z, type.size, type.size, EntityLifeCycle.DESPAWN, World.getNextNid(), type.id, type.blockwalk), 500));
             } else if (cmd === 'openmain') {
                 if (args.length < 1) {
                     return false;
