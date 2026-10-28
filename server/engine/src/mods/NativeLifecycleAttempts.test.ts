@@ -7,6 +7,11 @@ import World from '../engine/World.js';
 import Player,{getExpByLevel} from '../engine/entity/Player.js';
 import { PlayerLoading } from '../engine/entity/PlayerLoading.js';
 import { PlayerStat } from '../engine/entity/PlayerStat.js';
+import { NetworkPlayer } from '../engine/entity/NetworkPlayer.js';
+import NullClientSocket from '../server/NullClientSocket.js';
+import PlayerOps from '../engine/script/handlers/PlayerOps.js';
+import { ScriptOpcode } from '../engine/script/ScriptOpcode.js';
+import { applyHealthAuditedDamage } from './PlayerHealthDamage.js';
 import Packet from '../io/Packet.js';
 import ScriptRunner from '../engine/script/ScriptRunner.js';
 import ScriptProvider from '../engine/script/ScriptProvider.js';
@@ -57,7 +62,7 @@ function fixture(){
         restricted:!!health.deathFor('alice')})};
     const run=<T>(f:()=>T)=>withNativeLifecycleObservation(ports,f);
     const guard={finite:(name:string)=>!!health.finiteAvatar(name),restricted:(name:string)=>!!health.deathFor(name)};
-    return{root,db,store,player,ports,run,guard,clock,c,policySnapshot(){const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..'));
+    return{root,db,store,player,ports,run,guard,clock,c,health,member,age,mortality,policySnapshot(){const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..'));
         return{clock:clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),survivalDigest:null,
             modsDigest:'b'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(join(import.meta.dir,'../../../..'))};},
         watermarks(){const watermarks=new NativeLifecycleWatermarkStore(db,true);
@@ -144,10 +149,38 @@ test('SI-C07 actual World slots include an orphan terminal avatar and seal parse
     f.run(()=>PlayerLoading.load('alice',new Packet(before),null));
     f.run(()=>World['observePopulationLifecycle']('end-of-tick'));
     const r=store.read();expect(r.entries.map(e=>e.sample.stage)).toEqual(['after-terminal-guard','end-of-tick']);
-    expect(r.entries[0]!.sample.avatars).toEqual([{username:'alice',slot,vitals:{hitpoints:10,terminal:true,finite:true}}]);
+    expect(r.entries[0]!.sample.avatars).toEqual([{username:'alice',slot,vitals:{hitpoints:10,terminal:true,finite:true,healthAudited:false}}]);
     expect(r.entries[0]!.sample.actors[0]!.authority!.healthHeads.death.sequence).toBe(1);
     expect(r.entries[0]!.sample.attemptHead.sequence).toBe(0);expect(r.entries[1]!.sample.attemptHead.sequence).toBe(2);
     expect(f.player.save(false)).toEqual(before);expect(r.faults).toBe(0);
+});
+
+test('SI-C07 actual NetworkPlayer census identifies the audited HP route and rejects a replacement damage method',()=>{
+    const f=fixture(),store=f.watermarks(),player=new NetworkPlayer('alice',2n,2n,new NullClientSocket()),slot=1902,previous=World.players[slot];
+    closers.push(()=>{World.players[slot]=previous!;});player.levels[PlayerStat.HITPOINTS]=10;player.populationFinite=true;World.players[slot]=player;
+    f.run(()=>World['observePopulationLifecycle']('after-terminal-guard'));
+    expect(store.read().entries[0]!.sample.avatars[0]!.vitals.healthAudited).toBeTrue();
+    player.applyDamage=()=>{};f.run(()=>World['observePopulationLifecycle']('end-of-tick'));
+    expect(store.read().entries[1]!.sample.avatars[0]!.vitals.healthAudited).toBeFalse();
+});
+
+test.each([ScriptOpcode.STAT_ADD,ScriptOpcode.STAT_SUB,ScriptOpcode.STAT_DRAIN])(
+    'SI-C07 HP-changing opcode %s uses audited damage, preserves failed-write rollback and closes the finite lifecycle',opcode=>{
+    const f=fixture(),player=f.player;player.populationFinite=true;
+    const script=ScriptProvider.getByName('[queue,player_death]')!,state=ScriptRunner.init(script,player);
+    Object.defineProperty(state,'intOperand',{get:()=>0});
+    let broken=true,calls=0;
+    player.applyDamage=(amount,type)=>{calls++;applyHealthAuditedDamage(player,PlayerStat.HITPOINTS,amount,()=>Player.prototype.applyDamage.call(player,amount,type),
+        (before,after)=>{if(broken)throw Error('injected HP persistence failure');const id=randomUUID(),death=after===0?
+            createPopulationDeathEvidence(f.member,f.c,f.age,f.mortality,{damageEventId:id,sessionId:'client',engineTick:100}):undefined;
+            f.health.record({username:'alice',sessionId:'client',engineTick:100,occurredAt:f.c.wallTime,hpBefore:before,hpAfter:after,maxHp:10,damageType:type},id,death);
+            if(death)player.populationTerminal=true;});};
+    const change=(amount:number)=>{state.pushInt(PlayerStat.HITPOINTS);state.pushInt(opcode===ScriptOpcode.STAT_ADD?-amount:amount);state.pushInt(0);PlayerOps[opcode]!(state);};
+    const before=player.save(false);expect(()=>change(5)).toThrow('persistence failure');expect(player.save(false)).toEqual(before);expect(f.health.list()).toEqual([]);
+    broken=false;change(5);expect(player.levels[PlayerStat.HITPOINTS]).toBe(5);expect(f.health.list()).toHaveLength(1);
+    change(50);expect(player.levels[PlayerStat.HITPOINTS]).toBe(0);expect(player.populationTerminal).toBeTrue();expect(f.health.deathFor('alice')!.cause.kind).toBe('engine-hp-zero');expect(calls).toBe(3);
+    expect(f.run(()=>observeNativePopulationLogin(player,100,f.guard))).toBe('blocked');
+    const result=f.run(()=>player.runScript(ScriptRunner.init(script,player)));expect(result).toBe(ScriptState.ABORTED);expect(player.levels[PlayerStat.HITPOINTS]).toBe(0);
 });
 
 test('SI-C07 census write failure is durable and a missing current authority never creates a World witness',()=>{

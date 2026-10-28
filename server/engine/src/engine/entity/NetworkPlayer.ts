@@ -37,9 +37,10 @@ import ServerGameProtRepository from '#/network/game/server/ServerGameProtReposi
 import { custodyPacketAllowed } from '#/mods/PlayerCustodyPacketPolicy.js';
 import { PlayerStat } from '#/engine/entity/PlayerStat.js';
 import { recordPopulationDamage } from '#/mods/PopulationDeathRuntime.js';
-import { applyHealthAuditedDamage } from '#/mods/PlayerHealthDamage.js';
+import { applyHealthAuditedDamage,registerHealthAuditedDamageRoute } from '#/mods/PlayerHealthDamage.js';
 
 export class NetworkPlayer extends Player {
+    static {registerHealthAuditedDamageRoute(NetworkPlayer.prototype);}
     client: ClientSocket;
     /** Set by the world from the persistent custody ledger before packets are decoded. */
     custodyRestricted = false;

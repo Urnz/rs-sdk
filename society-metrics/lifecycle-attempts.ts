@@ -47,7 +47,8 @@ export function nativeLifecycleAuthorityVerifier(options:NativeOutcomeOptions,sc
     const health=readStableOutcomeStore(options,options.population.healthPath,healthDb=>{
         for(const table of ['engine_health_damage','engine_population_death','engine_health_audit_tail'])rows(healthDb,table);
         const store=new PlayerHealthEvidenceStore(options.population!.healthPath,true);
-        try{return{deaths:store.listDeaths(),heads:store.coverageHeads(),prefixes:{
+        try{return{deaths:store.listDeaths(),damage:rows(healthDb,'engine_health_damage').map(r=>({sequence:r.sequence as number,
+            ...JSON.parse(r.event_json as string) as import('../server/engine/src/mods/PlayerHealthEvidenceStore.js').EngineHealthDamage})),heads:store.coverageHeads(),prefixes:{
             damage:new Map(rows(healthDb,'engine_health_damage').map(r=>[r.sequence,r.entry_hash as string])),
             death:new Map(rows(healthDb,'engine_population_death').map(r=>[r.sequence,r.entry_hash as string]))}};}finally{store.close();}
     });

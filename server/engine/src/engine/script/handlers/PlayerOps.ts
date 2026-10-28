@@ -513,7 +513,10 @@ const PlayerOps: CommandHandlers = {
         const base = player.baseLevels[stat];
         const current = player.levels[stat];
         const added = current + ((constant + (base * percent) / 100) | 0);
-        player.levels[stat] = Math.min(added, 255);
+        // Negative STAT_ADD operands can damage HP too; finite avatars must use the same durable lethal latch.
+        if (stat === PlayerStat.HITPOINTS && player.populationFinite && added < current)
+            player.applyDamage(current - Math.max(added, 0), 0);
+        else player.levels[stat] = Math.min(added, 255);
         if (stat === PlayerStat.HITPOINTS && player.levels[PlayerStat.HITPOINTS] >= player.baseLevels[PlayerStat.HITPOINTS]) {
             player.heroPoints.clear();
         }

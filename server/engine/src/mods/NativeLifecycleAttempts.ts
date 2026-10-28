@@ -4,8 +4,9 @@ import { fileURLToPath } from 'node:url';
 import type { Database } from 'bun:sqlite';
 import { playerSaveStore } from '../engine/market/MarketStore.js';
 import { PlayerStat } from '../engine/entity/PlayerStat.js';
+import { hasHealthAuditedDamageRoute } from './PlayerHealthDamage.js';
 import { nativePopulationLifecycleAuthority,nativePopulationPolicyAuthority,populationAvatarIsFinite,populationAvatarRestricted } from './PopulationDeathRuntime.js';
-import { NativeLifecycleAttemptStore,type LifecycleAuthority,type LifecycleAttemptKind,type LifecycleAttemptOutcome,type LifecycleAttemptEvent } from '../../../../population-lifecycle/native-attempts.js';
+import { NativeLifecycleAttemptStore,type LifecycleAuthority,type LifecycleAttemptKind,type LifecycleAttemptOutcome,type LifecycleAttemptEvent,type LifecycleVitals } from '../../../../population-lifecycle/native-attempts.js';
 import { NativeLifecycleWatermarkStore,type LifecycleWatermarkStage } from '../../../../population-lifecycle/native-watermarks.js';
 import { NativeLifecyclePolicyStore,type LifecyclePolicySnapshot } from '../../../../population-lifecycle/native-policy.js';
 import { lifecycleRouteManifest,lifecyclePolicyFiles,type LifecycleRouteManifest } from '../../../../population-lifecycle/native-policy-manifest.js';
@@ -32,6 +33,8 @@ function production():LifecycleObservationPorts|null {
             sources:lifecycleRouteManifest(root).sources,files:lifecyclePolicyFiles(root)}};}};
 }
 export const isNativeRespawnScript=(name:string)=>/^\[(?:queue|proc|label),player_death(?:_duel)?\]$/.test(name);
+function vitals(player:ObservedAvatar):LifecycleVitals{return{hitpoints:player.levels[PlayerStat.HITPOINTS]!,terminal:player.populationTerminal,
+    finite:player.populationFinite,healthAudited:hasHealthAuditedDamageRoute(player)};}
 /** Missing context remains explicit; every observer error is isolated from the existing gameplay decision. */
 export function beginNativeLifecycleAttempt(kind:LifecycleAttemptKind,username:string,tick:number,avatar?:ObservedAvatar,scriptName:string|null=null){
     let p:LifecycleObservationPorts|null=null;
@@ -43,7 +46,7 @@ export function beginNativeLifecycleAttempt(kind:LifecycleAttemptKind,username:s
         const event=(phase:'begin'|'result',outcome:LifecycleAttemptOutcome|null,player?:ObservedAvatar,scriptState:number|null=null):LifecycleAttemptEvent=>{
             let authority:LifecycleAuthority|null=null;try{authority=ports.context(username,tick);}catch{ /* No fabricated identity/clock. */ }
             return{attemptId,sessionId,username,kind,phase,wallTime:ports.wallTime(),authority,scriptName,outcome,scriptState,
-                vitals:player?{hitpoints:player.levels[PlayerStat.HITPOINTS]!,terminal:player.populationTerminal,finite:player.populationFinite}:null};
+                vitals:player?vitals(player):null};
         };
         store.append(event('begin',null,avatar));let finished=false;
         return{finish(outcome:LifecycleAttemptOutcome,player?:ObservedAvatar,scriptState:number|null=null){
@@ -76,9 +79,9 @@ export function observeNativeLifecycleWatermark(stage:LifecycleWatermarkStage,ti
             return{username:a.username,authority};});
         const clock=actors.find(a=>a.authority)?.authority?.clock;if(!clock)throw Error('No current lifecycle census clock');
         if(clock.simulationTime<s.fromSimulationTime||clock.simulationTime>s.toSimulationTime)return;
-        const avatars:Array<{username:string;slot:number;vitals:{hitpoints:number;terminal:boolean;finite:boolean}}>=[];
+        const avatars:Array<{username:string;slot:number;vitals:LifecycleVitals}>=[];
         for(let slot=0;slot<players.length;slot++){const a=players[slot];if(a&&s.actors.some(m=>m.username===a.username))
-            avatars.push({username:a.username,slot,vitals:{hitpoints:a.levels[PlayerStat.HITPOINTS]!,terminal:a.populationTerminal,finite:a.populationFinite}});}
+            avatars.push({username:a.username,slot,vitals:vitals(a)});}
         const mortalityHead=p.db.query('SELECT sequence,digest FROM native_mortality_head WHERE singleton=1').get() as {sequence:number;digest:string|null}|null;
         if(!mortalityHead||mortalityHead.sequence===0)throw Error('No mortality witness for lifecycle census');
         const cursor=new NativeLifecycleAttemptStore(p.db).cursor();

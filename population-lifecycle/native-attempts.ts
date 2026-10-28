@@ -7,7 +7,7 @@ export const lifecycleAttemptKinds=['load','login-guard','world-admission','worl
 export type LifecycleAttemptKind=typeof lifecycleAttemptKinds[number];
 export type LifecycleAttemptOutcome='parsed'|'failed'|'passed'|'blocked-restricted'|'blocked-hp-zero'|'source-unavailable'|'admitted'|'reconnected'|'evicted'|'returned'|'blocked-terminal'|'blocked-sleeping'|'blocked-busy';
 export interface LifecycleAuthority {actor:MortalityActor;clock:SimulationClockObservation;healthHeads:MortalityHealthHeads;deathEventId:string|null;restricted:boolean}
-export interface LifecycleVitals {hitpoints:number;terminal:boolean;finite:boolean}
+export interface LifecycleVitals {hitpoints:number;terminal:boolean;finite:boolean;healthAudited?:boolean}
 export interface LifecycleAttemptEvent {
     attemptId:string;sessionId:string;username:string;kind:LifecycleAttemptKind;phase:'begin'|'result';wallTime:string;
     authority:LifecycleAuthority|null;vitals:LifecycleVitals|null;scriptName:string|null;
@@ -27,7 +27,8 @@ function validate(e:LifecycleAttemptEvent,actors:MortalityActor[],clockId:string
         'respawn-script':['returned','failed','blocked-terminal','blocked-sleeping','blocked-busy'],'terminal-script-abort':['blocked-terminal']}[e.kind] as string[]).includes(e.outcome),
         'Invalid lifecycle result');
     if(e.vitals)check(Number.isSafeInteger(e.vitals.hitpoints)&&e.vitals.hitpoints>=0&&e.vitals.hitpoints<=255
-        &&typeof e.vitals.terminal==='boolean'&&typeof e.vitals.finite==='boolean','Invalid lifecycle vitals');
+        &&typeof e.vitals.terminal==='boolean'&&typeof e.vitals.finite==='boolean'
+        &&(e.vitals.healthAudited===undefined||typeof e.vitals.healthAudited==='boolean'),'Invalid lifecycle vitals');
     if(e.authority){const a=e.authority,c=a.clock;
         check(a.actor.username===e.username&&typeof a.actor.actorId==='string'&&hex(a.actor.lifecycleId)&&hex(a.actor.membershipDigest)
             &&c?.status==='running'&&c.clockId===clockId&&c.profileDigest===profile&&Number.isSafeInteger(c.engineTick)&&Number(c.engineTick)>=0

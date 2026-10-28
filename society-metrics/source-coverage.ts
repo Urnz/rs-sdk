@@ -32,14 +32,18 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
         &&p?.status==='available'&&o.value.genesisResultId===p.value.genesisResultId&&o.value.genesisResultDigest===p.value.genesisResultDigest,
         ['native-opening-not-verified']);
     add('original-population',[p,d],!!original,['original-cohort-not-bound']);
-    // A verified death audit is not a continuous native HP certificate. P2-05 owns that producer guarantee.
-    add('native-health-deaths',[d,s?.mortalityCoverage,s?.lifecycleWatermarks],false,['continuous-native-health-unproven']);
+    const lifecycle=s?.lifecycleEnforcement,fullLifecycle=!!original&&lifecycle?.status==='available'&&lifecycle.value.completeLifecycleEnforcement
+        &&scopeMatches(lifecycle.value.scope)&&lifecycle.value.worldId===frame.worldId&&lifecycle.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime
+        &&lifecycle.value.toSimulationTime===frame.toSimulationTime;
+    add('native-health-deaths',[d,lifecycle],!!fullLifecycle&&lifecycle?.status==='available'&&lifecycle.value.completeNativeHealthCoverage,
+        ['native-hp-death-window-unproven'],lifecycle?.status==='available'?lifecycle.value.healthSnapshotDigest:undefined);
     const m=s?.mortalityCoverage;
     add('native-mortality-passes',[m],!!original&&m?.status==='available'&&m.value.completeMortalityTickCoverage
         &&scopeMatches(m.value.scope)&&m.value.worldId===frame.worldId&&!!m.value.sourceHead
         &&m.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime&&m.value.toSimulationTime===frame.toSimulationTime,
         ['native-mortality-window-incomplete'],m?.status==='available'?m.value.sourceHead:undefined);
-    add('login-respawn-enforcement',[s?.lifecycleAttempts,s?.lifecycleWatermarks],false,['lifecycle-route-coverage-unproven']);
+    add('login-respawn-enforcement',[lifecycle],!!fullLifecycle,['lifecycle-route-coverage-unproven'],lifecycle?.status==='available'?
+        {attempt:lifecycle.value.attemptHead,census:lifecycle.value.censusHead}:undefined);
     const policy=s?.worldPolicy;
     add('clock-world-policy',[policy],!!original&&policy?.status==='available'&&policy.value.completeWorldPolicyCoverage
         &&scopeMatches(policy.value.scope)&&policy.value.worldId===frame.worldId&&policy.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime

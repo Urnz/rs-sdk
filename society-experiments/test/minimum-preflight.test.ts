@@ -15,7 +15,7 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     expect(report.requiredSourceInventory.qualifiesCoverage).toBeFalse();expect(report.requiredSourceInventory.selectedSources).toBeNull();
     expect(report.requiredSourceInventory.requirements.every(r=>r.sourceIds.length>0)).toBeTrue();
     expect(report.requiredSourceInventory.integrity.every(r=>r.sourceIds.length>0)).toBeTrue();
-    expect(report.requiredSourceInventory.definitions.find(d=>d.id==='login-respawn-enforcement')!.gap).toContain('No complete');
+    expect(report.requiredSourceInventory.definitions.find(d=>d.id==='login-respawn-enforcement')!.gap).toContain('reviewed runtime');
     expect(report.requiredSourceInventory.definitions.find(d=>d.id==='login-respawn-enforcement')!.tables).toContain('native_lifecycle_event');
     expect(report.requiredSourceInventory.definitions.find(d=>d.id==='login-respawn-enforcement')!.tables).toContain('native_lifecycle_watermark_event');
     expect(report.requiredSourceInventory.definitions.find(d=>d.id==='clock-world-policy')!.tables).toContain('native_lifecycle_policy_event');

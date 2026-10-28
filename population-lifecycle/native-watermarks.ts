@@ -26,7 +26,8 @@ function validate(e:LifecycleWatermarkSample){const c=e?.clock;
     check(Array.isArray(e.avatars)&&e.avatars.length<=2048&&new Set(e.avatars.map(a=>a.slot)).size===e.avatars.length,'Invalid lifecycle census slots');
     for(const a of e.avatars)check(e.actors.some(p=>p.username===a.username)&&Number.isSafeInteger(a.slot)&&a.slot>=0&&a.slot<2048
         &&Number.isSafeInteger(a.vitals?.hitpoints)&&a.vitals.hitpoints>=0&&a.vitals.hitpoints<=255
-        &&typeof a.vitals.terminal==='boolean'&&typeof a.vitals.finite==='boolean','Invalid lifecycle census avatar');
+        &&typeof a.vitals.terminal==='boolean'&&typeof a.vitals.finite==='boolean'
+        &&(a.vitals.healthAudited===undefined||typeof a.vitals.healthAudited==='boolean'),'Invalid lifecycle census avatar');
 }
 /** Own additive schema, explicitly selected before a baseline. No upgrade/backfill of existing attempt or mortality history. */
 export class NativeLifecycleWatermarkStore {

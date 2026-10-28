@@ -63,6 +63,7 @@ import { readNativePolicyMutations } from '../policy-mutations.js';
 import { updateWorldDirectorConfig } from '../../server/gateway/admin/world-director-runtime.js';
 import {WorldPolicyRuntimeStore,createWorldPolicyRuntimeContract,captureWorldPolicyRuntime,observeWorldPackedReload,recordWorldPolicyRuntime} from '../../population-lifecycle/world-policy-runtime.js';
 import {readNativeWorldPolicy} from '../world-policy.js';
+import {readNativeLifecycleEnforcement} from '../lifecycle-enforcement.js';
 import {policyProcessSessionId} from '../../population-lifecycle/policy-process.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
@@ -209,8 +210,9 @@ test('native lifecycle missing results, unknown or stale authority and altered i
 
 function watermarkFixture(fullPolicy=false){const f=mortalityFixture(fullPolicy),attempts=new NativeLifecycleAttemptStore(f.db,true),store=new NativeLifecycleWatermarkStore(f.db,true);
     const frame=(stage:LifecycleWatermarkSample['stage'],change:Partial<LifecycleWatermarkSample>={})=>{
-        const mortality=f.store.read(),c=mortality.entries.at(-1)!.sample.clock,cursor=attempts.cursor();
-        const sample:LifecycleWatermarkSample={sessionId:'watermark-session',clock:c,wallTime:c.wallTime,stage,mortalityHead:mortality.head,
+        const row=f.db.query('SELECT payload FROM native_mortality_event ORDER BY sequence DESC LIMIT 1').get() as {payload:string},
+            c=JSON.parse(row.payload).clock as LifecycleWatermarkSample['clock'],mortalityHead=f.db.query('SELECT sequence,digest FROM native_mortality_head WHERE singleton=1').get() as LifecycleWatermarkSample['mortalityHead'],cursor=attempts.cursor();
+        const sample:LifecycleWatermarkSample={sessionId:'watermark-session',clock:c,wallTime:c.wallTime,stage,mortalityHead,
             attemptHead:cursor.head,attemptFaultCount:cursor.faultCount,actors:f.actors.map(actor=>({username:actor.username,
                 authority:{actor,clock:c,healthHeads:f.health.coverageHeads(),deathEventId:f.health.deathFor(actor.username)?.eventId??null,restricted:!!f.health.deathFor(actor.username)}})),avatars:[],...change};
         store.append(sample);return sample;};
@@ -224,10 +226,13 @@ function policyFixture(fullPolicy=false){const f=watermarkFixture(fullPolicy),ro
     snapshot=()=>({clock:f.clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),
         survivalDigest:null,modsDigest:'b'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(root)}),
     pin={manifest,opening:snapshot()},store=new NativeLifecyclePolicyStore(f.db,pin);
-    const emit=(stage:LifecyclePolicySample['stage'],changes:Partial<LifecyclePolicySample>={},withCensus=true)=>{
-        if(withCensus)f.frame(stage,changes.sessionId?{sessionId:changes.sessionId}:{});const m=f.store.read(),position=m.entries.at(-1)!.sample.clock;
-        const sample:LifecyclePolicySample={sessionId:'watermark-session',worldId:'fixture',position,wallTime:position.wallTime,stage,mortalityHead:m.head,
-            watermarkHead:f.watermarks.read().head,bootManifest:manifest,snapshot:snapshot(),...changes};store.append(sample);return sample;};
+    const emit=(stage:LifecyclePolicySample['stage'],changes:Partial<LifecyclePolicySample>={},withCensus=true,census:Partial<LifecycleWatermarkSample>={})=>{
+        if(withCensus)f.frame(stage,{...changes.sessionId?{sessionId:changes.sessionId}:{},...census});
+        const row=f.db.query('SELECT payload FROM native_mortality_event ORDER BY sequence DESC LIMIT 1').get() as {payload:string},position=JSON.parse(row.payload).clock as LifecyclePolicySample['position'],
+            mortalityHead=f.db.query('SELECT sequence,digest FROM native_mortality_head WHERE singleton=1').get() as LifecyclePolicySample['mortalityHead'],
+            watermarkHead=f.db.query('SELECT sequence,digest FROM native_lifecycle_watermark_head WHERE singleton=1').get() as LifecyclePolicySample['watermarkHead'];
+        const sample:LifecyclePolicySample={sessionId:'watermark-session',worldId:'fixture',position,wallTime:position.wallTime,stage,mortalityHead,
+            watermarkHead,bootManifest:manifest,snapshot:snapshot(),...changes};store.append(sample);return sample;};
     return{...f,policyStore:store,pin,snapshot,emit,readPolicy:()=>readNativeLifecyclePolicy(f.db,f.scope,f.options,initial,f.actors)};
 }
 
@@ -252,7 +257,7 @@ function mutationFixture(strict=false,fullPolicy=false,roles:Array<'engine'|'gat
     if(strict)for(const role of roles)boot(role);
     f.options.policyMutationsPath=path;
     const ports={db,worldId:'fixture',clock:()=>f.store.read().entries.at(-1)!.sample.clock,wallTime:()=>f.store.read().entries.at(-1)!.sample.clock.wallTime},
-        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emit(stage,{...strict?{sessionId:policyProcessSessionId}:{},mutationCursor:store.cursor(),...change});
+        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={},census:Partial<LifecycleWatermarkSample>={})=>f.emit(stage,{...strict?{sessionId:policyProcessSessionId}:{},mutationCursor:store.cursor(),...change},true,census);
     return{...f,mutationDb:db,mutations:store,mutationPath:path,mutationPorts:ports,emitMutationFrame:emit,runtime,runtimeContract,boot,
         readWorldPolicy:()=>readNativeWorldPolicy(f.db,f.scope,f.options,initial,f.actors),
         readMutations:()=>readNativePolicyMutations(f.db,f.scope,f.options,initial,f.actors),close(){db.close(true);f.close();}};
@@ -271,16 +276,95 @@ test('world policy joins actual materialized startup inputs, two process roles a
 test('world policy original 1+7 frame reaches the positive native integrity gate and source coverage through frozen SQLite readers',()=>{
     const f=mutationFixture(true,true),started=performance.now();try{
         // One isolated fixture build; runtime append/rollback durability is exercised separately below.
-        f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}}).immediate();
+        f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);
+            const avatar={username:'ada',slot:1,vitals:{hitpoints:10,finite:true,terminal:false,healthAudited:true}};
+            f.emitMutationFrame('after-terminal-guard',{},n===100?{avatars:[avatar]}:{});
+            if(n===100){const c=f.store.read().entries.at(-1)!.sample.clock,id=randomUUID(),death=createPopulationDeathEvidence(f.agents.getPopulationMember('ada')!,c,age,mortality,
+                {damageEventId:id,sessionId:'client',engineTick:n});
+                f.health.record({username:'ada',sessionId:'client',engineTick:n,occurredAt:c.wallTime,hpBefore:10,hpAfter:0,maxHp:10,damageType:1},id,death);
+                f.emitMutationFrame('end-of-tick',{}, {avatars:[{...avatar,vitals:{...avatar.vitals,hitpoints:0,terminal:true}}]});
+            }else f.emitMutationFrame('end-of-tick');}}).immediate();
         console.error(`[WorldPolicyFullFrame] build ${Math.round(performance.now()-started)} ms`);
         const r=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));
         expect(r.bindingStatus).toBe('bound');expect(r.integrity.find(g=>g.gateId==='unchanged-clock-and-world-policy')!.verdict).toBe('pass');
         expect(r.sourceCoverage.rows.find(s=>s.sourceId==='clock-world-policy')!.status).toBe('complete');expect(r.qualifiesMinimum).toBeFalse();
+        expect(r.integrity.find(g=>g.gateId==='finite-lifecycle-no-respawn')!.verdict).toBe('pass');
+        expect(r.sourceCoverage.rows.filter(s=>['native-health-deaths','login-respawn-enforcement'].includes(s.sourceId)).map(s=>s.status)).toEqual(['complete','complete']);
+        expect(rule(r,'founder-survival').verdict).toBe('fail'); // Correct finite death is not a survival success.
         const frozen=join(f.root,'.local/society-metrics/world-policy-frozen.sqlite');writeFileSync(frozen,f.mutationDb.serialize());
         const replay=readNativeWorldPolicy(f.db,f.scope,{...f.options,policyMutationsPath:frozen},initial,f.actors);expect(replay.verdict).toBe('pass');
+        const checkpoint=join(f.root,'server/engine/data/lifecycle-full-frozen.sqlite');writeFileSync(checkpoint,f.db.serialize());
+        const offline=new OwnedDatabase(checkpoint,{readonly:true}),live=readNativeLifecycleEnforcement(f.db,f.scope,f.options,initial,f.actors);
+        try{expect(readNativeLifecycleEnforcement(offline,f.scope,{...f.options,policyMutationsPath:frozen},initial,f.actors)).toEqual(live);}finally{offline.close(true);}
         console.error(`[WorldPolicyFullFrame] total ${Math.round(performance.now()-started)} ms`);
     }finally{f.close();}
 },15000);
+
+test('finite lifecycle joins existing sealed sources for every original offline founder and rereads frozen SQLite without writes',()=>{
+    const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}
+        const before=[f.db.serialize(),f.mutationDb.serialize(),f.hashes()],read=()=>readNativeLifecycleEnforcement(f.db,f.scope,f.options,initial,f.actors),r=read();
+        expect(r.gaps).toEqual([]);expect(r.verdict).toBe('pass');expect(r.completeNativeHealthCoverage).toBeTrue();expect(r.completeLifecycleEnforcement).toBeTrue();
+        expect(read()).toEqual(r);expect([f.db.serialize(),f.mutationDb.serialize(),f.hashes()]).toEqual(before);
+        const path=join(f.root,'server/engine/data/lifecycle-frozen.sqlite');writeFileSync(path,f.db.serialize());const offline=new OwnedDatabase(path,{readonly:true});
+        try{expect(readNativeLifecycleEnforcement(offline,f.scope,f.options,initial,f.actors)).toEqual(r);}finally{offline.close(true);}
+        // The short source fixture does not satisfy the original minimum run frame or positive living/survival bounds.
+        expect(projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options)).integrity.find(g=>g.gateId==='finite-lifecycle-no-respawn')!.verdict).toBe('inconclusive');
+    }finally{f.close();}
+});
+
+test.each(['legacy-runtime','unaudited-avatar','pending-attempt','guard-source','stale-death-latch','write-fault','missing-stage','health-tail'])(
+    'finite lifecycle never certifies a missing native guarantee: %s',variant=>{
+    const f=mutationFixture(variant!=='legacy-runtime');try{for(let n=0;n<3;n++){f.sample(n);
+        f.emitMutationFrame('after-terminal-guard',{},variant==='unaudited-avatar'&&n===1?
+            {avatars:[{username:'ada',slot:1,vitals:{hitpoints:10,finite:true,terminal:false}}]}:{});
+        if(n===1&&variant==='pending-attempt')f.attempt(f.watermarks.read().entries.at(-1)!.sample,false);
+        if(n===1&&variant==='guard-source'){const e=f.attempt(f.watermarks.read().entries.at(-1)!.sample,false);
+            // A completed parser result is not a guard source failure; create an actual guard route pair.
+            f.attempts.append({...e,phase:'result',outcome:'parsed'});const id=randomUUID();
+            f.attempts.append({...e,attemptId:id,kind:'login-guard'});f.attempts.append({...e,attemptId:id,kind:'login-guard',phase:'result',outcome:'source-unavailable'});}
+        if(n===1&&variant==='write-fault')f.watermarks.fault();
+        if(n===1&&variant==='missing-stage')continue;
+        const actors=variant==='stale-death-latch'&&n===1?f.watermarks.read().entries.at(-1)!.sample.actors.map(a=>({...a,authority:{...a.authority!,deathEventId:'fabricated'}})):undefined;
+        f.emitMutationFrame('end-of-tick',{},actors?{actors}:{});
+    }
+        if(variant==='health-tail')f.health.record({username:'ada',sessionId:'client',engineTick:2,occurredAt:new Date(Date.parse(wall)+1200).toISOString(),hpBefore:10,hpAfter:9,maxHp:10,damageType:1});
+        const r=readNativeLifecycleEnforcement(f.db,f.scope,f.options,initial,f.actors);expect(r.completeLifecycleEnforcement).toBeFalse();expect(r.verdict).toBe('inconclusive');expect(r.gaps.length).toBeGreaterThan(0);
+    }finally{f.close();}
+});
+
+test.each(['latched','missing-latch','damage-after-death-blocked'])(
+    'finite lifecycle orders native lethal HP and the permanent latch within a tick: %s',variant=>{
+    const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);const avatar={username:'ada',slot:1,vitals:{hitpoints:10,finite:true,terminal:false,healthAudited:true}};
+        f.emitMutationFrame('after-terminal-guard',{},n===1?{avatars:[avatar]}:{});
+        if(n===1){const c=f.store.read().entries.at(-1)!.sample.clock,damageEventId=randomUUID(),event=createPopulationDeathEvidence(f.agents.getPopulationMember('ada')!,c,age,mortality,
+            {damageEventId,sessionId:'client',engineTick:1});
+            f.health.record({username:'ada',sessionId:'client',engineTick:1,occurredAt:c.wallTime,hpBefore:10,hpAfter:0,maxHp:10,damageType:1},damageEventId,event);
+            if(variant==='damage-after-death-blocked')expect(()=>f.health.record({username:'ada',sessionId:'client',engineTick:1,occurredAt:c.wallTime,hpBefore:10,hpAfter:9,maxHp:10,damageType:1})).toThrow('Terminal avatar');
+            f.emitMutationFrame('end-of-tick',{}, {avatars:[{...avatar,vitals:{...avatar.vitals,hitpoints:0,terminal:variant!=='missing-latch'}}]});
+        }else f.emitMutationFrame('end-of-tick');
+    }
+        const r=readNativeLifecycleEnforcement(f.db,f.scope,f.options,initial,f.actors);expect(r.gaps).toEqual([]);
+        expect(r.verdict).toBe(variant==='missing-latch'?'fail':'pass');expect(r.completeLifecycleEnforcement).toBeTrue();
+        if(variant==='missing-latch'){f.watermarks.fault();const partial=readNativeLifecycleEnforcement(f.db,f.scope,f.options,initial,f.actors);
+            expect(partial.verdict).toBe('fail');expect(partial.completeLifecycleEnforcement).toBeFalse();expect(partial.violations).not.toEqual([]);
+            const projected=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));
+            expect(projected.integrity.find(g=>g.gateId==='finite-lifecycle-no-respawn')!.verdict).toBe('fail');
+            const foreign=projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},reportNativeOutcomes(f.scope,f.options));expect(foreign.lifecycleIntegrityViolations).toEqual([]);}
+    }finally{f.close();}
+});
+
+test('finite lifecycle rejects stale attempt health heads even when their audit prefixes and paired results are individually valid',()=>{
+    const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);const avatar={username:'ada',slot:1,vitals:{hitpoints:n===0?10:9,finite:true,terminal:false,healthAudited:true}};
+        const frame=f.emitMutationFrame('after-terminal-guard',{}, {avatars:[avatar]});
+        if(n===0)f.health.record({username:'ada',sessionId:'client',engineTick:0,occurredAt:frame.wallTime,hpBefore:10,hpAfter:9,maxHp:10,damageType:1});
+        if(n===1){const sample=f.watermarks.read().entries.at(-1)!.sample,a=sample.actors[0]!.authority!;
+            f.attempt(sample,true,{...a,healthHeads:{...a.healthHeads,damage:f.selection.openingHealthHeads.damage}});}
+        f.emitMutationFrame('end-of-tick',{}, {avatars:[{...avatar,vitals:{...avatar.vitals,hitpoints:9}}]});
+    }
+        expect(f.readWatermarks().completeRecordedAttemptWindow).toBeTrue();const r=readNativeLifecycleEnforcement(f.db,f.scope,f.options,initial,f.actors);
+        expect(r.verdict).toBe('inconclusive');expect(r.gaps).toContain('attempt-health-before-native-pass');expect(r.gaps).toContain('attempt-health-census-order');
+    }finally{f.close();}
+});
 
 test.each(['missing-gateway','bad-input','missing-frame','cursor','restart','wrong-session'])(
     'world policy coverage stays unknown at a concrete runtime boundary: %s',variant=>{

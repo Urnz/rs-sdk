@@ -3,6 +3,16 @@ interface DamageTarget {
     hitmarkDamage: number; hitmarkType: number; hitmark2Damage: number; hitmark2Type: number;
 }
 
+const auditedRoutes=new WeakMap<object,unknown>();
+/** Engine module registration avoids a Player/NetworkPlayer/observer import cycle. No external ports set this. */
+export function registerHealthAuditedDamageRoute(prototype:{applyDamage:unknown}){auditedRoutes.set(prototype,prototype.applyDamage);}
+export function hasHealthAuditedDamageRoute(avatar:object):boolean{
+    for(let p=Object.getPrototypeOf(avatar);p;p=Object.getPrototypeOf(p)){
+        if(auditedRoutes.has(p))return (avatar as {applyDamage?:unknown}).applyDamage===auditedRoutes.get(p);
+    }
+    return false;
+}
+
 /** HP/hitmark changes and their durable injury proof succeed together or fail closed. */
 export function applyHealthAuditedDamage(target: DamageTarget, hpIndex: number, amount: number,
     apply: () => void, record: (before: number, after: number) => void): void {

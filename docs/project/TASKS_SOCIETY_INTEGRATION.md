@@ -1167,6 +1167,14 @@ Az eredeti 1+7 frame pozitív natív integrity/sourceCoverage ága, negatív/gap
 readonly/rollback és C06 restore ellenőrzött. **3/11 kész, 8 nyitott;
 3/8 pozitív natív kapuút.** Következő P2-05. Nincs live run vagy minimum PASS.
 
+**2026-10-28 P2-05 kész:** [véges életciklus/respawn kapu](SI_C07_FINITE_LIFECYCLE_GATE.md).
+A meglévő mortality/health/attempt/census és reviewzott runtime teljes eredeti
+ablakra kötve, auditált online HP-út és végleges latch. Negatív STAT_ADD
+HP audit-bypass javítva. Eredeti 1+7 pozitív gate/sourceCoverage, failure/gap,
+readonly/offline és C06 source-pin ellenőrzött. **4/11 kész, 7 nyitott;
+4/8 pozitív natív kapuút.** Következő P2-06. Survival lower bound külön P2-09,
+globális minimum PASS nincs. 27/45, C07 NO-GO, hosszú run nem indult.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

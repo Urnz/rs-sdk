@@ -22,6 +22,10 @@ export const lifecycleSourcePaths=[...new Set([...lifecycleRoutes.map(r=>r.path)
     'population-lifecycle/age.ts','population-lifecycle/mortality.ts','population-lifecycle/death.ts','population-lifecycle/starvation.ts',
     'server/engine/src/mods/PopulationDeathRuntime.ts','server/engine/src/mods/NativeMortalityCoverageRuntime.ts',
     'server/engine/src/mods/PlayerHealthEvidenceStore.ts','server/engine/src/mods/WorldMods.ts','simulation-clock/store.ts',
+    'server/engine/src/engine/entity/NetworkPlayer.ts','server/engine/src/mods/PlayerHealthDamage.ts',
+    'server/engine/src/engine/script/handlers/PlayerOps.ts',
+    'server/engine/src/mods/IntegrationFixtureNative.ts','server/engine/src/mods/NativeFoodConsumption.ts',
+    'server/engine/src/mods/NativeFoodSkill.ts','server/engine/src/mods/NativeKitchen.ts','server/engine/src/mods/NativeToolWork.ts',
     'simulation-clock/profile.ts','simulation-clock/config.ts','needs/survival.ts'])].sort();
 export const lifecyclePolicyPaths=['config/population-age-policy.json','config/population-mortality-policy.json',
     'config/population-world-profile-bindings.json','config/population-lifecycle-policies.json','config/simulation-clock.json',

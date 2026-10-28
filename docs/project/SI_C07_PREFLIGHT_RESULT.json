@@ -405,7 +405,7 @@
       },
       {
         "id": "login-respawn-enforcement",
-        "authority": "prospective native attempts plus paired post-guard/end-tick actual World slot census and attempt head/fault witnesses",
+        "authority": "reviewed immutable lifecycle/HP routes joined with sealed native attempts, paired World census and mortality/death prefixes",
         "span": "every-native-tick",
         "tables": [
           "native_lifecycle_selection",
@@ -426,7 +426,7 @@
           "finite-lifecycle-no-respawn",
           "complete-source-coverage"
         ],
-        "gap": "No complete route/build/source history or continuous HP certificate yet; paired tick observations can prove violations, never full lifecycle enforcement PASS."
+        "gap": "Positive coverage requires the reviewed runtime, every native tick and audited online HP routes; missing legacy route witnesses remain partial. This is not a positive survival lower bound."
       },
       {
         "id": "clock-world-policy",
@@ -894,7 +894,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "186a1fcdb7030c6c2c3ae6d9e6986b6e891aeb15713ec654b963edb28a390474"
+    "digest": "f4b2bcab5e1971d8e4abd04d39e200684acb88ab9a5f97ca8f15c931039135e4"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1172,7 +1172,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters; original roster, applied genesis/native opening and clock/world-policy have positive native gate paths. The policy gate requires explicit immutable application-input contract, engine/gateway startup witnesses and closed mutation/clock histories. Five positive integrity paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
+      "reason": "All17 requirements have partial native adapters; original roster, applied genesis/native opening, clock/world-policy and finite lifecycle/no-respawn have positive native gate paths. Lifecycle requires reviewed immutable runtime/HP routes and sealed mortality, attempt, census and death histories. Four positive integrity paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1212,7 +1212,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "e55f3b701e715bd79a9255d1f3c67c4adfe5c0bba7b6c9a686e69e9afdb023e4"
+      "sha256": "b9ec62114f7fe2d85449f031522396d08854b98044fafae589760ff31a8f7cc4"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1240,19 +1240,19 @@
     },
     {
       "path": "population-lifecycle/native-attempts.ts",
-      "sha256": "4b42f55dd23b882c9b6052bc90212f1b3b4b7089b334064512c37314e3bd9f3a"
+      "sha256": "1050bc28158b54dfc5c0e9f97211ba62e6d5cc700beb75f914bb7032acfeb6e0"
     },
     {
       "path": "society-metrics/lifecycle-attempts.ts",
-      "sha256": "f0cf35d5e2e0ec3188c9fcc2018724998525f83b552cb1621b2de88848e08d1b"
+      "sha256": "463c5465f9d3b739fc26ec4cfcf430d05848c5c8fd0efdeae95fa2fca6b50fc5"
     },
     {
       "path": "server/engine/src/mods/NativeLifecycleAttempts.ts",
-      "sha256": "bad268c5994bc16613f01f7eb8033d390dbf30ab30cae2f300ab32c7febb2873"
+      "sha256": "1a231fd4ea88778aeb8d80b20cc55bf02fea3f77da6f942548e5fb1eb791425f"
     },
     {
       "path": "population-lifecycle/native-watermarks.ts",
-      "sha256": "3d50fb288aa7cc0ff337544cf48931c0b79b99a4d8e37e3ed02a8b0b257eae81"
+      "sha256": "95698cb2abebd9b2d16fcb4de16b62b9a56e9a6678442b41a1a8aa2ccc87cab3"
     },
     {
       "path": "society-metrics/lifecycle-watermarks.ts",
@@ -1260,7 +1260,7 @@
     },
     {
       "path": "population-lifecycle/native-policy-manifest.ts",
-      "sha256": "a73cb223768fb6282666cb25f81105369d075f4118d3ae870465a5e012407471"
+      "sha256": "91a8c4296851e9f5eb0bd6bb5e0ddde07043e2c5a5f0adfcdbe5f7cc69315bfd"
     },
     {
       "path": "population-lifecycle/native-policy.ts",
@@ -1297,6 +1297,38 @@
     {
       "path": "society-metrics/world-policy.ts",
       "sha256": "ef3c1845aace079d5df443bccba4a4db7dad76d5045dfa2b4532917bb165be79"
+    },
+    {
+      "path": "society-metrics/lifecycle-enforcement.ts",
+      "sha256": "cb5407317d1d079d2249a14d9b2e9d79a5db03ca1c9dd5b9513b54b71cb51f01"
+    },
+    {
+      "path": "server/engine/src/mods/PlayerHealthDamage.ts",
+      "sha256": "c4eb4484f440957c71c5395f13c05ca3e28d531a5c22862088de856b355fb50e"
+    },
+    {
+      "path": "server/engine/src/engine/entity/NetworkPlayer.ts",
+      "sha256": "15b4aaa6aee5127a849d5ea82ac397717c1caa53de9689d1c10d87edabf8010c"
+    },
+    {
+      "path": "server/engine/src/engine/script/handlers/PlayerOps.ts",
+      "sha256": "65ee97da35838c4c76671f4907fd47bf355b0383f7215bd188552eff3b5ea213"
+    },
+    {
+      "path": "server/engine/src/mods/IntegrationFixtureNative.ts",
+      "sha256": "e06a3d1d5fce94b5280cb00b92adc726e877a78b715558f40b3dc946e9df9b4d"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodConsumption.ts",
+      "sha256": "d79bd110398dc5000110f52e322b4d4edc9e0cf6eba56bdfe854588809e8303b"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodSkill.ts",
+      "sha256": "6b28b4bafe8d6c45a30592612ef1a6083da375ffaddce60544d3203a411406e6"
+    },
+    {
+      "path": "server/engine/src/mods/NativeKitchen.ts",
+      "sha256": "5b640512fff0f4c0c5341ddfcd2d888b4177a2eb54bb87d87adbd0770a027881"
     },
     {
       "path": "server/engine/src/app.ts",
@@ -1364,11 +1396,11 @@
     },
     {
       "path": "society-metrics/source-coverage.ts",
-      "sha256": "5801e264b5a258ff3a68e5312f0ffe411813913f46a3843ccbc5848a86ae8934"
+      "sha256": "c32ad3c560b26b80ce70c37c77003afff6c0db966a32672fe686f9b68e6f1677"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "6421094ef6c08d7bcd87d1c7ca583b513be17ab82d5e70cb682101589121e14d"
+      "sha256": "bb6e7b1fed77a9129752d257aa53c7996ea19fbf932f73383211b96274112a5b"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1620,7 +1652,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "7924935ee2f918ea8f0572bb093d8c889d48ced705bf1213f9afa2f6726b1d7f"
+      "sha256": "0d28154862f957a3d464909d9047144f19c962efbb0b154bb24c8ff5dc915caf"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -1760,7 +1792,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "e3a75c052d867e1dd849e272a1a45493d686092c5206e289c714233f642e57dd"
+      "sha256": "5353ae1d776a50047caa9dd34deedb4147cd1fae346a3cda4a682cc774603662"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1789,5 +1821,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "fc3a178edb8be9511a38fdf762e1d53ac4952cad4075d414a4effd522cbab88d"
+  "digest": "21e2bbd42c292e759b41d72b763c93382db8e82854d9db230b967a39ce1bd94e"
 }

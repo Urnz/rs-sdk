@@ -3610,3 +3610,71 @@ Nincs live install/start/run/providerhívás vagy történeti backup DB-read.
 - A root cwd-ből hibásan indított native import által létrehozott három új
   db.sqlite/WAL/SHM fixture-fájl (kezdetben nem léteztek) metadata- és workspace-
   ellenőrzés után eltávolítva; meglévő engine-adatbázist nem töröltünk/olvastunk.
+
+## 2026-10-28 – SI-C07/2 P2-05 finite lifecycle/no-respawn lezárása
+
+[Eredmény és bizonyítási határ](SI_C07_FINITE_LIFECYCLE_GATE.md). P2-05 kész:
+4/11 lezárási pont, 7 nyitott; 4/8 pozitív natív kapuút, 17/17 részleges
+szabályadapter. Következő P2-06 admin/fallback értékmozgások. 27/45,
+SI-C07 NO-GO, SI-M3/MVS nem PASS; nincs hosszú gazdasági run.
+
+A meglévő mortality/attempt/census/health és P2-04 reviewzott runtime források
+összekötve, teljes genesis→warmup→evaluation ablakra. Az online avatar
+NetworkPlayer damage methodja natívan megfigyelt; lecserélt vagy legacy
+jelző nélküli method nem PASS. A source inventory az ismert HP-writer/rollback
+fájlokat is pineli. Closing health seal, attempt/pass/census sorrend,
+lethal/death/final latch kötés; missing/fault/tail unknown, scoped FAIL megmarad.
+A minimum kapu és két sourceCoverage család pozitív ága bekötött. Új journal,
+tábla/migráció vagy proof-upload végpont nincs; vitals.healthAudited opcionális,
+legacy online sample nem kap új garanciát. Prospektív run előtt új source pin kell.
+
+Tényleges működési hiba javítva: a negatív STAT_ADD finite HP-t a durable
+damage/death audit megkerülésével csökkenthette. Most ugyanazt az applyDamage
+utat használja, mint STAT_SUB/DRAIN; írási hiba HP/hitmark rollback, lethal
+esetben végleges latch, login és packed respawn tiltva. Az eredeti 1+7 fixture
+helyesen tud egyszerre lifecycle PASS-t és founder-survival FAIL-t adni.
+Pozitív living/survival lower bound P2-09; global qualifiesMinimum false.
+
+Végső célzott bizonyíték, összesen 102 különböző runtime eset:
+
+- `20261028-180244-368-si-c07-finite-lifecycle-final-readers`: 53 PASS, 66,491 s.
+  Eredeti 1+7 online lethal/offline, frozen checkpoint és mutation journal
+  readonly reread; finite/world-policy/lifecycle-policy/mutation integráció.
+- `20261028-180245-113-si-c07-finite-lifecycle-final-consumers`: 31 PASS, 7,164 s.
+  A felsorolt öt metrics/minimum/preflight tesztfájl, nem egész package.
+- `server/engine/.local/verification/20261028-180334-563-si-c07-finite-lifecycle-final-native`:
+  14 PASS, 10,671 s. Tényleges NetworkPlayer/World census és PlayerOps opcode;
+  izolált persistence callback, rollback, lethal closure és packed respawn.
+  Nem teljes World.cycle/live próba. Megfelelő engine cwd, --no-env-file.
+- `20261028-180336-110-si-c07-finite-lifecycle-final-archive`: 4 PASS, 15,964 s.
+  C06 módosult source inventory capture/restore, corrupt head/source/exclusion.
+- `20261028-175811-197-si-c07-finite-lifecycle-types-final`: root + engine TS
+  PASS, 78,778 s. Utána csak source-lista/string és fixture/doc változás;
+  webclient projekt változatlan.
+
+Kiegészítő célzott bizonyíték: `20261028-175516-413-si-c07-finite-lifecycle-readers-final`
+38 PASS 47,866 s (mortality/attempt/census régi negatív határok is);
+engine `20261028-175328-503-si-c07-finite-lifecycle-native` 19 PASS 5,240 s,
+benne a health writer öt változatlan audit/rollback esete. Nem számoltuk újra
+őket a 102-es végső összegbe.
+
+Megőrzött korai hibák és javításuk:
+
+- `20261028-175232-981-si-c07-finite-lifecycle-readers`: 11 PASS/2 FAIL, 39,859 s.
+  Fixture build 11760/total15029 ms, 15 s timeout; ismételt teljes láncolvasás
+  helyett a builder csak a tailt olvassa, a végső readerek továbbra teljes auditot
+  validálnak. Végső build3910/total8723 ms, eredeti15 s limit változatlan.
+  A másik FAIL lehetetlen post-death write elvárás: a meglévő writer helyesen
+  blokkolta. A próba most az elutasítást és a lezárt lifecycle-t ellenőrzi.
+- `20261028-175640-772-si-c07-finite-lifecycle-final-types`: FAIL49,401 s,
+  két nullable engineTick típusjelölés. A journal validator eleve integer-t
+  követel; explicit non-null használat javítva, végső két TS projekt PASS.
+
+Teljes regresszió nem indokolt: komponensszintű lifecycle/HP-javítás és natív
+readonly integráció, pontos közvetlen fogyasztókkal. Nem változott shared clock
+setter, gazdasági commit/custody, általános auth, runtime dependency vagy global
+test/build konfiguráció. Nincs live install/start, providerköltség vagy
+historikus backup DB-payload read. Eredeti17/8 minimum/küszöb változatlan.
+- `20261028-180526-555-si-c07-finite-lifecycle-final-artifact`: NO-GO exit2,
+  canonical forráshashek/digest, 24 dokumentum linkjei és changed/staged-line
+  format PASS, 1,455 s. Nincs új run-authority; selectedSources továbbra null.

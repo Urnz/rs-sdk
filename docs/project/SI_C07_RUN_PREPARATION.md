@@ -250,3 +250,9 @@ A teljes rögzített archive source/config/packed fájlleltár, Bun/platform és
 inputnevek pineltek.5 valódi producer begin/result, független journal és natív
 cursor-kötés, külön signal/config értelmezés. Teljes loaded runtime/input és
 külső writer enforcement még nincs;6 maradt, a2. nyitott, NO-GO; nincs live run/install.
+
+2026-10-28: [P2-05 finite lifecycle/no-respawn](SI_C07_FINITE_LIFECYCLE_GATE.md)
+lezárt implementációs pont. Reviewzott runtime/HP route, teljes eredeti
+mortality/health/attempt/census ablak; negatív STAT_ADD audit-bypass javítva.
+4/11 kész, 7 nyitott; 4/8 pozitív natív kapuút. Következő P2-06.
+A tényleges C07 run, pozitív survival lower bound és globális minimum PASS még nincs.

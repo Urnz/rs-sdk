@@ -57,3 +57,13 @@ test('invalid/unbound frame is redacted, and mere raw result fields cannot uploa
     expect(projectNativeSourceCoverage(contract,{...frame,founderAgentIds:null} as any,f.outcomes).bindingStatus).toBe('invalid');
     expect(projectNativeSourceCoverage(contract,frame,null).completeSourceCount).toBe(0);
 });
+
+test('lifecycle source coverage requires the joined original full-window native guarantee, not separate empty ledgers',()=>{
+    const f=fixture();f.sources.lifecycleEnforcement=available({scope,worldId:'world',fromSimulationTime:frame.genesisAppliedAtSimulationTime,
+        toSimulationTime:frame.toSimulationTime,completeLifecycleEnforcement:true,completeNativeHealthCoverage:true,attemptHead:{sequence:0},censusHead:{sequence:2},healthSnapshotDigest:'c'.repeat(64)});
+    const selected=()=>projectNativeSourceCoverage(contract,frame,f.outcomes).rows.filter(r=>['native-health-deaths','login-respawn-enforcement'].includes(r.sourceId));
+    expect(selected().map(r=>r.status)).toEqual(['complete','complete']);
+    f.sources.lifecycleEnforcement.value.fromSimulationTime=scope.fromSimulationTime;expect(selected().every(r=>r.status!=='complete')).toBeTrue();
+    f.sources.lifecycleEnforcement.value.fromSimulationTime=frame.genesisAppliedAtSimulationTime;f.sources.lifecycleEnforcement.value.completeLifecycleEnforcement=false;
+    expect(selected().every(r=>r.status!=='complete')).toBeTrue();
+});

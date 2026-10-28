@@ -133,11 +133,17 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
     }
     const lifecycle=nativeScopeMatches?outcomes?.sources.lifecycleAttempts:undefined;
     const lifecycleWatermarks=nativeScopeMatches?outcomes?.sources.lifecycleWatermarks:undefined;
+    const enforcement=nativeScopeMatches?outcomes?.sources.lifecycleEnforcement:undefined;
+    const enforcementMatches=enforcement?.status==='available'&&populationCompatible&&population?.status==='available'
+        &&enforcement.value.worldId===outcomes?.worldId&&digest(enforcement.value.scope)===digest(scope)
+        &&enforcement.value.fromSimulationTime===population.value.genesisAppliedAtSimulationTime&&enforcement.value.toSimulationTime===scope.toSimulationTime;
     const lifecycleIntegrityViolations=[...lifecycle?.status==='available'&&lifecycle.value.worldId===outcomes?.worldId&&digest(lifecycle.value.scope)===digest(scope)
         ?lifecycle.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycle.digest,scope,attemptId:v.attemptId,meaning:v.reason})):[],
         ...lifecycleWatermarks?.status==='available'&&lifecycleWatermarks.value.worldId===outcomes?.worldId&&digest(lifecycleWatermarks.value.scope)===digest(scope)
             ?lifecycleWatermarks.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:lifecycleWatermarks.digest,scope,
-                attemptId:`census:${v.sampleSequence}:${v.actorId}`,meaning:v.reason})):[]];
+                attemptId:`census:${v.sampleSequence}:${v.actorId}`,meaning:v.reason})):[],
+        ...enforcementMatches&&enforcement?.status==='available'?enforcement.value.violations.map(v=>({gateId:'finite-lifecycle-no-respawn',sourceDigest:enforcement.digest,scope,
+            attemptId:v.evidenceId,meaning:v.reason})):[]];
     const lifecyclePolicy=nativeScopeMatches?outcomes?.sources.lifecyclePolicy:undefined;
     const policyMutations=nativeScopeMatches?outcomes?.sources.policyMutations:undefined;
     const worldPolicy=nativeScopeMatches?outcomes?.sources.worldPolicy:undefined;
@@ -172,6 +178,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         if(sourceCoverage.verdict==='pass')integrityEvidence.push({gateId:'complete-source-coverage',verdict:'pass',evidenceDigests:[sourceCoverage.digest]});
         if(worldPolicyMatches&&worldPolicy?.status==='available'&&worldPolicy.value.verdict==='pass'&&worldPolicy.value.completeWorldPolicyCoverage)
             integrityEvidence.push({gateId:'unchanged-clock-and-world-policy',verdict:'pass',evidenceDigests:[worldPolicy.digest]});
+        if(enforcementMatches&&enforcement?.status==='available'&&enforcement.value.verdict==='pass'&&enforcement.value.completeLifecycleEnforcement)
+            integrityEvidence.push({gateId:'finite-lifecycle-no-respawn',verdict:'pass',evidenceDigests:[enforcement.digest]});
         if(!nativeScopeMatches||binding.worldId!==outcomes?.worldId||binding.clockId!==scope.clockId||binding.clockProfileDigest!==scope.clockProfileDigest
             ||binding.fromSimulationTime!==scope.fromSimulationTime||binding.toSimulationTime!==scope.toSimulationTime
             ||digest([...binding.founderAgentIds].sort())!==digest([...scope.actorAgentIds].sort()))throw Error('Minimum native scope differs');
@@ -251,7 +259,9 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             :assessment?.integrity.find(a=>a.gateId===g.gateId)?.verdict??'inconclusive'})),assessment,
         diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),sourceCoverage,
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
-        sources:{worldPolicy:worldPolicy?.status==='available'?{status:'available',digest:worldPolicy.digest,verdict:worldPolicy.value.verdict,completeWorldPolicyCoverage:worldPolicy.value.completeWorldPolicyCoverage}:{status:worldPolicy?.status??'unavailable'},
+        sources:{lifecycleEnforcement:enforcement?.status==='available'?{status:'available',digest:enforcement.digest,verdict:enforcement.value.verdict,
+                completeLifecycleEnforcement:enforcement.value.completeLifecycleEnforcement}:{status:enforcement?.status??'unavailable'},
+            worldPolicy:worldPolicy?.status==='available'?{status:'available',digest:worldPolicy.digest,verdict:worldPolicy.value.verdict,completeWorldPolicyCoverage:worldPolicy.value.completeWorldPolicyCoverage}:{status:worldPolicy?.status??'unavailable'},
             genesisOpening:opening?.status==='available'?{status:'available',digest:opening.digest,verdict:opening.value.verdict,mismatches:opening.value.mismatches}:{status:opening?.status??'unavailable'},
             work:work?.status==='available'?{status:'available',digest:work.digest}:{status:work?.status??'unavailable'},
             toolMaintenance:nativeScopeMatches&&outcomes?.sources.toolMaintenance?.status==='available'
@@ -277,6 +287,6 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',
             'Founder deaths bound survival from above; absent deaths or wall heartbeat do not establish continuous mortality coverage.',
-            'Complete needs/food/housing/capacity histories and five positive native integrity gate paths remain incomplete.']};
+            'Complete needs/food/housing/capacity histories and four positive native integrity gate paths remain incomplete.']};
     return{...body,digest:digest(body)};
 }
