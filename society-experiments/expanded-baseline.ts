@@ -14,6 +14,7 @@ import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../population-lifec
 import { PolicyMutationStore } from '../population-lifecycle/policy-mutations.js';
 import { WorldPolicyRuntimeStore } from '../population-lifecycle/world-policy-runtime.js';
 import {SocietyIntegrityStore} from '../society-integrity/store.js';
+import {readExternalValueSnapshot} from '../external-trade/value-coverage.js';
 import { pinPolicyEnvironment } from '../population-lifecycle/policy-environment.js';
 import { nativeToolDigest } from '../item-lifecycle/native-tool.js';
 import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFoodProductionStore.js';
@@ -82,6 +83,16 @@ function stores(root:string,selected:ExpandedSelection){
                         check(c!.resultDigest===r.resultDigest&&c!.clockId===selected.clockId&&c!.clockProfileDigest===selected.clockProfileDigest
                             &&c!.genesisAppliedAtSimulationTime===r.genesisAppliedAtSimulationTime&&(c!.head.sequence===0?c!.head.hash==='0'.repeat(64):row?.hash===c!.head.hash),
                             'Administrative value source prefix differs');}}finally{store.close();journal.close(true);}}
+                const external=entries.map(e=>e.sample.externalValueCursor).filter(c=>!!c),snapshots=new Map<string,ReturnType<typeof readExternalValueSnapshot>>();
+                if(external.length){const trades=selected.stores.find(s=>s.requiredTables.includes('engine_trade_evidence')),
+                    treasury=selected.stores.find(s=>s.requiredTables.includes('institution_treasury_external_credit')),
+                    market=selected.stores.find(s=>s.requiredTables.includes('offers')&&s.requiredTables.includes('trades'));
+                    check(trades&&treasury,'External value source excluded');
+                    for(const c of external){check(!c!.marketEnabled||market,'Active external market source excluded');const key=`${c!.marketEnabled}:${c!.shopMode}`;
+                        let snapshot=snapshots.get(key);if(!snapshot){snapshot=readExternalValueSnapshot(root,{tradePath:join(root,trades.path),treasuryPath:join(root,treasury.path),marketPath:market?join(root,market.path):undefined},c!.shopMode,c!.marketEnabled);snapshots.set(key,snapshot);}
+                        const prefix=(h:{sequence:number;hash:string},rows:Array<{sequence:number;hash:string}>)=>h.sequence===0?h.hash==='0'.repeat(64):rows[h.sequence-1]?.hash===h.hash;
+                        check(c!.tradeSourceDigest===snapshot.cursor.tradeSourceDigest&&c!.marketSourceDigest===snapshot.cursor.marketSourceDigest&&c!.treasurySourceDigest===snapshot.cursor.treasurySourceDigest
+                            &&prefix(c!.trades,snapshot.trades.map(t=>({sequence:t.sequence,hash:t.headHash})))&&prefix(c!.market,snapshot.market.trades)&&prefix(c!.treasury,snapshot.treasury.entries),'External value source prefix or identity differs');}}
             }
             if(s.requiredTables.includes('integrity_run')){const store=new SocietyIntegrityStore(path,true);try{for(const run of store.active()){
                 store.coverageSnapshot(run.runId);check(run.result.simulationClock.clockId===selected.clockId&&run.result.simulationClock.profileDigest===selected.clockProfileDigest,'Administrative value original clock differs');}

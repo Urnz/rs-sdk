@@ -655,15 +655,22 @@
       },
       {
         "id": "external-shop-import-history",
-        "authority": "complete external shop, trade/import, reward and replenishment source universe",
+        "authority": "reviewed immutable closed-shop/restock dispatch, original founder native trade/actual GE/treasury prefixes and per-tick state seals joined with admin/fallback coverage",
         "span": "warmup-and-evaluation",
-        "tables": [],
+        "tables": [
+          "engine_trade_evidence",
+          "engine_trade_evidence_audit",
+          "offers",
+          "trades",
+          "institution_treasury_external_credit",
+          "institution_treasury_external_credit_audit"
+        ],
         "requirements": [],
         "gates": [
           "no-external-shop-or-import-value",
           "no-post-genesis-admin-or-fallback-value"
         ],
-        "gap": "Complete producer inventory/enforcement is still required; absent imports are not a zero certificate."
+        "gap": "Positive coverage requires fresh opening channels and the full original native window; an explicitly disabled GE is observed separately. Internal treasury income requires completed native commerce backing; production ancestry remains separate. Missing active sources or historical openings remain unknown."
       }
     ],
     "requirements": [
@@ -896,7 +903,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "6aff27ac50c8bd50267b86aa9927045e3e23aaf7f9cbd16d358b651dd049fdc1"
+    "digest": "3c6b0388c8ac91fb4eac7f9727b48cc66e8b075f5463c2e29c8b3c9f8d611e67"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1174,7 +1181,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters; original roster, applied genesis/native opening, clock/world-policy, finite lifecycle/no-respawn and post-genesis admin/fallback value have positive native gate paths. Administrative value requires reviewed immutable producers and full-window integrity head/state seals with native payment backing. Three positive integrity paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
+      "reason": "All17 requirements have partial native adapters; six positive native gate paths cover original roster, applied genesis/native opening, clock/world-policy, finite lifecycle/no-respawn, admin/fallback and external value. External value joins reviewed closed shop/restock, fresh native trade/actual GE/treasury channels and backed internal commerce over the full original window. Two positive integrity paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1214,7 +1221,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "7c5089f8914218264a0dc0a054361262e5c855134e141e2ad4705befa6c80bfd"
+      "sha256": "19b1c1669f36bca38fefaa82d8a14214c664b9e75e29655e478d3dea92b56301"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1250,7 +1257,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeLifecycleAttempts.ts",
-      "sha256": "8c85e231fb1dfad836f79313d1b0a6b6dbc1031002ba630043ee347f534b4e72"
+      "sha256": "4785a5e0d99b0ec3c7906fa2d287ef97c9d0d456321b7e836a8461922c5516b5"
     },
     {
       "path": "population-lifecycle/native-watermarks.ts",
@@ -1262,11 +1269,11 @@
     },
     {
       "path": "population-lifecycle/native-policy-manifest.ts",
-      "sha256": "87736f0b602552b3a59223a36c428984d484a431fc5484aba67e55b3e780d2cf"
+      "sha256": "ee5557dd5596373927285c42233628aa2b22be00232af86917f312652c42bbb2"
     },
     {
       "path": "population-lifecycle/native-policy.ts",
-      "sha256": "0d9e889094a2775441aa0cb66cece36c3e487fa52aa5ba916e7277a7eefb0ec3"
+      "sha256": "411c1467803176365084b08c1b2a86e5ce2c10f7699312e99a6932b4db568718"
     },
     {
       "path": "society-metrics/lifecycle-policy.ts",
@@ -1323,6 +1330,90 @@
     {
       "path": "society-metrics/administrative-value.ts",
       "sha256": "4a6b5153f99c328af0b7718c8b91949b938964e9003909a61d63f96f23e8cb9e"
+    },
+    {
+      "path": "external-trade/value-coverage.ts",
+      "sha256": "9e35a8d2d7b1f30ffe9de7e2e5f2ae5e4df0d95fb978ec9d886c36e21f459fb0"
+    },
+    {
+      "path": "external-trade/source.ts",
+      "sha256": "55754cb1592b4168aabf129e73a194863fa844c85299ec5d1b83cc9dda8232b0"
+    },
+    {
+      "path": "external-trade/engine-clock.ts",
+      "sha256": "e2fa13a57030ec3f0ec05df268d63273e60d42f67170de8a072695637f9ac763"
+    },
+    {
+      "path": "server/engine/src/mods/TradeEvidenceStore.ts",
+      "sha256": "22c17a72f2f86002241b434e16b5270d5a20a12b68d76bf56f10db3313e2b553"
+    },
+    {
+      "path": "server/engine/src/engine/entity/tracking/TradeLedger.ts",
+      "sha256": "acb8d861807955d6c8651ab172c05e01e3e657462accbd8adf7bb89ba6d42525"
+    },
+    {
+      "path": "server/engine/src/engine/script/handlers/InvOps.ts",
+      "sha256": "1b93750900fb48007b17d5c5c1da5c9763f66498e0d3623262508e9aea5030bb"
+    },
+    {
+      "path": "server/engine/src/engine/script/handlers/DebugOps.ts",
+      "sha256": "8c0a4d46a7786e2a88171587c408cc35ef7a2a84e55e19ae2b42b7b19015415d"
+    },
+    {
+      "path": "server/engine/src/mods/ShopEconomyPolicy.ts",
+      "sha256": "754c0e7184963c040aee516d028836d157d8bece8105892614f3aace2e6defa6"
+    },
+    {
+      "path": "server/engine/src/util/WorldConfig.ts",
+      "sha256": "096916d8a4a0a040174807c6b78e6959a4333a6ff0453c2a53d50423a6a4187d"
+    },
+    {
+      "path": "server/engine/src/util/Environment.ts",
+      "sha256": "e48e060917e22ee976c4c69991fe9df3a27ea5e241ce90ea8f4963d7f5db6118"
+    },
+    {
+      "path": "server/content/scripts/shop/scripts/shop.rs2",
+      "sha256": "fcabc61d5a1ae4139b346c4f95045af1a3b1e142759602e852cfc29c7f56102b"
+    },
+    {
+      "path": "server/engine/src/engine/market/MarketStore.ts",
+      "sha256": "fb75f78c1a8561f8724086923a16d68f9f3ba2bb461fd2d5c425a9e365937fda"
+    },
+    {
+      "path": "server/engine/src/engine/market/GrandExchange.ts",
+      "sha256": "dcae8bbbe6fb4e2dfb44196911f6a505133249f2fbee83769b4ec24b0da14f67"
+    },
+    {
+      "path": "server/engine/src/mods/NativeCommerce.ts",
+      "sha256": "9f7fbab7fa23b296bae3ddaa82839bc97c823870fd3390af703fa0479ab638f4"
+    },
+    {
+      "path": "server/engine/src/mods/NativeCommerceRuntime.ts",
+      "sha256": "8cdcb75452b19e2ccba410bd5544c15fb17e4f7057df37a6b713a191ff06b021"
+    },
+    {
+      "path": "server/engine/src/mods/NativeCommerceStore.ts",
+      "sha256": "c8c1963f3c2cde59cd440c3e5e05884bc1bbc149811e0e801527263ae461325c"
+    },
+    {
+      "path": "agent-operated-shop/native-commerce.ts",
+      "sha256": "19e0575e78d8af75758293fe757a62662cbb2526e283d088c17b9dd1850a24df"
+    },
+    {
+      "path": "agent-operated-shop/native-commerce-runtime.ts",
+      "sha256": "22ba9449e1d37c6bd113dba5a0cb41bd0608ab442a8a3eb31de8635b77d6b31c"
+    },
+    {
+      "path": "agent-operated-shop/lifecycle.ts",
+      "sha256": "49b9c984f5c0246a0ccd54779e463f7ad66a0a15205e43cdb49aa06c80bb4120"
+    },
+    {
+      "path": "server/gateway/admin/institution-treasury-migration.ts",
+      "sha256": "4a4a0d09e326c2e38678eede6d37b0e93c74ad5f309644744176035b5812a04f"
+    },
+    {
+      "path": "society-metrics/external-value.ts",
+      "sha256": "fedc53c78d49517dbac5b579c057db36eabf8d6e1b96ec212576fb43a1d3de10"
     },
     {
       "path": "server/engine/src/mods/SocietyIntegrity.ts",
@@ -1446,11 +1537,11 @@
     },
     {
       "path": "society-metrics/source-coverage.ts",
-      "sha256": "77c46b900e6e58a82ba6a324ccf9a92f0e4406a081b7efc65bc7d6b5879e49d5"
+      "sha256": "86b6bd62fbd48d40cc9b2e3e26c58d2c435c21d0da235b1a9882d4f85ad2e968"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "5b9dd74054d686d4ce1de2a38279328cb0755458a62bc7d9a2a0ab76a0398a0c"
+      "sha256": "282d9d677dc372db584225ab31eeccf73196cf4d6972976ed2abc9281cb54d39"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1702,15 +1793,15 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "f7d85acf3c1d881b897acf65a1fe31ff3fa4e3f77eb0a9b639c029266bb1e020"
+      "sha256": "893d3b06c16d5578db11afa40fe90461f4eda772e6a1b859344be4696082923c"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
-      "sha256": "9ded04b85451c4eb0d88f9b98f34173079329b53245c2bd7865a9381238bf83c"
+      "sha256": "c85b72fe7ca6cb150afb828e1e91cbe0a33f7e6a93f866ac7d90467441efa534"
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "c6dbcd641bf2e25bc2f2e5c88344fae6d64f0fcd053a13835cfff30143ce9468"
+      "sha256": "819d72298e1c0b75ea04419ba4fea2ee07ec61514dd69795e2b34fabe2ad1446"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -1842,7 +1933,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "9104773d5bce27d04c05607c45b3832bb53882b7141ca47b839934ade0762095"
+      "sha256": "bd97d943f7ee378e131692c4c00c49838b23a452ed7fe7c77925b2db3f1ca3a9"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1871,5 +1962,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "e2ad70fd7a5b5ce232b5a188063d1ecc8284dddafc141d3d817a30ee7ff3893e"
+  "digest": "3828d9ac9c0afe5b11c0ad548aef9a0eb9d5338b203bc9431592879d5e54a317"
 }

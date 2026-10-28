@@ -1183,6 +1183,14 @@ nyolc producer FAIL, gap/readonly/frozen/C06 restore ellenőrzött.
 **5/11 kész, 6 nyitott; 5/8 pozitív natív kapuút.** Következő P2-07.
 Nincs új journal/tábla vagy hosszú run; 27/45, C07 NO-GO, minimum PASS nincs.
 
+**2026-10-28 P2-07 kész:** [external shop/import kapu](SI_C07_EXTERNAL_VALUE_GATE.md).
+Reviewzott closed shop/restock és a tényleges native trade/aktív GE/treasury
+források teljes eredeti tickablakra kötött head/state cursorai, P2-06 admin join.
+Valódi belső commerce backing; 1+7 pozitív gate/sourceCoverage, import FAIL,
+gap/legacy/head/tail/source identity, disabled GE és frozen/C06 restore próbázva.
+**6/11 kész, 5 nyitott; 6/8 pozitív natív kapuút.** Következő P2-08.
+Új journal/tábla vagy hosszú run nincs; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

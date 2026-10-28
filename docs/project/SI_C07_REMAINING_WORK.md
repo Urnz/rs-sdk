@@ -18,8 +18,8 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    [Eredmény](SI_C07_NATIVE_DISPATCH.md).
 2. **FOLYAMATBAN – Teljes minimum-assessment implementáció.** Az eredeti
    17 szabály és 8 integritási kapu natív kiértékelése, minden szükséges
-   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **5/11 kész**;
-   17/17 részleges szabályadapter, **5/8 pozitív natív kapuút**. A maradék három
+   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **6/11 kész**;
+   17/17 részleges szabályadapter, **6/8 pozitív natív kapuút**. A maradék két
    kapu pozitív útja, a pozitív population-korlátok, a teljes boundary/access/
    demand integráció és az összesítő PASS-ág még nyitott. A tényleges jövőbeli
    run adatai nem ennek az implementációs csomagnak az elkészülési feltételei.
@@ -74,3 +74,9 @@ kész. Reviewzott nyolc producer és teljes natív integrity head/state ablak,
 valódi internal payment debit/credit; 1+7 PASS/failure/gap/frozen/C06 restore.
 **5/11 kész, 6 nyitott; 5/8 pozitív natív kapuút.** Következő P2-07;
 P2-03 a megmaradó garanciák után kerül végellenőrzésre. Hosszú run nincs.
+
+2026-10-28 további lezárás: [P2-07 external shop/import kapu](SI_C07_EXTERNAL_VALUE_GATE.md)
+kész. Reviewzott closed shop/restock, friss natív trade/aktív tényleges GE és
+treasury prefix/state, teljes eredeti ablak, P2-06 join és belső commerce backing.
+**6/11 kész, 5 nyitott; 6/8 pozitív natív kapuút.** Következő P2-08;
+utána P2-09, P2-10, P2-03 végellenőrzés és P2-11. C07 továbbra NO-GO.

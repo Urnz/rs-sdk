@@ -71,6 +71,9 @@ import {readNativeAdministrativeValue} from '../administrative-value.js';
 import {readNativeFounderBaseline} from '../population-outcomes.js';
 import {bindSocietyInternalPayment} from '../../server/gateway/admin/society-integrity.js';
 import {PlayerRewardStore} from '../../server/engine/src/mods/PlayerRewardStore.js';
+import {MarketStore,type MarketAccount} from '../../server/engine/src/engine/market/MarketStore.js';
+import {readExternalValueSnapshot} from '../../external-trade/value-coverage.js';
+import {readNativeExternalValue} from '../external-value.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -280,6 +283,73 @@ function administrativeFixture(full=false,legacy=false){const f=mutationFixture(
     inject=(source:import('../../society-integrity/store.js').IntegritySource='engine.cheat-value',changed=true)=>withSocietyValueMutation({source,operationId:randomUUID(),actor:'player:ada',payload:{itemId:379,requestedCount:1}},()=>changed?1:0,boundary,r=>r>0);
     return{...f,integrity:store,runId,cursor,boundary,emitValue:emit,inject,readValue:()=>readNativeAdministrativeValue(f.db,f.scope,f.options,baseline,f.actors),close(){store.close();f.close();}};
 }
+
+function externalFixture(full=false,enabled=true){const f=administrativeFixture(full),paths={tradePath:join(f.root,'server/engine/data/external-trades.sqlite'),
+    marketPath:join(f.root,'server/engine/data/actual-ge.sqlite'),treasuryPath:join(f.root,'.local/economy/external-treasury.sqlite')},
+    trades=new TradeEvidenceStore(paths.tradePath),market=new MarketStore(paths.marketPath),treasury=new InstitutionTreasuryStore(paths.treasuryPath);
+    f.options.tradePath=paths.tradePath;f.options.externalValue={treasuryPath:paths.treasuryPath,marketPath:paths.marketPath};
+    const cursor=()=>readExternalValueSnapshot(f.root,paths,'closed-society',enabled).cursor,
+        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emitValue(stage,{externalValueCursor:cursor(),...change}),
+        trade=(outside=true,exportOnly=false)=>{const c=f.store.read().entries.at(-1)!.sample.clock;return trades.record({tick:c.engineTick!,fromUsername:'ada',toUsername:outside?'outsider':'bea',
+            fromItems:[{id:379,name:'lobster',count:1}],toItems:exportOnly?[]:[{id:995,name:'coins',count:10}],fromValue:1,toValue:exportOnly?0:10,committedAt:c.wallTime});},
+        baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});
+    return{...f,paths,externalTrades:trades,externalMarket:market,externalTreasury:treasury,externalCursor:cursor,emitExternal:emit,trade,
+        readExternal:()=>readNativeExternalValue(f.db,f.scope,f.options,baseline,f.actors),close(){trades.close();market.db.close(true);treasury.close();f.close();}};
+}
+function marketWallet(owner:string):MarketAccount{const amounts=new Map([[379,100],[995,10000]]);return{owner,take(id,n){const prior=amounts.get(id)??0;if(prior<n)throw Error('Unfunded fixture wallet');amounts.set(id,prior-n);},
+    give(id,n){amounts.set(id,(amounts.get(id)??0)+n);return n;},save:()=>new Uint8Array([1]),rollback(){throw Error('Unexpected fixture rollback');}};}
+
+test('external value original 1+7 joins fresh closed native channels, preserves internal trades and rereads frozen sources without a global PASS',()=>{
+    const f=externalFixture(true),start=performance.now();try{f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitExternal('after-terminal-guard');if(n===50)f.trade(false);f.emitExternal('end-of-tick');}}).immediate();
+        console.error(`[ExternalValueFullFrame] build ${Math.round(performance.now()-start)} ms`);const out=reportNativeOutcomes(f.scope,f.options),r=projectNativeMinimumAssessment(contract,f.scope,out);
+        expect(out.sources.externalValue.status).toBe('available');if(out.sources.externalValue.status!=='available')throw Error('Native external source absent');
+        const {sourceSnapshotDigest:checkpointSnapshot,...expected}=out.sources.externalValue.value;expect(expected.gaps).toEqual([]);expect(expected.verdict).toBe('pass');
+        console.error(`[ExternalValueFullFrame] export ${Math.round(performance.now()-start)} ms`);
+        expect(r.integrity.find(g=>g.gateId==='no-external-shop-or-import-value')!.verdict).toBe('pass');expect(r.sourceCoverage.rows.find(s=>s.sourceId==='external-shop-import-history')!.status).toBe('complete');expect(r.qualifiesMinimum).toBeFalse();
+        const saved=f.db.serialize(),path=join(f.root,'server/engine/data/external-offline.sqlite');writeFileSync(path,saved);const offline=new OwnedDatabase(path,{readonly:true});
+        try{const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});expect(readNativeExternalValue(offline,f.scope,f.options,baseline,f.actors)).toEqual(expected);}finally{offline.close(true);}
+        expect(f.db.serialize()).toEqual(saved);console.error(`[ExternalValueFullFrame] total ${Math.round(performance.now()-start)} ms`);
+    }finally{f.close();}
+},15000);
+
+test.each(['player-import','ge-import','treasury-import','fallback-import','internal-ge','export-only'])(
+    'external value classifies an actual native boundary without netting away positive imports: %s',variant=>{
+    const f=externalFixture(),now=Date.now;try{for(let n=0;n<3;n++){f.sample(n);f.emitExternal('after-terminal-guard');if(n===1){const time=f.boundary.observe().wallTime;
+        if(variant==='ge-import'||variant==='internal-ge'){Date.now=()=>Date.parse(time);f.externalMarket.place(marketWallet(variant==='internal-ge'?'bea':'outsider'),379,'sell',1,10,995);f.externalMarket.place(marketWallet('ada'),379,'buy',1,10,995);Date.now=now;}
+        else if(variant==='fallback-import')f.inject('engine.player-reward');
+        else{const t=f.trade(true,variant==='export-only');if(variant==='treasury-import')f.externalTreasury.creditExternalSettlement({settlementId:t.eventId,kind:'business',actorId:'forge',amountGp:10,sourceRef:`trade:${t.eventId}`,status:'committed',occurredAt:time},()=>true,time);}
+    }f.emitExternal('end-of-tick');}
+        const expected=['internal-ge','export-only'].includes(variant)?'pass':'fail',r=f.readExternal();expect(r.gaps).toEqual([]);expect(r.verdict).toBe(expected);
+        if(expected==='fail'){f.policyStore.fault();expect(f.readExternal().verdict).toBe('fail');const out=reportNativeOutcomes(f.scope,f.options),projected=projectNativeMinimumAssessment(contract,f.scope,out);
+            expect(projected.integrity.find(g=>g.gateId==='no-external-shop-or-import-value')!.verdict).toBe('fail');expect(projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},out).externalIntegrityViolations).toEqual([]);}
+    }finally{Date.now=now;f.close();}
+});
+
+test.each(['missing-cursor','legacy-shop','wrong-ge-source','missing-ge-source','head','tail','prehistory','missing-stage','unbacked-credit','missing-trade-source'])(
+    'external value never replaces an unresolved native channel with zero: %s',variant=>{
+    const f=externalFixture();try{if(variant==='prehistory'){f.sample(0);f.trade(false);}
+        for(let n=0;n<3;n++){if(n!==0||variant!=='prehistory')f.sample(n);const c=f.externalCursor();f.emitExternal('after-terminal-guard');
+            if(n===1&&variant==='unbacked-credit'){const time=f.boundary.observe().wallTime;f.externalTreasury.creditExternalSettlement({settlementId:randomUUID(),kind:'business',actorId:'forge',amountGp:10,sourceRef:'unclassified:receipt',status:'committed',occurredAt:time},()=>true,time);}
+            if(n===1&&variant==='missing-stage')continue;
+            f.emitExternal('end-of-tick',n===1&&variant==='missing-cursor'?{externalValueCursor:null}:variant==='legacy-shop'?{externalValueCursor:{...c,shopMode:'legacy'}}:
+                n===1&&variant==='head'?{externalValueCursor:{...c,trades:{sequence:999,hash:'f'.repeat(64)}}}:{});}
+        if(variant==='tail')f.trade(false);if(variant==='missing-ge-source')f.options.externalValue!.marketPath=undefined;
+        if(variant==='wrong-ge-source')f.options.externalValue!.marketPath=f.options.checkpointPath;if(variant==='missing-trade-source')f.options.tradePath=undefined;
+        const r=f.readExternal();expect(r.verdict).toBe('inconclusive');expect(r.completeExternalValueCoverage).toBeFalse();expect(r.gaps.length).toBeGreaterThan(0);
+    }finally{f.close();}
+});
+
+test('external value attests an explicitly disabled GE without opening an irrelevant missing database',()=>{const f=externalFixture(false,false);try{
+    f.options.externalValue!.marketPath=undefined;for(let n=0;n<3;n++){f.sample(n);f.emitExternal('after-terminal-guard');f.emitExternal('end-of-tick');}
+    expect(f.readExternal().verdict).toBe('pass');
+}finally{f.close();}});
+
+test('external value cannot borrow an administrative violation or positive seal from another genesis or cohort',()=>{const f=externalFixture();try{
+    for(let n=0;n<3;n++){f.sample(n);f.emitExternal('after-terminal-guard');if(n===1)f.inject();f.emitExternal('end-of-tick');}
+    const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!}),admin=f.readValue();expect(admin.verdict).toBe('fail');
+    for(const foreign of [{...admin,genesisResultDigest:'f'.repeat(64)},{...admin,scope:{...f.scope,actorAgentIds:['foreign']}}]){
+        const result=readNativeExternalValue(f.db,f.scope,f.options,baseline,f.actors,foreign);expect(result.verdict).toBe('inconclusive');expect(result.violations).toEqual([]);}
+}finally{f.close();}});
 
 test('administrative value original 1+7 native window reaches PASS with frozen read-only seals and no global minimum PASS',()=>{
     const f=administrativeFixture(true),start=performance.now();try{

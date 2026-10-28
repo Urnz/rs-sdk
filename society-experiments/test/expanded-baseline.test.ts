@@ -30,6 +30,9 @@ import {SocietyIntegrityStore} from '../../society-integrity/store.js';
 import {integrityCoverageCursor} from '../../society-integrity/coverage.js';
 import {buildWorldGenesisResult} from '../../world-genesis/result.js';
 import {loadWorldGenesisProfileCatalog} from '../../world-genesis/config.js';
+import {TradeEvidenceStore} from '../../server/engine/src/mods/TradeEvidenceStore.js';
+import {MarketStore} from '../../server/engine/src/engine/market/MarketStore.js';
+import {readExternalValueSnapshot} from '../../external-trade/value-coverage.js';
 
 function lifecyclePolicyArchiveFixture(){
     const f=expandedFixture(),repo=join(import.meta.dir,'../..');
@@ -135,6 +138,32 @@ test('explicit lifecycle policy bad head or changed source pin prevents another 
     put(f.root,lifecycleSourcePaths[0]!,readFileSync(join(f.root,lifecycleSourcePaths[0]!), 'utf8')+'\n// source drift\n');
     policyPhase('reject-source',()=>expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('source pin'));
 });
+
+test('native external value cursors require the selected trade and active GE sources and survive C06 restore with their exact identities',()=>{
+    const f=policyPhase('external-fixture',lifecyclePolicyArchiveFixture),tradePath='.local/economy/trades.sqlite',marketPath='.local/economy/actual-ge.sqlite',
+        treasuryPath=f.selected.stores.find(s=>s.role==='treasury')!.path;
+    new TradeEvidenceStore(join(f.root,tradePath)).close();new MarketStore(join(f.root,marketPath)).db.close(true);
+    f.selected.stores.push({role:'trade',path:tradePath,requiredTables:['engine_trade_evidence','engine_trade_evidence_audit']},
+        {role:'market',path:marketPath,requiredTables:['offers','trades']});
+    f.selected.stores.find(s=>s.role==='treasury')!.requiredTables.push('institution_treasury_external_credit','institution_treasury_external_credit_audit');
+    const cursor=readExternalValueSnapshot(f.root,{tradePath:join(f.root,tradePath),marketPath:join(f.root,marketPath),treasuryPath:join(f.root,treasuryPath)},'closed-society',true).cursor,
+        checkpoint=new OwnedDatabase(join(f.root,f.checkpoint)),policy=new NativeLifecyclePolicyStore(checkpoint),opening=policy.selection().selection.opening,c=opening.clock,
+        zero={sequence:0,digest:null},sample={sessionId:'archive-external',worldId:f.selected.worldId,position:{clockId:c.clockId,profileDigest:c.profileDigest,status:'running' as const,
+            revision:c.revision,engineTick:0,simulationTime:c.lastSimulationTime,wallTime:c.lastObservedWallTime},wallTime:c.lastObservedWallTime,stage:'after-terminal-guard' as const,
+            mortalityHead:zero,watermarkHead:zero,bootManifest:f.manifest,snapshot:opening,externalValueCursor:cursor};
+    try{policy.append(sample);}finally{checkpoint.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,{...f.selected,stores:f.selected.stores.filter(s=>s.role!=='trade')})).toThrow('External value source excluded');
+    expect(()=>prepareExpandedBaseline(f.root,{...f.selected,stores:f.selected.stores.filter(s=>s.role!=='market')})).toThrow('Active external market source excluded');
+    const pin=policyPhase('external-prepare',()=>prepareExpandedBaseline(f.root,f.selected));
+    policyPhase('external-capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
+    policyPhase('external-restore',()=>restoreExpandedArchive(f.bundle,f.output));
+    const restoredRoot=join(f.output,'workspace'),restored=new OwnedDatabase(join(restoredRoot,f.checkpoint),{readonly:true});
+    try{expect(new NativeLifecyclePolicyStore(restored).read().entries[0]!.sample.externalValueCursor).toEqual(cursor);
+        expect(readExternalValueSnapshot(restoredRoot,{tradePath:join(restoredRoot,tradePath),marketPath:join(restoredRoot,marketPath),treasuryPath:join(restoredRoot,treasuryPath)},'closed-society',true).cursor).toEqual(cursor);
+    }finally{restored.close(true);}
+    const bad=new OwnedDatabase(join(f.root,f.checkpoint));try{new NativeLifecyclePolicyStore(bad).append({...sample,stage:'end-of-tick',externalValueCursor:{...cursor,trades:{sequence:1,hash:'f'.repeat(64)}}});}finally{bad.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('External value source prefix');
+},10000);
 
 test('explicit lifecycle policy file excluded from archive inventory prevents a baseline despite a matching file hash',()=>{
     const f=policyPhase('excluded-source-fixture',lifecyclePolicyArchiveFixture);

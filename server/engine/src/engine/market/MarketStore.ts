@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
-import Environment from '#/util/Environment.js';
+import Environment from '../../util/Environment.js';
 import { dirname } from 'node:path';
 import { OwnedDatabase } from '../../io/OwnedDatabase.js';
 

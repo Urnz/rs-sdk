@@ -5,8 +5,8 @@ import {
     InvalidShopEconomyModeError,
     parseShopEconomyMode,
     type ShopEconomyMode
-} from '#/mods/ShopEconomyPolicy.js';
-import { tryParseBoolean, tryParseInt, tryParseString } from '#/util/TryParse.js';
+} from '../mods/ShopEconomyPolicy.js';
+import { tryParseBoolean, tryParseInt, tryParseString } from './TryParse.js';
 
 export interface WorldConfig {
     easyStartup: boolean;

@@ -75,3 +75,12 @@ test('lifecycle source coverage requires the joined original full-window native 
     f.sources.lifecycleEnforcement.value.fromSimulationTime=frame.genesisAppliedAtSimulationTime;f.sources.lifecycleEnforcement.value.completeLifecycleEnforcement=false;
     expect(selected().every(r=>r.status!=='complete')).toBeTrue();
 });
+
+test('external value coverage requires the original cohort/genesis and full native producer window',()=>{
+    const f=fixture();f.sources.externalValue=available({scope,worldId:'world',fromSimulationTime:frame.genesisAppliedAtSimulationTime,toSimulationTime:frame.toSimulationTime,
+        genesisResultId:'genesis',genesisResultDigest:'c'.repeat(64),completeExternalValueCoverage:true,sourceHeads:{trades:{sequence:0},market:{sequence:0},treasury:{sequence:0}}});
+    const row=()=>projectNativeSourceCoverage(contract,frame,f.outcomes).rows.find(r=>r.sourceId==='external-shop-import-history')!;
+    expect(row().status).toBe('complete');f.sources.externalValue.value.fromSimulationTime=scope.fromSimulationTime;expect(row().status).not.toBe('complete');
+    f.sources.externalValue.value.fromSimulationTime=frame.genesisAppliedAtSimulationTime;f.sources.externalValue.value.genesisResultDigest='f'.repeat(64);expect(row().status).not.toBe('complete');
+    f.sources.externalValue.value.genesisResultDigest='c'.repeat(64);f.sources.externalValue.value.scope={...scope,actorAgentIds:['foreign']};expect(row().status).not.toBe('complete');
+});

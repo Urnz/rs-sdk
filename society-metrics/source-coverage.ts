@@ -66,7 +66,11 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
         &&administrative.value.toSimulationTime===frame.toSimulationTime&&p?.status==='available'&&administrative.value.genesisResultId===p.value.genesisResultId
         &&administrative.value.genesisResultDigest===p.value.genesisResultDigest,['administrative-value-producer-coverage-unproven'],administrative?.status==='available'?
         {head:administrative.value.sourceHead,state:administrative.value.stateDigest}:undefined);
-    add('external-shop-import-history',[],false,['external-value-producer-coverage-unproven']);
+    const external=s?.externalValue;
+    add('external-shop-import-history',[external],!!original&&external?.status==='available'&&external.value.completeExternalValueCoverage
+        &&scopeMatches(external.value.scope)&&external.value.worldId===frame.worldId&&external.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime
+        &&external.value.toSimulationTime===frame.toSimulationTime&&p?.status==='available'&&external.value.genesisResultId===p.value.genesisResultId
+        &&external.value.genesisResultDigest===p.value.genesisResultDigest,['external-value-producer-coverage-unproven'],external?.status==='available'?external.value.sourceHeads:undefined);
     const coverage=assessMinimumSourceCoverage(contract,frame,proofs);
     const dependencies:Record<string,string[]>={
         'native-health-deaths':['P2-05','P2-09'],'native-mortality-passes':['P2-05'],'login-respawn-enforcement':['P2-05'],

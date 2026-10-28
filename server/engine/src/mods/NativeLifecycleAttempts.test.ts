@@ -20,6 +20,11 @@ import {loadWorldGenesisProfileCatalog} from '../../../../world-genesis/config.j
 import ClientCheatHandler from '../network/game/client/handler/ClientCheatHandler.js';
 import ClientCheat from '../network/game/client/model/ClientCheat.js';
 import Environment from '../util/Environment.js';
+import DebugOps from '../engine/script/handlers/DebugOps.js';
+import {TradeEvidenceStore} from './TradeEvidenceStore.js';
+import {MarketStore} from '../engine/market/MarketStore.js';
+import {InstitutionTreasuryStore} from '../../../gateway/admin/institution-treasury.js';
+import {readExternalValueSnapshot} from '../../../../external-trade/value-coverage.js';
 import NpcType from '../cache/config/NpcType.js';
 import LocType from '../cache/config/LocType.js';
 import VarPlayerType from '../cache/config/VarPlayerType.js';
@@ -132,6 +137,24 @@ test('SI-C07 native policy observer records null authority and durable write fau
     expect(()=>f.run(()=>World['observePopulationLifecycle']('end-of-tick'))).not.toThrow();f.db.run('DROP TRIGGER fail_policy');
     expect(store.read().faults).toBeGreaterThan(0);expect(f.clock.get('world')).toEqual(before);
     expect(()=>f.db.run('UPDATE native_lifecycle_policy_fault SET count=0')).toThrow('reset');
+});
+
+test('SI-C07 actual shop opcode and World frame capture the native external channels; a failed channel preserves independent policy evidence',()=>{
+    const f=fixture();f.watermarks();const tradePath=join(f.root,'trades.sqlite'),marketPath=join(f.root,'ge.sqlite'),treasuryPath=join(f.root,'treasury.sqlite'),
+        trades=new TradeEvidenceStore(tradePath),market=new MarketStore(marketPath),treasury=new InstitutionTreasuryStore(treasuryPath);
+    closers.push(()=>trades.close(),()=>market.db.close(true),()=>treasury.close());
+    const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..')),store=new NativeLifecyclePolicyStore(f.db,{manifest,opening:f.policySnapshot()}),
+        ports={...f.ports,bootManifest:manifest,policy:()=>({position:f.c,worldId:'fixture',snapshot:f.policySnapshot()}),
+            externalValue:()=>readExternalValueSnapshot(f.root,{tradePath,marketPath,treasuryPath},Environment.node.shopEconomyMode,true).cursor},
+        mode=Environment.node.shopEconomyMode,before=f.player.save(false),clock=f.clock.get('world');
+    try{for(const selected of ['legacy','closed-society'] as const){Environment.node.shopEconomyMode=selected;const stack:number[]=[],state={pushInt:(v:number)=>stack.push(v)};
+            DebugOps[ScriptOpcode.SHOP_LEGACY_ALLOWED]!(state as unknown as ScriptState);expect(stack).toEqual([selected==='legacy'?1:0]);}
+        withNativeLifecycleObservation(ports,()=>World['observePopulationLifecycle']('after-terminal-guard'));
+        expect(store.read().entries[0]!.sample.externalValueCursor).toEqual(ports.externalValue());
+        withNativeLifecycleObservation({...ports,externalValue(){throw Error('unavailable native source');}},()=>World['observePopulationLifecycle']('end-of-tick'));
+        const frames=store.read();expect(frames.entries[1]!.sample.externalValueCursor).toBeNull();expect(frames.entries[1]!.sample.snapshot).toEqual(f.policySnapshot());
+        expect(frames.faults).toBe(0);expect(f.player.save(false)).toEqual(before);expect(f.clock.get('world')).toEqual(clock);
+    }finally{Environment.node.shopEconomyMode=mode;}
 });
 
 test('SI-C07 actual World policy frames link the independent mutation journal head and its selected policy identity',()=>{

@@ -44,6 +44,8 @@ export function readBenchmarkReport(baseRoot: string, raw: LongExperimentPlan, e
         wallWindow:{from:execution.started.wallTime,to:execution.lastObservation.wallTime},
         policyMutationsPath:source('policy-mutations','.local/society-metrics/policy-mutations.sqlite'),
         administrativeValue:{treasuryPath:source('treasury','.local/economy/institution-treasury.sqlite')},
+        externalValue:{treasuryPath:source('treasury','.local/economy/institution-treasury.sqlite'),
+            marketPath:source('market',expanded.stores.find(s=>s.requiredTables.includes('offers')&&s.requiredTables.includes('trades'))?.path??'server/engine/data/market.sqlite')},
         population:{genesisPath:paths.genesisPath,integrityPath:paths.integrityPath,configDirectory:paths.configDirectory,
             healthPath:source('health','server/engine/data/mods/player-health-evidence.sqlite'),
             genesisResultId:plan.genesisResultId,genesisResultDigest:plan.genesisResultDigest},

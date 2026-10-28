@@ -3764,3 +3764,61 @@ Forráskijelölés továbbra null/NO-GO. Eredeti17/8 minimum és küszöbök vá
 - `20261028-183832-025-si-c07-admin-value-final-artifact`: friss NO-GO exit2,
   canonical forráshash/digest, 25 dokumentum hivatkozás és changed/staged-line
   format PASS1,310 s. Nincs új run-authority; selectedSources továbbra null.
+
+## 2026-10-28 – SI-C07/2 P2-07 external shop/import kapu kész
+
+[Eredmény és korlátok](SI_C07_EXTERNAL_VALUE_GATE.md). **6/11 lezárási pont kész,
+5 nyitott; 6/8 pozitív natív kapuút**, 17/17 részleges szabályadapter.
+Következő P2-08, verified internal lineage/final use; utána P2-09, P2-10,
+P2-03 végellenőrzés és P2-11. Nem új feladatlista. SI-C07 nyitott, 27/45,
+preflight NO-GO, SI-M3/MVS nem PASS; hosszú gazdasági próba nem indult.
+
+Meglévő policy frame opcionális external cursorába a natív trade audit,
+tényleges aktív GE és treasury credit audit prefix/state/path digest kerül,
+valós closed-shop mód és GE-enabled állapot mellett. A P2-04 immutable build
+és P2-06 admin/fallback join teljes eredeti founder/genesis ablakot köt.
+Két eredeti founder trade/GE cseréje belső; treasury credithez exact completed
+native commerce backing kell. Külső import/fallback FAIL, külön csatornahiány
+nem törli; ismeretlen eredet unknown. Friss nyitócsatorna szükséges, régi
+történet nem törölhető/nullázható/backfillelhető a pozitív értékeléshez.
+GE és player checkpoint külön DB lehet; aktív hiány nem nulla, disabled GE
+natív külön állapot. C06 source inclusion, exact prefix/path és restore bekötve.
+
+**106 külön aktív célzott eset PASS**, explicit ./ fájlutakkal, heavy IO sorosan:
+
+- Engine `20261028-225702-481-si-c07-external-value-native`:23 PASS18,972 s;
+  16 observer/lifecycle,6 shop,1 valódi bilateral sale/treasury backing.
+- `20261028-225915-034-si-c07-external-value-readers-final`:22 PASS60,596 s;
+  19 external és3 közvetlen admin/world-policy/lifecycle pozitív join.1+7
+  fixture193 tickkel11,693 s; build4519/export8321/total11200 ms,15 s limit.
+- `20261028-230026-231-si-c07-external-value-consumers`:33 PASS7,148 s;
+  öt pontos metrics/minimum/sourceCoverage/preflight fogyasztó.
+- `20261028-225732-488-si-c07-external-value-archive`:5 archive eset PASS,
+  wrapper FAIL30,598 s: a soron következő benchmark téves, nem létező
+  benchmark-controller.test.ts útvonallal nem indult. Javított pontos
+  controller.test.ts: `20261028-225847-842-si-c07-external-value-benchmark`,
+  1 PASS10,507 s. Új external C06 inclusion/restore eset8,956 s, helyi10 s keret.
+- Engine `20261028-230530-309-si-c07-external-value-market-boundary`:29 PASS
+  2,539 s;22 további GE/checkpoint és7 már számolt shop/commerce eset.
+- `20261028-230545-977-si-c07-external-value-final-boundaries`:2 korábban
+  számolt source-pin integráció és végső root TS PASS31,728 s. Engine TS
+  `20261028-230457-464-si-c07-external-value-engine-types-final`:PASS17,879 s.
+- `20261028-230632-076-si-c07-external-value-preflight`:PASS1,118 s;
+  várt NO-GO exit2, canonical hashek/digest,26 dokumentum linkjei.
+- `20261028-230726-751-si-c07-external-value-format-final`:changed/staged-line
+  format PASS1,729 s; az új fájlok stage-elve ellenőrizve.
+
+Korai reader kör17 PASS/1 timeout49,807 s (`20261028-225148-451`): az1+7 teszt
+három redundáns teljes rereadet végzett. Az export és a külön frozen readonly
+eredmény egyezése megmaradt, limit15 s változatlan; külön1 PASS12,562 s
+(`20261028-225341-420`), majd a végleges22-es kör is PASS. Korai TS-körökben
+root engine-alias feloldási, majd engine NodeNext/CJS reader-import hiba.
+Öt import ugyanazon relatív modulra javítva három engine fájlban; a tiszta
+commerce-classifier az ESM external-trade határon marad, nem húz metrics
+readereket az engine-be. Compiler/global discovery/config szabály nem lazult.
+
+Új journal/tábla/schema/user_version vagy közös gazdasági/clock/auth írási
+szemantika nincs. Teljes regresszió nem indokolt; webclient változatlan.
+Nincs live install/start/provider/baseline. Új reviewed source pin és prospektív
+selection szükséges; rollback stop +korábbi összetartozó bináris/selection.
+Eredeti17/8 minimum és küszöbök változatlanok, selectedSources továbbra null.

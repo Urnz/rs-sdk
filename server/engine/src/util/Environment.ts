@@ -1,5 +1,5 @@
-import { tryParseBoolean, tryParseInt } from '#/util/TryParse.js';
-import { loadWorldConfig, migrateFromLegacyEnv } from '#/util/WorldConfig.js';
+import { tryParseBoolean, tryParseInt } from './TryParse.js';
+import { loadWorldConfig, migrateFromLegacyEnv } from './WorldConfig.js';
 
 // rs-sdk: 274 reads nested config from data/config/world.json only; it does NOT
 // consult process.env. Deployments (fly.io [env], Docker -e, etc.) set the legacy

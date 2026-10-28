@@ -19,12 +19,12 @@ kettő csak bizonyított sértésre adott FAIL-t. Ezért a sok külön ellenőrz
 komponens nem jelentett kész minimum-kiértékelőt. A terv és a kommunikáció
 hibája volt, hogy ezt a fő hiányt elfedte az ismételt „6 csomag maradt”.
 
-Most **17/17 részleges szabályadapter**, **5/8 pozitív natív kapuút** van.
-A lifecycle és admin/fallback pozitív útja is kész. A további három kapunak még
+Most **17/17 részleges szabályadapter**, **6/8 pozitív natív kapuút** van.
+A lifecycle, admin/fallback és external value pozitív útja is kész. A további két kapunak még
 nincs teljes pozitív natív adaptere.
 A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run PASS.
 
-## Rögzített lezárási pontok: 5/11 kész
+## Rögzített lezárási pontok: 6/11 kész
 
 - [x] **P2-01 – `frozen-founder-roster`.** Az applied genesis teljes eredeti
   cohortja, immutable tagság és natív finite-avatar kötés alapján PASS-képes.
@@ -55,8 +55,11 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Kimaradt privileged variable/spawn utak naplózva; 1+7 pozitív gate/coverage,
   nyolc producer FAIL, gap/readonly/frozen/C06 restore ellenőrzött.
   [Eredmény](SI_C07_ADMINISTRATIVE_VALUE_GATE.md).
-- [ ] **P2-07 – `no-external-shop-or-import-value`.** Import, külső shop és
-  pótló érték forrásainak teljes ablakra kötött kiértékelése.
+- [x] **P2-07 – `no-external-shop-or-import-value`.** Reviewzott closed shop/
+  restock, friss natív trade/aktív tényleges GE/treasury prefix és állapot,
+  teljes eredeti ablak és P2-06 admin join. Belső commerce-hez valódi completed
+  sale/debit-credit kötés; 1+7 PASS, import FAIL, gap/frozen/C06 restore.
+  [Eredmény](SI_C07_EXTERNAL_VALUE_GATE.md). Történeti opening nem backfill.
 - [ ] **P2-08 – `verified-internal-lineage-and-final-use`.** A meglévő belső
   termelési/maintenance és külön fogyasztóhoz jutó láncok integritási adaptere.
 - [ ] **P2-09 – Pozitív population-korlátok.** A living és survival szabályok
@@ -71,7 +74,7 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Az összes kapu/szabály együtt igazolt; puszta feltöltött cellalista kevés.
 
 Ezek lezárási feltételek, nem 11 további chatkör: egy fejlesztés többet is
-lezárhat. Jelenleg 6 pont nyitott. A már elkészült 15 commit nem vész el;
+lezárhat. Jelenleg 5 pont nyitott. A már elkészült 15 commit nem vész el;
 a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb meg kell
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;

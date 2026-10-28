@@ -40,6 +40,8 @@ import { initializeNativeCommerce, readNativeCommerce } from './NativeCommerceSt
 import { TradeEvidenceStore } from './TradeEvidenceStore.js';
 import { handleInternalAdminRequest } from '../web/pages/internal-admin.js';
 import { businessCashflows } from '../../../../society-metrics/native-finance.js';
+import {readExternalValueSnapshot} from '../../../../external-trade/value-coverage.js';
+import {isInternalTreasuryCommerce} from '../../../../external-trade/value-coverage.js';
 
 const root = resolve(import.meta.dir, '../../../..'), pack = resolve(import.meta.dir, '../../data/pack');
 const dirs: string[] = [], closers: Array<() => void> = [];
@@ -135,6 +137,18 @@ test('SI-A12 keeps an unstamped real trade unplaced and never counts sale custod
     expect(report.food.production).toEqual([]); expect(report.food.finalUses).toEqual([]);
     expect(report.balances.operationEquations).toEqual([]); expect(report.needs.internalHungerRelief.status).toBe('inconclusive');
     expect(f.count(f.counterparty, 379)).toBe(2); expect(f.account().balanceGp).toBe(280);
+});
+
+test('SI-C07 external-value backing accepts the real bilateral internal sale and rejects foreign or mismatched treasury labels',()=>{
+    const f=fixture();f.prepare();f.execute();f.coordinator.finalize(f.intent.operationId);
+    const snapshot=readExternalValueSnapshot(f.options.workspace,{tradePath:f.options.tradePath,marketPath:f.options.checkpointPath,treasuryPath:f.options.treasuryPath},'closed-society',true),
+        record=readNativeCommerce(f.market.db)[0]!,credit=snapshot.treasury.entries[0]!.row,
+        founders=[f.intent.worker,f.intent.counterparty].map(a=>({actorId:a.agentId,username:a.username,lifecycleId:a.lifecycleId,membershipDigest:'b'.repeat(64)})),
+        scope={clockId:f.clock().clockId,clockProfileDigest:f.clock().profileDigest,fromSimulationTime:'2001-01-01T00:00:00.000Z',toSimulationTime:'2001-01-02T00:00:00.000Z',actorAgentIds:founders.map(a=>a.actorId)};
+    expect(isInternalTreasuryCommerce(credit,record,scope,f.options.worldId,founders)).toBeTrue();
+    expect(isInternalTreasuryCommerce({...credit,amount_gp:credit.amount_gp+1},record,scope,f.options.worldId,founders)).toBeFalse();
+    expect(isInternalTreasuryCommerce(credit,record,scope,f.options.worldId,founders.slice(0,1))).toBeFalse();
+    expect(snapshot.cursor.trades.sequence).toBe(1);expect(snapshot.cursor.treasury.sequence).toBe(1);expect(snapshot.cursor.market.sequence).toBe(0);
 });
 
 test('raw procurement consumes real seller food and reserved Business GP, preserves personal worker inventory', () => {
