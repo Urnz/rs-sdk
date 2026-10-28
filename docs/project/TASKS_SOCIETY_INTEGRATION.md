@@ -1191,6 +1191,14 @@ gap/legacy/head/tail/source identity, disabled GE és frozen/C06 restore próbá
 **6/11 kész, 5 nyitott; 6/8 pozitív natív kapuút.** Következő P2-08.
 Új journal/tábla vagy hosszú run nincs; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
 
+**2026-10-29 P2-08 kész:** [belső eredet és végfelhasználás](SI_C07_INTERNAL_LINEAGE_GATE.md).
+Meglévő food/tool/material/escrow prefix/state és producer/config pin, teljes
+eredeti ablak, valós distinct-consumer étellánc. Bootstrap nem belső termelés;
+napi/ciklus minimum külön. Scoped FAIL megmarad másik forrás hibája mellett.
+1+7/frozen, packed A→B→C és Mining→smelt→repair→reuse evidence, C06 restore.
+**7/11 kész, 4 nyitott; 7/8 pozitív natív kapuút.** Következő P2-09.
+Új journal/tábla vagy hosszú run nincs; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

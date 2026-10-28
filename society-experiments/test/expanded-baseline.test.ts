@@ -1,4 +1,4 @@
-import { expect,test } from 'bun:test';
+import { beforeAll,describe,expect,test } from 'bun:test';
 import { existsSync,readFileSync,rmSync,readdirSync,copyFileSync,mkdirSync,writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { OwnedDatabase as Database } from '../../server/engine/src/io/OwnedDatabase.js';
@@ -33,6 +33,13 @@ import {loadWorldGenesisProfileCatalog} from '../../world-genesis/config.js';
 import {TradeEvidenceStore} from '../../server/engine/src/mods/TradeEvidenceStore.js';
 import {MarketStore} from '../../server/engine/src/engine/market/MarketStore.js';
 import {readExternalValueSnapshot} from '../../external-trade/value-coverage.js';
+import {fixturePhase} from './fixture-phase.js';
+import {readLineageSnapshot,lineageTables} from '../../production-workflow/lineage-coverage.js';
+import {NativeFoodConsumptionStore} from '../../server/engine/src/mods/NativeFoodConsumptionStore.js';
+import {NativeFoodProductionStore} from '../../server/engine/src/mods/NativeFoodProductionStore.js';
+import {NativeToolStore} from '../../item-lifecycle/native-tool.js';
+import {NativeToolWorkStore} from '../../production-workflow/native-tool-work.js';
+import {PlayerInventoryEscrowStore} from '../../server/engine/src/mods/PlayerInventoryEscrowStore.js';
 
 function lifecyclePolicyArchiveFixture(){
     const f=expandedFixture(),repo=join(import.meta.dir,'../..');
@@ -54,6 +61,36 @@ function lifecyclePolicyArchiveFixture(){
 }
 function policyPhase<T>(name:string,run:()=>T):T{const start=performance.now();try{return run();}
     finally{console.info('[lifecycle-policy-archive-phase]',JSON.stringify({name,wallMs:Math.round(performance.now()-start)}));}}
+
+describe('internal lineage archive phases',()=>{
+const prepare=()=>{
+    const f=policyPhase('lineage-fixture',lifecyclePolicyArchiveFixture),db=new OwnedDatabase(join(f.root,f.checkpoint));
+    new NativeFoodConsumptionStore({db});new NativeFoodProductionStore(db);new NativeToolStore(db);new NativeToolWorkStore(db);
+    new PlayerInventoryEscrowStore({db,checkpoint(){throw Error('Offline fixture');}});db.transaction(()=>new NativeMaterialStore(db,true)).immediate();
+    const cursor=readLineageSnapshot(db).cursor,policy=new NativeLifecyclePolicyStore(db),opening=policy.selection().selection.opening,c=opening.clock,
+        sample={sessionId:'lineage-archive',worldId:f.selected.worldId,position:{clockId:c.clockId,profileDigest:c.profileDigest,status:'running' as const,revision:c.revision,
+            engineTick:0,simulationTime:c.lastSimulationTime,wallTime:c.lastObservedWallTime},wallTime:c.lastObservedWallTime,stage:'after-terminal-guard' as const,
+            mortalityHead:{sequence:0,digest:null},watermarkHead:{sequence:0,digest:null},bootManifest:f.manifest,snapshot:opening,lineageCursor:cursor};
+    try{policy.append(sample);}finally{db.close(true);}
+    const checkpointSource=f.selected.stores.find(s=>s.role==='checkpoint')!;checkpointSource.requiredTables=[...new Set([...checkpointSource.requiredTables,...lineageTables])];
+    const excluded=structuredClone(f.selected);excluded.stores.find(s=>s.role==='checkpoint')!.requiredTables=excluded.stores.find(s=>s.role==='checkpoint')!.requiredTables.filter(t=>t!=='native_material_lot');
+    expect(()=>prepareExpandedBaseline(f.root,excluded)).toThrow('Native lineage source excluded');
+    const pin=policyPhase('lineage-prepare',()=>prepareExpandedBaseline(f.root,f.selected));
+    policyPhase('lineage-capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
+    return{f,cursor,sample};
+};
+let prepared:ReturnType<typeof prepare>;
+fixturePhase(beforeAll,15000,()=>{prepared=prepare();});
+test('native internal lineage cursors require complete checkpoint source inventory and preserve exact readonly C06 restore',()=>{
+    const {f,cursor,sample}=prepared;
+    policyPhase('lineage-restore',()=>restoreExpandedArchive(f.bundle,f.output));
+    const restored=new OwnedDatabase(join(f.output,'workspace',f.checkpoint),{readonly:true});try{expect(readLineageSnapshot(restored).cursor).toEqual(cursor);
+        expect(new NativeLifecyclePolicyStore(restored).read().entries[0]!.sample.lineageCursor).toEqual(cursor);}finally{restored.close(true);}
+    const bad=new OwnedDatabase(join(f.root,f.checkpoint));try{new NativeLifecyclePolicyStore(bad).append({...sample,stage:'end-of-tick',lineageCursor:{...cursor,
+        streams:{...cursor.streams,native_food_lineage:{count:1,digest:'f'.repeat(64)}}}});}finally{bad.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('Native lineage source prefix');
+},10000);
+});
 
 function policyMutationArchiveFixture(strict=false){const f=lifecyclePolicyArchiveFixture(),path='.local/society-metrics/policy-mutations.sqlite',
     authority=new OwnedDatabase(join(f.root,f.checkpoint),{readonly:true}),policy=new NativeLifecyclePolicyStore(authority).selection();authority.close(true);
@@ -99,15 +136,18 @@ test('policy mutation archive rejects changed packed inventory and broken mutati
     put(f.root,'server/engine/data/pack/server/script.dat','packed drift');expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('environment inventory');
 });
 
-test('explicit lifecycle policy manifest is archived with its source files and restored',()=>{
-    const f=policyPhase('fixture',lifecyclePolicyArchiveFixture),pin=policyPhase('prepare',()=>prepareExpandedBaseline(f.root,f.selected));
+describe('policy manifest archive phases',()=>{
+let f:ReturnType<typeof lifecyclePolicyArchiveFixture>;
+// Measured setup/capture up to11.7s and restore up to7.4s:15s+10s,25s combined.
+fixturePhase(beforeAll,15000,()=>{f=policyPhase('fixture',lifecyclePolicyArchiveFixture);const pin=policyPhase('prepare',()=>prepareExpandedBaseline(f.root,f.selected));
     policyPhase('capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
+});
+test('explicit lifecycle policy manifest is archived with its source files and restored',()=>{
     policyPhase('restore',()=>restoreExpandedArchive(f.bundle,f.output));
     policyPhase('reread',()=>{const read=new OwnedDatabase(join(f.output,'workspace',f.checkpoint),{readonly:true});
         try{expect(new NativeLifecyclePolicyStore(read).read().selection.manifest).toEqual(f.manifest);}finally{read.close(true);}});
-// Expanded reviewed producer pin: measured fixture544 +prepare126 +capture2031 +restore2394 +reread11 ms, plus cleanup.
-// Same local round-trip budget as the adjacent runtime/archive cases; every IO phase stays logged.
 },10000);
+});
 
 test('administrative value cursor and original integrity audit survive C06 restore; excluded audit and invalid cursor are rejected',()=>{
     const f=lifecyclePolicyArchiveFixture(),path='.local/simulation/society-integrity.sqlite',
@@ -139,7 +179,8 @@ test('explicit lifecycle policy bad head or changed source pin prevents another 
     policyPhase('reject-source',()=>expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('source pin'));
 });
 
-test('native external value cursors require the selected trade and active GE sources and survive C06 restore with their exact identities',()=>{
+describe('external cursor archive phases',()=>{
+const prepare=()=>{
     const f=policyPhase('external-fixture',lifecyclePolicyArchiveFixture),tradePath='.local/economy/trades.sqlite',marketPath='.local/economy/actual-ge.sqlite',
         treasuryPath=f.selected.stores.find(s=>s.role==='treasury')!.path;
     new TradeEvidenceStore(join(f.root,tradePath)).close();new MarketStore(join(f.root,marketPath)).db.close(true);
@@ -156,6 +197,12 @@ test('native external value cursors require the selected trade and active GE sou
     expect(()=>prepareExpandedBaseline(f.root,{...f.selected,stores:f.selected.stores.filter(s=>s.role!=='market')})).toThrow('Active external market source excluded');
     const pin=policyPhase('external-prepare',()=>prepareExpandedBaseline(f.root,f.selected));
     policyPhase('external-capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
+    return{f,cursor,tradePath,marketPath,treasuryPath,sample};
+};
+let prepared:ReturnType<typeof prepare>;
+fixturePhase(beforeAll,15000,()=>{prepared=prepare();});
+test('native external value cursors require the selected trade and active GE sources and survive C06 restore with their exact identities',()=>{
+    const {f,cursor,tradePath,marketPath,treasuryPath,sample}=prepared;
     policyPhase('external-restore',()=>restoreExpandedArchive(f.bundle,f.output));
     const restoredRoot=join(f.output,'workspace'),restored=new OwnedDatabase(join(restoredRoot,f.checkpoint),{readonly:true});
     try{expect(new NativeLifecyclePolicyStore(restored).read().entries[0]!.sample.externalValueCursor).toEqual(cursor);
@@ -164,6 +211,7 @@ test('native external value cursors require the selected trade and active GE sou
     const bad=new OwnedDatabase(join(f.root,f.checkpoint));try{new NativeLifecyclePolicyStore(bad).append({...sample,stage:'end-of-tick',externalValueCursor:{...cursor,trades:{sequence:1,hash:'f'.repeat(64)}}});}finally{bad.close(true);}
     expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow('External value source prefix');
 },10000);
+});
 
 test('explicit lifecycle policy file excluded from archive inventory prevents a baseline despite a matching file hash',()=>{
     const f=policyPhase('excluded-source-fixture',lifecyclePolicyArchiveFixture);

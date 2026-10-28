@@ -1,4 +1,4 @@
-import { afterEach,expect,test } from 'bun:test';
+import { afterEach,beforeAll,beforeEach,describe,expect,test } from 'bun:test';
 import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync,copyFileSync,writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -74,6 +74,12 @@ import {PlayerRewardStore} from '../../server/engine/src/mods/PlayerRewardStore.
 import {MarketStore,type MarketAccount} from '../../server/engine/src/engine/market/MarketStore.js';
 import {readExternalValueSnapshot} from '../../external-trade/value-coverage.js';
 import {readNativeExternalValue} from '../external-value.js';
+import {readLineageSnapshot} from '../../production-workflow/lineage-coverage.js';
+import {NativeToolWorkStore} from '../../production-workflow/native-tool-work.js';
+import {NativeMaterialStore} from '../../production-workflow/native-material.js';
+import {appendFoodLineage} from '../../server/engine/src/mods/NativeFoodLineageStore.js';
+import {readNativeInternalLineage} from '../internal-lineage.js';
+import {fixturePhase} from '../../society-experiments/test/fixture-phase.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -231,9 +237,9 @@ function watermarkFixture(fullPolicy=false){const f=mortalityFixture(fullPolicy)
     return{...f,attempts,watermarks:store,frame,attempt,readWatermarks:()=>readNativeLifecycleWatermarks(f.db,f.scope,f.options,initial,f.actors)};
 }
 
-function policyFixture(fullPolicy=false){const f=watermarkFixture(fullPolicy),root=join(import.meta.dir,'../..'),manifest=lifecycleRouteManifest(root),
+function policyFixture(fullPolicy=false){const f=watermarkFixture(fullPolicy),root=join(import.meta.dir,'../..'),manifest=lifecycleRouteManifest(root),files=lifecyclePolicyFiles(root),
     snapshot=()=>({clock:f.clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),
-        survivalDigest:null,modsDigest:'b'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(root)}),
+        survivalDigest:null,modsDigest:'b'.repeat(64)},sources:manifest.sources,files:structuredClone(files)}),
     pin={manifest,opening:snapshot()},store=new NativeLifecyclePolicyStore(f.db,pin);
     const emit=(stage:LifecyclePolicySample['stage'],changes:Partial<LifecyclePolicySample>={},withCensus=true,census:Partial<LifecycleWatermarkSample>={})=>{
         if(withCensus)f.frame(stage,{...changes.sessionId?{sessionId:changes.sessionId}:{},...census});
@@ -288,20 +294,100 @@ function externalFixture(full=false,enabled=true){const f=administrativeFixture(
     marketPath:join(f.root,'server/engine/data/actual-ge.sqlite'),treasuryPath:join(f.root,'.local/economy/external-treasury.sqlite')},
     trades=new TradeEvidenceStore(paths.tradePath),market=new MarketStore(paths.marketPath),treasury=new InstitutionTreasuryStore(paths.treasuryPath);
     f.options.tradePath=paths.tradePath;f.options.externalValue={treasuryPath:paths.treasuryPath,marketPath:paths.marketPath};
-    const cursor=()=>readExternalValueSnapshot(f.root,paths,'closed-society',enabled).cursor,
+    // Fixture-only cache: persistent readonly connections detect every native writer commit.
+    // The production reader and final/frozen source verification still read all actual sources.
+    const readers=Object.values(paths).map(path=>new OwnedDatabase(path,{readonly:true}));
+    let cacheKey='',cached:ReturnType<typeof readExternalValueSnapshot>['cursor']|null=null;
+    const cursor=()=>{const key=readers.map(db=>(db.query('PRAGMA data_version').get() as {data_version:number}).data_version).join(':');
+            if(!cached||key!==cacheKey){cached=readExternalValueSnapshot(f.root,paths,'closed-society',enabled).cursor;cacheKey=key;}return structuredClone(cached);},
         emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emitValue(stage,{externalValueCursor:cursor(),...change}),
         trade=(outside=true,exportOnly=false)=>{const c=f.store.read().entries.at(-1)!.sample.clock;return trades.record({tick:c.engineTick!,fromUsername:'ada',toUsername:outside?'outsider':'bea',
             fromItems:[{id:379,name:'lobster',count:1}],toItems:exportOnly?[]:[{id:995,name:'coins',count:10}],fromValue:1,toValue:exportOnly?0:10,committedAt:c.wallTime});},
         baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});
     return{...f,paths,externalTrades:trades,externalMarket:market,externalTreasury:treasury,externalCursor:cursor,emitExternal:emit,trade,
-        readExternal:()=>readNativeExternalValue(f.db,f.scope,f.options,baseline,f.actors),close(){trades.close();market.db.close(true);treasury.close();f.close();}};
+        readExternal:()=>readNativeExternalValue(f.db,f.scope,f.options,baseline,f.actors),close(){for(const db of readers)db.close(true);trades.close();market.db.close(true);treasury.close();f.close();}};
 }
 function marketWallet(owner:string):MarketAccount{const amounts=new Map([[379,100],[995,10000]]);return{owner,take(id,n){const prior=amounts.get(id)??0;if(prior<n)throw Error('Unfunded fixture wallet');amounts.set(id,prior-n);},
     give(id,n){amounts.set(id,(amounts.get(id)??0)+n);return n;},save:()=>new Uint8Array([1]),rollback(){throw Error('Unexpected fixture rollback');}};}
 
+function lineageFixture(full=false){const f=externalFixture(full),consumption=new NativeFoodConsumptionStore({db:f.db}),production=new NativeFoodProductionStore(f.db);
+    new NativeToolStore(f.db);new NativeToolWorkStore(f.db);new PlayerInventoryEscrowStore({db:f.db,checkpoint(){throw Error('No physical fixture dispatch');}});
+    f.db.transaction(()=>new NativeMaterialStore(f.db,true)).immediate();
+    const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!}),current=()=>JSON.parse((f.db.query('SELECT payload FROM native_mortality_event ORDER BY sequence DESC LIMIT 1').get() as {payload:string}).payload).clock as LifecyclePolicySample['position'],
+        custodian=(name:string)=>{const a=f.actors.find(a=>a.username===name);return{worldId:'fixture',actorId:a?.actorId??'foreign',username:name,lifecycleId:a?.lifecycleId??'foreign'};},
+        actionIdentity=(name:string)=>({...custodian(name),clockId:f.scope.clockId,clockProfileDigest:f.scope.clockProfileDigest}),
+        move=(from:string,to:string,item:number)=>{const trade=f.externalTrades.record({tick:current().engineTick!,fromUsername:from,toUsername:to,
+            fromItems:[{id:item,name:null,count:1}],toItems:[],fromValue:0,toValue:0,committedAt:current().wallTime}),
+            balances=(n:number)=>({raw:item===377?n:0,cooked:item===379?n:0,burnt:0});
+            f.db.transaction(()=>appendFoodLineage(f.db,{kind:'transfer',trade,sides:[{custodian:custodian(from),before:balances(1),after:balances(0)},
+                {custodian:custodian(to),before:balances(0),after:balances(1)}]})).immediate();},
+        produce=(variant='normal')=>{const gatherer=variant==='foreign'?'outsider':'ada',cook=variant==='self'?'ada':'bea',eater=variant==='self'?'ada':'cora';
+            for(const kind of ['gather','cook'] as const){const name=kind==='gather'?gatherer:cook;
+                const action=production.admit({...actionIdentity(name),actionId:randomUUID(),kind,runId:'lineage',batchId:'batch',policyDigest:'a'.repeat(64),catalogDigest:'b'.repeat(64),
+                    source:{kind:kind==='gather'?'npc':'loc',sourceId:'finite',typeId:1,x:3200,z:3200,level:0},recipeId:'food.cook-lobster',recipeVersion:'1.0.0'});
+                f.db.transaction(()=>production.finish({schemaVersion:1,action,requestDigest:foodDigest(action),outcome:kind==='gather'?'raw-gained':'cooked',inputs:kind==='gather'?[]:[{itemId:377,quantity:1}],
+                    outputs:[{itemId:kind==='gather'?377:379,quantity:1}],before:{raw:kind==='gather'?0:1,cooked:0,burnt:0},after:{raw:kind==='gather'?1:0,cooked:kind==='cook'?1:0,burnt:0},
+                    quota:kind==='gather'?production.takeQuota(action,1):null,clock:current(),checkpointId:`food-production:${action.actionId}`,checkpointDigest:'d'.repeat(64)})).immediate();
+                if(kind==='gather'&&gatherer!==cook)move(gatherer,cook,377);}
+            if(cook!==eater)move(cook,eater,379);
+            const action=consumption.admit({...actionIdentity(eater),actionId:randomUUID(),itemId:379,quantity:1,slot:0,policyDigest:foodDigest(FOOD_POLICY)});
+            f.db.transaction(()=>consumption.finish({action,outcome:'consumed',receipt:{...action,schemaVersion:1,cause:'content:consume_effect_stat',before:1,after:0,hpBefore:10,hpAfter:10,
+                clock:current(),checkpointId:`food:${action.actionId}`,checkpointDigest:'d'.repeat(64),requestDigest:foodDigest(action)}},current())).immediate();},
+        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>{closeFoodDeliveryTick(f.db,current());return f.emitExternal(stage,{lineageCursor:readLineageSnapshot(f.db).cursor,...change});};
+    return{...f,produce,emitLineage:emit,readLineage:(parent?:Parameters<typeof readNativeInternalLineage>[5])=>readNativeInternalLineage(f.db,f.scope,f.options,baseline,f.actors,parent)};
+}
+
+describe('internal lineage full frame',()=>{
+    let f:ReturnType<typeof lineageFixture>,start:number;
+    // Setup and assessment/frozen reread are timed separately, within the original15s total.
+    fixturePhase(beforeAll,5000,()=>{start=performance.now();f=lineageFixture(true);try{f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitLineage('after-terminal-guard');if(n===50)f.produce();f.emitLineage('end-of-tick');}}).immediate();
+        console.info('[InternalLineageFullFrame] build',Math.round(performance.now()-start));}catch(e){f.close();throw e;}});
+test('internal lineage original 1+7 seals every native producer and credits a distinct consumer with frozen readonly reread',()=>{
+    try{const out=reportNativeOutcomes(f.scope,f.options),source=out.sources.internalLineage;
+        expect(source.status).toBe('available');if(source.status!=='available')throw Error('Missing native lineage');const {sourceSnapshotDigest,...expected}=source.value;
+        expect(expected.gaps).toEqual([]);expect(expected.verdict).toBe('pass');expect(expected.finalUses).toHaveLength(1);expect(expected.maintenanceCycles).toEqual([]);
+        const r=projectNativeMinimumAssessment(contract,f.scope,out);expect(r.integrity.find(g=>g.gateId==='verified-internal-lineage-and-final-use')!.verdict).toBe('pass');
+        expect(r.sourceCoverage.rows.filter(s=>['native-food-lineage','tool-lifecycle-work','tool-material-custody'].includes(s.sourceId)).map(s=>s.status)).toEqual(['complete','complete','complete']);expect(r.qualifiesMinimum).toBeFalse();
+        console.info('[InternalLineageFullFrame] export',Math.round(performance.now()-start));
+        const before=f.db.serialize(),path=join(f.root,'server/engine/data/lineage-offline.sqlite');writeFileSync(path,before);const db=new OwnedDatabase(path,{readonly:true});
+        try{const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});
+            // Reuse the already verified dependency from this exact serialized checkpoint, as the normal outcome facade does.
+            expect(out.sources.externalValue.status).toBe('available');if(out.sources.externalValue.status!=='available')throw Error('Missing verified external dependency');
+            expect(out.sources.externalValue.value.sourceSnapshotDigest).toBe(createHash('sha256').update(before).digest('hex'));
+            expect(readNativeInternalLineage(db,f.scope,f.options,baseline,f.actors,out.sources.externalValue.value)).toEqual(expected);}finally{db.close(true);}
+        expect(f.db.serialize()).toEqual(before);console.info('[InternalLineageFullFrame] total',Math.round(performance.now()-start));
+    }finally{f.close();}
+},10000);
+});
+
+describe('internal lineage boundary fixtures',()=>{
+let small:ReturnType<typeof lineageFixture>;
+fixturePhase(beforeEach,5000,()=>{const start=performance.now();small=lineageFixture();console.info('[InternalLineageFixture] setup',Math.round(performance.now()-start));});
+test.each(['normal','self','foreign','missing-cursor','prefix','tail','missing-material','missing-stage','empty','stale-parent'])(
+    'internal lineage respects actual native identity, opportunity and missing source boundaries: %s',variant=>{
+    const f=small;try{for(let n=0;n<3;n++){f.sample(n);f.emitLineage('after-terminal-guard');if(n===1&&variant!=='empty')f.produce(variant);
+        if(n===1&&variant==='missing-stage')continue;const cursor=readLineageSnapshot(f.db).cursor;
+        f.emitLineage('end-of-tick',n===1&&variant==='missing-cursor'?{lineageCursor:null}:n===1&&variant==='prefix'?{lineageCursor:{...cursor,streams:{...cursor.streams,native_food_lineage:{count:999,digest:'f'.repeat(64)}}}}:{});}
+        if(variant==='tail')f.db.run("UPDATE native_food_source_quota SET remaining=7");if(variant==='missing-material')f.db.run('DROP TABLE native_material_lot');
+        if(variant==='foreign'){f.policyStore.fault();f.db.run('DROP TABLE native_material_lot');const out=reportNativeOutcomes(f.scope,f.options);
+            expect(out.sources.internalLineage.status).toBe('available');if(out.sources.internalLineage.status!=='available')throw Error('Missing independent food source');expect(out.sources.internalLineage.value.verdict).toBe('fail');
+            expect(projectNativeMinimumAssessment(contract,f.scope,out).internalLineageViolations.length).toBeGreaterThan(0);
+            expect(projectNativeMinimumAssessment(contract,{...f.scope,clockId:'foreign'},out).internalLineageViolations).toEqual([]);
+        }else if(variant==='stale-parent'){
+            const parent={...f.readExternal(),sourceSnapshotDigest:createHash('sha256').update(f.db.serialize()).digest('hex')};f.policyStore.fault();
+            const result=f.readLineage(parent);expect(result.verdict).toBe('inconclusive');expect(result.gaps).toContain('external-parent-checkpoint-changed');
+        }else expect(f.readLineage().verdict).toBe(variant==='normal'?'pass':'inconclusive');
+    }finally{f.close();}
+});
+});
+
+describe('external value full frame phases',()=>{
+let f:ReturnType<typeof externalFixture>,start:number;
+// Measured setup11.5s plus assessment/frozen10.8s: two local15s phases,30s combined.
+fixturePhase(beforeAll,15000,()=>{start=performance.now();f=externalFixture(true);try{f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitExternal('after-terminal-guard');if(n===50)f.trade(false);f.emitExternal('end-of-tick');}}).immediate();
+    console.error(`[ExternalValueFullFrame] build ${Math.round(performance.now()-start)} ms`);}catch(e){f.close();throw e;}});
 test('external value original 1+7 joins fresh closed native channels, preserves internal trades and rereads frozen sources without a global PASS',()=>{
-    const f=externalFixture(true),start=performance.now();try{f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitExternal('after-terminal-guard');if(n===50)f.trade(false);f.emitExternal('end-of-tick');}}).immediate();
-        console.error(`[ExternalValueFullFrame] build ${Math.round(performance.now()-start)} ms`);const out=reportNativeOutcomes(f.scope,f.options),r=projectNativeMinimumAssessment(contract,f.scope,out);
+    try{const out=reportNativeOutcomes(f.scope,f.options),r=projectNativeMinimumAssessment(contract,f.scope,out);
         expect(out.sources.externalValue.status).toBe('available');if(out.sources.externalValue.status!=='available')throw Error('Native external source absent');
         const {sourceSnapshotDigest:checkpointSnapshot,...expected}=out.sources.externalValue.value;expect(expected.gaps).toEqual([]);expect(expected.verdict).toBe('pass');
         console.error(`[ExternalValueFullFrame] export ${Math.round(performance.now()-start)} ms`);
@@ -311,6 +397,7 @@ test('external value original 1+7 joins fresh closed native channels, preserves 
         expect(f.db.serialize()).toEqual(saved);console.error(`[ExternalValueFullFrame] total ${Math.round(performance.now()-start)} ms`);
     }finally{f.close();}
 },15000);
+});
 
 test.each(['player-import','ge-import','treasury-import','fallback-import','internal-ge','export-only'])(
     'external value classifies an actual native boundary without netting away positive imports: %s',variant=>{
@@ -356,11 +443,12 @@ test('administrative value original 1+7 native window reaches PASS with frozen r
         f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitValue('after-terminal-guard');if(n===50)f.inject('engine.cheat-value',false);f.emitValue('end-of-tick');}}).immediate();
         console.error(`[AdminValueFullFrame] build ${Math.round(performance.now()-start)} ms`);
         const before=[f.db.serialize(),f.mutationDb.serialize(),f.hashes()],out=reportNativeOutcomes(f.scope,f.options),r=projectNativeMinimumAssessment(contract,f.scope,out);
-        expect(out.sources.administrativeValue.status).toBe('available');expect(r.integrity.find(g=>g.gateId==='no-post-genesis-admin-or-fallback-value')!.verdict).toBe('pass');
+        expect(out.sources.administrativeValue.status).toBe('available');if(out.sources.administrativeValue.status!=='available')throw Error('Missing native admin source');
+        const {sourceSnapshotDigest,...expected}=out.sources.administrativeValue.value;expect(r.integrity.find(g=>g.gateId==='no-post-genesis-admin-or-fallback-value')!.verdict).toBe('pass');
         expect(r.sourceCoverage.rows.find(s=>s.sourceId==='administrative-value-history')!.status).toBe('complete');expect(r.qualifiesMinimum).toBeFalse();
         expect([f.db.serialize(),f.mutationDb.serialize(),f.hashes()]).toEqual(before);
         const path=join(f.root,'server/engine/data/admin-value-offline.sqlite');writeFileSync(path,f.db.serialize());const offline=new OwnedDatabase(path,{readonly:true});
-        try{const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});expect(readNativeAdministrativeValue(offline,f.scope,f.options,baseline,f.actors)).toEqual(f.readValue());}finally{offline.close(true);}
+        try{const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});expect(readNativeAdministrativeValue(offline,f.scope,f.options,baseline,f.actors)).toEqual(expected);}finally{offline.close(true);}
         console.error(`[AdminValueFullFrame] total ${Math.round(performance.now()-start)} ms`);
     }finally{f.close();}
 },15000);

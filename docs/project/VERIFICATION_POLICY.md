@@ -95,6 +95,14 @@ vagy automatikus timeout-emelés. Új/módosított határt érintő hiba lezár�
 
 ## Megfigyelt költség és mérés
 
+Fixture-időkorlátnál külön mérd a setupot, a kiértékelést/frozen rereadet,
+illetve a capture és restore fázist. Előbb távolítsd el a redundáns teljes
+olvasásokat és változatlan fixture-inputok ismételt fájlmegnyitását; az éles
+source-validációt ne cache-eld vagy gyengítsd emiatt. Hookba mozgatott setupnak
+is legyen explicit korlátja. Az összesített keretet is dokumentáld: ugyanaz a
+test-timeout literal nem jelent változatlan teljes időkeretet, ha mellé új
+setup-budget kerül. Ez helyi tesztkeret-korrekció, nem run/bootstrap-limit.
+
 A korábbi helyi wrappernaplókban rögzített belső `full` időtartamok:
 
 - 24.10: 1830 PASS, **7 perc 26,484 s**;

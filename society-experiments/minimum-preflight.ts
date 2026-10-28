@@ -9,6 +9,7 @@ import { preflightIntegrationDefinition } from '../society-integration/bootstrap
 import { minimumSourceMap } from '../society-minimum/source-map.js';
 import { minimumSourceInventory } from '../society-minimum/source-inventory.js';
 import {externalValueSourcePaths} from '../external-trade/value-coverage.js';
+import {lineageProducerPaths} from '../production-workflow/lineage-coverage.js';
 const APPROVED_MINIMUM_SOURCE_SHA256='596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a';
 const sourceHash=(root:string,path:string)=>createHash('sha256').update(readFileSync(join(root,path),'utf8').replace(/\r\n?/g,'\n')).digest('hex');
 
@@ -46,7 +47,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         {id:'finite-food-envelope',status:'unverified',
             reason:`No-burn provisioning headroom ${headroom??'unknown'} portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence.`},
         {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:'Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity.'},
-        {id:'minimum-assessor',status:'blocked',reason:'All17 requirements have partial native adapters; six positive native gate paths cover original roster, applied genesis/native opening, clock/world-policy, finite lifecycle/no-respawn, admin/fallback and external value. External value joins reviewed closed shop/restock, fresh native trade/actual GE/treasury channels and backed internal commerce over the full original window. Two positive integrity paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified.'},
+        {id:'minimum-assessor',status:'blocked',reason:'All17 requirements have partial native adapters and seven integrity gates have positive native paths. Internal lineage joins sealed original food production/trade/final use and prospective tool/material/escrow history, with actual distinct-consumer opportunity; numeric daily and maintenance minima remain separate. Complete aggregate source coverage, population lower bounds, boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified.'},
         {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Prospective executor request lifetimes and native watermarks include verified online housing sleep without deducting its time. No C07 producer/source/full window is pinned; legacy, offline/terminal/unproved restriction and source gaps remain incomplete. An empty source cannot yield zero-opportunity PASS.'},
         {id:'legal-housing-exposure',status:'unverified',reason:'Frozen exact-clock points now bound legal housing time with ownership versions, audited reservation capacity and paid native rent. Two tenant slots alone still do not attest95% access for all founders; complete pinned point inventory and visitor/access history remain required.'},
         {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
@@ -64,6 +65,9 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'society-metrics/lifecycle-enforcement.ts','server/engine/src/mods/PlayerHealthDamage.ts',
         'society-integrity/coverage.ts','society-integrity/runtime.ts','society-integrity/store.ts','society-metrics/administrative-value.ts',
         ...externalValueSourcePaths,'society-metrics/external-value.ts',
+        ...lineageProducerPaths,'society-metrics/internal-lineage.ts',
+        'config/native-food-production.json','config/food-loops.json','config/production-workflows.json','config/native-tool-work.json',
+        'config/item-lifecycle.json','config/production-tool-cycles.json','config/item-repair-policies.json',
         'server/engine/src/mods/SocietyIntegrity.ts','server/engine/src/mods/NativePlayerReward.ts','server/engine/src/mods/PlayerRewardStore.ts',
         'server/engine/src/network/game/client/handler/ClientCheatHandler.ts','server/gateway/admin/society-integrity.ts',
         'server/gateway/admin/institution-treasury.ts','server/gateway/admin/business-manager.ts','config/society-integrity-policy.json',

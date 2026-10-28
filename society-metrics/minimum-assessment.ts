@@ -157,6 +157,13 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         ...worldPolicyMatches&&worldPolicy?.status==='available'?worldPolicy.value.violations.map(v=>({gateId:'unchanged-clock-and-world-policy',sourceDigest:worldPolicy.digest,scope,meaning:v.reason})):[]];
     const opening=nativeScopeMatches?outcomes?.sources.genesisOpening:undefined;
     const external=nativeScopeMatches?outcomes?.sources.externalValue:undefined;
+    const internal=nativeScopeMatches?outcomes?.sources.internalLineage:undefined;
+    const internalMatches=internal?.status==='available'&&populationCompatible&&population?.status==='available'&&internal.value.worldId===outcomes?.worldId
+        &&digest(internal.value.scope)===digest(scope)&&internal.value.genesisResultId===population.value.genesisResultId
+        &&internal.value.genesisResultDigest===population.value.genesisResultDigest&&internal.value.fromSimulationTime===population.value.genesisAppliedAtSimulationTime
+        &&internal.value.toSimulationTime===scope.toSimulationTime;
+    const internalLineageViolations=internalMatches&&internal?.status==='available'?internal.value.violations.map(v=>({gateId:'verified-internal-lineage-and-final-use',
+        sourceDigest:internal.digest,scope,eventId:v.eventId,meaning:v.reason})):[];
     const externalMatches=external?.status==='available'&&populationCompatible&&population?.status==='available'&&external.value.worldId===outcomes?.worldId
         &&digest(external.value.scope)===digest(scope)&&external.value.genesisResultId===population.value.genesisResultId
         &&external.value.genesisResultDigest===population.value.genesisResultDigest&&external.value.fromSimulationTime===population.value.genesisAppliedAtSimulationTime
@@ -174,7 +181,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         &&opening.value.worldId===population.value.worldId&&digest(opening.value.scope)===digest(scope)
         &&opening.value.genesisResultId===population.value.genesisResultId&&opening.value.genesisResultDigest===population.value.genesisResultDigest
         &&opening.value.at===population.value.genesisAppliedAtSimulationTime&&digest(opening.value.founderAgentIds)===digest(population.value.founders.map(f=>f.agentId).sort());
-    const integrityFailures=[...external?.status==='available'&&externalIntegrityViolations.length?[{gateId:'no-external-shop-or-import-value',verdict:'fail' as const,evidenceDigests:[external.digest]}]:[],
+    const integrityFailures=[...internal?.status==='available'&&internalLineageViolations.length?[{gateId:'verified-internal-lineage-and-final-use',verdict:'fail' as const,evidenceDigests:[internal.digest]}]:[],
+        ...external?.status==='available'&&externalIntegrityViolations.length?[{gateId:'no-external-shop-or-import-value',verdict:'fail' as const,evidenceDigests:[external.digest]}]:[],
         ...administrative?.status==='available'&&administrativeIntegrityViolations.length?[{gateId:'no-post-genesis-admin-or-fallback-value',verdict:'fail' as const,evidenceDigests:[administrative.digest]}]:[],
         ...openingMatches&&opening?.status==='available'&&opening.value.verdict==='fail'
         ?[{gateId:'applied-genesis-baseline',verdict:'fail' as const,evidenceDigests:[opening.digest]}]:[],
@@ -191,6 +199,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
     let assessment:ReturnType<typeof assessSocietyMinimum>|null=null,bindingStatus:'unbound'|'bound'|'invalid'='unbound';
     if(binding)try{
         const integrityEvidence:MinimumGate[]=[...integrityFailures];
+        if(internalMatches&&internal?.status==='available'&&internal.value.verdict==='pass'&&internal.value.completeInternalLineageCoverage)
+            integrityEvidence.push({gateId:'verified-internal-lineage-and-final-use',verdict:'pass',evidenceDigests:[internal.digest]});
         if(sourceCoverage.verdict==='pass')integrityEvidence.push({gateId:'complete-source-coverage',verdict:'pass',evidenceDigests:[sourceCoverage.digest]});
         if(externalMatches&&external?.status==='available'&&external.value.verdict==='pass'&&external.value.completeExternalValueCoverage)
             integrityEvidence.push({gateId:'no-external-shop-or-import-value',verdict:'pass',evidenceDigests:[external.digest]});
@@ -277,9 +287,10 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
         integrity:sourceMap.integrity.map(g=>({...g,verdict:integrityFailures.some(f=>f.gateId===g.gateId)?'fail' as const
             :assessment?.integrity.find(a=>a.gateId===g.gateId)?.verdict??'inconclusive'})),assessment,
-        diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,administrativeIntegrityViolations,externalIntegrityViolations,requiredSourceInventory:minimumSourceInventory(contract),sourceCoverage,
+        diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,administrativeIntegrityViolations,externalIntegrityViolations,internalLineageViolations,requiredSourceInventory:minimumSourceInventory(contract),sourceCoverage,
         verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
-        sources:{externalValue:external?.status==='available'?{status:'available',digest:external.digest,verdict:external.value.verdict,
+        sources:{internalLineage:internal?.status==='available'?{status:'available',digest:internal.digest,verdict:internal.value.verdict,completeInternalLineageCoverage:internal.value.completeInternalLineageCoverage}:{status:internal?.status??'unavailable'},
+            externalValue:external?.status==='available'?{status:'available',digest:external.digest,verdict:external.value.verdict,
                 completeExternalValueCoverage:external.value.completeExternalValueCoverage}:{status:external?.status??'unavailable'},
             administrativeValue:administrative?.status==='available'?{status:'available',digest:administrative.digest,verdict:administrative.value.verdict,
                 completeAdministrativeValueCoverage:administrative.value.completeAdministrativeValueCoverage}:{status:administrative?.status??'unavailable'},
@@ -311,6 +322,6 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',
             'Founder deaths bound survival from above; absent deaths or wall heartbeat do not establish continuous mortality coverage.',
-            'Complete needs/food/housing/capacity histories and two positive native integrity gate paths remain incomplete.']};
+            'Complete needs/food/housing/capacity histories and the aggregate source-coverage integrity gate remain incomplete.']};
     return{...body,digest:digest(body)};
 }

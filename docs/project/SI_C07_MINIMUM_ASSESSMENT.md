@@ -120,7 +120,9 @@ Az eredeti roster kapuja a verified tagság és finite-avatar kötés alapján m
 PASS-képes; ez nem a túlélés igazolása. A lifecycle és clock/world-policy külön
 igazolt sértésre FAIL-t adhat. Az [applied-genesis/native opening kapu](SI_C07_GENESIS_OPENING.md)
 és az [explicit runtime/clock/world-policy kapu](SI_C07_WORLD_POLICY_GATE.md)
-azóta szintén pozitívan kiértékelhető; a további öt pozitív kapuút még hiányos.
+azóta szintén pozitívan kiértékelhető. 2026-10-29-re a lifecycle/admin/external
+és [internal lineage/final-use](SI_C07_INTERNAL_LINEAGE_GATE.md) útja is kész:
+7/8 pozitív natív kapuút; az összesített source-coverage kapu még nyitott.
 Hiányzó/sérült death authority
 mellett a külön hiteles roster továbbra olvasható; idegen source path és privát
 parserhiba redaktált, nincs fallback vagy migration.
@@ -133,41 +135,23 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
 
 ## A2. munkacsomag megmaradó munkája
 
-1. A már bekötött applied/frozen roster és terminal-death upper bound után
-   teljes native boundary inventory és történeti mortality/enforcement coverage.
-2. A [needs critical/satisfied replay](SI_C07_NEEDS_EXPOSURE.md) bekötött:
-   player-time cursor, native meal mutations, sleep-expiry, founder/nap és
-   longest critical bounds. A konkrét baseline hiánytalan fiziológiai történetét
-   és forráslefedettségét még a run előtt kell igazolni; headcount/current need
-   nem időbeli bizonyíték.
-3. [Napi food share/final-use és frozen reserve/stock bounds](SI_C07_FOOD_MINIMUM.md)
-   bekötve. A pontos mindenhatári inventory, frozen source-lista és teljes
-   custody/access coverage még kell; jelenlegi készletből nincs történeti határ.
-4. [Frozen legal housing access/exposure](SI_C07_HOUSING_ACCESS.md) adapter
-   bekötve: változatlan ownership/reservation/payment epoch, auditált capacity,
-   paid native tenant és szabad owner-hely; lejárat, gap és founder/nap nevező.
-   A teljes kiválasztott point-inventory és visitor/access history még kell;
-   a tényleges alvás önmagában nem teljes jogi hozzáférési nevező.
-5. [Comparable tool-service capacity](SI_C07_TOOL_CAPACITY.md) bekötve:
-   auditált wear/repair/replacement/transfer és fagyasztott fizikai checkpoint;
-   bizonytalan identity/access upper-only, záró auditprefix a nyitó folytatása.
-   Teljes high-level demand/source coverage, maintenance origin, mortality/
-   enforcement és a fennmaradó öt pozitív natív integrity kapuút továbbra kell.
-6. [Prospektív executor requested-use coverage](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
-   bekötve: admission előtt is látható request, natív producer/prefix witness,
-   policy/original-cohort/pozitív opportunity alapján lifetime upper. A lower
-   és upper egy cellában egyesül; hiteles lower FAIL nem vész el. A megfigyelt
-   restricted/sleep állapot és unknown offline/identity még külön rendezendő;
-   ez nem teljes source-universe integrity PASS.
-   Az [igazolt online alvás](SI_C07_SLEEP_OBSERVATION.md) azóta külön megfigyelt
-   státusz, valódi natív witness/payment visszaolvasással; a kérések idejét nem
-   csökkenti. Offline/terminal és igazolatlan restriction továbbra unknown.
+2026-10-29: **7/11 kész, 4 nyitott**, a [rögzített lista](SI_C07_PACKAGE2_CLOSURE.md)
+szerint. A korábbi domain-bontás nem további hat új feladat. A megmaradó sorrend:
 
-Ezek az ismert2. csomag részei; aktuális lezárásukat a
-[rögzített lista](SI_C07_PACKAGE2_CLOSURE.md) méri. Nem indult
-a3. baseline-csomag, C08, live világ vagy hosszú run. Nincs új providerjog/költség.
-Nincs adatbázisséma-változás, migráció vagy történeti backup-read; csak readonly
-reader-projekció és belső számítás. Gameplay/SDK/engine/webclient változatlan.
+- **P2-09:** pozitív living/survival alsó korlátok a már igazolt teljes mortality/
+  lifecycle/health történetből, minden eredeti founder és előírt boundary mellett.
+- **P2-10:** a bekötött needs/food/housing/tool/demand adapterek teljes kötelező
+  történetének és boundary/access/opportunity nevezőinek összekötése.
+- **P2-03 végellenőrzés:** mind a16 szükséges család natív pozitív coverage-je
+  együtt. Hiány sosem nulla, a már hiteles scoped FAIL nem tűnik el.
+- **P2-11:** az összesítő teljes natív17+8 pozitív útja és frozen újraolvasása;
+  a globális PASS-zár addig megmarad.
+
+Ez implementációs lezárás, nem egy még el nem indított run eredménye. A3.
+baseline-csomag, C08, live világ és hosszú run nem indult. Nincs új providerjog/
+költség, új journal/tábla vagy történeti backup-read. Az engine meglévő policy
+frame-je opcionális readonly source cursorokkal bővült; gazdasági/clock írási
+szemantika, SDK és webclient nem változott.
 
 Ellenőrzés: pontos racionalitás, egyetlen hiányzó/rossz actor-nap, directional
 bounds, opportunity/denominator, sparse boundaries, roster-ellentmondás,

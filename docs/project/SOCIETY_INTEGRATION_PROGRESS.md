@@ -3822,3 +3822,92 @@ szemantika nincs. Teljes regresszió nem indokolt; webclient változatlan.
 Nincs live install/start/provider/baseline. Új reviewed source pin és prospektív
 selection szükséges; rollback stop +korábbi összetartozó bináris/selection.
 Eredeti17/8 minimum és küszöbök változatlanok, selectedSources továbbra null.
+
+## 2026-10-28–29 – SI-C07/2 P2-08 internal lineage/final-use kapu kész
+
+[Eredmény és korlátok](SI_C07_INTERNAL_LINEAGE_GATE.md). **7/11 lezárási pont kész,
+4 nyitott; 7/8 pozitív natív kapuút**,17/17 részleges szabályadapter.
+Következő P2-09, majd P2-10, P2-03 végellenőrzés és P2-11. SI-C07 nyitott,
+27/45, NO-GO; SI-M3/MVS nem PASS. Hosszú gazdasági próba nem indult.
+
+Meglévő food/tool/material/escrow stream prefix, mutable state és admission
+darabszám a meglévő policy tickpontokban; producer kód és food/tool config pin.
+Eredeti teljes founder/genesis ablak és P2-07 join. Valódi distinct-consumer
+food-chain kell a pozitív kapuhoz, bootstrap nem belső termelés. A számszerű
+napi/final-use/maintenance minimum külön marad: üres tool-stream coverage nem
+cikluscredit. Unknown hold/replacement gap; hiteles saját food FAIL másik
+material source hibája mellett is megmarad. Három ancestry source-family
+pozitív útja bekötve. Nincs új journal/tábla vagy gazdasági/clock írásváltozás.
+
+**115 külön aktív célzott eset sikeres**, full nélkül, explicit ./ fájlokkal:
+
+- Engine `20261028-232415-592-si-c07-internal-lineage-native`:44 PASS17,283 s;
+  három módosított producer/observer fájl, tényleges packed food és teljes
+  Mining→smelt→repair→reuse. Végleges guardok négy ága külön:
+  `20261028-234347-962-si-c07-internal-lineage-native-final`,4 PASS4,285 s,
+  benne az ismeretlen input-hold negatív eredete. Ezek a44-es kör részei.
+- `20261028-233842-663-si-c07-internal-lineage-final-readers`:31 PASS/1 timeout
+  88,071 s. Minden internal/external ág PASS; a régi admin frozen hasonlítás
+  redundáns readerét az exportált ellenőrzött eredményre cseréltük. Együtt33
+  reader eset; internal193tick setup2511/export5788/total6150 ms, external
+  3960/6857/8927 ms. Az éles readerek nem kaptak cache-t vagy gyengébb validációt.
+- `20261028-234209-061-si-c07-internal-lineage-close-boundaries`:3 PASS23,397 s:
+  javított admin1+7/frozen6,087 s, új C06 lineage9,67 s (capture3807/restore4726 ms),
+  benchmark offline restore6,558 s. Frozen parent dependency exact checkpoint
+  digesthez kötött, nem tetszőleges korábbi eredmény.
+- `20261028-234057-650-si-c07-internal-lineage-final-archive`:két régi manifest/
+  external C06 eset PASS; wrapper FAIL38,616 s az új lineage13,849 s/10 s
+  összetett timeoutja miatt. Az új eset külön fázissal PASS a fenti körben.
+  Összesen4 C06/benchmark eset; assertion és tartalmi pin nem tűnt el.
+- `20261028-234356-292-si-c07-internal-lineage-consumers-types`:34 PASS öt
+  pontos metrics/minimum/sourceCoverage/preflight fájlban; wrapper TS FAIL.
+- `20261028-234904-241-si-c07-internal-lineage-types-closed`:végső root+engine
+  TS PASS124,591 s. A pinned bun-types1.2.15 egyparaméteres hookjával kompatibilis
+  fixturePhase explicit szinkron setup-budgetet ellenőriz; nincs compiler-
+  suppression, dependency-update vagy globális timeout/discovery módosítás.
+
+Mért időkorrekció, nem elrejtett FAIL: az első1+7 fixture11274 ms setup és
+25741 ms összes idő mellett15 s keretbe ütközött (`20261028-232010-166`,9 PASS/
+1 timeout52,315 s). Redundáns teljes mortality olvasás megszűnt, azonos frozen
+checkpoint verified dependency újrahasznált; külön1 PASS10,253 s
+(`20261028-232203-773`). Következő szélesebb érintett körben IO/fixture idővel
+10 PASS/4 timeout96,549 s (`20261028-232941-896`), majd31 PASS/1 timeout.
+Változatlan fixture DB-ket readonly SQLite data_version alapján csak új writer
+commitnál olvasunk újra; statikus repo policy-inputok egyszer töltődnek.
+A végső/frozen validáció teljes valódi source read maradt.
+
+C06 korai3 timeout39,193 s (`20261028-232538-307`), külön új eset PASS4,806 s
+(`20261028-232853-441`), majd régi manifest külön10,612 s/10 s FAIL
+(`20261028-233324-153`). Naplózott capture4,2–7,2 s és restore3,9–7,4 s;
+nem volt tartalmi assertion-bukás. A három érintett C06 eset most setup/capture
+15 s és restore/check10 s, összesen25 s (előtte10). External1+7 setup15 s és
+assessment/frozen15 s, összesen30 s (előtte15); internal1+7 setup5+test10 s,
+eredeti összes15 s. Kis új esetek setup5+test5 s. A fázisok külön naplózottak
+és boundedek; a teljes keret növekedését nem rejti el a változatlan test-literal.
+Run/bootstrap limit,17/8 minimum és küszöb nem változott. A mérési tanulság a
+VERIFICATION_POLICY-ban megmaradt; assertionök aktívak.
+
+Korai típushibák: nullable bootstrap proof, duplikált tesztimportok, a Bun
+hook API pinned típusainak második argumentuma. Javítva, nem elnyomva. Sikeres
+44-es natív/34-es consumer kör nem ismétlődött indokolatlanul; a bukott és
+újonnan érintett határok célzottan futottak. Részletes log/result JSON lokális.
+Nincs full, live install/start/provider, új baseline vagy historical backup DB
+olvasás. Új reviewed pin és prospektív selection kell; rollback stop +korábbi
+összetartozó bináris/selection. selectedSources továbbra null, globális PASS nincs.
+
+Végleges lezárás: `20261029-000059-674-si-c07-internal-lineage-parent-final`,
+3 PASS és végső root TS PASS104,837 s. Az external parent csak azonos checkpoint
+SHA-val használható újra; új stale-parent eset unknown, pozitív1+7 is PASS
+(setup2072/total9207 ms). C06 external setup4755/restore7921 ms. Együtt115
+külön eset; a megismételt3 nem adódik hozzá újra. Engine TS a korábbi végső
+körben PASS, engine code utána nem változott.
+`20261028-235229-732` a még nem továbbított runtime hook-timeout miatt2 PASS/
+1 hook timeout21,631 s; `20261028-235457-996`3 PASS/1 setup-budget FAIL49,361 s.
+A pinned bun-types nem deklarálja a runtime timeout argumentumát; helyi typed
+bridge továbbítja, az önálló wall guard is aktív. Mért C06 setup11690 ms után
+a helyi keret15 s+restore10 s=25 s lett, nem globális emelés vagy assertion-törlés.
+`20261029-000730-667-si-c07-internal-lineage-preflight-final`:PASS0,877 s,
+várt NO-GO exit2, canonical source/digest és27 dokumentum linkjei. Eredeti
+minimum SHA596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a.
+`20261029-001028-809-si-c07-internal-lineage-format-final`:27 dokumentum linkjei,
+source hashek és changed/staged-line format PASS2,103 s; új fájlok stage-elve.

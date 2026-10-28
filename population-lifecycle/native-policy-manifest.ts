@@ -5,6 +5,7 @@ import { nativeToolDigest as digest } from '../item-lifecycle/native-tool.js';
 import { lifecycleAttemptKinds } from './native-attempts.js';
 import {administrativeValueSourcePaths} from '../society-integrity/coverage.js';
 import {externalValueSourcePaths} from '../external-trade/value-coverage.js';
+import {lineageProducerPaths} from '../production-workflow/lineage-coverage.js';
 
 export const lifecycleRoutes=[
     {kind:'load',path:'server/engine/src/engine/entity/PlayerLoading.ts',entry:'PlayerLoading.load'},
@@ -15,7 +16,7 @@ export const lifecycleRoutes=[
     {kind:'respawn-script',path:'server/engine/src/engine/entity/Player.ts',entry:'Player.runScript'},
     {kind:'terminal-script-abort',path:'server/engine/src/engine/script/ScriptRunner.ts',entry:'ScriptRunner.execute + Player.runScript'}
 ] as const;
-export const lifecycleSourcePaths=[...new Set([...externalValueSourcePaths,...administrativeValueSourcePaths,...lifecycleRoutes.map(r=>r.path),
+export const lifecycleSourcePaths=[...new Set([...lineageProducerPaths,...externalValueSourcePaths,...administrativeValueSourcePaths,...lifecycleRoutes.map(r=>r.path),
     'population-lifecycle/native-policy-manifest.ts','population-lifecycle/native-policy.ts','population-lifecycle/native-attempts.ts',
     'population-lifecycle/native-watermarks.ts','population-lifecycle/native-coverage.ts','population-lifecycle/native-observer.ts',
     'population-lifecycle/policy-environment.ts','population-lifecycle/policy-mutations.ts','population-lifecycle/policy-mutation-observer.ts',
@@ -30,6 +31,8 @@ export const lifecycleSourcePaths=[...new Set([...externalValueSourcePaths,...ad
     'server/engine/src/mods/NativeFoodSkill.ts','server/engine/src/mods/NativeKitchen.ts','server/engine/src/mods/NativeToolWork.ts',
     'simulation-clock/profile.ts','simulation-clock/config.ts','needs/survival.ts'])].sort();
 export const lifecyclePolicyPaths=['config/population-age-policy.json','config/population-mortality-policy.json',
+    'config/native-food-production.json','config/food-loops.json','config/production-workflows.json','config/native-tool-work.json',
+    'config/item-lifecycle.json','config/production-tool-cycles.json','config/item-repair-policies.json',
     'config/population-world-profile-bindings.json','config/population-lifecycle-policies.json','config/simulation-clock.json',
     'config/society-minimum-policy.json','config/survival-rules.json','config/world-mods.json',
     'config/society-integrity-policy.json',

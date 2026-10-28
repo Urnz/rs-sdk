@@ -1,4 +1,5 @@
 import World from '../engine/World.js';
+import {readLineageEvidence} from '../../../../society-metrics/lineage-evidence.js';
 import { afterEach, beforeAll, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, existsSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -42,6 +43,7 @@ import { readNativeFoodProductionSource } from '../../../gateway/admin/native-fo
 import { readNativeFoodTransformation } from '../../../../item-transformation/native-food.js';
 import { captureFoodTrade, commitFoodTrade } from './NativeFoodTrade.js';
 import { TradeEvidenceStore } from './TradeEvidenceStore.js';
+import {readNativeTradeLedger} from '../../../../external-trade/source.js';
 import { readFoodLineage } from './NativeFoodLineageStore.js';
 import { projectFoodLineage } from '../../../../food-loop/lineage.js';
 import { NativeFoodSource } from '../../../../food-loop/native-source.js';
@@ -159,6 +161,12 @@ test('A gathers, B cooks, C eats: partial transfers conserve four units and only
     f.move(f.b, f.c, 379, 2); const { context, result } = f.eat();
     expect(result.outcome).toBe('consumed');
     const view = f.view(); expect(view.projection).not.toBeNull();
+    const native=readLineageEvidence(f.a.market.db,{clockId:context.clock.clockId,clockProfileDigest:context.clock.profileDigest,
+        fromSimulationTime:'2000-01-01T00:00:00.000Z',toSimulationTime:context.clock.simulationTime,
+        actorAgentIds:['actor-gatherer','actor-chef','actor-eater']},'fixture-world',[f.a,f.b,f.c].map(p=>({actorId:`actor-${p.player.username}`,username:p.player.username,
+            lifecycleId:p.identity(p.player.username,randomUUID(),0,World.currentTick)!.action.lifecycleId,membershipDigest:'a'.repeat(64)})),
+        readNativeTradeLedger(f.tradePath),join(root,'config'));
+    expect(native.completeFoodEvidence).toBeTrue();expect(native.food!.chains).toHaveLength(1);expect(native.violations).toEqual([]);
     expect(view.projection).toMatchObject({ produced: 4, transformed: 2, transferred: 5, consumed: 1, sourceGaps: [], gaps: [] });
     expect(view.projection!.consumptions[0]).toMatchObject({ origin: 'internal', internalSupply: 'verified',
         gatherers: ['actor-gatherer'], cooks: ['actor-chef'], consumer: { actorId: 'actor-eater' }, quantity: 1 });

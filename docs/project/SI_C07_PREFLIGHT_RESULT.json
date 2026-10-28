@@ -499,7 +499,7 @@
       },
       {
         "id": "native-food-lineage",
-        "authority": "actual gather/process/trade/final-use ancestry and native deliveries",
+        "authority": "reviewed sealed original-window canonical gather/process/trade/final-use quantity ancestry, native deliveries and exact Business kitchen custody",
         "span": "warmup-and-evaluation",
         "tables": [
           "native_food_lineage",
@@ -562,7 +562,7 @@
       },
       {
         "id": "tool-lifecycle-work",
-        "authority": "native instance/revision/use/repair/replacement effects and exact worker WIP",
+        "authority": "sealed original-window native instance/revision/use/repair effects and exact worker WIP; unknown replacement remains a gap",
         "span": "warmup-and-evaluation",
         "tables": [
           "item_lifecycle_audit",
@@ -903,7 +903,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "3c6b0388c8ac91fb4eac7f9727b48cc66e8b075f5463c2e29c8b3c9f8d611e67"
+    "digest": "99f9840f793d8c9f8bd0fed4a24aec7f3701f5cae096055076eee98b3d772587"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1181,7 +1181,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters; six positive native gate paths cover original roster, applied genesis/native opening, clock/world-policy, finite lifecycle/no-respawn, admin/fallback and external value. External value joins reviewed closed shop/restock, fresh native trade/actual GE/treasury channels and backed internal commerce over the full original window. Two positive integrity paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
+      "reason": "All17 requirements have partial native adapters and seven integrity gates have positive native paths. Internal lineage joins sealed original food production/trade/final use and prospective tool/material/escrow history, with actual distinct-consumer opportunity; numeric daily and maintenance minima remain separate. Complete aggregate source coverage, population lower bounds, boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1221,7 +1221,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "19b1c1669f36bca38fefaa82d8a14214c664b9e75e29655e478d3dea92b56301"
+      "sha256": "298b7333d63c735f091aafdb269f24597820f82500f12ad2c3579f8f309a31c1"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1257,7 +1257,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeLifecycleAttempts.ts",
-      "sha256": "4785a5e0d99b0ec3c7906fa2d287ef97c9d0d456321b7e836a8461922c5516b5"
+      "sha256": "51aab859419e60642411c4c1e7db0412813db276d463226f9fd0f9ac6d462de7"
     },
     {
       "path": "population-lifecycle/native-watermarks.ts",
@@ -1269,11 +1269,11 @@
     },
     {
       "path": "population-lifecycle/native-policy-manifest.ts",
-      "sha256": "ee5557dd5596373927285c42233628aa2b22be00232af86917f312652c42bbb2"
+      "sha256": "bee8bab2e24effc45cefbe5531c941638dbe3a2a901ffe55c8b58f1406d33fb9"
     },
     {
       "path": "population-lifecycle/native-policy.ts",
-      "sha256": "411c1467803176365084b08c1b2a86e5ce2c10f7699312e99a6932b4db568718"
+      "sha256": "95ffe355b8f6a0b881b40999860b4c5a34092a200905b55ca75c917b84b2a202"
     },
     {
       "path": "society-metrics/lifecycle-policy.ts",
@@ -1416,6 +1416,142 @@
       "sha256": "fedc53c78d49517dbac5b579c057db36eabf8d6e1b96ec212576fb43a1d3de10"
     },
     {
+      "path": "production-workflow/lineage-coverage.ts",
+      "sha256": "68f033068a51c1dc71a3ed82e7c00c2ab3c47052266df3c7b60a4711eadc73b8"
+    },
+    {
+      "path": "production-workflow/native-material.ts",
+      "sha256": "6b7de407065ff9889e37bac34b4fd9f31fdf969508d330a3cdd33bbb70af39df"
+    },
+    {
+      "path": "production-workflow/native-tool-work.ts",
+      "sha256": "9b345206161d1c41fecd7e242e9373324da42927c86d8091ed538e82eaa304d5"
+    },
+    {
+      "path": "production-workflow/native-tool-work-policy.ts",
+      "sha256": "6ea906df66a98b9e44ba185516bafac252bcd0edcf93ea7127cbce26d87eb1db"
+    },
+    {
+      "path": "item-lifecycle/native-tool.ts",
+      "sha256": "6fedd176717c419cdc0f6a5166255232a37e14e25cf3ecb13037975778f192e5"
+    },
+    {
+      "path": "item-lifecycle/store.ts",
+      "sha256": "b6cf73fb14f33e3d9637dcce42bc344d327da520ffeb8b0892da763afc4b4706"
+    },
+    {
+      "path": "item-lifecycle/production-cycle.ts",
+      "sha256": "58789b37af49dd9e7cb588f906af9c5b3081048e5d536c04103d583d4c2223b6"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodConsumption.ts",
+      "sha256": "d79bd110398dc5000110f52e322b4d4edc9e0cf6eba56bdfe854588809e8303b"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodConsumptionStore.ts",
+      "sha256": "1c1f9658c6f7b60f941cccbbdd134edb8382e35a0b4a4cff78f285ec87cb07a8"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodProduction.ts",
+      "sha256": "66be6d5cc87c73aa0f55b63934524ce6b97c645b0bb962a755e1d5c12ae3d5f6"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodProductionStore.ts",
+      "sha256": "043f57fbfce2ef9a02d5b7cf27df9beafe4f65b3625ed7198374c319b0037567"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodLineageStore.ts",
+      "sha256": "f5108915c456775c5716880bb46a3970e70b342fca304d61eaecf3cb12fb951b"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodDeliveryStore.ts",
+      "sha256": "679e776aa722dd487b68918faaf0dc9ed590e612772777be7acc2d7acf4f65da"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodTrade.ts",
+      "sha256": "c1be30331b23c5781ccda93defc744357d1a8e7ab19c046dfa2284909195bcee"
+    },
+    {
+      "path": "server/engine/src/mods/NativeFoodProductionPolicy.ts",
+      "sha256": "8975ba518988bfd2aa1bcc2988f7dfe9c3f8286a7c15509fb172f1a79313a096"
+    },
+    {
+      "path": "server/engine/src/mods/NativeMiningTool.ts",
+      "sha256": "6b9b163758451aab7866d75ef8c8fcbe3195e269cc1c3d0257af9cc407696fe6"
+    },
+    {
+      "path": "server/engine/src/mods/NativeToolWork.ts",
+      "sha256": "eec43b41d941df83f760290b19226eda2f0f687b0bc59301ef92b770bc03ade5"
+    },
+    {
+      "path": "server/engine/src/mods/NativeMaterial.ts",
+      "sha256": "dfc9d908933790e2dbd6b93bc455ef5c1a9b5d7e093c523e4c7c486390fd9e2d"
+    },
+    {
+      "path": "server/engine/src/mods/PlayerInventoryEscrowStore.ts",
+      "sha256": "e3a627675113d457e34188870b0974a0c5b8b0b2cf743aed3fa3f146beef13dd"
+    },
+    {
+      "path": "server/engine/src/mods/NativeKitchenStore.ts",
+      "sha256": "dd49b11a1841a80a385701525712cc7351ac3cad8e5105dec4757e11c8f36b25"
+    },
+    {
+      "path": "food-loop/lineage.ts",
+      "sha256": "d5b1a82b995699695979ee74bc8166437c3a259277a8bae3a00db572b05e028a"
+    },
+    {
+      "path": "food-loop/native-source.ts",
+      "sha256": "86ca5d420420b9a39c1b2edb40cde0e71a8f53c45f2550f6baa1becbfebe4e28"
+    },
+    {
+      "path": "society-metrics/tool-maintenance.ts",
+      "sha256": "c980db22f372cf6f2e2ee1d23444d8ac6411fd99daa33381e7a1b7105878c8de"
+    },
+    {
+      "path": "society-metrics/tool-material-origin.ts",
+      "sha256": "e0f64d4131003e7c492a8c2b4e31ed0c87b1aa8f3d601930929f9012db44dcb7"
+    },
+    {
+      "path": "society-metrics/tool-capacity-ledger.ts",
+      "sha256": "a1fb602032d3ee4d1fb9286d7e361d40a532bd394d821468c1b25f3d98c39ddf"
+    },
+    {
+      "path": "society-metrics/lineage-evidence.ts",
+      "sha256": "aab8efa08095962c9ac7b41973937581020ffdd2ee29009da792ecdac815fb2a"
+    },
+    {
+      "path": "society-metrics/internal-lineage.ts",
+      "sha256": "f70af6c70f0d92ab84852d4c1789c9dcffb05f9e0c28a2e5a246bf3d6e7cae7e"
+    },
+    {
+      "path": "config/native-food-production.json",
+      "sha256": "12db326d52cfb45aecb2221d9f07d133365fca4dd43550f748a6918f5379fe52"
+    },
+    {
+      "path": "config/food-loops.json",
+      "sha256": "904cedddb6317a438179f20fd2d7b74edb40d7190891141824d75b5e1ae37308"
+    },
+    {
+      "path": "config/production-workflows.json",
+      "sha256": "e8fe17100c04d73b26b2345045b9f4c1e75e1e5361fba1113d55ac01d55624ba"
+    },
+    {
+      "path": "config/native-tool-work.json",
+      "sha256": "a1e80bf4a617ce514b74537e1e0cf259b826c52b438dfa0bc2e925e60ac70651"
+    },
+    {
+      "path": "config/item-lifecycle.json",
+      "sha256": "2b34ef6b2b378c060f0005c71f520fbc6fb6d9231f83aa18bd556f8c484d2976"
+    },
+    {
+      "path": "config/production-tool-cycles.json",
+      "sha256": "1222b5bf2c5e54d29cb5e9cdbdefdddfd7b24cb65a6a4fd68b55ec2908aeee8a"
+    },
+    {
+      "path": "config/item-repair-policies.json",
+      "sha256": "3cee27159aa7b6d290e652cf17622a7ab90e388d7f12211df3c22c0012879ce1"
+    },
+    {
       "path": "server/engine/src/mods/SocietyIntegrity.ts",
       "sha256": "84882f3b113ef3426ca0caa152b223d249728ce7952d34910a21affaf8b768eb"
     },
@@ -1537,11 +1673,11 @@
     },
     {
       "path": "society-metrics/source-coverage.ts",
-      "sha256": "86b6bd62fbd48d40cc9b2e3e26c58d2c435c21d0da235b1a9882d4f85ad2e968"
+      "sha256": "8a1fa6da60748fe7e08dcac9b1212c9cfb290905708cfa7e86b814f339aad7a7"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "282d9d677dc372db584225ab31eeccf73196cf4d6972976ed2abc9281cb54d39"
+      "sha256": "d77ce37da1444b7674b3b81fa1958271f02820cd4bd8c49d9cee59b93b1443dd"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1793,7 +1929,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "893d3b06c16d5578db11afa40fe90461f4eda772e6a1b859344be4696082923c"
+      "sha256": "7c677a07a5e7275e7afaca792e3d62d12754e256071dd3472762d19b7a5e57f2"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -1801,7 +1937,7 @@
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "819d72298e1c0b75ea04419ba4fea2ee07ec61514dd69795e2b34fabe2ad1446"
+      "sha256": "d4a6f1a4d7d58edd605c8df667adc54391fd64960e48197b57a0b01e364c6385"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -1933,7 +2069,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "bd97d943f7ee378e131692c4c00c49838b23a452ed7fe7c77925b2db3f1ca3a9"
+      "sha256": "d83eca5a5ba69706864e07cccf9a119f1437f3124ea28e674446f241be0a1350"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1962,5 +2098,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "3828d9ac9c0afe5b11c0ad548aef9a0eb9d5338b203bc9431592879d5e54a317"
+  "digest": "eb908303a6f0f5fb8e8500846b734e2771c17689567dd66e9f18a0b98a5f23c7"
 }

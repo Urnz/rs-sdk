@@ -1,6 +1,6 @@
 # SI-C07 – Rögzített munkacsomagok és lezárási feltételek
 
-Állapot: 2026-10-27. A 2026-10-25-i hét munkacsomag változatlan.
+Állapot: 2026-10-29. A 2026-10-25-i hét munkacsomag változatlan.
 **Az 1. kész, a 2. folyamatban, a 3–7. későbbi fázis.** A fő feladatlista
 27/45; SI-C07 nyitott, preflight NO-GO. Hosszú C07 gazdasági próba nem indult.
 
@@ -18,9 +18,9 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    [Eredmény](SI_C07_NATIVE_DISPATCH.md).
 2. **FOLYAMATBAN – Teljes minimum-assessment implementáció.** Az eredeti
    17 szabály és 8 integritási kapu natív kiértékelése, minden szükséges
-   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **6/11 kész**;
-   17/17 részleges szabályadapter, **6/8 pozitív natív kapuút**. A maradék két
-   kapu pozitív útja, a pozitív population-korlátok, a teljes boundary/access/
+   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **7/11 kész**;
+   17/17 részleges szabályadapter, **7/8 pozitív natív kapuút**. Az összesített
+   source-coverage kapu, a pozitív population-korlátok, a teljes boundary/access/
    demand integráció és az összesítő PASS-ág még nyitott. A tényleges jövőbeli
    run adatai nem ennek az implementációs csomagnak az elkészülési feltételei.
 3. **Teljes közös founder-baseline.** Négy founder kompetenciákkal, pontos
@@ -80,3 +80,8 @@ kész. Reviewzott closed shop/restock, friss natív trade/aktív tényleges GE �
 treasury prefix/state, teljes eredeti ablak, P2-06 join és belső commerce backing.
 **6/11 kész, 5 nyitott; 6/8 pozitív natív kapuút.** Következő P2-08;
 utána P2-09, P2-10, P2-03 végellenőrzés és P2-11. C07 továbbra NO-GO.
+
+2026-10-29 további lezárás: [P2-08 internal lineage/final use](SI_C07_INTERNAL_LINEAGE_GATE.md)
+kész. Sealed food és tool/material/escrow források, eredeti teljes ablak és
+distinct-consumer final use, külön számszerű minimumok. **7/11 kész, 4 nyitott;
+7/8 pozitív natív kapuút.** Következő P2-09, majd P2-10, P2-03 és P2-11.

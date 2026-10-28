@@ -84,3 +84,12 @@ test('external value coverage requires the original cohort/genesis and full nati
     f.sources.externalValue.value.fromSimulationTime=frame.genesisAppliedAtSimulationTime;f.sources.externalValue.value.genesisResultDigest='f'.repeat(64);expect(row().status).not.toBe('complete');
     f.sources.externalValue.value.genesisResultDigest='c'.repeat(64);f.sources.externalValue.value.scope={...scope,actorAgentIds:['foreign']};expect(row().status).not.toBe('complete');
 });
+
+test('lineage coverage consumes only sealed original food and tool windows, separately from numeric final-use or cycle minima',()=>{
+    const f=fixture();f.sources.internalLineage=available({scope,worldId:'world',fromSimulationTime:frame.genesisAppliedAtSimulationTime,toSimulationTime:frame.toSimulationTime,
+        genesisResultId:'genesis',genesisResultDigest:'c'.repeat(64),completeFoodLineageCoverage:true,completeToolLineageCoverage:true,sourceHead:{stateDigest:'d'.repeat(64)}});
+    const selected=()=>projectNativeSourceCoverage(contract,frame,f.outcomes).rows.filter(r=>['native-food-lineage','tool-lifecycle-work','tool-material-custody'].includes(r.sourceId));
+    expect(selected().map(r=>r.status)).toEqual(['complete','complete','complete']);f.sources.internalLineage.value.completeFoodLineageCoverage=false;
+    expect(selected().map(r=>r.status)).toEqual(['partial','complete','complete']);f.sources.internalLineage.value.genesisResultDigest='f'.repeat(64);
+    expect(selected().every(r=>r.status!=='complete')).toBeTrue();
+});

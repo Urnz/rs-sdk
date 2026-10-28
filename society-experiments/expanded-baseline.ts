@@ -15,6 +15,7 @@ import { PolicyMutationStore } from '../population-lifecycle/policy-mutations.js
 import { WorldPolicyRuntimeStore } from '../population-lifecycle/world-policy-runtime.js';
 import {SocietyIntegrityStore} from '../society-integrity/store.js';
 import {readExternalValueSnapshot} from '../external-trade/value-coverage.js';
+import {readLineageSnapshot,lineagePrefixMatches,lineageTables} from '../production-workflow/lineage-coverage.js';
 import { pinPolicyEnvironment } from '../population-lifecycle/policy-environment.js';
 import { nativeToolDigest } from '../item-lifecycle/native-tool.js';
 import { assertFoodProductionSchema } from '../server/engine/src/mods/NativeFoodProductionStore.js';
@@ -83,6 +84,9 @@ function stores(root:string,selected:ExpandedSelection){
                         check(c!.resultDigest===r.resultDigest&&c!.clockId===selected.clockId&&c!.clockProfileDigest===selected.clockProfileDigest
                             &&c!.genesisAppliedAtSimulationTime===r.genesisAppliedAtSimulationTime&&(c!.head.sequence===0?c!.head.hash==='0'.repeat(64):row?.hash===c!.head.hash),
                             'Administrative value source prefix differs');}}finally{store.close();journal.close(true);}}
+                const lineage=entries.map(e=>e.sample.lineageCursor).filter(c=>!!c);
+                if(lineage.length){check(lineageTables.every(t=>s.requiredTables.includes(t)),'Native lineage source excluded from inventory');
+                    const snapshot=readLineageSnapshot(db);for(const c of lineage)check(lineagePrefixMatches(c!,snapshot),'Native lineage source prefix differs');}
                 const external=entries.map(e=>e.sample.externalValueCursor).filter(c=>!!c),snapshots=new Map<string,ReturnType<typeof readExternalValueSnapshot>>();
                 if(external.length){const trades=selected.stores.find(s=>s.requiredTables.includes('engine_trade_evidence')),
                     treasury=selected.stores.find(s=>s.requiredTables.includes('institution_treasury_external_credit')),

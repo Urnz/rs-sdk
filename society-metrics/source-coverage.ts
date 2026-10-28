@@ -50,13 +50,16 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
         &&policy.value.toSimulationTime===frame.toSimulationTime,['complete-policy-writer-history-unproven'],policy?.status==='available'?
         {policy:policy.value.policyHead,mutation:policy.value.mutationHead,runtime:policy.value.runtimeHead}:undefined);
     const i=integrated?.sources;
+    const lineage=s?.internalLineage,fullLineage=!!original&&lineage?.status==='available'&&scopeMatches(lineage.value.scope)&&lineage.value.worldId===frame.worldId
+        &&lineage.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime&&lineage.value.toSimulationTime===frame.toSimulationTime&&p?.status==='available'
+        &&lineage.value.genesisResultId===p.value.genesisResultId&&lineage.value.genesisResultDigest===p.value.genesisResultDigest;
     add('physiology-modes',[i?.needs,i?.modes,i?.nutrition],false,['warmup-physiology-denominators-unproven']);
-    add('native-food-lineage',[i?.lineage,i?.production,i?.nutrition],false,['full-window-food-ancestry-unproven']);
+    add('native-food-lineage',[lineage],!!fullLineage&&lineage?.status==='available'&&lineage.value.completeFoodLineageCoverage,['full-window-food-ancestry-unproven'],lineage?.status==='available'?lineage.value.sourceHead:undefined);
     add('frozen-physical-boundaries',[i?.foodBoundaries,i?.housingAccess,i?.toolBoundaries],false,['complete-native-boundary-inventory-unproven']);
     add('housing-rights',[i?.housingAccess],false,['warmup-access-history-unproven']);
     const maintenance=s?.toolMaintenance;
-    add('tool-lifecycle-work',[maintenance],false,['full-window-tool-work-coverage-unproven']);
-    add('tool-material-custody',[maintenance],false,['complete-material-custody-history-unproven'],maintenance?.status==='available'?maintenance.value.materialSource:undefined);
+    add('tool-lifecycle-work',[lineage],!!fullLineage&&lineage?.status==='available'&&lineage.value.completeToolLineageCoverage,['full-window-tool-work-coverage-unproven'],lineage?.status==='available'?lineage.value.sourceHead:undefined);
+    add('tool-material-custody',[lineage],!!fullLineage&&lineage?.status==='available'&&lineage.value.completeToolLineageCoverage,['complete-material-custody-history-unproven'],lineage?.status==='available'?lineage.value.sourceHead:undefined);
     // The requested-use reader currently proves the queried evaluation, not the preceding warmup.
     add('executor-native-demand',[s?.toolDemand],false,['warmup-request-history-unproven']);
     add('business-treasury-custody',[i?.currentAssets,i?.custody],false,['historical-custody-access-unproven']);

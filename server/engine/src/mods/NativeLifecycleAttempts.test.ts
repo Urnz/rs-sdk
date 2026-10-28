@@ -25,6 +25,13 @@ import {TradeEvidenceStore} from './TradeEvidenceStore.js';
 import {MarketStore} from '../engine/market/MarketStore.js';
 import {InstitutionTreasuryStore} from '../../../gateway/admin/institution-treasury.js';
 import {readExternalValueSnapshot} from '../../../../external-trade/value-coverage.js';
+import {readLineageSnapshot} from '../../../../production-workflow/lineage-coverage.js';
+import {NativeFoodConsumptionStore} from './NativeFoodConsumptionStore.js';
+import {NativeFoodProductionStore} from './NativeFoodProductionStore.js';
+import {NativeToolStore} from '../../../../item-lifecycle/native-tool.js';
+import {NativeToolWorkStore} from '../../../../production-workflow/native-tool-work.js';
+import {NativeMaterialStore} from '../../../../production-workflow/native-material.js';
+import {PlayerInventoryEscrowStore} from './PlayerInventoryEscrowStore.js';
 import NpcType from '../cache/config/NpcType.js';
 import LocType from '../cache/config/LocType.js';
 import VarPlayerType from '../cache/config/VarPlayerType.js';
@@ -143,16 +150,20 @@ test('SI-C07 actual shop opcode and World frame capture the native external chan
     const f=fixture();f.watermarks();const tradePath=join(f.root,'trades.sqlite'),marketPath=join(f.root,'ge.sqlite'),treasuryPath=join(f.root,'treasury.sqlite'),
         trades=new TradeEvidenceStore(tradePath),market=new MarketStore(marketPath),treasury=new InstitutionTreasuryStore(treasuryPath);
     closers.push(()=>trades.close(),()=>market.db.close(true),()=>treasury.close());
+    new NativeFoodConsumptionStore({db:f.db});new NativeFoodProductionStore(f.db);new NativeToolStore(f.db);new NativeToolWorkStore(f.db);
+    new PlayerInventoryEscrowStore({db:f.db,checkpoint(){throw Error('Fixture observer');}});f.db.transaction(()=>new NativeMaterialStore(f.db,true)).immediate();
     const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..')),store=new NativeLifecyclePolicyStore(f.db,{manifest,opening:f.policySnapshot()}),
         ports={...f.ports,bootManifest:manifest,policy:()=>({position:f.c,worldId:'fixture',snapshot:f.policySnapshot()}),
-            externalValue:()=>readExternalValueSnapshot(f.root,{tradePath,marketPath,treasuryPath},Environment.node.shopEconomyMode,true).cursor},
+            externalValue:()=>readExternalValueSnapshot(f.root,{tradePath,marketPath,treasuryPath},Environment.node.shopEconomyMode,true).cursor,lineage:()=>readLineageSnapshot(f.db).cursor},
         mode=Environment.node.shopEconomyMode,before=f.player.save(false),clock=f.clock.get('world');
     try{for(const selected of ['legacy','closed-society'] as const){Environment.node.shopEconomyMode=selected;const stack:number[]=[],state={pushInt:(v:number)=>stack.push(v)};
             DebugOps[ScriptOpcode.SHOP_LEGACY_ALLOWED]!(state as unknown as ScriptState);expect(stack).toEqual([selected==='legacy'?1:0]);}
         withNativeLifecycleObservation(ports,()=>World['observePopulationLifecycle']('after-terminal-guard'));
         expect(store.read().entries[0]!.sample.externalValueCursor).toEqual(ports.externalValue());
-        withNativeLifecycleObservation({...ports,externalValue(){throw Error('unavailable native source');}},()=>World['observePopulationLifecycle']('end-of-tick'));
+        expect(store.read().entries[0]!.sample.lineageCursor).toEqual(ports.lineage());
+        withNativeLifecycleObservation({...ports,lineage(){throw Error('unavailable lineage');},externalValue(){throw Error('unavailable native source');}},()=>World['observePopulationLifecycle']('end-of-tick'));
         const frames=store.read();expect(frames.entries[1]!.sample.externalValueCursor).toBeNull();expect(frames.entries[1]!.sample.snapshot).toEqual(f.policySnapshot());
+        expect(frames.entries[1]!.sample.lineageCursor).toBeNull();
         expect(frames.faults).toBe(0);expect(f.player.save(false)).toEqual(before);expect(f.clock.get('world')).toEqual(clock);
     }finally{Environment.node.shopEconomyMode=mode;}
 });

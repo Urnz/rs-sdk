@@ -26,6 +26,7 @@ import { readNativeWorldPolicy } from './world-policy.js';
 import { readNativeLifecycleEnforcement } from './lifecycle-enforcement.js';
 import {readNativeAdministrativeValue} from './administrative-value.js';
 import {readNativeExternalValue} from './external-value.js';
+import {readNativeInternalLineage} from './internal-lineage.js';
 
 /** Backend-owned export capability. Query parameters cannot widen actors, observers or source paths. */
 export interface NativeOutcomeOptions {
@@ -91,6 +92,11 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
         return database(options,options.checkpointPath,db=>readNativeExternalValue(db,scope,options,populationBaseline.value,populationDeaths.value.founderBindings,
             administrativeValue.status==='available'?administrativeValue.value:undefined));});
     const agent=capture(()=>database(options,options.agentPath,db=>readOutcomeAgents(db,scope,observers)));
+    const internalLineage=capture(()=>{check(populationBaseline.status==='available'&&populationDeaths.status==='available','Internal lineage original cohort unavailable');
+        return database(options,options.checkpointPath,db=>{configured(db.query("SELECT 1 FROM sqlite_master WHERE name='native_lifecycle_policy_event'").get(),'Native lineage seals absent');
+            configured(db.query("SELECT 1 FROM native_lifecycle_policy_event WHERE json_type(payload,'$.lineageCursor')='object' LIMIT 1").get(),'Native lineage seals absent');
+            return readNativeInternalLineage(db,scope,options,populationBaseline.value,populationDeaths.value.founderBindings,
+                externalValue.status==='available'?externalValue.value:undefined);});});
     const work=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
         return database(options,options.checkpointPath,db=>readNativeWorkerEvidence(db,scope,options.worldId,agent.value.actors));});
     const toolMaintenance=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
@@ -149,7 +155,7 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
                 physicalWorkerMatchesAssignment:b.assignedWorkerAgentId===w.workerAgentId})):[],
         interpretation:'Actual worker is bound by native receipt; registered requester and assigned worker remain separate.'})):null;
     const definition={schemaVersion:1,artifactKind:'native-society-outcome-report',scope,worldId:options.worldId,observerAgentIds:observers,
-        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,genesisOpening,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy,policyMutations,worldPolicy,lifecycleEnforcement,administrativeValue,externalValue},labor,physicalSpecialization,roleBindings,
+        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,genesisOpening,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy,policyMutations,worldPolicy,lifecycleEnforcement,administrativeValue,externalValue,internalLineage},labor,physicalSpecialization,roleBindings,
         registeredResponsibility:'Existing evaluation specialization remains registered recipe responsibility; physical-stage receipt HHI is separate.',
         availability:{status:'inconclusive',availableAndWillingPersonMs:null,unemploymentRate:null},
         limitations:['Read-only per-source snapshots; no cross-database atomicity or complete event coverage.',

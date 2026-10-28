@@ -1,6 +1,6 @@
 # Rövid fejlesztési átadás
 
-Frissítve: 2026-10-28. Belépő, nem futási napló.
+Frissítve: 2026-10-29. Belépő, nem futási napló.
 Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő kódmunka
@@ -14,9 +14,9 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   `e9d852b63` és `2785e6fee` között; az ismételt „6 maradt” elfedte a belső
   haladást és a még lezárt natív PASS-ágat. Hosszú C07 gazdasági próba nem indult.
 - **Rögzített implementációs lezárás:** [P2-01–P2-11](SI_C07_PACKAGE2_CLOSURE.md),
-  **6/11 kész**, 5 nyitott feltétel; nem 5 ígért chatkör. 17/17 részleges
-  szabályadapter és 6/8 pozitív natív kapuút. A lifecycle/admin/external útja kész,
-  a további két kapunak még nincs teljes pozitív natív útja.
+  **7/11 kész**, 4 nyitott feltétel; nem 4 ígért chatkör. 17/17 részleges
+  szabályadapter és 7/8 pozitív natív kapuút. A lineage/final-use útja is kész;
+  az összesített source-coverage kapu teljes pozitív natív útja még nyitott.
 - **Kész P2-01:** `frozen-founder-roster` pozitív natív adapter. Applied
   genesis + integrity anchor + teljes immutable eredeti tagság + natív finite
   avatar binding ellenőrzése. Halott/offline tag sem tűnik el; hibás/hiányos/
@@ -64,13 +64,19 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   backing kell. Friss nyitócsatorna szükséges; régi történet unknown, nem backfill.
   1+7 PASS, import/fallback FAIL, hiány/legacy/head/tail/source-identity,
   disabled GE, frozen readonly és C06 inclusion/restore ellenőrzött. Új journal nincs.
-- **Következő konkrét pont P2-08:** `verified-internal-lineage-and-final-use`.
-  A meglévő production/material/maintenance/food és elkülönült fogyasztói
-  receipt láncokat kösd az eredeti cohorthoz és teljes ablakhoz. Inventory gain,
-  rövid üres lista vagy külső import hiánya önmagában nem belső lineage.
-  Konkrét hiány/fogyasztó alapján dolgozz; új általános naplósort ne nyiss.
-- **Megmaradó függőségi sorrend:** P2-08 → P2-09 → P2-10 →
-  P2-03 végellenőrzés → P2-11. Rögzített lista: 6/11 kész, 5 nyitott;
+- **Kész P2-08:** [internal lineage/final-use kapu](SI_C07_INTERNAL_LINEAGE_GATE.md).
+  Meglévő food/tool/material/escrow stream prefix és állapot a policy tickpontokban;
+  eredeti teljes ablak, immutable producer+config és P2-07 join. Tényleges distinct
+  consumer étellánc; a számszerű napi/ciklus minimum külön marad. Üres tool-stream
+  coverage nem cikluscredit, bootstrap nem internal. Unknown hold/replacement gap.
+  1+7/frozen, valódi packed A→B→C és Mining→smelt→repair→reuse evidence, C06 restore.
+  Új journal/tábla nincs. SourceCoverage három ancestry-családja PASS-képes.
+- **Következő konkrét pont P2-09:** pozitív living/survival alsó korlátok.
+  A meglévő eredeti roster, sealed mortality/lifecycle/health és kötelező
+  boundary időpontok teljes történetéből képezz boundot; üres death ledger vagy
+  új aktuális névsor nem bizonyít túlélést. Konkrét hiány/fogyasztó alapján dolgozz.
+- **Megmaradó függőségi sorrend:** P2-09 → P2-10 →
+  P2-03 végellenőrzés → P2-11. Rögzített lista: 7/11 kész, 4 nyitott;
   nincs új pont és nincs szükség még nem létező hosszú run-adatra a kódlezáráshoz.
 - A 2. csomag implementációs képessége különválik a 3–7. csomag tényleges
   baseline/source-kijelölésétől és a hosszú run adataitól. Nem kell még nem létező
@@ -93,6 +99,10 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 - `external-trade/value-coverage.ts`, `society-metrics/external-value.ts`:
   readonly trade/GE/treasury source snapshot, policy cursor és teljes natív
   external value join; `isInternalTreasuryCommerce` valódi natív receiptet fogyaszt.
+- `production-workflow/lineage-coverage.ts`, `society-metrics/lineage-evidence.ts`,
+  `society-metrics/internal-lineage.ts`: meglévő producer-táblák read-only sealje,
+  domain-validátorok és teljes lineage gate. A native-outcomes a már ellenőrzött
+  external függőséget adja át; checkpoint snapshot digest külön marad.
 - `society-minimum/source-coverage.ts`, `society-metrics/source-coverage.ts` és
   két `test/source-coverage.test.ts`: tiszta lefedettségi szerződés, natív bridge
   és a meglévő closure-ID-kre visszavezetett hiánymátrix; új journal nincs.
@@ -113,50 +123,61 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **106 külön aktív célzott eset PASS**, nem teljes regresszió. Bun fájlok mindig
-  explicit `./` útvonallal; IO-heavy fixture/archive körök egymás után.
-- Engine `20261028-225702-481-si-c07-external-value-native`: **23 PASS18,972 s**.
-  Teljes érintett NativeLifecycleAttempts (16) és ShopEconomyPolicy (6), egy
-  valódi bilateral native sale/treasury/completed-commerce backing eset.
-- `20261028-225915-034-si-c07-external-value-readers-final`: **22 PASS60,596 s**.
-  19 external value eset és három közvetlen admin/world-policy/lifecycle pozitív
-  join. A193 tickpontos1+7 fixture11,693 s; build4519/export8321/total11200 ms,
-  változatlan15 s limit. PASS/failure/gap, foreign binding és frozen readonly.
-- `20261028-230026-231-si-c07-external-value-consumers`: **33 PASS7,148 s**.
-  Öt pontos metrics/minimum/sourceCoverage/preflight fájl, köztük16 családos
-  coverage contract és natív output-fogyasztók. Nem teljes csomag/folder.
-- `20261028-225732-488-si-c07-external-value-archive`: **5 archive eset PASS**,
-  összesített wrapper FAIL30,598 s, mert a következő benchmarkhoz téves,
-  nem létező benchmark-controller.test.ts fájlútvonalat adtam meg. Nem tesztbukás;
-  a javított ./society-experiments/test/controller.test.ts egyetlen esete külön:
-  `20261028-225847-842-si-c07-external-value-benchmark`, **1 PASS10,507 s**.
-  Az új C06 source inclusion/restore eset8,956 s, helyi10 s kerettel.
-- Korai `20261028-225148-451-si-c07-external-value-readers`:17 PASS/1 timeout
-  49,807 s. Az1+7 teszt három redundáns teljes readert futtatott; ezek helyett
-  az export és a külön frozen reader azonos eredményét ellenőrzi. Limit nem nőtt.
-  Külön `20261028-225341-420-si-c07-external-value-full-frame`:1 PASS12,562 s;
-  a végleges22-es kör már a scope-kötés javításával is PASS.
-- Engine `20261028-230530-309-si-c07-external-value-market-boundary`: **29 PASS
-  2,539 s**, ebből22 további GE/checkpoint eset és7 már számolt shop/commerce.
-  MarketStore/Environment/WorldConfig öt alias-importja ugyanazon relatív
-  modulra mutat, hogy a root fixture is típusellenőrizze a valódi GE-kódot.
-- `20261028-230545-977-si-c07-external-value-final-boundaries`: **2 source-pin
-  integráció és végső root TS PASS31,728 s** az importjavítás után. Engine TS:
-  `20261028-230457-464-si-c07-external-value-engine-types-final`, **PASS17,879 s**.
-  A tiszta commerce-classifier az external-trade modulban van, az engine nem
-  importálja miatta a teljes metrics kiértékelőt. Webclient változatlan.
-- `20261028-230632-076-si-c07-external-value-preflight`: **PASS1,118 s**;
-  várt NO-GO exit2, canonical hashek/digest és26 dokumentum linkjei.
-  `20261028-230726-751-si-c07-external-value-format-final`: changed/staged-line
-  format **PASS1,729 s**; új fájlok is stage-elve voltak.
-- Teljes log/result JSON a root/engine `.local/verification/` alatt. A korábbi
-  P2-06 és kezdeti type-kör történeti adat; nem adódik hozzá a106 aktív esethez.
-  Korai type FAIL-ok: root engine-alias feloldás, majd az engine test teljes
-  metrics importjának NodeNext/CJS és régi reader típusütközése. Importhatár
-  javítva, compiler-szabály vagy minimumfeltétel nem lett lazítva.
-- Full nem futott: readonly adapter és opcionális meglévő policy cursor, pontos
-  közvetlen fogyasztók. Shared clock setter, gazdasági commit, általános auth/
-  dependency nem változott. Nincs live install/start/provider vagy baseline.
+- **115 külön aktív célzott eset PASS** a P2-08 kiválasztott scope-jában.
+  A végső fixture-phase guard és stale-parent ág is PASS. Nem full regresszió.
+- Engine `20261028-232415-592-si-c07-internal-lineage-native`:44 PASS17,283 s,
+  három pontos producer/observer fájl. Végleges evidence-guardok négy ága:
+  `20261028-234347-962-si-c07-internal-lineage-native-final`,4 PASS4,285 s;
+  tényleges packed A→B→C,100-use/smelt/repair/reuse, unknown hold és World cursor.
+- `20261028-233842-663-si-c07-internal-lineage-final-readers`:31 PASS/1 admin
+  timeout88,071 s. Minden új internal/external ág PASS; az admin frozen teszt
+  redundáns újraolvasása megszűnt, külön PASS alább. Együtt33 reader eset, a stale-parent próbával.
+  Internal193tick setup2511/export5788/total6150 ms; external3960/6857/8927 ms.
+- `20261028-234209-061-si-c07-internal-lineage-close-boundaries`:3 PASS23,397 s:
+  admin1+7/frozen6,087 s, új C06 lineage inventory/restore9,67 s összesen
+  (capture3807/restore4726 ms), benchmark offline restore6,558 s. Nem3 új eset.
+- `20261028-234057-650-si-c07-internal-lineage-final-archive`:a két régi C06
+  manifest/external eset PASS; wrapper FAIL38,616 s az új lineage még összetett
+  13,849 s/10 s timeoutja miatt. Új eset külön fázisokra bontva PASS a fenti körben.
+  Együtt4 C06/benchmark eset, eredeti assertionök és source pin megmaradtak.
+- `20261028-234356-292-si-c07-internal-lineage-consumers-types`:34 teszt PASS,
+  öt pontos metrics/minimum/sourceCoverage/preflight fájl. Wrapper TS FAIL a
+  pinned bun-types1.2.15 hook-aláírása miatt; nincs hibás runtime teszt.
+- `20261028-234904-241-si-c07-internal-lineage-types-closed`:végső root+engine
+  TypeScript PASS124,591 s. Nincs dependency/tsconfig/type suppression vagy
+  globális test discovery/timeout változás. Webclient változatlan.
+- `20261029-000059-674-si-c07-internal-lineage-parent-final`:3 PASS és a végső
+  parent-binding változás root TS PASS104,837 s. Internal1+7 teljes9207 ms,
+  setup2072 ms; stale-parent is unknown, korábbi checkpoint eredménye nem PASS.
+  C06 external setup4755/restore7921 ms. Engine code utána nem változott.
+  `20261028-235457-996-si-c07-internal-lineage-hook-runtime-final`:external1+7
+  és két C06 eset PASS; utolsó setup11690 ms miatt wrapper FAIL. Csak az utolsó
+  eset új, mért15 s setup-budgetje kellett a fenti végső PASS-hoz.
+- Fixture-optimalizálás: readonly SQLite data_version alapú cache csak a
+  tesztben; statikus repo policy-inputok fixture-nként egyszer olvasva.
+  Az éles reader és végső/frozen validáció továbbra teljes tényleges forrást olvas.
+- Mérési korrekció: internal1+7 setup5 s+assessment10 s=eredeti15 s; kis új
+  esetek setup5 s+test5 s. External1+7 két15 s fázis, összesen30 s (előtte15);
+  három érintett C06 eset setup15 s+restore10 s, összesen25 s (előtte10). Mért leglassabb
+  external setup11,451+assessment10,8 s, C06 setup11,690+restore7,921 s.
+  Ezek helyi aggregált tesztkeretek, run/bootstrap-limit és minimum nem változott.
+  Az explicit szinkron fixturePhase a hook-API verziójától függetlenül is FAIL-t
+  ad a setup-budget túllépésére; assertionök nem kerültek kikapcsolásra.
+  A Bun runtime timeout argumentumát helyi typed bridge továbbítja, mert a
+  pinned típusdefiníció nem tartalmazza. A bridge nélkül a runtime hook5 s-ra
+  esett vissza (`20261028-235229-732`); végül a runtime és a wall guard is bounded.
+- Korai típushibák: nullable bootstrap proof, duplikált tesztimportok és hook
+  második argumentum eltérő típusdefiníciója. Korai IO timeoutok/fázisnaplók a
+  progressben; régi FAIL eredmények megmaradtak. Csak a bukott/érintett esetek
+  ismétlődtek; a sikeres teljes44-es natív és34-es consumer kör nem futott újra.
+- Full nem futott: read-only join és opcionális meglévő cursor, pontos közvetlen
+  fogyasztókkal. Shared gazdasági/clock/auth/dependency alap nem változott.
+  Nincs live install/start/provider vagy baseline; historical backup DB nem nyílt.
+- `20261029-000730-667-si-c07-internal-lineage-preflight-final`:PASS0,877 s;
+  várt NO-GO exit2, canonical source/digest és27 dokumentum linkjei. Eredeti
+  minimum SHA596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a.
+- `20261029-001028-809-si-c07-internal-lineage-format-final`:27 dokumentum
+  linkjei/source hashek és changed/staged-line format PASS2,103 s; új fájlok stage-elve.
 
 ## Megmaradó futási korlátok és döntések
 

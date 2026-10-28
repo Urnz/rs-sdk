@@ -26,6 +26,7 @@ import { writeFileSync,readFileSync } from 'node:fs';
 import { OwnedDatabase } from '../io/OwnedDatabase.js';
 import { readNativeToolMaintenance } from '../../../../society-metrics/tool-maintenance.js';
 import { NativeMaterialStore } from '../../../../production-workflow/native-material.js';
+import {readLineageEvidence} from '../../../../society-metrics/lineage-evidence.js';
 beforeAll(loadPackedContent);afterEach(closeNativeMiningFixtures);
 function harness(){
     const f=fixture(),originalIdentity=f.p.identity;let offset=0;
@@ -135,6 +136,8 @@ test('SI-C03 complete100 native use chain procures copper and tin, smelts, repai
     expect(maintenance.candidates[0]).toMatchObject({operationId:repair.operationId,itemInstanceId:id,mechanicalCycleComplete:true,
         materialConsumption:'verified',inputOrigin:'internal',qualifiesMinimum:true});
     expect(maintenance.candidates[0]!.wearEventId).not.toBeNull();expect(maintenance.candidates[0]!.reuseEventId).not.toBeNull();
+    const lineage=readLineageEvidence(f.market.db,scope,'si-c02-fixture',actors.map(a=>({actorId:a.agentId,username:a.username,lifecycleId:a.lifecycleId,membershipDigest:'a'.repeat(64)})),[],config);
+    expect(lineage.completeToolEvidence).toBeTrue();expect(lineage.tools!.cycles).toEqual([repair.operationId]);expect(lineage.violations).toEqual([]);
     const frozen=join(f.workspace,'maintenance-offline.sqlite');writeFileSync(frozen,before);const bytes=readFileSync(frozen),offline=new OwnedDatabase(frozen,{readonly:true});
     try{expect(readNativeToolMaintenance(offline,scope,'si-c02-fixture',actors,config)).toEqual(maintenance);}finally{offline.close(true);}
     expect(readFileSync(frozen)).toEqual(bytes);
@@ -165,6 +168,8 @@ test('SI-C07 maintenance excludes manual breakage, missing reuse, foreign lifecy
     expect(f.mine().execution).not.toBe(-1);
     expect(read().candidates[0]).toMatchObject({wearEventId:null,mechanicalCycleComplete:false,inputOrigin:'unproven'});
     expect(read().candidates[0]!.reuseEventId).not.toBeNull();
+    const lineage=readLineageEvidence(f.market.db,scope,'si-c02-fixture',actors.map(a=>({actorId:a.agentId,username:a.username,lifecycleId:a.lifecycleId,membershipDigest:'a'.repeat(64)})),[],config);
+    expect(lineage.completeToolEvidence).toBeFalse();expect(lineage.gaps).toContain('unproven-held-material-origin');
     expect(()=>readNativeToolMaintenance(f.market.db,scope,'si-c02-fixture',[{...actors[0]!,lifecycleId:'foreign'}],config)).toThrow('lifecycle');
     f.market.db.run('UPDATE player_inventory_escrow_business_binding SET binding_digest=?',['f'.repeat(64)]);
     expect(read).toThrow('escrow audit');
