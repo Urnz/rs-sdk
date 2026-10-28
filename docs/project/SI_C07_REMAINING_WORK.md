@@ -18,8 +18,8 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    [Eredmény](SI_C07_NATIVE_DISPATCH.md).
 2. **FOLYAMATBAN – Teljes minimum-assessment implementáció.** Az eredeti
    17 szabály és 8 integritási kapu natív kiértékelése, minden szükséges
-   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **2/11 kész**;
-   17/17 részleges szabályadapter, **2/8 pozitív natív kapuút**. A maradék hat
+   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **3/11 kész**;
+   17/17 részleges szabályadapter, **3/8 pozitív natív kapuút**. A maradék öt
    kapu pozitív útja, a pozitív population-korlátok, a teljes boundary/access/
    demand integráció és az összesítő PASS-ág még nyitott. A tényleges jövőbeli
    run adatai nem ennek az implementációs csomagnak az elkészülési feltételei.
@@ -56,3 +56,9 @@ elkészült. A pont teljes natív lezárása a már ismert P2-04–P2-10 garanci
 függ, ezért továbbra nyitott; 2/11 kész, 9 nyitott pont. Következő P2-04,
 utána P2-05–P2-10, majd P2-03 végellenőrzés és P2-11. Ez függőségi sorrend,
 nem új részfeladatlista vagy új kapuk bevezetése.
+
+2026-10-28: [P2-04 óra/world-policy natív kapu](SI_C07_WORLD_POLICY_GATE.md) kész:
+eredeti 1+7 frame-en pozitív gate és sourceCoverage, két runtime szerephez
+kötött rögzített bemenetek, packed reload és clock/mutation history.
+**3/11 kész, 8 nyitott; 3/8 pozitív natív kapuút.** Következő P2-05;
+P2-03 a többi ismert garancia után kerül végellenőrzésre. C07 NO-GO.

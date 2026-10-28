@@ -10,6 +10,8 @@ import Environment from '#/util/Environment.js';
 import { printError, printInfo } from '#/util/Logger.js';
 import { startManagementWeb, startWeb } from '#/web.js';
 import OnDemand from '#/engine/OnDemand.js';
+import {fileURLToPath} from 'node:url';
+import {recordWorldPolicyRuntime} from '../../../population-lifecycle/world-policy-runtime.js';
 
 if (OnDemand.cache.count(0) !== 9 || OnDemand.cache.count(2) === 0 || !fs.existsSync('data/pack/server/script.dat')) {
     printInfo('Packing cache, please wait until you see the world is ready.');
@@ -35,6 +37,7 @@ if (Environment.easyStartup) {
     }
 }
 
+recordWorldPolicyRuntime('engine',fileURLToPath(new URL('../../../',import.meta.url)));
 await World.start();
 
 const tcpServer = new TcpServer();

@@ -1,8 +1,8 @@
 import { afterEach,beforeAll,expect,test } from 'bun:test';
-import { mkdtempSync,rmSync } from 'node:fs';
+import { mkdtempSync,rmSync,mkdirSync,writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID,createHash } from 'node:crypto';
 import World from '../engine/World.js';
 import Player,{getExpByLevel} from '../engine/entity/Player.js';
 import { PlayerLoading } from '../engine/entity/PlayerLoading.js';
@@ -26,7 +26,8 @@ import { NativeLifecyclePolicyStore } from '../../../../population-lifecycle/nat
 import { lifecycleRouteManifest,lifecyclePolicyFiles } from '../../../../population-lifecycle/native-policy-manifest.js';
 import { getActiveWorldModPolicy } from './WorldMods.js';
 import { PolicyMutationStore } from '../../../../population-lifecycle/policy-mutations.js';
-import { pinPolicyEnvironment } from '../../../../population-lifecycle/policy-environment.js';
+import { pinPolicyEnvironment,worldPolicyMutationProducers } from '../../../../population-lifecycle/policy-environment.js';
+import {WorldPolicyRuntimeStore,createWorldPolicyRuntimeContract} from '../../../../population-lifecycle/world-policy-runtime.js';
 import { beginPolicyMutation,withPolicyMutationObservation } from '../../../../population-lifecycle/policy-mutation-observer.js';
 import { nativeToolDigest } from '../../../../item-lifecycle/native-tool.js';
 import { recordNativeMortalityPass } from '../../../../population-lifecycle/native-observer.js';
@@ -56,7 +57,7 @@ function fixture(){
         restricted:!!health.deathFor('alice')})};
     const run=<T>(f:()=>T)=>withNativeLifecycleObservation(ports,f);
     const guard={finite:(name:string)=>!!health.finiteAvatar(name),restricted:(name:string)=>!!health.deathFor(name)};
-    return{db,store,player,ports,run,guard,clock,c,policySnapshot(){const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..'));
+    return{root,db,store,player,ports,run,guard,clock,c,policySnapshot(){const manifest=lifecycleRouteManifest(join(import.meta.dir,'../../../..'));
         return{clock:clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),survivalDigest:null,
             modsDigest:'b'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(join(import.meta.dir,'../../../..'))};},
         watermarks(){const watermarks=new NativeLifecycleWatermarkStore(db,true);
@@ -70,6 +71,27 @@ test('SI-C07 actual save parsing records parsed and failed loads without calling
     expect(()=>f.run(()=>PlayerLoading.load('alice',new Packet(new Uint8Array([1,2,3])),null))).toThrow('Invalid save');
     const r=f.store.read();expect([...r.attempts.values()].map(p=>p.result?.outcome)).toEqual(['parsed','failed']);
     expect(r.entries.every(e=>e.event.kind==='load')).toBeTrue();expect(r.faults).toBe(0);
+});
+
+test('SI-C07 actual World.reload observes the loaded packed identity and preserves reload failures and call count',()=>{
+    const f=fixture(),journal=join(f.root,'.local/society-metrics/policy-mutations.sqlite');mkdirSync(join(journal,'..'),{recursive:true});
+    const db=new OwnedDatabase(journal);closers.push(()=>db.close(true));const pack='server/engine/data/pack/server/script.dat';mkdirSync(join(f.root,pack,'..'),{recursive:true});writeFileSync(join(f.root,pack),new Uint8Array([0]));
+    const sourceFiles=[...new Set(['package.json','bun.lock','server/engine/bun.lock','server/gateway/bun.lock','server/engine/src/app.ts','server/gateway/gateway.ts',
+        'population-lifecycle/world-policy-runtime.ts','simulation-clock/store.ts',...worldPolicyMutationProducers.map(p=>p.path)])],
+        environment=pinPolicyEnvironment({sourceFiles,files:[...sourceFiles.map(path=>({path,size:1,sha256:'a'.repeat(64)})),
+            {path:pack,size:1,sha256:createHash('sha256').update(new Uint8Array([0])).digest('hex')}]},{bunVersion:Bun.version,platform:process.platform},true),
+        contract=createWorldPolicyRuntimeContract(environment,{engine:{},gateway:{}}),store=new PolicyMutationStore(db,{schemaVersion:1,worldId:'fixture',clockId:f.c.clockId,
+            clockProfileDigest:f.c.profileDigest,fromSimulationTime:f.c.simulationTime,toSimulationTime:'2001-01-02T00:00:00.000Z',maximumWallGapMs:1200,
+            policySelectionDigest:'a'.repeat(64),environment,worldPolicyRuntimeContractDigest:nativeToolDigest(contract)});
+    new WorldPolicyRuntimeStore(db,contract);
+    const ports={db,worldId:'fixture',workspace:f.root,clock:()=>f.c,wallTime:()=>f.c.wallTime},original=World['reloadPackedInputs'];let calls=0;
+    try{World['reloadPackedInputs']=clear=>{calls++;expect(clear).toBeFalse();return true;};
+        withPolicyMutationObservation(ports,()=>World.reload(false));writeFileSync(join(f.root,pack),new Uint8Array([1]));
+        withPolicyMutationObservation(ports,()=>World.reload(false));
+        World['reloadPackedInputs']=()=>{calls++;return false;};withPolicyMutationObservation(ports,()=>World.reload(false));
+        World['reloadPackedInputs']=()=>{calls++;throw Error('actual failed reload');};expect(()=>withPolicyMutationObservation(ports,()=>World.reload(false))).toThrow('actual failed reload');
+        expect(calls).toBe(4);expect([...store.read().attempts.values()].map(p=>p.result?.outcome)).toEqual(['no-op','applied','failed','failed']);expect(store.read().faultCount).toBe(0);
+    }finally{World['reloadPackedInputs']=original;}
 });
 
 test('SI-C07 actual World policy observation retains a clock change after census context loss without changing gameplay or the clock',()=>{

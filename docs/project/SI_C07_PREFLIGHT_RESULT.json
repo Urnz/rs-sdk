@@ -430,7 +430,7 @@
       },
       {
         "id": "clock-world-policy",
-        "authority": "pinned archive source/config/packed inventory, declared inputs and mod/director mutation begin/result history bounded by native policy cursors",
+        "authority": "explicit immutable application-input contract, engine/gateway startup witnesses, process-bound mod/director/packed mutations and native clock history",
         "span": "every-native-tick",
         "tables": [
           "simulation_clock",
@@ -442,7 +442,11 @@
           "policy_mutation_selection",
           "policy_mutation_event",
           "policy_mutation_head",
-          "policy_mutation_fault"
+          "policy_mutation_fault",
+          "world_policy_runtime_contract",
+          "world_policy_runtime_schema",
+          "world_policy_runtime_event",
+          "world_policy_runtime_head"
         ],
         "requirements": [
           "founders-at-start",
@@ -467,7 +471,7 @@
           "unchanged-clock-and-world-policy",
           "complete-source-coverage"
         ],
-        "gap": "Declared producers and archive files are pinned; all loaded dependencies/inputs and unregistered external writers are not yet enforced."
+        "gap": "Positive coverage requires the explicit runtime contract and both process-bound startup witnesses; legacy archive pins alone remain partial. Host/all-loaded-dependency attestation is outside this gate."
       },
       {
         "id": "physiology-modes",
@@ -890,7 +894,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "173405611ca2e5f641406b26e202d756611a52cf4272d285c8bc7e5bc49cefdb"
+    "digest": "186a1fcdb7030c6c2c3ae6d9e6986b6e891aeb15713ec654b963edb28a390474"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1168,7 +1172,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters; frozen original roster and applied genesis/native opening have positive native gate paths. Six positive integrity gate paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete. Actual selected run evidence belongs to baseline/preflight/run phases; adapter presence cannot certify a full run."
+      "reason": "All17 requirements have partial native adapters; original roster, applied genesis/native opening and clock/world-policy have positive native gate paths. The policy gate requires explicit immutable application-input contract, engine/gateway startup witnesses and closed mutation/clock histories. Five positive integrity paths, population lower bounds, complete boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1208,7 +1212,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "b6e266c4f0a2be0884391fa11b7a35b9f8d99017c124623ed17841cabdf3237c"
+      "sha256": "e55f3b701e715bd79a9255d1f3c67c4adfe5c0bba7b6c9a686e69e9afdb023e4"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1244,7 +1248,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeLifecycleAttempts.ts",
-      "sha256": "1cb0d97fbbd2e0b5228ad9045e2e133b5abd18dcd3c819863a56d33b7297d340"
+      "sha256": "bad268c5994bc16613f01f7eb8033d390dbf30ab30cae2f300ab32c7febb2873"
     },
     {
       "path": "population-lifecycle/native-watermarks.ts",
@@ -1256,11 +1260,11 @@
     },
     {
       "path": "population-lifecycle/native-policy-manifest.ts",
-      "sha256": "bf4d68b74b57ddc58eb5ca05b69e13739fed6d617d98b5c50867ab56b8fcd597"
+      "sha256": "a73cb223768fb6282666cb25f81105369d075f4118d3ae870465a5e012407471"
     },
     {
       "path": "population-lifecycle/native-policy.ts",
-      "sha256": "85a1c1d43d564ef5e1541a134b4196035afdf5b38d5d02f34f2ffabc9bd70792"
+      "sha256": "ba527a234eb75cc504316d7f397909b69ccea15c3db2d20853ab56102734b4d5"
     },
     {
       "path": "society-metrics/lifecycle-policy.ts",
@@ -1268,19 +1272,39 @@
     },
     {
       "path": "population-lifecycle/policy-environment.ts",
-      "sha256": "62ee90e89405b1d9dd1acbc24b1313614e3ba4f0969c45d35b456e8a54531cce"
+      "sha256": "b99391ef04959c9ed8e19d42c62f02752372c57944480f7434d92eb9e11f2549"
     },
     {
       "path": "population-lifecycle/policy-mutations.ts",
-      "sha256": "1354a3040d1d4053c01c52b2d74f3c37708be7f8fba5106bbafd1d8ad3623840"
+      "sha256": "231747acf3dd2a01360c59f7c53d85e0075643788e35ec1f20ca4025d2ba548d"
     },
     {
       "path": "population-lifecycle/policy-mutation-observer.ts",
-      "sha256": "e3ff11bd0131b3f604ed7a952b7b2428b40e1c6274670d5938941583f165915a"
+      "sha256": "4dcd7a803f08d77bc3386bea07512c0e33b2334443becc356778e82c49f7ea2b"
     },
     {
       "path": "society-metrics/policy-mutations.ts",
-      "sha256": "193ba0200f7e20a13da884571596f14007a35448b739d28bb8e5ef09338b2028"
+      "sha256": "426bc490d405990380dfb72793e11ce8c1d783e67b7622ed7ab34b383c124d8a"
+    },
+    {
+      "path": "population-lifecycle/world-policy-runtime.ts",
+      "sha256": "ee499fe09e2faabdd40b2d4794dff35e4360db3f26bdc7fa3c52f4686ae30eb4"
+    },
+    {
+      "path": "population-lifecycle/policy-process.ts",
+      "sha256": "55646fe5953da484aab2788ad680124c519b4dc4e28799414f5472aaf94347fe"
+    },
+    {
+      "path": "society-metrics/world-policy.ts",
+      "sha256": "ef3c1845aace079d5df443bccba4a4db7dad76d5045dfa2b4532917bb165be79"
+    },
+    {
+      "path": "server/engine/src/app.ts",
+      "sha256": "9cad63c6bcc52feaf9053b235aa621bba39021f8793d23476d4fd1e18df9a11e"
+    },
+    {
+      "path": "server/gateway/gateway.ts",
+      "sha256": "dd577987db3cc0262663623b6573d77780b7d07fce626106dba2dc1f64929d1f"
     },
     {
       "path": "server/gateway/admin/world-mods.ts",
@@ -1340,11 +1364,11 @@
     },
     {
       "path": "society-metrics/source-coverage.ts",
-      "sha256": "8c1c1ebf558b1daab59eaf7cdfd7899a40bedf82ddfa606b14bbf82a3e1ca07f"
+      "sha256": "5801e264b5a258ff3a68e5312f0ffe411813913f46a3843ccbc5848a86ae8934"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "bde3c67faa8dd41d6410662b8937561bbf1d939c9e884d804fb1249fdbabbf6a"
+      "sha256": "6421094ef6c08d7bcd87d1c7ca583b513be17ab82d5e70cb682101589121e14d"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1596,15 +1620,15 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "0ee2a6e07e75406e0a5307096e1057435ac218bab95924ba141fcbce6e21319c"
+      "sha256": "7924935ee2f918ea8f0572bb093d8c889d48ced705bf1213f9afa2f6726b1d7f"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
-      "sha256": "3313f08d7ccc8edae2d5279d54bcd91ee1cdf74dc5f66d17a80190b8ee728e3d"
+      "sha256": "b6c6c0dd3524e5285016fc89dcc50fb5f710647842572e9363a18d5d20db5b7b"
     },
     {
       "path": "society-experiments/expanded-baseline.ts",
-      "sha256": "7c1320facd373014e7fc7c021ced1197c1e0f901b2b9505587af05d2180f8906"
+      "sha256": "80e86fb8e55ffbdde0be63bf09e7d680b96546c321afc77c60b6e864b33ae919"
     },
     {
       "path": "item-lifecycle/native-mining-intent.ts",
@@ -1620,7 +1644,7 @@
     },
     {
       "path": "server/engine/src/engine/World.ts",
-      "sha256": "a7df099efdb6884e7e0a95de87a6b5136aed5be9d9270ce0b7df72ba987ed1bc"
+      "sha256": "ad343653f71a6c83ee2658ae795fedd706961592480711633253d5b3db0ac79f"
     },
     {
       "path": "society-metrics/tool-demand-intervals.ts",
@@ -1728,7 +1752,7 @@
     },
     {
       "path": "server/gateway/gateway.ts",
-      "sha256": "fed3cb6c08851815738a04738c51f1519486c3baf7b4b504e91dc91e5315c521"
+      "sha256": "dd577987db3cc0262663623b6573d77780b7d07fce626106dba2dc1f64929d1f"
     },
     {
       "path": "server/engine/src/web/pages/internal-admin.ts",
@@ -1736,7 +1760,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "215d77e62a05f693a8bb2b4caf68c8953822e283aa344e44153181ec4808e3f7"
+      "sha256": "e3a75c052d867e1dd849e272a1a45493d686092c5206e289c714233f642e57dd"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -1765,5 +1789,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "c9c60056f51f884353098b3d3365075c8a67798f1490ed23b349e7ec6b2beb5c"
+  "digest": "fc3a178edb8be9511a38fdf762e1d53ac4952cad4075d414a4effd522cbab88d"
 }

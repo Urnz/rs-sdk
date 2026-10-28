@@ -42,6 +42,7 @@ export function readBenchmarkReport(baseRoot: string, raw: LongExperimentPlan, e
         checkpointPath:source('checkpoint','server/engine/data/player-checkpoints.sqlite'),businessPath:source('business','.local/economy/businesses.sqlite'),
         tradePath:source('trades','server/engine/data/mods/trade-evidence.sqlite'),queuePath:source('queue','.local/admin/inference-queue.sqlite'),auditPath:join(root,'.local/admin/llm-audit.jsonl'),
         wallWindow:{from:execution.started.wallTime,to:execution.lastObservation.wallTime},
+        policyMutationsPath:source('policy-mutations','.local/society-metrics/policy-mutations.sqlite'),
         population:{genesisPath:paths.genesisPath,integrityPath:paths.integrityPath,configDirectory:paths.configDirectory,
             healthPath:source('health','server/engine/data/mods/player-health-evidence.sqlite'),
             genesisResultId:plan.genesisResultId,genesisResultDigest:plan.genesisResultDigest},

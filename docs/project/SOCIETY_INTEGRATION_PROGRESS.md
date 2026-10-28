@@ -3519,3 +3519,94 @@ Nincs live install/world/baseline/run, providerhívás vagy történeti backup D
 - `20261027-231305-853-si-c07-source-coverage-artifact`: friss NO-GO exit2,
   sourcehash/digest, 22 dokumentumlink és changed/staged-line format PASS,
   1,641 s. A source inventory definíciója továbbra 16/17/8; nincs futási engedély.
+
+## 2026-10-28 – SI-C07/2 P2-04 natív óra/world-policy kapu lezárva
+
+**P2-04 kész; 2/11→3/11 kész, 9→8 nyitott pont; 2/8→3/8 pozitív natív kapuút.**
+Következő P2-05, utána a rögzített függőségi sorrend. P2-03 továbbra nyitott,
+de a clock-world-policy család már valódi lefedettségi adaptert kapott.
+27/45, C07 NO-GO; nincs hosszú gazdasági run vagy minimum PASS.
+
+Konkrét hiányok: a korábbi policy/mutation observer nem kötötte a rögzített
+archive bemeneteket a két processz valódi indulásához; a World.reload packed/
+script út sem volt a mutation producer-listában. Ezek zárultak:
+
+- `world-policy-runtime.ts`: explicit immutable-input contract, C06 source/
+  config/packed filehash, Bun/platform és kizárólag whitelistelt nyilvános
+  policy inputok (NODE_XPRATE/NODE_MEMBERS/BUILD_* stb.) digestje. Saját
+  opcionális schema1 contract/event/head a már meglévő mutation journalban;
+  user_version változatlan, nincs új journal vagy legacy backfill.
+- Engine/gateway tényleges startup hook. `policy-process.ts` közös processz-
+  session köti az engine rekordját a natív frame-ekhez és a mutationöket a
+  megfelelő két eltérő processzhez. A minták runtime head-prefixet is kötnek.
+  Hiányos/idegen/session-mismatched/input-different/restart/cursor/frame nem PASS.
+- Szigorú producerregiszter hat útvonal, legacy ötproduceres pin változatlanul
+  olvasható. World.reload a legutóbb betöltött packed identityhez mér, nem két
+  azonos új lemezolvasáshoz. Normál no-op/signal nem sértés; failed reload
+  unknown, callback darabszáma/visszatérése/eredeti kivétele megmarad.
+  Clock pause/resume/profile monoton revision/anchor történetből ellenőrzött.
+- `world-policy.ts` a meglévő natív policy/mutation/clock és új startup
+  bizonyítékot összeköti. Native-outcomes/minimum-assessment és sourceCoverage
+  PASS/FAIL/unknown bekötve; scoped prefix FAIL hiányos másik forrás mellett is
+  megmarad, closing cursor utáni esemény nem vetül vissza a régi ablakra.
+- C06 strict prepare/capture/restore a contractot és runtime láncot is ellenőrzi;
+  benchmark backend explicit policy-mutationsPath-ot ad. Új preflight source-
+  listába a runtime/process/reader és két startup belépő is bekerült.
+
+Bizonyítási határ: előzetesen kijelölt, kontrollált immutable application-input
+run. Arbitrary external fájlírás nem támogatott kísérleti művelet; nem állítunk
+host/OS vagy minden loaded dependency attestációt. A régi explicit incomplete
+observer- és completeRuntimeDependencyUniverse:false mezők nem lettek
+átnevezve/igazra írva. Nincs API-kulcs/.env/full environment export.
+A konkrét C07 strict baseline/selection/kétprocesszes indulás a 3./5. csomagé.
+Rollback előtt stop+archive; régi binárissal strict run nem folytatható,
+pre-contract baseline külön workspace-be restore; új evidence nem törölhető.
+
+Ellenőrzések (root és engine `.local/verification/` log/result JSON):
+
+- `20261028-171304-563-si-c07-world-policy-types-initial`: root TS PASS55,576 s.
+- `20261028-171817-074-si-c07-world-policy-first`: 9 PASS/1 timeout FAIL46,216 s.
+  Minden eredeti 1+7 assertion teljesült, de fixture build28256 ms +read2587 ms
+  túllépte a helyi15 s keretet. A 193 tickpontos izolált checkpoint fixture
+  építése egy outer transactionbe került; production append és a külön
+  rollback-próbák tranzakcióhatára nem változott, limit nem emelkedett.
+- `20261028-172010-448-si-c07-world-policy-full-frame`: 1 PASS11,192 s;
+  build7446 ms, total10064 ms, ugyanaz a15 s limit. Ez natív forráskötött
+  mechanikai fixture, nem193 tickből következtetett működő társadalom.
+- `20261028-172411-020-si-c07-world-policy-thin`: C06 runtime restore PASS7171 ms,
+  natív import indítási FAIL a root cwd-ben a relatív engine-konfiguráció miatt.
+  A két köztes natív indítás (`172749-480`, `172824-152`) ugyanott nem jutott
+  tesztig; full log ENOENT data/config/private.pem. Környezeti flag önmagában
+  nem oldotta meg a cwd-feltételt. Production login guard/kulcs nem módosult.
+- `20261028-172902-902-si-c07-world-policy-native-context`: 10 PASS4,902 s,
+  engine cwd, --no-env-file, unmanaged fixture környezet.
+- `20261028-172639-166-si-c07-world-policy-bound-readers`: 21 PASS28,857 s;
+  session/input-regiszter bővítése miatt indult a végső reader-kör.
+- **`20261028-173301-562-si-c07-world-policy-final-readers`: 40 PASS51,450 s.**
+  P2-04 pozitív eredeti1+7, hiányzó role/rossz session/public input/frame/head/
+  restart, normal signal/no-op, post-close kizárás, packed round-trip/failure,
+  saját schema/reopen/rollback/secret-kizárás és meglévő clock/mutation FAIL.
+- **`20261028-173313-916-si-c07-world-policy-final-types`: root+engine TS
+  PASS115,813 s.** Csak az érintett két projekt, webclient nincs.
+- **`20261028-173450-907-si-c07-world-policy-final-consumers`: 28 PASS7,116 s.**
+  Pontosan policy-mutations module, sourceCoverage, minimum/native-outcomes,
+  preflight fájlok; nincs egész package/folder regresszió.
+- **`20261028-173450-627-si-c07-world-policy-archive-boundary`: 3 PASS9,262 s.**
+  Strict runtime contract +legacy mutation C06 archive/restore és corrupt head/
+  packed source drift. A helyi10 s keret a korábbi mért7171 ms IO-körhöz kötött;
+  fixture/prepare/capture/restore phase log maradt, nincs globális limitemelés.
+- **`server/engine/.local/verification/20261028-174020-044-si-c07-world-policy-native-final`:
+  10 PASS4,093 s.** Tényleges World.reload wrapper és a módosult observer-fájl,
+  helyi fixture-vel, valódi callbackdarabszám/failure propagation ellenőrzéssel.
+
+Összesen81 különböző célzott runtime eset PASS a végső körökben. Teljes
+regresszió nem indokolt: komponens saját opcionális sémája és startup/reload
+observer, közvetlen fogyasztóival; shared clock setter, auth/permission,
+gazdasági commit/custody, runtime package és global test/build alap változatlan.
+Nincs live install/start/run/providerhívás vagy történeti backup DB-read.
+- `20261028-174309-689-si-c07-world-policy-final-artifact`: 3 preflight eset és
+  friss NO-GO exit2, forráshash/digest, 23 dokumentumlink és changed/staged-line
+  format PASS3,150 s. Az eredeti17/8 minimum és a 16 forráscsalád változatlan.
+- A root cwd-ből hibásan indított native import által létrehozott három új
+  db.sqlite/WAL/SHM fixture-fájl (kezdetben nem léteztek) metadata- és workspace-
+  ellenőrzés után eltávolítva; meglévő engine-adatbázist nem töröltünk/olvastunk.

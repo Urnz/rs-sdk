@@ -9,12 +9,13 @@ import { nativeToolDigest as digest } from '../item-lifecycle/native-tool.js';
 import type { SimulationClockObservation } from '../simulation-clock/types.js';
 import { PolicyMutationStore } from './policy-mutations.js';
 import type { PolicyMutationProducer } from './policy-environment.js';
+import {policyProcessSessionId} from './policy-process.js';
 
-const sessionId=randomUUID();
-export interface PolicyMutationPorts {db:Database;worldId:string;clock():SimulationClockObservation|null;wallTime():string;close?():void}
+export interface PolicyMutationPorts {db:Database;worldId:string;workspace?:string;sessionId?:string;clock():SimulationClockObservation|null;wallTime():string;close?():void}
 const overrides=new AsyncLocalStorage<PolicyMutationPorts>();
 /** Backend/fixture capability only; no HTTP, model or packet endpoint can select a mutation store or clock. */
 export const withPolicyMutationObservation=<T>(ports:PolicyMutationPorts,run:()=>T):T=>overrides.run(ports,run);
+export const policyMutationWorkspace=(workspace:string)=>overrides.getStore()?.workspace??workspace;
 export const policyMutationJournalPath=(workspace:string)=>resolve(workspace,'.local/society-metrics/policy-mutations.sqlite');
 export function policyValueDigest(value:unknown){try{return digest(value);}catch{return null;}}
 export function policyMutationFileDigest(path:string){try{if(statSync(path).size>8*1024*1024)return null;return digest(readFileSync(path).toString('base64'));}
@@ -48,7 +49,7 @@ export function beginPolicyMutation(producer:PolicyMutationProducer,beforeDigest
     try{p=overrides.getStore()??production(producer,resource,workspace);if(!p||!PolicyMutationStore.present(p.db))return;
         const store=new PolicyMutationStore(p.db),ports=p,attemptId=randomUUID();
         const context=()=>{try{const clock=ports.clock();if(!clock)store.fault();return clock;}catch{store.fault();return null;}};
-        const begin={attemptId,sessionId,producer,phase:'begin' as const,wallTime:ports.wallTime(),worldId:ports.worldId,clock:context(),beforeDigest,afterDigest:null,outcome:null};
+        const begin={attemptId,sessionId:ports.sessionId??policyProcessSessionId,producer,phase:'begin' as const,wallTime:ports.wallTime(),worldId:ports.worldId,clock:context(),beforeDigest,afterDigest:null,outcome:null};
         store.append(begin);let finished=false;
         return{finish(afterDigest:string|null,outcome:'applied'|'no-op'|'failed'){
             if(finished)return;finished=true;

@@ -13,6 +13,7 @@ import { nativeToolDigest as digest } from '../../../../item-lifecycle/native-to
 import { getActiveWorldModPolicy } from './WorldMods.js';
 import type { SimulationClockObservation } from '../../../../simulation-clock/types.js';
 import { readPolicyMutationCursor } from '../../../../population-lifecycle/policy-mutation-observer.js';
+import {policyProcessSessionId} from '../../../../population-lifecycle/policy-process.js';
 
 interface ObservedAvatar {username:string;levels:ArrayLike<number>;populationTerminal:boolean;populationFinite:boolean}
 export interface LifecycleObservationPorts {db:Database;context(username:string,tick:number):LifecycleAuthority|null;wallTime():string;
@@ -20,7 +21,7 @@ export interface LifecycleObservationPorts {db:Database;context(username:string,
 const root=fileURLToPath(new URL('../../../../',import.meta.url));
 // Import-time disk identity, not a retrospective claim about every loaded dependency or packed script.
 const bootManifest=(()=>{try{return lifecycleRouteManifest(root);}catch{return null;}})();
-const overrides=new AsyncLocalStorage<LifecycleObservationPorts>(),sessionId=randomUUID();
+const overrides=new AsyncLocalStorage<LifecycleObservationPorts>(),sessionId=policyProcessSessionId;
 /** Internal fixture/backend scope only. No packet, HTTP or model endpoint accepts observer ports. */
 export function withNativeLifecycleObservation<T>(ports:LifecycleObservationPorts,run:()=>T):T{return overrides.run(ports,run);}
 function production():LifecycleObservationPorts|null {

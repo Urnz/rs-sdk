@@ -1,19 +1,20 @@
 import type { Database } from 'bun:sqlite';
 import { nativeToolDigest as hash } from '../item-lifecycle/native-tool.js';
 import type { SimulationClockObservation } from '../simulation-clock/types.js';
-import { policyMutationProducers,validatePolicyEnvironment,type PolicyEnvironmentPin,type PolicyMutationProducer } from './policy-environment.js';
+import { worldPolicyMutationProducers,validatePolicyEnvironment,type PolicyEnvironmentPin,type PolicyMutationProducer } from './policy-environment.js';
 
 export interface PolicyMutationSelection {schemaVersion:1;worldId:string;clockId:string;clockProfileDigest:string;fromSimulationTime:string;toSimulationTime:string;
-    maximumWallGapMs:number;policySelectionDigest:string;environment:PolicyEnvironmentPin}
+    maximumWallGapMs:number;policySelectionDigest:string;environment:PolicyEnvironmentPin;worldPolicyRuntimeContractDigest?:string}
 export interface PolicyMutationEvent {attemptId:string;sessionId:string;producer:PolicyMutationProducer;phase:'begin'|'result';wallTime:string;
     worldId:string;clock:SimulationClockObservation|null;beforeDigest:string|null;afterDigest:string|null;outcome:'applied'|'no-op'|'failed'|null}
 function check(v:unknown,m:string):asserts v {if(!v)throw Error(m);}
 const hex=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v),stamp=(v:unknown)=>typeof v==='string'&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v;
 function selection(s:PolicyMutationSelection){check(s?.schemaVersion===1&&typeof s.worldId==='string'&&s.worldId.length>0&&s.worldId.length<=256
     &&typeof s.clockId==='string'&&s.clockId.length>0&&hex(s.clockProfileDigest)&&stamp(s.fromSimulationTime)&&stamp(s.toSimulationTime)&&s.fromSimulationTime<s.toSimulationTime
-    &&Number.isSafeInteger(s.maximumWallGapMs)&&s.maximumWallGapMs>0&&s.maximumWallGapMs<=5000&&hex(s.policySelectionDigest),'Invalid policy mutation selection');validatePolicyEnvironment(s.environment);}
+    &&Number.isSafeInteger(s.maximumWallGapMs)&&s.maximumWallGapMs>0&&s.maximumWallGapMs<=5000&&hex(s.policySelectionDigest)
+    &&(s.worldPolicyRuntimeContractDigest===undefined||hex(s.worldPolicyRuntimeContractDigest)),'Invalid policy mutation selection');validatePolicyEnvironment(s.environment);}
 function validate(e:PolicyMutationEvent){check(e&&/^[a-f0-9-]{36}$/.test(e.attemptId)&&typeof e.sessionId==='string'&&e.sessionId.length>0&&e.sessionId.length<=128
-    &&policyMutationProducers.some(p=>p.id===e.producer)&&['begin','result'].includes(e.phase)&&stamp(e.wallTime)&&typeof e.worldId==='string'&&e.worldId.length>0&&e.worldId.length<=256
+    &&worldPolicyMutationProducers.some(p=>p.id===e.producer)&&['begin','result'].includes(e.phase)&&stamp(e.wallTime)&&typeof e.worldId==='string'&&e.worldId.length>0&&e.worldId.length<=256
     &&(e.beforeDigest===null||hex(e.beforeDigest))&&(e.afterDigest===null||hex(e.afterDigest)),'Invalid policy mutation event');
     if(e.phase==='begin')check(e.outcome===null&&e.afterDigest===null,'Invalid policy mutation begin');else check(['applied','no-op','failed'].includes(String(e.outcome)),'Invalid policy mutation outcome');
     const c=e.clock;if(c)check(typeof c.clockId==='string'&&hex(c.profileDigest)&&['running','paused'].includes(c.status)&&stamp(c.wallTime)&&stamp(c.simulationTime)
@@ -47,7 +48,9 @@ export class PolicyMutationStore {
         tail=this.db.query('SELECT sequence,digest FROM policy_mutation_event ORDER BY sequence DESC LIMIT 1').get() as {sequence:number;digest:string}|null,
         fault=this.db.query('SELECT count FROM policy_mutation_fault WHERE singleton=1').get() as {count:number}|null;
         check(head&&head.sequence===(tail?.sequence??0)&&head.digest===(tail?.digest??null)&&fault&&Number.isSafeInteger(fault.count)&&fault.count>=0,'Policy mutation cursor differs');
-        return{selectionDigest:hash(this.selection()),head,faultCount:fault.count};}
+        const runtimeHead=this.db.query("SELECT 1 FROM sqlite_master WHERE name='world_policy_runtime_head'").get()
+            ?this.db.query('SELECT sequence,digest FROM world_policy_runtime_head WHERE singleton=1').get() as {sequence:number;digest:string|null}|null:undefined;
+        return{selectionDigest:hash(this.selection()),head,faultCount:fault.count,...(runtimeHead?{runtimeHead}:{})};}
     append(event:PolicyMutationEvent){validate(event);this.selection();this.db.transaction(()=>{
         if(event.phase==='result'){const row=this.db.query("SELECT payload FROM policy_mutation_event WHERE attempt_id=? AND phase='begin'").get(event.attemptId) as {payload:string}|null;
             check(row,'Policy mutation result lacks begin');const begin=JSON.parse(row.payload) as PolicyMutationEvent;

@@ -1,8 +1,8 @@
 # SI-C07/2 – Forráslefedettség és a meglévő lezárási pontok függősége
 
-2026-10-27. A P2-03 kiértékelője és natív diagnosztikai bekötése elkészült;
-**P2-03 teljes natív lezárása még nyitott.** A rögzített lista 2/11 kész,
-9 nyitott pont, 2/8 pozitív natív kapuút. Nincs új részfeladat vagy új journal.
+2026-10-28. A P2-03 kiértékelője és natív diagnosztikai bekötése elkészült;
+**P2-03 teljes natív lezárása még nyitott.** A rögzített lista 3/11 kész,
+8 nyitott pont, 3/8 pozitív natív kapuút. P2-04 elkészült, új pont nem került a listába.
 [Rögzített lezárási lista](SI_C07_PACKAGE2_CLOSURE.md).
 
 ## Elkészült kód
@@ -39,13 +39,14 @@ A meglévő hiteles gazdasági/integritási FAIL-t a coverage-hiány nem törli.
 Az aktuális natív readerek több helyen eleve hiányosnak deklarálják a történetet.
 Ezeket az összesítő nem írja felül. Most az applied opening, az immutable original
 roster és megfelelő adatok mellett a native mortality-pass ablak kaphat teljes
-család-lefedettséget. A valódi SQLite genesis-fixture 2/16 családot igazol;
+család-lefedettséget. Azóta a [P2-04 runtime/clock/world-policy kapu](SI_C07_WORLD_POLICY_GATE.md)
+is teljes pozitív család-adaptert kapott. A valódi SQLite genesis-fixture 2/16 családot igazol;
 a reader-contract fixture mortalityval 3/16-ot. Egyik sem valódi C07 run-eredmény.
 A teljes 16/16 pozitív ág a tiszta kiértékelő szerződéspróbája, nem natív teljes PASS.
 
 A hiányzó garanciák **már szerepelnek** a listában:
 
-- P2-04: teljes clock/world-policy writer history.
+- P2-04: teljes clock/world-policy writer history – 2026-10-28 kész, explicit contracttal.
 - P2-05 és P2-09: native health/lifecycle history és pozitív population-korlátok.
 - P2-06 és P2-07: admin/fallback, illetve external shop/import producer coverage.
 - P2-08: teljes tool/material/food ancestry forrásgaranciák.
@@ -54,7 +55,7 @@ A hiányzó garanciák **már szerepelnek** a listában:
 A lista számozása nem volt függőségi sorrend. Az új végrehajtási sorrend:
 **P2-04 → P2-05 → P2-06 → P2-07 → P2-08 → P2-09 → P2-10 → P2-03 végellenőrzés
 → P2-11.** Azonosítók és eredeti feltételek változatlanok; nincs hozzáírt új
-observer- vagy attestációs feladatsor. Következő konkrét kódmunka P2-04.
+observer- vagy attestációs feladatsor. P2-04 elkészült; következő konkrét kódmunka P2-05.
 
 ## Ellenőrzési határ
 

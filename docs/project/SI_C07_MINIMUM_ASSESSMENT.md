@@ -1,6 +1,6 @@
 # SI-C07/2 – Minimum-kiértékelő és natív forrástérkép
 
-2026-10-27. **A 2. munkacsomag folyamatban; lezárási lista 2/11 kész.**
+2026-10-28. **A 2. munkacsomag folyamatban; lezárási lista 3/11 kész.**
 Ez a [rögzített bontás](SI_C07_REMAINING_WORK.md)2. pontjának részeredménye,
 nem új munkacsomag és nem lezárt SI-C07.27/45, preflight NO-GO.
 Az aktuális, rögzített feltételek és a korábbi számláló magyarázata a
@@ -119,7 +119,8 @@ boundary inventory és történeti mortality/enforcement lefedettség még kell.
 Az eredeti roster kapuja a verified tagság és finite-avatar kötés alapján már
 PASS-képes; ez nem a túlélés igazolása. A lifecycle és clock/world-policy külön
 igazolt sértésre FAIL-t adhat. Az [applied-genesis/native opening kapu](SI_C07_GENESIS_OPENING.md)
-azóta szintén pozitívan kiértékelhető; a további hat pozitív kapuút még hiányos.
+és az [explicit runtime/clock/world-policy kapu](SI_C07_WORLD_POLICY_GATE.md)
+azóta szintén pozitívan kiértékelhető; a további öt pozitív kapuút még hiányos.
 Hiányzó/sérült death authority
 mellett a külön hiteles roster továbbra olvasható; idegen source path és privát
 parserhiba redaktált, nincs fallback vagy migration.
@@ -151,7 +152,7 @@ hiánya külön unavailable. A teljes source-lista/pin továbbra az5. csomag fel
    auditált wear/repair/replacement/transfer és fagyasztott fizikai checkpoint;
    bizonytalan identity/access upper-only, záró auditprefix a nyitó folytatása.
    Teljes high-level demand/source coverage, maintenance origin, mortality/
-   enforcement és a fennmaradó hat pozitív natív integrity kapuút továbbra kell.
+   enforcement és a fennmaradó öt pozitív natív integrity kapuút továbbra kell.
 6. [Prospektív executor requested-use coverage](SI_C07_EXECUTOR_DEMAND_COVERAGE.md)
    bekötve: admission előtt is látható request, natív producer/prefix witness,
    policy/original-cohort/pozitív opportunity alapján lifetime upper. A lower

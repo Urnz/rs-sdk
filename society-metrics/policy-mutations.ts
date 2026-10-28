@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite';
 import { nativeToolDigest } from '../item-lifecycle/native-tool.js';
 import { PolicyMutationStore,type PolicyMutationEvent } from '../population-lifecycle/policy-mutations.js';
-import { policyMutationProducers } from '../population-lifecycle/policy-environment.js';
+import { worldPolicyMutationProducers } from '../population-lifecycle/policy-environment.js';
 import { NativeLifecyclePolicyStore } from '../population-lifecycle/native-policy.js';
 import { NativeMortalityCoverageStore,mortalityRosterDigest,type MortalityActor } from '../population-lifecycle/native-coverage.js';
 import { readNativeLifecyclePolicy } from './lifecycle-policy.js';
@@ -20,7 +20,7 @@ export function readNativePolicyMutations(checkpoint:Database,scope:EvaluationSc
         &&s.toSimulationTime>=scope.toSimulationTime&&s.policySelectionDigest===nativeToolDigest(policy.selection)&&original.worldId===s.worldId
         &&original.clockId===s.clockId&&original.clockProfileDigest===s.clockProfileDigest&&original.fromSimulationTime===genesisAt
         &&s.maximumWallGapMs===original.maximumWallGapMs&&mortalityRosterDigest(original.actors)===mortalityRosterDigest(founders),'Policy mutation original scope differs');
-    for(const producer of policyMutationProducers){const pin=s.environment.files.find(f=>f.path===producer.path&&f.role==='source'),code=policy.selection.manifest.sources.find(f=>f.path===producer.path);
+    for(const producer of s.environment.producers){const pin=s.environment.files.find(f=>f.path===producer.path&&f.role==='source'),code=policy.selection.manifest.sources.find(f=>f.path===producer.path);
         check(pin&&code&&pin.sha256===code.sha256&&pin.size===code.bytes,'Mutation producer source pin differs');}
     const gaps=new Set<string>(),attempts:Array<{attemptId:string;producer:string;outcome:string|null;status:'observed'|'unproven';effect:'configuration'|'signal'}>=[],
         violations:Array<{attemptId:string;producer:string;atSimulationTime:string;reason:string}>=[];
@@ -43,14 +43,16 @@ export function readNativePolicyMutations(checkpoint:Database,scope:EvaluationSc
     const sequences=new Map<string,number[]>();for(const e of source.entries){const list=sequences.get(e.event.attemptId)??[];list.push(e.sequence);sequences.set(e.event.attemptId,list);}
     const bound=(e:PolicyMutationEvent)=>{const c=e.clock;return !!(c&&e.worldId===s.worldId&&c.clockId===s.clockId&&c.profileDigest===s.clockProfileDigest
         &&c.simulationTime>=genesisAt&&c.simulationTime<=scope.toSimulationTime&&e.wallTime>=c.wallTime&&Date.parse(e.wallTime)-Date.parse(c.wallTime)<=s.maximumWallGapMs);};
-    for(const [attemptId,pair] of source.attempts){const seq=sequences.get(attemptId)!,effect=policyMutationProducers.find(p=>p.id===pair.begin.producer)!.effect,
+    for(const [attemptId,pair] of source.attempts){const seq=sequences.get(attemptId)!,effect=worldPolicyMutationProducers.find(p=>p.id===pair.begin.producer)!.effect,
         between=bounded&&seq.some(n=>n>opening!.head.sequence&&n<=closing!.head.sequence);
         if(!between)continue;
         const result=pair.result,known=!!(result&&bound(pair.begin)&&bound(result)&&pair.begin.wallTime>=first!.wallTime&&result.wallTime<=last!.wallTime
             &&result.clock!.simulationTime>=pair.begin.clock!.simulationTime&&result.clock!.revision>=pair.begin.clock!.revision
             &&seq.every(n=>n>opening!.head.sequence&&n<=closing!.head.sequence));
         attempts.push({attemptId,producer:pair.begin.producer,outcome:result?.outcome??null,status:known?'observed':'unproven',effect});
+        if(!s.environment.producers.some(p=>p.id===pair.begin.producer))gaps.add('mutation-producer-not-selected');
         if(!known){gaps.add('unfinished-or-unbound-mutation');continue;}
+        if(effect==='configuration'&&result!.outcome==='failed')gaps.add('failed-configuration-mutation');
         if(effect==='configuration'&&result!.outcome==='applied'){
             if(!pair.begin.beforeDigest||!result!.afterDigest)gaps.add('mutation-state-digest-unavailable');
             else if(pair.begin.beforeDigest!==result!.afterDigest)violations.push({attemptId,producer:pair.begin.producer,atSimulationTime:result!.clock!.simulationTime,reason:'post-genesis-world-policy-mutated'});
@@ -58,7 +60,7 @@ export function readNativePolicyMutations(checkpoint:Database,scope:EvaluationSc
     }
     const body={protocol:'native-policy-mutation-observations-v1',scope,worldId:options.worldId,selectionDigest:source.selectionDigest,sourceHead:source.head,
         sourceSnapshotDigest:source.sourceSnapshotDigest,environmentPinDigest:digest(s.environment),environmentFileCount:s.environment.files.length,
-        observedProducers:policyMutationProducers.map(p=>p.id),faultCount:source.faultCount,attempts,violations,gaps:[...gaps].sort(),
+        observedProducers:s.environment.producers.map(p=>p.id),faultCount:source.faultCount,attempts,violations,gaps:[...gaps].sort(),
         completeRecordedMutationWindow:gaps.size===0,completeWorldPolicyEnforcement:false,verdict:violations.length?'fail':'inconclusive',
         meaning:'Pinned archive file universe and closed native cursor window for the declared gateway/engine producers. Normal signal acceptance is not a configuration mutation. Unregistered/external file writers and full loaded dependency/environment history remain unproven.'};
     return{...body,digest:digest(body)};

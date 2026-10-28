@@ -1,6 +1,6 @@
 # Rövid fejlesztési átadás
 
-Frissítve: 2026-10-27. Belépő, nem futási napló.
+Frissítve: 2026-10-28. Belépő, nem futási napló.
 Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot és következő kódmunka
@@ -14,9 +14,9 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   `e9d852b63` és `2785e6fee` között; az ismételt „6 maradt” elfedte a belső
   haladást és a még lezárt natív PASS-ágat. Hosszú C07 gazdasági próba nem indult.
 - **Rögzített implementációs lezárás:** [P2-01–P2-11](SI_C07_PACKAGE2_CLOSURE.md),
-  **2/11 kész**, 9 nyitott feltétel; nem 9 ígért chatkör. 17/17 részleges
-  szabályadapter és 2/8 pozitív natív kapuút. A lifecycle és clock/world-policy
-  egyelőre FAIL-képes, a többi négy kapunak sincs pozitív natív útja.
+  **3/11 kész**, 8 nyitott feltétel; nem 8 ígért chatkör. 17/17 részleges
+  szabályadapter és 3/8 pozitív natív kapuút. A lifecycle egyelőre FAIL-képes,
+  a többi négy kapunak sincs teljes pozitív natív útja.
 - **Kész P2-01:** `frozen-founder-roster` pozitív natív adapter. Applied
   genesis + integrity anchor + teljes immutable eredeti tagság + natív finite
   avatar binding ellenőrzése. Halott/offline tag sem tűnik el; hibás/hiányos/
@@ -34,15 +34,24 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   minden 17/8 sorhoz mapping, unknown sosem nulla vagy FAIL. A valódi SQLite
   genesis-fixture 2/16 családot igazol; ez nem C07 run vagy 16/16 natív PASS.
   A pure 16/16 ág csak a kiértékelő szerződéspróbája. Eredeti scoped FAIL megmarad.
-- **Következő konkrét pont P2-04:** `unchanged-clock-and-world-policy`.
-  A meglévő policy/mutation/clock/build readerekből teljes natív kapuadapter,
-  igazolt pozitív/failure/gap és a megfelelő sourceCoverage sor bekötésével.
-  A jelenlegi `completeWorldPolicyEnforcement:false` nem írható át puszta
-  available státusz alapján. Ne indíts általános új megfigyelési/host-attesztációs
-  ágat: az eredeti gate konkrét writer/history hiányát nevezd meg és zárd.
-- **Rögzített függőségi sorrend:** P2-04 → P2-05 → P2-06 → P2-07 → P2-08 →
+- **Kész P2-04:** [óra/world-policy natív kapu](SI_C07_WORLD_POLICY_GATE.md).
+  Explicit immutable-input contract, valódi engine/gateway startup rekord és
+  processz/session kötés, meglévő policy/mutation/native clock prefixek együtt.
+  World.reload packed producer is bekötött; korábban betöltött identityből
+  számol, round-trip nem tűnik el. A 193 tickpontos 1+7 fixture pozitív natív
+  integrity/sourceCoverage ága és C06 restore próbázott. Nem gazdasági run.
+  Legacy nem kap backfillt vagy automatikus contractot; teljes host/dependency
+  attestáció nincs. Saját opcionális runtime táblák a meglévő mutation journalban.
+- **Következő konkrét pont P2-05:** `finite-lifecycle-no-respawn` pozitív natív
+  kapu. A meglévő mortality/attempt/paired census forrásokból az eredeti
+  teljes lifecycle-history és natív HP/respawn route-coverage hiányát zárd;
+  a death audit vagy üres attempt ledger nem elég. Pozitív/failure/gap,
+  scoped prefix-FAIL és sourceCoverage szükséges; ne nyiss új általános
+  host-attesztációs ágat. Tényleges live bootstrap/start/stop feltételek továbbra
+  a későbbi baseline/preflight feladatai; kész kódhoz nem kell hosszú run-adat.
+- **Megmaradó függőségi sorrend:** P2-05 → P2-06 → P2-07 → P2-08 →
   P2-09 → P2-10 → P2-03 végellenőrzés → P2-11. A lista számozása nem volt
-  fejlesztési függőségi sorrend; nincs új pont. Ezért 2/11 kész, 9 nyitott maradt.
+  fejlesztési függőségi sorrend; nincs új pont. P2-04 lezárásával 3/11 kész, 8 nyitott.
   A P2-03 alatt ne nyiss új belső feladatsort; a hiányok a meglévő pontoké.
 - A 2. csomag implementációs képessége különválik a 3–7. csomag tényleges
   baseline/source-kijelölésétől és a hosszú run adataitól. Nem kell még nem létező
@@ -53,6 +62,9 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 - `society-minimum/assessment.ts`: exact 17/8 mag, actor/bucket/cycle/boundary
   scope, lower/upper bounds, positive opportunity, teljes mátrix és all-PASS út.
+- `population-lifecycle/world-policy-runtime.ts`, `policy-process.ts`,
+  `society-metrics/world-policy.ts`: explicit contract/startup record, közös
+  processzazonosság, packed reload és a teljes natív world-policy kapu.
 - `society-minimum/source-coverage.ts`, `society-metrics/source-coverage.ts` és
   két `test/source-coverage.test.ts`: tiszta lefedettségi szerződés, natív bridge
   és a meglévő closure-ID-kre visszavezetett hiánymátrix; új journal nincs.
@@ -73,32 +85,28 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- `20261027-231009-129-si-c07-source-coverage-consumers`: **42 célzott eset és
-  root TS PASS, 37,243 s** (runtime 15,92 s). Source-coverage core/bridge,
-  minimum-assessment, valódi SQLite genesis opening, native-outcomes és preflight.
-  Head/cohort/foreign/warmup/1 ms gap/boundary/available-only és meglévő FAIL-védelem.
-- `20261027-230602-978-si-c07-source-coverage-first`: 24 PASS, 11,863 s;
-  `20261027-230925-582-si-c07-source-coverage-reader-contract`: 10 PASS, 0,695 s.
-  A későbbi guard/dependency mezők miatt indult a végső fogyasztói kör.
-- `20261027-225544-848-si-c07-genesis-opening-consumers`: **32 célzott eset és
-  root TS PASS, 75,568 s** (runtime 24,73 s). Pontosan genesis-opening,
-  minimum-assessment, native-outcomes és minimum-preflight fájlok; helyi valódi
-  admin/bootstrap adapter és SQLite/native save-reader, nincs live világ.
-  Korábbi fixture-running-clock és implicit-any TS FAIL-ek javítva, részletek a progressben.
-- `20261027-224027-847-si-c07-frozen-roster-gate`: **8 célzott eset PASS,
-  4,158 s**. Roster pozitív/hiányos/dupla/idegen/malformed és hibás frame/scope;
-  dead/offline original tag, más kapu/túlélés/globális PASS kizárása.
-- `20261027-224227-372-si-c07-roster-consumers`: **85 eset és root TypeScript
-  PASS, 111,563 s** (runtime 67,83 s). Pontosan population-outcomes,
-  minimum-assessment és native-outcomes tesztfájlok; meglévő sérült binding/
-  lifecycle és diagnostic FAIL-védelmekkel, evaluation facade bekötéssel.
-- Preflight/artifact/link/format eredmény a jelen commit progress-bejegyzésében.
-  Naplók és gépi eredményfejek `.local/verification/` alatt.
-- Teljes regresszió, engine/webclient TS nem futott: readonly root genesis
-  adapter/projection és preflight diagnosztika változott. Nincs közös persistence/clock/auth/
-  transaction alapváltozás, séma, producer vagy függőségmódosítás.
-  Nincs live install/run/baseline/providerhívás vagy történeti backup-read.
-
+- `20261028-173301-562-si-c07-world-policy-final-readers`: **40 célzott eset
+  PASS, 51,450 s**. Pozitív natív 1+7, runtime/role/session/input/frame/gap,
+  packed round-trip, clock drift és meglévő mutation prefix/FAIL-védelem.
+- `20261028-173313-916-si-c07-world-policy-final-types`: **root + engine TS
+  PASS, 115,813 s**. Webclient változatlan.
+- `20261028-173450-907-si-c07-world-policy-final-consumers`: **28 PASS,
+  7,116 s**. Policy-mutation module, sourceCoverage, minimum/native-outcomes
+  és preflight pontos tesztfájljai.
+- `20261028-173450-627-si-c07-world-policy-archive-boundary`: **3 PASS,
+  9,262 s**. Új runtime contract és legacy mutation C06 capture/restore,
+  törött runtime head/packed/source inventory kizárása.
+- Natív engine-fájl: 10 PASS a megfelelő engine cwd-ből, --no-env-file és
+  unmanaged fixture-környezettel; sem production login guard, sem kulcs nem módosult.
+  A végső ismétlés és artifact/format eredmény a progressben.
+- A korábbi timeout mért fixture-építési IO: build 28256→7446 ms,
+  total 30843→10064 ms. Izolált checkpoint fixture outer transaction, eredeti
+  15 s limit és külön append/rollback próbák változatlanok.
+- Teljes regresszió nem futott: saját opcionális journal-séma és startup/
+  reload observer, közvetlen fogyasztóival. Shared clock setter, auth és
+  gazdasági transaction nem változott. Nincs live install/run/providerhívás
+  vagy történeti backup-read. Részletes FAIL/PASS bizonyíték a progressben;
+  root és engine `.local/verification/` könyvtárakban teljes log/result JSON.
 ## Megmaradó futási korlátok és döntések
 
 - Eredeti minimum 17 rule/8 gate/küszöb változatlan; eredeti policy SHA pinned.

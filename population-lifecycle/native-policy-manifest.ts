@@ -17,6 +17,7 @@ export const lifecycleSourcePaths=[...new Set([...lifecycleRoutes.map(r=>r.path)
     'population-lifecycle/native-policy-manifest.ts','population-lifecycle/native-policy.ts','population-lifecycle/native-attempts.ts',
     'population-lifecycle/native-watermarks.ts','population-lifecycle/native-coverage.ts','population-lifecycle/native-observer.ts',
     'population-lifecycle/policy-environment.ts','population-lifecycle/policy-mutations.ts','population-lifecycle/policy-mutation-observer.ts',
+    'population-lifecycle/world-policy-runtime.ts','population-lifecycle/policy-process.ts','server/engine/src/app.ts','server/gateway/gateway.ts',
     'server/gateway/admin/world-mods.ts','server/gateway/admin/world-director-runtime.ts','server/engine/src/mods/WorldDirectorEventStore.ts',
     'population-lifecycle/age.ts','population-lifecycle/mortality.ts','population-lifecycle/death.ts','population-lifecycle/starvation.ts',
     'server/engine/src/mods/PopulationDeathRuntime.ts','server/engine/src/mods/NativeMortalityCoverageRuntime.ts',

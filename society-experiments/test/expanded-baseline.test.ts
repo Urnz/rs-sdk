@@ -25,6 +25,7 @@ import { PolicyMutationStore } from '../../population-lifecycle/policy-mutations
 import { pinPolicyEnvironment } from '../../population-lifecycle/policy-environment.js';
 import { offlineArchiveIO } from '../archive.js';
 import { nativeToolDigest } from '../../item-lifecycle/native-tool.js';
+import {WorldPolicyRuntimeStore,createWorldPolicyRuntimeContract,captureWorldPolicyRuntime} from '../../population-lifecycle/world-policy-runtime.js';
 
 function lifecyclePolicyArchiveFixture(){
     const f=expandedFixture(),repo=join(import.meta.dir,'../..');
@@ -47,15 +48,33 @@ function lifecyclePolicyArchiveFixture(){
 function policyPhase<T>(name:string,run:()=>T):T{const start=performance.now();try{return run();}
     finally{console.info('[lifecycle-policy-archive-phase]',JSON.stringify({name,wallMs:Math.round(performance.now()-start)}));}}
 
-function policyMutationArchiveFixture(){const f=lifecyclePolicyArchiveFixture(),path='.local/society-metrics/policy-mutations.sqlite',
+function policyMutationArchiveFixture(strict=false){const f=lifecyclePolicyArchiveFixture(),path='.local/society-metrics/policy-mutations.sqlite',
     authority=new OwnedDatabase(join(f.root,f.checkpoint),{readonly:true}),policy=new NativeLifecyclePolicyStore(authority).selection();authority.close(true);
-    const environment=pinPolicyEnvironment(offlineArchiveIO.inventory(f.root),{bunVersion:Bun.version,platform:process.platform});
+    if(strict)for(const path of ['bun.lock','server/engine/bun.lock','server/gateway/bun.lock'])put(f.root,path,readFileSync(join(import.meta.dir,'../..',path)));
+    const environment=pinPolicyEnvironment(offlineArchiveIO.inventory(f.root),{bunVersion:Bun.version,platform:process.platform},strict),
+        runtimeContract=strict?createWorldPolicyRuntimeContract(environment,{engine:{},gateway:{}}):undefined;
     mkdirSync(join(f.root,'.local/society-metrics'),{recursive:true});const db=new OwnedDatabase(join(f.root,path));
     try{new PolicyMutationStore(db,{schemaVersion:1,worldId:f.selected.worldId,clockId:f.selected.clockId,clockProfileDigest:f.selected.clockProfileDigest,
         fromSimulationTime:policy.mortality.fromSimulationTime,toSimulationTime:policy.mortality.toSimulationTime,maximumWallGapMs:policy.mortality.maximumWallGapMs,
-        policySelectionDigest:nativeToolDigest(policy.selection),environment});}finally{db.close(true);}
+        policySelectionDigest:nativeToolDigest(policy.selection),environment,...runtimeContract?{worldPolicyRuntimeContractDigest:nativeToolDigest(runtimeContract)}:{}});
+        if(runtimeContract){const store=new WorldPolicyRuntimeStore(db,runtimeContract),clock=policy.selection.opening.clock;
+            for(const role of ['engine','gateway'] as const)store.append(captureWorldPolicyRuntime(f.root,role,db,{worldId:f.selected.worldId,sessionId:randomUUID(),
+                clock:{clockId:clock.clockId,profileDigest:clock.profileDigest,status:clock.status,revision:clock.revision,simulationTime:clock.lastSimulationTime,wallTime:clock.lastObservedWallTime,engineTick:null},
+                wallTime:clock.lastObservedWallTime,env:{},bunVersion:Bun.version,platform:process.platform}));}
+    }finally{db.close(true);}
     f.selected.stores.push({role:'policy-mutations',path,requiredTables:['policy_mutation_schema','policy_mutation_selection','policy_mutation_event','policy_mutation_head','policy_mutation_fault']});
+    if(strict)f.selected.stores.at(-1)!.requiredTables.push('world_policy_runtime_contract','world_policy_runtime_schema','world_policy_runtime_event','world_policy_runtime_head');
     return{...f,mutationPath:path,environment};}
+
+test('world policy runtime contract and boot evidence survive C06 archive restore; corrupt runtime heads are rejected',()=>{
+    const f=policyPhase('runtime-fixture',()=>policyMutationArchiveFixture(true)),pin=policyPhase('runtime-prepare',()=>prepareExpandedBaseline(f.root,f.selected));
+    policyPhase('runtime-capture',()=>captureExpandedArchive({...f,output:f.bundle,kind:'baseline',pin,assertOffline:()=>{}}));
+    policyPhase('runtime-restore',()=>restoreExpandedArchive(f.bundle,f.output));
+    const restored=new OwnedDatabase(join(f.output,'workspace',f.mutationPath),{readonly:true});
+    try{const r=new WorldPolicyRuntimeStore(restored).read();expect(r.entries).toHaveLength(2);expect(r.entries.every(e=>!e.witness.gaps.length)).toBeTrue();}finally{restored.close(true);}
+    const bad=new OwnedDatabase(join(f.root,f.mutationPath));try{bad.run('UPDATE world_policy_runtime_head SET sequence=99');}finally{bad.close(true);}
+    expect(()=>prepareExpandedBaseline(f.root,f.selected)).toThrow();
+},10000);
 
 test('policy mutation archive restores the independent journal with exact environment inventory and policy source binding',()=>{
     const f=policyPhase('mutation-fixture',policyMutationArchiveFixture),pin=policyPhase('mutation-prepare',()=>prepareExpandedBaseline(f.root,f.selected));

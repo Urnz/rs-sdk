@@ -11,6 +11,7 @@ import type {
     SDKConnectionMode
 } from './types';
 import { PLAYER_CHAT_TYPES } from './types';
+import {recordWorldPolicyRuntime} from '../../population-lifecycle/world-policy-runtime.js';
 import {xpExecutionClient} from './admin/xp-execution.js';
 import { ChatHistory } from '../../sdk/chat-history';
 import { loadPopulationAgePolicy } from '../../population-lifecycle/age.js';
@@ -1264,6 +1265,7 @@ export async function shutdownManagedGateway() {
 }
 console.log(`[Gateway] Starting Gateway Service on port ${GATEWAY_PORT}...`);
 
+recordWorldPolicyRuntime('gateway',repoRoot);
 const server = Bun.serve({
     hostname: process.env.CONTROL_PLANE_SERVER_ID ? '127.0.0.1' : undefined,
     port: GATEWAY_PORT,

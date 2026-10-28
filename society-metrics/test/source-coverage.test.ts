@@ -42,6 +42,14 @@ test('wrong world/profile/genesis/clock/window or partial opening cannot donate 
         f=>{f.sources.populationBaseline.value.lifecyclePolicy={digest:'f'.repeat(64)};}];
     for(const mutate of cases){const f=fixture();mutate(f);const r=projectNativeSourceCoverage(contract,frame,f.outcomes);expect(r.completeSourceCount).toBeLessThan(3);expect(r.verdict).toBe('inconclusive');}
 });
+test('world policy source coverage requires the joined native guarantee and exact original window',()=>{
+    const f=fixture();f.sources.worldPolicy=available({scope,worldId:'world',fromSimulationTime:frame.genesisAppliedAtSimulationTime,toSimulationTime:frame.toSimulationTime,
+        completeWorldPolicyCoverage:true,policyHead:{sequence:2},mutationHead:{sequence:0},runtimeHead:{sequence:2}});
+    expect(projectNativeSourceCoverage(contract,frame,f.outcomes).rows.find(r=>r.sourceId==='clock-world-policy')!.status).toBe('complete');
+    f.sources.worldPolicy.value.fromSimulationTime=scope.fromSimulationTime;
+    expect(projectNativeSourceCoverage(contract,frame,f.outcomes).rows.find(r=>r.sourceId==='clock-world-policy')!.status).not.toBe('complete');
+});
+
 test('invalid/unbound frame is redacted, and mere raw result fields cannot upload coverage proofs',()=>{
     const f=fixture();f.outcomes.sourceCoverage={verdict:'pass',completeSourceCount:16};
     expect(projectNativeSourceCoverage(contract,frame,f.outcomes).completeSourceCount).toBe(3);

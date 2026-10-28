@@ -40,7 +40,11 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
         &&m.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime&&m.value.toSimulationTime===frame.toSimulationTime,
         ['native-mortality-window-incomplete'],m?.status==='available'?m.value.sourceHead:undefined);
     add('login-respawn-enforcement',[s?.lifecycleAttempts,s?.lifecycleWatermarks],false,['lifecycle-route-coverage-unproven']);
-    add('clock-world-policy',[s?.lifecyclePolicy,s?.policyMutations],false,['complete-policy-writer-history-unproven']);
+    const policy=s?.worldPolicy;
+    add('clock-world-policy',[policy],!!original&&policy?.status==='available'&&policy.value.completeWorldPolicyCoverage
+        &&scopeMatches(policy.value.scope)&&policy.value.worldId===frame.worldId&&policy.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime
+        &&policy.value.toSimulationTime===frame.toSimulationTime,['complete-policy-writer-history-unproven'],policy?.status==='available'?
+        {policy:policy.value.policyHead,mutation:policy.value.mutationHead,runtime:policy.value.runtimeHead}:undefined);
     const i=integrated?.sources;
     add('physiology-modes',[i?.needs,i?.modes,i?.nutrition],false,['warmup-physiology-denominators-unproven']);
     add('native-food-lineage',[i?.lineage,i?.production,i?.nutrition],false,['full-window-food-ancestry-unproven']);

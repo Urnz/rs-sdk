@@ -61,18 +61,21 @@ import { pinPolicyEnvironment } from '../../population-lifecycle/policy-environm
 import { withPolicyMutationObservation,beginPolicyMutation,policyMutationJournalPath } from '../../population-lifecycle/policy-mutation-observer.js';
 import { readNativePolicyMutations } from '../policy-mutations.js';
 import { updateWorldDirectorConfig } from '../../server/gateway/admin/world-director-runtime.js';
+import {WorldPolicyRuntimeStore,createWorldPolicyRuntimeContract,captureWorldPolicyRuntime,observeWorldPackedReload,recordWorldPolicyRuntime} from '../../population-lifecycle/world-policy-runtime.js';
+import {readNativeWorldPolicy} from '../world-policy.js';
+import {policyProcessSessionId} from '../../population-lifecycle/policy-process.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
     mortality=loadPopulationMortalityPolicy(join(configDirectory,'population-mortality-policy.json'));
 afterEach(()=>{for(const path of directories.splice(0))rmSync(path,{recursive:true,force:true});});
 function mutate(path:string,sql:string){const db=new OwnedDatabase(path);try{db.run(sql);}finally{db.close(true);}}
-function fixture(){
+function fixture(fullPolicy=false){
     const root=mkdtempSync(join(tmpdir(),'native-founders-'));directories.push(root);
     const agentPath=join(root,'agents.sqlite'),clockPath=join(root,'clock.sqlite'),genesisPath=join(root,'genesis.sqlite'),
         integrityPath=join(root,'integrity.sqlite'),healthPath=join(root,'health.sqlite');
     const clock=new SimulationClockStore(clockPath),created=clock.create({clockId:'world',
-        profile:{schemaVersion:1,profileId:'population-fixture',version:'1.0.0',seed:'population',rate:{simulationMilliseconds:1,wallMilliseconds:1}},wallTime:wall,simulationTime:initial});
+        profile:{schemaVersion:1,profileId:'population-fixture',version:'1.0.0',seed:'population',rate:{simulationMilliseconds:fullPolicy?3600000:1,wallMilliseconds:fullPolicy?600:1}},wallTime:wall,simulationTime:initial});
     const profile=loadWorldGenesisProfileCatalog(join(configDirectory,'world-genesis-profiles.json')).profiles.find(p=>p.profileId==='mature-society')!;
     const founders=['ada','bea','cora','dora'].map(agentId=>({agentId,playerUsername:agentId}));
     const result=buildWorldGenesisResult({schemaVersion:1,seed:'population',profile:{profileId:profile.profileId,version:profile.version,digest:profile.digest},
@@ -109,15 +112,15 @@ const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.as
 const expectOnlyFrozenRosterGate=(r:ReturnType<typeof projectNativeMinimumAssessment>)=>expect(r.integrity.map(g=>({gateId:g.gateId,verdict:g.verdict})))
     .toEqual(contract.policy.integrityGates.map(gateId=>({gateId,verdict:gateId==='frozen-founder-roster'?'pass':'inconclusive'})));
 
-function mortalityFixture(){
-    const f=fixture(),checkpointPath=join(f.root,'server/engine/data/mortality.sqlite');mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
+function mortalityFixture(fullPolicy=false){
+    const f=fixture(fullPolicy),checkpointPath=join(f.root,'server/engine/data/mortality.sqlite');mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
     f.options.checkpointPath=checkpointPath;const db=new OwnedDatabase(checkpointPath),health=new PlayerHealthEvidenceStore(f.healthPath),
         clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,{store:clock,clockId:'world'});
     for(const m of agents.listPopulationMembers())agents.setCharacterBirth(m.agentId,m.characterLifecycle.revision,initial,'born',wall);
     const members=agents.listPopulationMembers(),
-        actors=members.map(nativeMortalityActor),scope={...f.scope,fromSimulationTime:initial,toSimulationTime:'2001-01-01T00:00:01.200Z'},
+        actors=members.map(nativeMortalityActor),scope=fullPolicy?f.scope:{...f.scope,fromSimulationTime:initial,toSimulationTime:'2001-01-01T00:00:01.200Z'},
         selection:MortalityCoverageSelection={schemaVersion:1,selectionId:randomUUID(),worldId:'fixture',clockId:'world',clockProfileDigest:f.scope.clockProfileDigest,
-            fromSimulationTime:initial,toSimulationTime:scope.toSimulationTime,maximumSimulationGapMs:1200,maximumWallGapMs:1200,agePolicyDigest:age.digest,
+            fromSimulationTime:initial,toSimulationTime:scope.toSimulationTime,maximumSimulationGapMs:fullPolicy?3600000:1200,maximumWallGapMs:1200,agePolicyDigest:age.digest,
             mortalityPolicyDigest:mortality.digest,survivalSelectionDigest:null,actors,openingHealthHeads:health.coverageHeads()},store=new NativeMortalityCoverageStore(db,selection);
     const sample=(n:number,session='fixture-session',subset=members)=>{const c=clock.observe('world',new Date(Date.parse(wall)+n*600).toISOString(),n);
         admitNaturalPopulationDeaths(agents,c,health,age,mortality);recordNativeMortalityPass(db,'fixture',session,c,subset,health,age.digest,mortality.digest,null);};
@@ -204,7 +207,7 @@ test('native lifecycle missing results, unknown or stale authority and altered i
     }finally{f.close();}
 });
 
-function watermarkFixture(){const f=mortalityFixture(),attempts=new NativeLifecycleAttemptStore(f.db,true),store=new NativeLifecycleWatermarkStore(f.db,true);
+function watermarkFixture(fullPolicy=false){const f=mortalityFixture(fullPolicy),attempts=new NativeLifecycleAttemptStore(f.db,true),store=new NativeLifecycleWatermarkStore(f.db,true);
     const frame=(stage:LifecycleWatermarkSample['stage'],change:Partial<LifecycleWatermarkSample>={})=>{
         const mortality=f.store.read(),c=mortality.entries.at(-1)!.sample.clock,cursor=attempts.cursor();
         const sample:LifecycleWatermarkSample={sessionId:'watermark-session',clock:c,wallTime:c.wallTime,stage,mortalityHead:mortality.head,
@@ -217,30 +220,119 @@ function watermarkFixture(){const f=mortalityFixture(),attempts=new NativeLifecy
     return{...f,attempts,watermarks:store,frame,attempt,readWatermarks:()=>readNativeLifecycleWatermarks(f.db,f.scope,f.options,initial,f.actors)};
 }
 
-function policyFixture(){const f=watermarkFixture(),root=join(import.meta.dir,'../..'),manifest=lifecycleRouteManifest(root),
+function policyFixture(fullPolicy=false){const f=watermarkFixture(fullPolicy),root=join(import.meta.dir,'../..'),manifest=lifecycleRouteManifest(root),
     snapshot=()=>({clock:f.clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),
         survivalDigest:null,modsDigest:'b'.repeat(64)},sources:manifest.sources,files:lifecyclePolicyFiles(root)}),
     pin={manifest,opening:snapshot()},store=new NativeLifecyclePolicyStore(f.db,pin);
     const emit=(stage:LifecyclePolicySample['stage'],changes:Partial<LifecyclePolicySample>={},withCensus=true)=>{
-        if(withCensus)f.frame(stage);const m=f.store.read(),position=m.entries.at(-1)!.sample.clock;
+        if(withCensus)f.frame(stage,changes.sessionId?{sessionId:changes.sessionId}:{});const m=f.store.read(),position=m.entries.at(-1)!.sample.clock;
         const sample:LifecyclePolicySample={sessionId:'watermark-session',worldId:'fixture',position,wallTime:position.wallTime,stage,mortalityHead:m.head,
             watermarkHead:f.watermarks.read().head,bootManifest:manifest,snapshot:snapshot(),...changes};store.append(sample);return sample;};
     return{...f,policyStore:store,pin,snapshot,emit,readPolicy:()=>readNativeLifecyclePolicy(f.db,f.scope,f.options,initial,f.actors)};
 }
 
-function mutationFixture(){const f=policyFixture(),path=policyMutationJournalPath(f.root);mkdirSync(join(f.root,'.local/society-metrics'),{recursive:true});
+function mutationFixture(strict=false,fullPolicy=false,roles:Array<'engine'|'gateway'>=['engine','gateway']){const f=policyFixture(fullPolicy),path=policyMutationJournalPath(f.root);mkdirSync(join(f.root,'.local/society-metrics'),{recursive:true});
     const db=new OwnedDatabase(path),pkg=readFileSync(join(import.meta.dir,'../../package.json')),
-        sourceFiles=['package.json',...f.pin.manifest.sources.map(p=>p.path)],environment=pinPolicyEnvironment({sourceFiles,files:[
+        sourceFiles=[...new Set(['package.json',...f.pin.manifest.sources.map(p=>p.path),...strict?['bun.lock','server/engine/bun.lock','server/gateway/bun.lock']:[]])],
+        files=strict?[...sourceFiles,...f.pin.opening.files.filter(p=>p.sha256!==null).map(p=>p.path)].map(path=>{
+            const bytes=readFileSync(join(import.meta.dir,'../..',path)),target=join(f.root,path);mkdirSync(join(target,'..'),{recursive:true});writeFileSync(target,bytes);
+            return{path,size:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};}):[
             ...f.pin.manifest.sources.map(p=>({path:p.path,size:p.bytes!,sha256:p.sha256!})),{path:'package.json',size:pkg.length,sha256:createHash('sha256').update(pkg).digest('hex')},
-            {path:'server/engine/data/pack/server/script.dat',size:1,sha256:'a'.repeat(64)}]},{bunVersion:Bun.version,platform:process.platform}),
+            ],pack=join(f.root,'server/engine/data/pack/server/script.dat');
+    if(strict){mkdirSync(join(pack,'..'),{recursive:true});writeFileSync(pack,new Uint8Array([0]));}
+    const environment=pinPolicyEnvironment({sourceFiles,files:[...files,{path:'server/engine/data/pack/server/script.dat',size:1,sha256:strict?createHash('sha256').update(new Uint8Array([0])).digest('hex'):'a'.repeat(64)}]},
+            {bunVersion:Bun.version,platform:process.platform},strict),runtimeContract=strict?createWorldPolicyRuntimeContract(environment,{engine:{},gateway:{}}):undefined,
         store=new PolicyMutationStore(db,{schemaVersion:1,worldId:'fixture',clockId:f.scope.clockId,clockProfileDigest:f.scope.clockProfileDigest,fromSimulationTime:initial,
-            toSimulationTime:f.scope.toSimulationTime,maximumWallGapMs:1200,policySelectionDigest:nativeToolDigest(f.policyStore.selection().selection),environment});
+            toSimulationTime:f.scope.toSimulationTime,maximumWallGapMs:1200,policySelectionDigest:nativeToolDigest(f.policyStore.selection().selection),environment,
+            ...(runtimeContract?{worldPolicyRuntimeContractDigest:nativeToolDigest(runtimeContract)}:{})});
+    const runtime=runtimeContract?new WorldPolicyRuntimeStore(db,runtimeContract):null;
+    const boot=(role:'engine'|'gateway',env:Record<string,string|undefined>={})=>{const c=f.clock.get('world')!;
+        const witness=captureWorldPolicyRuntime(f.root,role,db,{worldId:'fixture',sessionId:role==='engine'?policyProcessSessionId:'gateway-fixture-session',clock:{clockId:c.clockId,profileDigest:c.profileDigest,status:c.status,
+            simulationTime:c.lastSimulationTime,wallTime:c.lastObservedWallTime,revision:c.revision,engineTick:null},wallTime:c.lastObservedWallTime,env,bunVersion:Bun.version,platform:process.platform});runtime!.append(witness);return witness;};
+    if(strict)for(const role of roles)boot(role);
     f.options.policyMutationsPath=path;
     const ports={db,worldId:'fixture',clock:()=>f.store.read().entries.at(-1)!.sample.clock,wallTime:()=>f.store.read().entries.at(-1)!.sample.clock.wallTime},
-        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emit(stage,{mutationCursor:store.cursor(),...change});
-    return{...f,mutationDb:db,mutations:store,mutationPath:path,mutationPorts:ports,emitMutationFrame:emit,
+        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emit(stage,{...strict?{sessionId:policyProcessSessionId}:{},mutationCursor:store.cursor(),...change});
+    return{...f,mutationDb:db,mutations:store,mutationPath:path,mutationPorts:ports,emitMutationFrame:emit,runtime,runtimeContract,boot,
+        readWorldPolicy:()=>readNativeWorldPolicy(f.db,f.scope,f.options,initial,f.actors),
         readMutations:()=>readNativePolicyMutations(f.db,f.scope,f.options,initial,f.actors),close(){db.close(true);f.close();}};
 }
+
+test('world policy joins actual materialized startup inputs, two process roles and native closed cursors without writes',()=>{
+    const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}
+        const before=[f.db.serialize(),f.mutationDb.serialize()],r=f.readWorldPolicy();expect(r.gaps).toEqual([]);expect(r.verdict).toBe('pass');expect(r.completeWorldPolicyCoverage).toBeTrue();
+        expect(r.completeRuntimeDependencyUniverse).toBeFalse();expect(f.readWorldPolicy().digest).toBe(r.digest);expect([f.db.serialize(),f.mutationDb.serialize()]).toEqual(before);
+        expect(reportNativeOutcomes(f.scope,f.options).sources.worldPolicy.status).toBe('available');
+        // A short reader fixture is not the original 1+7 assessment frame.
+        expect(projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options)).integrity.find(g=>g.gateId==='unchanged-clock-and-world-policy')!.verdict).toBe('inconclusive');
+    }finally{f.close();}
+});
+
+test('world policy original 1+7 frame reaches the positive native integrity gate and source coverage through frozen SQLite readers',()=>{
+    const f=mutationFixture(true,true),started=performance.now();try{
+        // One isolated fixture build; runtime append/rollback durability is exercised separately below.
+        f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}}).immediate();
+        console.error(`[WorldPolicyFullFrame] build ${Math.round(performance.now()-started)} ms`);
+        const r=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));
+        expect(r.bindingStatus).toBe('bound');expect(r.integrity.find(g=>g.gateId==='unchanged-clock-and-world-policy')!.verdict).toBe('pass');
+        expect(r.sourceCoverage.rows.find(s=>s.sourceId==='clock-world-policy')!.status).toBe('complete');expect(r.qualifiesMinimum).toBeFalse();
+        const frozen=join(f.root,'.local/society-metrics/world-policy-frozen.sqlite');writeFileSync(frozen,f.mutationDb.serialize());
+        const replay=readNativeWorldPolicy(f.db,f.scope,{...f.options,policyMutationsPath:frozen},initial,f.actors);expect(replay.verdict).toBe('pass');
+        console.error(`[WorldPolicyFullFrame] total ${Math.round(performance.now()-started)} ms`);
+    }finally{f.close();}
+},15000);
+
+test.each(['missing-gateway','bad-input','missing-frame','cursor','restart','wrong-session'])(
+    'world policy coverage stays unknown at a concrete runtime boundary: %s',variant=>{
+    const f=mutationFixture(true,false,variant==='missing-gateway'?['engine']:variant==='bad-input'?[]:['engine','gateway']);try{
+        if(variant==='bad-input'){f.boot('engine',{NODE_XPRATE:'different'});f.boot('gateway');}
+        if(variant==='wrong-session')f.runtime!.append({...f.runtime!.read().entries[0]!.witness,sessionId:'foreign-engine-session'});
+        for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');
+            if(n===1&&variant==='restart')f.boot('engine');if(n===1&&variant==='missing-frame')continue;
+            f.emitMutationFrame('end-of-tick',variant==='cursor'&&n===1?{mutationCursor:{...f.mutations.cursor(),runtimeHead:{sequence:999,digest:'f'.repeat(64)}}}:{});}
+        const r=f.readWorldPolicy();expect(r.verdict).toBe('inconclusive');expect(r.completeWorldPolicyCoverage).toBeFalse();expect(r.gaps.length).toBeGreaterThan(0);
+    }finally{f.close();}
+});
+
+test('world policy preserves bounded normal signals/no-ops and excludes runtime changes after its closing cursor',()=>{
+    const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');if(n===1){
+        withPolicyMutationObservation(f.mutationPorts,()=>{beginPolicyMutation('director-event-accept',null)?.finish('a'.repeat(64),'applied');observeWorldPackedReload(f.root,()=>{});});
+        withPolicyMutationObservation({...f.mutationPorts,sessionId:'gateway-fixture-session'},()=>beginPolicyMutation('director-configure','b'.repeat(64))?.finish('b'.repeat(64),'no-op'));
+    }f.emitMutationFrame('end-of-tick');}
+        expect(f.readWorldPolicy().verdict).toBe('pass');f.boot('engine',{NODE_XPRATE:'changed-after-window'});expect(f.readWorldPolicy().verdict).toBe('pass');
+    }finally{f.close();}
+});
+
+test('world policy observes loaded packed identity changes, preserves thrown errors and detects round-trip configuration despite other gaps',()=>{
+    const f=mutationFixture(true);try{const pack=join(f.root,'server/engine/data/pack/server/script.dat');
+        for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');if(n===1)withPolicyMutationObservation(f.mutationPorts,()=>{
+            observeWorldPackedReload(f.root,()=>{});writeFileSync(pack,new Uint8Array([1]));observeWorldPackedReload(f.root,()=>{});
+            writeFileSync(pack,new Uint8Array([0]));observeWorldPackedReload(f.root,()=>{});
+            expect(()=>observeWorldPackedReload(f.root,()=>{throw Error('actual reload error');})).toThrow('actual reload error');});f.emitMutationFrame('end-of-tick');}
+        const r=f.readWorldPolicy();expect(r.verdict).toBe('fail');expect(r.violations.filter(v=>v.reason==='post-genesis-world-policy-mutated')).toHaveLength(2);
+        expect(r.gaps).toContain('policy-mutation-coverage');expect(f.readMutations().gaps).toContain('failed-configuration-mutation');
+    }finally{f.close();}
+});
+
+test('world policy own schema is immutable, reopens readonly, rolls back and never changes shared user_version or exports secrets',()=>{
+    const f=mutationFixture(true);try{f.mutationDb.run('PRAGMA user_version=42');new WorldPolicyRuntimeStore(f.mutationDb,f.runtimeContract!);
+        const before=f.mutationDb.serialize(),w=f.runtime!.read().entries[0]!.witness;
+        expect(()=>f.mutationDb.transaction(()=>{f.runtime!.append({...w,sessionId:randomUUID()});throw Error('rollback');}).immediate()).toThrow('rollback');expect(f.mutationDb.serialize()).toEqual(before);
+        expect(()=>f.mutationDb.run('DELETE FROM world_policy_runtime_event WHERE sequence=1')).toThrow('immutable');
+        expect(()=>new WorldPolicyRuntimeStore(f.mutationDb,{...f.runtimeContract!,inputs:{engine:'f'.repeat(64),gateway:'e'.repeat(64)}})).toThrow();
+        const witness=f.boot('engine',{OPENAI_API_KEY:'PRIVATE API KEY'});expect(witness.gaps).toEqual([]);expect(JSON.stringify(witness)).not.toContain('PRIVATE API KEY');
+        expect(f.mutationDb.query('PRAGMA user_version').get()).toEqual({user_version:42});
+        f.mutationDb.run('UPDATE world_policy_runtime_head SET sequence=99');expect(()=>f.runtime!.read()).toThrow();
+    }finally{f.close();}
+});
+
+test('world policy actual startup hook is inert for legacy selection and records a durable gap on selected write failure',()=>{
+    const legacy=mutationFixture();try{const before=legacy.mutationDb.serialize();recordWorldPolicyRuntime('engine',legacy.root);expect(legacy.mutationDb.serialize()).toEqual(before);
+        expect(()=>legacy.readWorldPolicy()).toThrow('absent');}finally{legacy.close();}
+    const f=mutationFixture(true);try{const before=f.clock.get('world');f.mutationDb.run("CREATE TRIGGER fail_runtime BEFORE INSERT ON world_policy_runtime_event BEGIN SELECT RAISE(ABORT,'injected');END");
+        expect(()=>recordWorldPolicyRuntime('engine',f.root)).not.toThrow();expect(f.mutations.read().faultCount).toBe(1);expect(f.clock.get('world')).toEqual(before);
+    }finally{f.close();}
+});
 
 test('policy mutation paired native cursors preserve actual director round trips even when sampled policies end unchanged; frozen reread stays readonly',()=>{
     const f=mutationFixture();try{const path=join(f.root,'.local/admin/world-director.json'),config={schemaVersion:1,enabled:false,seed:'fixture',epoch:initial,intervalMinutes:30};

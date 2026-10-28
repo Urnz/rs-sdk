@@ -1160,6 +1160,13 @@ függ. Ezért nincs hamis készre jelölés: 2/11 kész, 9 nyitott, 2/8 pozitív
 Végrehajtási sorrend P2-04–P2-10, P2-03 végellenőrzés, P2-11; új pont nincs.
 Következő konkrét kódmunka P2-04. 27/45, C07 NO-GO, hosszú run nem indult.
 
+**2026-10-28 P2-04 kész:** [natív óra/world-policy kapu](SI_C07_WORLD_POLICY_GATE.md).
+Explicit immutable-input szerződés, engine/gateway indulási rekord és processz-
+kötés, a meglévő clock/mod/director naplók és a World.reload packed út összekötve.
+Az eredeti 1+7 frame pozitív natív integrity/sourceCoverage ága, negatív/gap,
+readonly/rollback és C06 restore ellenőrzött. **3/11 kész, 8 nyitott;
+3/8 pozitív natív kapuút.** Következő P2-05. Nincs live run vagy minimum PASS.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

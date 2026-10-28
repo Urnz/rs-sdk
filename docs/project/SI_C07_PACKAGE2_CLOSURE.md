@@ -19,12 +19,12 @@ kettő csak bizonyított sértésre adott FAIL-t. Ezért a sok külön ellenőrz
 komponens nem jelentett kész minimum-kiértékelőt. A terv és a kommunikáció
 hibája volt, hogy ezt a fő hiányt elfedte az ismételt „6 csomag maradt”.
 
-Most **17/17 részleges szabályadapter**, **2/8 pozitív natív kapuút** van.
-A másik hat közül a lifecycle és a clock/world-policy már felismer sértést,
-de pozitív teljességet még nem igazol. A többi négynek sincs pozitív natív adaptere.
+Most **17/17 részleges szabályadapter**, **3/8 pozitív natív kapuút** van.
+A másik öt közül a lifecycle már felismer sértést, de pozitív teljességet még
+nem igazol. A többi négynek sincs teljes pozitív natív adaptere.
 A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run PASS.
 
-## Rögzített lezárási pontok: 2/11 kész
+## Rögzített lezárási pontok: 3/11 kész
 
 - [x] **P2-01 – `frozen-founder-roster`.** Az applied genesis teljes eredeti
   cohortja, immutable tagság és natív finite-avatar kötés alapján PASS-képes.
@@ -40,8 +40,10 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   A [16 családos kiértékelő és natív hiánydiagnosztika](SI_C07_SOURCE_COVERAGE.md)
   elkészült; a teljes natív pozitív feltétel a már felsorolt P2-04–P2-10
   forrásgaranciáitól függ. Ezért a pont nyitott, nem új belső feladatsor indul.
-- [ ] **P2-04 – `unchanged-clock-and-world-policy`.** A meglévő policy/mutation
-  readerek integrálása a teljes warmup/evaluation megítélésébe: PASS/FAIL/unknown.
+- [x] **P2-04 – `unchanged-clock-and-world-policy`.** A meglévő policy/mutation
+  readerek, explicit immutable-input contract, két processzhez kötött indulási
+  rekord és World.reload bekötése. Pozitív natív 1+7 gate és sourceCoverage,
+  failure/gap/readonly/C06 restore próbázva. [Eredmény](SI_C07_WORLD_POLICY_GATE.md).
 - [ ] **P2-05 – `finite-lifecycle-no-respawn`.** A meglévő mortality/attempt/
   census forrásokból a teljes eredeti életciklus kiértékelése, nem csak FAIL.
 - [ ] **P2-06 – `no-post-genesis-admin-or-fallback-value`.** A genesis utáni
@@ -62,7 +64,7 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Az összes kapu/szabály együtt igazolt; puszta feltöltött cellalista kevés.
 
 Ezek lezárási feltételek, nem 11 további chatkör: egy fejlesztés többet is
-lezárhat. Jelenleg 9 pont nyitott. A már elkészült 15 commit nem vész el;
+lezárhat. Jelenleg 8 pont nyitott. A már elkészült 15 commit nem vész el;
 a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb meg kell
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;

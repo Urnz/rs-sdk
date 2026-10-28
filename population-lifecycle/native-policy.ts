@@ -15,7 +15,7 @@ export interface LifecyclePolicySample {
     sessionId:string;worldId:string;position:SimulationClockObservation;wallTime:string;stage:LifecycleWatermarkStage;
     mortalityHead:{sequence:number;digest:string|null};watermarkHead:{sequence:number;digest:string|null};
     bootManifest:LifecycleRouteManifest|null;snapshot:LifecyclePolicySnapshot|null;
-    mutationCursor?:{selectionDigest:string;head:{sequence:number;digest:string|null};faultCount:number}|null;
+    mutationCursor?:{selectionDigest:string;head:{sequence:number;digest:string|null};faultCount:number;runtimeHead?:{sequence:number;digest:string|null}}|null;
 }
 function check(v:unknown,m:string):asserts v {if(!v)throw Error(m);}
 const hex=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
@@ -37,6 +37,8 @@ function validate(e:LifecyclePolicySample){const c=e?.position;
     for(const h of [e.mortalityHead,e.watermarkHead])check(h&&Number.isSafeInteger(h.sequence)&&h.sequence>=0&&(h.sequence===0?h.digest===null:hex(h.digest)),'Invalid lifecycle policy source head');
     const cursor=e.mutationCursor;if(cursor)check(hex(cursor.selectionDigest)&&Number.isSafeInteger(cursor.faultCount)&&cursor.faultCount>=0
         &&Number.isSafeInteger(cursor.head?.sequence)&&cursor.head.sequence>=0&&(cursor.head.sequence===0?cursor.head.digest===null:hex(cursor.head.digest)),'Invalid policy mutation cursor');
+    if(cursor?.runtimeHead)check(Number.isSafeInteger(cursor.runtimeHead.sequence)&&cursor.runtimeHead.sequence>=0
+        &&(cursor.runtimeHead.sequence===0?cursor.runtimeHead.digest===null:hex(cursor.runtimeHead.digest)),'Invalid policy runtime cursor');
     if(e.bootManifest)validateLifecycleManifest(e.bootManifest);if(e.snapshot)validateLifecyclePolicySnapshot(e.snapshot);
 }
 /** Explicit component-owned schema1. Clock/mod setters and shared schemas are untouched. */

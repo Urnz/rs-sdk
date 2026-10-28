@@ -9,6 +9,8 @@ import { tickPopulationDeaths, populationAvatarRestricted, populationAvatarIsFin
 import { tickNativeMortalityCoverage } from '#/mods/NativeMortalityCoverageRuntime.js';
 import { beginNativeLifecycleAttempt,observeNativePopulationLogin,observeNativeLifecycleWatermark,observeNativeLifecyclePolicy } from '#/mods/NativeLifecycleAttempts.js';
 import type { LifecycleWatermarkStage } from '../../../../population-lifecycle/native-watermarks.js';
+import {observeWorldPackedReload} from '../../../../population-lifecycle/world-policy-runtime.js';
+import {fileURLToPath} from 'node:url';
 import { executeCheckpointDetection, executeCheckpointSearch, loadEngineCheckpointConfiguration,
     type CheckpointDetectionCommand, type CheckpointSearchCommand } from '#/mods/CheckpointInspection.js';
 import { getCheckpointEvidenceStore, type EngineCheckpointDetectionRecord,
@@ -553,6 +555,10 @@ class World {
     }
 
     reload(clearInvs: boolean = true): void {
+        observeWorldPackedReload(fileURLToPath(new URL('../../../../',import.meta.url)),()=>this.reloadPackedInputs(clearInvs));
+    }
+
+    private reloadPackedInputs(clearInvs:boolean):boolean {
         OnDemand.reloadCache();
 
         VarPlayerType.load('data/pack');
@@ -637,6 +643,7 @@ class World {
 
         // todo: check if any jag files changed (transmitted) then reload crcs, instead of always
         makeCrcs();
+        return count!==-1;
     }
 
     async start(skipMaps = false, startCycle = true): Promise<void> {
