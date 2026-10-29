@@ -14,12 +14,13 @@ import { readNativeRentReceipt } from '../housing/native-rent-source.js';
 import { outcomeRows } from './outcome-work.js';
 
 /** Cohort/window/prefix watermark. Observer completeness is distinct from all high-level demand. */
-export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[]){
+export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[],allowContainedWindow=false){
     if(!NativeMiningCoverageStore.present(db))return{protocol:'native-mining-cohort-coverage-v1',status:'source-absent',
         observerCoverageComplete:false,completeDemandCoverage:false,selectionDigest:null,sourceHead:null,gaps:[{kind:'observer',reason:'coverage-source-absent'}]};
     const source=new NativeMiningCoverageStore(db).read(),s=source.selection,from=time(scope.fromSimulationTime),to=time(scope.toSimulationTime);
     check(s.worldId===worldId&&s.clockId===scope.clockId&&s.clockProfileDigest===scope.clockProfileDigest
-        &&time(s.fromSimulationTime)===from&&time(s.toSimulationTime)===to&&actors.length===s.actors.length
+        &&(allowContainedWindow?time(s.fromSimulationTime)<=from&&time(s.toSimulationTime)>=to:time(s.fromSimulationTime)===from&&time(s.toSimulationTime)===to)
+        &&actors.length===s.actors.length
         &&actors.length===scope.actorAgentIds.length&&new Set(scope.actorAgentIds).size===actors.length
         &&new Set(actors.map(a=>a.agentId)).size===actors.length&&actors.every(a=>scope.actorAgentIds.includes(a.agentId)
             &&s.actors.some(o=>o.actorId===a.agentId&&o.username===a.username&&o.lifecycleId===a.lifecycleId)),'Mining cohort coverage selection differs from export');

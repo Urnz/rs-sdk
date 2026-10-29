@@ -9,7 +9,7 @@ import type { SocietyMinimumPolicy } from '../society-minimum/policy.js';
 import { readNativeMiningCohortCoverage } from './tool-demand-coverage.js';
 
 /** Native request observations, deliberately separate from an unproved continuous-demand denominator. */
-export function readNativeToolDemandObservations(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[],policy?:SocietyMinimumPolicy){
+export function readNativeToolDemandObservations(db:Database,scope:EvaluationScope,worldId:string,actors:OutcomeActor[],policy?:SocietyMinimumPolicy,allowContainedWindow=false){
     const from=outcomeTime(scope.fromSimulationTime),to=outcomeTime(scope.toSimulationTime);
     outcomeCheck(to>from&&new Set(actors.map(a=>a.agentId)).size===actors.length&&actors.length===scope.actorAgentIds.length
         &&actors.every(a=>scope.actorAgentIds.includes(a.agentId)),'Invalid native tool demand scope/actors');
@@ -36,7 +36,7 @@ export function readNativeToolDemandObservations(db:Database,scope:EvaluationSco
                 reason:e.observation.reason,simulationTime:e.observation.clock.simulationTime,itemInstanceId:e.observation.item?.itemInstanceId??null}))};
     });
     const standingRequests=NativeMiningIntentStore.present(db)&&policy?readNativeMiningIntentIntervals(db,scope,worldId,actors,policy):null;
-    const cohortCoverage=(()=>{try{return readNativeMiningCohortCoverage(db,scope,worldId,actors);}
+    const cohortCoverage=(()=>{try{return readNativeMiningCohortCoverage(db,scope,worldId,actors,allowContainedWindow);}
         catch{return{protocol:'native-mining-cohort-coverage-v1',status:'invalid',observerCoverageComplete:false,completeDemandCoverage:false,
             gaps:[{kind:'observer',reason:'Coverage source validation failed'}]};}})();
     const body={protocol:'native-tool-demand-observations-v1',scope,worldId,cycleId:'bronze-pickaxe-mining',standingRequests,cohortCoverage,

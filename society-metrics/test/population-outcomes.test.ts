@@ -1,7 +1,7 @@
 import { afterEach,beforeAll,beforeEach,describe,expect,test } from 'bun:test';
 import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync,copyFileSync,writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join,dirname } from 'node:path';
 import { createHash,randomUUID } from 'node:crypto';
 import { OwnedDatabase } from '../../server/engine/src/io/OwnedDatabase.js';
 import { AgentStateStore } from '../../agent-state/store.js';
@@ -20,7 +20,7 @@ import { loadSocietyMinimumContract } from '../../society-minimum/contract.js';
 import { reportNativeOutcomes,type NativeOutcomeOptions } from '../native-outcomes.js';
 import { projectNativeMinimumAssessment } from '../minimum-assessment.js';
 import { reportSocietyEvaluation } from '../evaluation-report.js';
-import { nativeIntegrationOptions,readWealthBoundary } from '../integration-sources.js';
+import { nativeIntegrationOptions,readWealthBoundary,collectNativeIntegrationSources } from '../integration-sources.js';
 import { FoodNeedsPersistence } from '../../food-loop/needs-persistence.js';
 import { populationNeedsBinding } from '../../needs/population-binding.js';
 import { loadFoodLoopCatalog } from '../../food-loop/catalog.js';
@@ -81,6 +81,12 @@ import {NativeMaterialStore} from '../../production-workflow/native-material.js'
 import {appendFoodLineage} from '../../server/engine/src/mods/NativeFoodLineageStore.js';
 import {readNativeInternalLineage} from '../internal-lineage.js';
 import {fixturePhase} from '../../society-experiments/test/fixture-phase.js';
+import {reportNativeIntegration,projectNativeIntegration} from '../integration-report.js';
+import {projectNativeMinimumHistory,selectIntegrationBoundaryScope} from '../minimum-history.js';
+import {OwnedFoodDatabase} from '../../food-loop/owned-database.js';
+import {NeedsStore} from '../../needs/store.js';
+import {FoodConsumptionStore} from '../../food-loop/consumption-store.js';
+import {NativeFoodConsumptionProjection} from '../../food-loop/native-consumption-store.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -1090,6 +1096,95 @@ test('native paid rent and frozen authority snapshots reach original-founder dai
     const invalid=reportSocietyEvaluation(f.scope,wrong);expect(invalid.nativeIntegration!.minimumHousing.intervals).toHaveLength(0);
     expect(JSON.stringify(invalid.nativeIntegration!.minimumHousing)).not.toContain('PRIVATE BAD');
 },20000);
+
+describe.each([2,192])('minimum history native boundaries %i hours',hours=>{
+    let f:ReturnType<typeof fixture>,options:ReturnType<typeof nativeIntegrationOptions>,started:number;
+    fixturePhase(beforeAll,15000,()=>{
+        started=performance.now();f=fixture();if(hours===2)f.scope={...f.scope,fromSimulationTime:'2001-01-01T01:00:00.000Z',toSimulationTime:'2001-01-01T02:00:00.000Z'};
+        cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
+        options={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath};
+        const checkpoint=join(f.root,'server/engine/data/history.sqlite'),propertyPath=join(f.root,'.local/admin/properties.sqlite');options.nativeFoodCheckpointPath=checkpoint;
+        new BusinessManagerStore(options.businessPath).close();new BusinessAssetStore(options.businessPath).close();new InstitutionTreasuryStore(options.treasuryPath).close();
+        new ProductionWorkInProgressStore(options.businessPath,loadDefaultProductionWorkflowCatalog(),undefined,false).close();
+        const title=new PropertyStore(loadPropertyCatalog(join(f.root,'config/properties.json')),propertyPath);
+        try{title.assignGenesis('history-house','falador.south-house',1,{kind:'player',id:'ada'},wall);}finally{title.close();}
+        new NativeRentCoordinator({workspace:f.root,worldId:'fixture',housingPath:options.housingPath,propertyPath,checkpointPath:checkpoint}).close();
+        // Fixture construction uses the actual producers on owned memory DBs; every reader consumes real serialized SQLite files.
+        const clock=new SimulationClockStore(f.clockPath),
+            agents=new AgentStateStore(f.agentPath,{store:clock,clockId:'world'}),db=new OwnedDatabase(':memory:'),needsDb=new OwnedFoodDatabase(':memory:'),
+            needs=new NeedsStore(needsDb,contract.dependencies.needs,contract.dependencies.dynamics),catalog=loadFoodLoopCatalog(join(configDirectory,'food-loops.json'));
+        new FoodConsumptionStore(needsDb,catalog);new NativeFoodConsumptionProjection(needsDb,needs,catalog);
+        try{
+            new NativeFoodConsumptionStore({db});new PlayerInventoryEscrowStore({db,checkpoint:()=>{}});initializeRentJournal(db,'native_rent');
+            db.run('CREATE TABLE accounts(owner TEXT PRIMARY KEY,save BLOB NOT NULL)');
+            const bindings=f.scope.actorAgentIds.map(id=>{agents.setCharacterBirth(id,agents.getCharacterLifecycle(id)!.revision,initial,'born',wall);
+                db.run('INSERT INTO accounts VALUES(?1,?2)',[id,createSaveData({inventory:[{id:379,count:100},...(id==='ada'?[{id:1265,count:1}]:[])],bank:[]})]);
+                return populationNeedsBinding('fixture',agents.getPopulationMember(id)!);});
+            const observed=clock.observe('world',wall,0);for(const binding of bindings)needs.initialize({binding,clock:observed,history:[],playerTime:null,
+                admission:{kind:'genesis',evidenceId:f.options.population!.genesisResultId,evidenceDigest:f.options.population!.genesisResultDigest}});
+            const tool=new NativeToolStore(db),item=tool.lifecycle.create({itemInstanceId:'history-pick',lifecycleTypeId:'bronze-pickaxe',ownerActorId:'ada',qualityBasisPoints:10000,
+                provenanceDigest:'a'.repeat(64),atSimulationTime:initial}),b=bindings[0]!,owner={actorId:b.actorId,username:b.playerId,lifecycleId:b.lifecycleId,worldId:b.worldId,clockId:b.clockId,clockProfileDigest:b.clockProfileDigest};
+            tool.append(`opening:${item.itemInstanceId}`,{kind:'explicit-opening',itemInstanceId:item.itemInstanceId,item,owner,evidenceDigest:'b'.repeat(64)});
+            const directory=join(f.root,'.local/history-frozen');mkdirSync(directory,{recursive:true});
+            const freeze=(source:string,target:string)=>{
+                const memory=source===checkpoint?db:source===options.databasePath?needsDb:null;
+                if(memory)writeFileSync(target,memory.serialize());else{const reader=new OwnedDatabase(source,{readonly:true});try{writeFileSync(target,reader.serialize());}finally{reader.close(true);}}
+                return target;
+            };
+            // These producers do not change during this fixture. Reuse immutable copies, never live DBs or mutable hardlinks.
+            const shared=Object.fromEntries(Object.entries({businessPath:options.businessPath,treasuryPath:options.treasuryPath,
+                agentPath:f.agentPath,healthPath:f.healthPath,housingPath:options.housingPath,propertyPath}).map(([key,path])=>[key,freeze(path,join(directory,`${key}.sqlite`))]));
+            options.foodBoundaries=[];options.toolBoundaries=[];options.housingBoundaries=[];
+            for(let hour=0;hour<=hours;hour++){
+                const wallAt=new Date(Date.parse(wall)+hour*3600000).toISOString(),c=clock.observe('world',wallAt,hour);closeFoodDeliveryTick(db,c);
+                for(const binding of bindings)needs.advance({binding,clock:c,history:[],playerTime:null,expectedRevision:needs.get(binding)!.revision});
+                clock.pause('world',clock.get('world')!.revision,wallAt);
+                const paths={...shared,checkpointPath:freeze(checkpoint,join(directory,`checkpoint-${hour}.sqlite`)),clockPath:freeze(f.clockPath,join(directory,`clock-${hour}.sqlite`)),
+                    needsPath:freeze(options.databasePath,join(directory,`needs-${hour}.sqlite`))} as unknown as NativeFoodBoundaryPaths;
+                options.foodBoundaries.push({at:c.simulationTime,paths});options.toolBoundaries.push({at:c.simulationTime,paths});
+                options.housingBoundaries.push({at:c.simulationTime,paths:{...paths,housingPath:shared.housingPath!,propertyPath:shared.propertyPath!}});
+                if(hour<hours)clock.resume('world',clock.get('world')!.revision,wallAt);
+            }
+            // The final current watermark must include the immutable checkpoint channel as well.
+            options.nativeFoodCheckpointPath=checkpoint;mkdirSync(dirname(options.databasePath),{recursive:true});
+            freeze(checkpoint,checkpoint);freeze(options.databasePath,options.databasePath);
+        }finally{needsDb.close(true);agents.close();clock.close();db.close(true);}
+        console.info('[MinimumHistoryFullFrame] build',Math.round(performance.now()-started));
+    });
+    test('minimum history joins real physiology, physical, housing and custody boundaries without donating numeric or flow PASS',()=>{
+        const out=f.outcomes(),p=out.sources.populationBaseline,d=out.sources.populationDeaths;
+        if(p.status!=='available'||d.status!=='available')throw Error('Missing original native cohort');
+        const paths=[...new Set([...options.foodBoundaries!,...options.housingBoundaries!].flatMap(b=>Object.values(b.paths)))];
+        const frozenHashes=()=>paths.map(path=>createHash('sha256').update(readFileSync(path)).digest('hex'));
+        const before=[...f.hashes(),...frozenHashes()];
+        // The stable double-collection facade is exercised by the short native case. Do not repeat all193 expensive audits for the same readonly full matrix.
+        const fullScope={...f.scope,fromSimulationTime:initial},sources=hours===192?collectNativeIntegrationSources(fullScope,options):null;
+        const r=sources?projectNativeIntegration(f.scope,options,selectIntegrationBoundaryScope(sources,f.scope),
+            projectNativeMinimumHistory(contract,f.scope,p.value,d.value.founderBindings,sources)):
+            reportNativeIntegration(f.scope,options,{baseline:p.value,founders:d.value.founderBindings}),h=r.minimumHistory!;
+        console.info('[MinimumHistoryBoundaryDiagnostics]',JSON.stringify({hours,flags:[h.completePhysiologyCoverage,h.completeHousingCoverage,h.completePhysicalBoundaries,h.completeCustodyBoundaries],
+            food:{total:r.minimumFood.boundaries.length,invalid:r.minimumFood.boundaries.filter(b=>b.source.status!=='available').length},
+            tool:{total:r.minimumToolCapacity.boundaries.length,invalid:r.minimumToolCapacity.boundaries.filter(b=>b.source.status!=='available').length}}));
+        expect(h.completePhysiologyCoverage).toBeTrue();expect(h.completeHousingCoverage).toBeTrue();expect(h.completePhysicalBoundaries).toBeTrue();expect(h.completeCustodyBoundaries).toBeTrue();
+        expect(h.boundaryTimes).toHaveLength(hours+1);expect(r.minimumFood.boundaries).toHaveLength(hours===192?169:2);expect(r.minimumToolCapacity.boundaries).toHaveLength(hours===192?169:2);
+        if(hours===2){
+            const sparse={...options,foodBoundaries:options.foodBoundaries!.filter((_,i)=>i!==1),toolBoundaries:options.toolBoundaries!.filter((_,i)=>i!==1),housingBoundaries:options.housingBoundaries!.filter((_,i)=>i!==1)};
+            const gap=reportNativeIntegration(f.scope,sparse,{baseline:p.value,founders:d.value.founderBindings}).minimumHistory!;
+            expect(gap.completePhysiologyCoverage).toBeTrue();expect(gap.completePhysicalBoundaries).toBeFalse();expect(gap.completeHousingCoverage).toBeFalse();expect(gap.completeCustodyBoundaries).toBeFalse();
+            const bad={...options,toolBoundaries:options.toolBoundaries!.map((b,i)=>i===1?{...b,paths:{...b.paths,clockPath:options.toolBoundaries![2]!.paths.clockPath}}:b)};
+            expect(reportNativeIntegration(f.scope,bad,{baseline:p.value,founders:d.value.founderBindings}).minimumHistory!.completePhysicalBoundaries).toBeFalse();
+            expect([...f.hashes(),...frozenHashes()]).toEqual(before);return;
+        }
+        const projected=projectNativeMinimumAssessment(contract,f.scope,out,undefined,r);
+        for(const id of ['physiology-modes','frozen-physical-boundaries','housing-rights'])expect(projected.sourceCoverage.rows.find(s=>s.sourceId===id)!.status).toBe('complete');
+        expect(projected.sourceCoverage.rows.find(s=>s.sourceId==='business-treasury-custody')!.status).not.toBe('complete');
+        expect(projected.assessment!.frame.boundaries!.complete).toBeTrue();expect(projected.assessment!.frame.boundaries!.times).toHaveLength(169);
+        expect(projected.qualifiesMinimum).toBeFalse();expect(projected.verdict).toBe('fail');expect([...f.hashes(),...frozenHashes()]).toEqual(before);
+        const foreign={...r,minimumHistory:{...h,genesisResultDigest:'f'.repeat(64)}};
+        expect(projectNativeMinimumAssessment(contract,f.scope,out,undefined,foreign).sourceCoverage.rows.find(s=>s.sourceId==='frozen-physical-boundaries')!.status).not.toBe('complete');
+        console.info('[MinimumHistoryFullFrame] total',Math.round(performance.now()-started));
+    },30000);
+});
 
 test('native applied original roster binds automatically; offline members and empty verified death ledger never imply survival PASS',()=>{
     const f=fixture(),before=f.hashes(),r=f.report();expect(r.bindingStatus).toBe('bound');expect(rule(r,'founders-at-start').verdict).toBe('pass');

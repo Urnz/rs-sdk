@@ -1183,7 +1183,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters and seven integrity gates have positive native paths. Population lower bounds now use original closing survivors under complete finite lifecycle/health coverage; population boundaries do not certify physical food/reserve snapshots. Complete aggregate source coverage, boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
+      "reason": "All17 requirements have native adapters and seven integrity gates have positive native paths. Full original warmup/evaluation replay, frozen physical/housing/custody observations and executor history now feed source coverage; sparse endpoints, missing requests or custody flows remain unknown. Aggregate native source-coverage audit and full numeric/integrity PASS remain incomplete; no actual C07 run is certified."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1675,11 +1675,11 @@
     },
     {
       "path": "society-metrics/source-coverage.ts",
-      "sha256": "91bae0ca6fcb6bfb935c94177bce422af976cdc2ad96fec8b3a76b76e604c2e6"
+      "sha256": "2e6c1f064b93ec2e8629edffd0bec1f3ceb5b42320c5fdb965925d69b220e5be"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "7124e1b24382496a2f2a5460e299a6276d33b746d05b7e54f04d18473ad4a8f4"
+      "sha256": "121284ae7ce5eee35af5484f08d4b817b73387a314a4da6b1803e3ad7ddfbab2"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
@@ -1688,6 +1688,10 @@
     {
       "path": "society-metrics/population-bounds.ts",
       "sha256": "9638cfdd3e5b671b6f7dd6acea606c0c1a37dbe181e001008742e7655826df90"
+    },
+    {
+      "path": "society-metrics/minimum-history.ts",
+      "sha256": "cd6ba171f1622bd7d5dd37c5ad282778b4337e3e6675537e59f9bd09d24a9eb1"
     },
     {
       "path": "society-metrics/genesis-opening.ts",
@@ -1723,11 +1727,11 @@
     },
     {
       "path": "society-metrics/food-boundaries.ts",
-      "sha256": "dcd8057130674f74e864a87e4a7c2edc7069bf90f11b76cd0b656ecad7b353df"
+      "sha256": "9d8cb2cbead82f577c6bc40e0ef8d1d6a76e61ef02ffce7c22d0b9b9a3cc0bae"
     },
     {
       "path": "society-metrics/integration-sources.ts",
-      "sha256": "8759521827ab63c961a3fc73744f266a028d1857d2e6008649618ff913ee8b64"
+      "sha256": "294cbff7cf7144062c286e122d302820d856be7e3bcac84c48682ed0ec9a9dd8"
     },
     {
       "path": "server/gateway/admin/save-reader.ts",
@@ -1735,7 +1739,7 @@
     },
     {
       "path": "society-metrics/housing-access.ts",
-      "sha256": "fed373bac002f1f638ade8e13ac2ee86bc783e1f62a9de2701718d0f96008764"
+      "sha256": "6df947bad18c0572b215a281601f863e941c003a237b1c4e400ce30d903bc5b7"
     },
     {
       "path": "society-metrics/housing-minimum.ts",
@@ -1763,7 +1767,7 @@
     },
     {
       "path": "society-metrics/tool-capacity.ts",
-      "sha256": "44364e9b82ee5f4c38664177152f4d653cdfea9c9b2debf114909b4a683df0b1"
+      "sha256": "42f7bc4667fcbdee834c641bc83197fe64ec72c3b0d854bfa0cdd6443cb8b758"
     },
     {
       "path": "society-metrics/tool-capacity-ledger.ts",
@@ -1911,11 +1915,11 @@
     },
     {
       "path": "society-metrics/integration-report.ts",
-      "sha256": "33865f6aa48960b4a333cbf1b42d2082d106c6311eabdd2be4b11fcb186e7760"
+      "sha256": "c64a1a7a8f58711d6a4850f5f72fdfc73fee585c0873819cfce3b0ac7d340259"
     },
     {
       "path": "society-metrics/evaluation-report.ts",
-      "sha256": "b4df3d47b6d23698d67e941934036179b32ced71f7f47144717c7789f9db39db"
+      "sha256": "47b4daff957c57a176522ea0c4b253365973fb206c91bd28d8bf0ded571d23e7"
     },
     {
       "path": "society-metrics/outcome-work.ts",
@@ -1931,11 +1935,11 @@
     },
     {
       "path": "society-metrics/tool-demand.ts",
-      "sha256": "65f012e19674c16e5bbb0d48c1ecc8df61535292fd5114f798f5a786d48b0524"
+      "sha256": "a860b78d0332cd85e1ea79f365df282bba888ad1153fff5641d39c8787cf48a2"
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "a6bd796baa4c654f0690941ec380bca9c8620e00d7d487ba263b6932bf4be385"
+      "sha256": "e9b4cce14d02f0139dd22b9d8546325f4a2f5d27e37b584b0824a9b2f2573566"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -1971,7 +1975,7 @@
     },
     {
       "path": "society-metrics/tool-demand-coverage.ts",
-      "sha256": "c74bea395b7e2e3069286e2a91f55a7ca85c09818aafa3710302b4e7320597b9"
+      "sha256": "266c8e7063e966e76adc5bf80bd37439b7f8dac809abe68332a7945d9475313c"
     },
     {
       "path": "server/engine/src/mods/NativeMiningCoverage.ts",
@@ -2075,7 +2079,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "e529a1037dfe1a7b36b7b8fc76f628e9793a17aabadc91cfbb7f5b7daa17b854"
+      "sha256": "a8e067f0ce8c71df75ba21f2e69c706f14ec4c7a104b052986dbbcf52c42536b"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -2104,5 +2108,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "bf56150d053dbc2adb8b421a03126e520f1636c835704d94ec1712bc8d7fc7c2"
+  "digest": "7b40643a3366e856d4430ebf744726be9055fb1e78164465172ad922b2481cca"
 }

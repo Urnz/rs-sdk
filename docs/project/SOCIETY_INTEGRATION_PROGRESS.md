@@ -3952,3 +3952,51 @@ providerkérés, baseline vagy historical payload DB olvasás.
 
 `20261029-170836-118-si-c07-p209-format`:staged changed-line format és28
 dokumentum linkjei/aktuális source hashek PASS1,021 s; új fájlok stage-elve.
+
+## 2026-10-29 – SI-C07/2 P2-10 boundary/access/demand history kész
+
+**9/11 kész, 2 nyitott; 7/8 pozitív natív kapuút.** Következő a P2-03 közös
+16-családos natív audit, majd P2-11 összesítő. Nincs új closure pont. Roadmap27/45;
+SI-C07 NO-GO, SI-M3/MVS nem PASS. [Részletek és minden korai FAIL](SI_C07_BOUNDARY_HISTORY.md).
+
+Applied original baseline/lifecycle kötött genesis→end needs/mode replay és
+külön evaluation boundary-projekció. Valid, exact paused food/tool/housing/
+wealth leltár, eredeti actor nevezők és teljes executor warmup history az öt
+családhoz. A custodyhoz sealed food/tool lineage és admin/external flow is kell;
+aktuális snapshot nem pótolja. A food/tool health-pointok a current native
+original death authority pontig igazolt haláleseteit sem hagyhatják ki.
+
+**95 külön célzott eset PASS**, nem full regresszió:
+- `20261029-173345-063-si-c07-p210-consumers`:75 PASS/1 hibás tesztassertion
+  25,261 s. Az assertiont a tényleges mezőre javítottuk; a teljes11-es fájl és
+  root TS PASS19,749 s (`20261029-173545-698-si-c07-p210-source-types`).
+- `20261029-173714-259-si-c07-p210-final-native-consumers`:19 PASS54,785 s;
+  hét natív history/food/tool/housing/needs/evaluation,11 outcome,1 benchmark restore.
+- `20261029-174209-822-si-c07-p210-health-binding-final`:22 érintett ismételt
+  source/food/minimum eset és végső root TS PASS19,786 s.
+- `20261029-174420-205-si-c07-p210-health-native-closed`:három érintett natív
+  eset PASS36,694 s. Teljes1+7 setup4878/body25582 ms; változatlan15+30 s keret.
+- `20261029-174605-675-si-c07-p210-preflight`:PASS1,147 s; várt NO-GO exit2,
+  aktuális source/digest és29 dokumentum linkjei. Eredeti minimum SHA
+  596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a változatlan.
+
+Az első nagy fixture hibásan közös checkpointot használt; a closed-tick marker
+minden időponthoz önálló. Szűk hárompontos diagnosztikával javítva. A setup
+fsync-költsége20,210 s-ról4,878 s-ra csökkent a valódi needs/checkpoint producerek
+fixture-only memory konstrukciójával és tényleges SQLite serializálással.
+Éles olvasásnál collection-local policy és közös food/tool census újrahasználat,
+friss második facade-gyűjtés. A rövid facade ellenőrzi a double collectiont és
+gap/wrong-clock ágakat; a teljes193-pontos reader/assessment egyszer auditál,
+összes frozen fájl hash előtte/utána egyezik. Nincs vak timeout-emelés,
+assertion-kikapcsolás vagy tartóssági termékbeállítás-váltás.
+
+A natív physiology/physical/housing és custody-boundary pozitív; a hiányzó
+flow-k továbbra custody partialt adnak, numeric FAIL megmarad. A közös16/16
+natív út és a teljes17+8 numeric/global PASS a két megmaradt rögzített pont.
+Full nem indokolt: readonly saját komponensek és pontos közvetlen fogyasztók;
+shared clock/persistence/economic/auth/dependency alap nem változott. Engine TS/
+C06 archive nem érintett. Nincs új journal/tábla/producer, live install/start,
+baseline, providerkérés vagy historical backup payload-read.
+
+`20261029-174730-870-si-c07-p210-format`:staged changed-line format, aktuális
+source hashek és29 dokumentum linkjei PASS0,951 s; új fájlok is stage-elve.

@@ -27,7 +27,10 @@ export function collectSocietyEvaluation(query: EvaluationScope, options: Societ
     const scope = validateEvaluationScope(query);
     // Enforce export scope before the other native readers are opened.
     const outcomes = options.nativeOutcomes ? reportNativeOutcomes(scope,options.nativeOutcomes) : null;
-    const integration = options.nativeIntegration && scope.actorAgentIds.length === 4 ? reportNativeIntegration(scope, options.nativeIntegration) : null;
+    const original=outcomes?.sources.populationBaseline.status==='available'&&outcomes.sources.populationDeaths.status==='available'
+        &&outcomes.sources.populationBaseline.value.genesisAppliedAtSimulationTime<=scope.fromSimulationTime
+        ?{baseline:outcomes.sources.populationBaseline.value,founders:outcomes.sources.populationDeaths.value.founderBindings}:undefined;
+    const integration = options.nativeIntegration && scope.actorAgentIds.length === 4 ? reportNativeIntegration(scope, options.nativeIntegration,original) : null;
     const selfSufficiency = reportSelfSufficiency(scope, options);
     const minimumContract=loadSocietyMinimumContract(options.configDirectory);
     if(minimumContract.digest!==selfSufficiency.bindings.contractDigest)throw Error('Minimum definition changed during native collection');

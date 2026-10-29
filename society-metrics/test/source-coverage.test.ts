@@ -3,6 +3,7 @@ import {join} from 'node:path';
 import {loadSocietyMinimumContract} from '../../society-minimum/contract.js';
 import type {MinimumFrame} from '../../society-minimum/assessment.js';
 import {projectNativeSourceCoverage} from '../source-coverage.js';
+import {societyMinimumDigest as digest} from '../../society-minimum/policy.js';
 const contract=loadSocietyMinimumContract(join(import.meta.dir,'../../config'));
 const scope={clockId:'clock',clockProfileDigest:'a'.repeat(64),actorAgentIds:['ada','bea','cora','dora'],
     fromSimulationTime:'2001-01-02T00:00:00.000Z',toSimulationTime:'2001-01-09T00:00:00.000Z'};
@@ -92,4 +93,53 @@ test('lineage coverage consumes only sealed original food and tool windows, sepa
     expect(selected().map(r=>r.status)).toEqual(['complete','complete','complete']);f.sources.internalLineage.value.completeFoodLineageCoverage=false;
     expect(selected().map(r=>r.status)).toEqual(['partial','complete','complete']);f.sources.internalLineage.value.genesisResultDigest='f'.repeat(64);
     expect(selected().every(r=>r.status!=='complete')).toBeTrue();
+});
+
+function historyFixture(){
+    // Contract-only join fixture; actual native replay/paused snapshots are exercised in population-outcomes.test.ts.
+    const f=fixture(),fullScope={...scope,fromSimulationTime:frame.genesisAppliedAtSimulationTime},window={scope,worldId:'world',
+        fromSimulationTime:frame.genesisAppliedAtSimulationTime,toSimulationTime:scope.toSimulationTime,genesisResultId:'genesis',genesisResultDigest:'c'.repeat(64)};
+    f.sources.populationDeaths.value.deaths=[];
+    f.sources.internalLineage=available({...window,completeFoodLineageCoverage:true,completeToolLineageCoverage:true});
+    f.sources.administrativeValue=available({...window,completeAdministrativeValueCoverage:true});
+    f.sources.externalValue=available({...window,completeExternalValueCoverage:true});
+    f.sources.minimumDemandHistory=available({scope:fullScope,worldId:'world',cohortCoverage:{completeDemandCoverage:true},sourceHead:{sequence:0,digest:null}});
+    const boundaryTimes=Array.from({length:193},(_,i)=>new Date(Date.parse(frame.genesisAppliedAtSimulationTime)+i*3600000).toISOString());
+    const history={...window,scope,fullScope,contractDigest:contract.digest,founderAgentIds:[...scope.actorAgentIds].sort(),
+        founderDigest:digest(f.sources.populationDeaths.value.founderBindings),completePhysiologyCoverage:true,completePhysicalBoundaries:true,
+        completeHousingCoverage:true,completeCustodyBoundaries:true,boundaryTimes,populationAtBoundaries:boundaryTimes.map(at=>({at,terminalAgentIds:[]})),
+        sources:Object.fromEntries(['needs','modes','nutrition','foodBoundaries','housingAccess','toolBoundaries','wealthBoundaries'].map(name=>[name,available({})])),
+        sourceDigest:'a'.repeat(64),exposureDigest:'a'.repeat(64),housingDigest:'a'.repeat(64)};
+    const integration={scope,worldId:'world',minimumHistory:history,sources:{}} as any;
+    return{...f,history,integration,read:(binding=frame)=>projectNativeSourceCoverage(contract,binding,f.outcomes,integration)};
+}
+
+test('full original history independently joins all five boundary/access/demand families while the other minimum gates remain unknown',()=>{
+    const f=historyFixture(),r=f.read();
+    for(const id of ['physiology-modes','frozen-physical-boundaries','housing-rights','executor-native-demand','business-treasury-custody'])
+        expect(r.rows.find(s=>s.sourceId===id)!.status).toBe('complete');
+    expect(r.verdict).toBe('inconclusive');expect(r.integrity.some(g=>g.coverage==='inconclusive')).toBeTrue();
+    f.history.completePhysiologyCoverage=false;expect(f.read().rows.find(s=>s.sourceId==='physiology-modes')!.status).toBe('partial');
+    expect(f.read().rows.find(s=>s.sourceId==='housing-rights')!.status).toBe('complete');
+    f.sources.minimumDemandHistory.value.cohortCoverage.completeDemandCoverage=false;
+    expect(f.read().rows.find(s=>s.sourceId==='executor-native-demand')!.status).toBe('partial');
+});
+
+test('missing warmup, foreign history bindings, sparse or extra physical observations and missing custody flows cannot borrow a complete family',()=>{
+    const cases:Array<(f:ReturnType<typeof historyFixture>)=>void>=[f=>{f.history.fromSimulationTime=scope.fromSimulationTime;},
+        f=>{f.history.genesisResultDigest='f'.repeat(64);},f=>{f.history.founderDigest='f'.repeat(64);},
+        f=>{f.history.fullScope={...f.history.fullScope,clockId:'foreign'};},f=>{f.integration.worldId='foreign';},
+        f=>{f.history.founderAgentIds=f.history.founderAgentIds.slice(1);}];
+    for(const mutate of cases){const f=historyFixture();mutate(f);const r=f.read();
+        for(const id of ['physiology-modes','frozen-physical-boundaries','housing-rights','business-treasury-custody'])expect(r.rows.find(s=>s.sourceId===id)!.status).not.toBe('complete');}
+    const f=historyFixture();f.history.boundaryTimes.splice(1,1);expect(f.read().rows.find(s=>s.sourceId==='frozen-physical-boundaries')!.status).toBe('partial');
+    const g=historyFixture(),extra=new Date(Date.parse(scope.fromSimulationTime)+1000).toISOString();
+    expect(g.read({...frame,boundaries:{times:[scope.fromSimulationTime,extra,scope.toSimulationTime],sourceDigest:'a'.repeat(64),complete:false}}).rows.find(s=>s.sourceId==='frozen-physical-boundaries')!.status).toBe('partial');
+    g.sources.administrativeValue.value.worldId='foreign';expect(g.read().rows.find(s=>s.sourceId==='business-treasury-custody')!.status).toBe('partial');
+    g.sources.minimumDemandHistory.value.scope=scope;expect(g.read().rows.find(s=>s.sourceId==='executor-native-demand')!.status).toBe('partial');
+    const h=historyFixture();h.sources.internalLineage.value.completeFoodLineageCoverage=false;
+    expect(h.read().rows.find(s=>s.sourceId==='business-treasury-custody')!.status).toBe('partial');
+    const stale=historyFixture();stale.sources.populationDeaths.value.deaths=[{agentId:'ada',atSimulationTime:scope.fromSimulationTime}];
+    expect(stale.read().rows.find(s=>s.sourceId==='frozen-physical-boundaries')!.status).toBe('partial');
+    expect(stale.read().rows.find(s=>s.sourceId==='business-treasury-custody')!.status).toBe('partial');
 });

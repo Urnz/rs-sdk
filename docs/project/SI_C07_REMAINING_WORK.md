@@ -18,10 +18,10 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    [Eredmény](SI_C07_NATIVE_DISPATCH.md).
 2. **FOLYAMATBAN – Teljes minimum-assessment implementáció.** Az eredeti
    17 szabály és 8 integritási kapu natív kiértékelése, minden szükséges
-   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **8/11 kész**;
+   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **9/11 kész**;
    17/17 részleges szabályadapter, **7/8 pozitív natív kapuút**. Az összesített
-   source-coverage kapu, a teljes boundary/access/demand integráció és az
-   összesítő PASS-ág még nyitott. A pozitív population-korlátok elkészültek. A tényleges jövőbeli
+   source-coverage közös natív auditja és az összesítő PASS-ág még nyitott.
+   Population és boundary/access/demand bekötve. A tényleges jövőbeli
    run adatai nem ennek az implementációs csomagnak az elkészülési feltételei.
 3. **Teljes közös founder-baseline.** Négy founder kompetenciákkal, pontos
    verified skill/grant csomaggal; natív Mining→smelt→repair→reuse input/
@@ -91,3 +91,8 @@ kész. Eredeti closing survivorok + teljes finite lifecycle/health + azonos
 checkpoint; külön population boundary, fizikai inventory nem bővül a census miatt.
 **8/11 kész, 3 nyitott; 7/8 pozitív natív kapuút.** Következő P2-10,
 majd P2-03 végellenőrzés és P2-11. C07 továbbra NO-GO.
+
+2026-10-29 további lezárás: [P2-10 boundary/access/demand history](SI_C07_BOUNDARY_HISTORY.md)
+kész. Teljes eredeti needs/access és fizikai inventory, executor warmup és
+kötelező custody-flow join. **9/11 kész, 2 nyitott; 7/8 pozitív natív kapuút.**
+Következő P2-03 közös natív coverage-audit, majd P2-11. Új pont nincs.

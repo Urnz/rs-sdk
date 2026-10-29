@@ -4,6 +4,7 @@ import {assessMinimumSourceCoverage,minimumCoverageBinding,type MinimumSourceCov
 import {societyMinimumDigest as digest} from '../society-minimum/policy.js';
 import type {reportNativeOutcomes} from './native-outcomes.js';
 import type {reportNativeIntegration} from './integration-report.js';
+import {minimumHistoryDeathsMatch} from './minimum-history.js';
 
 /** Derive facts from existing verified backend readers. No proof or path is accepted from the report query. */
 export function projectNativeSourceCoverage(contract:SocietyMinimumContract,frame:MinimumFrame,
@@ -14,12 +15,12 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
         fromSimulationTime:frame.fromSimulationTime,toSimulationTime:frame.toSimulationTime,actorAgentIds:[...actors].sort()});
     const native=frameValid&&outcomes&&outcomes.worldId===frame.worldId&&scopeMatches(outcomes.scope)?outcomes:null,
         integrated=native&&integration&&integration.worldId===frame.worldId&&scopeMatches(integration.scope)?integration:null;
-    const add=(sourceId:string,sources:Array<{status:string;digest?:string}|null|undefined>,complete:boolean,gaps:string[],head?:unknown)=>{
+    const add=(sourceId:string,sources:Array<{status:string;digest?:string}|null|undefined>,complete:boolean,gaps:string[],head?:unknown,boundaryTimes?:string[])=>{
         const available=sources.filter(s=>s?.status==='available'&&typeof s.digest==='string'),evidenceDigests=[...new Set(available.map(s=>s!.digest!))];
         const status=sources.some(s=>s?.status==='invalid')?'invalid':available.length!==sources.length||!sources.length?'unavailable':complete?'complete':'partial';
         proofs.push({sourceId,bindingDigest,status,actorAgentIds:actors,headDigest:available.length?digest(head??evidenceDigests):null,evidenceDigests,
             intervals:complete?[{from:frame.genesisAppliedAtSimulationTime,to:frame.toSimulationTime}]:[],
-            ...(sourceId==='applied-genesis'?{openingAt:frame.genesisAppliedAtSimulationTime}:{}),gaps:status==='complete'?[]:gaps});
+            ...(sourceId==='applied-genesis'?{openingAt:frame.genesisAppliedAtSimulationTime}:{}),...(boundaryTimes?{boundaryTimes}:{}),gaps:status==='complete'?[]:gaps});
     };
     const s=native?.sources,p=s?.populationBaseline,d=s?.populationDeaths,o=s?.genesisOpening;
     const original=p?.status==='available'&&d?.status==='available'&&p.value.clockId===frame.clockId&&p.value.clockProfileDigest===frame.clockProfileDigest
@@ -50,19 +51,37 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
         &&policy.value.toSimulationTime===frame.toSimulationTime,['complete-policy-writer-history-unproven'],policy?.status==='available'?
         {policy:policy.value.policyHead,mutation:policy.value.mutationHead,runtime:policy.value.runtimeHead}:undefined);
     const i=integrated?.sources;
+    const history=integrated?.minimumHistory,h=history&&original&&p?.status==='available'&&d?.status==='available'
+        &&history.contractDigest===contract.digest&&history.worldId===frame.worldId&&scopeMatches(history.scope)
+        &&history.fromSimulationTime===frame.genesisAppliedAtSimulationTime&&history.toSimulationTime===frame.toSimulationTime
+        &&digest(history.fullScope)===digest({...history.scope,fromSimulationTime:frame.genesisAppliedAtSimulationTime})
+        &&history.genesisResultId===p.value.genesisResultId&&history.genesisResultDigest===p.value.genesisResultDigest
+        &&history.founderDigest===digest(d.value.founderBindings)&&digest(history.founderAgentIds)===digest([...actors].sort())?history:null;
     const lineage=s?.internalLineage,fullLineage=!!original&&lineage?.status==='available'&&scopeMatches(lineage.value.scope)&&lineage.value.worldId===frame.worldId
         &&lineage.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime&&lineage.value.toSimulationTime===frame.toSimulationTime&&p?.status==='available'
         &&lineage.value.genesisResultId===p.value.genesisResultId&&lineage.value.genesisResultDigest===p.value.genesisResultDigest;
-    add('physiology-modes',[i?.needs,i?.modes,i?.nutrition],false,['warmup-physiology-denominators-unproven']);
+    add('physiology-modes',h?[h.sources.needs,h.sources.modes,h.sources.nutrition]:[i?.needs,i?.modes,i?.nutrition],!!h?.completePhysiologyCoverage,['warmup-physiology-denominators-unproven'],h?.exposureDigest);
     add('native-food-lineage',[lineage],!!fullLineage&&lineage?.status==='available'&&lineage.value.completeFoodLineageCoverage,['full-window-food-ancestry-unproven'],lineage?.status==='available'?lineage.value.sourceHead:undefined);
-    add('frozen-physical-boundaries',[i?.foodBoundaries,i?.housingAccess,i?.toolBoundaries],false,['complete-native-boundary-inventory-unproven']);
-    add('housing-rights',[i?.housingAccess],false,['warmup-access-history-unproven']);
+    add('frozen-physical-boundaries',h?[h.sources.foodBoundaries,h.sources.housingAccess,h.sources.toolBoundaries]:[i?.foodBoundaries,i?.housingAccess,i?.toolBoundaries],
+        !!h?.completePhysicalBoundaries&&d?.status==='available'&&minimumHistoryDeathsMatch(h,d.value.deaths),['complete-native-boundary-inventory-unproven'],h?.sourceDigest,h?.boundaryTimes);
+    add('housing-rights',h?[h.sources.housingAccess]:[i?.housingAccess],!!h?.completeHousingCoverage,['warmup-access-history-unproven'],h?.housingDigest);
     const maintenance=s?.toolMaintenance;
     add('tool-lifecycle-work',[lineage],!!fullLineage&&lineage?.status==='available'&&lineage.value.completeToolLineageCoverage,['full-window-tool-work-coverage-unproven'],lineage?.status==='available'?lineage.value.sourceHead:undefined);
     add('tool-material-custody',[lineage],!!fullLineage&&lineage?.status==='available'&&lineage.value.completeToolLineageCoverage,['complete-material-custody-history-unproven'],lineage?.status==='available'?lineage.value.sourceHead:undefined);
-    // The requested-use reader currently proves the queried evaluation, not the preceding warmup.
-    add('executor-native-demand',[s?.toolDemand],false,['warmup-request-history-unproven']);
-    add('business-treasury-custody',[i?.currentAssets,i?.custody],false,['historical-custody-access-unproven']);
+    const demand=s?.minimumDemandHistory;
+    add('executor-native-demand',[demand??s?.toolDemand],!!original&&demand?.status==='available'&&demand.value.worldId===frame.worldId
+        &&digest(demand.value.scope)===digest({...native!.scope,fromSimulationTime:frame.genesisAppliedAtSimulationTime})
+        &&demand.value.cohortCoverage.completeDemandCoverage,['warmup-request-history-unproven'],demand?.status==='available'?demand.value.sourceHead:undefined);
+    const custodyFlows=!!fullLineage&&lineage?.status==='available'&&lineage.value.completeFoodLineageCoverage&&lineage.value.completeToolLineageCoverage
+        &&s?.administrativeValue?.status==='available'&&s.administrativeValue.value.completeAdministrativeValueCoverage
+        &&scopeMatches(s.administrativeValue.value.scope)&&s.administrativeValue.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime
+        &&s.administrativeValue.value.toSimulationTime===frame.toSimulationTime&&s.administrativeValue.value.worldId===frame.worldId
+        &&p?.status==='available'&&s.administrativeValue.value.genesisResultId===p.value.genesisResultId&&s.administrativeValue.value.genesisResultDigest===p.value.genesisResultDigest
+        &&s?.externalValue?.status==='available'&&s.externalValue.value.completeExternalValueCoverage&&scopeMatches(s.externalValue.value.scope)
+        &&s.externalValue.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime&&s.externalValue.value.toSimulationTime===frame.toSimulationTime
+        &&s.externalValue.value.worldId===frame.worldId&&s.externalValue.value.genesisResultId===p.value.genesisResultId&&s.externalValue.value.genesisResultDigest===p.value.genesisResultDigest;
+    add('business-treasury-custody',h?[h.sources.wealthBoundaries,lineage,s?.administrativeValue,s?.externalValue]:[i?.currentAssets,i?.custody],
+        !!h?.completeCustodyBoundaries&&custodyFlows&&d?.status==='available'&&minimumHistoryDeathsMatch(h,d.value.deaths),['historical-custody-access-unproven'],h?.sourceDigest);
     const administrative=s?.administrativeValue;
     add('administrative-value-history',[administrative],!!original&&administrative?.status==='available'&&administrative.value.completeAdministrativeValueCoverage
         &&scopeMatches(administrative.value.scope)&&administrative.value.worldId===frame.worldId&&administrative.value.fromSimulationTime===frame.genesisAppliedAtSimulationTime

@@ -29,8 +29,8 @@ import { readFoodDeliveries } from '../server/engine/src/mods/NativeFoodDelivery
 import { NativeFoodConsumptionProjection } from '../food-loop/native-consumption-store.js';
 import { loadFoodLoopCatalog } from '../food-loop/catalog.js';
 import { readNativeTravelFares } from '../server/engine/src/mods/NativeTravelFareStore.js';
-import { readNativeFoodBoundary,type NativeFoodBoundaryPaths } from './food-boundaries.js';
-import { readHousingAccessPoint,type NativeHousingBoundaryPaths } from './housing-access.js';
+import { readNativeFoodBoundary,loadFoodBoundaryInputs,type NativeFoodBoundaryPaths } from './food-boundaries.js';
+import { readHousingAccessPoint,loadHousingBoundaryInputs,type NativeHousingBoundaryPaths } from './housing-access.js';
 import { readNativeToolCapacityBoundary } from './tool-capacity.js';
 
 export interface NativeWealthPaths { checkpointPath: string; businessPath: string; treasuryPath: string; clockPath: string; needsPath: string }
@@ -315,13 +315,27 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
         businessPath: options.businessPath, treasuryPath: options.treasuryPath, clockPath: options.clockPath, needsPath: options.databasePath })) : authority;
     const openingAssets = capture(() => readWealthBoundary(scope, options, options.openingBoundary, scope.fromSimulationTime));
     const closingAssets = capture(() => readWealthBoundary(scope, options, options.closingBoundary, scope.toSimulationTime));
+    // Collection-local reuse only. The facade still recollects independently to reject moving sources.
+    const wealthCache=new Map<string,ReturnType<typeof readWealthBoundary>>();
+    const physicalCache=new Map<string,ReturnType<typeof readNativeFoodBoundary>>();
+    const boundaryInputs=capture(()=>loadFoodBoundaryInputs(options.configDirectory));
+    const housingInputs=capture(()=>{check(boundaryInputs.status==='available','Boundary policies unavailable');return loadHousingBoundaryInputs(options,boundaryInputs.value.contract);});
+    const frozenWealth=(at:string,paths:NativeFoodBoundaryPaths)=>{
+        const key=digest({at,paths});let value=wealthCache.get(key);
+        if(!value){value=readWealthBoundary(scope,options,paths,at);wealthCache.set(key,value);}return value;
+    };
+    const frozenPhysical=(at:string,paths:NativeFoodBoundaryPaths)=>{
+        check(boundaryInputs.status==='available','Boundary policies unavailable');
+        const key=digest({at,paths});let value=physicalCache.get(key);
+        if(!value){value=readNativeFoodBoundary(scope,options,paths,frozenWealth(at,paths),boundaryInputs.value);physicalCache.set(key,value);}return value;
+    };
     const foodBoundaries=capture(()=>{
         if(!options.foodBoundaries?.length)throw new AbsentSource('Frozen native food boundaries not configured');
         check(options.foodBoundaries.length<=1000&&new Set(options.foodBoundaries.map(b=>b.at)).size===options.foodBoundaries.length,'Invalid food boundary inventory');
         return{boundaries:options.foodBoundaries.map(b=>({at:b.at,source:capture(()=>{
             try{
                 check(new Date(b.at).toISOString()===b.at&&b.at>=scope.fromSimulationTime&&b.at<=scope.toSimulationTime,'Food boundary outside scope');
-                return readNativeFoodBoundary(scope,options,b.paths,readWealthBoundary(scope,options,b.paths,b.at));
+                return frozenPhysical(b.at,b.paths);
             }catch{throw new Error('Native food boundary validation failed');}
         })}))};
     });
@@ -331,7 +345,7 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
         check(options.housingBoundaries.every(p=>new Date(p.at).toISOString()===p.at&&p.at>=scope.fromSimulationTime&&p.at<=scope.toSimulationTime),'Housing inventory outside scope');
         return{points:options.housingBoundaries.map(p=>({at:p.at,source:capture(()=>{
             try{check(new Date(p.at).toISOString()===p.at&&p.at>=scope.fromSimulationTime&&p.at<=scope.toSimulationTime,'Housing point outside scope');
-                return readHousingAccessPoint(scope,options,p.paths,p.at);
+                check(housingInputs.status==='available','Housing policies unavailable');return readHousingAccessPoint(scope,options,p.paths,p.at,housingInputs.value);
             }catch{throw new Error('Native housing point validation failed');}
         })}))};
     });
@@ -340,11 +354,20 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
         check(options.toolBoundaries.length<=1000&&new Set(options.toolBoundaries.map(b=>b.at)).size===options.toolBoundaries.length,'Invalid tool boundary inventory');
         check(options.toolBoundaries.every(b=>new Date(b.at).toISOString()===b.at&&b.at>=scope.fromSimulationTime&&b.at<=scope.toSimulationTime),'Tool boundary outside scope');
         return{boundaries:options.toolBoundaries.map(b=>({at:b.at,source:capture(()=>{
-            try{return readNativeToolCapacityBoundary(scope,options,b.paths,readWealthBoundary(scope,options,b.paths,b.at));}
+            try{check(boundaryInputs.status==='available','Boundary policies unavailable');return readNativeToolCapacityBoundary(scope,options,b.paths,frozenWealth(b.at,b.paths),
+                {contract:boundaryInputs.value.contract,physical:frozenPhysical(b.at,b.paths)});}
             catch{throw Error('Native tool boundary validation failed');}
         })}))};
     });
-    return { needs, modes, nutrition, lineage,foodCatalog, production, kitchen, commerce, rent, custody, wip, commerceOrders, rentalOrders, work, treasury, rewards, trades,
+    const wealthBoundaries=capture(()=>{
+        if(!options.foodBoundaries?.length)throw new AbsentSource('Frozen custody inventory not configured');
+        check(options.foodBoundaries.length<=1000,'Custody boundary budget exceeded');
+        return{boundaries:options.foodBoundaries.map(b=>({at:b.at,source:capture(()=>{
+            check(new Date(b.at).toISOString()===b.at&&b.at>=scope.fromSimulationTime&&b.at<=scope.toSimulationTime,'Custody boundary outside scope');
+            return frozenWealth(b.at,b.paths);
+        })}))};
+    });
+    return { needs, modes, nutrition, lineage,foodCatalog, production, kitchen, commerce, rent, custody, wip, commerceOrders, rentalOrders, work, treasury, rewards, trades,wealthBoundaries,
         currentAssets, openingAssets, closingAssets,foodBoundaries,housingAccess,toolBoundaries, sleep, journalHeads, consumption, fares };
 }
 export type NativeIntegrationSources = ReturnType<typeof collectNativeIntegrationSources>;

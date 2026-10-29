@@ -11,6 +11,7 @@ import { housingExposureCells } from './housing-minimum.js';
 import { toolCapacityCells } from './tool-capacity.js';
 import { minimumSourceInventory } from '../society-minimum/source-inventory.js';
 import { projectNativeSourceCoverage } from './source-coverage.js';
+import {minimumHistoryDeathsMatch} from './minimum-history.js';
 
 /** Internal projection from the existing verified native readers; never an uploaded observation endpoint. */
 export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,scope:EvaluationScope,
@@ -120,6 +121,19 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         if(!binding.boundaries||times.length!==binding.boundaries.times.length)binding={...binding,boundaries:{times,complete:false,
             sourceDigest:digest({prior:binding.boundaries?.sourceDigest??null,food:integration!.minimumFood.digest,housing:integration!.minimumHousing?.digest??null,
                 capacity:integration!.minimumToolCapacity?.digest??null})}};
+    }
+    const history=nativeScopeMatches?integration?.minimumHistory:undefined;
+    if(binding&&history?.completePhysicalBoundaries&&populationCompatible&&population?.status==='available'&&deaths?.status==='available'
+        &&integration?.worldId===binding.worldId&&digest(integration.scope)===digest(scope)
+        &&history.worldId===binding.worldId&&history.contractDigest===contract.digest&&digest(history.scope)===digest(scope)
+        &&history.fromSimulationTime===population.value.genesisAppliedAtSimulationTime&&history.toSimulationTime===scope.toSimulationTime
+        &&history.genesisResultId===population.value.genesisResultId&&history.genesisResultDigest===population.value.genesisResultDigest
+        &&history.founderDigest===digest(deaths.value.founderBindings)
+        &&digest(history.fullScope)===digest({...scope,fromSimulationTime:population.value.genesisAppliedAtSimulationTime})
+        &&digest(history.founderAgentIds)===digest([...binding.founderAgentIds].sort())&&minimumHistoryDeathsMatch(history,deaths.value.deaths)){
+        const times=history.boundaryTimes.filter(t=>t>=scope.fromSimulationTime&&t<=scope.toSimulationTime);
+        // A caller-selected extra observation cannot disappear from the native inventory.
+        if((binding.boundaries?.times??[]).every(t=>times.includes(t)))binding={...binding,boundaries:{times,complete:true,sourceDigest:history.digest}};
     }
     if(binding&&populationBoundsMatch&&populationBounds?.status==='available'){
         const times=[...new Set([...populationBounds.value.boundaries.times,...(binding.boundaries?.times??[]),...(binding.populationBoundaries?.times??[])])].sort();

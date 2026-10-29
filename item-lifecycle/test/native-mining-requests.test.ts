@@ -24,8 +24,19 @@ function fixture(){const db=new OwnedDatabase(':memory:');dbs.push(db);new Nativ
     const body={schemaVersion:1 as const,username:'alice',checksum:'c'.repeat(64),args:request.args,context:request.context,admittedAt:new Date(Date.UTC(2026,9,26)+100).toISOString(),expiresAtWallTime:new Date(Date.UTC(2026,9,26)+1100).toISOString()};
     const r={schemaVersion:1 as const,demandId:miningDemandId(request),owner:actors[0]!,admission:{...body,digest:hash(body)},phase:'requested' as const};
     const read=()=>readNativeMiningCohortCoverage(db,scope,'world',actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId})));
-    return{db,s,requests,coverage,sample,r,read};
+    return{db,s,requests,coverage,sample,r,read,scope,actors};
 }
+
+test('original warmup selection covers a contained evaluation without narrowing actors or borrowing request time outside it',()=>{
+    const f=fixture();f.coverage.append(f.sample(0));f.requests.append(f.r);f.coverage.append(f.sample(1));f.requests.append({...f.r,phase:'closed'});f.coverage.append(f.sample(2));
+    const scope={...f.scope,fromSimulationTime:f.sample(1).clock.simulationTime},actors=f.actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId}));
+    expect(()=>readNativeMiningCohortCoverage(f.db,scope,'world',actors)).toThrow('selection differs');
+    const r=readNativeMiningCohortCoverage(f.db,scope,'world',actors,true);expect(r.completeDemandCoverage).toBeTrue();
+    if(!('executorCoverage'in r))throw Error('Missing executor coverage');expect(r.executorCoverage.longestOutstandingUpperSimulationMs).toBe(600);
+    for(const bad of [{...scope,clockId:'foreign'},{...scope,fromSimulationTime:'2000-12-31T23:59:59.999Z'},
+        {...scope,actorAgentIds:scope.actorAgentIds.slice(1)},{...scope,toSimulationTime:'2001-01-01T00:00:01.201Z'}])
+        expect(()=>readNativeMiningCohortCoverage(f.db,bad,'world',actors,true)).toThrow('selection differs');
+});
 test('prospective request source counts pre-native failures and native tick heads bound their entire outstanding lifetime',()=>{
     const f=fixture();f.coverage.append(f.sample(0));f.requests.append(f.r);f.coverage.append(f.sample(1));f.requests.append({...f.r,phase:'closed'});f.coverage.append(f.sample(2));
     const before=f.db.serialize(),r=f.read();expect(r.completeDemandCoverage).toBeTrue();

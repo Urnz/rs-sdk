@@ -24,7 +24,7 @@ A lifecycle/admin/external és internal-lineage pozitív útja is kész. Az öss
 nincs teljes pozitív natív adaptere.
 A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run PASS.
 
-## Rögzített lezárási pontok: 8/11 kész
+## Rögzített lezárási pontok: 9/11 kész
 
 - [x] **P2-01 – `frozen-founder-roster`.** Az applied genesis teljes eredeti
   cohortja, immutable tagság és natív finite-avatar kötés alapján PASS-képes.
@@ -70,16 +70,18 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   változatlan nevező. Külön population boundary; fizikai coverage nem öröklődik.
   1+7 living/survival PASS, valódi halál FAIL, gap/stale/frozen readonly igazolt.
   [Eredmény](SI_C07_POPULATION_BOUNDS.md). Az üres death ledger önmagában kevés.
-- [ ] **P2-10 – Teljes boundary/access/demand integráció.** A food/housing/
-  tool/needs adapterek kötelező határpontjainak és nevezőinek összekötése a
-  forrásleltárral. Sparse endpoint vagy hiányos request history nem complete.
+- [x] **P2-10 – Teljes boundary/access/demand integráció.** Eredeti genesis→end
+  needs/mode replay, exact paused food/tool/housing/wealth leltár, külön
+  executor warmup history és kötelező custody-flow join. Öt család bekötve;
+  sparse/foreign/missing/extra boundary nem complete. Natív193-pontos út és
+  rövid facade/gap/readonly próbák. [Eredmény](SI_C07_BOUNDARY_HISTORY.md).
 - [ ] **P2-11 – Natív összesítő teljes útja.** A globális PASS-zár feloldása csak
   az előző feltételekkel, natív forrásokhoz kötött teljes 17+8 pozitív fixture-rel;
   egy sértés FAIL, egy hiányzó forrás unknown, frozen/offline újraolvasás azonos.
   Az összes kapu/szabály együtt igazolt; puszta feltöltött cellalista kevés.
 
 Ezek lezárási feltételek, nem 11 további chatkör: egy fejlesztés többet is
-lezárhat. Jelenleg 3 pont nyitott. A már elkészült 15 commit nem vész el;
+lezárhat. Jelenleg 2 pont nyitott. A már elkészült 15 commit nem vész el;
 a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb meg kell
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;

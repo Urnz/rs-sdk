@@ -14,10 +14,14 @@ import type { DurableNeedsState } from '../needs/store.js';
 import { readStableOutcomeStore } from './population-outcomes.js';
 export interface NativeFoodBoundaryPaths extends NativeWealthPaths {agentPath:string;healthPath:string}
 function check(v:unknown):asserts v {if(!v)throw Error('Native food boundary binding differs');}
+export function loadFoodBoundaryInputs(configDirectory:string){return{contract:loadSocietyMinimumContract(configDirectory),
+    age:loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
+    mortality:loadPopulationMortalityPolicy(join(configDirectory,'population-mortality-policy.json'))};}
 
 /** Frozen census + physical inventory. Bank/business/escrow stock is an upper bound until access is proved. */
-export function readNativeFoodBoundary(scope:EvaluationScope,options:NativeIntegrationOptions,paths:NativeFoodBoundaryPaths,wealth:ReturnType<typeof readWealthBoundary>){
-    const contract=loadSocietyMinimumContract(options.configDirectory),at=wealth.simulationTime;
+export function readNativeFoodBoundary(scope:EvaluationScope,options:NativeIntegrationOptions,paths:NativeFoodBoundaryPaths,wealth:ReturnType<typeof readWealthBoundary>,
+    inputs=loadFoodBoundaryInputs(options.configDirectory)){
+    const {contract,age,mortality}=inputs,at=wealth.simulationTime;
     const initialized=readStableOutcomeStore(options,paths.needsPath,db=>({rows:(db.query('SELECT snapshot_json FROM needs_event WHERE revision=1').all() as {snapshot_json:string}[])
         .map(r=>JSON.parse(r.snapshot_json) as DurableNeedsState)}));
     const agents=readStableOutcomeStore(options,paths.agentPath,()=>{
@@ -27,14 +31,12 @@ export function readNativeFoodBoundary(scope:EvaluationScope,options:NativeInteg
     check(digest(agents.members.map(m=>m.agentId).sort())===digest([...scope.actorAgentIds].sort()));
     const observation:SimulationClockObservation={clockId:scope.clockId,profileDigest:scope.clockProfileDigest,status:'paused',revision:wealth.clock.revision,
         simulationTime:at,wallTime:new Date(wealth.clock.last_observed_wall_ms).toISOString(),engineTick:null};
-    const age=loadPopulationAgePolicy(join(options.configDirectory,'population-age-policy.json')),
-        mortality=loadPopulationMortalityPolicy(join(options.configDirectory,'population-mortality-policy.json'));
     const health=readStableOutcomeStore(options,paths.healthPath,db=>{
         const store=new PlayerHealthEvidenceStore(paths.healthPath,true);
         try{
             check(store.schemaVersion===2);const deaths=store.listDeaths();check(deaths.every(d=>d.clock.simulationTime<=at));
             const bindings=db.query('SELECT * FROM engine_population_binding').all() as {username:string;agent_id:string;identity_digest:string}[];
-            return{eligible:agents.members.flatMap(member=>{
+            return{terminalAgentIds:agents.members.filter(m=>deaths.some(d=>d.agentId===m.agentId)).map(m=>m.agentId).sort(),eligible:agents.members.flatMap(member=>{
                 const needs=wealth.cohort.find(n=>n.binding.actorId===member.agentId);
                 check(needs&&digest(needs.binding)===digest(populationNeedsBinding(options.worldId,member))&&member.joinedAtSimulationTime<=at);
                 const binding=bindings.find(b=>b.username===member.playerUsername),identity=digest({agentId:member.agentId,username:member.playerUsername,
@@ -60,7 +62,7 @@ export function readNativeFoodBoundary(scope:EvaluationScope,options:NativeInteg
     return{at,worldId:options.worldId,clockId:scope.clockId,clockProfileDigest:scope.clockProfileDigest,contractDigest:contract.digest,
         cohort:wealth.cohort.map(n=>{const first=initialized.rows.find(r=>digest(r.binding)===digest(n.binding));
             check(first&&digest(first.admission)===digest(n.admission));return{binding:n.binding,admission:n.admission,initializedAt:first!.state.observedAtSimulationTime};}),
-        eligiblePlayerUsernames:health.eligible,hungerRateLower,hungerRateUpper,chains:contract.dependencies.food.chains.map(chain=>{
+        terminalAgentIds:health.terminalAgentIds,eligiblePlayerUsernames:health.eligible,hungerRateLower,hungerRateUpper,chains:contract.dependencies.food.chains.map(chain=>{
             const upper=wealth.assets.filter(a=>a.itemId===chain.cookedItem.itemId).reduce((n,a)=>n+BigInt(a.count),0n),
                 lower=wealth.assets.filter(a=>a.itemId===chain.cookedItem.itemId&&a.location==='player-inventory'&&health.eligible.includes(a.owner)).reduce((n,a)=>n+BigInt(a.count),0n);
             return{chainId:chain.foodChainId,lowerRelief:String(lower*BigInt(chain.hungerRelief)),upperRelief:String(upper*BigInt(chain.hungerRelief))};

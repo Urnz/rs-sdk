@@ -10,8 +10,9 @@ import type { FoodActorContext } from './food-minimum.js';
 import { nativeToolDigest } from '../item-lifecycle/native-tool.js';
 
 /** Frozen physical capacity; no current-state backfill, writable store or guessed instance from an item stack. */
-export function readNativeToolCapacityBoundary(scope:EvaluationScope,options:NativeIntegrationOptions,paths:NativeFoodBoundaryPaths,wealth:ReturnType<typeof readWealthBoundary>){
-    const contract=loadSocietyMinimumContract(options.configDirectory),physical=readNativeFoodBoundary(scope,options,paths,wealth),at=wealth.simulationTime;
+export function readNativeToolCapacityBoundary(scope:EvaluationScope,options:NativeIntegrationOptions,paths:NativeFoodBoundaryPaths,wealth:ReturnType<typeof readWealthBoundary>,
+    shared?:{contract:SocietyMinimumContract;physical:ReturnType<typeof readNativeFoodBoundary>}){
+    const contract=shared?.contract??loadSocietyMinimumContract(options.configDirectory),physical=shared?.physical??readNativeFoodBoundary(scope,options,paths,wealth),at=wealth.simulationTime;
     const ledger=readStableOutcomeStore(options,paths.checkpointPath,db=>({...readToolCapacityLedger(db,contract,options.configDirectory,at),
         saves:(db.query('SELECT owner,save FROM accounts').all() as {owner:string;save:Uint8Array}[])
             .map(r=>({owner:r.owner,nativeDigest:nativeToolDigest([...r.save]),assetDigest:digest([...r.save])}))}));

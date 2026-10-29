@@ -60,9 +60,13 @@ function tenancies(db:Database,catalogs:ReturnType<typeof nativeHousingCatalogs>
     return{rows,head};
 }
 /** Explicit native snapshots; no writable stores, history backfill or wall→simulation conversion. */
-export function readHousingAccessPoint(scope:EvaluationScope,options:Options,paths:NativeHousingBoundaryPaths,at:string){
+export function loadHousingBoundaryInputs(options:Options,contract=loadSocietyMinimumContract(options.configDirectory)){
+    return{contract,catalogs:nativeHousingCatalogs(options.workspace),propertyDefinitions:loadPropertyCatalog(join(options.configDirectory,'properties.json')).properties};
+}
+export function readHousingAccessPoint(scope:EvaluationScope,options:Options,paths:NativeHousingBoundaryPaths,at:string,
+    inputs=loadHousingBoundaryInputs(options)){
     check(new Date(at).toISOString()===at&&at>=scope.fromSimulationTime&&at<=scope.toSimulationTime);
-    const contract=loadSocietyMinimumContract(options.configDirectory),catalogs=nativeHousingCatalogs(options.workspace);
+    const {contract,catalogs,propertyDefinitions}=inputs;
     check(catalogs.hierarchy.digest===contract.dependencies.housingHierarchy.digest&&catalogs.effects.digest===contract.dependencies.housingEffects.digest);
     const clock=readStableOutcomeStore(options,paths.clockPath,db=>{
         check((db.query('PRAGMA user_version').get() as {user_version:number}).user_version===SIMULATION_CLOCK_STORE_SCHEMA_VERSION);
@@ -102,7 +106,6 @@ export function readHousingAccessPoint(scope:EvaluationScope,options:Options,pat
             check(receipt?.phase==='paid'&&entitlement.order.nativeDigest===receipt.digest);
             return[{actor:i.tenant,unitId:i.housingUnitId,bedId:i.bedSlotId,from:receipt.clock.simulationTime>i.startsAt?receipt.clock.simulationTime:i.startsAt,to:i.endsAt}];
         });}finally{source.close();}})();
-    const propertyDefinitions=loadPropertyCatalog(join(options.configDirectory,'properties.json')).properties;
     return{at,worldId:options.worldId,clockId:scope.clockId,clockProfileDigest:scope.clockProfileDigest,contractDigest:contract.digest,
         maximumGapSimulationMs:contract.policy.window.maximumTraceGapSimulationMilliseconds,
         minimumTierRank:contract.dependencies.housingHierarchy.tiers.find(t=>t.tierId===contract.policy.housing.minimumTierId)!.rank,

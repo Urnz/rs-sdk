@@ -1,8 +1,8 @@
 # SI-C07/2 – Forráslefedettség és a meglévő lezárási pontok függősége
 
-2026-10-28. A P2-03 kiértékelője és natív diagnosztikai bekötése elkészült;
-**P2-03 teljes natív lezárása még nyitott.** A rögzített lista 7/11 kész,
-4 nyitott pont, 7/8 pozitív natív kapuút. P2-04–P2-08 kész, új pont nincs.
+2026-10-29. A P2-03 kiértékelője és natív diagnosztikai bekötése elkészült;
+**P2-03 közös teljes natív lezárása még nyitott.** A rögzített lista 9/11 kész,
+2 nyitott pont, 7/8 pozitív natív kapuút. P2-04–P2-10 kész, új pont nincs.
 [Rögzített lezárási lista](SI_C07_PACKAGE2_CLOSURE.md).
 
 ## Elkészült kód
@@ -57,16 +57,19 @@ A teljes 16/16 pozitív ág a tiszta kiértékelő szerződéspróbája, nem nat
 A hiányzó garanciák **már szerepelnek** a listában:
 
 - P2-04: teljes clock/world-policy writer history – 2026-10-28 kész, explicit contracttal.
-- P2-05: native health/lifecycle history – kész; P2-09 pozitív population-korlátjai nyitottak.
+- P2-05: native health/lifecycle history – kész; P2-09 pozitív population-korlátjai is kész.
 - P2-06 admin/fallback – [kész](SI_C07_ADMINISTRATIVE_VALUE_GATE.md).
 - P2-07 external shop/import – [kész](SI_C07_EXTERNAL_VALUE_GATE.md), eredeti teljes natív ablakra.
 - P2-08: tool/material/food ancestry – [kész](SI_C07_INTERNAL_LINEAGE_GATE.md), natív prefix/state és valódi végfelhasználás.
-- P2-10: warmup/needs/access/request/boundary/custody integráció.
+- P2-10: [warmup/needs/access/request/boundary/custody integráció](SI_C07_BOUNDARY_HISTORY.md) kész.
+  Öt pozitív család-join, valódi193-pontos physiology/physical/housing út;
+  a custody továbbra teljes sealed flow/integrity függőségeket kér.
 
 A lista számozása nem volt függőségi sorrend. Az új végrehajtási sorrend:
 **P2-04 → P2-05 → P2-06 → P2-07 → P2-08 → P2-09 → P2-10 → P2-03 végellenőrzés
 → P2-11.** Azonosítók és eredeti feltételek változatlanok; nincs hozzáírt új
-observer- vagy attestációs feladatsor. P2-04–P2-08 kész; következő kódmunka P2-09.
+observer- vagy attestációs feladatsor. P2-04–P2-10 kész; következő a P2-03
+közös16/16 natív auditja, utána P2-11 összesítő. Nem16/16 numeric vagy run PASS.
 
 ## Ellenőrzési határ
 

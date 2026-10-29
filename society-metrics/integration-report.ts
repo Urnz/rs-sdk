@@ -6,6 +6,10 @@ import type { PlayerTimeHistoryEntry } from '../simulation-clock/types.js';
 import type { NeedRateRule } from '../needs/types.js';
 import type { NeedsPolicy } from '../needs/types.js';
 import { collectNativeIntegrationSources, type NativeIntegrationOptions, type NativeIntegrationSources } from './integration-sources.js';
+import {projectNativeMinimumHistory,selectIntegrationBoundaryScope} from './minimum-history.js';
+import {loadSocietyMinimumContract} from '../society-minimum/contract.js';
+import type {NativeFounderBaseline} from './population-outcomes.js';
+import type {MortalityActor} from '../population-lifecycle/native-coverage.js';
 import { validateEvaluationScope, type EvaluationScope } from './evaluation.js';
 import { projectNativeNeedsExposure } from './needs-exposure.js';
 import { projectNativeFoodMinimum } from './food-minimum.js';
@@ -95,7 +99,8 @@ export function integrateNeedsDemand(opening: DurableNeedsState, closing: Durabl
 }
 
 /** Internal projection only; HTTP accepts a scope, never these source values. */
-export function projectNativeIntegration(scope: EvaluationScope, options: Pick<NativeIntegrationOptions, 'worldId'>, sources: NativeIntegrationSources) {
+export function projectNativeIntegration(scope: EvaluationScope, options: Pick<NativeIntegrationOptions, 'worldId'>, sources: NativeIntegrationSources,
+    minimumHistory:ReturnType<typeof projectNativeMinimumHistory>|null=null) {
     const evidence: IntegrationEvidence[] = [], evidenceKeys = new Set<string>(), issues: string[] = [], selectedActors = new Set(scope.actorAgentIds);
     const add = (channel: string, recordId: string, record: unknown, actors: string[], time: string | null = null) => {
         const sourceDigest = digest(record), id = `native:${digest({ channel, recordId, sourceDigest })}`;
@@ -356,7 +361,7 @@ export function projectNativeIntegration(scope: EvaluationScope, options: Pick<N
         if (row) equation(app.actionId, `item:379:player:${app.binding.actorId}`, app.receipt!.before, 0, 1, app.receipt!.after, row.evidenceIds);
     }
     const definition = { schemaVersion: 1, artifactKind: 'native-society-integration-report', scope, worldId: options.worldId,
-        needsExposure:projectNativeNeedsExposure(scope,options.worldId,sources),
+        minimumHistory,needsExposure:projectNativeNeedsExposure(scope,options.worldId,sources),
         minimumFood:projectNativeFoodMinimum(scope,options.worldId,sources),
         minimumHousing:projectHousingMinimum(scope,options.worldId,sources.housingAccess),
         minimumToolCapacity:projectToolCapacity(scope,options.worldId,sources.toolBoundaries),
@@ -398,14 +403,17 @@ export function projectNativeIntegration(scope: EvaluationScope, options: Pick<N
             'Food ancestry is fungible quantity lineage; mixed/unknown origins never become verified internal final use.'] };
     return { ...definition, digest: digest(definition) };
 }
-export function reportNativeIntegration(query: EvaluationScope, options: NativeIntegrationOptions) {
+export function reportNativeIntegration(query: EvaluationScope, options: NativeIntegrationOptions,
+    original?:{baseline:NativeFounderBaseline;founders:MortalityActor[]}) {
     const scope = validateEvaluationScope(query);
     if (scope.actorAgentIds.length !== 4) throw new NativeIntegrationError('Native integration requires exactly four explicit actors');
-    const sources = collectNativeIntegrationSources(scope, options);
+    const historyScope=original?validateEvaluationScope({...scope,fromSimulationTime:original.baseline.genesisAppliedAtSimulationTime}):scope;
+    const sources = collectNativeIntegrationSources(historyScope, options);
     // Publishers and their projections live in separate databases. Detect a moving source rather than mixing two heads.
-    const after = collectNativeIntegrationSources(scope, options);
+    const after = collectNativeIntegrationSources(historyScope, options);
     if (digest(sources) !== digest(after)) throw new NativeIntegrationError('Native integration sources changed during collection; reload the report', 409);
-    return projectNativeIntegration(scope, options, sources);
+    const history=original?projectNativeMinimumHistory(loadSocietyMinimumContract(options.configDirectory),scope,original.baseline,original.founders,sources):null;
+    return projectNativeIntegration(scope, options, original?selectIntegrationBoundaryScope(sources,scope):sources,history);
 }
 export function readNativeIntegrationEvidence(query: EvaluationScope, options: NativeIntegrationOptions, snapshot: string, evidenceId: string) {
     if (!/^[a-f0-9]{64}$/.test(snapshot) || !/^native:[a-f0-9]{64}$/.test(evidenceId)) throw new NativeIntegrationError('Invalid integration evidence reference');

@@ -106,10 +106,16 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
     const toolMaintenance=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
         return database(options,options.checkpointPath,db=>readNativeToolMaintenance(db,scope,options.worldId,agent.value.actors,
             options.population?.configDirectory??join(options.workspace,'config')));});
+    const minimumDemandHistory=capture(()=>{
+        check(agent.status==='available'&&populationBaseline.status==='available','Original demand history cohort unavailable');
+        const fullScope={...scope,fromSimulationTime:populationBaseline.value.genesisAppliedAtSimulationTime};
+        return database(options,options.checkpointPath,db=>readNativeToolDemandObservations(db,fullScope,options.worldId,agent.value.actors));
+    });
     const toolDemand=capture(()=>{check(agent.status==='available','Outcome actor source unavailable');
         const policyPath=join(options.workspace,'config/society-minimum-policy.json');
         return database(options,options.checkpointPath,db=>readNativeToolDemandObservations(db,scope,options.worldId,agent.value.actors,
-            existsSync(policyPath)?loadSocietyMinimumPolicy(policyPath):undefined));});
+            existsSync(policyPath)?loadSocietyMinimumPolicy(policyPath):undefined,
+            minimumDemandHistory.status==='available'&&minimumDemandHistory.value.cohortCoverage.completeDemandCoverage));});
     const goalClock=capture(()=>database(options,options.clockPath,db=>{
         check((db.query('PRAGMA user_version').get() as {user_version:number}).user_version===SIMULATION_CLOCK_STORE_SCHEMA_VERSION,'Unsupported outcome clock schema');
         check(agent.status==='available','Outcome goal source unavailable');const stamps=rows(db,'simulation_event_stamp');
@@ -159,7 +165,7 @@ export function reportNativeOutcomes(query:EvaluationScope,options:NativeOutcome
                 physicalWorkerMatchesAssignment:b.assignedWorkerAgentId===w.workerAgentId})):[],
         interpretation:'Actual worker is bound by native receipt; registered requester and assigned worker remain separate.'})):null;
     const definition={schemaVersion:1,artifactKind:'native-society-outcome-report',scope,worldId:options.worldId,observerAgentIds:observers,
-        sources:{agent,work,toolDemand,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,populationBounds,genesisOpening,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy,policyMutations,worldPolicy,lifecycleEnforcement,administrativeValue,externalValue,internalLineage},labor,physicalSpecialization,roleBindings,
+        sources:{agent,work,toolDemand,minimumDemandHistory,toolMaintenance,business,trades,provider,goalClock,populationBaseline,populationDeaths,populationBounds,genesisOpening,mortalityCoverage,lifecycleAttempts,lifecycleWatermarks,lifecyclePolicy,policyMutations,worldPolicy,lifecycleEnforcement,administrativeValue,externalValue,internalLineage},labor,physicalSpecialization,roleBindings,
         registeredResponsibility:'Existing evaluation specialization remains registered recipe responsibility; physical-stage receipt HHI is separate.',
         availability:{status:'inconclusive',availableAndWillingPersonMs:null,unemploymentRate:null},
         limitations:['Read-only per-source snapshots; no cross-database atomicity or complete event coverage.',

@@ -1208,6 +1208,15 @@ valódi halál FAIL; hiány/foreign/stale unknown, frozen readonly azonos.
 majd P2-03 végellenőrzés és P2-11. Nincs új journal/tábla vagy hosszú run;
 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
 
+**2026-10-29 P2-10 kész:** [boundary/access/demand history](SI_C07_BOUNDARY_HISTORY.md).
+Eredeti genesis→end needs/mode replay, exact paused food/tool/housing/wealth
+inventory és executor warmup history az öt forráscsaládhoz. Custodyhoz teljes
+sealed flow/integrity is kell. 193 valódi SQLite pont és rövid facade/gap próba;
+snapshot/hash kötés, eredeti numeric FAIL és unknown megmarad.
+**9/11 kész, 2 nyitott; 7/8 pozitív natív kapuút.** Következő P2-03 közös
+natív coverage-audit, majd P2-11 összesítő. Nincs új journal/tábla vagy hosszú
+run; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,
