@@ -29,6 +29,23 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
     const populationCompatible=population?.status==='available'&&population.value.worldId===outcomes?.worldId
         &&population.value.clockId===scope.clockId&&population.value.clockProfileDigest===scope.clockProfileDigest
         &&contract.dependencies.worlds.some(w=>w.profile.digest===population.value.worldProfile.digest&&w.lifecyclePolicy.digest===population.value.lifecyclePolicy.digest);
+    const populationBounds=nativeScopeMatches?outcomes?.sources.populationBounds:undefined;
+    const populationBoundsMatch=populationBounds?.status==='available'&&populationCompatible&&population?.status==='available'&&deaths?.status==='available'
+        &&populationBounds.value.completePopulationBounds&&populationBounds.value.worldId===outcomes?.worldId&&digest(populationBounds.value.scope)===digest(scope)
+        &&populationBounds.value.contractDigest===contract.digest&&populationBounds.value.genesisResultId===population.value.genesisResultId
+        &&populationBounds.value.genesisResultDigest===population.value.genesisResultDigest&&populationBounds.value.fromSimulationTime===population.value.genesisAppliedAtSimulationTime
+        &&populationBounds.value.toSimulationTime===scope.toSimulationTime&&populationBounds.value.founderCount===population.value.founders.length
+        &&populationBounds.value.founderDigest===digest(deaths.value.founderBindings)&&populationBounds.value.healthSnapshotDigest===deaths.value.healthSnapshotDigest
+        &&populationBounds.value.boundaries.complete&&populationBounds.value.minimumLivingLower!==null
+        &&Number.isSafeInteger(populationBounds.value.minimumLivingLower)&&populationBounds.value.minimumLivingLower>=0
+        &&populationBounds.value.minimumLivingLower<=population.value.founders.length
+        &&populationBounds.value.closingSurvivorAgentIds.length===populationBounds.value.minimumLivingLower
+        &&new Set(populationBounds.value.closingSurvivorAgentIds).size===populationBounds.value.minimumLivingLower
+        &&populationBounds.value.closingSurvivorAgentIds.every(id=>population.value.founders.some(f=>f.agentId===id))
+        &&populationBounds.value.closingSurvivalLower?.numerator===String(populationBounds.value.minimumLivingLower*10000)
+        &&populationBounds.value.closingSurvivalLower.denominator===String(population.value.founders.length)
+        &&outcomes?.sources.lifecycleEnforcement.status==='available'
+        &&populationBounds.value.enforcementDigest===outcomes.sources.lifecycleEnforcement.value.digest;
     const actorSource=nativeScopeMatches&&outcomes?.sources.agent?.status==='available'?outcomes.sources.agent:null;
     const original=(a:FoodActorContext)=>{
         if(!populationCompatible||population?.status!=='available'||!actorSource||!a.binding)return false;
@@ -103,6 +120,10 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         if(!binding.boundaries||times.length!==binding.boundaries.times.length)binding={...binding,boundaries:{times,complete:false,
             sourceDigest:digest({prior:binding.boundaries?.sourceDigest??null,food:integration!.minimumFood.digest,housing:integration!.minimumHousing?.digest??null,
                 capacity:integration!.minimumToolCapacity?.digest??null})}};
+    }
+    if(binding&&populationBoundsMatch&&populationBounds?.status==='available'){
+        const times=[...new Set([...populationBounds.value.boundaries.times,...(binding.boundaries?.times??[]),...(binding.populationBoundaries?.times??[])])].sort();
+        binding={...binding,populationBoundaries:{times,complete:true,sourceDigest:digest({population:populationBounds.digest,times})}};
     }
     if(populationCompatible&&population?.status==='available'){
         const p=population.value,from=Date.parse(p.genesisAppliedAtSimulationTime)+contract.policy.window.warmupSimulationMilliseconds,
@@ -233,11 +254,13 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
                     &&[p.genesisSnapshotDigest,p.anchorSnapshotDigest,p.anchorDigest,deaths.value.agentSnapshotDigest,deaths.value.healthSnapshotDigest].every(hex))
                     integrityEvidence.push({gateId:'frozen-founder-roster',verdict:'pass',evidenceDigests:[population.digest,deaths.digest]});
                 const deadAt=(at:string)=>new Set(deaths.value.deaths.filter(d=>Date.parse(d.atSimulationTime)<=Date.parse(at)).map(d=>d.agentId)).size;
-                const upper=(requirementId:string,boundary:string,numerator:number,denominator=1)=>cells.push({requirementId,subject:{boundary},opportunity:'positive',
-                    upper:{numerator:String(numerator),denominator:String(denominator)},evidenceDigests:[population.digest,deaths.digest]});
-                for(const boundary of binding.boundaries?.times??[scope.fromSimulationTime,scope.toSimulationTime])
-                    upper('minimum-living-founders',boundary,count-deadAt(boundary));
-                upper('founder-survival',scope.toSimulationTime,(count-deadAt(scope.toSimulationTime))*10000,count);
+                const positive=populationBoundsMatch&&populationBounds?.status==='available'?populationBounds.value:null;
+                const upper=(requirementId:string,boundary:string,numerator:number,denominator=1,lower?:MinimumCell['lower'])=>cells.push({requirementId,subject:{boundary},opportunity:'positive',
+                    upper:{numerator:String(numerator),denominator:String(denominator)},...(lower?{lower}:{}),
+                    evidenceDigests:[population.digest,deaths.digest,...(positive&&populationBounds?.status==='available'?[populationBounds.digest]:[])]});
+                for(const boundary of binding.populationBoundaries?.times??binding.boundaries?.times??[scope.fromSimulationTime,scope.toSimulationTime])
+                    upper('minimum-living-founders',boundary,count-deadAt(boundary),1,positive?{numerator:String(positive.minimumLivingLower),denominator:'1'}:undefined);
+                upper('founder-survival',scope.toSimulationTime,(count-deadAt(scope.toSimulationTime))*10000,count,positive?.closingSurvivalLower??undefined);
             }
         }
         if(work?.status==='available'){
@@ -307,6 +330,8 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
             toolCapacity:{status:capacityStatus,...(capacityStatus==='available'?{digest:integration!.minimumToolCapacity.digest}:{})},
             populationBaseline:population?.status==='available'?{status:'available',digest:population.digest}:{status:population?.status??'unavailable'},
             populationDeaths:deaths?.status==='available'?{status:'available',digest:deaths.digest}:{status:deaths?.status??'unavailable'},
+            populationBounds:populationBounds?.status==='available'?{status:'available',digest:populationBounds.digest,
+                completePopulationBounds:populationBounds.value.completePopulationBounds}:{status:populationBounds?.status??'unavailable'},
             mortalityCoverage:nativeScopeMatches&&outcomes?.sources.mortalityCoverage?.status==='available'
                 ?{status:'available',digest:outcomes.sources.mortalityCoverage.digest,completeMortalityTickCoverage:outcomes.sources.mortalityCoverage.value.completeMortalityTickCoverage,
                     completeLifecycleEnforcement:false}:{status:nativeScopeMatches?outcomes?.sources.mortalityCoverage?.status??'unavailable':'unavailable'},

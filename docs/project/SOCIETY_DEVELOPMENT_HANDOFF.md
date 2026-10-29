@@ -14,7 +14,7 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   `e9d852b63` és `2785e6fee` között; az ismételt „6 maradt” elfedte a belső
   haladást és a még lezárt natív PASS-ágat. Hosszú C07 gazdasági próba nem indult.
 - **Rögzített implementációs lezárás:** [P2-01–P2-11](SI_C07_PACKAGE2_CLOSURE.md),
-  **7/11 kész**, 4 nyitott feltétel; nem 4 ígért chatkör. 17/17 részleges
+  **8/11 kész**, 3 nyitott feltétel; nem 3 ígért chatkör. 17/17 részleges
   szabályadapter és 7/8 pozitív natív kapuút. A lineage/final-use útja is kész;
   az összesített source-coverage kapu teljes pozitív natív útja még nyitott.
 - **Kész P2-01:** `frozen-founder-roster` pozitív natív adapter. Applied
@@ -71,12 +71,17 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   coverage nem cikluscredit, bootstrap nem internal. Unknown hold/replacement gap.
   1+7/frozen, valódi packed A→B→C és Mining→smelt→repair→reuse evidence, C06 restore.
   Új journal/tábla nincs. SourceCoverage három ancestry-családja PASS-képes.
-- **Következő konkrét pont P2-09:** pozitív living/survival alsó korlátok.
-  A meglévő eredeti roster, sealed mortality/lifecycle/health és kötelező
-  boundary időpontok teljes történetéből képezz boundot; üres death ledger vagy
-  új aktuális névsor nem bizonyít túlélést. Konkrét hiány/fogyasztó alapján dolgozz.
-- **Megmaradó függőségi sorrend:** P2-09 → P2-10 →
-  P2-03 végellenőrzés → P2-11. Rögzített lista: 7/11 kész, 4 nyitott;
+- **Kész P2-09:** [living/survival lower bound](SI_C07_POPULATION_BOUNDS.md).
+  Teljes PASS finite lifecycle/health + eredeti cohort + azonos checkpoint és
+  záró census alapján konzervatív living lower, exact survival eredeti nevezővel.
+  Külön population boundary; fizikai food/reserve snapshot coverage nem öröklődik.
+  Eredeti 1+7 pozitív/frozen és valódi halál FAIL; gap/foreign/stale unknown.
+- **Következő konkrét pont P2-10:** teljes boundary/access/demand integráció.
+  A meglévő food/housing/tool/needs readerek időpontjait és nevezőit kösd a teljes
+  source-leltárhoz. Sparse endpoint vagy hiányos warmup/request nem complete;
+  census időpontok nem helyettesítik a fizikai snapshotokat. Új lista nem kell.
+- **Megmaradó függőségi sorrend:** P2-10 →
+  P2-03 végellenőrzés → P2-11. Rögzített lista: 8/11 kész, 3 nyitott;
   nincs új pont és nincs szükség még nem létező hosszú run-adatra a kódlezáráshoz.
 - A 2. csomag implementációs képessége különválik a 3–7. csomag tényleges
   baseline/source-kijelölésétől és a hosszú run adataitól. Nem kell még nem létező
@@ -123,61 +128,30 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- **115 külön aktív célzott eset PASS** a P2-08 kiválasztott scope-jában.
-  A végső fixture-phase guard és stale-parent ág is PASS. Nem full regresszió.
-- Engine `20261028-232415-592-si-c07-internal-lineage-native`:44 PASS17,283 s,
-  három pontos producer/observer fájl. Végleges evidence-guardok négy ága:
-  `20261028-234347-962-si-c07-internal-lineage-native-final`,4 PASS4,285 s;
-  tényleges packed A→B→C,100-use/smelt/repair/reuse, unknown hold és World cursor.
-- `20261028-233842-663-si-c07-internal-lineage-final-readers`:31 PASS/1 admin
-  timeout88,071 s. Minden új internal/external ág PASS; az admin frozen teszt
-  redundáns újraolvasása megszűnt, külön PASS alább. Együtt33 reader eset, a stale-parent próbával.
-  Internal193tick setup2511/export5788/total6150 ms; external3960/6857/8927 ms.
-- `20261028-234209-061-si-c07-internal-lineage-close-boundaries`:3 PASS23,397 s:
-  admin1+7/frozen6,087 s, új C06 lineage inventory/restore9,67 s összesen
-  (capture3807/restore4726 ms), benchmark offline restore6,558 s. Nem3 új eset.
-- `20261028-234057-650-si-c07-internal-lineage-final-archive`:a két régi C06
-  manifest/external eset PASS; wrapper FAIL38,616 s az új lineage még összetett
-  13,849 s/10 s timeoutja miatt. Új eset külön fázisokra bontva PASS a fenti körben.
-  Együtt4 C06/benchmark eset, eredeti assertionök és source pin megmaradtak.
-- `20261028-234356-292-si-c07-internal-lineage-consumers-types`:34 teszt PASS,
-  öt pontos metrics/minimum/sourceCoverage/preflight fájl. Wrapper TS FAIL a
-  pinned bun-types1.2.15 hook-aláírása miatt; nincs hibás runtime teszt.
-- `20261028-234904-241-si-c07-internal-lineage-types-closed`:végső root+engine
-  TypeScript PASS124,591 s. Nincs dependency/tsconfig/type suppression vagy
-  globális test discovery/timeout változás. Webclient változatlan.
-- `20261029-000059-674-si-c07-internal-lineage-parent-final`:3 PASS és a végső
-  parent-binding változás root TS PASS104,837 s. Internal1+7 teljes9207 ms,
-  setup2072 ms; stale-parent is unknown, korábbi checkpoint eredménye nem PASS.
-  C06 external setup4755/restore7921 ms. Engine code utána nem változott.
-  `20261028-235457-996-si-c07-internal-lineage-hook-runtime-final`:external1+7
-  és két C06 eset PASS; utolsó setup11690 ms miatt wrapper FAIL. Csak az utolsó
-  eset új, mért15 s setup-budgetje kellett a fenti végső PASS-hoz.
-- Fixture-optimalizálás: readonly SQLite data_version alapú cache csak a
-  tesztben; statikus repo policy-inputok fixture-nként egyszer olvasva.
-  Az éles reader és végső/frozen validáció továbbra teljes tényleges forrást olvas.
-- Mérési korrekció: internal1+7 setup5 s+assessment10 s=eredeti15 s; kis új
-  esetek setup5 s+test5 s. External1+7 két15 s fázis, összesen30 s (előtte15);
-  három érintett C06 eset setup15 s+restore10 s, összesen25 s (előtte10). Mért leglassabb
-  external setup11,451+assessment10,8 s, C06 setup11,690+restore7,921 s.
-  Ezek helyi aggregált tesztkeretek, run/bootstrap-limit és minimum nem változott.
-  Az explicit szinkron fixturePhase a hook-API verziójától függetlenül is FAIL-t
-  ad a setup-budget túllépésére; assertionök nem kerültek kikapcsolásra.
-  A Bun runtime timeout argumentumát helyi typed bridge továbbítja, mert a
-  pinned típusdefiníció nem tartalmazza. A bridge nélkül a runtime hook5 s-ra
-  esett vissza (`20261028-235229-732`); végül a runtime és a wall guard is bounded.
-- Korai típushibák: nullable bootstrap proof, duplikált tesztimportok és hook
-  második argumentum eltérő típusdefiníciója. Korai IO timeoutok/fázisnaplók a
-  progressben; régi FAIL eredmények megmaradtak. Csak a bukott/érintett esetek
-  ismétlődtek; a sikeres teljes44-es natív és34-es consumer kör nem futott újra.
-- Full nem futott: read-only join és opcionális meglévő cursor, pontos közvetlen
-  fogyasztókkal. Shared gazdasági/clock/auth/dependency alap nem változott.
-  Nincs live install/start/provider vagy baseline; historical backup DB nem nyílt.
-- `20261029-000730-667-si-c07-internal-lineage-preflight-final`:PASS0,877 s;
-  várt NO-GO exit2, canonical source/digest és27 dokumentum linkjei. Eredeti
-  minimum SHA596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a.
-- `20261029-001028-809-si-c07-internal-lineage-format-final`:27 dokumentum
-  linkjei/source hashek és changed/staged-line format PASS2,103 s; új fájlok stage-elve.
+- P2-09: **88 külön célzott eset PASS**; teljes regresszió nem futott.
+  Részletes módszer és időmérés: [population lower bounds](SI_C07_POPULATION_BOUNDS.md).
+- `20261029-170157-377-si-c07-p209-calculation`:18 PASS1,169 s;
+  pure quantifier és sourceCoverage, két új boundary-elválasztási próba.
+- `20261029-170208-264-si-c07-p209-population-native`:22 PASS47,694 s;
+  natív teljes1+7/halál/frozen és eredeti cohort/scoped-FAIL/hiány ágak.
+- `20261029-170334-647-si-c07-p209-consumers`:48 PASS25,421 s;
+  hat pontos consumer fájl és az új census fault assertionnel megismételt eset.
+- `20261029-170526-802-si-c07-p209-final-boundaries`:3 PASS16,284 s;
+  végső pozitív/negatív population projection és offline benchmark restore.
+  A megismételt két population eset nem számít két új esetnek.
+- `20261029-170407-578-si-c07-p209-types`:root TS FAIL58,406 s,
+  kizárólag Source-unió digest-hozzáférésének szűkítése; javítva. Végső TS alább.
+- `20261029-170634-966-si-c07-p209-types-final`:root TypeScript PASS48,739 s.
+- `20261029-170734-270-si-c07-p209-preflight`:PASS1,125 s;
+  várt NO-GO exit2, aktuális source/digest és28 dokumentum linkjei.
+  Canonical minimum SHA596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a.
+- `20261029-170836-118-si-c07-p209-format`:staged format és28 dokumentum
+  linkjei/forráshashek PASS1,021 s; új fájlok is stage-elve.
+- A P2-08 korábbi115 célzott/engine/C06 bizonyítéka az
+  [előző task-dokumentumban](SI_C07_INTERNAL_LINEAGE_GATE.md), commit `e3b45a530`.
+  Most nincs engine/producer/schema/shared persistence/clock/auth változás;
+  engine TS és C06 teljes archive ismétlése nem indokolt. Root TS érintett.
+- Nincs live install/start/provider vagy baseline; historical backup DB nem nyílt.
 
 ## Megmaradó futási korlátok és döntések
 

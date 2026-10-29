@@ -78,7 +78,7 @@ export function projectNativeSourceCoverage(contract:SocietyMinimumContract,fram
     const dependencies:Record<string,string[]>={
         'native-health-deaths':['P2-05','P2-09'],'native-mortality-passes':['P2-05'],'login-respawn-enforcement':['P2-05'],
         'clock-world-policy':['P2-04'],'physiology-modes':['P2-10'],'native-food-lineage':['P2-08','P2-10'],
-        'frozen-physical-boundaries':['P2-09','P2-10'],'housing-rights':['P2-10'],'tool-lifecycle-work':['P2-08'],
+        'frozen-physical-boundaries':['P2-10'],'housing-rights':['P2-10'],'tool-lifecycle-work':['P2-08'],
         'tool-material-custody':['P2-08'],'executor-native-demand':['P2-10'],'business-treasury-custody':['P2-10'],
         'administrative-value-history':['P2-06'],'external-shop-import-history':['P2-07']};
     const {digest:priorDigest,...body}=coverage;

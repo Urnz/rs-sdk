@@ -24,7 +24,7 @@ A lifecycle/admin/external és internal-lineage pozitív útja is kész. Az öss
 nincs teljes pozitív natív adaptere.
 A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run PASS.
 
-## Rögzített lezárási pontok: 7/11 kész
+## Rögzített lezárási pontok: 8/11 kész
 
 - [x] **P2-01 – `frozen-founder-roster`.** Az applied genesis teljes eredeti
   cohortja, immutable tagság és natív finite-avatar kötés alapján PASS-képes.
@@ -65,9 +65,11 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   teljes ablak; tényleges distinct-consumer lánc. Hiány/unknown nem eredetcredit,
   scoped FAIL megmarad; 1+7/frozen, packed food és teljes javítási lánc, C06 restore.
   [Eredmény](SI_C07_INTERNAL_LINEAGE_GATE.md). A napi/ciklus minimum külön szabály.
-- [ ] **P2-09 – Pozitív population-korlátok.** A living és survival szabályok
-  alsó korlátjának bekötése a teljes történeti native coverage alapján.
-  Az üres death ledger továbbra kevés.
+- [x] **P2-09 – Pozitív population-korlátok.** Teljes passing finite lifecycle/
+  health és azonos checkpoint/záró census alapján eredeti survivor lower bound,
+  változatlan nevező. Külön population boundary; fizikai coverage nem öröklődik.
+  1+7 living/survival PASS, valódi halál FAIL, gap/stale/frozen readonly igazolt.
+  [Eredmény](SI_C07_POPULATION_BOUNDS.md). Az üres death ledger önmagában kevés.
 - [ ] **P2-10 – Teljes boundary/access/demand integráció.** A food/housing/
   tool/needs adapterek kötelező határpontjainak és nevezőinek összekötése a
   forrásleltárral. Sparse endpoint vagy hiányos request history nem complete.
@@ -77,7 +79,7 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Az összes kapu/szabály együtt igazolt; puszta feltöltött cellalista kevés.
 
 Ezek lezárási feltételek, nem 11 további chatkör: egy fejlesztés többet is
-lezárhat. Jelenleg 4 pont nyitott. A már elkészült 15 commit nem vész el;
+lezárhat. Jelenleg 3 pont nyitott. A már elkészült 15 commit nem vész el;
 a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb meg kell
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;

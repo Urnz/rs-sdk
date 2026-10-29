@@ -69,3 +69,25 @@ test('duplicates, foreign actors/buckets/cycles and contradictory rational bound
         expect(()=>assessSocietyMinimum(contract,f.frame,[{...f.cells[0]!,subject}],f.gates)).toThrow('scope');
     f.cells[0]!.lower={numerator:'5',denominator:'1'};f.cells[0]!.upper={numerator:'4',denominator:'1'};expect(f.read).toThrow('Contradictory');
 });
+
+test('population boundaries certify living counts independently of incomplete physical reserve boundaries',()=>{
+    const f=fixture();f.frame.populationBoundaries={...f.frame.boundaries!};f.frame.boundaries!.complete=false;
+    const r=f.read();expect(r.requirements.find(v=>v.requirementId==='minimum-living-founders')!.verdict).toBe('pass');
+    expect(r.requirements.find(v=>v.requirementId==='food-reserve-coverage')!.verdict).toBe('inconclusive');expect(r.verdict).toBe('inconclusive');
+    f.frame.populationBoundaries.complete=false;
+    expect(f.read().requirements.find(v=>v.requirementId==='minimum-living-founders')!.verdict).toBe('inconclusive');
+});
+
+test('independent population schedules still require ordered exact endpoints, density, evidence and bounded size',()=>{
+    const f=fixture(),times=f.frame.boundaries!.times;
+    for(const points of [[times[0]!,times[0]!,...times.slice(1)],times.slice(1),[...times].reverse(),Array(10001).fill(times[0]!)]){
+        f.frame.populationBoundaries={times:points,complete:true,sourceDigest:'a'.repeat(64)};expect(f.read).toThrow();
+    }
+    f.frame.populationBoundaries={times,complete:true,sourceDigest:'bad'};
+    expect(f.read().requirements.find(v=>v.requirementId==='minimum-living-founders')!.verdict).toBe('inconclusive');
+    const points=[times[0]!,times.at(-1)!];f.frame.populationBoundaries={times:points,complete:true,sourceDigest:'a'.repeat(64)};
+    const cells=f.cells.filter(c=>c.requirementId!=='minimum-living-founders'||points.includes(c.subject.boundary!));
+    const r=assessSocietyMinimum(contract,f.frame,cells,f.gates);
+    expect(r.requirements.find(v=>v.requirementId==='minimum-living-founders')!.verdict).toBe('inconclusive');
+    expect(r.requirements.find(v=>v.requirementId==='food-reserve-coverage')!.verdict).toBe('pass');
+});

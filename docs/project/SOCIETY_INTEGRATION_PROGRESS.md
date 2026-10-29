@@ -3911,3 +3911,44 @@ várt NO-GO exit2, canonical source/digest és27 dokumentum linkjei. Eredeti
 minimum SHA596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a.
 `20261029-001028-809-si-c07-internal-lineage-format-final`:27 dokumentum linkjei,
 source hashek és changed/staged-line format PASS2,103 s; új fájlok stage-elve.
+
+## 2026-10-29 – SI-C07/2 P2-09 population lower bounds kész
+
+Rögzített lista **8/11 kész, 3 nyitott; 7/8 pozitív natív kapuút**.
+Következő P2-10 → P2-03 végellenőrzés → P2-11. Fő roadmap27/45;
+C07 NO-GO, SI-M3/MVS nem PASS. Részletek: [population bounds](SI_C07_POPULATION_BOUNDS.md).
+
+Új readonly adapter a meglévő teljes PASS finite lifecycle/health eredményből,
+ugyanazon checkpoint/záró census és változatlan eredeti founder-nevező mellett.
+Záró survivorok adják a konzervatív living lower boundot és az exact survival
+arányt. Üres death ledger önmagában nem elég. Population boundary külön marad
+az étel/reserve fizikai inventorytól; census tickek miatt nincs új fizikai
+snapshot-költség vagy másik coverage családnak adott pozitív bizonyíték.
+Nincs új journal/tábla/producer, engine/shared clock/economic/auth módosítás.
+
+**88 külön célzott eset PASS**, nem full regresszió:
+- `20261029-170157-377-si-c07-p209-calculation`:18 PASS1,169 s.
+- `20261029-170208-264-si-c07-p209-population-native`:22 PASS47,694 s;
+  eredeti1+7/offline roster és readonly frozen újraolvasás, tényleges HP-halál
+  mellett eredeti4 nevező/lower3/survival30000/4 és FAIL. Hiányos parent/health/
+  census, stale snapshot és idegen scope/denominator nem pozitív bizonyíték.
+- `20261029-170334-647-si-c07-p209-consumers`:48 PASS25,421 s;
+  hat pontos consumer fájl + az új fault assertion miatt ismételt negatív eset.
+- `20261029-170526-802-si-c07-p209-final-boundaries`:3 PASS16,284 s;
+  két ismételt projection eset és egy offline benchmark restore9,620 s.
+- Population1+7 setup3849 ms/5000 ms, assessment/frozen3232 ms/10000 ms;
+  eredeti15 s összkeret. Nincs vak timeout-emelés.
+- Root TS első kör FAIL58,406 s (`20261029-170407-578-si-c07-p209-types`):
+  kizárólag Source-unió szűkítése; javítva. Végső root TS PASS48,739 s
+  (`20261029-170634-966-si-c07-p209-types-final`). Engine TS nem érintett.
+- `20261029-170734-270-si-c07-p209-preflight`:PASS1,125 s; várt NO-GO exit2,
+  aktuális source/digest és28 dokumentum linkjei. Canonical minimum SHA
+  596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a változatlan.
+
+Full nem indokolt: additive readonly join, külön scoped quantifier schedule,
+érintett evaluator/readerek és közvetlen fogyasztók célzottan ellenőrizve.
+Sikeres korábbi engine/C06 körök nem ismétlődtek. Nincs live install/start,
+providerkérés, baseline vagy historical payload DB olvasás.
+
+`20261029-170836-118-si-c07-p209-format`:staged changed-line format és28
+dokumentum linkjei/aktuális source hashek PASS1,021 s; új fájlok stage-elve.

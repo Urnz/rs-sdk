@@ -74,9 +74,9 @@
         "zeroDemand": "inconclusive",
         "channels": [
           "population-death",
-          "complete-native-boundaries"
+          "native-original-population-bounds"
         ],
-        "missing": "Verified terminal deaths give upper bounds; continuous mortality and complete native boundary coverage are still required for PASS."
+        "missing": "Original closing survivors bound earlier living counts only under complete passing finite lifecycle/health coverage and dense population boundaries; empty death history is insufficient."
       },
       {
         "requirementId": "founder-survival",
@@ -87,9 +87,10 @@
         "zeroDemand": "inconclusive",
         "channels": [
           "frozen-founder-boundary",
-          "population-death"
+          "population-death",
+          "native-original-population-bounds"
         ],
-        "missing": "Verified original-lifecycle deaths bound closing survival from above; an empty death ledger or fresh wall heartbeat does not prove survival."
+        "missing": "Complete finite lifecycle/health coverage binds closing survivors to the unchanged original denominator; an empty death ledger or fresh wall heartbeat alone does not prove survival."
       },
       {
         "requirementId": "hunger-satisfied-time",
@@ -426,7 +427,7 @@
           "finite-lifecycle-no-respawn",
           "complete-source-coverage"
         ],
-        "gap": "Positive coverage requires the reviewed runtime, every native tick and audited online HP routes; missing legacy route witnesses remain partial. This is not a positive survival lower bound."
+        "gap": "Positive coverage requires the reviewed runtime, every native tick and audited online HP routes; missing legacy route witnesses remain partial. Population lower bounds additionally require the same checkpoint and closing original survivor census."
       },
       {
         "id": "clock-world-policy",
@@ -903,7 +904,7 @@
     "coverageVerdict": "inconclusive",
     "qualifiesCoverage": false,
     "meaning": "Required evidence families and temporal obligations, never a live source pin, adapter-completeness assertion or coverage certificate.",
-    "digest": "99f9840f793d8c9f8bd0fed4a24aec7f3701f5cae096055076eee98b3d772587"
+    "digest": "179d8ad0348521212a7a1a5bdac5cb9120cc817e45f4df758809ddd27f69d895"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -934,9 +935,9 @@
       "scope": "all-observation-boundaries",
       "channels": [
         "population-death",
-        "complete-native-boundaries"
+        "native-original-population-bounds"
       ],
-      "missing": "Verified terminal deaths give upper bounds; continuous mortality and complete native boundary coverage are still required for PASS.",
+      "missing": "Original closing survivors bound earlier living counts only under complete passing finite lifecycle/health coverage and dense population boundaries; empty death history is insufficient.",
       "status": "minimum-population-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
@@ -948,9 +949,10 @@
       "scope": "closing-boundary",
       "channels": [
         "frozen-founder-boundary",
-        "population-death"
+        "population-death",
+        "native-original-population-bounds"
       ],
-      "missing": "Verified original-lifecycle deaths bound closing survival from above; an empty death ledger or fresh wall heartbeat does not prove survival.",
+      "missing": "Complete finite lifecycle/health coverage binds closing survivors to the unchanged original denominator; an empty death ledger or fresh wall heartbeat alone does not prove survival.",
       "status": "minimum-population-bound-adapter",
       "assessedValue": null,
       "verdict": "inconclusive"
@@ -1181,7 +1183,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have partial native adapters and seven integrity gates have positive native paths. Internal lineage joins sealed original food production/trade/final use and prospective tool/material/escrow history, with actual distinct-consumer opportunity; numeric daily and maintenance minima remain separate. Complete aggregate source coverage, population lower bounds, boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
+      "reason": "All17 requirements have partial native adapters and seven integrity gates have positive native paths. Population lower bounds now use original closing survivors under complete finite lifecycle/health coverage; population boundaries do not certify physical food/reserve snapshots. Complete aggregate source coverage, boundary/access/demand integration and aggregate native PASS remain incomplete; no actual C07 run is certified."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -1221,7 +1223,7 @@
     },
     {
       "path": "society-minimum/source-inventory.ts",
-      "sha256": "298b7333d63c735f091aafdb269f24597820f82500f12ad2c3579f8f309a31c1"
+      "sha256": "5a744320351ccedca911e900593841263e0db27d1ae68ff819a44e49e31fe827"
     },
     {
       "path": "config/society-minimum-policy.json",
@@ -1661,11 +1663,11 @@
     },
     {
       "path": "society-minimum/assessment.ts",
-      "sha256": "7570a33f5538af7ec06670775368dabf5f9d26987bf8f90a0914a9c7b066250b"
+      "sha256": "ed5f2e2fefde3b042baab2286c9426199d2e1ec80016c53dca5dcf8546b07cc1"
     },
     {
       "path": "society-minimum/source-map.ts",
-      "sha256": "bbb9e085906857950e83cc593e06e51f675f6e55929c1aa371b38a8dee816846"
+      "sha256": "aba53e4907a6045a8c0a2cdb53ed9493036172d0a27dd67e3ce4440e94a6bd69"
     },
     {
       "path": "society-minimum/source-coverage.ts",
@@ -1673,15 +1675,19 @@
     },
     {
       "path": "society-metrics/source-coverage.ts",
-      "sha256": "8a1fa6da60748fe7e08dcac9b1212c9cfb290905708cfa7e86b814f339aad7a7"
+      "sha256": "91bae0ca6fcb6bfb935c94177bce422af976cdc2ad96fec8b3a76b76e604c2e6"
     },
     {
       "path": "society-metrics/minimum-assessment.ts",
-      "sha256": "d77ce37da1444b7674b3b81fa1958271f02820cd4bd8c49d9cee59b93b1443dd"
+      "sha256": "7124e1b24382496a2f2a5460e299a6276d33b746d05b7e54f04d18473ad4a8f4"
     },
     {
       "path": "society-metrics/population-outcomes.ts",
       "sha256": "c8f6de897740d8fe90ed1f3d1be3245d9f5174e174b37003dfabc9692d156787"
+    },
+    {
+      "path": "society-metrics/population-bounds.ts",
+      "sha256": "9638cfdd3e5b671b6f7dd6acea606c0c1a37dbe181e001008742e7655826df90"
     },
     {
       "path": "society-metrics/genesis-opening.ts",
@@ -1929,7 +1935,7 @@
     },
     {
       "path": "society-metrics/native-outcomes.ts",
-      "sha256": "7c677a07a5e7275e7afaca792e3d62d12754e256071dd3472762d19b7a5e57f2"
+      "sha256": "a6bd796baa4c654f0690941ec380bca9c8620e00d7d487ba263b6932bf4be385"
     },
     {
       "path": "society-experiments/benchmark-report.ts",
@@ -2069,7 +2075,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "d83eca5a5ba69706864e07cccf9a119f1437f3124ea28e674446f241be0a1350"
+      "sha256": "e529a1037dfe1a7b36b7b8fc76f628e9793a17aabadc91cfbb7f5b7daa17b854"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -2098,5 +2104,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "eb908303a6f0f5fb8e8500846b734e2771c17689567dd66e9f18a0b98a5f23c7"
+  "digest": "bf56150d053dbc2adb8b421a03126e520f1636c835704d94ec1712bc8d7fc7c2"
 }

@@ -1199,6 +1199,15 @@ napi/ciklus minimum külön. Scoped FAIL megmarad másik forrás hibája mellett
 **7/11 kész, 4 nyitott; 7/8 pozitív natív kapuút.** Következő P2-09.
 Új journal/tábla vagy hosszú run nincs; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
 
+**2026-10-29 P2-09 kész:** [pozitív living/survival korlátok](SI_C07_POPULATION_BOUNDS.md).
+Teljes finite lifecycle/health és azonos checkpoint/záró census alapján az
+eredeti survivorok konzervatív lower boundot adnak. Eredeti nevező, külön
+population boundary, fizikai source-coverage nem öröklődik. 1+7 pozitív és
+valódi halál FAIL; hiány/foreign/stale unknown, frozen readonly azonos.
+**8/11 kész, 3 nyitott; 7/8 pozitív natív kapuút.** Következő P2-10,
+majd P2-03 végellenőrzés és P2-11. Nincs új journal/tábla vagy hosszú run;
+27/45, C07 NO-GO, SI-M3/MVS nem PASS.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

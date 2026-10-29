@@ -69,6 +69,7 @@ import {integrityCoverageCursor} from '../../society-integrity/coverage.js';
 import {withSocietyValueMutation} from '../../society-integrity/runtime.js';
 import {readNativeAdministrativeValue} from '../administrative-value.js';
 import {readNativeFounderBaseline} from '../population-outcomes.js';
+import {readNativePopulationBounds} from '../population-bounds.js';
 import {bindSocietyInternalPayment} from '../../server/gateway/admin/society-integrity.js';
 import {PlayerRewardStore} from '../../server/engine/src/mods/PlayerRewardStore.js';
 import {MarketStore,type MarketAccount} from '../../server/engine/src/engine/market/MarketStore.js';
@@ -517,12 +518,16 @@ test('world policy original 1+7 frame reaches the positive native integrity gate
                 f.emitMutationFrame('end-of-tick',{}, {avatars:[{...avatar,vitals:{...avatar.vitals,hitpoints:0,terminal:true}}]});
             }else f.emitMutationFrame('end-of-tick');}}).immediate();
         console.error(`[WorldPolicyFullFrame] build ${Math.round(performance.now()-started)} ms`);
-        const r=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,f.options));
+        const out=reportNativeOutcomes(f.scope,f.options),r=projectNativeMinimumAssessment(contract,f.scope,out);
         expect(r.bindingStatus).toBe('bound');expect(r.integrity.find(g=>g.gateId==='unchanged-clock-and-world-policy')!.verdict).toBe('pass');
         expect(r.sourceCoverage.rows.find(s=>s.sourceId==='clock-world-policy')!.status).toBe('complete');expect(r.qualifiesMinimum).toBeFalse();
         expect(r.integrity.find(g=>g.gateId==='finite-lifecycle-no-respawn')!.verdict).toBe('pass');
         expect(r.sourceCoverage.rows.filter(s=>['native-health-deaths','login-respawn-enforcement'].includes(s.sourceId)).map(s=>s.status)).toEqual(['complete','complete']);
         expect(rule(r,'founder-survival').verdict).toBe('fail'); // Correct finite death is not a survival success.
+        expect(out.sources.populationBounds.status).toBe('available');if(out.sources.populationBounds.status!=='available')throw Error('Missing population bounds');
+        expect(out.sources.populationBounds.value.completePopulationBounds).toBeTrue();expect(out.sources.populationBounds.value.minimumLivingLower).toBe(3);
+        expect(out.sources.populationBounds.value.closingSurvivalLower).toEqual({numerator:'30000',denominator:'4'});
+        expect(rule(r,'minimum-living-founders').verdict).toBe('fail');
         const frozen=join(f.root,'.local/society-metrics/world-policy-frozen.sqlite');writeFileSync(frozen,f.mutationDb.serialize());
         const replay=readNativeWorldPolicy(f.db,f.scope,{...f.options,policyMutationsPath:frozen},initial,f.actors);expect(replay.verdict).toBe('pass');
         const checkpoint=join(f.root,'server/engine/data/lifecycle-full-frozen.sqlite');writeFileSync(checkpoint,f.db.serialize());
@@ -531,6 +536,61 @@ test('world policy original 1+7 frame reaches the positive native integrity gate
         console.error(`[WorldPolicyFullFrame] total ${Math.round(performance.now()-started)} ms`);
     }finally{f.close();}
 },15000);
+
+describe('population bounds full frame',()=>{
+    let f:ReturnType<typeof mutationFixture>,start:number;
+    fixturePhase(beforeAll,5000,()=>{start=performance.now();f=mutationFixture(true,true);try{
+        f.db.transaction(()=>{for(let n=0;n<=192;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}}).immediate();
+        console.info('[PopulationBoundsFullFrame] build',Math.round(performance.now()-start));
+    }catch(e){f.close();throw e;}});
+test('population lower bounds original 1+7 certifies all offline founders while physical and global coverage remain incomplete',()=>{
+    try{const out=reportNativeOutcomes(f.scope,f.options),source=out.sources.populationBounds,parent=out.sources.lifecycleEnforcement,
+        baseline=out.sources.populationBaseline,deaths=out.sources.populationDeaths;
+        expect(source.status).toBe('available');if(source.status!=='available'||parent.status!=='available'||baseline.status!=='available'||deaths.status!=='available')throw Error('Missing native population dependencies');
+        const {sourceSnapshotDigest,...expected}=source.value;expect(expected.gaps).toEqual([]);expect(expected.completePopulationBounds).toBeTrue();
+        expect(expected.minimumLivingLower).toBe(4);expect(expected.closingSurvivorAgentIds).toEqual([...f.scope.actorAgentIds].sort());
+        expect(expected.closingSurvivalLower).toEqual({numerator:'40000',denominator:'4'});expect(expected.boundaries.times).toHaveLength(169);
+        const r=projectNativeMinimumAssessment(contract,f.scope,out);expect(r.bindingStatus).toBe('bound');
+        expect(rule(r,'minimum-living-founders').verdict).toBe('pass');expect(rule(r,'founder-survival').verdict).toBe('pass');
+        expect(rule(r,'food-reserve-coverage').verdict).toBe('inconclusive');expect(r.qualifiesMinimum).toBeFalse();
+        expect(r.sourceCoverage.rows.find(s=>s.sourceId==='frozen-physical-boundaries')!.status).not.toBe('complete');
+        expect(r.assessment!.frame.boundaries).toBeUndefined();expect(r.assessment!.frame.populationBoundaries!.times).toHaveLength(169);
+        const additional=new Date(Date.parse(f.scope.fromSimulationTime)+1000).toISOString(),withBoundary=projectNativeMinimumAssessment(contract,f.scope,out,
+            {...r.assessment!.frame,boundaries:{times:[f.scope.fromSimulationTime,additional,f.scope.toSimulationTime],complete:false,sourceDigest:'a'.repeat(64)}});
+        expect(rule(withBoundary,'minimum-living-founders').verdict).toBe('pass');expect(withBoundary.assessment!.frame.populationBoundaries!.times).toContain(additional);
+        expect(rule(withBoundary,'food-reserve-coverage').verdict).toBe('inconclusive');
+        for(const value of [{...source.value,completePopulationBounds:false},{...source.value,worldId:'foreign'},
+            {...source.value,minimumLivingLower:5},{...source.value,enforcementDigest:'f'.repeat(64)}]){
+            const bad=projectNativeMinimumAssessment(contract,f.scope,{...out,sources:{...out.sources,populationBounds:{...source,value}}});
+            expect(rule(bad,'minimum-living-founders').verdict).toBe('inconclusive');expect(rule(bad,'founder-survival').verdict).toBe('inconclusive');
+        }
+        const before=f.db.serialize(),path=join(f.root,'server/engine/data/population-offline.sqlite');writeFileSync(path,before);
+        expect(sourceSnapshotDigest).toBe(createHash('sha256').update(before).digest('hex'));const db=new OwnedDatabase(path,{readonly:true});
+        try{expect(readNativePopulationBounds(db,f.scope,f.options.worldId,configDirectory,baseline.value,deaths.value,parent.value)).toEqual(expected);
+            expect(db.serialize()).toEqual(before);}finally{db.close(true);}
+        expect(f.db.serialize()).toEqual(before);console.info('[PopulationBoundsFullFrame] total',Math.round(performance.now()-start));
+    }finally{f.close();}
+},10000);
+});
+
+test('population lower bounds reject foreign scopes, denominator changes, incomplete health and stale checkpoint parents',()=>{
+    const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}
+        const out=reportNativeOutcomes(f.scope,f.options),parent=out.sources.lifecycleEnforcement,baseline=out.sources.populationBaseline,deaths=out.sources.populationDeaths;
+        if(parent.status!=='available'||baseline.status!=='available'||deaths.status!=='available')throw Error('Missing population dependencies');
+        const read=(scope=f.scope,p=parent.value,b=baseline.value,d=deaths.value)=>readNativePopulationBounds(f.db,scope,f.options.worldId,configDirectory,b,d,p);
+        expect(read().completePopulationBounds).toBeTrue();
+        const failures=[read({...f.scope,actorAgentIds:f.scope.actorAgentIds.slice(1)}),read({...f.scope,toSimulationTime:f.scope.fromSimulationTime}),
+            read(f.scope,{...parent.value,worldId:'foreign'}),read(f.scope,{...parent.value,healthSnapshotDigest:'f'.repeat(64)}),
+            read(f.scope,{...parent.value,completeNativeHealthCoverage:false}),read(f.scope,{...parent.value,verdict:'fail'}),
+            read(f.scope,parent.value,{...baseline.value,founders:baseline.value.founders.slice(1)}),
+            read(f.scope,parent.value,baseline.value,{...deaths.value,founderBindings:[deaths.value.founderBindings[0]!,...deaths.value.founderBindings.slice(0,-1)]})];
+        for(const r of failures){expect(r.completePopulationBounds).toBeFalse();expect(r.minimumLivingLower).toBeNull();expect(r.closingSurvivalLower).toBeNull();expect(r.boundaries.complete).toBeFalse();}
+        f.db.exec('CREATE TABLE population_checkpoint_change (id INTEGER)');const stale=read();expect(stale.gaps).toContain('enforcement-checkpoint-changed');expect(stale.minimumLivingLower).toBeNull();
+        f.watermarks.fault();const fault=reportNativeOutcomes(f.scope,f.options).sources.populationBounds;
+        expect(fault.status).toBe('available');if(fault.status!=='available')throw Error('Missing bounded diagnostic');
+        expect(fault.value.completePopulationBounds).toBeFalse();expect(fault.value.minimumLivingLower).toBeNull();expect(fault.value.closingSurvivalLower).toBeNull();
+    }finally{f.close();}
+});
 
 test('finite lifecycle joins existing sealed sources for every original offline founder and rereads frozen SQLite without writes',()=>{
     const f=mutationFixture(true);try{for(let n=0;n<3;n++){f.sample(n);f.emitMutationFrame('after-terminal-guard');f.emitMutationFrame('end-of-tick');}
