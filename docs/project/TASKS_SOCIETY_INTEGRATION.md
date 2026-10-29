@@ -1217,6 +1217,14 @@ snapshot/hash kötés, eredeti numeric FAIL és unknown megmarad.
 natív coverage-audit, majd P2-11 összesítő. Nincs új journal/tábla vagy hosszú
 run; 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
 
+**2026-10-29 P2-03 közös natív audit kész:** [forráslefedettség](SI_C07_SOURCE_COVERAGE.md).
+Egyazon actual applied-genesis/world/cohort/clock és teljes1+7 ablak alatt mind16
+család complete; complete-source-coverage gate PASS. Mind16 omission/warmup és
+valódi publisher-fault unknown, numeric FAIL megmarad; frozen readonly azonos.
+**10/11 kész, 1 nyitott; 8/8 pozitív natív kapuút.** Következő P2-11:
+teljes17+8 natív összesítő. Új producer/journal vagy hosszú run nincs;
+27/45, C07 NO-GO, SI-M3/MVS nem PASS.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

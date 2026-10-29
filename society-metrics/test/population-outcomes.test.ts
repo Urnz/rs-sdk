@@ -1,4 +1,4 @@
-import { afterEach,beforeAll,beforeEach,describe,expect,test } from 'bun:test';
+import { afterEach,afterAll,beforeAll,beforeEach,describe,expect,test } from 'bun:test';
 import { mkdtempSync,rmSync,readFileSync,cpSync,mkdirSync,copyFileSync,writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join,dirname } from 'node:path';
@@ -80,13 +80,21 @@ import {NativeToolWorkStore} from '../../production-workflow/native-tool-work.js
 import {NativeMaterialStore} from '../../production-workflow/native-material.js';
 import {appendFoodLineage} from '../../server/engine/src/mods/NativeFoodLineageStore.js';
 import {readNativeInternalLineage} from '../internal-lineage.js';
-import {fixturePhase} from '../../society-experiments/test/fixture-phase.js';
+import {fixturePhase,asyncFixturePhase} from '../../society-experiments/test/fixture-phase.js';
 import {reportNativeIntegration,projectNativeIntegration} from '../integration-report.js';
 import {projectNativeMinimumHistory,selectIntegrationBoundaryScope} from '../minimum-history.js';
 import {OwnedFoodDatabase} from '../../food-loop/owned-database.js';
 import {NeedsStore} from '../../needs/store.js';
 import {FoodConsumptionStore} from '../../food-loop/consumption-store.js';
 import {NativeFoodConsumptionProjection} from '../../food-loop/native-consumption-store.js';
+import {createNativeGenesisFixture} from './native-genesis-fixture.js';
+import {Database as BunDatabase} from 'bun:sqlite';
+import {NativeMiningDemandStore} from '../../item-lifecycle/native-mining-demand.js';
+import {NativeMiningIntentStore,nativeMiningDemandSessionId} from '../../item-lifecycle/native-mining-intent.js';
+import {NativeMiningCoverageStore,miningCoverageSourceHeads,miningRosterDigest} from '../../item-lifecycle/native-mining-coverage.js';
+import {NativeMiningRequestStore} from '../../item-lifecycle/native-mining-requests.js';
+import {installMiningExecutorSource,miningExecutorSourceAvailable} from '../../agent-skills/mining-request-source.js';
+import {projectNativeNeedsExposure} from '../needs-exposure.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
 const contract=loadSocietyMinimumContract(configDirectory),age=loadPopulationAgePolicy(join(configDirectory,'population-age-policy.json')),
@@ -135,11 +143,11 @@ const rule=(r:ReturnType<typeof projectNativeMinimumAssessment>,id:string)=>r.as
 const expectOnlyFrozenRosterGate=(r:ReturnType<typeof projectNativeMinimumAssessment>)=>expect(r.integrity.map(g=>({gateId:g.gateId,verdict:g.verdict})))
     .toEqual(contract.policy.integrityGates.map(gateId=>({gateId,verdict:gateId==='frozen-founder-roster'?'pass':'inconclusive'})));
 
-function mortalityFixture(fullPolicy=false){
-    const f=fixture(fullPolicy),checkpointPath=join(f.root,'server/engine/data/mortality.sqlite');mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
+function mortalityFixture(fullPolicy=false,base?:ReturnType<typeof fixture>){
+    const f=base??fixture(fullPolicy),checkpointPath=f.options.checkpointPath??join(f.root,'server/engine/data/mortality.sqlite');mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
     f.options.checkpointPath=checkpointPath;const db=new OwnedDatabase(checkpointPath),health=new PlayerHealthEvidenceStore(f.healthPath),
         clock=new SimulationClockStore(f.clockPath),agents=new AgentStateStore(f.agentPath,{store:clock,clockId:'world'});
-    for(const m of agents.listPopulationMembers())agents.setCharacterBirth(m.agentId,m.characterLifecycle.revision,initial,'born',wall);
+    for(const m of agents.listPopulationMembers())if(m.characterLifecycle.birthAtSimulationTime===null)agents.setCharacterBirth(m.agentId,m.characterLifecycle.revision,initial,'born',wall);
     const members=agents.listPopulationMembers(),
         actors=members.map(nativeMortalityActor),scope=fullPolicy?f.scope:{...f.scope,fromSimulationTime:initial,toSimulationTime:'2001-01-01T00:00:01.200Z'},
         selection:MortalityCoverageSelection={schemaVersion:1,selectionId:randomUUID(),worldId:'fixture',clockId:'world',clockProfileDigest:f.scope.clockProfileDigest,
@@ -230,7 +238,7 @@ test('native lifecycle missing results, unknown or stale authority and altered i
     }finally{f.close();}
 });
 
-function watermarkFixture(fullPolicy=false){const f=mortalityFixture(fullPolicy),attempts=new NativeLifecycleAttemptStore(f.db,true),store=new NativeLifecycleWatermarkStore(f.db,true);
+function watermarkFixture(fullPolicy=false,base?:ReturnType<typeof fixture>){const f=mortalityFixture(fullPolicy,base),attempts=new NativeLifecycleAttemptStore(f.db,true),store=new NativeLifecycleWatermarkStore(f.db,true);
     const frame=(stage:LifecycleWatermarkSample['stage'],change:Partial<LifecycleWatermarkSample>={})=>{
         const row=f.db.query('SELECT payload FROM native_mortality_event ORDER BY sequence DESC LIMIT 1').get() as {payload:string},
             c=JSON.parse(row.payload).clock as LifecycleWatermarkSample['clock'],mortalityHead=f.db.query('SELECT sequence,digest FROM native_mortality_head WHERE singleton=1').get() as LifecycleWatermarkSample['mortalityHead'],cursor=attempts.cursor();
@@ -244,7 +252,7 @@ function watermarkFixture(fullPolicy=false){const f=mortalityFixture(fullPolicy)
     return{...f,attempts,watermarks:store,frame,attempt,readWatermarks:()=>readNativeLifecycleWatermarks(f.db,f.scope,f.options,initial,f.actors)};
 }
 
-function policyFixture(fullPolicy=false){const f=watermarkFixture(fullPolicy),root=join(import.meta.dir,'../..'),manifest=lifecycleRouteManifest(root),files=lifecyclePolicyFiles(root),
+function policyFixture(fullPolicy=false,base?:ReturnType<typeof fixture>){const f=watermarkFixture(fullPolicy,base),root=join(import.meta.dir,'../..'),manifest=lifecycleRouteManifest(root),files=lifecyclePolicyFiles(root),
     snapshot=()=>({clock:f.clock.get('world')!,effective:{agePolicyDigest:age.digest,mortalityPolicyDigest:mortality.digest,bindingsDigest:'a'.repeat(64),
         survivalDigest:null,modsDigest:'b'.repeat(64)},sources:manifest.sources,files:structuredClone(files)}),
     pin={manifest,opening:snapshot()},store=new NativeLifecyclePolicyStore(f.db,pin);
@@ -258,7 +266,7 @@ function policyFixture(fullPolicy=false){const f=watermarkFixture(fullPolicy),ro
     return{...f,policyStore:store,pin,snapshot,emit,readPolicy:()=>readNativeLifecyclePolicy(f.db,f.scope,f.options,initial,f.actors)};
 }
 
-function mutationFixture(strict=false,fullPolicy=false,roles:Array<'engine'|'gateway'>=['engine','gateway']){const f=policyFixture(fullPolicy),path=policyMutationJournalPath(f.root);mkdirSync(join(f.root,'.local/society-metrics'),{recursive:true});
+function mutationFixture(strict=false,fullPolicy=false,roles:Array<'engine'|'gateway'>=['engine','gateway'],base?:ReturnType<typeof fixture>){const f=policyFixture(fullPolicy,base),path=policyMutationJournalPath(f.root);mkdirSync(join(f.root,'.local/society-metrics'),{recursive:true});
     const db=new OwnedDatabase(path),pkg=readFileSync(join(import.meta.dir,'../../package.json')),
         sourceFiles=[...new Set(['package.json',...f.pin.manifest.sources.map(p=>p.path),...strict?['bun.lock','server/engine/bun.lock','server/gateway/bun.lock']:[]])],
         files=strict?[...sourceFiles,...f.pin.opening.files.filter(p=>p.sha256!==null).map(p=>p.path)].map(path=>{
@@ -285,20 +293,20 @@ function mutationFixture(strict=false,fullPolicy=false,roles:Array<'engine'|'gat
         readMutations:()=>readNativePolicyMutations(f.db,f.scope,f.options,initial,f.actors),close(){db.close(true);f.close();}};
 }
 
-function administrativeFixture(full=false,legacy=false){const f=mutationFixture(true,full),runId=f.options.population!.genesisResultId;
+function administrativeFixture(full=false,legacy=false,base?:ReturnType<typeof fixture>){const f=mutationFixture(true,full,['engine','gateway'],base),runId=f.options.population!.genesisResultId;
     if(legacy){const original=new SocietyIntegrityStore(f.options.population!.integrityPath,true),result=original.report(runId).run.result;original.close();
         f.options.population!.integrityPath=join(f.root,'.local/simulation/legacy-integrity.sqlite');const replacement=new SocietyIntegrityStore(f.options.population!.integrityPath);
         replacement.begin(result,true);replacement.recordCoverageGap(runId,{clockId:f.scope.clockId,profileDigest:f.scope.clockProfileDigest,simulationTime:initial,wallTime:wall});replacement.finishBootstrap(runId);replacement.close();}
     const path=f.options.population!.integrityPath,store=new SocietyIntegrityStore(path),
     cursor=()=>integrityCoverageCursor(store.coverageSnapshot(runId)),baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!}),
-    emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emitMutationFrame(stage,{administrativeValueCursor:cursor(),...change}),
+    emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={},census:Partial<LifecycleWatermarkSample>={})=>f.emitMutationFrame(stage,{administrativeValueCursor:cursor(),...change},census),
     boundary={path,observe:()=>{const c=f.store.read().entries.at(-1)!.sample.clock;return{clockId:c.clockId,profileDigest:c.profileDigest,simulationTime:c.simulationTime,wallTime:c.wallTime};}},
     inject=(source:import('../../society-integrity/store.js').IntegritySource='engine.cheat-value',changed=true)=>withSocietyValueMutation({source,operationId:randomUUID(),actor:'player:ada',payload:{itemId:379,requestedCount:1}},()=>changed?1:0,boundary,r=>r>0);
     return{...f,integrity:store,runId,cursor,boundary,emitValue:emit,inject,readValue:()=>readNativeAdministrativeValue(f.db,f.scope,f.options,baseline,f.actors),close(){store.close();f.close();}};
 }
 
-function externalFixture(full=false,enabled=true){const f=administrativeFixture(full),paths={tradePath:join(f.root,'server/engine/data/external-trades.sqlite'),
-    marketPath:join(f.root,'server/engine/data/actual-ge.sqlite'),treasuryPath:join(f.root,'.local/economy/external-treasury.sqlite')},
+function externalFixture(full=false,enabled=true,base?:ReturnType<typeof fixture>){const f=administrativeFixture(full,false,base),paths={tradePath:join(f.root,'server/engine/data/external-trades.sqlite'),
+    marketPath:join(f.root,'server/engine/data/actual-ge.sqlite'),treasuryPath:f.options.externalValue?.treasuryPath??join(f.root,'.local/economy/external-treasury.sqlite')},
     trades=new TradeEvidenceStore(paths.tradePath),market=new MarketStore(paths.marketPath),treasury=new InstitutionTreasuryStore(paths.treasuryPath);
     f.options.tradePath=paths.tradePath;f.options.externalValue={treasuryPath:paths.treasuryPath,marketPath:paths.marketPath};
     // Fixture-only cache: persistent readonly connections detect every native writer commit.
@@ -307,7 +315,7 @@ function externalFixture(full=false,enabled=true){const f=administrativeFixture(
     let cacheKey='',cached:ReturnType<typeof readExternalValueSnapshot>['cursor']|null=null;
     const cursor=()=>{const key=readers.map(db=>(db.query('PRAGMA data_version').get() as {data_version:number}).data_version).join(':');
             if(!cached||key!==cacheKey){cached=readExternalValueSnapshot(f.root,paths,'closed-society',enabled).cursor;cacheKey=key;}return structuredClone(cached);},
-        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>f.emitValue(stage,{externalValueCursor:cursor(),...change}),
+        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={},census:Partial<LifecycleWatermarkSample>={})=>f.emitValue(stage,{externalValueCursor:cursor(),...change},census),
         trade=(outside=true,exportOnly=false)=>{const c=f.store.read().entries.at(-1)!.sample.clock;return trades.record({tick:c.engineTick!,fromUsername:'ada',toUsername:outside?'outsider':'bea',
             fromItems:[{id:379,name:'lobster',count:1}],toItems:exportOnly?[]:[{id:995,name:'coins',count:10}],fromValue:1,toValue:exportOnly?0:10,committedAt:c.wallTime});},
         baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!});
@@ -317,7 +325,7 @@ function externalFixture(full=false,enabled=true){const f=administrativeFixture(
 function marketWallet(owner:string):MarketAccount{const amounts=new Map([[379,100],[995,10000]]);return{owner,take(id,n){const prior=amounts.get(id)??0;if(prior<n)throw Error('Unfunded fixture wallet');amounts.set(id,prior-n);},
     give(id,n){amounts.set(id,(amounts.get(id)??0)+n);return n;},save:()=>new Uint8Array([1]),rollback(){throw Error('Unexpected fixture rollback');}};}
 
-function lineageFixture(full=false){const f=externalFixture(full),consumption=new NativeFoodConsumptionStore({db:f.db}),production=new NativeFoodProductionStore(f.db);
+function lineageFixture(full=false,base?:ReturnType<typeof fixture>){const f=externalFixture(full,true,base),consumption=new NativeFoodConsumptionStore({db:f.db}),production=new NativeFoodProductionStore(f.db);
     new NativeToolStore(f.db);new NativeToolWorkStore(f.db);new PlayerInventoryEscrowStore({db:f.db,checkpoint(){throw Error('No physical fixture dispatch');}});
     f.db.transaction(()=>new NativeMaterialStore(f.db,true)).immediate();
     const baseline=readNativeFounderBaseline(f.scope,{...f.options,population:f.options.population!}),current=()=>JSON.parse((f.db.query('SELECT payload FROM native_mortality_event ORDER BY sequence DESC LIMIT 1').get() as {payload:string}).payload).clock as LifecyclePolicySample['position'],
@@ -340,9 +348,149 @@ function lineageFixture(full=false){const f=externalFixture(full),consumption=ne
             const action=consumption.admit({...actionIdentity(eater),actionId:randomUUID(),itemId:379,quantity:1,slot:0,policyDigest:foodDigest(FOOD_POLICY)});
             f.db.transaction(()=>consumption.finish({action,outcome:'consumed',receipt:{...action,schemaVersion:1,cause:'content:consume_effect_stat',before:1,after:0,hpBefore:10,hpAfter:10,
                 clock:current(),checkpointId:`food:${action.actionId}`,checkpointDigest:'d'.repeat(64),requestDigest:foodDigest(action)}},current())).immediate();},
-        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={})=>{closeFoodDeliveryTick(f.db,current());return f.emitExternal(stage,{lineageCursor:readLineageSnapshot(f.db).cursor,...change});};
+        emit=(stage:LifecyclePolicySample['stage'],change:Partial<LifecyclePolicySample>={},census:Partial<LifecycleWatermarkSample>={})=>{closeFoodDeliveryTick(f.db,current());return f.emitExternal(stage,{lineageCursor:readLineageSnapshot(f.db).cursor,...change},census);};
     return{...f,produce,emitLineage:emit,readLineage:(parent?:Parameters<typeof readNativeInternalLineage>[5])=>readNativeInternalLineage(f.db,f.scope,f.options,baseline,f.actors,parent)};
 }
+
+/** Physical domain projection of the actual checkpoint, excluding independent observer journals. Every table/row is copied verbatim. */
+function freezeCoveragePhysical(db:OwnedDatabase,path:string){
+    const selected=(name:string)=>name==='accounts'||/^(native_food_|native_tool_|item_|native_material_|player_inventory_escrow|native_rent_)/.test(name),
+        schema=(db.query("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE sql IS NOT NULL AND type IN ('table','index','trigger') ORDER BY type DESC,name").all() as {type:string;name:string;tbl_name:string;sql:string}[]).filter(s=>selected(s.tbl_name)),
+        copy=new OwnedDatabase(':memory:'),quote=(name:string)=>{if(!/^[a-z_][a-z0-9_]*$/i.test(name))throw Error('Unexpected fixture identifier');return`"${name}"`;};
+    try{copy.transaction(()=>{
+        for(const s of schema.filter(s=>s.type==='table')){
+            copy.exec(s.sql);const columns=(db.query(`PRAGMA table_info(${quote(s.name)})`).all() as {name:string}[]).map(c=>c.name),
+                rows=db.query(`SELECT rowid AS fixture_rowid,* FROM ${quote(s.name)} ORDER BY rowid`).all() as Record<string,any>[],
+                insert=copy.query(`INSERT INTO ${quote(s.name)}(rowid,${columns.map(quote).join(',')}) VALUES(${Array(columns.length+1).fill('?').join(',')})`);
+            for(const row of rows)insert.run(row.fixture_rowid,...columns.map(c=>row[c]));
+            expect(copy.query(`SELECT * FROM ${quote(s.name)} ORDER BY rowid`).all()).toEqual(db.query(`SELECT * FROM ${quote(s.name)} ORDER BY rowid`).all());
+        }
+        for(const s of schema.filter(s=>s.type!=='table'))copy.exec(s.sql);
+        const version=(db.query('PRAGMA user_version').get() as {user_version:number}).user_version;copy.exec(`PRAGMA user_version=${version}`);
+    }).immediate();writeFileSync(path,copy.serialize());}finally{copy.close(true);}
+}
+
+async function jointCoverageFixture(hours:number,registerRoot:(root:string)=>void){
+    const started=performance.now(),base=await createNativeGenesisFixture(true,registerRoot),directory=join(base.root,'.local/joint-coverage');mkdirSync(directory,{recursive:true});
+    const freeze=(source:string,target:string)=>{const db=new OwnedDatabase(source,{readonly:true});try{writeFileSync(target,db.serialize());}finally{db.close(true);}return target;};
+    const originalOpening=base.opening;
+    base.options.population!.opening=Object.fromEntries(Object.entries(originalOpening).map(([key,path])=>[key,freeze(path,join(directory,`genesis-${key}.sqlite`))])) as typeof originalOpening;
+    base.options.checkpointPath=originalOpening.checkpointPath;base.options.externalValue={treasuryPath:originalOpening.treasuryPath};base.options.administrativeValue={treasuryPath:originalOpening.treasuryPath};base.options.businessPath=originalOpening.businessPath;
+    if(hours!==192)base.scope={...base.scope,fromSimulationTime:'2001-01-01T01:00:00.000Z',toSimulationTime:new Date(Date.parse(initial)+hours*3600000).toISOString()};
+    const clock=new SimulationClockStore(base.clockPath);try{clock.resume('world',clock.get('world')!.revision,wall);
+        for(const id of base.scope.actorAgentIds)clock.recordPlayerPresence('world',id,'online',wall);
+    }finally{clock.close();}
+    const f=lineageFixture(true,{...base,kill(){throw Error('Joint fixture has no injected death');}});let needsDb:BunDatabase|null=null;
+    try{const integration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath,databasePath:join(f.root,'.local/simulation/joint-needs.sqlite'),
+        businessPath:originalOpening.businessPath,treasuryPath:originalOpening.treasuryPath,nativeFoodCheckpointPath:f.options.checkpointPath!,nativeFoodTradePath:f.options.tradePath};
+    const seed=freeze(base.options.population!.opening!.needsPath,join(directory,'seed-needs.sqlite')),seedDb=new OwnedDatabase(seed);
+    try{seedDb.exec('PRAGMA journal_mode=DELETE');}finally{seedDb.close(true);}
+    needsDb=BunDatabase.deserialize(readFileSync(seed));
+    const memoryNeeds=needsDb,needs=new NeedsStore(memoryNeeds,contract.dependencies.needs,contract.dependencies.dynamics),propertyPath=originalOpening.propertyPath;
+    const foodCatalog=loadFoodLoopCatalog(join(f.root,'config/food-loops.json'));new FoodConsumptionStore(memoryNeeds,foodCatalog);new NativeFoodConsumptionProjection(memoryNeeds,needs,foodCatalog);
+    new BusinessAssetStore(integration.businessPath).close();new ProductionWorkInProgressStore(integration.businessPath,loadDefaultProductionWorkflowCatalog(),undefined,false).close();
+    new NativeRentCoordinator({workspace:f.root,worldId:'fixture',housingPath:integration.housingPath,propertyPath,checkpointPath:f.options.checkpointPath!}).close();initializeRentJournal(f.db,'native_rent');
+    const owners=f.actors.map(a=>({actorId:a.actorId,username:a.username,lifecycleId:a.lifecycleId,worldId:'fixture',clockId:f.scope.clockId,clockProfileDigest:f.scope.clockProfileDigest})),
+        executor={schemaVersion:1 as const,selectionId:randomUUID(),worldId:'fixture',clockId:f.scope.clockId,clockProfileDigest:f.scope.clockProfileDigest,actors:owners,
+            fromSimulationTime:initial,toSimulationTime:f.scope.toSimulationTime};
+    new NativeMiningDemandStore(f.db);new NativeMiningIntentStore(f.db);new NativeMiningRequestStore(f.db,executor);installMiningExecutorSource(f.root,f.options.checkpointPath!,executor);
+    const observer=new NativeMiningCoverageStore(f.db,{...executor,maximumSimulationGapMs:3600000,maximumWallGapMs:1200,openingHeads:miningCoverageSourceHeads(f.db),executorSelectionDigest:nativeToolDigest(executor)});
+    integration.foodBoundaries=[];integration.toolBoundaries=[];integration.housingBoundaries=[];
+    const common=Object.fromEntries(Object.entries({agentPath:f.agentPath,healthPath:f.healthPath,businessPath:integration.businessPath,treasuryPath:integration.treasuryPath,
+        housingPath:integration.housingPath,propertyPath}).map(([key,path])=>[key,freeze(path,join(directory,`${key}.sqlite`))]));
+    const bindings=f.agents.listPopulationMembers().map(m=>populationNeedsBinding('fixture',m));
+    const phases={bootstrapMs:Math.round(performance.now()-started),nativeMs:0,physicalMs:0,snapshotMs:0};
+    f.db.transaction(()=>{for(let n=0;n<=hours;n++){
+        const nativeStart=performance.now();
+        f.sample(n);const c=f.store.read().entries.at(-1)!.sample.clock,
+            avatars=owners.map((o,slot)=>({username:o.username,slot:slot+1,vitals:{hitpoints:10,finite:true,terminal:false,healthAudited:true}}));
+        for(const binding of bindings)needs.advance({binding,clock:c,history:f.clock.getPlayerTimeHistory('world',binding.playerId),playerTime:f.clock.getPlayerTimeState('world',binding.playerId),expectedRevision:needs.get(binding)!.revision});
+        observer.append({kind:'sample',clock:c,sessionId:nativeMiningDemandSessionId,rosterDigest:miningRosterDigest(owners),heads:miningCoverageSourceHeads(f.db),
+            actors:owners.map(o=>({actorId:o.actorId,demandId:null,status:f.clock.getPlayerTimeState('world',o.username)?.presence==='online'?'observed':'offline'})),
+            executorSourceAvailable:miningExecutorSourceAvailable(f.root,f.db,nativeToolDigest(executor)),ingressWriteFailed:false});
+        f.emitLineage('after-terminal-guard',{}, {avatars});f.emitLineage('end-of-tick',{}, {avatars});
+        phases.nativeMs+=performance.now()-nativeStart;const snapshotStart=performance.now();
+        const clockPath=freeze(f.clockPath,join(directory,`clock-${n}.sqlite`)),frozenClock=new SimulationClockStore(clockPath);
+        try{frozenClock.pause('world',frozenClock.get('world')!.revision,c.wallTime);}finally{frozenClock.close();}
+        const paths={...common,clockPath,checkpointPath:join(directory,`checkpoint-${n}.sqlite`),needsPath:join(directory,`needs-${n}.sqlite`)} as unknown as NativeFoodBoundaryPaths;
+        phases.snapshotMs+=performance.now()-snapshotStart;const physicalStart=performance.now();
+        freezeCoveragePhysical(f.db,paths.checkpointPath);phases.physicalMs+=performance.now()-physicalStart;
+        const needsStart=performance.now();writeFileSync(paths.needsPath,memoryNeeds.serialize());phases.snapshotMs+=performance.now()-needsStart;
+        integration.foodBoundaries!.push({at:c.simulationTime,paths});integration.toolBoundaries!.push({at:c.simulationTime,paths});
+        integration.housingBoundaries!.push({at:c.simulationTime,paths:{...paths,housingPath:common.housingPath!,propertyPath:common.propertyPath!}});
+    }}).immediate();writeFileSync(integration.databasePath,memoryNeeds.serialize());
+    console.info('[JointCoverageFixture]',JSON.stringify({hours,setupMs:Math.round(performance.now()-started),phases}));
+    const sourcePaths=[...new Set([f.agentPath,f.clockPath,f.genesisPath,f.integrityPath,f.healthPath,f.options.checkpointPath!,f.mutationPath,...Object.values(f.paths),
+        integration.databasePath,integration.businessPath,integration.housingPath,propertyPath,...Object.values(f.options.population!.opening!),
+        ...integration.foodBoundaries.flatMap(b=>Object.values(b.paths)),...integration.housingBoundaries.flatMap(b=>Object.values(b.paths))])];
+    const fingerprints=()=>sourcePaths.map(path=>createHash('sha256').update(readFileSync(path)).digest('hex'));
+    return{f,integration,fingerprints,openingFingerprints:fingerprints()};
+    }catch(e){f.close();throw e;}finally{needsDb?.close(false);}
+}
+
+describe.each([2,192])('joint native source coverage %i hours',hours=>{
+    let prepared:Awaited<ReturnType<typeof jointCoverageFixture>>,started:number,audited:{out:ReturnType<typeof reportNativeOutcomes>;report:ReturnType<typeof projectNativeIntegration>;result:ReturnType<typeof projectNativeMinimumAssessment>}|undefined;
+    const roots:string[]=[];
+    asyncFixturePhase(beforeAll,20000,async()=>{started=performance.now();prepared=await jointCoverageFixture(hours,root=>roots.push(root));});
+    fixturePhase(afterAll,5000,()=>{try{if(prepared){expect(prepared.fingerprints()).toEqual(prepared.openingFingerprints);
+            const elapsed=performance.now()-started;console.info('[JointCoverageTotal]',JSON.stringify({hours,wallMs:Math.round(elapsed),budgetMs:50000}));
+            if(elapsed>50000)throw Error('Joint coverage exceeded original50s aggregate budget');}
+        }finally{prepared?.f.close();for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true});}});
+    test('same original native world joins all source families and preserves unknown or numeric failure without a global minimum PASS',()=>{
+        const {f,integration}=prepared;
+        const out=reportNativeOutcomes(f.scope,f.options),baseline=out.sources.populationBaseline,deaths=out.sources.populationDeaths;
+            console.info('[JointCoverageSources]',JSON.stringify(Object.fromEntries(Object.entries(out.sources).filter(([key])=>['genesisOpening','worldPolicy','lifecycleEnforcement','administrativeValue','externalValue','internalLineage','minimumDemandHistory'].includes(key))
+                .map(([key,s])=>{const v=s.status==='available'?s.value as any:null;return[key,{status:s.status,verdict:v?.verdict,gaps:v?.cohortCoverage?.gaps??v?.gaps,
+                    completeDemand:v?.cohortCoverage?.completeDemandCoverage}];}))));
+            if(baseline.status!=='available'||deaths.status!=='available')throw Error('Joint original cohort unavailable');
+            const fullScope={...f.scope,fromSimulationTime:initial},raw=collectNativeIntegrationSources(fullScope,integration),history=projectNativeMinimumHistory(contract,f.scope,baseline.value,deaths.value.founderBindings,raw),
+                report=projectNativeIntegration(f.scope,integration,selectIntegrationBoundaryScope(raw,f.scope),history);
+            console.info('[JointCoverageHistory]',JSON.stringify({gaps:history.gaps,boundaries:history.boundaryTimes.length}));
+            if(!history.completePhysiologyCoverage){const e=projectNativeNeedsExposure(fullScope,'fixture',raw);
+                console.info('[JointPhysiologyDiagnostic]',JSON.stringify({sources:[raw.needs.status,raw.modes.status,raw.nutrition.status],policyMatches:e.policyDigest===contract.dependencies.needs.digest,
+                    dynamicsMatches:e.dynamicsDigest===contract.dependencies.dynamics.digest,actors:e.actors.map(a=>({id:a.actorAgentId,initializedAt:a.initializedAt,
+                        channels:a.channels.map(c=>({need:c.needId,reason:c.reason,intervals:c.intervals}))}))}));}
+            expect(history.completePhysiologyCoverage).toBeTrue();expect(history.completePhysicalBoundaries).toBeTrue();expect(history.completeHousingCoverage).toBeTrue();expect(history.completeCustodyBoundaries).toBeTrue();
+            expect(out.sources.minimumDemandHistory.status).toBe('available');if(out.sources.minimumDemandHistory.status==='available')expect(out.sources.minimumDemandHistory.value.cohortCoverage.completeDemandCoverage).toBeTrue();
+            if(hours===2)return;
+            const r=projectNativeMinimumAssessment(contract,f.scope,out,undefined,report);
+            console.info('[JointCoverageMatrix]',JSON.stringify(r.sourceCoverage.rows.map(s=>({id:s.sourceId,status:s.status,gaps:s.gaps}))));
+            expect(r.sourceCoverage.completeSourceCount).toBe(16);expect(r.sourceCoverage.verdict).toBe('pass');
+            expect(r.integrity.find(g=>g.gateId==='complete-source-coverage')!.verdict).toBe('pass');expect(r.qualifiesMinimum).toBeFalse();expect(r.verdict).toBe('fail');
+            audited={out,report,result:r};
+    },30000);
+    if(hours===192)test('joint native coverage rejects every omitted family and warmup gap; frozen checkpoint reread is identical and readonly',()=>{
+        const started=performance.now();
+        expect(audited).toBeDefined();if(!audited)throw Error('Positive joint audit required');const {f}=prepared,{out,report,result}=audited,frame=result.assessment!.frame;
+        const missing=[['applied-genesis','genesisOpening'],['original-population','populationBaseline'],['native-health-deaths','lifecycleEnforcement'],
+            ['native-mortality-passes','mortalityCoverage'],['login-respawn-enforcement','lifecycleEnforcement'],['clock-world-policy','worldPolicy'],
+            ['physiology-modes','completePhysiologyCoverage'],['native-food-lineage','internalLineage'],['frozen-physical-boundaries','completePhysicalBoundaries'],
+            ['housing-rights','completeHousingCoverage'],['tool-lifecycle-work','internalLineage'],['tool-material-custody','internalLineage'],
+            ['executor-native-demand','minimumDemandHistory'],['business-treasury-custody','completeCustodyBoundaries'],['administrative-value-history','administrativeValue'],['external-shop-import-history','externalValue']];
+        for(const [id,key] of missing){
+            const native=key!.startsWith('complete')?out:{...out,sources:{...out.sources,[key!]:{status:'unavailable' as const,reason:'Fixture source removed'}}},
+                integrated=key!.startsWith('complete')?{...report,minimumHistory:{...report.minimumHistory!,[key!]:false}}:report,
+                r=projectNativeMinimumAssessment(contract,f.scope,native,frame,integrated);
+            expect(r.sourceCoverage.rows.find(s=>s.sourceId===id)!.status).not.toBe('complete');expect(r.sourceCoverage.verdict).toBe('inconclusive');expect(r.qualifiesMinimum).toBeFalse();
+            if(id==='frozen-physical-boundaries')expect(r.verdict).toBe('fail');
+        }
+        const warmup={...report,minimumHistory:{...report.minimumHistory!,fromSimulationTime:f.scope.fromSimulationTime}},
+            gap=projectNativeMinimumAssessment(contract,f.scope,out,frame,warmup);
+        expect(gap.sourceCoverage.verdict).toBe('inconclusive');expect(gap.verdict).toBe('fail');
+        const checkpoint=join(f.root,'server/engine/data/joint-offline.sqlite'),mutations=join(f.root,'.local/joint-coverage/mutations-offline.sqlite');
+        writeFileSync(checkpoint,f.db.serialize());writeFileSync(mutations,f.mutationDb.serialize());
+        const before=[checkpoint,mutations].map(path=>createHash('sha256').update(readFileSync(path)).digest('hex')),
+            reread=reportNativeOutcomes(f.scope,{...f.options,checkpointPath:checkpoint,policyMutationsPath:mutations}),
+            replay=projectNativeMinimumAssessment(contract,f.scope,reread,frame,report);
+        expect(replay.sourceCoverage).toEqual(result.sourceCoverage);expect(replay.integrity).toEqual(result.integrity);expect(replay.verdict).toBe('fail');expect(replay.qualifiesMinimum).toBeFalse();
+        expect([checkpoint,mutations].map(path=>createHash('sha256').update(readFileSync(path)).digest('hex'))).toEqual(before);
+        // Inject a real publisher fault into this new disposable copy, never the original or a historical backup.
+        const damaged=new OwnedDatabase(checkpoint);try{new NativeLifecycleWatermarkStore(damaged).fault();}finally{damaged.close(true);}
+        const broken=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,{...f.options,checkpointPath:checkpoint,policyMutationsPath:mutations}),frame,report);
+        expect(broken.sourceCoverage.verdict).toBe('inconclusive');expect(broken.sourceCoverage.rows.find(s=>s.sourceId==='native-health-deaths')!.status).not.toBe('complete');
+        expect(broken.verdict).toBe('fail');expect(broken.qualifiesMinimum).toBeFalse();console.info('[JointCoverageReplay]',JSON.stringify({wallMs:Math.round(performance.now()-started),omittedFamilies:missing.length}));
+    },10000);
+});
 
 describe('internal lineage full frame',()=>{
     let f:ReturnType<typeof lineageFixture>,start:number;

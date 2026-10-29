@@ -19,12 +19,12 @@ kettő csak bizonyított sértésre adott FAIL-t. Ezért a sok külön ellenőrz
 komponens nem jelentett kész minimum-kiértékelőt. A terv és a kommunikáció
 hibája volt, hogy ezt a fő hiányt elfedte az ismételt „6 csomag maradt”.
 
-Most **17/17 részleges szabályadapter**, **7/8 pozitív natív kapuút** van.
-A lifecycle/admin/external és internal-lineage pozitív útja is kész. Az összesített source-coverage kapunak még
-nincs teljes pozitív natív adaptere.
+Most **17/17 részleges szabályadapter**, **8/8 pozitív natív kapuút** van.
+A teljes16-családos közös natív source-coverage audit is PASS. A numerikus
+minimum és a globális natív összesítő teljes pozitív útja P2-11.
 A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run PASS.
 
-## Rögzített lezárási pontok: 9/11 kész
+## Rögzített lezárási pontok: 10/11 kész
 
 - [x] **P2-01 – `frozen-founder-roster`.** Az applied genesis teljes eredeti
   cohortja, immutable tagság és natív finite-avatar kötés alapján PASS-képes.
@@ -34,12 +34,13 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   integrity bootstrap snapshot és consumed permit kötése az explicit paused
   post-apply natív player/population/needs/Business/treasury/property állapothoz.
   Eltérés FAIL, hiány/rossz binding unknown. [Eredmény](SI_C07_GENESIS_OPENING.md).
-- [ ] **P2-03 – `complete-source-coverage`.** Minden eredeti szabály/kapu
+- [x] **P2-03 – `complete-source-coverage`.** Minden eredeti szabály/kapu
   szükséges forrása, fejállapota, nevezője és teljes időablaka összekötve;
   hiány/eltérés kizárja a pozitív minősítést. Konkrét run-kijelölés az 5. csomag.
   A [16 családos kiértékelő és natív hiánydiagnosztika](SI_C07_SOURCE_COVERAGE.md)
-  elkészült; a teljes natív pozitív feltétel a már felsorolt P2-04–P2-10
-  forrásgaranciáitól függ. Ezért a pont nyitott, nem új belső feladatsor indul.
+  közös eredeti1+7 fixture-ben mind16 család és a coverage gate PASS. Mind16
+  omission/warmup/native-fault unknown; frozen readonly azonos, numeric FAIL
+  megmarad. P2-04–P2-10 meglévő forrásaival, új producer/journal nélkül.
 - [x] **P2-04 – `unchanged-clock-and-world-policy`.** A meglévő policy/mutation
   readerek, explicit immutable-input contract, két processzhez kötött indulási
   rekord és World.reload bekötése. Pozitív natív 1+7 gate és sourceCoverage,
@@ -81,7 +82,7 @@ A „pozitív út” forrásokkal alátámasztott tesztképesség; nem élő run
   Az összes kapu/szabály együtt igazolt; puszta feltöltött cellalista kevés.
 
 Ezek lezárási feltételek, nem 11 további chatkör: egy fejlesztés többet is
-lezárhat. Jelenleg 2 pont nyitott. A már elkészült 15 commit nem vész el;
+lezárhat. Jelenleg 1 pont nyitott. A már elkészült 15 commit nem vész el;
 a nyitott pontok azok meglévő forrásait használják. Új naplóhoz előbb meg kell
 mutatni a konkrét hiányt az eredeti feltételben és a tervezett fogyasztóját.
 Teljes, ellenséges hostot is kivédő runtime-attesztáció nem külön új cél;

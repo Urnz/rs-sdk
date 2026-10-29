@@ -1183,7 +1183,7 @@
     {
       "id": "minimum-assessor",
       "status": "blocked",
-      "reason": "All17 requirements have native adapters and seven integrity gates have positive native paths. Full original warmup/evaluation replay, frozen physical/housing/custody observations and executor history now feed source coverage; sparse endpoints, missing requests or custody flows remain unknown. Aggregate native source-coverage audit and full numeric/integrity PASS remain incomplete; no actual C07 run is certified."
+      "reason": "All17 requirements have native adapters and all eight integrity gates have positive native paths. The original1+7 native audit joins all16 source families; omitted sources, warmup gaps and publisher faults remain unknown, while independent numeric FAIL survives. Full aggregate numeric/integrity PASS remains incomplete; no actual C07 run is certified."
     },
     {
       "id": "tool-unusable-demand-coverage",
@@ -2079,7 +2079,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "a8e067f0ce8c71df75ba21f2e69c706f14ec4c7a104b052986dbbcf52c42536b"
+      "sha256": "af77153ca4c09e2b29d456476ff9c177455bad6ecb27c6447701688bab253104"
     },
     {
       "path": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
@@ -2108,5 +2108,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "7b40643a3366e856d4430ebf744726be9055fb1e78164465172ad922b2481cca"
+  "digest": "69ebbad7314f2d6c0778834c0a5d049ea1f1b91931cc6243faf8be60b48c3908"
 }

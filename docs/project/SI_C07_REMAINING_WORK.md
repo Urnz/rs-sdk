@@ -18,9 +18,9 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    [Eredmény](SI_C07_NATIVE_DISPATCH.md).
 2. **FOLYAMATBAN – Teljes minimum-assessment implementáció.** Az eredeti
    17 szabály és 8 integritási kapu natív kiértékelése, minden szükséges
-   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **9/11 kész**;
-   17/17 részleges szabályadapter, **7/8 pozitív natív kapuút**. Az összesített
-   source-coverage közös natív auditja és az összesítő PASS-ág még nyitott.
+   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **10/11 kész**;
+   17/17 részleges szabályadapter, **8/8 pozitív natív kapuút**. Egyedül a teljes
+   natív numeric/integrity összesítő PASS-ág, P2-11 nyitott.
    Population és boundary/access/demand bekötve. A tényleges jövőbeli
    run adatai nem ennek az implementációs csomagnak az elkészülési feltételei.
 3. **Teljes közös founder-baseline.** Négy founder kompetenciákkal, pontos
@@ -96,3 +96,9 @@ majd P2-03 végellenőrzés és P2-11. C07 továbbra NO-GO.
 kész. Teljes eredeti needs/access és fizikai inventory, executor warmup és
 kötelező custody-flow join. **9/11 kész, 2 nyitott; 7/8 pozitív natív kapuút.**
 Következő P2-03 közös natív coverage-audit, majd P2-11. Új pont nincs.
+
+2026-10-29 további lezárás: [P2-03 közös natív16/16 audit](SI_C07_SOURCE_COVERAGE.md)
+kész. Ugyanazon applied-genesis/world/cohort/clock és eredeti1+7 ablak;
+omission/warmup/fault unknown, frozen readonly azonos, numeric FAIL megmarad.
+**10/11 kész, 1 nyitott; 8/8 pozitív natív kapuút.** Következő és egyetlen
+megmaradt implementációs pont P2-11, a teljes17+8 natív összesítő.

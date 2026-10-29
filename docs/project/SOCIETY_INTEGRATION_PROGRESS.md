@@ -4000,3 +4000,59 @@ baseline, providerkérés vagy historical backup payload-read.
 
 `20261029-174730-870-si-c07-p210-format`:staged changed-line format, aktuális
 source hashek és29 dokumentum linkjei PASS0,951 s; új fájlok is stage-elve.
+
+## 2026-10-29 – SI-C07/2 P2-03 közös natív16/16 audit kész
+
+**10/11 kész, 1 nyitott; 8/8 pozitív natív kapuút.** Következő és egyetlen
+megmaradt implementációs pont P2-11, a teljes17 numerikus szabály +8 kapu
+natív összesítője. Roadmap27/45; SI-C07 NO-GO, SI-M3/MVS nem PASS.
+[Részletes közös audit és előfeltételek](SI_C07_SOURCE_COVERAGE.md).
+
+Valódi applied-genesis/canonical opening és ugyanazon eredeti négy founder,
+world/clock/profile alatt a native lifecycle/policy/admin/external/lineage/
+executor checkpoint és193 physical/needs/housing/custody snapshot együtt
+16 complete source familyt és complete-source-coverage gate PASS-t ad.
+A numerikus minimum szándékosan FAIL, a global qualifiesMinimum:false megmarad.
+A megfigyelt üres producer/lineage nem kérési opportunity vagy cycle/final-use.
+
+Mind16 source family elhagyása és warmup-gap inconclusive coverage. Frozen
+readonly checkpoint/mutation replay azonos; minden eredeti/frozen input fájl
+hash-e az audit végén egyezik. Új disposable copyban tényleges native watermark
+publisher-fault unknown source-ot ad, az önálló numeric FAIL megmarad.
+
+**39 külön célzott eset PASS**, nem full regresszió:
+- Első genesis13 PASS (`20261029-182251-050`, wrapper FAIL23,370 s a root-cwd
+  World eager-importján). Eltávolítottuk a felesleges World-indítási függést;
+  a meglévő native journal/descriptor/clock API-kból épül a mérési fixture.
+- Rövid, javított hárompontos joint PASS2,495 s
+  (`20261029-183011-240-si-c07-p203-short-authority`). Előtte olcsó WAL-seed,
+  birth-origin/lifecycle, nutrition-init és authority-útvonal diagnosztikák.
+  Nincs produkciós védelem-kiiktatás, történeti backfill vagy limit-emelés.
+- Első teljes eredeti1+7 audit PASS35,815 s (`20261029-183102-266`).
+- `20261029-184005-850-si-c07-p203-native-audit`:3 PASS40,634 s; teljes scope,
+  omissions/warmup/frozen/fault. Setup10084/fő23334/replay4008 ms,
+  aggregate37907 ms az eredeti50000 ms keretben. Fázisnaplók megmaradtak.
+- `20261029-184153-460-si-c07-p203-consumers-types`:20 pure/bridge/preflight
+  PASS, wrapper TS FAIL21,607 s egy nullable fixture-változó miatt. Const alias
+  javította; `20261029-184520-885-si-c07-p203-types-final`:root TS PASS20,124 s.
+- `20261029-184303-122-si-c07-p203-existing-fixtures`:5 PASS9,916 s;
+  rövid joint, régi world-policy/finite/internal-lineage és default genesis.
+  A megismételt esetek nem számítanak új esetnek; sikeres full193 és genesis13
+  nem ismétlődött a típusnarrowing után.
+- `20261029-185123-259-si-c07-p203-preflight`:PASS0,905 s; várt NO-GO exit2,
+  aktuális source/digest és29 dokumentum linkjei. Canonical minimum SHA
+  596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a változatlan.
+
+Az új combined fixture a születést a genesis/needs admission elé teszi;
+későbbi origin/lifecycle cserével nem javítjuk a történetet. A clock csak a
+külön snapshot-copyban paused; az eredeti anchor/revision állandó. A physical
+DB az eredeti canonical domain-táblák DDL/row szintű, assertionnel ellenőrzött
+másolata; a független megfigyelői journalokat nem másoljuk193-szor.
+
+Új termék-producer/journal/séma nincs. Read-only audit-fixture/helper és
+preflight metadata; shared persistence/clock/economic/auth/runtime-dependency
+alap nem változott. Engine TS és C06 archive/full regresszió nem indokolt.
+Nincs live install/start/provider/baseline/import vagy historical payload DB-read.
+
+`20261029-185403-997-si-c07-p203-format`:staged changed-line format,
+aktuális source hashek és29 dokumentum linkjei PASS1,430 s; új helper stage-elve.

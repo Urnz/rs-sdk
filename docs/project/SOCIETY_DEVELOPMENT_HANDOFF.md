@@ -14,9 +14,9 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   `e9d852b63` és `2785e6fee` között; az ismételt „6 maradt” elfedte a belső
   haladást és a még lezárt natív PASS-ágat. Hosszú C07 gazdasági próba nem indult.
 - **Rögzített implementációs lezárás:** [P2-01–P2-11](SI_C07_PACKAGE2_CLOSURE.md),
-  **9/11 kész**, 2 nyitott feltétel; nem 2 ígért chatkör. 17/17 részleges
-  szabályadapter és 7/8 pozitív natív kapuút. A lineage/final-use útja is kész;
-  az összesített source-coverage kapu teljes pozitív natív útja még nyitott.
+  **10/11 kész**, 1 nyitott feltétel. 17/17 részleges szabályadapter és
+  **8/8 pozitív natív kapuút**. Az eredeti közös1+7 ablak mind16 source
+  családja és a coverage gate is natívan PASS; a teljes minimum még nem PASS.
 - **Kész P2-01:** `frozen-founder-roster` pozitív natív adapter. Applied
   genesis + integrity anchor + teljes immutable eredeti tagság + natív finite
   avatar binding ellenőrzése. Halott/offline tag sem tűnik el; hibás/hiányos/
@@ -28,12 +28,14 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   treasury/property állapot összevetése. Egyezés PASS, hiteles eltérés FAIL,
   hiány/rossz binding unknown; prefix FAIL másik hiányos source mellett megmarad.
   Backend `population.opening` választja a forrásokat; nincs current fallback.
-- **P2-03 számítás/bekötés elkészült, teljes natív pont nyitott:**
+- **Kész P2-03, közös natív audit is PASS:**
   [16 családos sourceCoverage és függőségek](SI_C07_SOURCE_COVERAGE.md).
   Kötelező source/head/cohort/warmup/evaluation/boundary időkövetelmények;
-  minden 17/8 sorhoz mapping, unknown sosem nulla vagy FAIL. A valódi SQLite
-  genesis-fixture 2/16 családot igazol; ez nem C07 run vagy 16/16 natív PASS.
-  A pure 16/16 ág csak a kiértékelő szerződéspróbája. Eredeti scoped FAIL megmarad.
+  minden17/8 sorhoz mapping, unknown sosem nulla vagy FAIL. Valódi applied
+  genesis + native lifecycle/policy/admin/external/lineage/executor és193
+  boundary ugyanazon world/cohort/clock alatt:16/16 complete, coverage gate PASS.
+  Mind16 omission/warmup és natív publisher-fault unknown; frozen readonly
+  újraolvasás azonos. A numeric FAIL és globális zár változatlanul megmarad.
 - **Kész P2-04:** [óra/world-policy natív kapu](SI_C07_WORLD_POLICY_GATE.md).
   Explicit immutable-input contract, valódi engine/gateway startup rekord és
   processz/session kötés, meglévő policy/mutation/native clock prefixek együtt.
@@ -82,12 +84,13 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   sealed flow/integrity is kell; sparse/foreign/missing/extra pont nem complete.
   193 valódi SQLite pont pozitív history, numeric FAIL megmarad; rövid facade
   double-collection/gap/wrong-clock és teljes frozen-file hash ellenőrzés.
-- **Következő konkrét pont P2-03 végellenőrzés:** ugyanazon eredeti natív
-  world/cohort/genesis/clock és1+7 ablak alatt az összes16 család közös pozitív
-  útját igazold. P2-04–P2-10 meglévő readereit/fixture-forrásait használd; ne
-  nyiss új producer-feladatsort. A numerikus FAIL/unknown itt még külön marad.
-- **Megmaradó függőségi sorrend:** P2-03 végellenőrzés → P2-11.
-  Rögzített lista: 9/11 kész, 2 nyitott;
+- **Következő és egyetlen nyitott pont P2-11:** teljes natív összesítő.
+  Ugyanezen eredeti forráskötésen minden17 numerikus szabály és8 kapu közös
+  pozitív natív útját igazold, csak utána oldd fel a `qualifiesMinimum:false`
+  zárat. Egy sértés FAIL, egy sourcegap unknown, frozen/offline eredmény azonos.
+  A joint fixture most szándékosan numeric FAIL; az üres executor/lineage
+  coverage nem opportunity vagy cycle/final-use credit. Új lezárási pont nincs.
+- **Megmaradó sorrend:** P2-11. Rögzített lista: 10/11 kész, 1 nyitott;
   nincs új pont és nincs szükség még nem létező hosszú run-adatra a kódlezáráshoz.
 - A 2. csomag implementációs képessége különválik a 3–7. csomag tényleges
   baseline/source-kijelölésétől és a hosszú run adataitól. Nem kell még nem létező
@@ -134,31 +137,31 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- P2-10: **95 külön célzott eset PASS**, nem teljes regresszió. Módszer,
-  megőrzött FAIL-ok és IO/scope korrekció: [boundary history](SI_C07_BOUNDARY_HISTORY.md).
-- `20261029-173345-063-si-c07-p210-consumers`:75 PASS/1 hibás tesztassertion,
-  25,261 s; tíz pontos reader/consumer fájl. Az assertion javítva, minden eset PASS
-  a `20261029-173545-698-si-c07-p210-source-types` körben:11 source-coverage és
-  root TS PASS19,749 s. A többi sikeres consumer nem futott újra.
-- `20261029-173714-259-si-c07-p210-final-native-consumers`:19 PASS54,785 s;
-  hét natív history/food/tool/housing/needs/evaluation eset,11 native-outcome és
-  egy offline benchmark restore. A két korábbi history eset nem két új eset.
-- `20261029-174209-822-si-c07-p210-health-binding-final`:22 érintett
-  source-coverage/food/minimum eset és végső root TS PASS19,786 s.
-  A frozen health pont nem hagyhat ki a current native authorityban már igazolt
-  korábbi halált; az eredeti roster és a pontonkénti snapshot death-set egyezik.
-- `20261029-174420-205-si-c07-p210-health-native-closed`:a három közvetlen
-  natív eset PASS36,694 s; teljes setup4878/body25582 ms a15+30 s keretben.
-- `20261029-174605-675-si-c07-p210-preflight`:PASS1,147 s; várt NO-GO exit2,
+- P2-03: **39 külön célzott eset PASS**, nem full regresszió.
+  [Natív16/16 audit, előfeltételek és teljes index](SI_C07_SOURCE_COVERAGE.md).
+- `20261029-184005-850-si-c07-p203-native-audit`:3 PASS40,634 s; rövid source
+  előfeltétel, eredeti1+7 közös16/16 és omission/warmup/frozen/native-fault.
+  Setup10084 ms, fő23334 ms, replay4008 ms; aggregate37907/50000 ms.
+  Minden eredeti/frozen source fájl hash-e unchanged; nincs193-pontos újraaudit.
+- `20261029-184153-460-si-c07-p203-consumers-types`:20 pure/bridge/preflight
+  eset PASS, wrapper TS FAIL21,607 s egy nullable fixture-változó miatt.
+  Const alias javította, runtime nem változott. Végső root TS PASS20,124 s:
+  `20261029-184520-885-si-c07-p203-types-final`.
+- `20261029-184303-122-si-c07-p203-existing-fixtures`:5 PASS9,916 s;
+  rövid joint és régi world-policy/finite/internal-lineage/default genesis.
+  Az első kör13 genesis esete is PASS (`20261029-182251-050`), a wrapper a
+  World cwd-importján bukott. Szűk diag után standalone publisher API-kat használ.
+- `20261029-185123-259-si-c07-p203-preflight`:PASS0,905 s; várt NO-GO exit2,
   aktuális source/digest és29 dokumentum linkjei. Futási engedélyt nem ad.
-- `20261029-174730-870-si-c07-p210-format`:staged changed-line format,
-  source hashek és29 dokumentum linkjei PASS0,951 s; új fájlok is stage-elve.
-- P2-09 korábbi88 célzott/root bizonyítéka a [population docban](SI_C07_POPULATION_BOUNDS.md),
-  commit `170ab61e2`. P2-08 engine/C06 bizonyíték az előző gate-docban.
-- Nincs engine/producer/schema/shared persistence/clock/auth/dependency változás;
-  engine TS és C06 archive ismétlése nem indokolt. Root TS érintett, PASS.
-  Full regresszió nem futott; nincs live install/start/provider/baseline vagy
-  historical backup DB-read. Canonical minimum SHA változatlan.
+- `20261029-185403-997-si-c07-p203-format`:staged changed-line format,
+  aktuális source hashek és29 dokumentum linkjei PASS1,430 s; új helper stage-elve.
+- A teljes193-pontos pozitív audit és a default13-as genesis fájl nem ismétlődött
+  puszta típusnarrowing miatt. A sikeres consumer20 sem futott újra.
+- A P2-10 korábbi95 és native boundary bizonyíték a
+  [history docban](SI_C07_BOUNDARY_HISTORY.md), commit `98ac42f6a`.
+- Nincs engine/termék-producer/schema/shared clock/persistence/auth/dependency
+  változás. Root TS érintett, PASS; engine TS és C06 archive nem indokolt.
+  Nincs live install/start/provider/baseline/historical backup DB-read.
 
 ## Megmaradó futási korlátok és döntések
 
