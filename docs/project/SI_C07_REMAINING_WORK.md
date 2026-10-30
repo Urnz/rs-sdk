@@ -1,7 +1,7 @@
 # SI-C07 – Rögzített munkacsomagok és lezárási feltételek
 
-Állapot: 2026-10-29. A 2026-10-25-i hét munkacsomag változatlan.
-**Az 1. kész, a 2. folyamatban, a 3–7. későbbi fázis.** A fő feladatlista
+Állapot: 2026-10-30. A 2026-10-25-i hét munkacsomag változatlan.
+**Az1–2. kész, a3. közös founder-baseline folyamatban, a4–7. későbbi fázis.** A fő feladatlista
 27/45; SI-C07 nyitott, preflight NO-GO. Hosszú C07 gazdasági próba nem indult.
 
 A korábban ismételt „6 maradt” a 2–7. nagy csomagot számolta, nem a 2. csomag
@@ -16,14 +16,12 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    kattintás nem teljesítheti az igényt. A kijelölt founder cohort támogatott
    bronze Mining útjain az azonosítatlan belépés naplózott elutasítás.
    [Eredmény](SI_C07_NATIVE_DISPATCH.md).
-2. **FOLYAMATBAN – Teljes minimum-assessment implementáció.** Az eredeti
-   17 szabály és 8 integritási kapu natív kiértékelése, minden szükséges
-   nevezővel/időablakkal/forráskötéssel. Rögzített lezárási lista: **10/11 kész**;
-   17/17 részleges szabályadapter, **8/8 pozitív natív kapuút**. Egyedül a teljes
-   natív numeric/integrity összesítő PASS-ág, P2-11 nyitott.
-   Population és boundary/access/demand bekötve. A tényleges jövőbeli
-   run adatai nem ennek az implementációs csomagnak az elkészülési feltételei.
-3. **Teljes közös founder-baseline.** Négy founder kompetenciákkal, pontos
+2. **KÉSZ – Teljes minimum-assessment implementáció.** [P2-11 összesítő](SI_C07_NATIVE_AGGREGATE.md),
+   rögzített lista **11/11 kész**. Eredeti1+7 ablak, ugyanazon natív forráskötésen
+   mind17 szabály,8 integrity gate és16 source family együtt PASS. Hiány unknown,
+   natív számszerű sértés FAIL, frozen readonly eredmény azonos. Komponens-producer
+   fixture, nem tényleges C07 gazdasági próba és nem jóváhagyott founder-baseline.
+3. **FOLYAMATBAN – Teljes közös founder-baseline.** [Konkrét jelölt és hiányok](SI_C07_FOUNDER_BASELINE.md). Négy founder kompetenciákkal, pontos
    verified skill/grant csomaggal; natív Mining→smelt→repair→reuse input/
    kapacitás, étellánc és lakhatás. Az eredeti minimumhoz szükséges jóváhagyott
    indulóállapot, nem a teszteredményhez igazított készletnövelés.
@@ -102,3 +100,8 @@ kész. Ugyanazon applied-genesis/world/cohort/clock és eredeti1+7 ablak;
 omission/warmup/fault unknown, frozen readonly azonos, numeric FAIL megmarad.
 **10/11 kész, 1 nyitott; 8/8 pozitív natív kapuút.** Következő és egyetlen
 megmaradt implementációs pont P2-11, a teljes17+8 natív összesítő.
+
+2026-10-30: [P2-11 teljes natív összesítő](SI_C07_NATIVE_AGGREGATE.md) kész.
+**11/11 lezárási pont, a2. munkacsomag kész. Öt nagy csomag maradt:3–7.**
+A3. elkezdődött; a tesztfixture négy ágyát/készletét/rent-periódusát nem vettük
+át automatikusan. A konkrét baseline-forrásokat és hiányokat külön rögzítjük.

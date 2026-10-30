@@ -20,7 +20,7 @@ import { loadSocietyMinimumContract } from '../../society-minimum/contract.js';
 import { reportNativeOutcomes,type NativeOutcomeOptions } from '../native-outcomes.js';
 import { projectNativeMinimumAssessment } from '../minimum-assessment.js';
 import { reportSocietyEvaluation } from '../evaluation-report.js';
-import { nativeIntegrationOptions,readWealthBoundary,collectNativeIntegrationSources } from '../integration-sources.js';
+import { nativeIntegrationOptions,readWealthBoundary,collectNativeIntegrationSources,iterateNativeIntegrationSources } from '../integration-sources.js';
 import { FoodNeedsPersistence } from '../../food-loop/needs-persistence.js';
 import { populationNeedsBinding } from '../../needs/population-binding.js';
 import { loadFoodLoopCatalog } from '../../food-loop/catalog.js';
@@ -94,6 +94,8 @@ import {NativeMiningIntentStore,nativeMiningDemandSessionId} from '../../item-li
 import {NativeMiningCoverageStore,miningCoverageSourceHeads,miningRosterDigest} from '../../item-lifecycle/native-mining-coverage.js';
 import {NativeMiningRequestStore} from '../../item-lifecycle/native-mining-requests.js';
 import {installMiningExecutorSource,miningExecutorSourceAvailable} from '../../agent-skills/mining-request-source.js';
+import {societyMinimumDigest} from '../../society-minimum/policy.js';
+import {createMinimumActions} from './native-minimum-actions.js';
 import {projectNativeNeedsExposure} from '../needs-exposure.js';
 
 const directories:string[]=[],configDirectory=join(import.meta.dir,'../../config'),initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
@@ -336,10 +338,10 @@ function lineageFixture(full=false,base?:ReturnType<typeof fixture>){const f=ext
             balances=(n:number)=>({raw:item===377?n:0,cooked:item===379?n:0,burnt:0});
             f.db.transaction(()=>appendFoodLineage(f.db,{kind:'transfer',trade,sides:[{custodian:custodian(from),before:balances(1),after:balances(0)},
                 {custodian:custodian(to),before:balances(0),after:balances(1)}]})).immediate();},
-        produce=(variant='normal')=>{const gatherer=variant==='foreign'?'outsider':'ada',cook=variant==='self'?'ada':'bea',eater=variant==='self'?'ada':'cora';
+        produce=(variant='normal',consumer?:string)=>{const gatherer=variant==='foreign'?'outsider':'ada',cook=variant==='self'?'ada':'bea',eater=consumer??(variant==='self'?'ada':'cora');
             for(const kind of ['gather','cook'] as const){const name=kind==='gather'?gatherer:cook;
                 const action=production.admit({...actionIdentity(name),actionId:randomUUID(),kind,runId:'lineage',batchId:'batch',policyDigest:'a'.repeat(64),catalogDigest:'b'.repeat(64),
-                    source:{kind:kind==='gather'?'npc':'loc',sourceId:'finite',typeId:1,x:3200,z:3200,level:0},recipeId:'food.cook-lobster',recipeVersion:'1.0.0'});
+                    source:{kind:kind==='gather'?'npc':'loc',sourceId:consumer?`finite-${randomUUID()}`:'finite',typeId:1,x:3200,z:3200,level:0},recipeId:'food.cook-lobster',recipeVersion:'1.0.0'});
                 f.db.transaction(()=>production.finish({schemaVersion:1,action,requestDigest:foodDigest(action),outcome:kind==='gather'?'raw-gained':'cooked',inputs:kind==='gather'?[]:[{itemId:377,quantity:1}],
                     outputs:[{itemId:kind==='gather'?377:379,quantity:1}],before:{raw:kind==='gather'?0:1,cooked:0,burnt:0},after:{raw:kind==='gather'?1:0,cooked:kind==='cook'?1:0,burnt:0},
                     quota:kind==='gather'?production.takeQuota(action,1):null,clock:current(),checkpointId:`food-production:${action.actionId}`,checkpointDigest:'d'.repeat(64)})).immediate();
@@ -370,8 +372,8 @@ function freezeCoveragePhysical(db:OwnedDatabase,path:string){
     }).immediate();writeFileSync(path,copy.serialize());}finally{copy.close(true);}
 }
 
-async function jointCoverageFixture(hours:number,registerRoot:(root:string)=>void){
-    const started=performance.now(),base=await createNativeGenesisFixture(true,registerRoot),directory=join(base.root,'.local/joint-coverage');mkdirSync(directory,{recursive:true});
+async function jointCoverageFixture(hours:number,registerRoot:(root:string)=>void,positive=false){
+    const started=performance.now(),base=await createNativeGenesisFixture(true,registerRoot,positive),directory=join(base.root,'.local/joint-coverage');mkdirSync(directory,{recursive:true});
     const freeze=(source:string,target:string)=>{const db=new OwnedDatabase(source,{readonly:true});try{writeFileSync(target,db.serialize());}finally{db.close(true);}return target;};
     const originalOpening=base.opening;
     base.options.population!.opening=Object.fromEntries(Object.entries(originalOpening).map(([key,path])=>[key,freeze(path,join(directory,`genesis-${key}.sqlite`))])) as typeof originalOpening;
@@ -390,6 +392,7 @@ async function jointCoverageFixture(hours:number,registerRoot:(root:string)=>voi
     const foodCatalog=loadFoodLoopCatalog(join(f.root,'config/food-loops.json'));new FoodConsumptionStore(memoryNeeds,foodCatalog);new NativeFoodConsumptionProjection(memoryNeeds,needs,foodCatalog);
     new BusinessAssetStore(integration.businessPath).close();new ProductionWorkInProgressStore(integration.businessPath,loadDefaultProductionWorkflowCatalog(),undefined,false).close();
     new NativeRentCoordinator({workspace:f.root,worldId:'fixture',housingPath:integration.housingPath,propertyPath,checkpointPath:f.options.checkpointPath!}).close();initializeRentJournal(f.db,'native_rent');
+    const actions=positive?createMinimumActions(f,integration,needs,memoryNeeds):null;
     const owners=f.actors.map(a=>({actorId:a.actorId,username:a.username,lifecycleId:a.lifecycleId,worldId:'fixture',clockId:f.scope.clockId,clockProfileDigest:f.scope.clockProfileDigest})),
         executor={schemaVersion:1 as const,selectionId:randomUUID(),worldId:'fixture',clockId:f.scope.clockId,clockProfileDigest:f.scope.clockProfileDigest,actors:owners,
             fromSimulationTime:initial,toSimulationTime:f.scope.toSimulationTime};
@@ -400,11 +403,13 @@ async function jointCoverageFixture(hours:number,registerRoot:(root:string)=>voi
         housingPath:integration.housingPath,propertyPath}).map(([key,path])=>[key,freeze(path,join(directory,`${key}.sqlite`))]));
     const bindings=f.agents.listPopulationMembers().map(m=>populationNeedsBinding('fixture',m));
     const phases={bootstrapMs:Math.round(performance.now()-started),nativeMs:0,physicalMs:0,snapshotMs:0};
-    f.db.transaction(()=>{for(let n=0;n<=hours;n++){
+    const build=()=>{for(let n=0;n<=hours;n++){
         const nativeStart=performance.now();
         f.sample(n);const c=f.store.read().entries.at(-1)!.sample.clock,
             avatars=owners.map((o,slot)=>({username:o.username,slot:slot+1,vitals:{hitpoints:10,finite:true,terminal:false,healthAudited:true}}));
+        actions?.beforeAdvance(n,c);
         for(const binding of bindings)needs.advance({binding,clock:c,history:f.clock.getPlayerTimeHistory('world',binding.playerId),playerTime:f.clock.getPlayerTimeState('world',binding.playerId),expectedRevision:needs.get(binding)!.revision});
+        actions?.afterAdvance(n,c);
         observer.append({kind:'sample',clock:c,sessionId:nativeMiningDemandSessionId,rosterDigest:miningRosterDigest(owners),heads:miningCoverageSourceHeads(f.db),
             actors:owners.map(o=>({actorId:o.actorId,demandId:null,status:f.clock.getPlayerTimeState('world',o.username)?.presence==='online'?'observed':'offline'})),
             executorSourceAvailable:miningExecutorSourceAvailable(f.root,f.db,nativeToolDigest(executor)),ingressWriteFailed:false});
@@ -418,7 +423,8 @@ async function jointCoverageFixture(hours:number,registerRoot:(root:string)=>voi
         const needsStart=performance.now();writeFileSync(paths.needsPath,memoryNeeds.serialize());phases.snapshotMs+=performance.now()-needsStart;
         integration.foodBoundaries!.push({at:c.simulationTime,paths});integration.toolBoundaries!.push({at:c.simulationTime,paths});
         integration.housingBoundaries!.push({at:c.simulationTime,paths:{...paths,housingPath:common.housingPath!,propertyPath:common.propertyPath!}});
-    }}).immediate();writeFileSync(integration.databasePath,memoryNeeds.serialize());
+        if(positive&&n%24===0)console.info('[MinimumPositiveBuild]',JSON.stringify({hour:n,wallMs:Math.round(performance.now()-started),phases}));
+    }};if(positive)build();else f.db.transaction(build).immediate();actions?.close();writeFileSync(integration.databasePath,memoryNeeds.serialize());
     console.info('[JointCoverageFixture]',JSON.stringify({hours,setupMs:Math.round(performance.now()-started),phases}));
     const sourcePaths=[...new Set([f.agentPath,f.clockPath,f.genesisPath,f.integrityPath,f.healthPath,f.options.checkpointPath!,f.mutationPath,...Object.values(f.paths),
         integration.databasePath,integration.businessPath,integration.housingPath,propertyPath,...Object.values(f.options.population!.opening!),
@@ -428,22 +434,87 @@ async function jointCoverageFixture(hours:number,registerRoot:(root:string)=>voi
     }catch(e){f.close();throw e;}finally{needsDb?.close(false);}
 }
 
+describe.each([32,192])('minimum positive native %i hours',hours=>{
+    let prepared:Awaited<ReturnType<typeof jointCoverageFixture>>,started:number,out:ReturnType<typeof reportNativeOutcomes>,
+        raw:ReturnType<typeof collectNativeIntegrationSources>,report:ReturnType<typeof projectNativeIntegration>,result:ReturnType<typeof projectNativeMinimumAssessment>;
+    const roots:string[]=[],phase=(name:string,since:number)=>console.info('[MinimumPositivePhase]',JSON.stringify({hours,name,wallMs:Math.round(performance.now()-since)}));
+    asyncFixturePhase(beforeAll,hours===192?60000:20000,async()=>{started=performance.now();prepared=await jointCoverageFixture(hours,root=>roots.push(root),true);});
+    fixturePhase(afterAll,5000,()=>{try{if(prepared){expect(prepared.fingerprints()).toEqual(prepared.openingFingerprints);
+        const wallMs=Math.round(performance.now()-started);console.info('[MinimumPositiveTotal]',JSON.stringify({hours,wallMs,budgetMs:125000}));
+        if(wallMs>125000)throw Error('Positive native scenario exceeded its aggregate125s budget');}}
+        finally{prepared?.f.close();for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true});}});
+    test('read original native outcome sources',()=>{const start=performance.now(),{f}=prepared;out=reportNativeOutcomes(f.scope,f.options);
+        expect(out.sources.toolMaintenance.status).toBe('available');if(out.sources.toolMaintenance.status==='available')expect(out.sources.toolMaintenance.value.candidates.some(c=>c.qualifiesMinimum)).toBeTrue();
+        phase('native-outcomes',start);
+    },30000);
+    test('collect original native boundary and physiology history',()=>{const start=performance.now(),{f,integration}=prepared,p=out.sources.populationBaseline,d=out.sources.populationDeaths;
+        if(p.status!=='available'||d.status!=='available')throw Error('Native cohort missing');
+        raw=collectNativeIntegrationSources({...f.scope,fromSimulationTime:initial},integration);
+        const history=projectNativeMinimumHistory(contract,f.scope,p.value,d.value.founderBindings,raw);
+        expect(history.gaps).toEqual([]);report=projectNativeIntegration(f.scope,integration,selectIntegrationBoundaryScope(raw,f.scope),history);phase('boundaries-physiology',start);
+    },60000);
+    test('all17 rules and8 gates share one native assessment without uploaded cells',()=>{const start=performance.now(),{f}=prepared;
+        result=projectNativeMinimumAssessment(contract,f.scope,out,undefined,report);
+        console.info('[MinimumPositiveMatrix]',JSON.stringify({hours,rules:result.requirements.map(r=>[r.requirementId,r.verdict]),gates:result.integrity.map(g=>[g.gateId,g.verdict]),
+            coverage:result.sourceCoverage.completeSourceCount,verdict:result.verdict,qualifiesMinimum:result.qualifiesMinimum}));
+        if(hours===192){expect(result.assessment?.requirements.every(r=>r.verdict==='pass')).toBeTrue();expect(result.integrity.every(g=>g.verdict==='pass')).toBeTrue();
+            expect(result.qualifiesMinimum).toBeTrue();expect(result.verdict).toBe('pass');}
+        phase('aggregate',start);
+    },10000);
+    if(hours===192)test('omitted source is unknown; native numeric failure persists; frozen reread is identical',()=>{
+        const start=performance.now(),{f,integration}=prepared,frame=result.assessment!.frame;
+        const absent={...out,sources:{...out.sources,worldPolicy:{status:'unavailable' as const,reason:'Fixture source omitted'}}},
+            unknown=projectNativeMinimumAssessment(contract,f.scope,absent,frame,report);
+        expect(unknown.verdict).toBe('inconclusive');expect(unknown.qualifiesMinimum).toBeFalse();
+        const last=integration.foodBoundaries!.at(-1)!,checkpoint=join(f.root,'server/engine/data/positive-offline.sqlite'),
+            mutations=join(f.root,'.local/joint-coverage/positive-mutations.sqlite');
+        writeFileSync(checkpoint,f.db.serialize());writeFileSync(mutations,f.mutationDb.serialize());
+        const before=[checkpoint,mutations].map(p=>createHash('sha256').update(readFileSync(p)).digest('hex')),
+            frozen=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,{...f.options,checkpointPath:checkpoint,policyMutationsPath:mutations}),frame,report);
+        expect(frozen.assessment).toEqual(result.assessment);expect(frozen.sourceCoverage).toEqual(result.sourceCoverage);expect(frozen.verdict).toBe('pass');expect(frozen.qualifiesMinimum).toBeTrue();
+        expect([checkpoint,mutations].map(p=>createHash('sha256').update(readFileSync(p)).digest('hex'))).toEqual(before);
+        const badPath=join(f.root,'server/engine/data/empty-reserve.sqlite');copyFileSync(last.paths.checkpointPath,badPath);
+        const damaged=new OwnedDatabase(badPath);try{for(const owner of f.scope.actorAgentIds)damaged.run('UPDATE accounts SET save=? WHERE owner=?',[createSaveData({}),owner]);}finally{damaged.close(true);}
+        const paths={...last.paths,checkpointPath:badPath},wealth=readWealthBoundary(f.scope,integration,paths,last.at),value=readNativeFoodBoundary(f.scope,integration,paths,wealth),
+            selected=selectIntegrationBoundaryScope(raw,f.scope);
+        if(selected.foodBoundaries.status!=='available')throw Error('Original boundary source absent');
+        const changed={...selected,foodBoundaries:{...selected.foodBoundaries,value:{boundaries:selected.foodBoundaries.value.boundaries.map(b=>b.at===last.at?
+            {at:b.at,source:{status:'available' as const,digest:societyMinimumDigest(value),value}}:b)}}},
+            badReport=projectNativeIntegration(f.scope,integration,changed,report.minimumHistory),
+            failed=projectNativeMinimumAssessment(contract,f.scope,absent,frame,badReport);
+        expect(failed.requirements.find(r=>r.requirementId==='food-reserve-coverage')!.verdict).toBe('fail');expect(failed.verdict).toBe('fail');expect(failed.qualifiesMinimum).toBeFalse();
+        const fault=new OwnedDatabase(checkpoint);try{new NativeLifecycleWatermarkStore(fault).fault();}finally{fault.close(true);}
+        const broken=projectNativeMinimumAssessment(contract,f.scope,reportNativeOutcomes(f.scope,{...f.options,checkpointPath:checkpoint,policyMutationsPath:mutations}),frame,report);
+        expect(broken.verdict).toBe('inconclusive');expect(broken.qualifiesMinimum).toBeFalse();phase('negative-frozen',start);
+    },30000);
+});
+
 describe.each([2,192])('joint native source coverage %i hours',hours=>{
     let prepared:Awaited<ReturnType<typeof jointCoverageFixture>>,started:number,audited:{out:ReturnType<typeof reportNativeOutcomes>;report:ReturnType<typeof projectNativeIntegration>;result:ReturnType<typeof projectNativeMinimumAssessment>}|undefined;
+    let collection:ReturnType<typeof iterateNativeIntegrationSources>,native:ReturnType<typeof reportNativeOutcomes>,integrated:ReturnType<typeof projectNativeIntegration>;
     const roots:string[]=[];
     asyncFixturePhase(beforeAll,20000,async()=>{started=performance.now();prepared=await jointCoverageFixture(hours,root=>roots.push(root));});
     fixturePhase(afterAll,5000,()=>{try{if(prepared){expect(prepared.fingerprints()).toEqual(prepared.openingFingerprints);
             const elapsed=performance.now()-started;console.info('[JointCoverageTotal]',JSON.stringify({hours,wallMs:Math.round(elapsed),budgetMs:50000}));
             if(elapsed>50000)throw Error('Joint coverage exceeded original50s aggregate budget');}
         }finally{prepared?.f.close();for(const root of roots.splice(0))rmSync(root,{recursive:true,force:true});}});
-    test('same original native world joins all source families and preserves unknown or numeric failure without a global minimum PASS',()=>{
-        const {f,integration}=prepared;
-        const out=reportNativeOutcomes(f.scope,f.options),baseline=out.sources.populationBaseline,deaths=out.sources.populationDeaths;
+    test('read the original native source outcome before boundary collection',()=>{const start=performance.now();native=reportNativeOutcomes(prepared.f.scope,prepared.f.options);
+        console.info('[JointCoverageRead]',JSON.stringify({hours,phase:'native-outcomes',wallMs:Math.round(performance.now()-start)}));},10000);
+    test.each(['core','food','housing','tools'] as const)('read native collection phase %s within the unchanged aggregate budget',expected=>{
+        const start=performance.now(),{f,integration}=prepared;collection??=iterateNativeIntegrationSources({...f.scope,fromSimulationTime:initial},integration);
+        const step=collection.next();expect(step.done).toBeFalse();if(step.done)throw Error('Incomplete native collection');expect(step.value.phase).toBe(expected);
+        console.info('[JointCoverageRead]',JSON.stringify({hours,phase:expected,wallMs:Math.round(performance.now()-start)}));
+    },30000);
+    test('collect the original native physiology and physical source history',()=>{
+        const start=performance.now(),{f,integration}=prepared;
+        const out=native,baseline=out.sources.populationBaseline,deaths=out.sources.populationDeaths;
+
             console.info('[JointCoverageSources]',JSON.stringify(Object.fromEntries(Object.entries(out.sources).filter(([key])=>['genesisOpening','worldPolicy','lifecycleEnforcement','administrativeValue','externalValue','internalLineage','minimumDemandHistory'].includes(key))
                 .map(([key,s])=>{const v=s.status==='available'?s.value as any:null;return[key,{status:s.status,verdict:v?.verdict,gaps:v?.cohortCoverage?.gaps??v?.gaps,
                     completeDemand:v?.cohortCoverage?.completeDemandCoverage}];}))));
             if(baseline.status!=='available'||deaths.status!=='available')throw Error('Joint original cohort unavailable');
-            const fullScope={...f.scope,fromSimulationTime:initial},raw=collectNativeIntegrationSources(fullScope,integration),history=projectNativeMinimumHistory(contract,f.scope,baseline.value,deaths.value.founderBindings,raw),
+            const fullScope={...f.scope,fromSimulationTime:initial},step=collection.next();expect(step.done).toBeTrue();if(!step.done)throw Error('Native collection not complete');
+            const raw=step.value,history=projectNativeMinimumHistory(contract,f.scope,baseline.value,deaths.value.founderBindings,raw),
                 report=projectNativeIntegration(f.scope,integration,selectIntegrationBoundaryScope(raw,f.scope),history);
             console.info('[JointCoverageHistory]',JSON.stringify({gaps:history.gaps,boundaries:history.boundaryTimes.length}));
             if(!history.completePhysiologyCoverage){const e=projectNativeNeedsExposure(fullScope,'fixture',raw);
@@ -452,13 +523,17 @@ describe.each([2,192])('joint native source coverage %i hours',hours=>{
                         channels:a.channels.map(c=>({need:c.needId,reason:c.reason,intervals:c.intervals}))}))}));}
             expect(history.completePhysiologyCoverage).toBeTrue();expect(history.completePhysicalBoundaries).toBeTrue();expect(history.completeHousingCoverage).toBeTrue();expect(history.completeCustodyBoundaries).toBeTrue();
             expect(out.sources.minimumDemandHistory.status).toBe('available');if(out.sources.minimumDemandHistory.status==='available')expect(out.sources.minimumDemandHistory.value.cohortCoverage.completeDemandCoverage).toBeTrue();
-            if(hours===2)return;
+            if(hours===2)expect(collectNativeIntegrationSources(fullScope,integration)).toEqual(raw);
+            integrated=report;console.info('[JointCoverageRead]',JSON.stringify({hours,phase:'boundary-history',wallMs:Math.round(performance.now()-start)}));
+    },30000);
+    test('same original native world joins all source families and preserves unknown or numeric failure without a global minimum PASS',()=>{
+            if(hours===2)return;const {f}=prepared,out=native,report=integrated;
             const r=projectNativeMinimumAssessment(contract,f.scope,out,undefined,report);
             console.info('[JointCoverageMatrix]',JSON.stringify(r.sourceCoverage.rows.map(s=>({id:s.sourceId,status:s.status,gaps:s.gaps}))));
             expect(r.sourceCoverage.completeSourceCount).toBe(16);expect(r.sourceCoverage.verdict).toBe('pass');
             expect(r.integrity.find(g=>g.gateId==='complete-source-coverage')!.verdict).toBe('pass');expect(r.qualifiesMinimum).toBeFalse();expect(r.verdict).toBe('fail');
             audited={out,report,result:r};
-    },30000);
+    },10000);
     if(hours===192)test('joint native coverage rejects every omitted family and warmup gap; frozen checkpoint reread is identical and readonly',()=>{
         const started=performance.now();
         expect(audited).toBeDefined();if(!audited)throw Error('Positive joint audit required');const {f}=prepared,{out,report,result}=audited,frame=result.assessment!.frame;

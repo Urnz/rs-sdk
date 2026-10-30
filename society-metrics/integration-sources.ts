@@ -1,3 +1,5 @@
+import type {NeedsPolicy,NeedsDynamicsPolicy} from '../needs/types.js';
+import type {FoodLoopCatalog} from '../food-loop/types.js';
 import type { Database } from 'bun:sqlite';
 import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
 import { existsSync } from 'node:fs';
@@ -141,7 +143,8 @@ function readWealth(options: NativeIntegrationOptions, paths: NativeWealthPaths)
     });
     return { assets, playerUsernames: players.owners, pendingEffects,playerVitals };
 }
-export function readWealthBoundary(scope: EvaluationScope, options: NativeIntegrationOptions, paths: NativeWealthPaths | undefined, at: string) {
+export function readWealthBoundary(scope: EvaluationScope, options: NativeIntegrationOptions, paths: NativeWealthPaths | undefined, at: string,
+    inputs?:{policy:NeedsPolicy;dynamics:NeedsDynamicsPolicy;food:FoodLoopCatalog}) {
     if (!paths) throw new AbsentSource('Frozen native boundary databases not configured');
     const clock = database(options, paths.clockPath, ['simulation_clock'], db => {
         check((db.query('PRAGMA user_version').get() as { user_version: number }).user_version === SIMULATION_CLOCK_STORE_SCHEMA_VERSION, 'Unsupported boundary clock schema');
@@ -151,8 +154,8 @@ export function readWealthBoundary(scope: EvaluationScope, options: NativeIntegr
         check(simulationClockProfileDigest(JSON.parse(row.profile_json)) === row.profile_digest, 'Boundary clock profile digest differs'); return row;
     });
     const cohort = database(options, paths.needsPath, ['needs_schema', 'needs_state', 'needs_event'], db => {
-        const policy = loadNeedsPolicyCatalog(join(options.configDirectory, 'needs-policies.json')).policies[0]!;
-        const dynamics = loadNeedsDynamicsPolicyCatalog(join(options.configDirectory, 'needs-dynamics-policies.json'), policy).policies[0]!;
+        const policy = inputs?.policy??loadNeedsPolicyCatalog(join(options.configDirectory, 'needs-policies.json')).policies[0]!;
+        const dynamics = inputs?.dynamics??loadNeedsDynamicsPolicyCatalog(join(options.configDirectory, 'needs-dynamics-policies.json'), policy).policies[0]!;
         const store = new NeedsStore(db, policy, dynamics, { readonly: true });
         const rows = (db.query('SELECT snapshot_json FROM needs_state ORDER BY state_key').all() as { snapshot_json: string }[])
             .map(row => JSON.parse(row.snapshot_json) as DurableNeedsState);
@@ -168,10 +171,10 @@ export function readWealthBoundary(scope: EvaluationScope, options: NativeIntegr
     check(delivery.watermark?.clock.simulationTime === at && delivery.watermark.clock.clockId === scope.clockId
         && delivery.watermark.clock.profileDigest === scope.clockProfileDigest, 'Frozen boundary needs an exact native closed-tick watermark');
     database(options, paths.needsPath, ['native_food_consumption_event', 'native_food_receipt_use'], db => {
-        const policy = loadNeedsPolicyCatalog(join(options.configDirectory, 'needs-policies.json')).policies[0]!;
-        const dynamics = loadNeedsDynamicsPolicyCatalog(join(options.configDirectory, 'needs-dynamics-policies.json'), policy).policies[0]!;
+        const policy = inputs?.policy??loadNeedsPolicyCatalog(join(options.configDirectory, 'needs-policies.json')).policies[0]!;
+        const dynamics = inputs?.dynamics??loadNeedsDynamicsPolicyCatalog(join(options.configDirectory, 'needs-dynamics-policies.json'), policy).policies[0]!;
         const needs = new NeedsStore(db, policy, dynamics, { readonly: true });
-        const applications = new NativeFoodConsumptionProjection(db, needs, loadFoodLoopCatalog(join(options.configDirectory, 'food-loops.json')), true).list();
+        const applications = new NativeFoodConsumptionProjection(db, needs, inputs?.food??loadFoodLoopCatalog(join(options.configDirectory, 'food-loops.json')), true).list();
         check(applications.length === delivery.entries.length && applications.every((app, index) => app.sourceId === delivery.sourceId
             && app.actionId === delivery.entries[index]!.actionId && app.sourceDigest === delivery.entries[index]!.digest),
             'Frozen boundary contains unapplied/replaced native food receipts');
@@ -185,7 +188,7 @@ export function readWealthBoundary(scope: EvaluationScope, options: NativeIntegr
     check(cohort.every(row => wealth.playerUsernames.includes(row.binding.playerId)), 'Frozen boundary missing a selected canonical player save');
     return { simulationTime: at, clock, cohort, ...wealth };
 }
-export function collectNativeIntegrationSources(scope: EvaluationScope, options: NativeIntegrationOptions) {
+export function* iterateNativeIntegrationSources(scope: EvaluationScope, options: NativeIntegrationOptions) {
     // Resolve exactly one checkpoint authority using the same rule as physiological application.
     const authority = capture(() => { const source = openPopulationFoodSource(options);
         try { return source.options.checkpointPath; } finally { source.close(); } });
@@ -318,17 +321,20 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
     // Collection-local reuse only. The facade still recollects independently to reject moving sources.
     const wealthCache=new Map<string,ReturnType<typeof readWealthBoundary>>();
     const physicalCache=new Map<string,ReturnType<typeof readNativeFoodBoundary>>();
-    const boundaryInputs=capture(()=>loadFoodBoundaryInputs(options.configDirectory));
+    const boundaryInputs=capture(()=>loadFoodBoundaryInputs(options.configDirectory)),boundaryFood=capture(()=>loadFoodLoopCatalog(join(options.configDirectory,'food-loops.json')));
     const housingInputs=capture(()=>{check(boundaryInputs.status==='available','Boundary policies unavailable');return loadHousingBoundaryInputs(options,boundaryInputs.value.contract);});
     const frozenWealth=(at:string,paths:NativeFoodBoundaryPaths)=>{
         const key=digest({at,paths});let value=wealthCache.get(key);
-        if(!value){value=readWealthBoundary(scope,options,paths,at);wealthCache.set(key,value);}return value;
+        if(!value){check(boundaryInputs.status==='available'&&boundaryFood.status==='available','Boundary policies unavailable');
+            const dependencies=boundaryInputs.value.contract.dependencies;
+            value=readWealthBoundary(scope,options,paths,at,{policy:dependencies.needs,dynamics:dependencies.dynamics,food:boundaryFood.value});wealthCache.set(key,value);}return value;
     };
     const frozenPhysical=(at:string,paths:NativeFoodBoundaryPaths)=>{
         check(boundaryInputs.status==='available','Boundary policies unavailable');
         const key=digest({at,paths});let value=physicalCache.get(key);
         if(!value){value=readNativeFoodBoundary(scope,options,paths,frozenWealth(at,paths),boundaryInputs.value);physicalCache.set(key,value);}return value;
     };
+    yield {phase:'core' as const};
     const foodBoundaries=capture(()=>{
         if(!options.foodBoundaries?.length)throw new AbsentSource('Frozen native food boundaries not configured');
         check(options.foodBoundaries.length<=1000&&new Set(options.foodBoundaries.map(b=>b.at)).size===options.foodBoundaries.length,'Invalid food boundary inventory');
@@ -339,6 +345,7 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
             }catch{throw new Error('Native food boundary validation failed');}
         })}))};
     });
+    yield {phase:'food' as const};
     const housingAccess=capture(()=>{
         if(!options.housingBoundaries?.length)throw new AbsentSource('Frozen housing access points not configured');
         check(options.housingBoundaries.length<=1000&&new Set(options.housingBoundaries.map(p=>p.at)).size===options.housingBoundaries.length,'Invalid housing point inventory');
@@ -349,6 +356,7 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
             }catch{throw new Error('Native housing point validation failed');}
         })}))};
     });
+    yield {phase:'housing' as const};
     const toolBoundaries=capture(()=>{
         if(!options.toolBoundaries?.length)throw new AbsentSource('Frozen native tool boundaries not configured');
         check(options.toolBoundaries.length<=1000&&new Set(options.toolBoundaries.map(b=>b.at)).size===options.toolBoundaries.length,'Invalid tool boundary inventory');
@@ -359,6 +367,7 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
             catch{throw Error('Native tool boundary validation failed');}
         })}))};
     });
+    yield {phase:'tools' as const};
     const wealthBoundaries=capture(()=>{
         if(!options.foodBoundaries?.length)throw new AbsentSource('Frozen custody inventory not configured');
         check(options.foodBoundaries.length<=1000,'Custody boundary budget exceeded');
@@ -370,4 +379,11 @@ export function collectNativeIntegrationSources(scope: EvaluationScope, options:
     return { needs, modes, nutrition, lineage,foodCatalog, production, kitchen, commerce, rent, custody, wip, commerceOrders, rentalOrders, work, treasury, rewards, trades,wealthBoundaries,
         currentAssets, openingAssets, closingAssets,foodBoundaries,housingAccess,toolBoundaries, sleep, journalHeads, consumption, fares };
 }
-export type NativeIntegrationSources = ReturnType<typeof collectNativeIntegrationSources>;
+/** Synchronous production facade drains the same readonly phases without yielding a partial report.
+ * The iterator also supports bounded diagnostics. Each phase closes its stores before yielding;
+ * callers still need the existing independent recollection to reject moving source sets. */
+export function collectNativeIntegrationSources(scope:EvaluationScope,options:NativeIntegrationOptions):NativeIntegrationSources{
+    const collection=iterateNativeIntegrationSources(scope,options);
+    for(;;){const step=collection.next();if(step.done)return step.value;}
+}
+export type NativeIntegrationSources = ReturnType<typeof iterateNativeIntegrationSources> extends Generator<infer _Phase,infer Result,infer _Next>?Result:never;

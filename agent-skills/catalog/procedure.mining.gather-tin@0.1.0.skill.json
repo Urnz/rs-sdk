@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.mining.gather-tin",
+  "version": "0.1.0",
+  "status": "draft",
+  "name": "Gather one native tin ore",
+  "description": "Walk to Varrock east mine and request one bounded native tin Mining action. No bank reload or supplied material ancestry is accepted as an internal repair input.",
+  "tags": ["procedure", "mining", "society", "native"],
+  "provenance": {
+    "authorKind": "agent",
+    "authorId": "society-baseline-builder",
+    "createdAt": "2026-10-30T00:00:00.000Z",
+    "notes": "C07 baseline candidate only. No verification, publication, live execution or source-bound dispatch evidence is claimed."
+  },
+  "sharing": { "visibility": "shared" },
+  "parameters": {},
+  "limits": { "timeoutMs": 120000, "maxOperations": 2 },
+  "preconditions": [
+    { "condition": "skill-level-at-least", "arguments": { "skill": "Mining", "level": 1 } },
+    { "condition": "inventory-contains", "arguments": { "name": "Bronze pickaxe", "match": "exact", "amount": 1 } }
+  ],
+  "steps": [
+    { "kind": "operation", "id": "mine", "operation": "walk-to", "arguments": { "x": 3285, "z": 3365, "tolerance": 5 } },
+    { "kind": "operation", "id": "tin", "operation": "gather-loc", "arguments": { "name": "rocks tin ore", "match": "exact", "option": "mine", "item": "tin ore", "skill": "Mining", "timeoutMs": 15000 } }
+  ]
+}

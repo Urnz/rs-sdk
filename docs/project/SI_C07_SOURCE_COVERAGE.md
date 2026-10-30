@@ -1,5 +1,11 @@
 # SI-C07/2 P2-03 – Közös natív forráslefedettség
 
+**2026-10-30 aktuális állapot:** a2. implementációs csomag11/11 kész;
+[eredeti17/8 teljes natív összesítő](SI_C07_NATIVE_AGGREGATE.md) és negative/frozen
+út igazolt. A [közös founder-baseline jelölt](SI_C07_FOUNDER_BASELINE.md) elkészült,
+de a3. csomag és a tényleges C07 run továbbra nyitott, preflight NO-GO.
+Az alábbi korábbi részállapotokat a dátumukkal kell olvasni.
+
 2026-10-29: **P2-03 kész. 10/11 lezárási pont kész, 1 nyitott;
 8/8 pozitív natív kapuút.** Következő P2-11 összesítő, új closure pont nincs.
 [Rögzített lista](SI_C07_PACKAGE2_CLOSURE.md). Roadmap27/45; SI-C07 NO-GO,

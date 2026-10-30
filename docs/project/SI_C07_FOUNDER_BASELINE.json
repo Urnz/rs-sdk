@@ -1,0 +1,686 @@
+{
+  "schemaVersion": 1,
+  "protocol": "si-c07-common-founder-baseline-v1",
+  "fixtureDigest": "2094c0b60bd99c4a416fb6e85d3f84d6bd7c1621cdc75a6ef1c6090050c1a92e",
+  "contractDigest": "d12d387d2cf06193378401dc22c5c6ee6ef27350388e047da044da36e3a5e84e",
+  "status": "no-go",
+  "definitionComplete": false,
+  "installationImplemented": false,
+  "selectedWorldId": null,
+  "baselineDigest": null,
+  "liveRunStarted": false,
+  "liveStartAuthorized": false,
+  "providerRequestsAuthorized": 0,
+  "providerCostMicrosAuthorized": 0,
+  "founders": [
+    {
+      "agentId": "sifisher",
+      "username": "sifisher",
+      "capabilities": [
+        "gather",
+        "consume",
+        "sell-raw"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 2924,
+        "z": 3179,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 40,
+        "Cooking": 1,
+        "Mining": 1,
+        "Smithing": 1
+      },
+      "tools": [
+        {
+          "itemId": 301,
+          "count": 1
+        }
+      ],
+      "knownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.food.gather-lobster",
+        "procedure.travel.native-sites"
+      ],
+      "requiredKnownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.food.gather-lobster",
+        "procedure.travel.native-sites"
+      ]
+    },
+    {
+      "agentId": "sicook",
+      "username": "sicook",
+      "capabilities": [
+        "cook",
+        "consume",
+        "commerce"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 2925,
+        "z": 3180,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 1,
+        "Cooking": 40,
+        "Mining": 1,
+        "Smithing": 1
+      },
+      "tools": [],
+      "knownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.food.cook-lobster",
+        "procedure.travel.native-sites"
+      ],
+      "requiredKnownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.food.cook-lobster",
+        "procedure.travel.native-sites"
+      ]
+    },
+    {
+      "agentId": "sicourier",
+      "username": "sicourier",
+      "capabilities": [
+        "delivery",
+        "consume",
+        "mining",
+        "smelting",
+        "tool-maintenance"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 3222,
+        "z": 3218,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 1,
+        "Cooking": 1,
+        "Mining": 1,
+        "Smithing": 1
+      },
+      "tools": [
+        {
+          "itemId": 1265,
+          "count": 1
+        },
+        {
+          "itemId": 2347,
+          "count": 1
+        }
+      ],
+      "knownSkills": [
+        "procedure.food.consume-lobster",
+        "trade.lumbridge.give-item",
+        "procedure.travel.native-sites"
+      ],
+      "requiredKnownSkills": [
+        "procedure.food.consume-lobster",
+        "trade.lumbridge.give-item",
+        "procedure.travel.native-sites",
+        "mining.varrock-east.copper-to-bank@1.0.0",
+        "procedure.mining.gather-tin@1.0.0",
+        "procedure.metallurgy.smelt-bronze@1.0.0",
+        "procedure.tools.repair-bronze-pickaxe@1.0.0"
+      ]
+    },
+    {
+      "agentId": "silessor",
+      "username": "silessor",
+      "capabilities": [
+        "housing",
+        "consume",
+        "buy-food"
+      ],
+      "coinsGp": 700,
+      "cookedReserve": 1,
+      "position": {
+        "x": 2972,
+        "z": 3330,
+        "level": 0
+      },
+      "personalSkills": {
+        "Fishing": 1,
+        "Cooking": 1,
+        "Mining": 1,
+        "Smithing": 1
+      },
+      "tools": [],
+      "knownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.travel.native-sites"
+      ],
+      "requiredKnownSkills": [
+        "procedure.food.consume-lobster",
+        "procedure.travel.native-sites"
+      ]
+    }
+  ],
+  "procedures": [
+    {
+      "id": "procedure.food.consume-lobster",
+      "version": "1.0.0",
+      "draftVersion": null,
+      "reviewed": {
+        "checksum": "e8d31ec1b2250837a98c8bbdff9d1d91d53c13d27f1452f2fed1d5aec0c59f63",
+        "definitionDigest": "649999b66d5f33d877b9b24c4608f3329ae28ceadad238d2c377d3a56a57d7a8"
+      },
+      "sourcePath": "agent-skills/catalog/procedure.food.consume-lobster@1.0.0.skill.json",
+      "candidateDefinitionDigest": "649999b66d5f33d877b9b24c4608f3329ae28ceadad238d2c377d3a56a57d7a8",
+      "status": "verified"
+    },
+    {
+      "id": "procedure.food.gather-lobster",
+      "version": "1.0.0",
+      "draftVersion": null,
+      "reviewed": {
+        "checksum": "8285f15fdf01a67a2c4dbe26b704258887f971e20d2a93e38030f76338070b4d",
+        "definitionDigest": "88fb6739cef7143256f761e44185a37deac8eef6f4f1de3b5ed06ee5d9e5ef4e"
+      },
+      "sourcePath": "agent-skills/catalog/procedure.food.gather-lobster@1.0.0.skill.json",
+      "candidateDefinitionDigest": "88fb6739cef7143256f761e44185a37deac8eef6f4f1de3b5ed06ee5d9e5ef4e",
+      "status": "verified"
+    },
+    {
+      "id": "procedure.food.cook-lobster",
+      "version": "1.0.0",
+      "draftVersion": null,
+      "reviewed": {
+        "checksum": "ed40c2296664aac12cf0edcfd6bd0d5fc753a5d791a1819cecc1da11637931a1",
+        "definitionDigest": "e6c8a674739f7d088d96cc62254c07239b17cfd1ba5c12d650c7eab7ba4755b7"
+      },
+      "sourcePath": "agent-skills/catalog/procedure.food.cook-lobster@1.0.0.skill.json",
+      "candidateDefinitionDigest": "e6c8a674739f7d088d96cc62254c07239b17cfd1ba5c12d650c7eab7ba4755b7",
+      "status": "verified"
+    },
+    {
+      "id": "trade.lumbridge.give-item",
+      "version": "1.0.0",
+      "draftVersion": null,
+      "reviewed": {
+        "checksum": "45bc8f6ae51295206c7d99a9250f1da9ace992db3e264c4f01de1e59da95543b",
+        "definitionDigest": "a1e4e4c8fa5fbdc0bfc3f2e7daa65da05d652f5d8af4cd6c942fccb05ad4f443"
+      },
+      "sourcePath": "agent-skills/catalog/trade.lumbridge.give-item@1.0.0.skill.json",
+      "candidateDefinitionDigest": "a1e4e4c8fa5fbdc0bfc3f2e7daa65da05d652f5d8af4cd6c942fccb05ad4f443",
+      "status": "verified"
+    },
+    {
+      "id": "procedure.travel.native-sites",
+      "version": "1.0.0",
+      "draftVersion": null,
+      "reviewed": {
+        "checksum": "923b61ff80b48b1ec5d8699cc2bb9c47cd432eb7f4b9b96887d12432f4eb5bf3",
+        "definitionDigest": "4da6725205f8b4b2bfc3d711fe202920db9af58e716cf24fedd299c3929599bb"
+      },
+      "sourcePath": "agent-skills/catalog/procedure.travel.native-sites@1.0.0.skill.json",
+      "candidateDefinitionDigest": "4da6725205f8b4b2bfc3d711fe202920db9af58e716cf24fedd299c3929599bb",
+      "status": "verified"
+    },
+    {
+      "id": "mining.varrock-east.copper-to-bank",
+      "version": "1.0.0",
+      "draftVersion": null,
+      "reviewed": {
+        "checksum": "b5812fd05b1e1c39bf3ba054b965ff98001f7288862698ec68921c148c53d50f",
+        "definitionDigest": "6e40795eb12ae6a42e7389df7811947ae5b04583cc14286695919993606328be"
+      },
+      "sourcePath": "agent-skills/catalog/mining.varrock-east.copper-to-bank@1.0.0.skill.json",
+      "candidateDefinitionDigest": "6e40795eb12ae6a42e7389df7811947ae5b04583cc14286695919993606328be",
+      "status": "verified"
+    },
+    {
+      "id": "procedure.mining.gather-tin",
+      "version": "1.0.0",
+      "draftVersion": "0.1.0",
+      "reviewed": null,
+      "sourcePath": "agent-skills/catalog/procedure.mining.gather-tin@0.1.0.skill.json",
+      "candidateDefinitionDigest": "704a060b51c65f703f7a5facccd8f9780655391163e4488425a6f92e214dfd6f",
+      "status": "unverified"
+    },
+    {
+      "id": "procedure.metallurgy.smelt-bronze",
+      "version": "1.0.0",
+      "draftVersion": "0.1.0",
+      "reviewed": null,
+      "sourcePath": "agent-skills/catalog/procedure.metallurgy.smelt-bronze@0.1.0.skill.json",
+      "candidateDefinitionDigest": "1a458c99d378c7b5c7179f68c2924212df5772759024c6e851c656ab4a599790",
+      "status": "unverified"
+    },
+    {
+      "id": "procedure.tools.repair-bronze-pickaxe",
+      "version": "1.0.0",
+      "draftVersion": "0.1.0",
+      "reviewed": null,
+      "sourcePath": "agent-skills/catalog/procedure.tools.repair-bronze-pickaxe@0.1.0.skill.json",
+      "candidateDefinitionDigest": "f36ab4d87536c4806dcb836eef3b9594c41c8923eac66fc7d66b025c8dcb8e61",
+      "status": "unverified"
+    }
+  ],
+  "genesis": {
+    "schemaVersion": 1,
+    "resultId": "genesis-2edf087a7a9ed1ae987abb78",
+    "entropyAlgorithm": "sha256-v1",
+    "seed": "si-m1-lobster-four-v1",
+    "profile": {
+      "profileId": "mature-society",
+      "version": "1.0.0",
+      "digest": "5bfbc4400390732eb3feba94056ffd769ed5ce00d843bfc01f4cc881470108a4"
+    },
+    "worldBuild": "lostcity-local-v1",
+    "simulationClock": {
+      "clockId": "world",
+      "profileDigest": "f19889e1720ef6ef21b2079cdc3147361449eb747046de5f0ba3c1829a56c7e7",
+      "initialSimulationTime": "2001-01-01T00:00:00.000Z"
+    },
+    "parameters": {
+      "commonFounderBaselineVersion": 1,
+      "fixtureDigest": "2094c0b60bd99c4a416fb6e85d3f84d6bd7c1621cdc75a6ef1c6090050c1a92e"
+    },
+    "configurationDigest": "cbe179cbd8a913937b975a98b4265e4fa56e0e4022a85b7f992bb4111d826185",
+    "output": {
+      "assets": [
+        {
+          "allocationId": "sifisher-gp",
+          "amountGp": 700,
+          "kind": "currency",
+          "owner": {
+            "id": "sifisher",
+            "kind": "player"
+          }
+        },
+        {
+          "allocationId": "sifisher-item-0",
+          "container": "inventory",
+          "count": 1,
+          "itemId": 301,
+          "kind": "item",
+          "owner": {
+            "id": "sifisher",
+            "kind": "player"
+          },
+          "slot": null
+        },
+        {
+          "allocationId": "sifisher-item-1",
+          "container": "inventory",
+          "count": 1,
+          "itemId": 379,
+          "kind": "item",
+          "owner": {
+            "id": "sifisher",
+            "kind": "player"
+          },
+          "slot": null
+        },
+        {
+          "allocationId": "sicook-gp",
+          "amountGp": 700,
+          "kind": "currency",
+          "owner": {
+            "id": "sicook",
+            "kind": "player"
+          }
+        },
+        {
+          "allocationId": "sicook-item-0",
+          "container": "inventory",
+          "count": 1,
+          "itemId": 379,
+          "kind": "item",
+          "owner": {
+            "id": "sicook",
+            "kind": "player"
+          },
+          "slot": null
+        },
+        {
+          "allocationId": "sicourier-gp",
+          "amountGp": 700,
+          "kind": "currency",
+          "owner": {
+            "id": "sicourier",
+            "kind": "player"
+          }
+        },
+        {
+          "allocationId": "sicourier-item-0",
+          "container": "inventory",
+          "count": 1,
+          "itemId": 379,
+          "kind": "item",
+          "owner": {
+            "id": "sicourier",
+            "kind": "player"
+          },
+          "slot": null
+        },
+        {
+          "allocationId": "silessor-gp",
+          "amountGp": 700,
+          "kind": "currency",
+          "owner": {
+            "id": "silessor",
+            "kind": "player"
+          }
+        },
+        {
+          "allocationId": "silessor-item-0",
+          "container": "inventory",
+          "count": 1,
+          "itemId": 379,
+          "kind": "item",
+          "owner": {
+            "id": "silessor",
+            "kind": "player"
+          },
+          "slot": null
+        },
+        {
+          "allocationId": "kitchen",
+          "businessId": "karamja-kitchen",
+          "kind": "business",
+          "openingCapitalGp": 1000,
+          "openingInventoryDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "owner": {
+            "id": "silessor",
+            "kind": "player"
+          }
+        },
+        {
+          "allocationId": "kitchen-title",
+          "kind": "property",
+          "owner": {
+            "id": "karamja-kitchen",
+            "kind": "business"
+          },
+          "propertyId": "karamja.fishing-hut"
+        },
+        {
+          "allocationId": "housing-title",
+          "kind": "property",
+          "owner": {
+            "id": "silessor",
+            "kind": "player"
+          },
+          "propertyId": "falador.south-house"
+        },
+        {
+          "allocationId": "c07-tool-0",
+          "container": "inventory",
+          "count": 1,
+          "itemId": 1265,
+          "kind": "item",
+          "owner": {
+            "id": "sicourier",
+            "kind": "player"
+          },
+          "slot": null
+        },
+        {
+          "allocationId": "c07-tool-1",
+          "container": "inventory",
+          "count": 1,
+          "itemId": 2347,
+          "kind": "item",
+          "owner": {
+            "id": "sicourier",
+            "kind": "player"
+          },
+          "slot": null
+        },
+        {
+          "allocationId": "c07-workshop",
+          "businessId": "si-c07-workshop",
+          "kind": "business",
+          "openingCapitalGp": 0,
+          "openingInventoryDigest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "owner": {
+            "id": "silessor",
+            "kind": "player"
+          }
+        },
+        {
+          "allocationId": "c07-workshop-title",
+          "kind": "property",
+          "owner": {
+            "id": "si-c07-workshop",
+            "kind": "business"
+          },
+          "propertyId": "varrock.east-workshop"
+        }
+      ],
+      "populationMembers": [
+        {
+          "agentId": "sifisher",
+          "playerUsername": "sifisher"
+        },
+        {
+          "agentId": "sicook",
+          "playerUsername": "sicook"
+        },
+        {
+          "agentId": "sicourier",
+          "playerUsername": "sicourier"
+        },
+        {
+          "agentId": "silessor",
+          "playerUsername": "silessor"
+        }
+      ]
+    },
+    "outputDigest": "2dc1995f442c1edddfef437871ec45e40e7aabac31590972c6ccbc5b2f8c3b37",
+    "resultDigest": "2edf087a7a9ed1ae987abb7866f0ded0ecb20be054d8593bc3b77f8d67f70b5e",
+    "generatedAtAudit": "2026-10-30T00:00:00.000Z"
+  },
+  "resourceDelta": {
+    "nativeFoodHarvest": 0,
+    "bootstrapFood": 0,
+    "playerGp": 0,
+    "institutionGp": 0,
+    "newItems": [
+      {
+        "owner": "sicourier",
+        "itemId": 1265,
+        "count": 1
+      },
+      {
+        "owner": "sicourier",
+        "itemId": 2347,
+        "count": 1
+      }
+    ],
+    "newBusiness": {
+      "businessId": "si-c07-workshop",
+      "treasuryGp": 0,
+      "propertyId": "varrock.east-workshop"
+    },
+    "postGenesisRefill": false
+  },
+  "grants": [
+    {
+      "grantId": "si-c07-workshop-surface",
+      "businessId": "si-c07-workshop",
+      "propertyId": "varrock.east-workshop",
+      "facilityId": "varrock.east-workshop.forge",
+      "capabilityId": "work-surface",
+      "workerAgentId": "sicourier",
+      "roleDefinitionId": "business.worker.v1",
+      "requiredSkill": {
+        "id": "procedure.tools.repair-bronze-pickaxe",
+        "version": "1.0.0"
+      },
+      "validFrom": "2001-01-01T00:00:00.000Z",
+      "validUntil": null
+    }
+  ],
+  "toolPlan": {
+    "ownerAgentId": "sicourier",
+    "itemId": 1265,
+    "initialDurability": 100,
+    "initialServiceCapacity": 100,
+    "warmupRequiredSuccessfulUses": 51,
+    "evaluationOpeningMaximumDurability": 49,
+    "proposedEvaluationOpeningCapacity": 49,
+    "evaluationWearActions": 49,
+    "repairInput": [
+      {
+        "itemId": 436,
+        "quantity": 1
+      },
+      {
+        "itemId": 438,
+        "quantity": 1
+      }
+    ],
+    "smeltOutput": {
+      "itemId": 2349,
+      "quantity": 1
+    },
+    "repairRestoresDurability": 50,
+    "requiredReuseActions": 1,
+    "closingCapacityAfterOneCycle": 49,
+    "conditions": [
+      "Warmup uses must be actual prospective source-bound native actions, never a manual durability assignment.",
+      "Opening capacity is measured after the original warmup, never assumed from this plan.",
+      "Exact copper/tin lots must remain held through smelting and repair; bank copies cannot donate ancestry.",
+      "No virgin-tool retention credit from a50-capacity repair; ratio/native travel/work validation remains separate."
+    ]
+  },
+  "housing": {
+    "propertyId": "falador.south-house",
+    "ownerAgentId": "silessor",
+    "unitId": "falador.south-house.main",
+    "currentBedSlots": [
+      {
+        "bedSlotId": "falador.south-house.bed-1",
+        "x": 2973,
+        "z": 3330,
+        "level": 0
+      },
+      {
+        "bedSlotId": "falador.south-house.bed-2",
+        "x": 2973,
+        "z": 3332,
+        "level": 0
+      }
+    ],
+    "currentCapacity": 2,
+    "requiredPaidTenantSlots": 3,
+    "requiredOwnerFreeSlots": 1,
+    "requiredCapacity": 4,
+    "missingConfiguredSlots": 2,
+    "missingPhysicalSlots": 0,
+    "packedSiteProposal": {
+      "protocol": "si-c07-packed-bed-sites-v1",
+      "debugName": "brownbed",
+      "typeId": 419,
+      "map": "46_52",
+      "proposedBeds": [
+        {
+          "bedSlotId": "falador.south-house.bed-1",
+          "x": 2973,
+          "z": 3328,
+          "level": 0
+        },
+        {
+          "bedSlotId": "falador.south-house.bed-2",
+          "x": 2973,
+          "z": 3330,
+          "level": 0
+        },
+        {
+          "bedSlotId": "falador.south-house.bed-3",
+          "x": 2973,
+          "z": 3332,
+          "level": 0
+        },
+        {
+          "bedSlotId": "falador.south-house.bed-4",
+          "x": 2977,
+          "z": 3332,
+          "level": 0
+        }
+      ],
+      "sources": [
+        {
+          "path": "server/engine/data/pack/server/loc.dat",
+          "sha256": "a45ded68e74cf5a59257141206560aa508524b9ed89c06ac5bc94482f38eaf00"
+        },
+        {
+          "path": "server/engine/data/pack/server/loc.idx",
+          "sha256": "ff841140ee0a0685e0bda5a39c3838b6d3aa34ba5db8d6d05d416b9fbebca7d2"
+        },
+        {
+          "path": "server/engine/data/pack/.cache/maps-server.zip",
+          "sha256": "c57f8f0ee003befcb2c5846c1a9da231a225f616a2921b415e935577e30dcd75"
+        }
+      ],
+      "evidenceScope": "Actual packed anchors and bridge-adjusted levels only; no spawn, route, title or live capacity grant."
+    },
+    "catalogsDigest": "82a36449b60f33f1a8afe3606e2bb95a5762baedf5190a0362c0bbcc430601be",
+    "proposedAdditionalCoordinates": [
+      {
+        "bedSlotId": "falador.south-house.bed-1",
+        "x": 2973,
+        "z": 3328,
+        "level": 0
+      },
+      {
+        "bedSlotId": "falador.south-house.bed-2",
+        "x": 2973,
+        "z": 3330,
+        "level": 0
+      },
+      {
+        "bedSlotId": "falador.south-house.bed-3",
+        "x": 2973,
+        "z": 3332,
+        "level": 0
+      },
+      {
+        "bedSlotId": "falador.south-house.bed-4",
+        "x": 2977,
+        "z": 3332,
+        "level": 0
+      }
+    ],
+    "meaning": "Every founder requires simultaneous capacity-backed legal access. Existing two packed beds cannot silently become four rights."
+  },
+  "supplyEnvelope": {
+    "nativeHarvest": 32,
+    "openingPortions": 4,
+    "finiteCeiling": 36,
+    "nominalPortions": 32,
+    "closingReserve": 4,
+    "optimisticNoBurnHeadroom": 0,
+    "measured": false
+  },
+  "blockers": [
+    {
+      "id": "procedure:procedure.mining.gather-tin",
+      "reason": "Reviewed shared 1.0.0 is absent; 0.1.0 draft cannot grant runtime access."
+    },
+    {
+      "id": "procedure:procedure.metallurgy.smelt-bronze",
+      "reason": "Reviewed shared 1.0.0 is absent; 0.1.0 draft cannot grant runtime access."
+    },
+    {
+      "id": "procedure:procedure.tools.repair-bronze-pickaxe",
+      "reason": "Reviewed shared 1.0.0 is absent; 0.1.0 draft cannot grant runtime access."
+    }
+  ],
+  "limitations": [
+    "Specification only. Four actual packed bed anchors are proposed for a fresh configuration; no site overlay, verified promotion, applied genesis or runtime grant is fabricated.",
+    "No frozen source selection, ratio validation, SI-A14, provider approval or actual minimum PASS follows from this candidate."
+  ],
+  "digest": "238b7eb14b2eea2a41440a0e4dfc607b6285f5b587d3748f57df233d3f84ca1a"
+}

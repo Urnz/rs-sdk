@@ -31,9 +31,11 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     expect(report.candidate).toMatchObject({warmupSimulationMs:86400000,evaluationSimulationMs:604800000,nominalWallMs:2400000,
         proposedSampleWallMs:5000,providerRequestsAuthorized:0,providerCostMicrosAuthorized:0,selectedWorldId:null});
     expect(report.liveRunStarted).toBeFalse();expect(report.readyForRunApproval).toBeFalse();
-    expect(report.gates.find(g=>g.id==='minimum-assessor')?.status).toBe('blocked');
+    expect(report.gates.find(g=>g.id==='minimum-assessor')?.status).toBe('passed');
     expect(report.gates.find(g=>g.id==='tool-chain-baseline')?.status).toBe('blocked');
     expect(report.supplyEnvelope.optimisticNoBurnHeadroom).toBe(0);
+    expect(report.commonFounderBaseline.status).toBe('no-go');expect(report.commonFounderBaseline.procedures.filter(p=>p.status==='unverified')).toHaveLength(3);
+    expect(report.commonFounderBaseline.selectedWorldId).toBeNull();
     expect(report.readerCoverage.every(r=>r.verdict==='inconclusive'&&r.assessedValue===null)).toBeTrue();
 });
 test('a relaxed minimum in a copied definition cannot pass the original-policy gate',async()=>{

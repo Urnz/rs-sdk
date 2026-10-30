@@ -318,14 +318,16 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         }
         assessment=assessSocietyMinimum(contract,binding,[...cells,...needsCells,...foodCells,...housingCells,...capacityCells],integrityEvidence);
     }catch{bindingStatus='invalid';assessment=null;}
-    // Positive roster/opening gates use verified native identities/state. Configuration/ledger presence cannot certify the remaining gates or the full run.
+    // Only the existing complete17/8 native assessment may qualify. Independent violations retain precedence over unrelated gaps.
+    const verdict=diagnosticFailure?'fail' as const:assessment?.verdict??'inconclusive';
+    const qualifiesMinimum=verdict==='pass'&&bindingStatus==='bound'&&nativeScopeMatches&&sourceCoverage.verdict==='pass';
     const body={protocol:'native-society-minimum-assessment-v1',scope,contractDigest:contract.digest,bindingStatus,
         nativeScopeStatus:!outcomes?'unavailable':nativeScopeMatches?'matched':'mismatch',
         requirements:sourceMap.requirements.map(r=>({...r,verdict:assessment?.requirements.find(v=>v.requirementId===r.requirementId)?.verdict??'inconclusive'})),
         integrity:sourceMap.integrity.map(g=>({...g,verdict:integrityFailures.some(f=>f.gateId===g.gateId)?'fail' as const
             :assessment?.integrity.find(a=>a.gateId===g.gateId)?.verdict??'inconclusive'})),assessment,
         diagnosticViolations,lifecycleIntegrityViolations,policyIntegrityViolations,administrativeIntegrityViolations,externalIntegrityViolations,internalLineageViolations,requiredSourceInventory:minimumSourceInventory(contract),sourceCoverage,
-        verdict:diagnosticFailure||assessment?.verdict==='fail'?'fail':'inconclusive',qualifiesMinimum:false,
+        verdict,qualifiesMinimum,
         sources:{internalLineage:internal?.status==='available'?{status:'available',digest:internal.digest,verdict:internal.value.verdict,completeInternalLineageCoverage:internal.value.completeInternalLineageCoverage}:{status:internal?.status??'unavailable'},
             externalValue:external?.status==='available'?{status:'available',digest:external.digest,verdict:external.value.verdict,
                 completeExternalValueCoverage:external.value.completeExternalValueCoverage}:{status:external?.status??'unavailable'},
@@ -361,6 +363,6 @@ export function projectNativeMinimumAssessment(contract:SocietyMinimumContract,s
         limitations:['Missing native scope, denominators or integrity proofs never become zero or PASS.',
             'Partial count/duration certificates use one-sided bounds; observed failure survives unrelated missing sources.',
             'Founder deaths bound survival from above; absent deaths or wall heartbeat do not establish continuous mortality coverage.',
-            'Complete needs/food/housing/capacity histories and the aggregate source-coverage integrity gate remain incomplete.']};
+            'A native minimum PASS applies only to the bound original frame and complete source histories; it is not a live-run authorization or an MVS verdict.']};
     return{...body,digest:digest(body)};
 }

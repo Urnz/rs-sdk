@@ -1,5 +1,11 @@
 # SI-C07 – Hosszú önfenntartási próba előkészítése
 
+**2026-10-30 aktuális állapot:** a2. implementációs csomag11/11 kész;
+[eredeti17/8 teljes natív összesítő](SI_C07_NATIVE_AGGREGATE.md) és negative/frozen
+út igazolt. A [közös founder-baseline jelölt](SI_C07_FOUNDER_BASELINE.md) elkészült,
+de a3. csomag és a tényleges C07 run továbbra nyitott, preflight NO-GO.
+Az alábbi korábbi részállapotokat a dátumukkal kell olvasni.
+
 2026-10-24, folyamatban; baseline `8b605589413687cc1bea934475b4e86c0d7e9402`,
 ág `codex/si-c07-minimum-preflight`. SI-C07 nincs lezárva,27/45.
 

@@ -1225,6 +1225,16 @@ valódi publisher-fault unknown, numeric FAIL megmarad; frozen readonly azonos.
 teljes17+8 natív összesítő. Új producer/journal vagy hosszú run nincs;
 27/45, C07 NO-GO, SI-M3/MVS nem PASS.
 
+
+**2026-10-30 P2-11 kész:** [teljes natív összesítő](SI_C07_NATIVE_AGGREGATE.md).
+Ugyanazon applied-genesis/world/cohort/clock és eredeti1+7 ablak alatt mind17
+numerikus szabály,8 kapu és16 forráscsalád együtt PASS-képes. Az állandó globális
+zár helyett kizárólag az eredeti bound native assessment minősíthet; hiány unknown,
+valódi numeric FAIL megmarad, frozen readonly assessment azonos. **11/11 kész;
+a2. implementációs csomag lezárt. Öt csomag maradt,3–7.** A3. közös founder-baseline
+elkezdve; a pozitív komponens-fixture nem lett élő indulóállapot. Hosszú run,
+providerhívás vagy SI-M3/MVS PASS továbbra nincs;27/45, C07 NO-GO.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

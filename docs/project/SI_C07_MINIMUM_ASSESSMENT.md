@@ -1,6 +1,8 @@
 # SI-C07/2 – Minimum-kiértékelő és natív forrástérkép
 
-2026-10-28. **A 2. munkacsomag folyamatban; lezárási lista 3/11 kész.**
+2026-10-30. **A2. munkacsomag kész,11/11 lezárási pont.**
+A [közös17/8 natív összesítő](SI_C07_NATIVE_AGGREGATE.md) és frozen/negatív
+út elkészült; a lenti korábbi részállapotok történetiek.
 Ez a [rögzített bontás](SI_C07_REMAINING_WORK.md)2. pontjának részeredménye,
 nem új munkacsomag és nem lezárt SI-C07.27/45, preflight NO-GO.
 Az aktuális, rögzített feltételek és a korábbi számláló magyarázata a

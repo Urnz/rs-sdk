@@ -1,5 +1,5 @@
 import {expect} from 'bun:test';
-import {mkdtempSync,rmSync,cpSync,mkdirSync,readFileSync,copyFileSync} from 'node:fs';
+import {mkdtempSync,rmSync,cpSync,mkdirSync,readFileSync,copyFileSync,writeFileSync} from 'node:fs';
 import {join,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
@@ -28,8 +28,14 @@ import {readNativeFounderBaseline} from '../population-outcomes.js';
 import {readNativeGenesisOpening} from '../genesis-opening.js';
 
 export const genesisFixtureRoots:string[]=[],initial='2001-01-01T00:00:00.000Z',wall='2030-01-01T00:00:00.000Z';
-export async function createNativeGenesisFixture(fullPolicy=false,register:(root:string)=>void=root=>genesisFixtureRoots.push(root)){
+export async function createNativeGenesisFixture(fullPolicy=false,register:(root:string)=>void=root=>genesisFixtureRoots.push(root),minimumScenario=false){
     const root=mkdtempSync(join(tmpdir(),'native-genesis-opening-'));register(root);cpSync(join(import.meta.dir,'../../config'),join(root,'config'),{recursive:true});
+    if(minimumScenario){
+        const unitsPath=join(root,'config/housing-units.json'),units=JSON.parse(readFileSync(unitsPath,'utf8')),nativePath=join(root,'config/native-housing.json'),native=JSON.parse(readFileSync(nativePath,'utf8'));
+        const unit=units.units[0];unit.capacity=4;unit.rentPeriodSimulationMinutes=9*1440;
+        for(let n=3;n<=4;n++){const bedSlotId=`falador.south-house.bed-${n}`;unit.bedSlots.push({bedSlotId,label:`Fixture bed ${n}`});native.beds.push({bedSlotId,x:2971,z:3330,level:n-3});}
+        writeFileSync(unitsPath,JSON.stringify(units));writeFileSync(nativePath,JSON.stringify(native));
+    }
     const configDirectory=join(root,'config'),agentPath=join(root,'.local/agent-state/agents.sqlite'),clockPath=join(root,'.local/simulation/simulation-clock.sqlite'),
         checkpointPath=join(root,'server/engine/data/checkpoints.sqlite'),healthPath=join(root,'server/engine/data/health.sqlite'),
         businessPath=join(root,'.local/economy/businesses.sqlite'),treasuryPath=join(root,'.local/economy/treasury.sqlite'),propertyPath=join(root,'server/engine/data/properties.sqlite'),
@@ -58,6 +64,12 @@ export async function createNativeGenesisFixture(fullPolicy=false,register:(root
     assets.push({allocationId:'forge',kind:'business',owner:{kind:'player',id:'ada'},businessId:'forge',openingCapitalGp:20,openingInventoryDigest:businessGenesisInventoryDigest(assets,'forge')},
         {allocationId:'forge-title',kind:'property',owner:{kind:'business',id:'forge'},propertyId},
         {allocationId:'faction-gp',kind:'currency',owner:{kind:'faction',id:'council'},amountGp:5});
+    if(minimumScenario){
+        assets.splice(assets.findIndex(a=>a.allocationId==='forge-title'),1,{allocationId:'founder-house',kind:'property',owner:{kind:'player',id:'ada'},propertyId:'falador.south-house'});
+        for(const id of names)assets.push({allocationId:`reserve-${id}`,kind:'item',owner:{kind:'player',id},container:'inventory',itemId:379,count:8,slot:null},
+            {allocationId:`rent-${id}`,kind:'currency',owner:{kind:'player',id},amountGp:1000});
+        assets.push({allocationId:'mining-tool',kind:'item',owner:{kind:'player',id:'ada'},container:'inventory',itemId:1265,count:1,slot:null});
+    }
     const profile=loadWorldGenesisProfileCatalog(join(configDirectory,'world-genesis-profiles.json')).profiles.find(p=>p.profileId==='mature-society')!;
     const result=buildWorldGenesisResult({schemaVersion:1,seed:'opening',profile:{profileId:profile.profileId,version:profile.version,digest:profile.digest},worldBuild:'local-fixture',
         simulationClock:{clockId:'world',profileDigest:created.profileDigest,initialSimulationTime:initial},parameters:{}},

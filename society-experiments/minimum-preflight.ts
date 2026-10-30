@@ -1,3 +1,4 @@
+import {inspectCommonFounderBaseline} from './founder-baseline.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -18,7 +19,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     validateIntegrationFixture(fixture);
     const contract=loadSocietyMinimumContract(join(root,'config')),p=contract.policy;
     const survival=fixture.survival?compileSurvivalProfile(JSON.parse(readFileSync(join(root,'config/survival-rules.json'),'utf8')),fixture.survival.mode,fixture.seed):null;
-    const definition=await preflightIntegrationDefinition(root,fixture);
+    const definition=await preflightIntegrationDefinition(root,fixture),commonFounderBaseline=await inspectCommonFounderBaseline(root,fixture);
     const rate=fixture.clock.profile.rate,simulationMs=p.window.warmupSimulationMilliseconds+p.window.evaluationSimulationMilliseconds;
     const nominalWallMs=Number((BigInt(simulationMs)*BigInt(rate.wallMilliseconds)+BigInt(rate.simulationMilliseconds)-1n)/BigInt(rate.simulationMilliseconds));
     const maximumSampleWallMs=Math.floor(p.window.maximumTraceGapSimulationMilliseconds*rate.wallMilliseconds/rate.simulationMilliseconds);
@@ -46,8 +47,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         {id:'verified-procedures',status:definition.executableSkillsReady?'passed':'blocked',reason:definition.errors.join('; ')||'Exact existing fixture procedures are verified.'},
         {id:'finite-food-envelope',status:'unverified',
             reason:`No-burn provisioning headroom ${headroom??'unknown'} portions after nominal demand and closing reserve; actual burn, origin, reserve and demand require native evidence.`},
-        {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:'Existing food/travel fixture does not bind an approved native Mining→smelt→repair→reuse chain to its founders and initial service capacity.'},
-        {id:'minimum-assessor',status:'blocked',reason:'All17 requirements have native adapters and all eight integrity gates have positive native paths. The original1+7 native audit joins all16 source families; omitted sources, warmup gaps and publisher faults remain unknown, while independent numeric FAIL survives. Full aggregate numeric/integrity PASS remains incomplete; no actual C07 run is certified.'},
+        {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:`Common founder candidate ${commonFounderBaseline.digest}: ${commonFounderBaseline.blockers.map(b=>b.id).join(', ')}; proposed same-instance capacity and actual packed bed sites are specified, but no candidate is installed.`},
+        {id:'minimum-assessor',status:'passed',reason:'The original1+7 native component-producer fixture jointly passes all17 numeric rules, eight integrity gates and16 source families. Missing sources and publisher faults remain unknown, independent native numeric FAIL persists, and frozen readonly replay is identical. This certifies assessor capability, not an actual C07 economic run.'},
         {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Prospective executor request lifetimes and native watermarks include verified online housing sleep without deducting its time. No C07 producer/source/full window is pinned; legacy, offline/terminal/unproved restriction and source gaps remain incomplete. An empty source cannot yield zero-opportunity PASS.'},
         {id:'legal-housing-exposure',status:'unverified',reason:'Frozen exact-clock points now bound legal housing time with ownership versions, audited reservation capacity and paid native rent. Two tenant slots alone still do not attest95% access for all founders; complete pinned point inventory and visitor/access history remain required.'},
         {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
@@ -111,8 +112,9 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'server/engine/src/mods/NativeMiningInteraction.ts','server/engine/src/engine/script/ScriptState.ts','server/gateway/admin/native-mining-interaction.ts',
         'agent-skills/mining-gather.ts','agent-skills/executor.ts','agent-skills/run.ts','agent-skills/types.ts','agent-skills/rs-sdk-runtime.ts',
         'server/gateway/admin/native-mining-demand.ts','server/gateway/gateway.ts','server/engine/src/web/pages/internal-admin.ts',
-        'society-experiments/minimum-preflight.ts',...fixture.skills.map(s=>`agent-skills/catalog/${s.id}@${s.version}.skill.json`)];
-    const sources=sourcePaths.map(path=>({path,sha256:sourceHash(root,path)}));
+        'society-experiments/minimum-preflight.ts','society-experiments/founder-baseline.ts','society-experiments/packed-housing-sites.ts','scripts/prepare-society-founder-baseline.ts',
+        ...commonFounderBaseline.procedures.flatMap(p=>p.sourcePath?[p.sourcePath]:[]),...fixture.skills.map(s=>`agent-skills/catalog/${s.id}@${s.version}.skill.json`)];
+    const sources=[...new Set(sourcePaths)].map(path=>({path,sha256:sourceHash(root,path)}));
     const body={protocol:'si-c07-minimum-run-preparation-v1',scope:'readonly-definition-and-capability-preflight',status:'no-go',
         liveRunStarted:false,liveStartAuthorized:false,readyForRunApproval:false,minimumVerdict:'inconclusive',
         fixtureId:fixture.fixtureId,fixtureDigest:fixture.digest,fixtureVersion:fixture.version,
@@ -127,9 +129,10 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
                 'Native uncertainty, unauthorized value or external import','Timeout, cost/request cap, authority expiry or operator stop',
                 'Founder death or proven original minimum violation; retain FAIL evidence, do not lower thresholds']},
         minimumSourceMap:minimumSources,requiredSourceInventory:minimumSourceInventory(contract),
+        commonFounderBaseline,
         supplyEnvelope:{maximumFinitePortions:capacity,nominalEightDayPortions:nominalPortions,nominalClosingReserve:closingReserve,
             optimisticNoBurnHeadroom:headroom,notAnAssessment:true},readerCoverage,gates,sources,
-        nextActions:['Complete the native minimum assessment and missing demand/access history before requesting a run.',
+        nextActions:['The full native assessor is implemented; bind a real C07 source set before claiming actual run coverage.',
             'Prepare a complete native-tool/food/housing founder baseline with unchanged acceptance thresholds.',
             'Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.',
             'Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval.']};

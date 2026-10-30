@@ -4056,3 +4056,33 @@ Nincs live install/start/provider/baseline/import vagy historical payload DB-rea
 
 `20261029-185403-997-si-c07-p203-format`:staged changed-line format,
 aktuális source hashek és29 dokumentum linkjei PASS1,430 s; új helper stage-elve.
+
+
+### 2026-10-30 – SI-C07/2 P2-11, teljes natív összesítő
+
+**2026-10-30 P2-11 kész:** [teljes natív összesítő](SI_C07_NATIVE_AGGREGATE.md).
+Ugyanazon applied-genesis/world/cohort/clock és eredeti1+7 ablak alatt mind17
+numerikus szabály,8 kapu és16 forráscsalád együtt PASS-képes. Az állandó globális
+zár helyett kizárólag az eredeti bound native assessment minősíthet; hiány unknown,
+valódi numeric FAIL megmarad, frozen readonly assessment azonos. **11/11 kész;
+a2. implementációs csomag lezárt. Öt csomag maradt,3–7.** A3. közös founder-baseline
+elkezdve; a pozitív komponens-fixture nem lett élő indulóállapot. Hosszú run,
+providerhívás vagy SI-M3/MVS PASS továbbra nincs;27/45, C07 NO-GO.
+
+47 célzott consumer eset PASS7,224s; a teljes pozitív4 eset PASS109,962s,
+125s összesített guardban. Root TS PASS18,433s. A régi joint31s readerblokk és
+51,5s összesített túllépés megőrzött FAIL; külön fázisok és collection-local
+validált policy-újrahasználat javítja, az eredeti50s limit változatlan.
+Teljes regresszió nincs: minimum/report és readonly collector, nincs megváltozott
+shared persistence/clock/economic/auth/dependency alap. Nincs live/provider/history DB-read.
+
+A3. csomag readonly jelöltje és ellenőrzője [elkészült](SI_C07_FOUNDER_BASELINE.md),
+de a csomag nincs kész. Native old/source-coverage teljes193 pont végül8 PASS46,059s,
+44997/50000ms eredeti guarddal (`145035-029`). Normál és lépcsős collector azonos.
+Root TS végül PASS66,789s (`150412-079`), újabb native/history/ZIP7 PASS55,228s
+(`150939-136`), baseline/ZIP/preflight13 PASS4,401s (`145845-318`, részben átfedő).
+Három required1.0.0 eljárás még draft; nincs promotion vagy stage-alkalmazás.
+Valódi packed anchorsból4-slot proposal, nincs új ágyspawn vagy resource-refill.
+A sandbox hardlink EPERM katalógusteszt változatlanul natív jogosultsággal1 PASS1,025s.
+Végső source/artifact/policy/checklist/link/format PASS2,997s (`151503-161`),
+27/45 és warnings0 a work-briefben. Teljes regresszió, live run és provider nincs.
