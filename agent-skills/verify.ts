@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import {verifyMiningSkillRunSources} from '../server/gateway/admin/native-mining-skill-evidence.js';
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -53,7 +54,8 @@ for (const runId of runIds) {
 }
 const outcome = await library.promoteAgentDraft(registered.definition, evidence, {
     targetVersion, parameters, verifyFoodEvidence: run => verifyFoodSkillRunSources(process.cwd(), run),
-    verifyToolEvidence: run => verifyToolSkillRunSources(process.cwd(), run)
+    verifyToolEvidence: run => verifyToolSkillRunSources(process.cwd(), run),
+    verifyMiningEvidence:run=>verifyMiningSkillRunSources(process.cwd(),run)
 });
 const reportPath = await new FileSkillVerificationJournal(join(root, 'verifications')).save(outcome.report);
 console.log(JSON.stringify({ ...outcome, reportPath }, null, 2));

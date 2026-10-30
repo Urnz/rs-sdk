@@ -12,8 +12,9 @@ import { miningAdmissionDigest as hash,persistMiningOperationAdmission,miningDem
 import { miningGatherArgs,type MiningDemandRequest } from '../../sdk/mining-demand.js';
 import { miningOwner } from '../mining-demand-source.js';
 import type { NativeToolOwner } from '../../item-lifecycle/native-tool.js';
+import type { SkillDefinition } from '../types.js';
 
-export function miningSourceFixture(){
+export function miningSourceFixture(draft?:SkillDefinition){
     const root=mkdtempSync(join(tmpdir(),'si-c07-mining-source-'));
     const clock=new SimulationClockStore(join(root,'.local/simulation/clock.sqlite'));
     const created=clock.create({clockId:'mining-clock',profile:{schemaVersion:1,profileId:'mining-fixture',version:'1.0.0',seed:'fixture',
@@ -25,12 +26,11 @@ export function miningSourceFixture(){
         joinedAtSimulationTime:'2001-01-01T00:00:00.000Z',sourceResultId:'genesis-0123456789abcdef01234567',sourceResultDigest:'c'.repeat(64)});
     const {playerId,...binding}=populationNeedsBinding('mining-world',member);
     const owner=miningOwner({...binding,username:playerId} as NativeToolOwner);
-    const whole=new SkillRegistry().register(originalMiningDefinition,{trusted:true});
+    const whole=new SkillRegistry().register(draft??originalMiningDefinition,{trusted:true});
     const repeat=whole.definition.steps.find(s=>s.kind==='repeat');
-    if(!repeat||repeat.kind!=='repeat')throw Error('Mining fixture repeat missing');
-    const gather=repeat.steps.find(s=>s.kind==='operation'&&s.operation==='gather-loc');
+    const gather=(repeat?.kind==='repeat'?repeat.steps:whole.definition.steps).find(s=>s.kind==='operation'&&s.operation==='gather-loc');
     if(!gather||gather.kind!=='operation')throw Error('Mining fixture gather missing');
-    const definition={...whole.definition,preconditions:[],steps:[gather]}; // Controlled reviewed-fixture subset, never published.
+    const definition=draft?whole.definition:{...whole.definition,preconditions:[],steps:[gather]}; // Controlled reviewed-fixture subset, never published.
     const registered=new SkillRegistry().register(definition,{trusted:true}),ref={id:definition.id,version:definition.version};
     mkdirSync(join(root,'agent-skills/catalog'),{recursive:true});writeFileSync(join(root,'agent-skills/catalog',`${ref.id}@${ref.version}.skill.json`),JSON.stringify(definition));
     agents.setSkillKnowledge(owner.actorId,ref,'known',null);

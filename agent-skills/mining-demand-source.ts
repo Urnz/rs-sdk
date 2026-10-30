@@ -1,3 +1,4 @@
+import {miningTrialAuthorization} from './mining-trials.js';
 import { existsSync,mkdirSync,readFileSync,writeFileSync,statSync,realpathSync } from 'node:fs';
 import { join,relative,isAbsolute } from 'node:path';
 import { AgentStateStore } from '../agent-state/store.js';
@@ -5,7 +6,7 @@ import { SkillRegistry } from './registry.js';
 import { resolveSkillParameters } from './validation.js';
 import { assertNativeFoodDomainPath } from '../food-loop/native-source.js';
 import { nativeToolDigest,type NativeToolOwner } from '../item-lifecycle/native-tool.js';
-import { validateMiningDemandRequest,type MiningDemandRequest } from '../sdk/mining-demand.js';
+import { validateMiningDemandRequest,miningGatherArgs,type MiningDemandRequest } from '../sdk/mining-demand.js';
 import { miningAdmissionDigest as hash,miningDemandId,readMiningOperationAdmission,miningOperationAdmissionPath } from './mining-admission.js';
 import { requireMiningExecutorAdmission } from './mining-request-source.js';
 
@@ -51,14 +52,19 @@ export function authorizeMiningDemand(root:string,owner:NativeToolOwner,raw:Mini
         const skillPath=[join(root,'.local/agent-skills/private',owner.actorId,filename),join(root,'.local/agent-skills/shared',filename),join(root,'agent-skills/catalog',filename)].find(existsSync);
         if(!skillPath)throw Error('Mining procedure missing');
         const registered=new SkillRegistry().register(file(root,owner,skillPath),{trusted:true});
+        if(registered.definition.id!==c.skill.id||registered.definition.version!==c.skill.version)throw Error('Mining procedure reference differs');
         const known=agents.listSkillKnowledge(owner.actorId).find(k=>k.skill.id===c.skill.id&&k.skill.version===c.skill.version);
-        if(registered.definition.status!=='verified'||!known||known.status==='blocked'
+        const trial=registered.definition.status==='draft'?miningTrialAuthorization(registered.definition):undefined;
+        if((!trial&&(registered.definition.status!=='verified'||!known))||known?.status==='blocked'
             ||registered.definition.sharing.visibility==='private'&&registered.definition.sharing.ownerAgentId!==owner.actorId)throw Error('Mining procedure is not learned and verified');
         const run=file(root,owner,join(root,'.local/agent-skills/runs',`${c.runId}.admission.json`));
         file(root,owner,miningOperationAdmissionPath(root,request)); // Path/size validation before the typed parser.
         const step=readMiningOperationAdmission(root,request);
         requireMiningExecutorAdmission(root,owner,step);
         const marker=file(root,owner,join(root,'.local/admin/active-skills',`${owner.username}.json`));
+        if(trial&&(marker.nativeMiningTrial?.checksum!==registered.checksum||hash(marker.nativeMiningTrial?.runtimeAuthorization)!==hash(trial)
+            ||c.stepId!==registered.definition.steps[1]!.id||hash(request.args)!==hash(miningGatherArgs((registered.definition.steps[1] as import('./types.js').SkillOperationStep).arguments))))
+            throw Error('Mining draft lacks its exact acknowledged trial');
         if(run.schemaVersion!==1||run.runId!==c.runId||run.username!==owner.username||hash(run.skill)!==hash(c.skill)
             ||run.checksum!==registered.checksum||run.parametersDigest!==c.parametersDigest
             ||hash(Object.entries(resolveSkillParameters(registered.definition,run.parameters)).sort(([a],[b])=>a.localeCompare(b)))!==c.parametersDigest
@@ -69,7 +75,7 @@ export function authorizeMiningDemand(root:string,owner:NativeToolOwner,raw:Mini
             ||!Number.isFinite(Date.parse(marker.heartbeatAt))||now-Date.parse(marker.heartbeatAt)>15000||Date.parse(marker.heartbeatAt)>now+1000)
             throw Error('Mining demand lacks its current exact executor admission');
         if(existsSync(cancelPath(root,miningDemandId(request)))||miningOperationSealed(root,owner,request))throw Error('Mining demand was cancelled or sealed');
-        return{authorityDigest:hash({owner,requestDigest:miningRequestDigest(request),checksum:registered.checksum,stepAdmissionDigest:step.digest}),
+        return{authorityDigest:hash({owner,requestDigest:miningRequestDigest(request),checksum:registered.checksum,stepAdmissionDigest:step.digest,...trial?{trialRunId:c.runId}:{}}),
             expiresAtWallTime:step.expiresAtWallTime};
     }finally{agents.close();}
 }

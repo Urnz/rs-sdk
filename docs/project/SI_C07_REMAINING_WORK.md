@@ -25,6 +25,8 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    verified skill/grant csomaggal; natív Mining→smelt→repair→reuse input/
    kapacitás, étellánc és lakhatás. Az eredeti minimumhoz szükséges jóváhagyott
    indulóállapot, nem a teszteredményhez igazított készletnövelés.
+   Az [ón-draft acknowledged natív próbája és verifier útja](SI_C07_MINING_PROCEDURE_VERIFICATION.md)
+   elkészült; a tartós normál trial/review, publikálás és közös stage még kell.
 4. **Natív időarány-validálás.** A választott clock-ratio összevetése a content
    tickkel, travel/harvest/work credit és tényleges meal/needs ritmussal.
    A 288:1 nem tekinthető már validált M3-aránynak.

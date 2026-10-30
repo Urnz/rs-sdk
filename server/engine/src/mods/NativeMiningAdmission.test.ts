@@ -1,7 +1,7 @@
 import { afterEach,beforeAll,expect,test } from 'bun:test';
-import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { cpSync,mkdirSync,readFileSync,writeFileSync,unlinkSync } from 'node:fs';
+import { join,resolve } from 'node:path';
+import { createHash,randomUUID } from 'node:crypto';
 import World from '../engine/World.js';
 import InvType from '../cache/config/InvType.js';
 import { handleInternalAdminRequest } from '../web/pages/internal-admin.js';
@@ -28,13 +28,24 @@ import { EntityLifeCycle } from '../engine/entity/EntityLifeCycle.js';
 import JavaRandom from '../util/JavaRandom.js';
 import VarPlayerType from '../cache/config/VarPlayerType.js';
 import { NativeMiningDispatchStore } from '../../../../item-lifecycle/native-mining-dispatch.js';
+import tinDraft from '../../../../agent-skills/catalog/procedure.mining.gather-tin@0.1.0.skill.json' with {type:'json'};
+import {SkillRegistry} from '../../../../agent-skills/registry.js';
+import {miningTrialAuthorization} from '../../../../agent-skills/mining-trials.js';
+import {readMiningSkillRunEvidence,verifyMiningSkillRunSources} from '../../../gateway/admin/native-mining-skill-evidence.js';
+import {verifyAndPromoteSkill} from '../../../../agent-skills/verifier.js';
+import {miningOperationAdmissionPath} from '../../../../agent-skills/mining-admission.js';
+import {PlayerStat} from '../engine/entity/PlayerStat.js';
+import type {SkillDefinition,SkillRunResult} from '../../../../agent-skills/types.js';
+import {nativeToolDigest as hash} from '../../../../item-lifecycle/native-tool.js';
+import {Database} from 'bun:sqlite';
 beforeAll(loadPackedContent);
 const sources:ReturnType<typeof miningSourceFixture>[]=[],token=process.env.ENGINE_ADMIN_TOKEN;
 let rockSequence=0;
 afterEach(()=>{closeNativeMiningFixtures();for(const f of sources.splice(0))f.close();
     if(token===undefined)delete process.env.ENGINE_ADMIN_TOKEN;else process.env.ENGINE_ADMIN_TOKEN=token;});
-function harness(){
-    const s=miningSourceFixture();sources.push(s);process.env.ENGINE_ADMIN_TOKEN='native-mining-fixture-token';
+function harness(draft?:SkillDefinition){
+    const s=miningSourceFixture(draft);sources.push(s);process.env.ENGINE_ADMIN_TOKEN='native-mining-fixture-token';
+    cpSync(resolve(import.meta.dir,'../../../../config'),join(s.root,'config'),{recursive:true});
     const checkpointPath=join(s.root,'server/engine/data/player-checkpoints.sqlite');mkdirSync(join(s.root,'server/engine/data'),{recursive:true});
     const f=fixture(undefined,{username:'worker',checkpointPath,identity:(username,actionId,slot,tick)=>username!==s.owner.username?null:
         {action:{...s.owner,actionId,itemId:379,quantity:1,slot,policyDigest:'a'.repeat(64)},clock:s.clock.observeNow(s.owner.clockId,tick)}});
@@ -54,7 +65,7 @@ function harness(){
     const options:MiningDemandOptions={workspace:s.root,worldId:s.owner.worldId,checkpointPath,binding:()=>({...s.owner,worldProfileDigest:'extra-ignored'} as any),dispatch};
     const interactionOptions:MiningInteractionOptions={...options,dispatch:async command=>{
         const url=new URL('http://localhost/api/internal/admin/native-mining-interaction');
-        JavaRandom.setSeed(4096);
+        JavaRandom.setSeed(draft?1:4096); // Level-1 tin: native gem roll then success roll; no stat boost.
         const pending=handleInternalAdminRequest(new Request(url,{method:'POST',headers:{'Content-Type':'application/json','X-Engine-Admin-Token':process.env.ENGINE_ADMIN_TOKEN!},
             body:JSON.stringify({commandId:randomUUID(),...command})}),url);
         for(let i=0;i<2;i++){await new Promise(resolve=>setTimeout(resolve,0));tickNativeMiningIntents(local);}
@@ -64,7 +75,7 @@ function harness(){
     }};
     function interactionRequest(sequence=1):MiningInteractionRequest{
         World.currentTick+=5;f.miner.setVar(VarPlayerType.getId('action_delay'),World.currentTick);f.miner.delayed=false;
-        const rock=new Loc(0,3500+(rockSequence++*2),3149,1,1,EntityLifeCycle.DESPAWN,LocType.getId('copperrock1'),10,0);
+        const rock=new Loc(0,3500+(rockSequence++*2),3149,1,1,EntityLifeCycle.DESPAWN,LocType.getId(draft?'tinrock1':'copperrock1'),10,0);
         World.addLoc(rock,-1);f.miner.x=rock.x-1;f.miner.z=rock.z;
         return{demand:s.request,dispatchSequence:sequence,target:{x:rock.x,z:rock.z,locId:rock.type,optionIndex:1}};
     }
@@ -87,7 +98,61 @@ test('SI-C07 admitted executor → SDK runtime → gateway proof → internal HT
     expect(f.store.event(row.completionEventId!)!.kind).toBe('mined');expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(99);
     expect(f.miner.getInventory(InvType.INV)!.getItemCount(436)).toBe(1);
     expect(result.events.find(e=>e.type==='step.succeeded')?.data?.miningDemand).toMatchObject({state:'fulfilled',demandId:f.s.demandId});
+    result.username='worker';
+    expect(verifyMiningSkillRunSources(f.s.root,result,f.options)).toBeTrue();
 });
+
+test('SI-C07 exact tin draft needs two independent canonical native effects; source tampering invalidates review',async()=>{
+    const started=performance.now(),phase=(name:string)=>console.info('[native-tin-review]',JSON.stringify({phase:name,elapsedMs:Math.round(performance.now()-started)}));
+    const draft=new SkillRegistry().register(tinDraft,{trusted:true}).definition;
+    const runs:SkillRunResult[]=[],roots=new Map<string,ReturnType<typeof harness>>();
+    for(let i=0;i<2;i++){
+        phase(`run-${i+1}-start`);
+        const f=harness(draft);f.miner.setLevel(PlayerStat.MINING,1);
+        // Controlled movement/loc placement tests the source join, not a packed-world route or baseline performance.
+        const sdk={sendMiningDemand:(r:MiningDemandRequest)=>executeMiningDemandRequest(f.options,'worker',r),
+            getInventory:()=>[{id:1265,name:'Bronze pickaxe',count:1},...((f.miner.getInventory(InvType.INV)!.getItemCount(438))?[{id:438,name:'Tin ore',count:1}]:[])],
+            getSkill:()=>({baseLevel:f.miner.baseLevels[PlayerStat.MINING]}),getSkillXp:()=>0,
+            waitForCondition:async(check:()=>boolean)=>{if(!check())throw Error('No native progress');}};
+        const runtime=new RsSdkSkillRuntime({walkTo:async()=>({success:true,message:'controlled fixture placement'}),
+            interactLoc:async(_target:unknown,_option:unknown,context:import('../../../../sdk/mining-interaction.js').MiningInteractionContext)=>
+                executeMiningInteractionRequest(f.interactionOptions,'worker',{...f.interactionRequest(context.dispatchSequence),demand:context.demand})} as any,sdk as any);
+        const result=await new SkillExecutor(runtime).execute(draft,{allowDraft:true,runId:f.s.request.context.runId,onMiningAdmission:async r=>{
+            f.s.admit(r);const marker=JSON.parse(readFileSync(f.s.markerPath,'utf8'));
+            writeFileSync(f.s.markerPath,JSON.stringify({...marker,nativeMiningTrial:{checksum:f.s.registered.checksum,runtimeAuthorization:miningTrialAuthorization(draft)}}));
+        },onMiningClosed:async r=>sealMiningOperationAdmission(f.s.root,r)});
+        result.username='worker';expect(result.status).toBe('completed');
+        expect(f.miner.getInventory(InvType.INV)!.getItemCount(438)).toBe(1);
+        expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(99);
+        // Throwing reader preserves a useful failure location; the public verifier itself fails closed.
+        expect(readMiningSkillRunEvidence(f.s.root,result,f.options)).toHaveLength(1);
+        roots.set(result.runId,f);runs.push(result);
+        phase(`run-${i+1}-source-verified`);
+    }
+    const options={targetVersion:'1.0.0',verifyMiningEvidence:(run:SkillRunResult)=>{const f=roots.get(run.runId)!;return verifyMiningSkillRunSources(f.s.root,run,f.options);}};
+    expect(verifyAndPromoteSkill(draft,runs,options).passed).toBeTrue(); // Report only; no catalog publication.
+    const first=roots.get(runs[0]!.runId)!,event=runs[0]!.events.find(e=>e.type==='step.succeeded'&&e.operation==='gather-loc')!;
+    const posted=event.data!.miningDemand as {request:MiningDemandRequest;receiptDigest:string;nativeActionId:string};
+    const request=posted.request,path=miningOperationAdmissionPath(first.s.root,request).replace(/\.json$/,'.closed.json'),seal=readFileSync(path);
+    unlinkSync(path);expect(verifyAndPromoteSkill(draft,runs,options).passed).toBeFalse();writeFileSync(path,seal);
+    const original=posted.receiptDigest;posted.receiptDigest='f'.repeat(64);
+    expect(verifyAndPromoteSkill(draft,runs,options).passed).toBeFalse();posted.receiptDigest=original;
+    expect(verifyMiningSkillRunSources(first.s.root,{...runs[0]!,username:'other'},first.options)).toBeFalse();
+    expect(verifyMiningSkillRunSources(first.s.root,runs[0]!,{...first.options,worldId:'other-world'})).toBeFalse();
+    const row=first.market.db.query<{payload:string;digest:string},[string]>('SELECT payload,digest FROM native_tool_event WHERE event_id=?').get(posted.nativeActionId)!;
+    const forged=JSON.parse(row.payload);forged.after.durability++;
+    expect(()=>first.market.db.query('UPDATE native_tool_event SET payload=?,digest=? WHERE event_id=?').run(JSON.stringify(forged),hash(forged),posted.nativeActionId)).toThrow('immutable');
+    // Deliberately corrupt a disposable copy, keeping the canonical fixture and its guards intact.
+    const forgedPath=join(first.s.root,'server/engine/data/forged-checkpoints.sqlite');writeFileSync(forgedPath,first.market.db.serialize());
+    const forgedDb=new Database(forgedPath);
+    try{forgedDb.exec('DROP TRIGGER native_tool_event_no_update');
+        forgedDb.query('UPDATE native_tool_event SET payload=?,digest=? WHERE event_id=?').run(JSON.stringify(forged),hash(forged),posted.nativeActionId);
+    }finally{forgedDb.close(true);}
+    expect(verifyMiningSkillRunSources(first.s.root,runs[0]!,{...first.options,checkpointPath:forgedPath})).toBeFalse();
+    const snapshot=()=>createHash('sha256').update(first.market.db.serialize()).digest('hex'),before=snapshot();
+    expect(verifyAndPromoteSkill(draft,runs,options).passed).toBeTrue();
+    expect(snapshot()).toBe(before);phase('negative-and-readonly-complete');
+},15000); // Two independent engine runs plus repeated readonly audit joins, not a one-operation 5s case.
 
 test('SI-C07 close-before-late-open persists cancellation and cannot manufacture pending demand or ore',async()=>{
     const f=harness();f.s.admit();let pending:NativeMiningDemandCommand|undefined,release=()=>{};

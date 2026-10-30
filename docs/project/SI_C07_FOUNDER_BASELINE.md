@@ -83,7 +83,10 @@ natív tool-openinggal és teljes housing/sleep úttal. A mostani eszköz csak
 readonly jelöltet készít, nem tartalmaz telepítési ágat. Ezek az eredeti3.
 csomag feltételei; nem új lezárási pontok és nem a már kész2. csomag újranyitása.
 
-Következő konkrét munka a fenti három eljárás source-bound natív hitelesítése,
+Az [óneljárás acknowledged natív próbája és canonical verifier útja](SI_C07_MINING_PROCEDURE_VERIFICATION.md)
+elkészült komponensszinten: két külön Mining1 packed effect, negatív/readonly
+ellenőrzés. Kontrollált mozgás/loc fixture, nem publikált eljárás vagy live trial.
+Következő konkrét munka a fenti három eljárás tartós source-bound natív hitelesítése,
 majd a közös friss stage alkalmazó/ellenőrző útja. A4. ratio-próba és a hosszú
 run nem indul megkerülve ezt; SI-C08 sem indul.
 

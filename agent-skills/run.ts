@@ -12,6 +12,7 @@ import { FileSkillRunJournal } from './journal';
 import { createHash } from 'node:crypto';
 import { resolveSkillParameters } from './validation.js';
 import type { SkillRunResult, SkillRuntimeAuthorization } from './types';
+import {miningTrialAuthorization} from './mining-trials.js';
 import { persistMiningOperationAdmission,sealMiningOperationAdmission } from './mining-admission.js';
 
 const args = process.argv.slice(2);
@@ -114,6 +115,7 @@ const run = await runScript(async ({ bot, sdk }) => {
         heartbeatAt: new Date().toISOString(),
         progressAt: new Date().toISOString(),
         progressSequence: 0,
+        nativeMiningTrial:allowDraft&&miningTrialAuthorization(registered.definition)?{checksum:registered.checksum,runtimeAuthorization}:null,
         miningOperationSequence: null as number|null,
         miningAdmissionDigest: null as string|null,
         pid: process.pid

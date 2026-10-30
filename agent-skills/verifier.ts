@@ -1,3 +1,4 @@
+import {isMiningDemandGather} from '../sdk/mining-demand.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, sep } from 'node:path';
 import type { SkillDefinition, SkillDefinitionResolver, SkillRunResult, SkillStep, SkillValue } from './types';
@@ -31,6 +32,7 @@ export interface SkillVerificationOptions {
     /** Trusted backend must reopen canonical food sources; uploaded operation data is insufficient. */
     verifyFoodEvidence?: (run: SkillRunResult) => boolean;
     verifyToolEvidence?: (run: SkillRunResult) => boolean;
+    verifyMiningEvidence?: (run: SkillRunResult) => boolean;
 }
 
 export const SKILL_VERIFIER_ID = 'deterministic-skill-verifier';
@@ -92,6 +94,21 @@ function sameParameters(
     const actualEntries = Object.entries(actual).sort(([left], [right]) => left.localeCompare(right));
     const expectedEntries = Object.entries(expected).sort(([left], [right]) => left.localeCompare(right));
     return JSON.stringify(actualEntries) === JSON.stringify(expectedEntries);
+}
+
+/** Resolve each call's own parameters; two calls to the same child may gather different items. */
+export function requiresNativeMiningEvidence(definition:SkillDefinition,parameters:Record<string,string|number|boolean>,resolveDefinition?:SkillDefinitionResolver):boolean{
+    const contains=(steps:SkillStep[],frameParameters:Record<string,string|number|boolean>,seen=new Set<string>()):boolean=>steps.some(step=>{
+        if(step.kind==='operation'){try{return isMiningDemandGather(step.operation,resolveValue(step.arguments,frameParameters) as Record<string,unknown>);}catch{return step.operation==='gather-loc';}}
+        if(step.kind==='repeat')return contains(step.steps,frameParameters,seen);
+        const key=skillReferenceKey(step.skill);if(seen.has(key))return true;
+        const child=resolveDefinition?.(step.skill);if(!child)return true;
+        const next=new Set(seen);next.add(key);
+        try{const childDefinition=validateSkillDefinition(child);return contains(childDefinition.steps,
+            resolveSkillParameters(childDefinition,resolveValue(step.arguments,frameParameters) as Record<string,unknown>),next);}
+        catch{return true;} // Unresolved/cyclic invocations must not silently omit the native gate.
+    });
+    return contains(definition.steps,parameters);
 }
 
 export function verifyAndPromoteSkill(
@@ -194,6 +211,14 @@ export function verifyAndPromoteSkill(
         try { verified = !!options.verifyToolEvidence && uniqueEvidence.length >= minimumSuccessfulRuns
             && uniqueEvidence.every(run => options.verifyToolEvidence!(run)); } catch { /* Source failure must prevent promotion. */ }
         check('native-tool-sources', verified, 'Every tool trial must reopen its canonical WIP and committed material/capacity effect.');
+    }
+    if(requiresNativeMiningEvidence(draft,parameters,options.resolveDefinition)){
+        const ids=uniqueEvidence.flatMap(run=>run.events.filter(e=>e.type==='step.succeeded'&&e.operation==='gather-loc')
+            .map(e=>(e.data?.miningDemand as {nativeActionId?:string}|undefined)?.nativeActionId??''));
+        check('independent-native-mining',ids.length>=minimumSuccessfulRuns&&ids.every(Boolean)&&new Set(ids).size===ids.length,
+            'Native copper/tin trials require distinct exact native dispatch/output effects.');
+        let verified=false;try{verified=!!options.verifyMiningEvidence&&uniqueEvidence.length>=minimumSuccessfulRuns&&uniqueEvidence.every(run=>options.verifyMiningEvidence!(run));}catch{/* Native source failure cannot promote. */}
+        check('native-mining-sources',verified,'Every Mining trial must reopen its admitted executor operation, exact dispatch, fulfilled intent and audited native use.');
     }
     const passed = checks.every(item => item.passed);
     const report: SkillVerificationReport = {

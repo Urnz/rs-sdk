@@ -1,3 +1,4 @@
+import {verifyMiningSkillRunSources} from './native-mining-skill-evidence.js';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { verifyFoodSkillRunSources } from './native-food-skills.js';
@@ -97,8 +98,9 @@ import { SkillTrialStore, type SkillTrial } from '../../../agent-skills/trials.j
 import { SkillLibrary } from '../../../agent-skills/library.js';
 import { SkillRegistry } from '../../../agent-skills/registry.js';
 import { FileSkillStore } from '../../../agent-skills/store.js';
-import { FileSkillVerificationJournal, SKILL_VERIFIER_ID, verifyAndPromoteSkill,
+import { FileSkillVerificationJournal, SKILL_VERIFIER_ID, verifyAndPromoteSkill,requiresNativeMiningEvidence,
     type SkillVerificationReport } from '../../../agent-skills/verifier.js';
+import {resolveSkillParameters} from '../../../agent-skills/validation.js';
 import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/types.js';
 import { buildSkillPublicationApproval } from './skill-publication-approval.js';
 import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
@@ -1487,6 +1489,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 parameters: trial.parameters,
                 verifyFoodEvidence: run => verifyFoodSkillRunSources(repoRoot, run),
                 verifyToolEvidence: run => verifyToolSkillRunSources(repoRoot, run),
+                verifyMiningEvidence:run=>verifyMiningSkillRunSources(repoRoot,run),
                 resolveDefinition: reference => verificationLibrary.registry
                     .get(reference, 'admin-trial-runner')?.definition ?? null
             });
@@ -1525,6 +1528,16 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
                 const evidence = await collectTrialEvidence(trial);
                 if (evidence.length !== report.evidenceRunIds.length || evidence.some(run => !report.evidenceRunIds.includes(run.runId)
                     || !verifyToolSkillRunSources(repoRoot, run))) throw new Error('A natív javítás bizonyítéka megváltozott a publikálás előtt.');
+            }
+            const publicationLibrary=new SkillLibrary(new SkillRegistry(),new FileSkillStore(agentSkillsLocalDir));
+            await publicationLibrary.loadReviewedCatalog(join(repoRoot,'agent-skills','catalog'));
+            await publicationLibrary.loadAgentDrafts('admin-trial-runner');
+            if(requiresNativeMiningEvidence(promoted,resolveSkillParameters(promoted,trial.parameters),reference=>publicationLibrary.registry.get(reference,'admin-trial-runner')?.definition??null)
+                ||report.checks.some(check=>check.id==='native-mining-sources')){
+                if(!report.checks.some(check=>check.id==='native-mining-sources'&&check.passed))throw new Error('A Mining eljárást újra kell hitelesíteni a natív forrásellenőrzéssel.');
+                const evidence=await collectTrialEvidence(trial);
+                if(evidence.length!==report.evidenceRunIds.length||evidence.some(run=>!report.evidenceRunIds.includes(run.runId)
+                    ||!verifyMiningSkillRunSources(repoRoot,run)))throw new Error('A natív Mining bizonyítéka megváltozott a publikálás előtt.');
             }
             const path = await new FileSkillStore(agentSkillsLocalDir).save(promoted, {
                 actorKind: 'system', actorId: SKILL_VERIFIER_ID

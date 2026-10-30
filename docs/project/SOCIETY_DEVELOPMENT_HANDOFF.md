@@ -53,7 +53,12 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   Tin0.1.0 bounded draft létrejött; smelt/repair0.1.0 korábbi draft. Nincs promotion.
   A kanonikus registry külön ellenőrzi a6 rendelkezésre álló reviewed eljárást;
   célverziót, checksumot és draft operational digestet rögzít, hiányt nem fed el.
-- **Következő konkrét munka:** a három eljárás normál source-bound natív
+- **Most elkészült:** [az exact tin draft acknowledged trial és canonical verifier útja](SI_C07_MINING_PROCEDURE_VERIFICATION.md).
+  Két független Mining1 packed hatás, valódi tin és100→99 kopás; admission,
+  dispatch, intent és lifecycle audit összekötve. ACK/XP/posted success nem elég.
+  Admin és CLI verifier bekötött, publikálás előtt forrás-recheck és régi report
+  elutasítása. Kontrollált mozgás/loc fixture, nem live trial vagy publication.
+- **Következő konkrét munka:** a három eljárás tartós normál source-bound natív
   hitelesítése/review útja, majd fresh saját stage alkalmazó/ellenőrző útja:
   közös genesis,4 slotos existing-site overlay, exact verified knowledge és
   worker-grantok, native tool opening és mind4 founder normál housing/sleep útja.
@@ -62,34 +67,21 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Ellenőrzési bizonyíték
 
-- P2-11: `20261030-143359-938-si-c07-p211-native-final`:4 PASS109,962s;
-  actual17/8/16, negative/frozen; összesített108678/125000ms.
-- `20261030-143734-318-si-c07-p211-consumers`:47 PASS7,224s: eredeti számítási
-  mag, minimum/native/source-coverage adapter, evaluation/native-outcomes, preflight.
-- `20261030-143805-762-si-c07-p211-existing-native`:13 genesis +2 másik eset
-  PASS, wrapper FAIL70,546s a31,287s old joint reader30s fázislimitjén.
-  A13-as genesis fájl nem ismétlődött, helper default tartalma változatlan.
-- `20261030-144004-998-si-c07-p211-existing-phases`:6 PASS, wrapper FAIL55,029s:
-  collector31,949s és51,512s aggregate. Két egymást követő expensive FAIL után
-  vékony diagnosztika, collection-local policy reuse; az eredeti50s limit megmaradt.
-- `20261030-144441-156-si-c07-p211-final-native-regression`: a4 teljes pozitív
-  natív eset PASS,106080/125000ms; wrapper FAIL157,228s az old collector30,845s
-  egybefüggő blokkján. Old aggregate49709/50000ms, minden16 coverage numerikusan jó.
-- `20261030-145023-775-si-c07-p211-iterator-thin`:7 PASS3,870s; normál sync és
-  lépcsőzött collector eredménye azonos, input hash unchanged.
-- **`20261030-145035-029-si-c07-p211-iterator-original-window`:8 PASS46,059s.**
-  Eredeti teljes193 pont, minden16 source, negative/frozen; eredeti50s aggregate.
-  Ezzel az old timing FAIL célzottan rendezett, nem limitnöveléssel.
-- P3: `20261030-145845-318-si-c07-p3-preflight-and-sites`:13 PASS4,401s;
-  baseline7, ZIP/source3 és preparer3. Korábbi7-es körök átfednek, nem összeadandók.
-- `20261030-150109-935-si-c07-final-types-and-consumers`:18 runtime PASS,
-  wrapper TS FAIL64,475s: projected food-shape helyett teljes FoodLoopCatalog kell,
-  a phase-lista literal narrowingt igényel. Típus- és input-konstrukció javítva.
-  Végső TS, vékony runtime és artifact/format eredmények a lenti frissítésben.
-- Nem full regresszió. Minimum/report + readonly collector + új readonly tervező;
-  nincs megváltozott shared persistence/clock/economic/auth/dependency alap.
-  Root TS érintett, engine/webclient projekt vagy C06 archive nem indokolt.
-  Minden korai failure részlete aP2-11 docban; nem töröltük/kozmetikáztuk.
+- P2 lezárási és korábbi baseline/packed-site eredmények:
+  [natív összesítő](SI_C07_NATIVE_AGGREGATE.md),
+  [baseline-javaslat](SI_C07_FOUNDER_BASELINE.md). P2-11 továbbra11/11.
+- Aktuális P3: [natív Mining trial/verifier eredmény és korai hibák](SI_C07_MINING_PROCEDURE_VERIFICATION.md).
+  `154130-497-si-c07-p3-mining-consumers`:89 PASS4,634s.
+  `154058-296-si-c07-p3-tin-audit-final`:két külön Mining1→tin effect,
+  negatív/readonly natív eset +wrapper PASS5,807s.
+  A korábbi11 natív admission/cancel/replay eset változatlanul PASS12,791s
+  a `153829-592` parancson belül; a parancs összesen FAIL az azóta javított
+  új negatív teszt miatt. A11 eset nem ismétlődött szükségtelenül.
+- Root TS a `154144-274` parancs első fázisában PASS; az engine TS egy JSON
+  import attribute hibán FAIL, kizárólag az engine projekt ismétlődik javítás után.
+- Nincs full regresszió: scoped Mining trial/verifier, közvetlen skill/admin
+  fogyasztók és packed natív határ. Nincs shared persistence/clock/economic
+  transaction alapváltozás. A globális szerepkör/engedélyezési modell változatlan.
 
 ## Megmaradó korlátok
 
@@ -121,16 +113,10 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Végső ellenőrzés
 
-- `20261030-150412-079-si-c07-types-final`:root TS PASS66,789s.
-- `20261030-150939-136-si-c07-final-runtime`:7 pozitív native/history/ZIP eset
-  PASS55,228s; a javított teljes food-catalog inputtal és iterator facade-dal.
-- `20261030-150958-155-si-c07-final-artifacts`:artifact digest/NO-GO/0 authority
-  PASS1,538s. P3 jelölt és preflight azonos,3 exact unverified eljárás maradt.
-- Katalógus consumer sandbox hardlink EPERM (`151105-850`, `151143-984`)
-  után változatlanul, native Windows-jogosultsággal1 PASS1,025s:
-  `20261030-151156-915-si-c07-catalog-native-permissions`.
-
-- `20261030-151503-161-si-c07-artifacts-format-final`:203 aktuális source SHA,
-  packed source SHA, változatlan eredeti policy,11/11 checklist,296 helyi link,
-  egyező NO-GO artifact és changed-line formázás PASS2,997s. A dokumentációs
-  eredménybejegyzés nem indokol új runtime/typecheck ismétlést.
+- `154346-541-si-c07-p3-engine-types`:engine TS PASS50,717s; root TS az
+  előző kombinált parancsban már PASS, nem ismétlődött a JSON-import javítása miatt.
+- `154542-304-si-c07-p3-artifacts-and-admin`:209 aktuális source SHA és
+  változatlan eredeti policy/NO-GO artifact, további14 admin/preflight teszt PASS.
+  A wrapper egy dokumentum EOF-formázási hibáján FAIL; az javítva.
+- `154639-824-si-c07-p3-final-artifacts-format`:artifact/link/format
+  PASS1,368s. Runtime a dokumentációs javítás miatt nem ismétlődött.

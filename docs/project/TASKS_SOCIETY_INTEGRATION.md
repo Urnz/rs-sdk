@@ -1235,6 +1235,12 @@ a2. implementációs csomag lezárt. Öt csomag maradt,3–7.** A3. közös foun
 elkezdve; a pozitív komponens-fixture nem lett élő indulóállapot. Hosszú run,
 providerhívás vagy SI-M3/MVS PASS továbbra nincs;27/45, C07 NO-GO.
 
+**A3. csomag további eredménye:** [az ón-draft natív trial/verifier útja](SI_C07_MINING_PROCEDURE_VERIFICATION.md)
+elkészült. Két külön Mining1 packed tin output és lifecycle kopás forrásból
+ellenőrzött; ACK/success önmagában nem promótálhat. A normál tartós trial/review,
+a három1.0.0 publikálása és a közös fresh stage még kell. Öt nagy csomag maradt;
+nincs új lezárási pont, live baseline vagy hosszú run.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

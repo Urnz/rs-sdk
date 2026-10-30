@@ -111,6 +111,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'sdk/mining-interaction.ts','sdk/actions.ts','agent-skills/mining-interaction-source.ts','item-lifecycle/native-mining-dispatch.ts',
         'server/engine/src/mods/NativeMiningInteraction.ts','server/engine/src/engine/script/ScriptState.ts','server/gateway/admin/native-mining-interaction.ts',
         'agent-skills/mining-gather.ts','agent-skills/executor.ts','agent-skills/run.ts','agent-skills/types.ts','agent-skills/rs-sdk-runtime.ts',
+        'agent-skills/mining-trials.ts','agent-skills/food-trials.ts','agent-skills/verifier.ts','agent-skills/verify.ts',
+        'server/gateway/admin/native-mining-skill-evidence.ts','server/gateway/admin/routes.ts',
         'server/gateway/admin/native-mining-demand.ts','server/gateway/gateway.ts','server/engine/src/web/pages/internal-admin.ts',
         'society-experiments/minimum-preflight.ts','society-experiments/founder-baseline.ts','society-experiments/packed-housing-sites.ts','scripts/prepare-society-founder-baseline.ts',
         ...commonFounderBaseline.procedures.flatMap(p=>p.sourcePath?[p.sourcePath]:[]),...fixture.skills.map(s=>`agent-skills/catalog/${s.id}@${s.version}.skill.json`)];

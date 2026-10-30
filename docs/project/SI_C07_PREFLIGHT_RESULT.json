@@ -2605,7 +2605,7 @@
     },
     {
       "path": "agent-skills/mining-demand-source.ts",
-      "sha256": "1f30a995b7b92516efe978a5a525f6749b86770d4c0facde79c57d5581f9ae35"
+      "sha256": "2976686e49b76757ba3e0a33190fabe637eac8961426f0e91cf715716dce2d80"
     },
     {
       "path": "sdk/mining-interaction.ts",
@@ -2645,7 +2645,7 @@
     },
     {
       "path": "agent-skills/run.ts",
-      "sha256": "871872c309f0ce51743b567e8d4478c2a3a22f9ecc5d06f7e17be01da995af6f"
+      "sha256": "b02958b2fe1452255640a72f7a5ab42b3c04159012776ff4b722c24001f3e913"
     },
     {
       "path": "agent-skills/types.ts",
@@ -2654,6 +2654,30 @@
     {
       "path": "agent-skills/rs-sdk-runtime.ts",
       "sha256": "9201ef6caf7cd19ccaf8cd7bba53000f8a0332f2cdd256c50f40d800d7c1302f"
+    },
+    {
+      "path": "agent-skills/mining-trials.ts",
+      "sha256": "513c9c01615d4937486382de66177a6ce78150940c49e7069b4e141fd6032351"
+    },
+    {
+      "path": "agent-skills/food-trials.ts",
+      "sha256": "063f02782d02f67fcbf1e6ef554db70d7bc881fbc148d376e36e6651110a9d8d"
+    },
+    {
+      "path": "agent-skills/verifier.ts",
+      "sha256": "e3dbaa7d9dc292f6d80e8e6fa628cce3dceabbcfcdf7b078d55e0ab08658d14c"
+    },
+    {
+      "path": "agent-skills/verify.ts",
+      "sha256": "7fecafb3ab43540f62a2743702fe83561548336c13bfb6ed1901c967f302f02f"
+    },
+    {
+      "path": "server/gateway/admin/native-mining-skill-evidence.ts",
+      "sha256": "4af3467b83eeab5505bc466a8e1daf876f7beaa0f015bab8dea22d6d663fa973"
+    },
+    {
+      "path": "server/gateway/admin/routes.ts",
+      "sha256": "bc559db5164fc7543d61718b290ebdcef649c95f47f5d0228c952adfe6de04ad"
     },
     {
       "path": "server/gateway/admin/native-mining-demand.ts",
@@ -2665,7 +2689,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "9fcc31b2bd13f16a9de1030f8b34946bce3fa693bd879fa1569b7525ab4c6a76"
+      "sha256": "f5e2bacd95f870b42c0f7c6f074313d5d750ae11fdfd8b184793389af91eee3f"
     },
     {
       "path": "society-experiments/founder-baseline.ts",
@@ -2722,5 +2746,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "aef39dcc93821a68ae0c0cbcbcf799c1d8ed7fa1e1bdce3b5b8c78e41858e535"
+  "digest": "a4ddd8107c0ecf75192289d650232d62876c4ea122193ee98c5c16855bc7a92a"
 }
