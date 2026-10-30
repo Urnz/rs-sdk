@@ -199,7 +199,7 @@ test('publication UI binds a real approval digest, rejects changed evidence and 
     try {
         await openWorkflow(page, fixture.url, 'skills');
         expect(await page.$$(`[data-action="skill-trial-publish"][data-trial-id="${publication!.failedTrialId}"]`)).toHaveLength(0);
-        expect(await page.$eval('#skill-trial-list', element => element.textContent)).toContain('fixture-live');
+        expect(await page.$eval('#skill-trial-list', element => element.textContent)).toContain('2 elfogadott élő futás');
         const button = `[data-action="skill-trial-publish"][data-trial-id="${publication!.trialId}"]`;
         await page.click(button); await page.waitForSelector('#operation-review[open]');
         expect(fixture.writes).toHaveLength(0); expect(await Bun.file(publication!.skillPath).exists()).toBe(false);
@@ -209,19 +209,31 @@ test('publication UI binds a real approval digest, rejects changed evidence and 
         const report = await Bun.file(publication!.reportPath).json(); report.checks[0].message += ' Revised evidence';
         await Bun.write(publication!.reportPath, JSON.stringify(report));
         const rejected = page.waitForResponse(response => response.url().endsWith('/publish') && response.request().method() === 'POST');
+        void rejected.catch(()=>{});
         await page.click('[data-review-approve]'); expect((await rejected).status()).toBe(400);
         await page.waitForSelector('#operation-progress li[data-state="failed"]');
         expect(await Bun.file(publication!.skillPath).exists()).toBe(false);
         expect(await page.$eval('#operation-progress li[data-state="failed"]', element => element.textContent)).toContain('megváltoztak');
+        // A changed canonical review needs a fresh verifier report, not just a new approval click.
+        await openWorkflow(page,fixture.url,'skills');
+        await page.waitForSelector(`[data-action="skill-trial-verify"][data-trial-id="${publication!.trialId}"]`,{visible:true});
+        const verified=page.waitForResponse(response=>response.url().endsWith('/verify')&&response.request().method()==='POST');
+        void verified.catch(()=>{}); // Keep a failing UI action from masking its original error during fixture cleanup.
+        await page.click(`[data-action="skill-trial-verify"][data-trial-id="${publication!.trialId}"]`);await approveOperation(page);
+        expect((await verified).status()).toBe(200);
+        await openWorkflow(page,fixture.url,'skills');
         const published = page.waitForResponse(response => response.url().endsWith('/publish') && response.request().method() === 'POST');
+        void published.catch(()=>{});
         await page.click(button); await approveOperation(page);
         const response = await published; expect(response.status()).toBe(201);
         expect((await response.json()).trial.status).toBe('published');
         expect((await Bun.file(publication!.skillPath).json()).status).toBe('verified');
-        expect(fixture.writes).toHaveLength(2);
-        expect(fixture.writes[1]!.body.confirmHumanApproval).toBe(true);
-        expect(fixture.writes[1]!.body.approvalDigest).toMatch(/^[a-f0-9]{64}$/);
-        expect(fixture.writes[1]!.body.approvalDigest).not.toBe(fixture.writes[0]!.body.approvalDigest);
+        const publishes=fixture.writes.filter(write=>write.path.endsWith('/publish'));
+        expect(publishes).toHaveLength(2);
+        expect(publishes[1]!.body.confirmHumanApproval).toBe(true);
+        expect(publishes[1]!.body.approvalDigest).toMatch(/^[a-f0-9]{64}$/);
+        expect(publishes[1]!.body.approvalDigest).not.toBe(publishes[0]!.body.approvalDigest);
         await page.waitForSelector(button, { hidden: true }); expect(fixture.errors).toEqual([]);
+    } catch(error){console.error('[publication-review-ui]',String(error),fixture.errors,fixture.writes.map(write=>write.path));throw error;
     } finally { await fixture.close(); }
 }, 30000);

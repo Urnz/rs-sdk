@@ -261,10 +261,11 @@ function renderSkillTrials(trials) {
     $('#skill-trial-list').innerHTML = trials.length ? trials.map(trial => {
         const failedChecks = trial.verificationChecks.filter(check => !check.passed);
         const rerunnable = ['running', 'verification-failed'].includes(trial.status);
+        const reviewable = rerunnable || trial.status === 'verification-passed';
         return `<article class="capability-gap-card ${trial.status === 'published' ? 'verified' : ''}">
             <div><strong>${escapeHtml(trial.draft.id)}@${escapeHtml(trial.draft.version)}</strong><small>${escapeHtml(trial.testBotUsername)} · célverzió ${escapeHtml(trial.targetVersion)}</small></div>
             <div><p>${escapeHtml(skillTrialStatusLabels[trial.status] || trial.status)} · ${trial.runIds.length} elfogadott élő futás</p>${failedChecks.length ? `<small class="skill-trial-checks">Sikertelen: ${failedChecks.map(check => escapeHtml(check.id)).join(', ')}</small>` : ''}</div>
-            <div class="skill-trial-actions">${rerunnable ? `<button class="button small" data-action="skill-trial-run" data-trial-id="${trial.trialId}">Új futás</button><button class="button small" data-action="skill-trial-verify" data-trial-id="${trial.trialId}">Bizonyíték ellenőrzése</button>` : ''}${trial.status === 'verification-passed' ? `<button class="button primary small" data-action="skill-trial-publish" data-trial-id="${trial.trialId}">Jóváhagyás és publikálás</button>` : ''}${!['published', 'cancelled'].includes(trial.status) ? `<button class="button ghost small" data-action="skill-trial-cancel" data-trial-id="${trial.trialId}">Próba elvetése</button>` : ''}</div>
+            <div class="skill-trial-actions">${rerunnable ? `<button class="button small" data-action="skill-trial-run" data-trial-id="${trial.trialId}">Új futás</button>` : ''}${reviewable ? `<button class="button small" data-action="skill-trial-verify" data-trial-id="${trial.trialId}">Bizonyíték ellenőrzése</button>` : ''}${trial.status === 'verification-passed' ? `<button class="button primary small" data-action="skill-trial-publish" data-trial-id="${trial.trialId}">Jóváhagyás és publikálás</button>` : ''}${!['published', 'cancelled'].includes(trial.status) ? `<button class="button ghost small" data-action="skill-trial-cancel" data-trial-id="${trial.trialId}">Próba elvetése</button>` : ''}</div>
         </article>`;
     }).join('') : '<p class="empty">Még nincs elkülönített draft próba.</p>';
 }

@@ -86,8 +86,12 @@ csomag feltételei; nem új lezárási pontok és nem a már kész2. csomag újr
 Az [óneljárás acknowledged natív próbája és canonical verifier útja](SI_C07_MINING_PROCEDURE_VERIFICATION.md)
 elkészült komponensszinten: két külön Mining1 packed effect, negatív/readonly
 ellenőrzés. Kontrollált mozgás/loc fixture, nem publikált eljárás vagy live trial.
-Következő konkrét munka a fenti három eljárás tartós source-bound natív hitelesítése,
-majd a közös friss stage alkalmazó/ellenőrző útja. A4. ratio-próba és a hosszú
+Azóta [mindhárom eljárás tartós normál trial/review útja](SI_C07_PROCEDURE_REVIEW.md)
+is elkészült: két-két teljes natív SkillExecutor run, run/admission/report és
+readonly approval-recheck; smelt/repair valós Business/Property olvasóval.
+Kontrollált mozgás/loc komponens-próba; a valódi külön trial-stage és annak
+útvonalas futásai és a három eljárás emberi publikálási reviewja következik;
+utána a közös friss stage alkalmazó/ellenőrző útja. A4. ratio-próba és a hosszú
 run nem indul megkerülve ezt; SI-C08 sem indul.
 
 ## Ellenőrzés

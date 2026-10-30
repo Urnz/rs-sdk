@@ -1,87 +1,88 @@
 # Rövid fejlesztési átadás
 
-Frissítve: 2026-10-30. Belépő, nem futási napló.
-Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
+Frissítve: 2026-10-30. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
 
 ## Aktuális állapot
 
-- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C06 kész;27/45.
-  SI-C07 nyitott, preflight NO-GO; SI-M3/MVS nem PASS.**
-  Ág: `codex/si-c07-minimum-preflight`, C06 baseline `8b6055894`.
-- A [rögzített hét csomagból](SI_C07_REMAINING_WORK.md) **az1–2. kész,
-  a3. folyamatban, a4–7. későbbi fázis. Öt nagy csomag maradt.**
-  A korábbi ismételt „6 maradt” a nagy csomagokat keverte a belső haladással;
-  a2. csomagot most ténylegesen lezártuk, nem újraszámoztuk a hátralévőket.
-- **P2-01–P2-11:11/11 kész.** [Lezárási lista](SI_C07_PACKAGE2_CLOSURE.md),
-  [teljes natív összesítő és hibadiagnosztika](SI_C07_NATIVE_AGGREGATE.md).
-  Eredeti1+7 ablak, egyazon applied-genesis/world/cohort/clock és193 határ:
-  mind17 numeric,8 integrity és16 source family együtt PASS-képes.
-  Az állandó globális `qualifiesMinimum:false` zár megszűnt; kizárólag a
-  complete/bound eredeti natív assessment adhat true-t. Hiány/fault unknown,
-  külön igazolt numeric FAIL megmarad, frozen readonly assessment azonos.
-- Ez **komponens-store/producer integrációs fixture**, nem új packed-engine
-  gazdasági run, autonóm siker vagy jóváhagyott C07 baseline. A fixture
-  négy ágya/készlete/rent-periódusa/sleep-rendje nem lett telepítve világra.
-  A korábbi packed food és Mining→smelt→repair→reuse bizonyíték külön megmarad.
-- A collector collection-local validated needs/dynamics/food inputokat használ
-  újra. Minden DB-, time-, source-, hash- és custody-ellenőrzés megmaradt.
-  Az új `iterateNativeIntegrationSources` core/food/housing/tools fázisait a
-  normál sync facade végigolvassa, és soha nem ad részleges reportot.
-  A két független facade-collection továbbra elutasít mozgó forráshalmazt.
+- **SI-A technikailag lezárt; SI-B01–B06 és SI-C01–C06 kész;27/45.**
+  SI-C07 nyitott, preflight NO-GO; SI-M3/MVS nem PASS.
+  Ág: `codex/si-c07-minimum-preflight`; C06 baseline `8b6055894`.
+- A [rögzített hét csomagból](SI_C07_REMAINING_WORK.md) az1–2. kész,
+  a3. közös founder-baseline folyamatban, a4–7. későbbi fázis. Öt nagy csomag maradt.
+- **P2-01–P2-11:11/11 kész.** [Lista](SI_C07_PACKAGE2_CLOSURE.md),
+  [natív összesítő](SI_C07_NATIVE_AGGREGATE.md). Eredeti1+7 ablak,
+  egyazon applied-genesis/world/cohort/clock és193 pont:17 numeric,8 integrity,
+  16 source family együtt PASS-képes. Hiány unknown, külön numeric FAIL megmarad,
+  frozen readonly assessment azonos. Komponens-producer fixture, nem élő baseline.
+- Collector: collection-local validated needs/dynamics/food input reuse,
+  `iterateNativeIntegrationSources` core/food/housing/tools; normál sync facade
+  soha nem ad részleges reportot. Korábbi vékony/frozen és eredeti50s kör PASS.
 
-## A felhasználó a következő feladatot is kérte
+## Most elkészült a3. csomagon belül
 
-- **A3. baseline-javaslat és readonly ellenőrző elkészült, a3. csomag még nem kész.**
-  [Konkrét tartalom és nyitott feltételek](SI_C07_FOUNDER_BASELINE.md),
-  [jelölt](SI_C07_FOUNDER_BASELINE.json), [teljes preflight](SI_C07_PREFLIGHT_RESULT.json).
-  `society-experiments/founder-baseline.ts`, `packed-housing-sites.ts`,
-  `scripts/prepare-society-founder-baseline.ts`; nincs telepítési ág.
-- Ugyanaz a négy founder, eredeti food/GP/harvest változatlan; courier kapna
-  Mining/Smithing1 tudást, egy csákányt/hammert. Workshop Business0 treasuryvel,
-  valós Property/work-surface/worker-authorization terv, validált genesis-javaslat.
-  Belső érc→smelt→bar→repair→reuse; bankmásolat nem anyageredet.
-- Native100 kezdeti kapacitásból **51 valódi warmup use** esetén evaluation
-  opening49 lehet;49 use→broken→belső repair50→reuse49 fenntarthatja a retentiont.
-  Ez stratégiai feltétel, nem durability-átírás, előre kiosztott credit vagy ratio-PASS.
-- A régi site config2 slotos. A tényleges packed `brownbed`419 négy existing
-  ground-floor anchorja2973,3328 /2973,3330 /2973,3332 /2977,3332; source SHA,
-  ZIP CRC, loc/land/bridge decode ellenőrzött. Nincs új spawn vagy kitalált ágy.
-  A friss stage-ben4 slot kell3 tenant +1 owner-free kapacitásra. Az anchor nem
-  útvonal-, title-, sleep- vagy live entitlement bizonyíték; config nem alkalmazott.
-- **Három exact required1.0.0 még nem verified:** `procedure.mining.gather-tin`,
+- [Baseline-javaslat](SI_C07_FOUNDER_BASELINE.md), [jelölt](SI_C07_FOUNDER_BASELINE.json),
+  [preflight](SI_C07_PREFLIGHT_RESULT.json):ugyanaz a négy founder, eredeti food/GP/harvest,
+  courier Mining/Smithing1 +pickaxe/hammer, workshop0 treasury, valós property/work-surface
+  és worker terv. A specifikáció readonly; közös stage nincs alkalmazva.
+- Native100 kapacitásból legalább51 valódi warmup use után evaluation opening49
+  lehet;49 use→broken→belső repair50→reuse49. Nem durability-átírás vagy előzetes credit.
+- A régi site2 slotos, de négy tényleges packed `brownbed`419 anchor ellenőrzött:
+  2973,3328 /2973,3330 /2973,3332 /2977,3332. Négy-slot fresh overlay még kell.
+  Három tenant +owner-free hely; owner legal access önmagában nem rental sleep receipt.
+- [Tin natív admission/verifier](SI_C07_MINING_PROCEDURE_VERIFICATION.md) kész;
+  **[mindhárom eljárás tartós normál trial/review útja](SI_C07_PROCEDURE_REVIEW.md) is kész.**
+  `agent-skills/trial-review.ts` a normál admin verifier/publication közös backendje.
+  Exact run/admission/draft-checksum/native source +egész run-tartalom és worldId
+  kötődik a meglévő approval digesthez. Átírt run/report/admission/effect, régi gate
+  vagy régi natív tool-checksum új reviewt igényel. Inspect readonly, publish külön emberi.
+- Két tin run most egy workspace/owner/lifecycle alatt:valódi tin,100→99→98.
+  Smelt/repair két-két teljes SkillExecutor+RsSdkSkillRuntime runban tényleges
+  population/Business/Property olvasót, escrowt, packed smeltet és repairt használ.
+  Kontrollált mozgás/loc és deklarált sérült trial-tool, nem valós útvonal/M3-warmup.
+- `society-experiments/founder-procedure-trials.ts` és
+  `scripts/society-founder-trials.ts prepare|review|inspect --root TRIAL ...`:
+  külön `draft-trial-only` világban idempotens három ready trial/gap. Nem indít,
+  nem ad tárgyat/Business/grantet, nem publikál. Aktív population/player control kell.
+- A már megfelelt trialon is elérhető a verifier gomb; a saját izolált UI-próba
+  módosult reportot elutasít, normál CSRF-védett újraverify után új approvalt kér.
+- **Egyik szükséges1.0.0 sem publikált:** `procedure.mining.gather-tin`,
   `procedure.metallurgy.smelt-bronze`, `procedure.tools.repair-bronze-pickaxe`.
-  Tin0.1.0 bounded draft létrejött; smelt/repair0.1.0 korábbi draft. Nincs promotion.
-  A kanonikus registry külön ellenőrzi a6 rendelkezésre álló reviewed eljárást;
-  célverziót, checksumot és draft operational digestet rögzít, hiányt nem fed el.
-- **Most elkészült:** [az exact tin draft acknowledged trial és canonical verifier útja](SI_C07_MINING_PROCEDURE_VERIFICATION.md).
-  Két független Mining1 packed hatás, valódi tin és100→99 kopás; admission,
-  dispatch, intent és lifecycle audit összekötve. ACK/XP/posted success nem elég.
-  Admin és CLI verifier bekötött, publikálás előtt forrás-recheck és régi report
-  elutasítása. Kontrollált mozgás/loc fixture, nem live trial vagy publication.
-- **Következő konkrét munka:** a három eljárás tartós normál source-bound natív
-  hitelesítése/review útja, majd fresh saját stage alkalmazó/ellenőrző útja:
-  közös genesis,4 slotos existing-site overlay, exact verified knowledge és
-  worker-grantok, native tool opening és mind4 founder normál housing/sleep útja.
-  Az owner legal-access nem önmagában rental sleep receipt. Ezek az eredeti3.
-  csomag feltételei, nem új P2-lezárási pontok. A4. ratio-próba még nem indult.
+  Nincs jóváhagyható élő publikálási csomag; a fixture-reportokra ne kérj jóváhagyást.
 
-## Ellenőrzési bizonyíték
+## Következő konkrét munka
 
-- P2 lezárási és korábbi baseline/packed-site eredmények:
-  [natív összesítő](SI_C07_NATIVE_AGGREGATE.md),
-  [baseline-javaslat](SI_C07_FOUNDER_BASELINE.md). P2-11 továbbra11/11.
-- Aktuális P3: [natív Mining trial/verifier eredmény és korai hibák](SI_C07_MINING_PROCEDURE_VERIFICATION.md).
-  `154130-497-si-c07-p3-mining-consumers`:89 PASS4,634s.
-  `154058-296-si-c07-p3-tin-audit-final`:két külön Mining1→tin effect,
-  negatív/readonly natív eset +wrapper PASS5,807s.
-  A korábbi11 natív admission/cancel/replay eset változatlanul PASS12,791s
-  a `153829-592` parancson belül; a parancs összesen FAIL az azóta javított
-  új negatív teszt miatt. A11 eset nem ismétlődött szükségtelenül.
-- Root TS a `154144-274` parancs első fázisában PASS; az engine TS egy JSON
-  import attribute hibán FAIL, kizárólag az engine projekt ismétlődik javítás után.
-- Nincs full regresszió: scoped Mining trial/verifier, közvetlen skill/admin
-  fogyasztók és packed natív határ. Nincs shared persistence/clock/economic
-  transaction alapváltozás. A globális szerepkör/engedélyezési modell változatlan.
+**Friss külön native procedure-trial stage alkalmazója és tényleges útvonalas
+futásai**, a most kész prepare/review/inspect normál út használatával. A három
+eljárás emberi publikálása után közös founder-stage:közös genesis,4-slot overlay,
+exact verified knowledge, worker-grantok, native tool opening és mind4 founder
+housing/sleep útja. Ezek az eredeti3. csomag feltételei, nem új P2-pontok.
+A4. ratio-próba még nem indult. Ismert NO-GO-ra hosszú futási jóváhagyást ne kérj.
+
+## Aktuális ellenőrzési bizonyíték
+
+- `200724-111-si-c07-p3-review-and-preparer`:7 PASS2,719s, normál tartós review,
+  readonly/stale/tamper, idempotens prep és tényleges CLI.
+- `200603-666-si-c07-p3-native-reviews-final`:tin natív eset +wrapper PASS5,174s;
+  a parancs FAIL7,899s a másik eset sandbox capability-gap rename EPERM-jén.
+- `200628-749-si-c07-p3-tool-review-native-permissions`:4 normál natív tool run,
+  review/reopen/tamper PASS10,171s. A felesleges full config/catalog másolás
+  elhagyva; korábbi sikeres kör25,911s volt, abból14,5s fixture cleanup.
+- `201701-358-si-c07-p3-tool-review-final`:új stale native-checksum negatívval
+  1 összetett natív eset +wrapper PASS11,437s.
+- `201022-557-si-c07-p3-publication-final`:egy izolált UI/API publikálási
+  szerződés PASS2,927s. Korai UI-hibák és diagnosztika a részletes dokumentumban.
+- `201825-091-si-c07-p3-review-direct-consumers`:28 PASS8,168s;
+  review/preparer/trials/approval/admin-safety/preflight és2 bootstrap-entry eset.
+- `202010-097-si-c07-p3-review-artifacts`:217 aktuális source SHA, eredeti policy,
+  P2-11/11,175 helyi link, egyező NO-GO artifact és formázás PASS2,620s.
+- `201140-481-si-c07-p3-review-types`:root TS PASS; kombinált wrapper
+  FAIL174,414s:engine behúzta a bootstrap→régi admin skill-catalog modulgráfot.
+  A két változatlan state path külön data-only modulba került; bootstrap reexportálja.
+  `201533-479-si-c07-p3-review-engine-types`:engine TS PASS52,179s.
+- Nem full regresszió. Komponens:trial review/prep, közvetlen admin/CLI/UI és natív
+  határ. Nincs új persistence-séma, clock/economic transaction alap vagy globális
+  auth változás. Meglévő JSON-store atomikus rename, strict native assertion és
+  külön emberi approval megmaradt. A korábbi PASS körök nem ismétlődtek ok nélkül.
 
 ## Megmaradó korlátok
 
@@ -110,13 +111,3 @@ Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATION.md).
   SI-C09 kalibráció nyitott; nem igazítjuk a világot a túléléshez.
 
 `pwsh -NoProfile -File scripts/get-society-work-brief.ps1 -TaskId SI-C07`
-
-## Végső ellenőrzés
-
-- `154346-541-si-c07-p3-engine-types`:engine TS PASS50,717s; root TS az
-  előző kombinált parancsban már PASS, nem ismétlődött a JSON-import javítása miatt.
-- `154542-304-si-c07-p3-artifacts-and-admin`:209 aktuális source SHA és
-  változatlan eredeti policy/NO-GO artifact, további14 admin/preflight teszt PASS.
-  A wrapper egy dokumentum EOF-formázási hibáján FAIL; az javítva.
-- `154639-824-si-c07-p3-final-artifacts-format`:artifact/link/format
-  PASS1,368s. Runtime a dokumentációs javítás miatt nem ismétlődött.

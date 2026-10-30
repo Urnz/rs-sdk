@@ -38,6 +38,9 @@ import {PlayerStat} from '../engine/entity/PlayerStat.js';
 import type {SkillDefinition,SkillRunResult} from '../../../../agent-skills/types.js';
 import {nativeToolDigest as hash} from '../../../../item-lifecycle/native-tool.js';
 import {Database} from 'bun:sqlite';
+import {FileSkillRunJournal} from '../../../../agent-skills/journal.js';
+import {SkillTrialStore} from '../../../../agent-skills/trials.js';
+import {reviewSkillTrial,readSkillTrialReview} from '../../../../agent-skills/trial-review.js';
 beforeAll(loadPackedContent);
 const sources:ReturnType<typeof miningSourceFixture>[]=[],token=process.env.ENGINE_ADMIN_TOKEN;
 let rockSequence=0;
@@ -106,35 +109,44 @@ test('SI-C07 exact tin draft needs two independent canonical native effects; sou
     const started=performance.now(),phase=(name:string)=>console.info('[native-tin-review]',JSON.stringify({phase:name,elapsedMs:Math.round(performance.now()-started)}));
     const draft=new SkillRegistry().register(tinDraft,{trusted:true}).definition;
     const runs:SkillRunResult[]=[],roots=new Map<string,ReturnType<typeof harness>>();
+    const f=harness(draft);f.miner.setLevel(PlayerStat.MINING,1);
+    const trials=new SkillTrialStore(join(f.s.root,'.local/agent-skills/trials.json')),journal=new FileSkillRunJournal(join(f.s.root,'.local/agent-skills/runs'));
+    let trial=await trials.create({gapId:'gap-'+'a'.repeat(20),draft:{id:draft.id,version:draft.version},targetVersion:'1.0.0',testBotUsername:'worker',parameters:{}},'2026-10-30T00:00:00.000Z');
+    trial=await trials.transition(trial.trialId,trial.revision,'running');
     for(let i=0;i<2;i++){
         phase(`run-${i+1}-start`);
-        const f=harness(draft);f.miner.setLevel(PlayerStat.MINING,1);
         // Controlled movement/loc placement tests the source join, not a packed-world route or baseline performance.
         const sdk={sendMiningDemand:(r:MiningDemandRequest)=>executeMiningDemandRequest(f.options,'worker',r),
-            getInventory:()=>[{id:1265,name:'Bronze pickaxe',count:1},...((f.miner.getInventory(InvType.INV)!.getItemCount(438))?[{id:438,name:'Tin ore',count:1}]:[])],
+            getInventory:()=>[{id:1265,name:'Bronze pickaxe',count:1},{id:438,name:'Tin ore',count:f.miner.getInventory(InvType.INV)!.getItemCount(438)}],
             getSkill:()=>({baseLevel:f.miner.baseLevels[PlayerStat.MINING]}),getSkillXp:()=>0,
             waitForCondition:async(check:()=>boolean)=>{if(!check())throw Error('No native progress');}};
         const runtime=new RsSdkSkillRuntime({walkTo:async()=>({success:true,message:'controlled fixture placement'}),
             interactLoc:async(_target:unknown,_option:unknown,context:import('../../../../sdk/mining-interaction.js').MiningInteractionContext)=>
                 executeMiningInteractionRequest(f.interactionOptions,'worker',{...f.interactionRequest(context.dispatchSequence),demand:context.demand})} as any,sdk as any);
-        const result=await new SkillExecutor(runtime).execute(draft,{allowDraft:true,runId:f.s.request.context.runId,onMiningAdmission:async r=>{
+        const runId=i===0?f.s.request.context.runId:randomUUID();
+        await journal.start({runId,username:'worker',skill:trial.draft,checksum:f.s.registered.checksum,parameters:{},parametersDigest:hash([])});
+        const result=await new SkillExecutor(runtime).execute(draft,{allowDraft:true,runId,onMiningAdmission:async r=>{
             f.s.admit(r);const marker=JSON.parse(readFileSync(f.s.markerPath,'utf8'));
             writeFileSync(f.s.markerPath,JSON.stringify({...marker,nativeMiningTrial:{checksum:f.s.registered.checksum,runtimeAuthorization:miningTrialAuthorization(draft)}}));
         },onMiningClosed:async r=>sealMiningOperationAdmission(f.s.root,r)});
         result.username='worker';expect(result.status).toBe('completed');
-        expect(f.miner.getInventory(InvType.INV)!.getItemCount(438)).toBe(1);
-        expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(99);
+        expect(f.miner.getInventory(InvType.INV)!.getItemCount(438)).toBe(i+1);
+        expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(99-i);
         // Throwing reader preserves a useful failure location; the public verifier itself fails closed.
         expect(readMiningSkillRunEvidence(f.s.root,result,f.options)).toHaveLength(1);
         roots.set(result.runId,f);runs.push(result);
+        await journal.save(result);
         phase(`run-${i+1}-source-verified`);
     }
+    const reviewOptions={workspace:f.s.root,trialId:trial.trialId,selected:f.options},review=await reviewSkillTrial(reviewOptions);
+    expect(review.report.passed).toBeTrue();expect((await readSkillTrialReview(reviewOptions)).approval.digest).toBe(review.approval!.digest);
     const options={targetVersion:'1.0.0',verifyMiningEvidence:(run:SkillRunResult)=>{const f=roots.get(run.runId)!;return verifyMiningSkillRunSources(f.s.root,run,f.options);}};
     expect(verifyAndPromoteSkill(draft,runs,options).passed).toBeTrue(); // Report only; no catalog publication.
     const first=roots.get(runs[0]!.runId)!,event=runs[0]!.events.find(e=>e.type==='step.succeeded'&&e.operation==='gather-loc')!;
     const posted=event.data!.miningDemand as {request:MiningDemandRequest;receiptDigest:string;nativeActionId:string};
     const request=posted.request,path=miningOperationAdmissionPath(first.s.root,request).replace(/\.json$/,'.closed.json'),seal=readFileSync(path);
     unlinkSync(path);expect(verifyAndPromoteSkill(draft,runs,options).passed).toBeFalse();writeFileSync(path,seal);
+    unlinkSync(path);await expect(readSkillTrialReview(reviewOptions)).rejects.toThrow('changed');writeFileSync(path,seal);
     const original=posted.receiptDigest;posted.receiptDigest='f'.repeat(64);
     expect(verifyAndPromoteSkill(draft,runs,options).passed).toBeFalse();posted.receiptDigest=original;
     expect(verifyMiningSkillRunSources(first.s.root,{...runs[0]!,username:'other'},first.options)).toBeFalse();

@@ -18,8 +18,8 @@ import { check, inspectIntegrationReferences, integrationGenesis, integrationWor
 import type { RegisteredSkill } from '../agent-skills/types.js';
 import { loadSurvivalProfile } from '../needs/survival.js';
 
-export const INTEGRATION_STATE = '.local/simulation/integration-fixture.json';
-export const FOOD_TRIAL_STATE = '.local/simulation/food-trial-fixture.json';
+import {INTEGRATION_STATE,FOOD_TRIAL_STATE} from './state-paths.js';
+export {INTEGRATION_STATE,FOOD_TRIAL_STATE};
 export function integrationPaths(root: string) {
     const path = (p: string) => join(root, p);
     return { agentPath: path('.local/agent-state/agents.sqlite'), businessPath: path('.local/economy/businesses.sqlite'),

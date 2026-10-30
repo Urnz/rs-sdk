@@ -1,9 +1,7 @@
-import {verifyMiningSkillRunSources} from './native-mining-skill-evidence.js';
+import {reviewSkillTrial,readSkillTrialReview} from '../../../agent-skills/trial-review.js';
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { verifyFoodSkillRunSources } from './native-food-skills.js';
-import { verifyToolSkillRunSources } from './native-tool-skills.js';
-import { draftTrialAuthorization, foodTrialParameters, matchesFoodTrialParameters } from '../../../agent-skills/food-trials.js';
+import { draftTrialAuthorization, foodTrialParameters } from '../../../agent-skills/food-trials.js';
 import { SocietyIntegrityStore } from '../../../society-integrity/store.js';
 import { societyIntegrityDbPath } from '../../../society-integrity/runtime.js';
 import { reportSelfSufficiency, reportSocietyEvaluation, societyEvaluationContract, type MetricSourcePaths } from '../../../society-metrics/index.js';
@@ -98,9 +96,8 @@ import { SkillTrialStore, type SkillTrial } from '../../../agent-skills/trials.j
 import { SkillLibrary } from '../../../agent-skills/library.js';
 import { SkillRegistry } from '../../../agent-skills/registry.js';
 import { FileSkillStore } from '../../../agent-skills/store.js';
-import { FileSkillVerificationJournal, SKILL_VERIFIER_ID, verifyAndPromoteSkill,requiresNativeMiningEvidence,
+import { SKILL_VERIFIER_ID,
     type SkillVerificationReport } from '../../../agent-skills/verifier.js';
-import {resolveSkillParameters} from '../../../agent-skills/validation.js';
 import type { SkillDefinition, SkillRunResult } from '../../../agent-skills/types.js';
 import { buildSkillPublicationApproval } from './skill-publication-approval.js';
 import { createAdminSkillGrant, learnAdminSkill, listAdminSkillLearning, revokeAdminSkillGrant } from './skill-learning.js';
@@ -259,25 +256,6 @@ async function loadTrialVerificationReport(trial: SkillTrial): Promise<SkillVeri
     if (!trial.verificationReportId) throw new Error('A próbához nem tartozik verifier-jelentés.');
     return JSON.parse(await readFile(join(skillVerificationsDir,
         `${trial.verificationReportId}.json`), 'utf8')) as SkillVerificationReport;
-}
-
-async function collectTrialEvidence(trial: SkillTrial): Promise<SkillRunResult[]> {
-    const draft = await loadTrialDraft(trial);
-    const files = (await readdir(skillRunsDir).catch(() => [])).filter(file => /^[0-9a-f-]{36}\.json$/i.test(file));
-    const runs = await Promise.all(files.slice(0, 2_000).map(async file => {
-        try {
-            const contents = await readFile(join(skillRunsDir, file), 'utf8');
-            if (contents.length > 1_000_000) return null;
-            const run = JSON.parse(contents) as SkillRunResult;
-            const startedAt = run.events?.[0]?.timestamp;
-            return run.runId === file.slice(0, -5) && run.username?.toLowerCase() === trial.testBotUsername
-                && run.skill?.id === trial.draft.id && run.skill.version === trial.draft.version
-                && run.status === 'completed' && typeof startedAt === 'string' && startedAt >= trial.createdAt
-                && matchesFoodTrialParameters(draft, run.parameters, trial.parameters) ? run : null;
-        } catch { return null; }
-    }));
-    return runs.filter((run): run is SkillRunResult => !!run)
-        .sort((left, right) => left.events[0]!.timestamp.localeCompare(right.events[0]!.timestamp)).slice(0, 20);
 }
 
 async function quarantineBot(username: string): Promise<{ quarantineId: string; moved: string[] }> {
@@ -1479,25 +1457,7 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const trials = new SkillTrialStore(skillTrialsPath);
             const trial = await trials.get(trialVerifyMatch[1]);
             if (!trial || !['running', 'verification-failed', 'verification-passed'].includes(trial.status)) throw new Error('Ez a próba nem ellenőrizhető.');
-            const draft = await loadTrialDraft(trial);
-            const evidence = await collectTrialEvidence(trial);
-            const verificationLibrary = new SkillLibrary(new SkillRegistry(), new FileSkillStore(agentSkillsLocalDir));
-            await verificationLibrary.loadReviewedCatalog(join(repoRoot, 'agent-skills', 'catalog'));
-            await verificationLibrary.loadAgentDrafts('admin-trial-runner');
-            const report = verifyAndPromoteSkill(draft, evidence, {
-                targetVersion: trial.targetVersion,
-                parameters: trial.parameters,
-                verifyFoodEvidence: run => verifyFoodSkillRunSources(repoRoot, run),
-                verifyToolEvidence: run => verifyToolSkillRunSources(repoRoot, run),
-                verifyMiningEvidence:run=>verifyMiningSkillRunSources(repoRoot,run),
-                resolveDefinition: reference => verificationLibrary.registry
-                    .get(reference, 'admin-trial-runner')?.definition ?? null
-            });
-            await new FileSkillVerificationJournal(skillVerificationsDir).save(report);
-            const updated = await trials.transition(trial.trialId, trial.revision,
-                report.passed ? 'verification-passed' : 'verification-failed', {
-                    runIds: report.evidenceRunIds, verificationReportId: report.id, verificationChecks: report.checks
-                });
+            const {report,trial:updated}=await reviewSkillTrial({workspace:repoRoot,trialId:trial.trialId});
             await appendAudit({ operator: 'local-admin', action: 'skill-trial.verify', username: trial.testBotUsername,
                 reason, success: report.passed, before: trial, after: { trial: updated, report },
                 error: report.passed ? undefined : 'A determinisztikus verifier legalább egy ellenőrzése sikertelen.' });
@@ -1512,33 +1472,14 @@ export async function handleAdminRequest(req: Request, url: URL, context: AdminR
             const trials = new SkillTrialStore(skillTrialsPath);
             const trial = await trials.get(trialPublishMatch[1]);
             if (!trial || trial.status !== 'verification-passed' || !trial.verificationReportId) throw new Error('Csak sikeresen ellenőrzött próba publikálható.');
-            const report = await loadTrialVerificationReport(trial);
-            const approval = buildSkillPublicationApproval(trial, report);
+            const {report,approval}=await readSkillTrialReview({workspace:repoRoot,trialId:trial.trialId}).catch(()=>{
+                throw new Error('A publikálási adatok vagy bizonyítékok megváltoztak; futtasd újra az ellenőrzést.');
+            });
             if (text(body, 'approvalDigest', true) !== approval.digest) {
                 throw new Error('A publikálási adatok megváltoztak a jóváhagyási előnézet óta; tekintsd át újra.');
             }
             const promoted = report.promoted;
             if (!promoted) throw new Error('A verifier-jelentésből hiányzik a publikálható skill.');
-            if (report.checks.some(check => check.id === 'native-food-sources')) {
-                const evidence = await collectTrialEvidence(trial);
-                if (evidence.length !== report.evidenceRunIds.length || evidence.some(run => !report.evidenceRunIds.includes(run.runId)
-                    || !verifyFoodSkillRunSources(repoRoot, run))) throw new Error('A natív food bizonyíték megváltozott a publikálás előtt.');
-            }
-            if (report.checks.some(check => check.id === 'native-tool-sources')) {
-                const evidence = await collectTrialEvidence(trial);
-                if (evidence.length !== report.evidenceRunIds.length || evidence.some(run => !report.evidenceRunIds.includes(run.runId)
-                    || !verifyToolSkillRunSources(repoRoot, run))) throw new Error('A natív javítás bizonyítéka megváltozott a publikálás előtt.');
-            }
-            const publicationLibrary=new SkillLibrary(new SkillRegistry(),new FileSkillStore(agentSkillsLocalDir));
-            await publicationLibrary.loadReviewedCatalog(join(repoRoot,'agent-skills','catalog'));
-            await publicationLibrary.loadAgentDrafts('admin-trial-runner');
-            if(requiresNativeMiningEvidence(promoted,resolveSkillParameters(promoted,trial.parameters),reference=>publicationLibrary.registry.get(reference,'admin-trial-runner')?.definition??null)
-                ||report.checks.some(check=>check.id==='native-mining-sources')){
-                if(!report.checks.some(check=>check.id==='native-mining-sources'&&check.passed))throw new Error('A Mining eljárást újra kell hitelesíteni a natív forrásellenőrzéssel.');
-                const evidence=await collectTrialEvidence(trial);
-                if(evidence.length!==report.evidenceRunIds.length||evidence.some(run=>!report.evidenceRunIds.includes(run.runId)
-                    ||!verifyMiningSkillRunSources(repoRoot,run)))throw new Error('A natív Mining bizonyítéka megváltozott a publikálás előtt.');
-            }
             const path = await new FileSkillStore(agentSkillsLocalDir).save(promoted, {
                 actorKind: 'system', actorId: SKILL_VERIFIER_ID
             });

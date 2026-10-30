@@ -69,21 +69,27 @@ if (process.env.RS_ADMIN_WORKFLOW_SCENARIO === 'publication') {
     let trial = await trials.create({ gapId: gap.gapId, draft: { id: 'fixture.walk', version: '0.1.0' },
         targetVersion: '1.0.0', testBotUsername: 'Fixturebot', parameters: { x: 3200 } });
     trial = await trials.transition(trial.trialId, trial.revision, 'running');
-    const reportId = crypto.randomUUID(), runIds = [crypto.randomUUID(), crypto.randomUUID()];
-    const checks = [{ id: 'fixture-live', passed: true, message: 'Synthetic isolated evidence for the UI contract.' }];
-    trial = await trials.transition(trial.trialId, trial.revision, 'verification-passed', { runIds,
-        verificationReportId: reportId, verificationChecks: checks });
-    const promoted = { schemaVersion: 1, id: 'fixture.walk', version: '1.0.0', name: 'Fixture walk',
-        description: 'An isolated contract fixture. Never executed in a game.', status: 'verified', tags: ['fixture'],
-        parameters: { x: { type: 'number', description: 'Target X', required: true } },
-        provenance: { authorKind: 'system', authorId: SKILL_VERIFIER_ID, createdAt: new Date().toISOString() },
-        sharing: { visibility: 'shared' }, limits: { timeoutMs: 1000, maxOperations: 1 }, preconditions: [],
-        steps: [{ kind: 'operation', id: 'walk', operation: 'walk-to', arguments: { x: { parameter: 'x' }, z: 3200 } }] };
-    const reportPath = join(paths.skillVerificationsDir, `${reportId}.json`);
-    await mkdir(paths.skillVerificationsDir, { recursive: true });
-    await Bun.write(reportPath, JSON.stringify({ id: reportId, createdAt: new Date().toISOString(), verifierId: SKILL_VERIFIER_ID,
-        draft: trial.draft, targetVersion: trial.targetVersion, passed: true, checks, evidenceRunIds: runIds,
-        evidenceUsernames: ['fixturebot'], promoted }));
+    const {SkillExecutor}=await import('../../../../agent-skills/executor.js');
+    const {SkillRegistry}=await import('../../../../agent-skills/registry.js');
+    const {FileSkillRunJournal}=await import('../../../../agent-skills/journal.js');
+    const {reviewSkillTrial}=await import('../../../../agent-skills/trial-review.js');
+    const {nativeToolDigest:hash}=await import('../../../../item-lifecycle/native-tool.js');
+    const registered=new SkillRegistry().register({schemaVersion:1,id:'fixture.walk',version:'0.1.0',name:'Fixture walk',
+        description:'An isolated UI contract. Never executed in a game.',status:'draft',tags:['fixture'],
+        parameters:{x:{type:'number',description:'Target X',required:true}},
+        provenance:{authorKind:'agent',authorId:'fixture-builder',createdAt:trial.createdAt},sharing:{visibility:'shared'},
+        limits:{timeoutMs:1000,maxOperations:1},preconditions:[],steps:[{kind:'operation',id:'walk',operation:'walk-to',arguments:{x:{parameter:'x'},z:3200}}]});
+    await Bun.write(join(root,'agent-skills/catalog/fixture.walk@0.1.0.skill.json'),JSON.stringify(registered.definition));
+    const journal=new FileSkillRunJournal(paths.skillRunsDir);
+    for(let i=0;i<2;i++){
+        const run=await new SkillExecutor({test:async()=>true,execute:async()=>({success:true,message:'UI unit fixture movement'})}).execute(registered.definition,{allowDraft:true,parameters:trial.parameters});
+        run.username='fixturebot';
+        await journal.start({runId:run.runId,username:run.username,skill:run.skill,checksum:registered.checksum,parameters:trial.parameters,parametersDigest:hash(Object.entries(trial.parameters))});
+        await journal.save(run);
+    }
+    const review=await reviewSkillTrial({workspace:root,trialId:trial.trialId});
+    if(!review.report.passed)throw Error('UI fixture review failed');trial=review.trial;
+    const reportPath=join(paths.skillVerificationsDir,`${review.report.id}.json`);
     let failed = await trials.create({ gapId: 'gap-bbbbbbbbbbbbbbbbbbbb', draft: { id: 'fixture.failed', version: '0.1.0' },
         targetVersion: '1.0.0', testBotUsername: 'Failurebot', parameters: {} });
     failed = await trials.transition(failed.trialId, failed.revision, 'running');
@@ -106,7 +112,7 @@ const realPaths = new Set(['/api/admin/llm-settings', '/api/admin/experiment-par
 if (process.env.RS_ADMIN_WORKFLOW_SCENARIO === 'audit') for (const path of ['/api/admin/workflow-options', '/api/admin/audit',
     '/api/admin/autonomy-control', '/api/admin/agents', '/api/admin/agents/contract-a/timeline', '/api/admin/business-role-definitions', '/api/admin/experiments']) realPaths.add(path);
 const app = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: createControlPlane(config, identities, async (url, init) => {
-    if (realPaths.has(url.pathname) || /^\/api\/admin\/skill-trials\/[^/]+\/(publication-approval|publish)$/.test(url.pathname))
+    if (realPaths.has(url.pathname) || /^\/api\/admin\/skill-trials\/[^/]+\/(publication-approval|publish|verify)$/.test(url.pathname))
         return await handleAdminRequest(new Request(url, init), url, context) || new Response('Fixture route missing', { status: 404 });
     if (process.env.RS_ADMIN_WORKFLOW_SCENARIO === 'commerce' && (['/api/admin/agents', '/api/admin/economic-contracts',
         '/api/admin/economic-offers', '/api/admin/businesses'].includes(url.pathname) || /^\/api\/admin\/economic-offers\/[0-9a-f-]{36}$/.test(url.pathname)))
