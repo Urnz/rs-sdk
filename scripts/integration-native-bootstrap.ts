@@ -29,10 +29,11 @@ try {
         World.reload(); World.gameMap.init();
         const { default: LocType } = await import(pathToFileURL(join(root, 'server/engine/src/cache/config/LocType.ts')).href);
         const sites = JSON.parse(readFileSync(join(root, 'config/society-native-sites.json'), 'utf8'));
-        const expected = [sites.kitchen.heat, ...sites.housing.beds.map((bed: object) => ({ ...bed, debugName: sites.housing.bedDebugName }))];
+        const beds=JSON.parse(readFileSync(join(root,'config/native-housing.json'),'utf8')).beds;
+        const expected = [sites.kitchen.heat, ...beds.map((bed: object) => ({ ...bed, debugName: sites.housing.bedDebugName }))];
         for (const site of expected) if (!World.getLoc(site.x, site.z, site.level, LocType.getId(site.debugName)))
             throw new Error(`Actual native fixture site is missing: ${site.debugName} at ${site.x},${site.z},${site.level}`);
-        console.log('Actual packed kitchen and both rental beds verified; no physical travel claimed.');
+        console.log(`Actual packed kitchen and ${beds.length} configured beds verified; no physical travel claimed.`);
     }
     if(damage){
         const {damageFounderTrialTool}=await import(pathToFileURL(join(root,'server/engine/src/mods/FounderProcedureTrialNative.ts')).href);
@@ -49,7 +50,14 @@ try {
                 await provisionFounderProcedureTrial(root,fixture);
             }
         }
-        else { await bootstrapIntegrationStage(root, fixture, ports); sealIntegrationBaseline(root, fixture); }
+        else {
+            await bootstrapIntegrationStage(root, fixture, ports);
+            if(fixture.founderBaseline){
+                const {provisionCommonFounderTool}=await import(pathToFileURL(join(root,'server/engine/src/mods/FounderBaselineNative.ts')).href);
+                await provisionCommonFounderTool(root,fixture);
+            }
+            sealIntegrationBaseline(root, fixture);
+        }
     }
     finally { ports.close(); }
     console.log(trial ? 'Disposable native food trial world; no integration receipt or seal.'

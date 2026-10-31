@@ -70,7 +70,7 @@ export async function inspectCommonFounderBaseline(root:string,input:Integration
         ...housing.missingPhysicalSlots?[{id:'physical-housing-capacity',reason:`${housing.currentCapacity} actual slots; ${housing.requiredCapacity} required for three paid tenants plus the owner's free slot. A real pinned site/content decision is required.`}]:[]];
     const body={schemaVersion:1,protocol:'si-c07-common-founder-baseline-v1',fixtureDigest:fixture.digest,contractDigest:contract.digest,
         status:blockers.length?'no-go' as const:'definition-ready' as const,definitionComplete:blockers.length===0,
-        installationImplemented:false,selectedWorldId:null,baselineDigest:null,liveRunStarted:false,liveStartAuthorized:false,
+        installationImplemented:true,selectedWorldId:null,baselineDigest:null,liveRunStarted:false,liveStartAuthorized:false,
         providerRequestsAuthorized:0,providerCostMicrosAuthorized:0,founders,procedures,genesis,
         resourceDelta:{nativeFoodHarvest:0,bootstrapFood:0,playerGp:0,institutionGp:0,newItems:[{owner:minerId,itemId:tool.itemId,count:1},{owner:minerId,itemId:2347,count:1}],
             newBusiness:{businessId:workshopId,treasuryGp:0,propertyId},postGenesisRefill:false},
@@ -87,7 +87,7 @@ export async function inspectCommonFounderBaseline(root:string,input:Integration
                 'No virgin-tool retention credit from a50-capacity repair; ratio/native travel/work validation remains separate.']},
         housing,supplyEnvelope:{nativeHarvest:fixture.protocol.nativeHarvest,openingPortions,finiteCeiling,nominalPortions,closingReserve,
             optimisticNoBurnHeadroom:finiteCeiling-nominalPortions-closingReserve,measured:false},blockers,
-        limitations:['Specification only. Four actual packed bed anchors are proposed for a fresh configuration; no site overlay, verified promotion, applied genesis or runtime grant is fabricated.',
+        limitations:['Specification only. The separate new-stage installer can apply the proposed four packed slots, verified knowledge and genesis; this readonly report does not install or select a world.',
             'No frozen source selection, ratio validation, SI-A14, provider approval or actual minimum PASS follows from this candidate.']};
     return{...body,digest:digest(body)};
 }

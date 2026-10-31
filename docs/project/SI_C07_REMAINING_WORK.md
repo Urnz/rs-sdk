@@ -30,8 +30,13 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    elkészült. A [külön trial-stage valódi útvonalas próbái](SI_C07_FOUNDER_TRIAL_STAGE.md)
    is készek:6 tényleges run +3 tartós review, readonly recheck PASS.
    [A három konkrét1.0.0 eljárás](SI_C07_FOUNDER_PUBLICATION_RESULT.json) emberi
-   jóváhagyása és publikálása kész; közös katalógusban elérhetők. A közös founder-stage
-   alkalmazása még kell. Ez eljárásbizonyíték, nem C07 warmup/minimum.
+   jóváhagyása és publikálása kész; közös katalógusban elérhetők. A
+   [közös founder-stage alkalmazója és offline natív bizonyítéka](SI_C07_COMMON_FOUNDER_STAGE.md)
+   is kész: azonos négy alapító, normál genesis, kilenc learned pin, workshop/worker/grant,
+   durability100 tool és négy packed slot. Paused diagnosztikai1.4.0 stage,
+   végső capture-ből kizárva. Következő az owner saját free-slot natív sleep útja,
+   majd mind4 founder tényleges route/rent/sleep próbája. A3. még nyitott;
+   nincs új lezárási pont vagy C07 warmup/minimum-credit.
 4. **Natív időarány-validálás.** A választott clock-ratio összevetése a content
    tickkel, travel/harvest/work credit és tényleges meal/needs ritmussal.
    A 288:1 nem tekinthető már validált M3-aránynak.

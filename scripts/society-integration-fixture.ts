@@ -3,16 +3,18 @@ import { existsSync, symlinkSync, unlinkSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { loadIntegrationFixture, integrationWorldId } from '../society-integration/fixture.js';
 import {founderProcedureTrialFixture} from '../society-experiments/founder-trial-stage.js';
+import {commonFounderStageFixture} from '../society-experiments/founder-stage.js';
 import { preflightIntegrationDefinition, readIntegrationBaseline, FOOD_TRIAL_STATE } from '../society-integration/bootstrap.js';
 import { verifyNativeIntegrationSeal } from '../society-integration/baseline.js';
-import { createIntegrationWorkspace, createFoodTrialWorkspace, captureIntegrationBaseline, verifyIntegrationBaseline, restoreIntegrationBaseline,
+import { createIntegrationWorkspace, createFoodTrialWorkspace, createFounderStageWorkspace, captureIntegrationBaseline, verifyIntegrationBaseline, restoreIntegrationBaseline,
     captureIntegrationResult, verifyIntegrationResult, restoreIntegrationResult } from '../society-integration/archive.js';
 
 const { values, positionals } = parseArgs({ allowPositionals: true, strict: true, options: { root: { type: 'string' },
     output: { type: 'string' }, bundle: { type: 'string' }, fixture: { type: 'string', default: 'config/fixtures/society-lobster-four-v1.json' },
     offline: { type: 'boolean', default: false } } });
 const root = resolve(values.root ?? join(import.meta.dir, '..')), command = positionals[0] ?? 'preflight';
-const baseFixture = loadIntegrationFixture(resolve(root, values.fixture)),fixture=command==='create-founder-trials'?founderProcedureTrialFixture(baseFixture):baseFixture;
+const baseFixture = loadIntegrationFixture(resolve(root, values.fixture)),fixture=command==='create-founder-trials'?founderProcedureTrialFixture(baseFixture)
+    :command==='create-founder-baseline'?await commonFounderStageFixture(root,baseFixture):baseFixture;
 function offline(target: string) {
     if (!values.offline) throw new Error('Explicit --offline is required; stop all writers before creating/capturing a baseline');
     if (process.platform !== 'win32') throw new Error('Use a platform-specific offline probe; the supplied probe supports Windows');
@@ -25,14 +27,14 @@ if (command === 'preflight') {
     const seal = baseline ? verifyNativeIntegrationSeal(root, fixture).digest : null;
     console.log(JSON.stringify({ ...definition, baseline, nativeSeal: seal }, null, 2));
     if (!definition.executableSkillsReady) process.exitCode = 2;
-} else if (command === 'create' || command === 'create-food-trials'||command==='create-founder-trials') {
+} else if (command === 'create' || command === 'create-food-trials'||command==='create-founder-trials'||command==='create-founder-baseline') {
     if (!values.output) throw new Error('Create requires a NEW --output directory');
-    const trial = command !== 'create';
+    const trial = ['create-food-trials','create-founder-trials'].includes(command);
     if (!trial) {
         const definition = await preflightIntegrationDefinition(root, fixture);
         if (!definition.executableSkillsReady) throw new Error(`Verified skills are not ready: ${definition.errors.join('; ')}`);
     }
-    const created = await (trial ? createFoodTrialWorkspace : createIntegrationWorkspace)({ sourceRoot: root, output: values.output, fixture, assertOffline: offline,
+    const created = await (trial ? createFoodTrialWorkspace : command==='create-founder-baseline'?createFounderStageWorkspace:createIntegrationWorkspace)({ sourceRoot: root, output: values.output, fixture, assertOffline: offline,
         progress: (phase, completed, total) => console.error(JSON.stringify({ scope: 'integration-provisioning', phase, completed, total })),
         bootstrapNative: async stage => {
             const links: string[] = [];
@@ -74,4 +76,4 @@ if (command === 'preflight') {
 } else if (command === 'restore-result') {
     if (!values.bundle || !values.output) throw new Error('Result restore requires --bundle and a NEW --output directory');
     console.log(JSON.stringify(restoreIntegrationResult(values.bundle, values.output), null, 2));
-} else throw new Error('Commands: preflight, create, create-food-trials, create-founder-trials, capture, verify, restore, capture-result, verify-result, restore-result');
+} else throw new Error('Commands: preflight, create, create-food-trials, create-founder-trials, create-founder-baseline, capture, verify, restore, capture-result, verify-result, restore-result');

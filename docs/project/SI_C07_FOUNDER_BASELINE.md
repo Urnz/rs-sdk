@@ -7,7 +7,7 @@
 [Géppel olvasható jelölt](SI_C07_FOUNDER_BASELINE.json), előállító:
 `scripts/prepare-society-founder-baseline.ts`. A három exact eljárás publikálása
 után a CLI exit0-val `definition-ready` specifikációt ad; ez nem futási engedély.
-`definitionComplete:true`, `installationImplemented:false`, world/baseline
+`definitionComplete:true`, `installationImplemented:true`, world/baseline
 kijelölés null, provider-engedély0. A jelölt nem válik az1.3.0 fixture új,
 visszamenőlegesen értelmezett tartalmává.
 
@@ -16,7 +16,10 @@ visszamenőlegesen értelmezett tartalmává.
 6 valódi útvonalas run +3 tartós review PASS. Ez külön declared trial opening;
 nem ennek a közös founder-jelöltnek a telepítése. A három exact1.0.0 emberi
 jóváhagyása és [normál publikálása](SI_C07_FOUNDER_PUBLICATION_RESULT.json) megtörtént.
-A közös genesis/housing/knowledge/workshop alkalmazása még kell.
+A [közös genesis/housing/knowledge/workshop alkalmazója](SI_C07_COMMON_FOUNDER_STAGE.md)
+és [valódi offline stage/readonly bizonyítéka](SI_C07_COMMON_FOUNDER_STAGE_RESULT.json)
+is elkészült. Az1.4.0 külön jelölt diagnosztikai indulóállapot, végső C07
+baseline-nak nem archiválható. Mind4 housing/sleep és a natív owner free-slot út még kell.
 
 ## A közös indulócsomag tartalma
 
@@ -28,7 +31,8 @@ A közös genesis/housing/knowledge/workshop alkalmazása még kell.
   workshop Business eredeti founder tulajdonában,0 nyitópénzzel és üres
   inputkészlettel; valódi `varrock.east-workshop` Property, `work-surface`
   capability és exact repair-eljáráshoz kötött worker employment szükséges.
-  A genesis-javaslat a meglévő validátoron ténylegesen átmegy; nem alkalmaztuk.
+  A genesis-javaslat a meglévő validátoron ténylegesen átmegy; az új1.4.0
+  diagnosztikai stage saját forrásdigesztjéhez kötött normál genesis már applied.
 - Réz és ón csak belső, prospektív Mining-outputból; a két tétel single-spend
   custodyja végig megmarad a smelt/bar/repair láncban. A bankból visszatöltött
   vagy bootstrap bronz nem lesz belső karbantartási input.
@@ -62,44 +66,25 @@ dekódolja a location és land/bridge flag adatokat, és hash-eli a forrásbájt
 Nem indul World, nincs új spawn, ZIP extraction, dependency vagy synthetic map.
 Ez anchor-bizonyíték, **nem útvonal-, title-, sleep- vagy futási bizonyíték**.
 
-A régi két slot változatlan. A friss saját baseline konfigurációjába négy
-slotot kell majd azonos forrásokhoz kötni: három fizető tenant és egy szabad
-owner-slot. Egy üres sarok vagy feltételezett public/visitor jog nem kapott
-capacity creditet. A config alkalmazása és a négy founder normál natív alvási/
-hozzáférési útja a közös stage ellenőrzésének még hiányzó része; az owner
+A régi két slot konfigurációja változatlan. A külön új1.4.0 diagnosztikai stage
+már négy slotot köt az azonos packed forráshoz. Három fizető tenant és egy
+szabad owner-slot tervezett; bérletet vagy sleep receiptet nem bootstrapelünk.
+A négy founder valódi natív alvási/hozzáférési útja még hiányzik; az owner
 hozzáférése önmagában nem rental sleep receipt.
 
 ## Miért nem kész még a3. csomag?
 
-Három exact required1.0.0 eljárás a kanonikus reviewed/shared olvasó szerint
-nem elérhető verified állapotban:
+A három exact required1.0.0 utility eljárás már verified/shared és publikált.
+A normál genesis, learned knowledge, worker/grant, szerszámkötés és négy-slot
+overlay közös offline alkalmazása és readonly seal is kész.
 
-- `procedure.mining.gather-tin` – új, két műveletre korlátozott0.1.0 draft
-  elkészült: walk-to és egy source-bound `gather-loc`; nincs modellezett tickvezérlés.
-- `procedure.metallurgy.smelt-bronze` – meglévő0.1.0 draft.
-- `procedure.tools.repair-bronze-pickaxe` – meglévő0.1.0 draft.
-
-A tervező mindhárom draft pontos operational digestjét rögzíti, de nem írja át
-őket verifiedre. Az összesítő komponens-fixture nem helyettesíti az eljárások
-saját, source-bound natív hitelesítését és normál review/promotion folyamatát.
-A hat meglévő reviewed eljárás pontos checksumja és definíciója külön szerepel.
-
-Ezután szükséges a fresh, saját közös stage tényleges összeállítása a jelölt
-genesisével, négy-slot site overlayjel, verified knowledge/worker-grantokkal,
-natív tool-openinggal és teljes housing/sleep úttal. A mostani eszköz csak
-readonly jelöltet készít, nem tartalmaz telepítési ágat. Ezek az eredeti3.
-csomag feltételei; nem új lezárási pontok és nem a már kész2. csomag újranyitása.
-
-Az [óneljárás acknowledged natív próbája és canonical verifier útja](SI_C07_MINING_PROCEDURE_VERIFICATION.md)
-elkészült komponensszinten: két külön Mining1 packed effect, negatív/readonly
-ellenőrzés. Kontrollált mozgás/loc fixture, nem publikált eljárás vagy live trial.
-Azóta [mindhárom eljárás tartós normál trial/review útja](SI_C07_PROCEDURE_REVIEW.md)
-is elkészült: két-két teljes natív SkillExecutor run, run/admission/report és
-readonly approval-recheck; smelt/repair valós Business/Property olvasóval.
-Kontrollált mozgás/loc komponens-próba; a valódi külön trial-stage és annak
-útvonalas futásai és a három eljárás emberi publikálási reviewja következik;
-utána a közös friss stage alkalmazó/ellenőrző útja. A4. ratio-próba és a hosszú
-run nem indul megkerülve ezt; SI-C08 sem indul.
+Az eredeti megmaradó feltétel a négy founder valódi housing/sleep útja.
+A jelenlegi natív sleep csak fizetett tenant-bérletet fogad el; az owner saját
+ingyenes slotjának admission és folyamatos observer útja még megvalósítandó.
+Utána azonos deklarált openinggel, aktuális forráshoz kötött új saját stage-ből mind4 route/rent/
+sleep bizonyíték kell. Nincs önmagának fizetett ál-bérlet vagy kézi receipt.
+Az eredeti3. csomag feltételei, nem új P2-lista. A4. ratio-próba, hosszú run
+és SI-C08 még nem indul.
 
 ## Ellenőrzés
 
@@ -114,7 +99,7 @@ run nem indul megkerülve ezt; SI-C08 sem indul.
 
 A fenti korai ellenőrzéskor nem volt publication vagy live trial. Azóta a külön
 F-trial és a három konkrét emberi jóváhagyás/publikálás elkészült. Providerhasználat,
-új applied közös baseline vagy történeti payload DB-read továbbra nincs.
+végleges teljes forrású C07 baseline vagy történeti payload DB-read nincs.
 
 - `20261030-150109-935-si-c07-final-types-and-consumers`:18 runtime PASS,
   wrapper a két külön collector-típushiba miatt FAIL; azok javítva.

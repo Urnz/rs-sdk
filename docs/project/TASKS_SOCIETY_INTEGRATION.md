@@ -1245,7 +1245,12 @@ valós Business/Property jogosultsággal. Ez a korábbi, kontrollált mozgású 
 is elkészültek:6 normál SDK/Lite futás és3 tartós review PASS**, readonly újranyitással.
 [Konkrét publikálási csomag](SI_C07_FOUNDER_TRIAL_RESULT.json); a három1.0.0
 emberi jóváhagyása és [normál publikálása](SI_C07_FOUNDER_PUBLICATION_RESULT.json)
-is kész, a közös katalógusban elérhetők. A közös founder-stage még kell. Nem M3-warmup
+is kész, a közös katalógusban elérhetők. A [közös founder-stage offline alkalmazása](SI_C07_COMMON_FOUNDER_STAGE.md)
+és [readonly bizonyítéka](SI_C07_COMMON_FOUNDER_STAGE_RESULT.json) is kész: négy eredeti
+alapító, kilenc learned verified pin, normál genesis, workshop/worker/grant,
+durability100 csákány és négy packed ágy. A külön1.4.0 diagnosztikai stage
+final capture-ből kizárt; owner saját free-slot natív sleep és mind4 tényleges
+housing/rent/sleep út még kell a3. csomaghoz. Nem M3-warmup
 vagy minimum-PASS; az eredeti alapítók/food/GP/minimum változatlan.
 Öt nagy csomag maradt; nincs új lezárási pont, live baseline vagy hosszú run.
 

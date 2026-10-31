@@ -64,6 +64,7 @@ export async function bootstrapFoodTrialStage(rootInput: string, input: Integrat
 }
 async function bootstrapStage(rootInput: string, input: IntegrationFixture, ports: IntegrationBootstrapPorts, trial: boolean) {
     const root = resolve(rootInput), fixture = validateIntegrationFixture(input), paths = integrationPaths(root);
+    check(!trial||!fixture.founderBaseline,'Common founder definitions require the normal verified integration bootstrap, never a draft trial');
     const stage = join(root, '.integration-stage.json');
     check(!existsSync(join(root, FOOD_TRIAL_STATE)), 'A food trial world cannot be adopted as an integration baseline or reset');
     if (existsSync(join(root, INTEGRATION_STATE))) {
@@ -94,8 +95,8 @@ async function bootstrapStage(rootInput: string, input: IntegrationFixture, port
                     controlProfile: { role: 'player', subjectKind: 'player', subjectId: actor.username, avatarPlayerUsername: actor.username,
                         decisionIntervalMs: 10000, maxDecisionsPerDay: 1000, dailyLlmBudgetMicros: 0, dailyOperationalBudgetGp: actor.coinsGp } }, time);
                 for (const id of actor.knownSkills) agents.setSkillKnowledge(actor.agentId, fixture.skills.find(s => s.id === id)!, 'known', null, time);
-                if (!trial) agents.createAutonomyEnrollment(actor.agentId, { status: 'desired', policyId: LIVELIHOOD_POLICY.id, policyVersion: LIVELIHOOD_POLICY.version }, time);
-                if (!trial && actor.capabilities.includes('gather')) {
+                if (!trial&&!fixture.founderBaseline) agents.createAutonomyEnrollment(actor.agentId, { status: 'desired', policyId: LIVELIHOOD_POLICY.id, policyVersion: LIVELIHOOD_POLICY.version }, time);
+                if (!trial && !fixture.founderBaseline && actor.capabilities.includes('gather')) {
                     const skill = fixture.skills.find(s => s.id === 'procedure.food.gather-lobster')!;
                     const life = agents.createGoal(actor.agentId, { goalId: `si-life-${actor.agentId}`, parentGoalId: null, horizon: 'life', title: 'Maintain livelihood', description: 'Finite native food society.', priority: 50 }, time);
                     const long = agents.createGoal(actor.agentId, { goalId: `si-long-${actor.agentId}`, parentGoalId: life.goalId, horizon: 'long-term', title: 'Supply food', description: 'Finite native lobster supply.', priority: 50 }, time);
@@ -107,7 +108,7 @@ async function bootstrapStage(rootInput: string, input: IntegrationFixture, port
             agents.createIdentity({ agentId: fixture.kitchen.institutionAgentId, displayName: 'Integration kitchen', background: 'Avatarless finite kitchen Business.',
                 personalityTraits: ['prudent'], controlProfile: { role: 'institution', subjectKind: 'business', subjectId: fixture.kitchen.businessId,
                     decisionIntervalMs: 10000, maxDecisionsPerDay: 1000, dailyLlmBudgetMicros: 0, dailyOperationalBudgetGp: fixture.kitchen.treasuryGp } }, time);
-            if (!trial) agents.createAutonomyEnrollment(fixture.kitchen.institutionAgentId, { status: 'desired', policyId: LIVELIHOOD_POLICY.id, policyVersion: LIVELIHOOD_POLICY.version }, time);
+            if (!trial&&!fixture.founderBaseline) agents.createAutonomyEnrollment(fixture.kitchen.institutionAgentId, { status: 'desired', policyId: LIVELIHOOD_POLICY.id, policyVersion: LIVELIHOOD_POLICY.version }, time);
         } finally { agents.close(); }
         await ports.seedNativeAvatars(root, fixture);
         const result = integrationGenesis(root, fixture), adapter = ports.genesis(root, fixture, clock);
@@ -128,12 +129,23 @@ async function bootstrapStage(rootInput: string, input: IntegrationFixture, port
                 preferredSkills: fixture.skills }, time);
             manager.resolvePolicy(k.businessId, policy.proposalId, policy.revision, 'approve', 'Source-controlled finite integration bootstrap.', time);
         } finally { manager.close(); }
+        if(fixture.founderBaseline){
+            const manager=new BusinessManagerStore(paths.businessPath);
+            try{
+                const business=manager.get('si-c07-workshop');check(business?.status==='active','Founder workshop genesis is missing');
+                manager.hire('si-c07-workshop',{workerAgentId:fixture.kitchen.courierAgentId,roleDefinitionId:'business.worker.v1',title:'Founder smith',wageGp:0,
+                    requiredSkill:fixture.skills.find(s=>s.id==='procedure.tools.repair-bronze-pickaxe')!},time,workUuid(`${fixture.digest}:founder-worker`));
+            }finally{manager.close();}
+        }
         const work = new BusinessWorkStore(paths.businessPath);
         try { for (const capability of ['cooking.heat-source', 'storage.secure']) work.grantEntitlement({ entitlementId: `si-${capability.replaceAll('.', '-')}`,
             businessId: fixture.kitchen.businessId, propertyId: fixture.kitchen.propertyId, facilityCapability: capability, validFrom: time,
             // Property-backed standing permission is not a work schedule. Work orders
             // use wall time while native facility checks use SimulationClock time.
-            validUntil: null }, time); } finally { work.close(); }
+            validUntil: null }, time);
+            if(fixture.founderBaseline)work.grantEntitlement({entitlementId:'si-c07-workshop-surface',businessId:'si-c07-workshop',
+                propertyId:'varrock.east-workshop',facilityCapability:'work-surface',validFrom:time,validUntil:null},time);
+        } finally { work.close(); }
         await ports.closeNativeBaseline(root, fixture, clock);
         const members = new AgentStateStore(paths.agentPath, shared);
         let lifecycles;

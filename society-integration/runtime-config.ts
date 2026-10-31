@@ -25,9 +25,9 @@ export function integrationRuntimeConfig(fixture: IntegrationFixture, base: LlmR
         // The avatar's own control profile still applies its individual daily ceiling.
         itemNames: [], partners: [], maxQuantity: 1, maxUnitPriceGp: 0, maxGpPerRun: 30,
         maxGpPerDay: Math.max(...fixture.avatars.map(a => a.coinsGp)) }] : [];
-    return validateLlmRuntimeConfig({ ...base, enabled: false, automaticReplanning: true,
+    return validateLlmRuntimeConfig({ ...base, enabled: false, automaticReplanning: !fixture.founderBaseline,
         skillBuilder: { ...base.skillBuilder, enabled: false }, dailyBudget: { ...base.dailyBudget, maxCostMicros: 0 },
-        autonomousExecution: { enabled: true, maxOperations: 8, maxTimeoutMs: travel ? 360000 : 240000, allowedSkills: [...food, ...routes,
+        autonomousExecution: { enabled: !fixture.founderBaseline, maxOperations: 8, maxTimeoutMs: travel ? 360000 : 240000, allowedSkills: [...food, ...routes,
             { id: delivery.id, version: delivery.version, risk: 'player-trade', operations: ['walk-to', 'trade-give-item'],
                 parameters: { recipient: { oneOf: fixture.avatars.filter(a => a.agentId !== fixture.kitchen.courierAgentId).map(a => a.username) },
                     'item-name': { exact: 'Lobster' }, amount: { exact: 1 } },

@@ -17,11 +17,13 @@ import { withIntegrationSites } from './native-sites.js';
 export interface IntegrationSkill { id: string; version: string; definitionDigest: string }
 export interface IntegrationAvatar {
     agentId: string; username: string; capabilities: string[]; coinsGp: number; cookedReserve: number;
-    position: { x: number; z: number; level: number }; personalSkills: { Fishing: number; Cooking: number };
+    position: { x: number; z: number; level: number }; personalSkills: { Fishing: number; Cooking: number; Mining?: number; Smithing?: number };
     tools: { itemId: number; count: number }[]; knownSkills: string[];
 }
 export interface IntegrationFixture {
-    schemaVersion: 1; fixtureId: 'society-lobster-four'; version: '1.0.0' | '1.0.1' | '1.1.0' | '1.2.0' | '1.3.0'; seed: string; worldBuild: 'lostcity-local-v1';
+    schemaVersion: 1; fixtureId: 'society-lobster-four'; version: '1.0.0' | '1.0.1' | '1.1.0' | '1.2.0' | '1.3.0' | '1.4.0'; seed: string; worldBuild: 'lostcity-local-v1';
+    founderBaseline?: { protocol: 'si-c07-common-founder-stage-v1'; sourceFixtureDigest: string; specificationDigest: string;
+        packedBedsDigest: string; beds: {bedSlotId: string; x: number; z: number; level: number}[] };
     nativeSiteProfile?: { profileId: 'society-native-sites-v1'; digest: string };
     survival?: { mode: SurvivalMode; rulesDigest: string };
     clock: { clockId: string; initialSimulationTime: string; profile: { schemaVersion: 1; profileId: string; version: string; seed: string;
@@ -45,12 +47,12 @@ export function operationalSkillDigest(input: unknown) {
 }
 export function validateIntegrationFixture(input: unknown): IntegrationFixture {
     const f = structuredClone(input) as IntegrationFixture;
-    check(f && f.schemaVersion === 1 && f.fixtureId === 'society-lobster-four' && ['1.0.0', '1.0.1', '1.1.0', '1.2.0', '1.3.0'].includes(f.version)
+    check(f && f.schemaVersion === 1 && f.fixtureId === 'society-lobster-four' && ['1.0.0', '1.0.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0'].includes(f.version)
         && f.worldBuild === 'lostcity-local-v1' && typeof f.seed === 'string' && f.seed.length > 0 && f.seed.length <= 128, 'Invalid integration fixture identity');
     check(f.digest === fixtureDefinitionDigest(f), 'Integration fixture digest differs');
-    check(['1.2.0', '1.3.0'].includes(f.version) ? f.nativeSiteProfile?.profileId === 'society-native-sites-v1' && /^[a-f0-9]{64}$/.test(f.nativeSiteProfile.digest)
+    check(['1.2.0', '1.3.0', '1.4.0'].includes(f.version) ? f.nativeSiteProfile?.profileId === 'society-native-sites-v1' && /^[a-f0-9]{64}$/.test(f.nativeSiteProfile.digest)
         : !f.nativeSiteProfile, 'Native site profile requires a new versioned fixture');
-    if (['1.1.0', '1.2.0', '1.3.0'].includes(f.version)) {
+    if (['1.1.0', '1.2.0', '1.3.0', '1.4.0'].includes(f.version)) {
         check(f.survival && f.survival.rulesDigest === healthDigest(survivalRulesV1()), 'Survival fixture rules binding differs');
         const expected = compileSurvivalProfile(survivalRulesV1(), f.survival.mode, f.clock.profile.seed);
         check(healthDigest(expected.clock) === healthDigest(f.clock), 'Survival fixture clock/mode differs');
@@ -66,10 +68,18 @@ export function validateIntegrationFixture(input: unknown): IntegrationFixture {
         && new Set(f.avatars.map(a => a.username)).size === 4, 'Fixture requires four distinct avatar/actor bindings');
     const amount = (n: number, minimum = 0) => Number.isSafeInteger(n) && n >= minimum && n <= 2147483647;
     const ids = new Set(f.avatars.map(a => a.agentId));
-    const skillCount = f.version === '1.3.0' ? 5 : 4;
+    const travel = ['1.3.0','1.4.0'].includes(f.version), founder = f.version === '1.4.0';
+    check(founder ? f.founderBaseline?.protocol === 'si-c07-common-founder-stage-v1'
+        && [f.founderBaseline.sourceFixtureDigest,f.founderBaseline.specificationDigest,f.founderBaseline.packedBedsDigest].every(h=>/^[a-f0-9]{64}$/.test(h))
+        && f.founderBaseline.beds.length === 4 && new Set(f.founderBaseline.beds.map(b=>b.bedSlotId)).size === 4
+        && new Set(f.founderBaseline.beds.map(b=>`${b.x},${b.z},${b.level}`)).size === 4
+        : !f.founderBaseline, 'Founder stage requires a new exact versioned definition');
+    const skillCount = founder ? 9 : travel ? 5 : 4;
     check(Array.isArray(f.skills) && f.skills.length === skillCount && new Set(f.skills.map(s => s.id)).size === skillCount
         && f.skills.every(s => /^[a-f0-9]{64}$/.test(s.definitionDigest)), 'Fixture requires its exact versioned skill pins');
-    if (f.version === '1.3.0') check(f.skills.some(s => s.id === 'procedure.travel.native-sites'), 'Travel fixture requires its route skill pin');
+    if (travel) check(f.skills.some(s => s.id === 'procedure.travel.native-sites'), 'Travel fixture requires its route skill pin');
+    if (founder) check(['mining.varrock-east.copper-to-bank','procedure.mining.gather-tin','procedure.metallurgy.smelt-bronze','procedure.tools.repair-bronze-pickaxe']
+        .every(id=>f.skills.some(s=>s.id===id&&s.version==='1.0.0')), 'Founder stage requires all four exact utility procedure pins');
     for (const a of f.avatars) {
         check(/^[a-z0-9]{1,12}$/.test(a.username) && a.agentId === a.username, 'Invalid exact actor/avatar identity');
         check(amount(a.coinsGp) && amount(a.cookedReserve) && a.cookedReserve <= 2 && Array.isArray(a.tools) && a.tools.length <= 4
@@ -78,9 +88,11 @@ export function validateIntegrationFixture(input: unknown): IntegrationFixture {
         check(a.position && amount(a.position.x) && a.position.x <= 16383 && amount(a.position.z) && a.position.z <= 16383
             && amount(a.position.level) && a.position.level <= 3, 'Invalid fixture position');
         check(a.personalSkills && [a.personalSkills.Fishing, a.personalSkills.Cooking].every(n => Number.isSafeInteger(n) && n >= 1 && n <= 99), 'Invalid personal skill baseline');
+        check(founder ? a.personalSkills.Mining === 1 && a.personalSkills.Smithing === 1
+            : a.personalSkills.Mining === undefined && a.personalSkills.Smithing === undefined, 'Unexpected founder Mining/Smithing baseline');
         check(Array.isArray(a.knownSkills) && a.knownSkills.every(id => f.skills.some(s => s.id === id))
             && a.knownSkills.includes('procedure.food.consume-lobster'), 'Every actor requires the exact consumption skill');
-        if (f.version === '1.3.0') check(a.knownSkills.includes('procedure.travel.native-sites'), 'Every travel-fixture actor requires route knowledge');
+        if (travel) check(a.knownSkills.includes('procedure.travel.native-sites'), 'Every travel-fixture actor requires route knowledge');
     }
     const k = f.kitchen, h = f.housing;
     check(k?.businessId === 'karamja-kitchen' && k.propertyId === 'karamja.fishing-hut' && !ids.has(k.institutionAgentId)
@@ -90,7 +102,7 @@ export function validateIntegrationFixture(input: unknown): IntegrationFixture {
         && k.rawOpening <= 8 && k.cookedOpening === 0 && k.rawUnitPriceGp > 0 && k.cookedUnitPriceGp > 0
         && k.treasuryGp >= f.protocol.minimumInternalFood * k.rawUnitPriceGp + k.cookWageGp + k.deliveryWageGp, 'Insufficient finite kitchen procurement/wage runway');
     check(f.version === '1.0.0' || k.rawOpening === 0, 'Native procurement fixtures start with an empty raw stock');
-    check(h?.propertyId === 'falador.south-house' && ids.has(h.landlordAgentId) && amount(h.maximumConcurrentTenants, 1) && h.maximumConcurrentTenants <= 2
+    check(h?.propertyId === 'falador.south-house' && ids.has(h.landlordAgentId) && amount(h.maximumConcurrentTenants, 1) && (founder ? h.maximumConcurrentTenants === 3 : h.maximumConcurrentTenants <= 2)
         && amount(h.rentGp, 1), 'Invalid rental capacity');
     check(f.avatars.filter(a => a.agentId !== h.landlordAgentId).some(a => a.coinsGp >= h.rentGp + k.cookedUnitPriceGp), 'No tenant can fund rent plus food');
     check(f.avatars.find(a => a.agentId === k.cookAgentId)!.personalSkills.Cooking >= 40, 'Cook lacks level 40');
@@ -164,7 +176,7 @@ function inspectEffectiveIntegrationReferences(root: string, f: IntegrationFixtu
         finiteHarvest: harvest, initialNeeds: policy.needs.map(n => ({ needId: n.needId, value: n.initialValue, remainderNumerator: 0 })),
         deliveryMeeting: meeting?.kind === 'operation' ? meeting.arguments : null,
         limitations: ['The existing delivery skill meets in Lumbridge; no boat or free relocation is inferred from a straight-line path.',
-            'Two native bed slots are a concurrent capacity limit, not four simultaneous entitlements.',
+            f.founderBaseline ? 'Four configured packed slots still require three paid leases and a separately proven owner sleep path.' : 'Two native bed slots are a concurrent capacity limit, not four simultaneous entitlements.',
             'Bootstrap food is survival reserve and never satisfies internal final-use acceptance.'] };
 }
 export function integrationGenesis(root: string, f: IntegrationFixture) {
@@ -181,6 +193,9 @@ export function integrationGenesis(root: string, f: IntegrationFixture) {
         openingCapitalGp: f.kitchen.treasuryGp, openingInventoryDigest: businessGenesisInventoryDigest(assets, f.kitchen.businessId) },
     { allocationId: 'kitchen-title', kind: 'property', owner: { kind: 'business', id: f.kitchen.businessId }, propertyId: f.kitchen.propertyId },
     { allocationId: 'housing-title', kind: 'property', owner: { kind: 'player', id: f.housing.landlordAgentId }, propertyId: f.housing.propertyId });
+    if(f.founderBaseline) assets.push({allocationId:'c07-workshop',kind:'business',owner:{kind:'player',id:f.kitchen.ownerAgentId},
+        businessId:'si-c07-workshop',openingCapitalGp:0,openingInventoryDigest:businessGenesisInventoryDigest(assets,'si-c07-workshop')},
+        {allocationId:'c07-workshop-title',kind:'property',owner:{kind:'business',id:'si-c07-workshop'},propertyId:'varrock.east-workshop'});
     const configuration = buildWorldGenesisConfiguration({ seed: f.seed, profile, worldBuild: f.worldBuild,
         simulationClock: { clockId: f.clock.clockId, profileDigest: simulationClockProfileDigest(f.clock.profile), initialSimulationTime: f.clock.initialSimulationTime },
         parameters: { integrationFixtureDigest: f.digest } });

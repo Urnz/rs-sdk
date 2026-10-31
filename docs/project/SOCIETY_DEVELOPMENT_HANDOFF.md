@@ -19,8 +19,12 @@ Frissítve: 2026-10-31. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATI
 
 - [Baseline-jelölt](SI_C07_FOUNDER_BASELINE.md): ugyanaz a négy founder,
   eredeti food/GP/harvest, courier Mining/Smithing1, pickaxe/hammer és workshop-terv.
-  A specifikáció a publikálás után definition-ready; a közös founder-stage még nincs telepítve. Négy packed bed anchor megvan,
-  four-slot overlay és mind4 founder valódi housing/sleep útja még kell.
+  A specifikáció definition-ready, az alkalmazó implementált. A
+  [közös diagnosztikai stage](SI_C07_COMMON_FOUNDER_STAGE.md) natív offline alkalmazása
+  és [readonly nyugtája](SI_C07_COMMON_FOUNDER_STAGE_RESULT.json) kész: normál applied
+  genesis, kilenc learned exact pin, workshop/worker/grant, durability100 tool,
+  four-slot overlay; eredeti food/GP/harvest/pozíció/clock megmaradt.
+  Mind4 founder valódi housing/sleep útja még kell.
 - [Normál prepare/run/review/inspect](SI_C07_PROCEDURE_REVIEW.md) kész;
   exact admission/draft-checksum/run/native effect és world kötés, readonly újranyitás,
   külön emberi publication approval. A három szükséges1.0.0 már jóváhagyott és publikált.
@@ -56,16 +60,43 @@ Frissítve: 2026-10-31. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATI
 
 ## Következő konkrét munka
 
-**Közös founder-stage alkalmazója és vékony natív ellenőrzése:** közös genesis,
-4-slot overlay, az immár publikált exact verified knowledge, worker grantok,
-native tool opening és mind4 housing/sleep. Publication újraengedélyezése nem kell:
-a három exact előnézet jóváhagyása és végrehajtása kész. A sikertelen világok és
-az E-WIP megmaradnak; nincs source-átírás vagy régi run átminősítés. Az eredeti3. csomag
-feltételei; nem új P2-lista. A4. ratio-próba és a hosszú C07 run még nem indul.
+**Owner free-slot natív sleep admission és folyamatos observer, majd mind4
+founder vékony route/rent/sleep próbája.** A jelenlegi `NativeHousingExecutor`
+csak külön tenant/landlord fizetett bérletből ad witness-t; tulajdonos saját ingyenes
+ág nincs. Ne gyárts self-rentet vagy sleep receiptet. A meglévő paid ág, exact
+lifecycle/property/slot/capacity/clock és needs/coverage fogyasztók maradjanak strict.
+
+Közös kiindulóállapot `backups/si-c07-common-founder-20261031/workspace`,
+fixture1.4.0/world `srv-0c8d5093-61c9-469f-8751-07152f4ea6d4`, paused/stopped.
+Érintetlen sealed opening, readonly referencia. Az owner-kódhoz új, aktuális
+forráshoz kötött saját stage készüljön ugyanilyen deklarált openinggel;
+ne írd felül a rögzített runtime-ot. Source `packed-founder-stage-v1`, nem teljes végső baseline;
+a normál final baseline/result capture a fixture alapján is elutasítja akkor is,
+ha a manifest címkéjét eltávolítanák. A végső teljes-source run-definíció későbbi kapu.
+Nyugta: genesis `e22500724a65ba428557a2eb3e6ee178df8330cd9f79cb29af32c7292348ed43`,
+seal `5ae0358e746a98beb14d5344444109088f617155a4448fc2f07a84b2b54884fe`,
+tool `d26a50b9-140f-4b6a-8324-ccba5d840d59`.0 paid tenancy/sleep/warmup use.
+Publication újraengedélyezése nem kell. A sikertelen trial-világok és E-WIP
+megmaradnak. A3. csomag még nyitott;4. ratio-próba/hosszú C07 run nem indul.
 
 ## Aktuális ellenőrzési bizonyíték
 
 A teljes történet és korábbi FAIL-ek a trial-dokuban; logok `.local/verification/`.
+
+- Közös stage `20261031-111547-446` PASS102,638s: normál genesis és natív
+  tool/knowledge/grant/housing opening,1909 source rekord. Provider/ticks nélkül.
+- `111855-033` readonly PASS2,628s: azonos seal és natív DB/WAL/save SHA,
+  kilenc verified pin és a valódi smelt/repair access source PASS;
+  nyolc negatív másolat-próba elutasítva, köztük a fixture-bound final capture.
+- `111945-256-si-c07-p3-common-founder-final-consumers`:27 pontos teszt PASS6,67s,
+  root és engine TS is PASS; teljes wrapper152,164s. Az előző8 candidate és4
+  runtime-config teszt is PASS, nem ismételtük őket az archívum-őr miatt.
+- `112254-615` artifact/hash/policy/P2/link/formázás PASS3,289s; az installer
+  flag true, readonly candidate és teljes C07-kijelölés továbbra null/NO-GO.
+- A command-filter, sandbox-launch/Git, még futó saját TS offline-stop,
+  megszakított240,513s full-source inventory és hiányzó másolati WAL hibája
+  [külön megőrzött](SI_C07_COMMON_FOUNDER_STAGE.md). Nem full regresszió;
+  a végső célzott fogyasztók és valódi offline alkalmazás PASS.
 
 - `20261030-205953-322-si-c07-p3-native-summary-contract`:12 PASS2,751s,
   actual save/reload és generic genesis consumer. Bootstrapok utána PASS.
@@ -119,8 +150,8 @@ A teljes történet és korábbi FAIL-ek a trial-dokuban; logok `.local/verifica
 - `requiredSourceInventory.selectedSources=null`, nincs C07 world/pin; offline init kell.
   Nincs historical backfill/evidence-törlés. Régi binárissal strict run nem folytatható.
 - Csak helyi/private LostCity. A saját eldobható trial start/install engedélyezett;
-  a három konkrét1.0.0 publication jóváhagyva/végrehajtva; nincs valódi közös
-  baseline alkalmazva, hosszú run vagy providerhívás jóváhagyva.
+  a három konkrét1.0.0 publication jóváhagyva/végrehajtva; nincs
+  végleges teljes-source C07 baseline kiválasztva, hosszú run vagy providerhívás jóváhagyva.
   Ismert NO-GO-ra ne kérj hosszú futási jóváhagyást. SI-C08 nem indul.
   Admin korábbi címe `http://127.0.0.1:7781/admin/`.
 - B06 korábbi0,05USD engedélye nem öröklődik; most0 API-kérés/0 költség.

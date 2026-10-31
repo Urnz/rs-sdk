@@ -913,7 +913,7 @@
     "contractDigest": "d12d387d2cf06193378401dc22c5c6ee6ef27350388e047da044da36e3a5e84e",
     "status": "definition-ready",
     "definitionComplete": true,
-    "installationImplemented": false,
+    "installationImplemented": true,
     "selectedWorldId": null,
     "baselineDigest": null,
     "liveRunStarted": false,
@@ -1583,10 +1583,10 @@
     },
     "blockers": [],
     "limitations": [
-      "Specification only. Four actual packed bed anchors are proposed for a fresh configuration; no site overlay, verified promotion, applied genesis or runtime grant is fabricated.",
+      "Specification only. The separate new-stage installer can apply the proposed four packed slots, verified knowledge and genesis; this readonly report does not install or select a world.",
       "No frozen source selection, ratio validation, SI-A14, provider approval or actual minimum PASS follows from this candidate."
     ],
-    "digest": "ff6194c7a33ad362bf1045bec654d9f2d5234155e735616ac206c98a735d125e"
+    "digest": "214da76e4e218aca718d457c3d2659bc4a02ce542a2261905824620f2b1352ea"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1860,7 +1860,7 @@
     {
       "id": "tool-chain-baseline",
       "status": "blocked",
-      "reason": "Common founder candidate ff6194c7a33ad362bf1045bec654d9f2d5234155e735616ac206c98a735d125e: ; proposed same-instance capacity and actual packed bed sites are specified, but no candidate is installed."
+      "reason": "Common founder specification 214da76e4e218aca718d457c3d2659bc4a02ce542a2261905824620f2b1352ea: ; the separate diagnostic-stage installer is implemented, but this readonly report selects no C07 world. Actual warmup, internal maintenance/reuse and final-source binding remain unproved."
     },
     {
       "id": "minimum-assessor",
@@ -1875,7 +1875,7 @@
     {
       "id": "legal-housing-exposure",
       "status": "unverified",
-      "reason": "Frozen exact-clock points now bound legal housing time with ownership versions, audited reservation capacity and paid native rent. Two tenant slots alone still do not attest95% access for all founders; complete pinned point inventory and visitor/access history remain required."
+      "reason": "Frozen exact-clock points bound legal housing time with ownership versions, audited capacity and paid native rent. Four configured packed slots do not attest95% access: three paid tenant routes/sleeps and a native own-property free-slot path, plus complete pinned history, remain required."
     },
     {
       "id": "clock-ratio",
@@ -2704,12 +2704,48 @@
       "sha256": "79b956cdf0b04df7c6846054b19e234db7e20ceca1cf8b55a5d468de13aac7c7"
     },
     {
+      "path": "society-experiments/founder-stage.ts",
+      "sha256": "d3d42a62770549344bccc732557686a360c7bf6d958a4ca5b45af46649fa8b5a"
+    },
+    {
+      "path": "society-integration/founder-state.ts",
+      "sha256": "4db9b8972afd61b611e3ce71a2c066b305f9898c5b4b4d1bd86910420130f3b4"
+    },
+    {
+      "path": "server/engine/src/mods/FounderBaselineNative.ts",
+      "sha256": "bc0ce1df435950eb11af869d2e08e3da843770c83644d0a2eb841298b30db5b8"
+    },
+    {
+      "path": "society-integration/fixture.ts",
+      "sha256": "b5d1e53c5f78db802a34b4802333c3502d4df512684e74440126909f7ca87d71"
+    },
+    {
+      "path": "society-integration/bootstrap.ts",
+      "sha256": "ffdf23fe702509e6f51c0820921f9d78c1c9bd4ae3b6fc1ee26255a82d71f3eb"
+    },
+    {
+      "path": "society-integration/baseline.ts",
+      "sha256": "5c501c06662a53a111f362bd87f131f29f5450fc5a6cbaa2cb638b0d3d97acb1"
+    },
+    {
+      "path": "society-integration/native-sites.ts",
+      "sha256": "8f540d438fec1fb959fd8d8ba26ab99ba23064dda23d736d53f4d0b0786ea8a1"
+    },
+    {
+      "path": "society-integration/runtime-config.ts",
+      "sha256": "6e3f86ba8f825f556aa9853862c2b533fa17ff8d75fe02e9eadadc3772aa3ce1"
+    },
+    {
+      "path": "society-integration/archive.ts",
+      "sha256": "74b380f5a43b0056389546d45113a876367aa8d9bb8bba45639b5c9e435aa089"
+    },
+    {
       "path": "scripts/society-integration-fixture.ts",
-      "sha256": "901a6b02af3511ca63ba9e57f343321ec4669a234550232c4a3b9546d74e8687"
+      "sha256": "1321cf23570428a551a8f31badf48fd3cfbbdf8794678572d78b842126931009"
     },
     {
       "path": "scripts/integration-native-bootstrap.ts",
-      "sha256": "61479b80f9bec052f5dcffadae1264afc936e127f09ec8e73420609fefb6caba"
+      "sha256": "370f086886125224ff701f7ef06ec38a5be6c2baeb54ec696ec12ad22825308c"
     },
     {
       "path": "scripts/run-founder-procedure-trials.ts",
@@ -2745,11 +2781,11 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "ea2f033c28374912a9327337293d2ad035288249f7e145f3abefea49a44de0e8"
+      "sha256": "8547ed01357eba7a2a6d5649ebfbbe10380bc87ed92f33c17844264521bbb868"
     },
     {
       "path": "society-experiments/founder-baseline.ts",
-      "sha256": "f39590bae67de960c454fb31badf10df17bd0d6f21fc46bd5e594db73d6d8e20"
+      "sha256": "1232f16f7d54d7ff86b4a90e473ec17e02fed4576d6b67b85def10f4ed17dd4b"
     },
     {
       "path": "society-experiments/packed-housing-sites.ts",
@@ -2802,5 +2838,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "15fc0fdb848087612afecbfbce7d0a661abbe4e7d4e2488576de94d34eeac068"
+  "digest": "2966238f6762ca971252413cf3358f3c6795b56382766dad7186641bd91975a0"
 }

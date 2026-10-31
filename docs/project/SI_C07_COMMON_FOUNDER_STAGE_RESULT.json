@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "protocol": "si-c07-common-founder-stage-result-v1",
+  "status": "installed-and-readonly-verified",
+  "workspace": "backups/si-c07-common-founder-20261031/workspace",
+  "worldId": "srv-0c8d5093-61c9-469f-8751-07152f4ea6d4",
+  "fixtureVersion": "1.4.0",
+  "fixtureDigest": "0c8d509361c9a69fd75107152f4ea6d424fa40a84083845bbe9eff51ec538940",
+  "sourceFixtureDigest": "2094c0b60bd99c4a416fb6e85d3f84d6bd7c1621cdc75a6ef1c6090050c1a92e",
+  "specificationDigest": "214da76e4e218aca718d457c3d2659bc4a02ce542a2261905824620f2b1352ea",
+  "genesisResultId": "genesis-e22500724a65ba428557a2eb",
+  "genesisResultDigest": "e22500724a65ba428557a2eb3e6ee178df8330cd9f79cb29af32c7292348ed43",
+  "baselineSealDigest": "5ae0358e746a98beb14d5344444109088f617155a4448fc2f07a84b2b54884fe",
+  "opening": {
+    "setupDigest": "2bf5ba46e2584d9a89fefb441b0b6927dfaaa0ae23307b1d3f0f0843f7c69f4e",
+    "genesisResultDigest": "e22500724a65ba428557a2eb3e6ee178df8330cd9f79cb29af32c7292348ed43",
+    "itemInstanceId": "d26a50b9-140f-4b6a-8324-ccba5d840d59",
+    "housingCapacity": 4,
+    "paidTenancies": 0,
+    "provenSleeps": 0,
+    "warmupUses": 0,
+    "providerCalls": 0
+  },
+  "inputSourceDigest": "b3432b8a91ba54de72474b49a54a3e67d6c0dbd070e1bfd1b4d0b08f04054b95",
+  "sourceManifestDigest": "b2845f689d1e1344b35189166041c0b596c3f1f153a9b0d05dd053debc7f2a9e",
+  "sourceFiles": 1909,
+  "nativeFiles": [
+    {
+      "path": ".local/admin/fixture-bootstrap.sqlite",
+      "sha256": "cef5cf4f5407aca918bf00f8b1216b79dd97e3910b7820db996a224e06caf860"
+    },
+    {
+      "path": ".local/admin/fixture-bootstrap.sqlite-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".local/admin/properties.sqlite",
+      "sha256": "2868ca62fd67db7a69fc0d0fe378ef812042c946650e8e1b4340952250079f50"
+    },
+    {
+      "path": ".local/agent-state/agents.sqlite",
+      "sha256": "5de6d3fba7b9239854164be74dbad2bda6aad49f76439ef2e57d28000395a5f6"
+    },
+    {
+      "path": ".local/agent-state/agents.sqlite-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".local/economy/businesses.sqlite",
+      "sha256": "8087772276ecc82314094996b317ebc4238daae7643d7c74f1735d34efe8a60b"
+    },
+    {
+      "path": ".local/economy/housing.sqlite",
+      "sha256": "d25fca90efaae49f6677cc7828ce9a97628c9169111459ea6905fc2b4ea546e3"
+    },
+    {
+      "path": ".local/economy/institution-treasury.sqlite",
+      "sha256": "98d634ea8c541e2e68932f5a749742962307fcdb32926a52590ba0d6bcfe1b75"
+    },
+    {
+      "path": ".local/simulation/food-needs.sqlite",
+      "sha256": "8b4b82623cafebd141a25d2e8a231af95fd294037202e9f91c1e365ad7d5f250"
+    },
+    {
+      "path": ".local/simulation/food-needs.sqlite-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".local/simulation/simulation-clock.sqlite",
+      "sha256": "c63c334a396dc80c84e91fafeda703a26ec7e245572094fdf44a7d145fde4362"
+    },
+    {
+      "path": ".local/simulation/simulation-clock.sqlite-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".local/simulation/society-integrity.sqlite",
+      "sha256": "b59de71d5621a2b773b44ccf98530eeb6b5019d17219ecdd06aae35be9dbb979"
+    },
+    {
+      "path": ".local/simulation/society-integrity.sqlite-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".local/simulation/world-genesis-provenance.sqlite",
+      "sha256": "4a8a0869ab96aa4bdb4f8aacd1f5ecc2f6a9fb2c4d6fda5f602922cf42451448"
+    },
+    {
+      "path": ".local/simulation/world-genesis-provenance.sqlite-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".local/simulation/world-genesis-runs.sqlite",
+      "sha256": "2f7f664ab5f407912327f271b9068dc54148380ca42278c637cf454f93c00e71"
+    },
+    {
+      "path": ".local/simulation/world-genesis-runs.sqlite-wal",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "server/engine/data/mods/player-action-rewards.sqlite",
+      "sha256": "0de7811252b1228d14296940fed863457e3c1f1159fa79deba1c4fa0d08335f6"
+    },
+    {
+      "path": "server/engine/data/mods/trade-evidence.sqlite",
+      "sha256": "9fb1bd990f20a54ea3e10b6f5a221121a16aad96c60003e9e8194ad2377ae551"
+    },
+    {
+      "path": "server/engine/data/player-checkpoints.sqlite",
+      "sha256": "40cf07c52bfaa52b334ef341456f970787f6dc701ffe18ad3c572cb5056dbd70"
+    },
+    {
+      "path": "server/engine/data/player-checkpoints.sqlite-wal",
+      "sha256": "edea94b1a20de4d90b589345b8645366c6f8caece64b531e6bc1899a0c549bf2"
+    },
+    {
+      "path": "server/engine/data/players/main/sicook.sav",
+      "sha256": "115cd7cc6dba01b56951a139298cf2b169523bbb93f4cf9e957048b47bdb8c0e"
+    },
+    {
+      "path": "server/engine/data/players/main/sicourier.sav",
+      "sha256": "45e110a827114e4b545f29dac94bb6ec03747deb2594bb6dd9d9e082b5627e32"
+    },
+    {
+      "path": "server/engine/data/players/main/sifisher.sav",
+      "sha256": "a1371d52d1445f810d59f7d51d8fb7ce4bc9658f0e9690708cf400ccba9f4ccc"
+    },
+    {
+      "path": "server/engine/data/players/main/silessor.sav",
+      "sha256": "98ae734d047bc63accbcdced29bfa1a33fe7669ce626c782689027438940dc4f"
+    }
+  ],
+  "nativeReadonlyUnchanged": true,
+  "verifiedSkills": [
+    {
+      "id": "procedure.food.consume-lobster",
+      "version": "1.0.0",
+      "checksum": "e8d31ec1b2250837a98c8bbdff9d1d91d53c13d27f1452f2fed1d5aec0c59f63"
+    },
+    {
+      "id": "procedure.food.gather-lobster",
+      "version": "1.0.0",
+      "checksum": "8285f15fdf01a67a2c4dbe26b704258887f971e20d2a93e38030f76338070b4d"
+    },
+    {
+      "id": "procedure.food.cook-lobster",
+      "version": "1.0.0",
+      "checksum": "ed40c2296664aac12cf0edcfd6bd0d5fc753a5d791a1819cecc1da11637931a1"
+    },
+    {
+      "id": "trade.lumbridge.give-item",
+      "version": "1.0.0",
+      "checksum": "45bc8f6ae51295206c7d99a9250f1da9ace992db3e264c4f01de1e59da95543b"
+    },
+    {
+      "id": "procedure.travel.native-sites",
+      "version": "1.0.0",
+      "checksum": "923b61ff80b48b1ec5d8699cc2bb9c47cd432eb7f4b9b96887d12432f4eb5bf3"
+    },
+    {
+      "id": "mining.varrock-east.copper-to-bank",
+      "version": "1.0.0",
+      "checksum": "b5812fd05b1e1c39bf3ba054b965ff98001f7288862698ec68921c148c53d50f"
+    },
+    {
+      "id": "procedure.mining.gather-tin",
+      "version": "1.0.0",
+      "checksum": "7412448a26d0028755a4ec879a540a6b58bd018ae66503568daf381924d90797"
+    },
+    {
+      "id": "procedure.metallurgy.smelt-bronze",
+      "version": "1.0.0",
+      "checksum": "e53fa21af6df635c154ab7922170117cb2ff9b422e3d6494aef4f087f3746d84"
+    },
+    {
+      "id": "procedure.tools.repair-bronze-pickaxe",
+      "version": "1.0.0",
+      "checksum": "d37dc59296bc6b1f7fb0bfe50554b36a71ce9b9566c700b04220bb55328680df"
+    }
+  ],
+  "nativeToolWorkAccess": {
+    "smelt": {
+      "skill": {
+        "id": "procedure.metallurgy.smelt-bronze",
+        "version": "1.0.0",
+        "checksum": "e53fa21af6df635c154ab7922170117cb2ff9b422e3d6494aef4f087f3746d84"
+      },
+      "digest": "df36ce9272bf21dab136f9c9116dcac844da820c9dcffb7bc45d1dd2dd9aa105",
+      "facility": null
+    },
+    "repair": {
+      "skill": {
+        "id": "procedure.tools.repair-bronze-pickaxe",
+        "version": "1.0.0",
+        "checksum": "d37dc59296bc6b1f7fb0bfe50554b36a71ce9b9566c700b04220bb55328680df"
+      },
+      "digest": "fbcf86736e5bd822d6a5e77a15c9360b22854817154d1487b3b81184cbd9c6aa",
+      "facility": {
+        "providerId": "varrock.east-workshop.forge",
+        "grantId": "grant:fbcf86736e5bd822d6a5e77a15c9360b22854817154d1487b3b81184cbd9c6aa",
+        "sourceEvidenceDigest": "fbcf86736e5bd822d6a5e77a15c9360b22854817154d1487b3b81184cbd9c6aa"
+      }
+    }
+  },
+  "negativeChecks": [
+    {
+      "kind": "missing exact tin knowledge",
+      "error": "Error: Founder exact knowledge differs: sicourier"
+    },
+    {
+      "kind": "missing workshop entitlement",
+      "error": "Error: Founder work-surface grant differs"
+    },
+    {
+      "kind": "changed initial durability",
+      "error": "Error: Founder tool opening/provenance differs"
+    },
+    {
+      "kind": "changed native binding slot",
+      "error": "Error: Founder tool binding is outside its actual native inventory slot"
+    },
+    {
+      "kind": "rewritten setup receipt",
+      "error": "Error: Founder native setup receipt differs"
+    },
+    {
+      "kind": "changed packed location bytes",
+      "error": "Error: Founder packed housing source changed"
+    },
+    {
+      "kind": "fixture-bound baseline archive exclusion without manifest label",
+      "error": "Error: Reduced founder stage is ineligible for final baseline capture; create a complete-source run definition"
+    },
+    {
+      "kind": "fixture-bound result archive exclusion without manifest label",
+      "error": "Error: Reduced founder stage is ineligible for final result capture; create a complete-source run definition"
+    }
+  ],
+  "clock": {
+    "status": "paused",
+    "initialSimulationTime": "2001-01-01T00:00:00.000Z",
+    "clockId": "world",
+    "clockProfileDigest": "f19889e1720ef6ef21b2079cdc3147361449eb747046de5f0ba3c1829a56c7e7"
+  },
+  "liveRunStarted": false,
+  "selectedForC07Run": false,
+  "providerCalls": 0,
+  "providerCostMicros": 0,
+  "qualifiesMinimum": false,
+  "remaining": [
+    "Three paid tenant native route/rent/sleep proofs.",
+    "Native own-property free-slot admission and continued sleep observation for the fourth founder.",
+    "Prospective warmup and ratio validation; no automatic long-run authorization."
+  ],
+  "sourceProfile": "packed-founder-stage-v1",
+  "finalBaselineEligible": false,
+  "digest": "2357c5f0fdb6701501bf21e5c0eed9d1bbc580077fd8ad2093fbc98d4c4f341f"
+}

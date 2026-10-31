@@ -35,7 +35,7 @@ test('C07 preparation retains all17 minimum rules and fails closed on known unme
     expect(report.gates.find(g=>g.id==='tool-chain-baseline')?.status).toBe('blocked');
     expect(report.supplyEnvelope.optimisticNoBurnHeadroom).toBe(0);
     expect(report.commonFounderBaseline.status).toBe('definition-ready');expect(report.commonFounderBaseline.procedures.filter(p=>p.status==='unverified')).toHaveLength(0);
-    expect(report.commonFounderBaseline.installationImplemented).toBeFalse();
+    expect(report.commonFounderBaseline.installationImplemented).toBeTrue();
     expect(report.commonFounderBaseline.selectedWorldId).toBeNull();
     expect(report.readerCoverage.every(r=>r.verdict==='inconclusive'&&r.assessedValue===null)).toBeTrue();
 });

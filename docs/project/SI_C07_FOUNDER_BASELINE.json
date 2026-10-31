@@ -5,7 +5,7 @@
   "contractDigest": "d12d387d2cf06193378401dc22c5c6ee6ef27350388e047da044da36e3a5e84e",
   "status": "definition-ready",
   "definitionComplete": true,
-  "installationImplemented": false,
+  "installationImplemented": true,
   "selectedWorldId": null,
   "baselineDigest": null,
   "liveRunStarted": false,
@@ -675,8 +675,8 @@
   },
   "blockers": [],
   "limitations": [
-    "Specification only. Four actual packed bed anchors are proposed for a fresh configuration; no site overlay, verified promotion, applied genesis or runtime grant is fabricated.",
+    "Specification only. The separate new-stage installer can apply the proposed four packed slots, verified knowledge and genesis; this readonly report does not install or select a world.",
     "No frozen source selection, ratio validation, SI-A14, provider approval or actual minimum PASS follows from this candidate."
   ],
-  "digest": "ff6194c7a33ad362bf1045bec654d9f2d5234155e735616ac206c98a735d125e"
+  "digest": "214da76e4e218aca718d457c3d2659bc4a02ce542a2261905824620f2b1352ea"
 }

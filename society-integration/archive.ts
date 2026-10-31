@@ -75,7 +75,13 @@ async function copyWorkspaceSources(source: string, stage: string, files: Archiv
 }
 export async function createIntegrationWorkspace(options: WorkspaceOptions) { return createWorkspace(options, false); }
 export async function createFoodTrialWorkspace(options: WorkspaceOptions) { return createWorkspace(options, true); }
-async function createWorkspace(options: WorkspaceOptions, trial: boolean) {
+/** Normal verified genesis over reduced packed runtime inputs, for thin founder diagnostics only.
+ * It is explicitly barred from final baseline/result archiving below. */
+export async function createFounderStageWorkspace(options: WorkspaceOptions) {
+    check(options.fixture.founderBaseline,'Packed founder stage requires its exact founder definition');
+    return createWorkspace(options,false,true);
+}
+async function createWorkspace(options: WorkspaceOptions, trial: boolean, founderStage=false) {
     const root = resolve(options.sourceRoot), output = resolve(options.output), fixture = validateIntegrationFixture(options.fixture);
     check(!io.under(output, root) && (!io.under(root, output) || relative(root, output).replaceAll('\\', '/').startsWith('backups/')), 'Use an external output or backups/');
     io.ancestors(root); options.assertOffline(root);
@@ -83,7 +89,7 @@ async function createWorkspace(options: WorkspaceOptions, trial: boolean) {
     // Trials execute the already packed content. Raw content sources, documentation
     // and test suites are not runtime inputs; the integration baseline still keeps
     // the complete source inventory for later result restoration.
-    const sources = sourcePaths(root).filter(path => !trial || (!/^(?:docs|wiki|learnings|\.github|\.codex|\.gemini)\//.test(path)
+    const sources = sourcePaths(root).filter(path => !(trial||founderStage) || (!/^(?:docs|wiki|learnings|\.github|\.codex|\.gemini)\//.test(path)
         && (!path.startsWith('server/content/') || /^server\/content\/maps\/[^/]+\.csv$/.test(path))
         && !/(?:^|\/)(?:test|__tests__|integration-tests)\//.test(path) && !/\.test\.[cm]?[jt]sx?$/.test(path)));
     const paths = [...sources]; walk(root, 'server/engine/data/pack', paths);
@@ -112,6 +118,7 @@ async function createWorkspace(options: WorkspaceOptions, trial: boolean) {
             ...(runtimeMarker ? [runtimeMarker] : [])];
         const effective = records(stage, [...paths, ...generated, 'server/engine/data/config/world.json']);
         writeFileSync(join(stage, '.local/simulation/integration-source.json'), JSON.stringify({ schemaVersion: 1, sourceCommit: io.command(root, ['rev-parse', 'HEAD']).trim(),
+            ...founderStage?{sourceProfile:'packed-founder-stage-v1',finalBaselineEligible:false}:{},
             bunVersion: Bun.version, platform: process.platform, files: effective, sourceFiles: [...sources, ...generated], inputSourceDigest: digest(before), digest: digest(effective) }, null, 2) + '\n', { flag: 'wx' });
         io.publish(stage, output); options.progress?.('published'); return { workspace: join(output, 'workspace'), receipt };
     } catch (error) { if (existsSync(stage)) io.discard(stage, dirname(output)); throw error; }
@@ -136,6 +143,8 @@ export function captureIntegrationBaseline(rootInput: string, outputInput: strin
     io.ancestors(root); assertOffline(root);
     const baseline = readIntegrationBaseline(root, fixture); verifyNativeIntegrationSeal(root, fixture);
     const source = JSON.parse(readFileSync(join(root, '.local/simulation/integration-source.json'), 'utf8'));
+    check(!fixture.founderBaseline&&source.sourceProfile!=='packed-founder-stage-v1',
+        'Reduced founder stage is ineligible for final baseline capture; create a complete-source run definition');
     check(source.digest === digest(source.files), 'Bootstrap source manifest differs');
     check(digest(records(root, source.files.map((file: ArchiveFile) => file.path))) === digest(source.files), 'Source/config/cache changed since bootstrap');
     const before = inventory(root, source.files.map((file: ArchiveFile) => file.path)), stage = io.newStage(output);
@@ -218,8 +227,10 @@ export function captureIntegrationResult(rootInput: string, outputInput: string,
     const root = resolve(rootInput), output = resolve(outputInput);
     check(!io.under(root, output) && !io.under(output, root), 'Result output and workspace overlap');
     io.ancestors(root); assertOffline(root);
-    const result = readIntegrationResult(root, fixture);
     const source = JSON.parse(readFileSync(join(root, '.local/simulation/integration-source.json'), 'utf8'));
+    check(!fixture.founderBaseline&&source.sourceProfile!=='packed-founder-stage-v1',
+        'Reduced founder stage is ineligible for final result capture; create a complete-source run definition');
+    const result = readIntegrationResult(root, fixture);
     check(source.digest === digest(source.files), 'Bootstrap source manifest differs');
     const paths = source.files.map((file: ArchiveFile) => file.path);
     check(digest(records(root, paths)) === digest(source.files), 'Source/config/cache changed since bootstrap');

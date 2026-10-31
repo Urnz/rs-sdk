@@ -1,8 +1,9 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { cpSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join,dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { societyMinimumDigest as digest } from '../society-minimum/policy.js';
 import type { IntegrationFixture } from './fixture.js';
+import {inspectPackedFounderBeds} from '../society-experiments/packed-housing-sites.js';
 
 const marker = 'config/integration-sites-profile.json';
 const files = ['native-kitchen.json', 'native-housing.json', 'properties.json', 'facility-capabilities.json', 'business-work-policies.json', 'housing-units.json'];
@@ -21,7 +22,13 @@ export function stageIntegrationSites(root: string, fixture: IntegrationFixture)
             'server/engine/data/player-checkpoints.sqlite', marker].every(path => !existsSync(join(root, path))), 'Native site configuration requires a fresh unpublished stage');
     const profile = integrationSiteProfile(root, fixture.nativeSiteProfile), values = Object.fromEntries(files.map(name => [name, read(root, name)]));
     values['native-kitchen.json'].heat = profile.kitchen.heat;
-    values['native-housing.json'].beds = profile.housing.beds;
+    if(fixture.founderBaseline){
+        const packed=inspectPackedFounderBeds(root);
+        check(digest(packed)===fixture.founderBaseline.packedBedsDigest&&digest(packed.proposedBeds)===digest(fixture.founderBaseline.beds),
+            'Founder packed housing source or anchors changed');
+    }
+    const beds=fixture.founderBaseline?.beds??profile.housing.beds;
+    values['native-housing.json'].beds = beds;
     const property = values['properties.json'].properties.find((p: any) => p.propertyId === fixture.kitchen.propertyId);
     check(property, 'Kitchen Property is missing');
     property.location = profile.kitchen.propertyLocation; property.displayName = 'Karamjai konyha és raktár';
@@ -34,7 +41,8 @@ export function stageIntegrationSites(root: string, fixture: IntegrationFixture)
         policy.requiredSkill = { id: pin.id, version: pin.version };
     }
     const unit = values['housing-units.json'].units.find((u: any) => u.housingUnitId === 'falador.south-house.main');
-    unit.bedSlots = profile.housing.beds.map((b: any, i: number) => ({ bedSlotId: b.bedSlotId, label: `Ground-floor bed ${i + 1}` }));
+    if(fixture.founderBaseline)unit.capacity=beds.length;
+    unit.bedSlots = beds.map((b: any, i: number) => ({ bedSlotId: b.bedSlotId, label: `Ground-floor bed ${i + 1}` }));
     for (const [name, value] of Object.entries(values)) writeFileSync(join(root, 'config', name), JSON.stringify(value, null, 2) + '\n');
     writeFileSync(join(root, marker), JSON.stringify({ binding: fixture.nativeSiteProfile, fixtureDigest: fixture.digest,
         generated: files.map(name => ({ name, digest: digest(values[name]) })) }, null, 2) + '\n', { flag: 'wx' });
@@ -53,6 +61,13 @@ export function withIntegrationSites<T>(root: string, fixture: IntegrationFixtur
     try {
         cpSync(join(root, 'config'), join(temporary, 'config'), { recursive: true });
         cpSync(join(root, 'agent-skills/catalog'), join(temporary, 'agent-skills/catalog'), { recursive: true });
+        if(fixture.founderBaseline){
+            // Only the three packed source files needed for independent anchor validation.
+            for(const path of ['server/loc.dat','server/loc.idx','.cache/maps-server.zip']){
+                const destination=join(temporary,'server/engine/data/pack',path);
+                mkdirSync(dirname(destination),{recursive:true});copyFileSync(join(root,'server/engine/data/pack',path),destination);
+            }
+        }
         writeFileSync(join(temporary, '.integration-stage.json'), JSON.stringify({ fixtureDigest: fixture.digest }));
         stageIntegrationSites(temporary, fixture);
         return work(temporary);

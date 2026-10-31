@@ -7,6 +7,7 @@ import { check, inspectIntegrationReferences, validateIntegrationFixture, type I
 import { integrationPaths, INTEGRATION_STATE } from './bootstrap.js';
 import { readFoodLineage } from '../server/engine/src/mods/NativeFoodLineageStore.js';
 import { SocietyIntegrityStore } from '../society-integrity/store.js';
+import {verifyCommonFounderOpening} from './founder-state.js';
 
 const SEAL = '.local/simulation/integration-native-seal.json';
 function read<T>(root: string, path: string, work: (db: OwnedDatabase) => T): T {
@@ -95,10 +96,12 @@ export function validateNativeIntegrationBaseline(root: string, fixture: Integra
             return receipt.lifecycles.some((actor: any) => actor.agentId === state.binding.actorId && actor.needsDigest === state.state.digest && digest(actor.binding) === digest(state.binding))
                 && state.state.observedAtSimulationTime === fixture.clock.initialSimulationTime && state.state.values.every((v: any) => v.remainderNumerator === 0); }), 'Initial needs/lifecycle/remainder differs');
     });
-    return { receipt, paths: integrationPaths(root), native: nativeInventory(root) };
+    const founder=fixture.founderBaseline?verifyCommonFounderOpening(root,fixture,receipt):null;
+    return { receipt, paths: integrationPaths(root), native: nativeInventory(root),founder };
 }
 export function sealIntegrationBaseline(root: string, fixture: IntegrationFixture) {
-    const result = validateNativeIntegrationBaseline(root, fixture), body = { schemaVersion: 1, fixtureDigest: fixture.digest, receiptDigest: digest(result.receipt), native: result.native };
+    const result = validateNativeIntegrationBaseline(root, fixture), body = { schemaVersion: 1, fixtureDigest: fixture.digest, receiptDigest: digest(result.receipt), native: result.native,
+        ...fixture.founderBaseline?{founder:result.founder}:{} };
     check(digest(nativeInventory(root)) === digest(result.native), 'Native baseline changed while sealing');
     const seal = { ...body, digest: digest(body) }; writeFileSync(join(root, SEAL), JSON.stringify(seal, null, 2) + '\n', { flag: 'wx' }); return seal;
 }
@@ -107,5 +110,6 @@ export function verifyNativeIntegrationSeal(root: string, fixture: IntegrationFi
     check(body.schemaVersion === 1 && body.fixtureDigest === fixture.digest && digest(body) === hash, 'Native baseline seal differs');
     const result = validateNativeIntegrationBaseline(root, fixture);
     check(body.receiptDigest === digest(result.receipt), 'Native baseline receipt differs');
+    if(fixture.founderBaseline)check(digest(body.founder)===digest(result.founder),'Founder opening seal differs');
     check(digest(result.native) === digest(body.native), 'Native baseline changed since capture; no refill/replay is permitted'); return seal;
 }
