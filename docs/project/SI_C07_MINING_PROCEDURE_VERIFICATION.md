@@ -61,6 +61,8 @@ is sikeres. Két új, nem seedelt Mining1 run13,254s és11,130s alatt, ugyanazon
 owned instance100→99→98, két külön source-bound dispatch/fulfilled output;
 normál tartós review és readonly recheck PASS. Az exact60s draft publikálási
 javaslata a [közös előnézetben](SI_C07_FOUNDER_TRIAL_RESULT.json). Nem C07 warmup-credit.
+Az exact1.0.0 az explicit emberi jóváhagyás és ismételt readonly ellenőrzés után
+[publikált](SI_C07_FOUNDER_PUBLICATION_RESULT.json), a közös katalógusba is bekerült.
 
 ## Célzott ellenőrzés
 

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.metallurgy.smelt-bronze",
+  "version": "1.0.0",
+  "status": "verified",
+  "name": "Smelt one native bronze bar",
+  "description": "Walk to the existing Lumbridge furnace and turn one copper ore and one tin ore into one actual bronze bar using protected native work.",
+  "tags": [
+    "procedure",
+    "metallurgy",
+    "society",
+    "native"
+  ],
+  "provenance": {
+    "authorKind": "system",
+    "authorId": "deterministic-skill-verifier",
+    "createdAt": "2026-10-31T00:24:27.831Z",
+    "derivedFrom": {
+      "id": "procedure.metallurgy.smelt-bronze",
+      "version": "0.1.0"
+    },
+    "notes": "Automatically promoted from procedure.metallurgy.smelt-bronze@0.1.0; evidence runs: 9635fd97-02c2-4761-8d1a-40051058f4da, c378306f-ec55-4497-9095-4e4d22cd3b6f."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "parameters": {},
+  "limits": {
+    "timeoutMs": 120000,
+    "maxOperations": 2
+  },
+  "preconditions": [
+    {
+      "condition": "skill-level-at-least",
+      "arguments": {
+        "skill": "Smithing",
+        "level": 1
+      }
+    },
+    {
+      "condition": "inventory-contains",
+      "arguments": {
+        "name": "Copper ore",
+        "match": "exact",
+        "amount": 1
+      }
+    },
+    {
+      "condition": "inventory-contains",
+      "arguments": {
+        "name": "Tin ore",
+        "match": "exact",
+        "amount": 1
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "furnace",
+      "operation": "walk-to",
+      "arguments": {
+        "x": 3225,
+        "z": 3255,
+        "tolerance": 0
+      }
+    },
+    {
+      "kind": "operation",
+      "id": "smelt",
+      "operation": "tool-smelt-bronze",
+      "arguments": {
+        "timeoutMs": 60000
+      }
+    }
+  ]
+}

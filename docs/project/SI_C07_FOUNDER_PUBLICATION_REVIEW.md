@@ -1,6 +1,11 @@
 # SI-C07 – Három konkrét eljárás publikálási előnézete
 
-2026-10-31. **Jóváhagyásra kész, még nem publikált.**
+2026-10-31. **Mindhárom jóváhagyva és publikálva.**
+[Végrehajtási nyugta](SI_C07_FOUNDER_PUBLICATION_RESULT.json).
+A felhasználó válasza: „Jóváhagyom mindhárom publikálását”. A normál admin
+publish-handler mindhárom esetben201-et adott, a trialok published és a gapek
+verified állapotúak. A pontos definíciók a közös verziózott katalógusba kerültek.
+Az alábbi jóváhagyási előnézet és digestjei történeti, változatlan bizonyítékok.
 [Teljes definition, futás-/report-/approval-kötés](SI_C07_FOUNDER_TRIAL_RESULT.json),
 [mérés és hibajavítások](SI_C07_FOUNDER_TRIAL_STAGE.md).
 
@@ -38,8 +43,8 @@ A három külön approval digest:
 
 Teljes előnézet digest:
 `f9087161e5e7cb6d59bc152f296c0df5f9d281272c5dee5f28c6f5d6993e34a8`.
-Publikálás előtt ugyanazon F-világ exact forrásain új readonly ellenőrzés kell;
-változott run/report/definition vagy native effect új review-t igényel.
+Publikálás előtt ugyanazon F-világ exact forrásain új readonly ellenőrzés történt;
+változott run/report/definition vagy native effect továbbra új review-t igényel.
 
 ## Határ és külön jóváhagyás oka
 

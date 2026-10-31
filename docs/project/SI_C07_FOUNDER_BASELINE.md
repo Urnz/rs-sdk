@@ -1,13 +1,13 @@
 # SI-C07/3 – Közös founder-baseline: konkrét jelölt és nyitott feltételek
 
-2026-10-30. **A3. csomag elkezdve, nincs lezárva.** A2. implementációs csomag
+2026-10-31. **A3. csomag folyamatban, nincs lezárva.** A2. implementációs csomag
 [11/11 kész](SI_C07_NATIVE_AGGREGATE.md). A3–7. öt nagy csomag még megmaradt;
 27/45, SI-C07 nyitott, preflight NO-GO, SI-M3/MVS nem PASS.
 
 [Géppel olvasható jelölt](SI_C07_FOUNDER_BASELINE.json), előállító:
-`scripts/prepare-society-founder-baseline.ts`. A CLI a tényleges akadályok miatt
-exit2-vel tér vissza; ez nem futtatási vagy telepítési hiba elrejtése.
-`definitionComplete:false`, `installationImplemented:false`, world/baseline
+`scripts/prepare-society-founder-baseline.ts`. A három exact eljárás publikálása
+után a CLI exit0-val `definition-ready` specifikációt ad; ez nem futási engedély.
+`definitionComplete:true`, `installationImplemented:false`, world/baseline
 kijelölés null, provider-engedély0. A jelölt nem válik az1.3.0 fixture új,
 visszamenőlegesen értelmezett tartalmává.
 
@@ -15,7 +15,8 @@ visszamenőlegesen értelmezett tartalmává.
 [három publikálási előnézet](SI_C07_FOUNDER_TRIAL_RESULT.json) már elkészült,
 6 valódi útvonalas run +3 tartós review PASS. Ez külön declared trial opening;
 nem ennek a közös founder-jelöltnek a telepítése. A három exact1.0.0 emberi
-publikálása és a közös genesis/housing/knowledge/workshop alkalmazása még kell.
+jóváhagyása és [normál publikálása](SI_C07_FOUNDER_PUBLICATION_RESULT.json) megtörtént.
+A közös genesis/housing/knowledge/workshop alkalmazása még kell.
 
 ## A közös indulócsomag tartalma
 
@@ -111,8 +112,9 @@ run nem indul megkerülve ezt; SI-C08 sem indul.
   részben átfednek. Új CRC/truncation/traversal/missing-entry negatív próbák,
   a meglévő C07 preparer közvetlen fogyasztóval. Teljes regresszió nem futott.
 
-Nincs engedélyezett providerhasználat, live install/start/import/enrollment,
-skill promotion/publication, új applied baseline vagy történeti payload DB-read.
+A fenti korai ellenőrzéskor nem volt publication vagy live trial. Azóta a külön
+F-trial és a három konkrét emberi jóváhagyás/publikálás elkészült. Providerhasználat,
+új applied közös baseline vagy történeti payload DB-read továbbra nincs.
 
 - `20261030-150109-935-si-c07-final-types-and-consumers`:18 runtime PASS,
   wrapper a két külön collector-típushiba miatt FAIL; azok javítva.

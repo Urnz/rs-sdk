@@ -1,12 +1,13 @@
 # SI-C07 – Tartós founder-eljárás próbák és review
 
 2026-10-31. A3. közös baseline csomag része; a hét csomag és a P2-11/11
-lezárás változatlan. A három exact1.0.0 verzió még nem publikált.
+lezárás változatlan. A három exact1.0.0 verzió emberi jóváhagyás után
+[publikált](SI_C07_FOUNDER_PUBLICATION_RESULT.json), a közös katalógusban is elérhető.
 
 **A tényleges útvonalas folytatás is kész:** [külön F trial-stage](SI_C07_FOUNDER_TRIAL_STAGE.md),
 6 normál SDK/Lite/SkillExecutor run és3 normál tartós review PASS4perc7s alatt.
 [Publikálási előnézet](SI_C07_FOUNDER_TRIAL_RESULT.json): exact definition/run/report/
-approval digest, native effect és readonly újranyitás. Publication még nincs;
+approval digest, native effect és readonly újranyitás. A későbbi publication megtörtént;
 nem közös founder-baseline vagy SI-M3 minimum-bizonyíték. Az alábbi eredeti
 komponens-próba terve és diagnosztikája történeti bizonyíték marad.
 

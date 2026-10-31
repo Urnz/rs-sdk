@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "id": "procedure.tools.repair-bronze-pickaxe",
+  "version": "1.0.0",
+  "status": "verified",
+  "name": "Repair the existing native bronze pickaxe",
+  "description": "Use one actual bronze bar and 600 simulation seconds at the existing Varrock workshop to restore 50 service capacity to the owned broken instance.",
+  "tags": [
+    "procedure",
+    "repair",
+    "society",
+    "native"
+  ],
+  "provenance": {
+    "authorKind": "system",
+    "authorId": "deterministic-skill-verifier",
+    "createdAt": "2026-10-31T00:24:27.919Z",
+    "derivedFrom": {
+      "id": "procedure.tools.repair-bronze-pickaxe",
+      "version": "0.1.0"
+    },
+    "notes": "Automatically promoted from procedure.tools.repair-bronze-pickaxe@0.1.0; evidence runs: 3211a40f-f846-4c95-a89c-2765025c1797, cce07efc-39ca-4d10-8680-dae1757b2224."
+  },
+  "sharing": {
+    "visibility": "shared"
+  },
+  "parameters": {
+    "business-id": {
+      "type": "string",
+      "description": "The active workshop Business whose actual Property ownership and worker role authorize work-surface access.",
+      "required": true
+    }
+  },
+  "limits": {
+    "timeoutMs": 120000,
+    "maxOperations": 2
+  },
+  "preconditions": [
+    {
+      "condition": "skill-level-at-least",
+      "arguments": {
+        "skill": "Smithing",
+        "level": 1
+      }
+    },
+    {
+      "condition": "inventory-contains",
+      "arguments": {
+        "name": "Bronze bar",
+        "match": "exact",
+        "amount": 1
+      }
+    }
+  ],
+  "steps": [
+    {
+      "kind": "operation",
+      "id": "workshop",
+      "operation": "walk-to",
+      "arguments": {
+        "x": 3245,
+        "z": 3404,
+        "tolerance": 0
+      }
+    },
+    {
+      "kind": "operation",
+      "id": "repair",
+      "operation": "tool-repair",
+      "arguments": {
+        "businessId": {
+          "parameter": "business-id"
+        },
+        "timeoutMs": 60000
+      }
+    }
+  ]
+}

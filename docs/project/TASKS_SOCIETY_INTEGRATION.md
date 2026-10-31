@@ -1243,8 +1243,9 @@ run/admission/report/approval kötés, újranyitás és natív source-recheck; s
 valós Business/Property jogosultsággal. Ez a korábbi, kontrollált mozgású komponens-próba.
 **2026-10-31: a [külön natív trial-stage valódi útvonalas próbái](SI_C07_FOUNDER_TRIAL_STAGE.md)
 is elkészültek:6 normál SDK/Lite futás és3 tartós review PASS**, readonly újranyitással.
-[Konkrét publikálási csomag](SI_C07_FOUNDER_TRIAL_RESULT.json); három1.0.0
-emberi jóváhagyás/publikálás és a közös founder-stage még kell. Nem M3-warmup
+[Konkrét publikálási csomag](SI_C07_FOUNDER_TRIAL_RESULT.json); a három1.0.0
+emberi jóváhagyása és [normál publikálása](SI_C07_FOUNDER_PUBLICATION_RESULT.json)
+is kész, a közös katalógusban elérhetők. A közös founder-stage még kell. Nem M3-warmup
 vagy minimum-PASS; az eredeti alapítók/food/GP/minimum változatlan.
 Öt nagy csomag maradt; nincs új lezárási pont, live baseline vagy hosszú run.
 

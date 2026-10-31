@@ -19,11 +19,11 @@ Frissítve: 2026-10-31. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATI
 
 - [Baseline-jelölt](SI_C07_FOUNDER_BASELINE.md): ugyanaz a négy founder,
   eredeti food/GP/harvest, courier Mining/Smithing1, pickaxe/hammer és workshop-terv.
-  A közös founder-stage még nincs telepítve. Négy packed bed anchor megvan,
+  A specifikáció a publikálás után definition-ready; a közös founder-stage még nincs telepítve. Négy packed bed anchor megvan,
   four-slot overlay és mind4 founder valódi housing/sleep útja még kell.
 - [Normál prepare/run/review/inspect](SI_C07_PROCEDURE_REVIEW.md) kész;
   exact admission/draft-checksum/run/native effect és world kötés, readonly újranyitás,
-  külön emberi publication approval. A három szükséges1.0.0 még nem publikált.
+  külön emberi publication approval. A három szükséges1.0.0 már jóváhagyott és publikált.
 - **[Valódi külön native trial-stage és mért futások](SI_C07_FOUNDER_TRIAL_STAGE.md)**:
   új-only fixture/application, valódi packed furnace/anvil, workshop/worker/property,
   natív tool opening, saját loopback engine/gateway/Lite, normál SDK/SkillExecutor.
@@ -46,19 +46,21 @@ Frissítve: 2026-10-31. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATI
   Workspace `backups/si-c07-founder-trials-20261031-f/workspace`, paused/stopped.
   Tin13,254/11,130s, smelt40,159/1,938s, repair55,166/2,918s; teljes kör247,132s.
   Két mined, két smelted, két repaired effect; ugyanazon tool használható durability50/revision7.
-  Az1.0.0-k publikálása külön emberi approvalra vár. A háttér poison-timer
+  Az1.0.0-kat a felhasználó külön jóváhagyta: „Jóváhagyom mindhárom publikálását”.
+  [Publikálási nyugta](SI_C07_FOUNDER_PUBLICATION_RESULT.json):három normál admin201,
+  FileSkillStore shared save, published trial/verified gap és azonos közös katalógusbejegyzés.
+  Az eredeti előnézet/hat run/forrás és a natív DB SHA változatlan. A háttér poison-timer
   meglévő work-lock guardon történt elutasítása az előnézetben megőrzött.
   A repair trialhoz külön deklarált sérült saját tool kell, nem Mining/warmup-credit.
   Minden trial `qualifiesMinimum:false`; a valódi warmup51+ native use későbbi feltétel.
 
 ## Következő konkrét munka
 
-Külön emberi jóváhagyás a három konkrét1.0.0 javaslatra; az előnézetben teljes
-definition, exact hat run/report/approval digest van. Publication előtt normál
-readonly `readSkillTrialReview` ugyanazon F-forrásokkal. A sikertelen világok
-és az E-WIP megmaradnak; nincs source-átírás vagy régi run átminősítés.
-Csak ezután közös founder-stage/genesis,4-slot overlay, exact verified knowledge,
-worker grantok, native tool opening és mind4 housing/sleep. Az eredeti3. csomag
+**Közös founder-stage alkalmazója és vékony natív ellenőrzése:** közös genesis,
+4-slot overlay, az immár publikált exact verified knowledge, worker grantok,
+native tool opening és mind4 housing/sleep. Publication újraengedélyezése nem kell:
+a három exact előnézet jóváhagyása és végrehajtása kész. A sikertelen világok és
+az E-WIP megmaradnak; nincs source-átírás vagy régi run átminősítés. Az eredeti3. csomag
 feltételei; nem új P2-lista. A4. ratio-próba és a hosszú C07 run még nem indul.
 
 ## Aktuális ellenőrzési bizonyíték
@@ -92,6 +94,16 @@ A teljes történet és korábbi FAIL-ek a trial-dokuban; logok `.local/verifica
 - `013242-366` source/preflight frissítés PASS1,260s; `013425-904`
   végső staged review PASS1,504s:három exact proposal/report, hat változatlan run,
   aktuális native DB SHA, előnézet-digest és minden helyi link/formázás egyezik.
+- Jóváhagyás utáni offline/exact review `20261031-013919-506` PASS2,901s;
+  normál publikálás `013953-522` PASS1,235s:három admin201 és azonos catalog-export,
+  native DB változatlan,0 világindítás/0 provider. Nem ismételtük a6 élő futást.
+- `014110-017-si-c07-p3-published-procedure-consumers`:11 közvetlen teszt és root TS
+  PASS23,960s. Hiányzó publikált verziókkal a draft negatív próbája megmaradt;
+  definition-ready nem install/run authority. Engine-kód nem változott, nem ismétlődött.
+- `014358-451` publication artifact/hash/link/formázás PASS2,105s;
+  `014519-440` tényleges readback PASS0,773s:három exact FileSkillStore/catalog
+  definition, published trial/verified gap, egy-egy publish audit, érvényes lánc,
+  unchanged native DB SHA és paused clock. A nyugta audit-entry/head hasheket is őriz.
 - Nem full regresszió: owned trial/bootstrap/SDK/native Mining és tool gateway
   fogyasztók. Nincs új közös persistence/transaction/clock/economic alap vagy
   globális authorization-változás. Full csak a verification policy konkrét okaival.
@@ -107,7 +119,8 @@ A teljes történet és korábbi FAIL-ek a trial-dokuban; logok `.local/verifica
 - `requiredSourceInventory.selectedSources=null`, nincs C07 world/pin; offline init kell.
   Nincs historical backfill/evidence-törlés. Régi binárissal strict run nem folytatható.
 - Csak helyi/private LostCity. A saját eldobható trial start/install engedélyezett;
-  nincs valódi közös baseline, publication, hosszú run vagy providerhívás jóváhagyva.
+  a három konkrét1.0.0 publication jóváhagyva/végrehajtva; nincs valódi közös
+  baseline alkalmazva, hosszú run vagy providerhívás jóváhagyva.
   Ismert NO-GO-ra ne kérj hosszú futási jóváhagyást. SI-C08 nem indul.
   Admin korábbi címe `http://127.0.0.1:7781/admin/`.
 - B06 korábbi0,05USD engedélye nem öröklődik; most0 API-kérés/0 költség.

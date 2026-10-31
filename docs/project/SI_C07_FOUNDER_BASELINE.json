@@ -3,8 +3,8 @@
   "protocol": "si-c07-common-founder-baseline-v1",
   "fixtureDigest": "2094c0b60bd99c4a416fb6e85d3f84d6bd7c1621cdc75a6ef1c6090050c1a92e",
   "contractDigest": "d12d387d2cf06193378401dc22c5c6ee6ef27350388e047da044da36e3a5e84e",
-  "status": "no-go",
-  "definitionComplete": false,
+  "status": "definition-ready",
+  "definitionComplete": true,
   "installationImplemented": false,
   "selectedWorldId": null,
   "baselineDigest": null,
@@ -241,28 +241,37 @@
       "id": "procedure.mining.gather-tin",
       "version": "1.0.0",
       "draftVersion": "0.1.0",
-      "reviewed": null,
-      "sourcePath": "agent-skills/catalog/procedure.mining.gather-tin@0.1.0.skill.json",
-      "candidateDefinitionDigest": "3bcb4d605092acaaf64c4ee26629e751d64ced0baa55ab3b2c15ab50df69129c",
-      "status": "unverified"
+      "reviewed": {
+        "checksum": "7412448a26d0028755a4ec879a540a6b58bd018ae66503568daf381924d90797",
+        "definitionDigest": "88d5712796100fd0329854a933fd50b06414726ecb2a4a6435900bcc72079d50"
+      },
+      "sourcePath": "agent-skills/catalog/procedure.mining.gather-tin@1.0.0.skill.json",
+      "candidateDefinitionDigest": "88d5712796100fd0329854a933fd50b06414726ecb2a4a6435900bcc72079d50",
+      "status": "verified"
     },
     {
       "id": "procedure.metallurgy.smelt-bronze",
       "version": "1.0.0",
       "draftVersion": "0.1.0",
-      "reviewed": null,
-      "sourcePath": "agent-skills/catalog/procedure.metallurgy.smelt-bronze@0.1.0.skill.json",
-      "candidateDefinitionDigest": "1a458c99d378c7b5c7179f68c2924212df5772759024c6e851c656ab4a599790",
-      "status": "unverified"
+      "reviewed": {
+        "checksum": "e53fa21af6df635c154ab7922170117cb2ff9b422e3d6494aef4f087f3746d84",
+        "definitionDigest": "0d446b8aa50cd2d20a0c7a6fe47903244f02eeaa838c4b7149c8a5dffc6e66e6"
+      },
+      "sourcePath": "agent-skills/catalog/procedure.metallurgy.smelt-bronze@1.0.0.skill.json",
+      "candidateDefinitionDigest": "0d446b8aa50cd2d20a0c7a6fe47903244f02eeaa838c4b7149c8a5dffc6e66e6",
+      "status": "verified"
     },
     {
       "id": "procedure.tools.repair-bronze-pickaxe",
       "version": "1.0.0",
       "draftVersion": "0.1.0",
-      "reviewed": null,
-      "sourcePath": "agent-skills/catalog/procedure.tools.repair-bronze-pickaxe@0.1.0.skill.json",
-      "candidateDefinitionDigest": "f36ab4d87536c4806dcb836eef3b9594c41c8923eac66fc7d66b025c8dcb8e61",
-      "status": "unverified"
+      "reviewed": {
+        "checksum": "d37dc59296bc6b1f7fb0bfe50554b36a71ce9b9566c700b04220bb55328680df",
+        "definitionDigest": "da57de9e8a0b99356196938b06f99c5d451c94843d72198b6de02cfdaab8f304"
+      },
+      "sourcePath": "agent-skills/catalog/procedure.tools.repair-bronze-pickaxe@1.0.0.skill.json",
+      "candidateDefinitionDigest": "da57de9e8a0b99356196938b06f99c5d451c94843d72198b6de02cfdaab8f304",
+      "status": "verified"
     }
   ],
   "genesis": {
@@ -664,23 +673,10 @@
     "optimisticNoBurnHeadroom": 0,
     "measured": false
   },
-  "blockers": [
-    {
-      "id": "procedure:procedure.mining.gather-tin",
-      "reason": "Reviewed shared 1.0.0 is absent; 0.1.0 draft cannot grant runtime access."
-    },
-    {
-      "id": "procedure:procedure.metallurgy.smelt-bronze",
-      "reason": "Reviewed shared 1.0.0 is absent; 0.1.0 draft cannot grant runtime access."
-    },
-    {
-      "id": "procedure:procedure.tools.repair-bronze-pickaxe",
-      "reason": "Reviewed shared 1.0.0 is absent; 0.1.0 draft cannot grant runtime access."
-    }
-  ],
+  "blockers": [],
   "limitations": [
     "Specification only. Four actual packed bed anchors are proposed for a fresh configuration; no site overlay, verified promotion, applied genesis or runtime grant is fabricated.",
     "No frozen source selection, ratio validation, SI-A14, provider approval or actual minimum PASS follows from this candidate."
   ],
-  "digest": "2c9318ea34281d66ed2e1d095b4e987e5bb8164edcc498df9c098b23f5058ec5"
+  "digest": "ff6194c7a33ad362bf1045bec654d9f2d5234155e735616ac206c98a735d125e"
 }

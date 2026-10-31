@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "protocol": "si-c07-approved-founder-publication-v1",
+  "status": "published",
+  "startedAt": "2026-10-31T00:39:54.364Z",
+  "authorization": {
+    "kind": "explicit-user-approval",
+    "text": "Jóváhagyom mindhárom publikálását",
+    "approvedPreviewDigest": "f9087161e5e7cb6d59bc152f296c0df5f9d281272c5dee5f28c6f5d6993e34a8"
+  },
+  "workspace": "backups/si-c07-founder-trials-20261031-f/workspace",
+  "worldId": "srv-3b761d1b-fa31-4ba5-83b4-1227d714da44",
+  "providerCalls": 0,
+  "providerCostMicros": 0,
+  "worldStarted": false,
+  "qualifiesMinimum": false,
+  "nativeDatabaseSha256": "c35ee3b4373489d2fbe7c06779e719c08ba6f435b6511a1d1e82a093e2d54910",
+  "publications": [
+    {
+      "id": "procedure.mining.gather-tin",
+      "version": "1.0.0",
+      "status": "verified",
+      "trialId": "b59b6281-9cf4-4bc3-9975-a62015d46bca",
+      "reportId": "97a2c739-df84-43e2-9679-f92ebe5aac67",
+      "approvalDigest": "0462da0261481dec23b82781968c54456742812166400ffceb5138e97068423a",
+      "gapId": "gap-a13132fb041060a5c205",
+      "gapStatus": "verified",
+      "httpStatus": 201,
+      "publishedPath": "backups/si-c07-founder-trials-20261031-f/workspace/.local/agent-skills/shared/procedure.mining.gather-tin@1.0.0.skill.json",
+      "definitionSha256": "94dc99bacd553a43a1b6b715b2124a2aa6fb6d524787bf066bcbe7adfd0c97c2",
+      "catalogPath": "agent-skills/catalog/procedure.mining.gather-tin@1.0.0.skill.json"
+    },
+    {
+      "id": "procedure.metallurgy.smelt-bronze",
+      "version": "1.0.0",
+      "status": "verified",
+      "trialId": "f9d7d2d1-69c8-4e97-84ea-c9a8ed8608ee",
+      "reportId": "185de12d-7205-4f8a-8aa4-11b1f81c0b0e",
+      "approvalDigest": "247db3233a541d3b98556af6b8eb472ae386201a5fb658c360b622f94ad75551",
+      "gapId": "gap-2f5d7f52a80741462674",
+      "gapStatus": "verified",
+      "httpStatus": 201,
+      "publishedPath": "backups/si-c07-founder-trials-20261031-f/workspace/.local/agent-skills/shared/procedure.metallurgy.smelt-bronze@1.0.0.skill.json",
+      "definitionSha256": "71f0c6f62c1fdef593be9e091f7d66f41e06890d7238a55543335e42d861a6a5",
+      "catalogPath": "agent-skills/catalog/procedure.metallurgy.smelt-bronze@1.0.0.skill.json"
+    },
+    {
+      "id": "procedure.tools.repair-bronze-pickaxe",
+      "version": "1.0.0",
+      "status": "verified",
+      "trialId": "4be90f6d-9f87-449e-a5f2-f316d0216f63",
+      "reportId": "afdef66b-96c3-41af-9178-a976ba9415d8",
+      "approvalDigest": "50de1f8dce545cd76312eab29fa7078859cce86f3157b5822de6f77cfefbc792",
+      "gapId": "gap-1370fb0e60fb5693e053",
+      "gapStatus": "verified",
+      "httpStatus": 201,
+      "publishedPath": "backups/si-c07-founder-trials-20261031-f/workspace/.local/agent-skills/shared/procedure.tools.repair-bronze-pickaxe@1.0.0.skill.json",
+      "definitionSha256": "fb01bd578a77a2ed440c9a3db4a6dbbd9d5cc2113c82c7efba94501ad7d7d821",
+      "catalogPath": "agent-skills/catalog/procedure.tools.repair-bronze-pickaxe@1.0.0.skill.json"
+    }
+  ],
+  "finishedAt": "2026-10-31T00:39:54.679Z",
+  "nativeDatabaseUnchanged": true,
+  "audit": {
+    "valid": true,
+    "totalEntries": 3,
+    "headHash": "83d18e869166ae6903550b8b13ca424dec93dd882cfbf961ba027097ec86d2bc",
+    "publicationEntries": [
+      {
+        "trialId": "b59b6281-9cf4-4bc3-9975-a62015d46bca",
+        "auditId": "a186bd64-d106-4b0c-b3d7-34cccf573da7",
+        "entryHash": "ff467553a0e0876576420c3a636ff53ade50201f997323d516b8d020aa5baf5b"
+      },
+      {
+        "trialId": "f9d7d2d1-69c8-4e97-84ea-c9a8ed8608ee",
+        "auditId": "c5373ade-bbc7-4a2e-b749-2edea7b3bc5e",
+        "entryHash": "c55959ba7467782af33575e343482d9b17db5deae7123e79ec2bfcf3ac5c590c"
+      },
+      {
+        "trialId": "4be90f6d-9f87-449e-a5f2-f316d0216f63",
+        "auditId": "588535aa-20ba-447e-a77e-8832205d7c60",
+        "entryHash": "83d18e869166ae6903550b8b13ca424dec93dd882cfbf961ba027097ec86d2bc"
+      }
+    ]
+  },
+  "digest": "237d842b88129d2277bd8e55a1f6ca069584e4bd4d468a5b24b28d83ec20cce4"
+}

@@ -29,8 +29,9 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    és a [három eljárás tartós normál trial/review útja](SI_C07_PROCEDURE_REVIEW.md)
    elkészült. A [külön trial-stage valódi útvonalas próbái](SI_C07_FOUNDER_TRIAL_STAGE.md)
    is készek:6 tényleges run +3 tartós review, readonly recheck PASS.
-   [A három konkrét1.0.0 javaslat](SI_C07_FOUNDER_TRIAL_RESULT.json) emberi publikálása
-   és a közös founder-stage még kell. Ez eljárásbizonyíték, nem C07 warmup/minimum.
+   [A három konkrét1.0.0 eljárás](SI_C07_FOUNDER_PUBLICATION_RESULT.json) emberi
+   jóváhagyása és publikálása kész; közös katalógusban elérhetők. A közös founder-stage
+   alkalmazása még kell. Ez eljárásbizonyíték, nem C07 warmup/minimum.
 4. **Natív időarány-validálás.** A választott clock-ratio összevetése a content
    tickkel, travel/harvest/work credit és tényleges meal/needs ritmussal.
    A 288:1 nem tekinthető már validált M3-aránynak.

@@ -1,5 +1,9 @@
 # SI-C07 – Külön natív eljárás-trial világ
 
+**Aktuális,2026-10-31:** a három1.0.0 felhasználói jóváhagyás után
+[publikálva](SI_C07_FOUNDER_PUBLICATION_RESULT.json), a közös katalógusban elérhető.
+Az alábbi próbaterv és jóváhagyás előtti állapotok történeti bizonyítékok.
+
 2026-10-30. A 3. baseline-csomag meglévő feltételének végrehajtása:
 valódi útvonalas trial a már kész normál prepare/run/review/inspect úton.
 
@@ -199,7 +203,7 @@ A két további, szűken reprodukált javítás:
   29 natív eset +3 wrapper PASS17,939s; same-tick/cancel/expiry/cohort/source,
   legacy native tool/custody/trade/replay fogyasztók is.
 
-**A következő lépés konkrét emberi publication-approval** a három1.0.0 javaslatra.
+**A trial lezárásakor a következő lépés konkrét emberi publication-approval volt** a három1.0.0 javaslatra.
 A meglévő [admin-kapu](../../server/gateway/admin/routes.ts) követelménye:
 „A publikáláshoz külön emberi jóváhagyás szükséges.” Ez az alkalmazás explicit
 követelménye; a fejlesztési skill nem adott általános publication-jogot.
@@ -221,3 +225,34 @@ PASS5,486s. **Nincs teljes regresszió:** az owned trial/bootstrap, SDK Mining,
 exact native continuation és tool gateway módosult; közös adatbázisséma,
 transaction/clock/economic alap vagy globális role/auth szabály nem változott.
 A közvetlen fogyasztók és natív határok külön lefedettek.
+
+## Jóváhagyás és tényleges publication
+
+A felhasználó válasza2026-10-31: **„Jóváhagyom mindhárom publikálását”.**
+Az engedély az eredeti `f9087161e5e7cb6d59bc152f296c0df5f9d281272c5dee5f28c6f5d6993e34a8`
+előnézet három exact approval digestjére szólt; a történeti előnézet nem lett átírva.
+
+Offline F-világ és új readonly review: `20261031-013919-506` PASS2,901s.
+Ezután a meglévő F admin `POST /api/admin/skill-trials/:id/publish` handlerje
+mindhárom approval digest +`confirmHumanApproval:true` mellett201-et adott:
+`013953-522-si-c07-p3-approved-publication` PASS1,235s. Normál FileSkillStore
+shared save, published trial, verified gap és három `skill-trial.publish` audit.
+Az exact kiírt definíciók a közös verziózott `agent-skills/catalog/` alá kerültek.
+[Teljes végrehajtási nyugta](SI_C07_FOUNDER_PUBLICATION_RESULT.json).
+
+Nem volt új világindítás, providerhívás, új run vagy native SQLite módosítás;
+a canonical native DB SHA a jóváhagyott előnézettel azonos. Az E paused WIP-je
+és az összes korábbi sikertelen bizonyíték megmaradt.
+
+A közös jelölt most `definition-ready`, definitionComplete true,0 procedure blocker;
+installationImplemented false, selectedWorldId/baselineDigest null. A teljes C07
+preflight továbbra NO-GO. `014110-017`:11 közvetlen baseline/preflight teszt és root TS
+PASS23,960s; draft-only katalógus másolatán a negatív kapu változatlanul zár.
+Nem teljes regresszió, nem új engine-ellenőrzés; termékkód vagy közös séma nem változott.
+
+Post-publication readback `014519-440` PASS0,773s: az összes approved/published/
+catalog definition azonos, három published trial/verified gap és egy-egy normál
+publish audit van. A teljes auditlánc valid; entry/head hashek a nyugtában.
+Az eredeti előnézet és hat run/report változatlan, native DB SHA azonos, clock paused.
+`014358-451`:friss definition-ready/specifikáció és teljes NO-GO preflight,
+eredeti policy/P2/source SHA, link/formázás PASS2,105s.
