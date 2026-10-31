@@ -1265,6 +1265,15 @@ négy nagy csomag maradt,4–7; következő a4. natív ratio-validálás.** A k�
 diagnosztikai1.4.0 E-világ nem final baseline, nincs51 warmup-use vagy
 minimum-credit.27/45, C07 NO-GO, SI-M3/MVS nem PASS; hosszú run nem indult.
 
+**A4. csomag első natív időarány-kalibrációja elkészült:** [readonly mérés és korlátok](SI_C07_RATIO_CALIBRATION.md),
+[gépi eredmény](SI_C07_RATIO_CALIBRATION_RESULT.json). Megőrzött E/F adatból
+4 sleep,3 published travel,2 actual Mining-output és4 completed work;
+source/clock/instance/audit kötés, DB+WAL readonly azonosság. A288 clock igazolt,
+a content ütem külön mért;51×Mining-átlag573597ms az ötperces naphoz képest csak
+projekció, nem51-use vagy ratio-PASS. Preflightba bekötött incomplete/stale/
+missing/profile-mismatch. Következő actual51 warmup, majd food/meal és közös
+needs/rest/work ütem; a4. nyitott, négy nagy csomag maradt,27/45, NO-GO.
+
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.
 - **Meglévő:** a 24.1 minimum policy egy nap warmup + hét nap evaluation,

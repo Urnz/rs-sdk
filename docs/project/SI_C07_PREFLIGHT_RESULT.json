@@ -21,6 +21,20 @@
     "unchanged-clock-and-world-policy",
     "verified-internal-lineage-and-final-use"
   ],
+  "clockRatioCalibration": {
+    "status": "incomplete",
+    "digest": "a28be2be8e32d7db19780c5b129337c9d8d60ed5db4810c133fa9aa733da29a1",
+    "readyForRunApproval": false,
+    "dayWallMs": 300000,
+    "nativeMiningSamples": 2,
+    "nativeWorkSamples": 4,
+    "projectedWarmupWallMs": 573597,
+    "remainingEvidence": [
+      "actual-51-use-warmup-from-original-opening",
+      "native-food-harvest-cook-meal-timing",
+      "combined-needs-rest-work-credit-schedule"
+    ]
+  },
   "candidate": {
     "warmupSimulationMs": 86400000,
     "evaluationSimulationMs": 604800000,
@@ -1875,12 +1889,12 @@
     {
       "id": "legal-housing-exposure",
       "status": "unverified",
-      "reason": "Frozen exact-clock points bound legal housing time with ownership versions and audited paid/owner bed capacity. The native own-property sleep and continuous observer are implemented; three actual paid tenant routes/sleeps, the actual founder owner route/sleep and complete pinned history are still required. Four configured packed slots alone cannot attest95% access."
+      "reason": "Frozen exact-clock points bound legal housing time with ownership versions and audited paid/owner bed capacity. The separate four-founder SDK/Lite route/rent/sleep diagnostic is complete. No final C07 world or full1+7 access history is selected; the short diagnostic does not attest95% legal access."
     },
     {
       "id": "clock-ratio",
       "status": "blocked",
-      "reason": "Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse."
+      "reason": "Native ratio calibration incomplete; partial timing or a51-use extrapolation cannot validate the original warmup, food/meal and needs/rest/work schedule."
     },
     {
       "id": "selected-baseline",
@@ -2748,6 +2762,14 @@
       "sha256": "f7d433083c31c21de04b3593ea0ad8ad1a1ae0727db60227171b41354d76813c"
     },
     {
+      "path": "society-experiments/ratio-calibration.ts",
+      "sha256": "6ce0eaef866dc9a3fd145cae892336420ccc220e8149ecc4d7d2631832267368"
+    },
+    {
+      "path": "scripts/calibrate-society-ratio.ts",
+      "sha256": "745e4019183e1b531d470b0dec94dd45b780463048321235fd7c16567c431581"
+    },
+    {
       "path": "scripts/run-founder-housing.ts",
       "sha256": "cb4fa37f048e6f20e12d744a8c301ba58ecc0b58cdf7380b2eacd2d317413d9e"
     },
@@ -2825,7 +2847,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "325816c9482b6119106772cfc93657b14c483a1fe909c7df4469a75f87dedfd6"
+      "sha256": "975812659aebb01021f5841cd2feeae3c9c04af130195066510fb78e071eeb9d"
     },
     {
       "path": "society-experiments/founder-baseline.ts",
@@ -2882,5 +2904,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "7b1174b740eb45d1f0ac88cb1b52d9b495f5fe7da54710065e458eeb0dd5d0c2"
+  "digest": "1d399858befa2fedc4f2dab9eebdfa11544cbf3904a3e8dd27ad3f11aaf5a9b9"
 }

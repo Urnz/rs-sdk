@@ -38,12 +38,20 @@ Frissítve: 2026-10-31. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATI
 
 ## Következő konkrét munka: a4. natív ratio-validálás
 
-Új kérésre rövid, konkrét terv a288:1 simulation-clock és a változatlan content
-Tick/utazás/Mining/harvest/cooking/meal/needs/work-credit ütemek összevetésére.
-A baseline-jelöltben leírt51 tényleges warmup tool-use-hoz és a későbbi belső
-Mining→smelt→repair→reuse lánchoz mérhető időkeret kell. Ne kezdd rögtön hosszú
-C07 gazdasági futással. Használd a meglévő megfelelő saját stage-et szűk
-olvasási/diagnosztikai célra; source-bound futáshoz új, aktuális frozen stage kell.
+**[Első natív kalibráció kész](SI_C07_RATIO_CALIBRATION.md), a4. még nyitott.**
+[Readonly gépi eredmény](SI_C07_RATIO_CALIBRATION_RESULT.json): az E/F megőrzött
+stage-ekből4 sleep/3 travel/2 Mining/4 work; pontos288 clock, E alatt562,481ms/tick.
+Mining12223/10271ms;51×átlag573597ms az ötperces naphoz képest, de ez csak
+projekció, nem tényleges51-use és nem bizonyított lehetetlenség. A smelt3 tickes
+alsó korlátja/120000 credited simulation-ms és a repair6 tick/600000ms külön mért.
+Preflightba bekötve: incomplete/stale/missing/profile-mismatch nem ad engedélyt.
+
+Következő a teljes51-use normál SDK/executor warmup az eredeti courier-helyről,
+konkrét inventory/bank és needs/rest tervvel, az actual native output/instance/
+clock/kopás megőrzésével. Külön számold a300s eredeti warmup-ablakot és az azon
+túli mintavételt; nincs kézi damage vagy deadline-eltolás. További két mért határ:
+food harvest/cook/meal; összeálló needs/rest/work-credit ütem. Nincs új P2-lista.
+Ne kezdd hosszú C07 runnal; source-bound élő méréshez új frozen stage kell.
 Maxwall/stop/hipotézis és olcsó előfeltétel előzze meg a natív kört. Provider off.
 Az eredeti minimum17/8, névsor, tartalékok és opening nem lazítható a ratio miatt.
 A végső teljes-source baseline kiválasztása, SI-A14 és konkrét futási jóváhagyás
@@ -82,6 +90,13 @@ az5. csomag.6: külön jóváhagyott1+7 run;7: archiválás/restore/értékelés
 - `132355-182`:artifact/policy/link/formázás PASS3,030s:244 aktuális source SHA,
   baseline/preflight egyezés, eredeti policy/P2 és236 helyi link. A régi sealed
   common opening26 natív fájlja és exact derived fixture változatlan.
+- Ratio collector/pure számítás/preflight: a [kalibrációs dokumentumban](SI_C07_RATIO_CALIBRATION.md)
+  vannak a friss ellenőrzések és a marker/köztes-artifact toolinghibák. Csak
+  readonly meglévő E/F, új world/provider nincs; a4. nem kapott hamis PASS-t.
+  `135503-484`:két független native readback,6 célzott teszt és root/CLI TS
+  PASS21,164s. Ratio-result `a28be2be8e32d7db19780c5b129337c9d8d60ed5db4810c133fa9aa733da29a1`.
+  `135824-346`:artifact/link/policy/formázás PASS3,179s,246 source SHA,
+  egyező NO-GO és változatlan korábbi common opening26 natív fájl.
 - Minimum/policy SHA változatlan:
   `596720f42dd059b713ce0d075b08b9655d25413fdf7b31a8db1a86f3afa6754a`.
   Food32 harvest+4 opening, optimista36;32 consumption+4 reserve,0 headroom.

@@ -1,4 +1,5 @@
 import {inspectCommonFounderBaseline} from './founder-baseline.js';
+import {readRatioCalibrationSummary} from './ratio-calibration.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -19,7 +20,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     validateIntegrationFixture(fixture);
     const contract=loadSocietyMinimumContract(join(root,'config')),p=contract.policy;
     const survival=fixture.survival?compileSurvivalProfile(JSON.parse(readFileSync(join(root,'config/survival-rules.json'),'utf8')),fixture.survival.mode,fixture.seed):null;
-    const definition=await preflightIntegrationDefinition(root,fixture),commonFounderBaseline=await inspectCommonFounderBaseline(root,fixture);
+    const definition=await preflightIntegrationDefinition(root,fixture),commonFounderBaseline=await inspectCommonFounderBaseline(root,fixture),clockRatioCalibration=readRatioCalibrationSummary(root,fixture.clock.profile.rate);
     const rate=fixture.clock.profile.rate,simulationMs=p.window.warmupSimulationMilliseconds+p.window.evaluationSimulationMilliseconds;
     const nominalWallMs=Number((BigInt(simulationMs)*BigInt(rate.wallMilliseconds)+BigInt(rate.simulationMilliseconds)-1n)/BigInt(rate.simulationMilliseconds));
     const maximumSampleWallMs=Math.floor(p.window.maximumTraceGapSimulationMilliseconds*rate.wallMilliseconds/rate.simulationMilliseconds);
@@ -50,8 +51,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         {id:'tool-chain-baseline',status:toolSkills.length?'unverified':'blocked',reason:`Common founder specification ${commonFounderBaseline.digest}: ${commonFounderBaseline.blockers.map(b=>b.id).join(', ')}; the separate diagnostic-stage installer is implemented, but this readonly report selects no C07 world. Actual warmup, internal maintenance/reuse and final-source binding remain unproved.`},
         {id:'minimum-assessor',status:'passed',reason:'The original1+7 native component-producer fixture jointly passes all17 numeric rules, eight integrity gates and16 source families. Missing sources and publisher faults remain unknown, independent native numeric FAIL persists, and frozen readonly replay is identical. This certifies assessor capability, not an actual C07 economic run.'},
         {id:'tool-unusable-demand-coverage',status:'blocked',reason:'Prospective executor request lifetimes and native watermarks include verified online housing sleep without deducting its time. No C07 producer/source/full window is pinned; legacy, offline/terminal/unproved restriction and source gaps remain incomplete. An empty source cannot yield zero-opportunity PASS.'},
-        {id:'legal-housing-exposure',status:'unverified',reason:'Frozen exact-clock points bound legal housing time with ownership versions and audited paid/owner bed capacity. The native own-property sleep and continuous observer are implemented; three actual paid tenant routes/sleeps, the actual founder owner route/sleep and complete pinned history are still required. Four configured packed slots alone cannot attest95% access.'},
-        {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:'Accelerated needs exposure must be validated against actual content ticks, work credit, travel, harvest and meal timing before reuse.'},
+        {id:'legal-housing-exposure',status:'unverified',reason:'Frozen exact-clock points bound legal housing time with ownership versions and audited paid/owner bed capacity. The separate four-founder SDK/Lite route/rent/sleep diagnostic is complete. No final C07 world or full1+7 access history is selected; the short diagnostic does not attest95% legal access.'},
+        {id:'clock-ratio',status:rate.simulationMilliseconds===rate.wallMilliseconds?'unverified':'blocked',reason:`Native ratio calibration ${clockRatioCalibration.status}; partial timing or a51-use extrapolation cannot validate the original warmup, food/meal and needs/rest/work schedule.`},
         {id:'selected-baseline',status:'unverified',reason:'No active world selected, frozen founder roster or exact expanded baseline/result pin prepared for C07.'},
         {id:'native-regression',status:'unverified',reason:'Exact SI-A14 regression belongs after the cheap NO-GO blockers are resolved, before an approved long run.'},
         {id:'run-approval-and-budget',status:'unapproved',reason:'No new long-run/provider authority; B06 permission is scoped to its earlier trial.'}
@@ -120,6 +121,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'society-integration/native-inventory.ts','society-experiments/founder-trial-stage.ts','server/engine/src/mods/FounderProcedureTrialNative.ts',
         'society-experiments/founder-stage.ts','society-integration/founder-state.ts','server/engine/src/mods/FounderBaselineNative.ts',
         'society-experiments/founder-housing.ts','society-experiments/founder-housing-result.ts',
+        'society-experiments/ratio-calibration.ts','scripts/calibrate-society-ratio.ts',
         'scripts/run-founder-housing.ts','scripts/founder-housing-client.ts','scripts/verify-founder-housing.ts',
         'society-integration/fixture.ts','society-integration/bootstrap.ts','society-integration/baseline.ts','society-integration/native-sites.ts','society-integration/runtime-config.ts','society-integration/archive.ts',
         'scripts/society-integration-fixture.ts','scripts/integration-native-bootstrap.ts','scripts/run-founder-procedure-trials.ts','sdk/actions-helpers.ts',
@@ -132,7 +134,7 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
     const body={protocol:'si-c07-minimum-run-preparation-v1',scope:'readonly-definition-and-capability-preflight',status:'no-go',
         liveRunStarted:false,liveStartAuthorized:false,readyForRunApproval:false,minimumVerdict:'inconclusive',
         fixtureId:fixture.fixtureId,fixtureDigest:fixture.digest,fixtureVersion:fixture.version,
-        contractDigest:contract.digest,requirementsDigest:digest(contract.requirements),requiredIntegrityGates:p.integrityGates,
+        contractDigest:contract.digest,requirementsDigest:digest(contract.requirements),requiredIntegrityGates:p.integrityGates,clockRatioCalibration,
         candidate:{warmupSimulationMs:p.window.warmupSimulationMilliseconds,evaluationSimulationMs:p.window.evaluationSimulationMilliseconds,
             bucketSimulationMs:p.window.bucketSimulationMilliseconds,rate,nominalWallMs,maximumSampleWallMs,
             proposedSampleWallMs:Math.min(5000,maximumSampleWallMs),proposedExecutionWallCeilingMs:nominalWallMs+600000,

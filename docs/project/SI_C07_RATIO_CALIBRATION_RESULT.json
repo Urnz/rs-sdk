@@ -1,0 +1,307 @@
+{
+  "protocol": "si-c07-native-ratio-calibration-v1",
+  "status": "incomplete",
+  "readyForRunApproval": false,
+  "qualifiesMinimum": false,
+  "rate": {
+    "simulationMilliseconds": 288,
+    "wallMilliseconds": 1
+  },
+  "dayWallMs": 300000,
+  "collectorPins": [
+    {
+      "path": "society-experiments/ratio-calibration.ts",
+      "currentLfSha256": "6ce0eaef866dc9a3fd145cae892336420ccc220e8149ecc4d7d2631832267368"
+    },
+    {
+      "path": "scripts/calibrate-society-ratio.ts",
+      "currentLfSha256": "745e4019183e1b531d470b0dec94dd45b780463048321235fd7c16567c431581"
+    }
+  ],
+  "source": {
+    "housing": {
+      "workspace": "backups/si-c07-founder-housing-20261031-e/workspace",
+      "worldId": "srv-0c8d5093-61c9-469f-8751-07152f4ea6d4",
+      "resultDigest": "d017794de20215782eb7c88654604086bcfbdbd11beb27437497104135cc5c29"
+    },
+    "tool": {
+      "workspace": "backups/si-c07-founder-trials-20261031-f/workspace",
+      "worldId": "srv-3b761d1b-fa31-4ba5-83b4-1227d714da44",
+      "resultDigest": "f9087161e5e7cb6d59bc152f296c0df5f9d281272c5dee5f28c6f5d6993e34a8",
+      "setupDigest": "ea687938ee19fe602edc2ad10e6c8867a1546e793918be65a463efdff646c7a7"
+    },
+    "pins": {
+      "housing": [
+        {
+          "path": "simulation-clock/store.ts",
+          "frozenSha256": "2801b53ee9b9c4b72009a3c83d2cca56bf2fa4458f9198c5627fc8fdd23e0583",
+          "currentLfSha256": "65bf7d0eae0ec6c9b530b97eff0424260b753afbc938e8d3343133e019627ec8"
+        },
+        {
+          "path": "simulation-clock/profile.ts",
+          "frozenSha256": "1c45f10d23e11de9d0083bc833903c14ed136caa50258a7bdcc328bbb72463ab",
+          "currentLfSha256": "22a3171d81e1bac29a3601ffbb384d25a2092916d5e2449ae838a160db743f13"
+        },
+        {
+          "path": "needs/survival.ts",
+          "frozenSha256": "49ac20c778a394c52b88e12bdbf148d4ad7077c2c7cb2283a11ac61000b47328",
+          "currentLfSha256": "49ac20c778a394c52b88e12bdbf148d4ad7077c2c7cb2283a11ac61000b47328"
+        },
+        {
+          "path": "server/engine/src/util/Environment.ts",
+          "frozenSha256": "d502f0f774e1a75864bb4dcc4edfd19d61d74202349f35d8106fb6dbf95557fc",
+          "currentLfSha256": "e48e060917e22ee976c4c69991fe9df3a27ea5e241ce90ea8f4963d7f5db6118"
+        },
+        {
+          "path": "agent-skills/society-travel.ts",
+          "frozenSha256": "60ff47415fc58aa5ddb6326ca2cd2528669f65646e437f680f433ff4cf24f4d1",
+          "currentLfSha256": "60ff47415fc58aa5ddb6326ca2cd2528669f65646e437f680f433ff4cf24f4d1"
+        },
+        {
+          "path": "server/engine/src/mods/NativeHousing.ts",
+          "frozenSha256": "4119c55c44b701c1ec1e4ca5b12467238448f1fe577c516af26fa97eef7c1775",
+          "currentLfSha256": "4119c55c44b701c1ec1e4ca5b12467238448f1fe577c516af26fa97eef7c1775"
+        }
+      ],
+      "tool": [
+        {
+          "path": "simulation-clock/store.ts",
+          "frozenSha256": "2801b53ee9b9c4b72009a3c83d2cca56bf2fa4458f9198c5627fc8fdd23e0583",
+          "currentLfSha256": "65bf7d0eae0ec6c9b530b97eff0424260b753afbc938e8d3343133e019627ec8"
+        },
+        {
+          "path": "simulation-clock/profile.ts",
+          "frozenSha256": "1c45f10d23e11de9d0083bc833903c14ed136caa50258a7bdcc328bbb72463ab",
+          "currentLfSha256": "22a3171d81e1bac29a3601ffbb384d25a2092916d5e2449ae838a160db743f13"
+        },
+        {
+          "path": "needs/survival.ts",
+          "frozenSha256": "49ac20c778a394c52b88e12bdbf148d4ad7077c2c7cb2283a11ac61000b47328",
+          "currentLfSha256": "49ac20c778a394c52b88e12bdbf148d4ad7077c2c7cb2283a11ac61000b47328"
+        },
+        {
+          "path": "server/engine/src/util/Environment.ts",
+          "frozenSha256": "d502f0f774e1a75864bb4dcc4edfd19d61d74202349f35d8106fb6dbf95557fc",
+          "currentLfSha256": "e48e060917e22ee976c4c69991fe9df3a27ea5e241ce90ea8f4963d7f5db6118"
+        },
+        {
+          "path": "server/engine/src/mods/NativeMiningTool.ts",
+          "frozenSha256": "109cb043ff5a3c515caef716a2a5b1acc7f872421d4dcc47bdc4105bbc3c726b",
+          "currentLfSha256": "109cb043ff5a3c515caef716a2a5b1acc7f872421d4dcc47bdc4105bbc3c726b"
+        },
+        {
+          "path": "server/engine/src/mods/NativeToolWork.ts",
+          "frozenSha256": "eec43b41d941df83f760290b19226eda2f0f687b0bc59301ef92b770bc03ade5",
+          "currentLfSha256": "eec43b41d941df83f760290b19226eda2f0f687b0bc59301ef92b770bc03ade5"
+        },
+        {
+          "path": "item-lifecycle/native-mining-intent.ts",
+          "frozenSha256": "b9fa7c8efd0e5b08bf34e428d61fd185fd3ef36ebf9bb64243c5eb805bf00ea4",
+          "currentLfSha256": "b9fa7c8efd0e5b08bf34e428d61fd185fd3ef36ebf9bb64243c5eb805bf00ea4"
+        },
+        {
+          "path": "production-workflow/native-tool-work.ts",
+          "frozenSha256": "9b345206161d1c41fecd7e242e9373324da42927c86d8091ed538e82eaa304d5",
+          "currentLfSha256": "9b345206161d1c41fecd7e242e9373324da42927c86d8091ed538e82eaa304d5"
+        },
+        {
+          "path": "production-workflow/native-tool-work-policy.ts",
+          "frozenSha256": "6ea906df66a98b9e44ba185516bafac252bcd0edcf93ea7127cbce26d87eb1db",
+          "currentLfSha256": "6ea906df66a98b9e44ba185516bafac252bcd0edcf93ea7127cbce26d87eb1db"
+        },
+        {
+          "path": "config/native-tool-work.json",
+          "frozenSha256": "a1e80bf4a617ce514b74537e1e0cf259b826c52b438dfa0bc2e925e60ac70651",
+          "currentLfSha256": "a1e80bf4a617ce514b74537e1e0cf259b826c52b438dfa0bc2e925e60ac70651"
+        },
+        {
+          "path": "config/item-repair-policies.json",
+          "frozenSha256": "3cee27159aa7b6d290e652cf17622a7ab90e388d7f12211df3c22c0012879ce1",
+          "currentLfSha256": "3cee27159aa7b6d290e652cf17622a7ab90e388d7f12211df3c22c0012879ce1"
+        },
+        {
+          "path": "config/production-workflows.json",
+          "frozenSha256": "e8fe17100c04d73b26b2345045b9f4c1e75e1e5361fba1113d55ac01d55624ba",
+          "currentLfSha256": "e8fe17100c04d73b26b2345045b9f4c1e75e1e5361fba1113d55ac01d55624ba"
+        }
+      ]
+    }
+  },
+  "observations": {
+    "housingInterval": {
+      "wallMs": 197431,
+      "simulationMs": 56860128,
+      "engineTicks": 351,
+      "wallMsPerTick": 562.4814814814815,
+      "simulationMsPerTick": 161994.66666666666
+    },
+    "sleepWitnessCount": 4,
+    "travel": [
+      {
+        "username": "sicook",
+        "runId": "c75f4058-2dde-4db1-82aa-5e851a2cd476",
+        "wallMs": 127299,
+        "simulationMs": 36662112,
+        "bedArrivalWallMs": 159368,
+        "source": "SDK SkillRun duration; native arrival/payment/sleep independently verified"
+      },
+      {
+        "username": "sifisher",
+        "runId": "4ee69eef-977c-4da9-b22c-ea4daa90edd4",
+        "wallMs": 127320,
+        "simulationMs": 36668160,
+        "bedArrivalWallMs": 159441,
+        "source": "SDK SkillRun duration; native arrival/payment/sleep independently verified"
+      },
+      {
+        "username": "sicourier",
+        "runId": "e2d3f393-93ca-419f-80b3-00af0e5ba196",
+        "wallMs": 179171,
+        "simulationMs": 51601248,
+        "bedArrivalWallMs": 220808,
+        "source": "SDK SkillRun duration; native arrival/payment/sleep independently verified"
+      }
+    ],
+    "mining": [
+      {
+        "demandId": "fc346871-dddf-4937-a612-576e5bb33c6a",
+        "eventId": "ac766d5b-59de-4c30-a454-ebfdb43f7d19",
+        "outputItemId": 438,
+        "wallMs": 12223,
+        "simulationMs": 3520224,
+        "engineTicks": 30,
+        "wallMsPerTick": 407.43333333333334,
+        "simulationMsPerTick": 117340.8
+      },
+      {
+        "demandId": "978556f7-bcb7-4555-af97-a5acc8c50faa",
+        "eventId": "baee9bfd-292a-4f6d-ab1a-56e20ce5331e",
+        "outputItemId": 438,
+        "wallMs": 10271,
+        "simulationMs": 2958048,
+        "engineTicks": 25,
+        "wallMsPerTick": 410.84,
+        "simulationMsPerTick": 118321.92
+      }
+    ],
+    "work": [
+      {
+        "operationId": "55c533f7-4ad2-47d4-a477-a9d9ff7aeb78",
+        "kind": "smelt",
+        "wallMs": 1203,
+        "simulationMs": 346464,
+        "engineTicks": 3,
+        "wallMsPerTick": 401,
+        "simulationMsPerTick": 115488,
+        "creditedSimulationMs": 120000,
+        "nativeWorkTicks": 3,
+        "qualifiesMaintenance": false,
+        "scope": "timing only; original declared trial inputs/damage"
+      },
+      {
+        "operationId": "f6eaca43-6130-4b90-aff0-d6c0bb8f569e",
+        "kind": "smelt",
+        "wallMs": 1179,
+        "simulationMs": 339552,
+        "engineTicks": 3,
+        "wallMsPerTick": 393,
+        "simulationMsPerTick": 113184,
+        "creditedSimulationMs": 120000,
+        "nativeWorkTicks": 3,
+        "qualifiesMaintenance": false,
+        "scope": "timing only; original declared trial inputs/damage"
+      },
+      {
+        "operationId": "360f0c9e-07ef-4f25-ae52-0680dc9be7ae",
+        "kind": "repair",
+        "wallMs": 2390,
+        "simulationMs": 688320,
+        "engineTicks": 6,
+        "wallMsPerTick": 398.3333333333333,
+        "simulationMsPerTick": 114720,
+        "creditedSimulationMs": 600000,
+        "nativeWorkTicks": 6,
+        "qualifiesMaintenance": false,
+        "scope": "timing only; original declared trial inputs/damage"
+      },
+      {
+        "operationId": "3be7313e-1c3d-44e8-a70c-6cfb0512b304",
+        "kind": "repair",
+        "wallMs": 2421,
+        "simulationMs": 697248,
+        "engineTicks": 6,
+        "wallMsPerTick": 403.5,
+        "simulationMsPerTick": 116208,
+        "creditedSimulationMs": 600000,
+        "nativeWorkTicks": 6,
+        "qualifiesMaintenance": false,
+        "scope": "timing only; original declared trial inputs/damage"
+      }
+    ]
+  },
+  "projection": {
+    "sampleCount": 2,
+    "requiredUses": 51,
+    "dayWallMs": 300000,
+    "minimumSampleMs": 10271,
+    "maximumSampleMs": 12223,
+    "meanSampleMs": 11247,
+    "projectedSerialMs": 573597,
+    "exceedsDayAtSampleMean": true,
+    "measuredWarmupUses": 0,
+    "verdict": "unmeasured",
+    "excludes": [
+      "initial travel",
+      "bank/inventory",
+      "changing Mining XP/chance",
+      "rest/food",
+      "orchestration"
+    ]
+  },
+  "remainingEvidence": [
+    "actual-51-use-warmup-from-original-opening",
+    "native-food-harvest-cook-meal-timing",
+    "combined-needs-rest-work-credit-schedule"
+  ],
+  "nativeFiles": [
+    {
+      "path": "backups/si-c07-founder-housing-20261031-e/workspace/server/engine/data/player-checkpoints.sqlite",
+      "suffix": "",
+      "sha256": "40cf07c52bfaa52b334ef341456f970787f6dc701ffe18ad3c572cb5056dbd70"
+    },
+    {
+      "path": "backups/si-c07-founder-housing-20261031-e/workspace/server/engine/data/player-checkpoints.sqlite",
+      "suffix": "-wal",
+      "sha256": "0ec9ae39d92dac73c0502b0183b7c6360ecb078cf1b37fb5499e7e040e6b2256"
+    },
+    {
+      "path": "backups/si-c07-founder-trials-20261031-f/workspace/server/engine/data/player-checkpoints.sqlite",
+      "suffix": "",
+      "sha256": "c35ee3b4373489d2fbe7c06779e719c08ba6f435b6511a1d1e82a093e2d54910"
+    },
+    {
+      "path": "backups/si-c07-founder-trials-20261031-f/workspace/server/engine/data/player-checkpoints.sqlite",
+      "suffix": "-wal",
+      "sha256": "d8ff07b5c49b44e9b428b572181c39d5e775571e1182ecabcf8c9744be6d0593"
+    },
+    {
+      "path": "backups/si-c07-founder-housing-20261031-e/workspace/.local/simulation/simulation-clock.sqlite",
+      "suffix": "",
+      "sha256": "c4ab37fc937f55e686ceb18c5efe21aaf2ec85fb2125e27d22b4fc67c7119bf6"
+    },
+    {
+      "path": "backups/si-c07-founder-trials-20261031-f/workspace/.local/simulation/simulation-clock.sqlite",
+      "suffix": "",
+      "sha256": "e516ba5f97b009bd27f902cf5ecaba4821dc4486949416397f769d97979e3f2e"
+    }
+  ],
+  "readonlyUnchanged": true,
+  "providerCalls": 0,
+  "providerCostMicros": 0,
+  "limits": [
+    "Selected current producer/config pins only; not the final transitive runtime/environment manifest.",
+    "Independent worlds are timing samples, not a combined economic history. No ratio is selected or validated by extrapolation.",
+    "SHM and zero-byte WAL metadata omitted; every DB and nonempty WAL is hashed."
+  ],
+  "digest": "a28be2be8e32d7db19780c5b129337c9d8d60ed5db4810c133fa9aa733da29a1"
+}

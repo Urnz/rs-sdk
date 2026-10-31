@@ -45,6 +45,11 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
 4. **Natív időarány-validálás.** A választott clock-ratio összevetése a content
    tickkel, travel/harvest/work credit és tényleges meal/needs ritmussal.
    A 288:1 nem tekinthető már validált M3-aránynak.
+   [Első source-bound readonly kalibráció](SI_C07_RATIO_CALIBRATION.md) kész:
+   E/F4 sleep,3 travel,2 Mining,4 work; pontos288 clock és elkülönített wall/
+   simulation/content-tick mérés.51×Mining-átlag573597ms csak projekció.
+   A4. nyitott: actual51 warmup, food/meal és közös needs/rest/work ütem kell;
+   preflightba bekötött incomplete eredmény, nem új feladatlista vagy ratio-PASS.
 5. **Végső preflight és konkrét futási terv.** Authoritative source-lista,
    C06 schema/state/environment pin, tényleges SI-A14, sor-/byte-/IO-budget,
    modell/költség/maxwall/stopfeltételek és ellenőrzött mentési/restore út.
