@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import type { AgentPopulationMember } from '../../../agent-state/types.js';
 import { PropertyStore } from '../../engine/src/mods/PropertyStore.js';
 import { loadPropertyCatalog } from '../../engine/src/mods/Properties.js';
-import { reservePopulationRental } from './native-housing.js';
+import { reservePopulationRental,reservePopulationOwnerBed } from './native-housing.js';
 import { populationNeedsBinding } from './needs-runtime.js';
 import { runNativeFoodIntegration } from './native-food-test-runtime.js';
 test('SI-A10 native rent escrow, Property entitlement, physical sleep and durable fatigue integration', async () => {
-    await runNativeFoodIntegration('NativeHousing.test.ts', 26);
+    await runNativeFoodIntegration('NativeHousing.test.ts', 31);
 }, 60000);
 test('trusted rental admission derives actor/lifecycle/price from population, Property title and catalog', () => {
     const workspace = mkdtempSync(join(tmpdir(), 'rental-admission-'));
@@ -34,6 +34,11 @@ test('trusted rental admission derives actor/lifecycle/price from population, Pr
         expect(reservePopulationRental(options, tenant, landlord, clock, request)).toEqual(order);
         expect(() => reservePopulationRental(options, tenant, landlord, clock, { ...request, bedSlotId: 'falador.south-house.bed-2' })).toThrow('reused');
         expect(() => reservePopulationRental(options, member('other'), member('stranger'), clock, { ...request, operationId: 'native-lease-2' })).toThrow('owner');
+        const own=reservePopulationOwnerBed(options,landlord,clock,{operationId:'native-owner-1',bedSlotId:'falador.south-house.bed-2'});
+        expect(own.intent.owner.lifecycleId).toBe(populationNeedsBinding(options.worldId,landlord).lifecycleId);
+        expect(own.intent).not.toHaveProperty('amountGp');expect(own.intent).not.toHaveProperty('tenant');
+        expect(reservePopulationOwnerBed(options,landlord,clock,{operationId:'native-owner-1',bedSlotId:'falador.south-house.bed-2'})).toEqual(own);
+        expect(()=>reservePopulationOwnerBed(options,member('other'),clock,{operationId:'native-owner-2',bedSlotId:'falador.south-house.bed-1'})).toThrow('owner');
         tenant.characterLifecycle.status = 'deceased'; expect(() => reservePopulationRental(options, tenant, landlord, clock, request)).toThrow('lifecycle');
     } finally { rmSync(workspace, { recursive: true, force: true }); }
 });

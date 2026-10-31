@@ -42,7 +42,7 @@ registerHousingTenantAccess((propertyId, username) => {
     });
 });
 export function enqueueNativeHousing(command: NativeHousingCommand): Promise<NativeHousingResponse> {
-    if (!command || Object.keys(command).sort().join(',') !== 'operation,operationId' || !['pay', 'cancel', 'sleep', 'wake'].includes(command.operation)
+    if (!command || Object.keys(command).sort().join(',') !== 'operation,operationId' || !['pay', 'cancel', 'sleep', 'wake','owner-sleep','owner-wake'].includes(command.operation)
         || typeof command.operationId !== 'string' || !/^[a-z0-9][a-z0-9._:-]{1,119}$/.test(command.operationId)) return Promise.resolve({ ok: false, error: 'Invalid housing command' });
     if (queue.length >= 50) return Promise.resolve({ ok: false, error: 'Housing queue full' });
     return new Promise(resolve => queue.push({ command: structuredClone(command), expiresAt: Date.now() + 5000, resolve }));
@@ -66,8 +66,10 @@ export function tickNativeHousing(): void {
         try {
             if (World.shutdown || Date.now() > item.expiresAt) throw new Error('Housing command expired');
             const r = getRuntime(); if (!r) throw new Error('Housing reservation unavailable');
-            const i = r.source.order(item.command.operationId).binding.intent;
-            const phase = r.engine.execute(item.command, World.getPlayerByUsername(i.tenant.username) ?? null, World.getPlayerByUsername(i.landlord.username) ?? null);
+            const ownerCommand=item.command.operation==='owner-sleep'||item.command.operation==='owner-wake';
+            const i=ownerCommand?r.source.ownerBed(item.command.operationId).intent:r.source.order(item.command.operationId).binding.intent;
+            const actor='owner' in i?i.owner:i.tenant,landlord='landlord' in i?World.getPlayerByUsername(i.landlord.username)??null:null;
+            const phase = r.engine.execute(item.command, World.getPlayerByUsername(actor.username) ?? null, landlord);
             item.resolve({ ok: true, operationId: item.command.operationId, phase });
         } catch (error) { item.resolve({ ok: false, error: error instanceof Error ? error.message : String(error) }); }
     }

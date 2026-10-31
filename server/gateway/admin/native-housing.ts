@@ -7,6 +7,31 @@ import { nativeHousingCatalogs, type HousingNativeOptions, type NativeHousingCom
 import { assertNativeFoodDomainPath } from '../../../food-loop/native-source.js';
 import { OwnedDatabase } from '../../engine/src/io/OwnedDatabase.js';
 import { foodDigest } from '../../engine/src/mods/NativeFoodConsumptionStore.js';
+import {assertOwnerBedAuthority} from '../../../housing/native-owner.js';
+export function reservePopulationOwnerBed(options:HousingNativeOptions,owner:AgentPopulationMember,clock:SimulationClockObservation,
+    request:{operationId:string;bedSlotId:string}){
+    const b=populationNeedsBinding(options.worldId,owner);
+    if(owner.status!=='active'||owner.characterLifecycle.status!=='active'||b.clockId!==clock.clockId||b.clockProfileDigest!==clock.profileDigest)
+        throw Error('Owner bed needs active population lifecycle/clock');
+    assertNativeFoodDomainPath({...options,checkpointPath:options.propertyPath});
+    const catalogs=nativeHousingCatalogs(options.workspace),unit=catalogs.units.units.find(u=>u.housingUnitId===catalogs.native.housingUnitId)!,
+        coordinator=new NativeRentCoordinator(options);let source:OwnedDatabase|undefined;
+    try{
+        const prior=coordinator.owner(request.operationId);
+        if(prior){
+            if(prior.intent.bedSlotId!==request.bedSlotId||prior.intent.owner.agentId!==owner.agentId||prior.intent.owner.username!==owner.playerUsername
+                ||prior.intent.owner.lifecycleId!==b.lifecycleId)throw Error('Owner operation id reused');
+            assertOwnerBedAuthority(options,prior,clock);return prior;
+        }
+        source=new OwnedDatabase(options.propertyPath,{readonly:true,strict:true});
+        const property=source.query('SELECT * FROM property_state WHERE property_id=?1').get(unit.propertyId) as any;
+        if(property?.status!=='owned'||property.owner_kind!=='player'||property.owner_id!==owner.playerUsername)throw Error('Owner bed applicant is not the Property owner');
+        return coordinator.reserveOwner({operationId:request.operationId,worldId:options.worldId,clockId:clock.clockId,clockProfileDigest:clock.profileDigest,
+            owner:{agentId:owner.agentId,username:owner.playerUsername,lifecycleId:b.lifecycleId},housingUnitId:unit.housingUnitId,bedSlotId:request.bedSlotId,
+            propertyVersion:property.version,startsAt:clock.simulationTime,
+            endsAt:new Date(Date.parse(clock.simulationTime)+unit.rentPeriodSimulationMinutes*60000).toISOString(),catalogs},clock);
+    }finally{source?.close(true);coordinator.close();}
+}
 /** Existing trusted population membership, Property title and catalog supply terms; posted receipts/balances are not accepted. */
 export function reservePopulationRental(options: HousingNativeOptions, tenant: AgentPopulationMember, landlord: AgentPopulationMember,
     clock: SimulationClockObservation, request: { operationId: string; bedSlotId: string }) {

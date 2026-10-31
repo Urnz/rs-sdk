@@ -1,5 +1,6 @@
 import { societyMinimumDigest as digest } from '../society-minimum/policy.js';
 import { foodDigest } from '../server/engine/src/mods/NativeFoodConsumptionStore.js';
+import {ownerSleepBinding} from '../housing/native-sleep.js';
 import { applyHousingFatigueRecoveryRate } from '../housing/effects.js';
 import type { DurableNeedsState } from '../needs/store.js';
 import type { PlayerTimeHistoryEntry } from '../simulation-clock/types.js';
@@ -294,17 +295,19 @@ export function projectNativeIntegration(scope: EvaluationScope, options: Pick<N
         status: row.status, assets: row.assets, countInCurrentEscrow: row.status === 'held',
         evidenceIds: [add('custody', row.escrowId, row, [])] })) : [];
     const sleep = sources.sleep.status === 'available' ? sources.sleep.value.flatMap(witness => {
-        const native = rents.find(row => row.binding.intent.operationId === witness.operationId), i = native?.binding.intent;
+        const native = rents.find(row => row.binding.intent.operationId === witness.operationId),owner=witness.ownerBinding?ownerSleepBinding(witness):null,
+            i=owner?.intent??native?.binding.intent,actor=i&&('owner' in i?i.owner:i.tenant);
+        if(i&&!bound('housing-sleep',witness.id,i.worldId,i.clockId,i.clockProfileDigest))return[];
         const modes = sources.modes.status === 'available' ? sources.modes.value.histories.find(row => row.playerId === witness.username)?.history : undefined;
         const time = modes?.find(entry => entry.state.sleepContext?.access.evidenceId === `housing:${witness.id}`
             && entry.state.sleepContext.access.sourceDigest === foodDigest(witness));
-        const valid = native?.phase === 'paid' && witness.bindingDigest === native.binding.digest && witness.lifecycleId === i?.tenant.lifecycleId
-            && witness.username === i.tenant.username && witness.clock.clockId === scope.clockId && witness.clock.profileDigest === scope.clockProfileDigest
+        const valid = !!i&&!!actor&&(owner!==null||native?.phase==='paid')&&witness.bindingDigest===(owner?.digest??native?.binding.digest)&&witness.lifecycleId===actor.lifecycleId
+            && witness.username === actor.username && witness.clock.clockId === scope.clockId && witness.clock.profileDigest === scope.clockProfileDigest
             && witness.clock.simulationTime >= i.startsAt && witness.clock.simulationTime < i.endsAt
-            && i.catalogs.native.beds.some(bed => bed.bedSlotId === i.bedSlotId && bed.x === witness.x && bed.z === witness.z && bed.level === witness.level)
+            && i.catalogs.native.beds.some(bed => bed.bedSlotId === i.bedSlotId&&Math.max(Math.abs(bed.x-witness.x),Math.abs(bed.z-witness.z))<=1&&bed.level===witness.level)
             && time?.state.sleepContext?.access.validUntilSimulationTime === i.endsAt
             && time.state.sleepContext.startedAtSimulationTime === witness.clock.simulationTime;
-        const id = add('housing-sleep', witness.id, witness, i ? [i.tenant.agentId] : [], witness.clock.simulationTime);
+        const id = add('housing-sleep', witness.id, witness, actor ? [actor.agentId] : [], witness.clock.simulationTime);
         return [{ witnessId: witness.id, operationId: witness.operationId, status: valid ? 'native-and-player-time-bound' : 'missing-or-mismatched-entitlement-or-mode', evidenceIds: [id] }];
     }) : [];
     const boundaryIds: string[] = [];

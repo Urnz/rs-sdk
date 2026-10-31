@@ -14,6 +14,7 @@ import { simulationClockProfileDigest } from '../simulation-clock/profile.js';
 import type { EvaluationScope } from './evaluation.js';
 import { loadPropertyCatalog } from '../server/engine/src/mods/Properties.js';
 import { join } from 'node:path';
+import {readOwnerBedReservations} from '../housing/native-owner.js';
 export interface NativeHousingBoundaryPaths {clockPath:string;housingPath:string;propertyPath:string;checkpointPath:string;agentPath:string;needsPath:string}
 interface Options {workspace:string;worldId:string;configDirectory:string}
 function check(v:unknown):asserts v {if(!v)throw Error('Housing access source validation failed');}
@@ -92,10 +93,12 @@ export function readHousingAccessPoint(scope:EvaluationScope,options:Options,pat
         check(p&&Number.isSafeInteger(p.version)&&p.version>=1&&['available','owned','locked','disabled'].includes(p.status));return p;
     })}));
     const housing=readStableOutcomeStore(options,paths.housingPath,db=>{
-        const orders=readRentJournal<NativeRentOrder>(db,'housing_native'),rent=tenancies(db,catalogs);
+        const orders=readRentJournal<NativeRentOrder>(db,'housing_native'),rent=tenancies(db,catalogs),owners=readOwnerBedReservations(db);
         check(orders.every(o=>o.binding.intent.worldId===options.worldId&&o.binding.intent.clockId===scope.clockId&&o.binding.intent.clockProfileDigest===scope.clockProfileDigest
             &&o.binding.intent.startsAt<=at&&foodDigest(o.binding.intent.catalogs)===foodDigest(catalogs)));
-        return{orders,...rent,journalHead:db.query('SELECT * FROM housing_native_head WHERE id=1').get()};
+        check(owners.every(b=>b.intent.worldId===options.worldId&&b.intent.clockId===scope.clockId&&b.intent.clockProfileDigest===scope.clockProfileDigest
+            &&b.intent.startsAt<=at&&foodDigest(b.intent.catalogs)===foodDigest(catalogs)));
+        return{orders,owners,...rent,journalHead:db.query('SELECT * FROM housing_native_head WHERE id=1').get()};
     });
     const native=readStableOutcomeStore(options,paths.checkpointPath,db=>({journalHead:db.query('SELECT * FROM native_rent_head WHERE id=1').get(),receipts:readRentJournal<NativeRentReceipt>(db,'native_rent').map(r=>{
         check(r.clock.clockId===scope.clockId&&r.clock.profileDigest===scope.clockProfileDigest&&r.clock.simulationTime<=at);return readNativeRentReceipt(db,r.binding)!;
@@ -106,12 +109,17 @@ export function readHousingAccessPoint(scope:EvaluationScope,options:Options,pat
             check(receipt?.phase==='paid'&&entitlement.order.nativeDigest===receipt.digest);
             return[{actor:i.tenant,unitId:i.housingUnitId,bedId:i.bedSlotId,from:receipt.clock.simulationTime>i.startsAt?receipt.clock.simulationTime:i.startsAt,to:i.endsAt}];
         });}finally{source.close();}})();
+    const ownerGrants=(()=>{const source=new NativeRentSource({...options,...paths});try{return housing.owners.flatMap(b=>{
+        const i=b.intent;if(i.startsAt>at||i.endsAt<=at)return[];source.ownerBed(i.operationId,observed);
+        return[{actor:i.owner,unitId:i.housingUnitId,bedId:i.bedSlotId,from:i.startsAt,to:i.endsAt}];
+    });}finally{source.close();}})();
     return{at,worldId:options.worldId,clockId:scope.clockId,clockProfileDigest:scope.clockProfileDigest,contractDigest:contract.digest,
         maximumGapSimulationMs:contract.policy.window.maximumTraceGapSimulationMilliseconds,
         minimumTierRank:contract.dependencies.housingHierarchy.tiers.find(t=>t.tierId===contract.policy.housing.minimumTierId)!.rank,
-        catalogs,cohort:cohort.actors,properties:properties.rows,propertyDefinitions,orders:housing.orders,tenancies:housing.rows,grants,
+        catalogs,cohort:cohort.actors,properties:properties.rows,propertyDefinitions,orders:housing.orders,tenancies:housing.rows,grants:[...grants,...ownerGrants],
+        ...housing.owners.length?{ownerReservations:housing.owners}:{},
         epochDigest:digest({catalogs,propertyDefinitions,properties:properties.rows,orders:housing.orders,tenancies:housing.rows,tenancyHead:housing.head,
-            housingHead:housing.journalHead,nativeHead:native.journalHead,receipts:native.receipts}),
+            housingHead:housing.journalHead,nativeHead:native.journalHead,receipts:native.receipts,...housing.owners.length?{ownerReservations:housing.owners}:{}}),
         sourceDigests:[clock,agents,cohort,properties,housing,native].map(s=>s.sourceSnapshotDigest)};
 }
 export type HousingAccessPoint=ReturnType<typeof readHousingAccessPoint>;

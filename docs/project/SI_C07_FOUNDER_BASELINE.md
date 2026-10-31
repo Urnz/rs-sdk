@@ -69,8 +69,9 @@ Ez anchor-bizonyíték, **nem útvonal-, title-, sleep- vagy futási bizonyíté
 A régi két slot konfigurációja változatlan. A külön új1.4.0 diagnosztikai stage
 már négy slotot köt az azonos packed forráshoz. Három fizető tenant és egy
 szabad owner-slot tervezett; bérletet vagy sleep receiptet nem bootstrapelünk.
-A négy founder valódi natív alvási/hozzáférési útja még hiányzik; az owner
-hozzáférése önmagában nem rental sleep receipt.
+A négy founder tényleges SDK/Lite útvonala még hiányzik; az owner
+hozzáférése önmagában nem sleep receipt. Azóta az [owner saját natív
+sleep/observer útja](SI_C07_OWNER_SLEEP.md) elkészült komponensszinten.
 
 ## Miért nem kész még a3. csomag?
 
@@ -79,9 +80,9 @@ A normál genesis, learned knowledge, worker/grant, szerszámkötés és négy-s
 overlay közös offline alkalmazása és readonly seal is kész.
 
 Az eredeti megmaradó feltétel a négy founder valódi housing/sleep útja.
-A jelenlegi natív sleep csak fizetett tenant-bérletet fogad el; az owner saját
-ingyenes slotjának admission és folyamatos observer útja még megvalósítandó.
-Utána azonos deklarált openinggel, aktuális forráshoz kötött új saját stage-ből mind4 route/rent/
+Az owner saját ingyenes slotjának admission és folyamatos observer útja
+[immár implementált és natívan ellenőrzött](SI_C07_OWNER_SLEEP.md).
+Azonos deklarált openinggel, aktuális forráshoz kötött új saját stage-ből mind4 route/rent/
 sleep bizonyíték kell. Nincs önmagának fizetett ál-bérlet vagy kézi receipt.
 Az eredeti3. csomag feltételei, nem új P2-lista. A4. ratio-próba, hosszú run
 és SI-C08 még nem indul.

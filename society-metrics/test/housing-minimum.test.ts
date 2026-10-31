@@ -5,6 +5,7 @@ import { assessSocietyMinimum } from '../../society-minimum/assessment.js';
 import { nativeHousingCatalogs,rentIds } from '../../housing/native-rent.js';
 import { loadPropertyCatalog } from '../../server/engine/src/mods/Properties.js';
 import { projectHousingMinimum,housingExposureCells } from '../housing-minimum.js';
+import {foodDigest} from '../../server/engine/src/mods/NativeFoodConsumptionStore.js';
 import type { HousingAccessPoint } from '../housing-access.js';
 const root=join(import.meta.dir,'../..'),contract=loadSocietyMinimumContract(join(root,'config'));
 const scope={clockId:'clock',clockProfileDigest:'a'.repeat(64),actorAgentIds:['ada','bea','cora','dora'],
@@ -56,6 +57,17 @@ test('two reserved physical beds cannot also give their owner lower capacity cre
     const points=[0,1].map(h=>{const p=point(h);paid(p,'bea','rent-bea',0);paid(p,'cora','rent-cora',1);return wrapped(p);});
     const interval=report(points).intervals[0]!;expect(interval.lowerActorIds).toEqual(['bea','cora']);
     expect(interval.upperActorIds).toContain('ada'); // Visitor policy remains unknown, never a third proven place.
+});
+
+test('an exclusive owner reservation consumes physical capacity and gives owner access only through its verified grant',()=>{
+    const points=[0,1].map(h=>{const p=point(h);paid(p,'bea','rent-bea',0);const unit=p.catalogs.units.units[0]!,bed=unit.bedSlots[1]!.bedSlotId,
+        intent={operationId:'owner-period',worldId:p.worldId,clockId:p.clockId,clockProfileDigest:p.clockProfileDigest,
+            owner:{agentId:'ada',username:'ada',lifecycleId:'life-ada'},housingUnitId:unit.housingUnitId,bedSlotId:bed,propertyVersion:2,
+            startsAt:at(0),endsAt:at(24),catalogs:p.catalogs};
+        p.ownerReservations=[{intent,digest:foodDigest(intent)}];p.grants.push({actor:intent.owner,unitId:unit.housingUnitId,bedId:bed,from:at(0),to:at(24)});return wrapped(p);});
+    expect(report(points).intervals[0]!.lowerActorIds).toEqual(['ada','bea']);
+    for(const p of points){p.source.value.grants=p.source.value.grants.filter(g=>g.actor.agentId!=='ada');}
+    expect(report(points).intervals[0]!.lowerActorIds).toEqual(['bea']);
 });
 test('a rejected middle point, changed owner/version/head/cohort or long gap cannot be interpolated',()=>{
     const base=point(0);

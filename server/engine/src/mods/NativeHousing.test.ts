@@ -51,6 +51,8 @@ import { loadNeedsPolicyCatalog, loadNeedsDynamicsPolicyCatalog } from '../../..
 import { handleInternalAdminRequest } from '../web/pages/internal-admin.js';
 import { AgentStateStore } from '../../../../agent-state/store.js';
 import type { LivelihoodJournalEntry } from '../../../../agent-state/livelihood.js';
+import {readOwnerBedReservations,type NativeOwnerBedIntent} from '../../../../housing/native-owner.js';
+import {readHousingSleep} from '../../../../housing/native-sleep.js';
 const root = resolve(import.meta.dir, '../../../..'), pack = resolve(import.meta.dir, '../../data/pack');
 const dirs: string[] = [], closers: Array<() => void> = [];
 beforeAll(() => {
@@ -93,7 +95,7 @@ function fixture(funds = 1000, recovery = 10000, identityStep = 0) {
         startsAt: start.simulationTime, endsAt: new Date(Date.parse(start.simulationTime) + unit.rentPeriodSimulationMinutes * 60000).toISOString(), expiresAt: new Date(wall + 300000).toISOString() };
     let checkpoint = () => {};
     const engine = () => new NativeHousingExecutor({ market, source, time, clock, identity, checkpoint: () => checkpoint() });
-    const command = (operation: 'pay' | 'cancel' | 'sleep' | 'wake') => engine().execute({ operation, operationId: intent.operationId }, tenant, landlord);
+    const command = (operation: 'pay' | 'cancel' | 'sleep' | 'wake' | 'owner-sleep' | 'owner-wake') => engine().execute({ operation, operationId: intent.operationId }, tenant, landlord);
     const prepare = () => coordinator.reserve(intent, clock());
     const count = (p: Player) => p.getInventory(InvType.INV)!.getItemCount(995);
     const saved = (p: Player) => PlayerLoading.load(p.username, new Packet(market.saved(p.username)!), null);
@@ -118,9 +120,77 @@ test('housing observes identity before binding sleep and invalidation on a progr
     expect(f.tenant.populationSleeping).toBeFalse();
 });
 
-test('SI-C07 paid physical sleep is observed without losing a positive executor request; invalidation and offline remain gaps',()=>{
-    const f=fixture();f.lease();f.command('sleep');new NativeMiningDemandStore(f.market.db);new NativeMiningIntentStore(f.market.db);
-    const others=['guestone','guesttwo'].map(n=>{const p=new Player(n,2n,2n);p.levels.fill(20);return p;}),players=[f.tenant,f.landlord,...others],start=f.clock();
+function ownerBed(f:ReturnType<typeof fixture>,changes:Partial<NativeOwnerBedIntent>={}){
+    const i=f.intent,intent:NativeOwnerBedIntent={operationId:'owner-bed-1',worldId:i.worldId,clockId:i.clockId,clockProfileDigest:i.clockProfileDigest,
+        owner:i.landlord,housingUnitId:i.housingUnitId,bedSlotId:i.bedSlotId,propertyVersion:i.propertyVersion,startsAt:i.startsAt,endsAt:i.endsAt,catalogs:i.catalogs,...changes};
+    f.time.recordPlayerPresence(i.clockId,f.landlord.username,'online',f.clock().wallTime);
+    const binding=f.coordinator.reserveOwner(intent,f.clock());
+    return{binding,command:(operation:'owner-sleep'|'owner-wake')=>f.engine().execute({operation,operationId:intent.operationId},f.landlord,null)};
+}
+
+test('owner uses one exclusive bed without rent, GP transfer or self-tenancy; native save and witness survive reopen',async()=>{
+    const f=fixture(),owner=ownerBed(f),before=[f.count(f.tenant),f.count(f.landlord)];
+    f.landlord.x++; // Native bed use admits a neighbouring walkable tile.
+    expect(owner.command('owner-sleep')).toBe('sleeping');expect(f.landlord.populationSleeping).toBeTrue();
+    expect([f.count(f.tenant),f.count(f.landlord)]).toEqual(before);expect(f.coordinator.get(owner.binding.intent.operationId)).toBeNull();
+    const source=new NativeRentSource(f.options);try{expect(source.ownerBed(owner.binding.intent.operationId,f.clock())).toEqual(owner.binding);}finally{source.close();}
+    expect(f.saved(f.landlord).x).toBe(f.landlord.x);
+    const witnesses=readHousingSleep(f.market.db);expect(witnesses).toHaveLength(1);expect(witnesses[0]!.ownerBinding).toEqual(owner.binding);
+    const state=f.time.getPlayerTimeState(f.intent.clockId,f.landlord.username)!;
+    expect(state.sleepContext?.access.kind).toBe('bed-entitlement');expect(state.sleepContext?.access.evidenceId).toBe(`housing:${witnesses[0]!.id}`);
+    expect(f.engine().observeSleeper(f.landlord.username,f.landlord,f.clock())).not.toBeNull();
+    new NativeFoodConsumptionStore(f.market);
+    const {reportNativeIntegration}=await import(pathToFileURL(join(root,'society-metrics/integration-report.ts')).href),
+        {nativeIntegrationOptions}=await import(pathToFileURL(join(root,'society-metrics/integration-sources.ts')).href),
+        report=reportNativeIntegration({fromSimulationTime:'2000-12-31T23:59:59.000Z',toSimulationTime:'2001-01-01T00:01:00.000Z',
+            clockId:f.intent.clockId,clockProfileDigest:f.intent.clockProfileDigest,actorAgentIds:['actor-landlord','actor-tenant','actor-three','actor-four']},
+            {...nativeIntegrationOptions(f.workspace),worldId:f.options.worldId,housingPath:f.options.housingPath,nativeFoodCheckpointPath:f.options.checkpointPath,clockPath:f.clockPath});
+    expect(report.sleep[0]?.status).toBe('native-and-player-time-bound');
+    const foreign=reportNativeIntegration(report.scope,{...nativeIntegrationOptions(f.workspace),worldId:'foreign-world',housingPath:f.options.housingPath,
+        nativeFoodCheckpointPath:f.options.checkpointPath,clockPath:f.clockPath});expect(foreign.sleep).toHaveLength(0);
+    expect(owner.command('owner-wake')).toBe('awake');expect(f.landlord.populationSleeping).toBeFalse();
+    const db=new OwnedDatabase(f.options.housingPath,{readonly:true});try{
+        expect((db.query('SELECT COUNT(*) n FROM housing_tenancy').get() as {n:number}).n).toBe(0);
+        expect(readOwnerBedReservations(db)).toEqual([owner.binding]);
+    }finally{db.close(true);}
+});
+
+test('owner and paid tenant cannot reserve the same physical slot in either order',()=>{
+    const f=fixture();ownerBed(f);expect(()=>f.prepare()).toThrow('reserved by an owner');
+    expect(f.coordinator.get(f.intent.operationId)).toBeNull();
+    expect(()=>ownerBed(f,{operationId:'owner-bed-2',bedSlotId:f.intent.catalogs.native.beds[1]!.bedSlotId})).toThrow('already reserved');
+    const leases=new HousingTenancyStore(f.options.housingPath,f.intent.catalogs.units);try{
+        expect(()=>leases.create({tenancyId:'ordinary-contract',housingUnitId:f.intent.housingUnitId,bedSlotId:f.intent.bedSlotId,
+            tenantAgentId:'other',startsAtSimulationTime:f.intent.startsAt,periodCount:1})).toThrow('native owner');
+    }finally{leases.close();}
+    const g=fixture();g.prepare();expect(()=>ownerBed(g)).toThrow('already reserved');expect(g.source.ownerReservations()).toEqual([]);
+    const h=fixture();h.lease();expect(()=>ownerBed(h)).toThrow('already reserved');
+});
+
+test('owner continuous authority rejects moved, dead, foreign lifecycle, expired, transferred or changed-policy sleepers',()=>{
+    for(const mode of ['position','dead','lifecycle','expiry','title','policy'] as const){
+        const f=fixture(),owner=ownerBed(f);owner.command('owner-sleep');
+        let engine=f.engine();
+        if(mode==='position')f.landlord.x+=10;
+        else if(mode==='dead')f.landlord.populationTerminal=true;
+        else if(mode==='lifecycle')engine=new NativeHousingExecutor({market:f.market,source:f.source,time:f.time,clock:f.clock,checkpoint:()=>{},
+            identity:(...args)=>{const context=f.identity(...args)!;return{...context,action:{...context.action,lifecycleId:'foreign-lifecycle'}};}});
+        else if(mode==='expiry')f.advance(86400000/60);
+        else if(mode==='title')f.property.transferOwnership('owner-title-transfer','falador.south-house',2,{kind:'player',id:'landlord'},{kind:'player',id:'other'});
+        else{const path=join(f.workspace,'config/housing-effect-policies.json'),v=JSON.parse(readFileSync(path,'utf8'));
+            v.policies[0].effects.find((e:any)=>e.tierId==='rented-room').fatigueRecoveryMultiplierBasisPoints=11000;writeFileSync(path,JSON.stringify(v));}
+        if(mode==='dead')expect(engine.observeSleeper('landlord',f.landlord,f.clock())).toBeNull();
+        else expect(()=>engine.observeSleeper('landlord',f.landlord,f.clock())).toThrow();
+        engine.validateSleeper('landlord',f.landlord);expect(f.landlord.populationSleeping,mode).toBeFalse();
+        expect(f.time.getPlayerTimeState(f.intent.clockId,'landlord')?.rest,mode).toBe('awake');
+    }
+});
+
+for(const authority of ['paid','owner'] as const)test(`SI-C07 ${authority} physical sleep preserves a positive executor request; invalidation and offline remain gaps`,()=>{
+    const f=fixture(),sleeper=authority==='owner'?f.landlord:f.tenant;
+    if(authority==='owner')ownerBed(f).command('owner-sleep');else{f.lease();f.command('sleep');}
+    new NativeMiningDemandStore(f.market.db);new NativeMiningIntentStore(f.market.db);
+    const others=['guestone','guesttwo'].map(n=>{const p=new Player(n,2n,2n);p.levels.fill(20);return p;}),players=[sleeper,authority==='owner'?f.tenant:f.landlord,...others],start=f.clock();
     const actors=players.map(p=>miningOwner(f.identity(p.username,'observer',0,World.currentTick)!.action)),s={schemaVersion:1 as const,selectionId:randomUUID(),
         worldId:f.options.worldId,clockId:start.clockId,clockProfileDigest:start.profileDigest,fromSimulationTime:start.simulationTime,
         toSimulationTime:new Date(Date.parse(start.simulationTime)+1200).toISOString(),actors};
@@ -130,7 +200,7 @@ test('SI-C07 paid physical sleep is observed without losing a positive executor 
         admitted:()=>true,sleeping:(name,player,clock)=>f.engine().observeSleeper(name,player,clock)};
     tickNativeMiningCoverage(ports);const request={operation:'open' as const,args:miningGatherArgs({name:'copper',item:'copper ore',skill:'Mining',timeoutMs:1000}),
         context:{runId:randomUUID(),skill:{id:'mining.fixture',version:'1.0.0'},stepId:'gather',parametersDigest:'c'.repeat(64),operationSequence:1}};
-    const admission=persistMiningOperationAdmission(f.workspace,'tenant','d'.repeat(64),request,Date.parse(start.wallTime)),intents=new NativeMiningIntentStore(f.market.db);
+    const admission=persistMiningOperationAdmission(f.workspace,sleeper.username,'d'.repeat(64),request,Date.parse(start.wallTime)),intents=new NativeMiningIntentStore(f.market.db);
     const pending=intents.write({schemaVersion:1,intent:{demandId:miningDemandId(request),owner:actors[0]!,outputItemId:436,contextDigest:foodDigest({args:request.args,context:request.context}),
         authorityDigest:'d'.repeat(64),maximumWallMilliseconds:1000,expiresAtWallTime:admission.expiresAtWallTime,nativeDispatchRequired:true,attemptSequenceAtAdmission:0},
         revision:1,phase:'pending',completionEventId:null,sample:{clock:start,sessionId:'sleep-fixture',availability:'unknown',itemInstanceId:null,itemRevision:null,reason:'sleeping'}});
@@ -145,8 +215,8 @@ test('SI-C07 paid physical sleep is observed without losing a positive executor 
         actors.map(a=>({agentId:a.actorId,username:a.username,lifecycleId:a.lifecycleId})))).toEqual(report);}finally{frozen.close(true);}
     expect(report.executorCoverage.requests[0]?.nativeIntentObserved).toBeTrue();
     const middle=coverage.read().entries[1]!.event;if(middle.kind!=='sample')throw Error('No middle sample');expect(middle.actors[0]!.demandId).toBe(miningDemandId(request));
-    const proof=f.engine().observeSleeper('tenant',f.tenant,f.clock())!;expect(proof.kind).toBe('native-housing-sleep-v1');
-    expect(f.tenant.populationSleeping).toBeTrue();f.tenant.x+=10;expect(()=>f.engine().observeSleeper('tenant',f.tenant,f.clock())).toThrow('position');
+    const proof=f.engine().observeSleeper(sleeper.username,sleeper,f.clock())!;expect(proof.kind).toBe('native-housing-sleep-v1');
+    expect(sleeper.populationSleeping).toBeTrue();sleeper.x+=10;expect(()=>f.engine().observeSleeper(sleeper.username,sleeper,f.clock())).toThrow('position');
     f.advance(10);World.currentTick++;tickNativeMiningCoverage(ports);const invalid=coverage.read().entries.at(-1)!.event;
     if(invalid.kind!=='sample')throw Error('No invalidation sample');expect(invalid.actors[0]!.status).toBe('source-unavailable');
 });
@@ -217,15 +287,26 @@ test('real Player sleeping blocks physical execution and waking restores it with
     const f = fixture(); f.lease(); const rate = f.time.get('fixture-clock')!.profile; f.command('sleep'); expect(f.tenant.processMovement()).toBe(false);
     f.command('wake'); expect(f.tenant.populationSleeping).toBe(false); expect(f.time.get('fixture-clock')!.profile).toEqual(rate);
 });
-test('housing effect and explicit offline sleep feed durable SI-A03 fatigue history exactly once', () => {
-    const f = fixture(1000, 12500); f.advance(60000); expect(f.advanceNeeds().state.values.find(v => v.needId === 'fatigue')!.value).toBe(400);
+for(const authority of ['paid','owner'] as const)test(`${authority} housing effect and explicit offline sleep feed durable SI-A03 fatigue history exactly once`, () => {
+    const f = fixture(1000, 12500),username=authority==='owner'?'landlord':'tenant',binding=authority==='owner'
+        ?{...f.binding,actorId:'actor-landlord',playerId:'landlord',lifecycleId:'life-landlord'}:f.binding;
+    if(authority==='owner'){
+        f.time.recordPlayerPresence(f.intent.clockId,username,'online',f.clock().wallTime);
+        f.needs.initialize({binding,clock:f.clock(),playerTime:f.time.getPlayerTimeState(f.intent.clockId,username),history:f.time.getPlayerTimeHistory(f.intent.clockId,username),
+            admission:{kind:'genesis',evidenceId:'owner-opening',evidenceDigest:'d'.repeat(64)}});
+    }
+    const advanceNeeds=()=>f.needs.advance({binding,clock:f.clock(),playerTime:f.time.getPlayerTimeState(f.intent.clockId,username),
+        history:f.time.getPlayerTimeHistory(f.intent.clockId,username),expectedRevision:f.needs.get(binding)!.revision});
+    f.advance(60000); expect(advanceNeeds().state.values.find(v => v.needId === 'fatigue')!.value).toBe(400);
     const clock = f.clock(); f.intent.startsAt = clock.simulationTime; f.intent.endsAt = new Date(Date.parse(clock.simulationTime) + 86400000).toISOString(); f.intent.expiresAt = new Date(Date.parse(clock.wallTime) + 300000).toISOString();
-    f.lease(); f.command('sleep'); f.advance(6000); expect(f.advanceNeeds().state.values.find(v => v.needId === 'fatigue')!.value).toBe(275);
-    f.time.recordPlayerPresence('fixture-clock', 'tenant', 'offline', f.clock().wallTime); f.advance(6000); f.engine().validateSleeper('tenant', null);
-    expect(f.advanceNeeds().state.values.find(v => v.needId === 'fatigue')!.value).toBe(150);
-    const reopened = new NeedsStore(f.needsPath, f.policy, f.dynamics); try { expect(reopened.get(f.binding)?.state.values.find(v => v.needId === 'fatigue')!.value).toBe(150); } finally { reopened.close(); }
-    f.command('wake'); f.advance(6000); expect(f.advanceNeeds().state.values.find(v => v.needId === 'fatigue')!.value).toBe(175);
-    expect(f.advanceNeeds().state.values.find(v => v.needId === 'fatigue')!.value).toBe(175);
+    const owner=authority==='owner'?ownerBed(f):null;
+    if(owner)owner.command('owner-sleep');else{f.lease();f.command('sleep');}
+    f.advance(6000);expect(advanceNeeds().state.values.find(v=>v.needId==='fatigue')!.value).toBe(275);
+    f.time.recordPlayerPresence('fixture-clock',username,'offline',f.clock().wallTime);f.advance(6000);f.engine().validateSleeper(username,null);
+    expect(advanceNeeds().state.values.find(v=>v.needId==='fatigue')!.value).toBe(150);
+    const reopened = new NeedsStore(f.needsPath, f.policy, f.dynamics); try { expect(reopened.get(binding)?.state.values.find(v => v.needId === 'fatigue')!.value).toBe(150); } finally { reopened.close(); }
+    if(owner)owner.command('owner-wake');else f.command('wake');f.advance(6000);expect(advanceNeeds().state.values.find(v=>v.needId==='fatigue')!.value).toBe(175);
+    expect(advanceNeeds().state.values.find(v=>v.needId==='fatigue')!.value).toBe(175);
 });
 test('logout alone is awake offline time, not a sleep admission', () => {
     const f = fixture(); f.time.recordPlayerPresence('fixture-clock', 'tenant', 'offline', f.clock().wallTime); f.advance(60000);

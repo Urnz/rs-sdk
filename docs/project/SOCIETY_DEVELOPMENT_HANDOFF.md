@@ -25,6 +25,13 @@ Frissítve: 2026-10-31. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATI
   genesis, kilenc learned exact pin, workshop/worker/grant, durability100 tool,
   four-slot overlay; eredeti food/GP/harvest/pozíció/clock megmaradt.
   Mind4 founder valódi housing/sleep útja még kell.
+- **[Owner free-slot natív út kész](SI_C07_OWNER_SLEEP.md):** külön auditált
+  férőhelyfoglalás, typed sleep/wake, jelenlegi Property/életciklus/policy/óra/
+  pozíció ellenőrzés, tartós witness és folyamatos observer. Nincs self-rent,
+  GP-transzfer vagy új clock/needs formula. A paid és legacy tenancy admission
+  sem foglalhatja el az owner ágyát. Self-care gateway és a readonly sleep/
+  cohort-coverage/housing-minimum fogyasztók is bekötöttek. Kontrollált natív
+  Player/SQLite próbák, nem a négy founder tényleges SDK/Lite útja.
 - [Normál prepare/run/review/inspect](SI_C07_PROCEDURE_REVIEW.md) kész;
   exact admission/draft-checksum/run/native effect és world kötés, readonly újranyitás,
   külön emberi publication approval. A három szükséges1.0.0 már jóváhagyott és publikált.
@@ -60,11 +67,14 @@ Frissítve: 2026-10-31. Checkbox-forrás: [feladatlista](TASKS_SOCIETY_INTEGRATI
 
 ## Következő konkrét munka
 
-**Owner free-slot natív sleep admission és folyamatos observer, majd mind4
-founder vékony route/rent/sleep próbája.** A jelenlegi `NativeHousingExecutor`
-csak külön tenant/landlord fizetett bérletből ad witness-t; tulajdonos saját ingyenes
-ág nincs. Ne gyárts self-rentet vagy sleep receiptet. A meglévő paid ág, exact
-lifecycle/property/slot/capacity/clock és needs/coverage fogyasztók maradjanak strict.
+**Mind4 founder valódi, vékony route/rent/sleep próbája.** Az owner natív út
+és observer implementációja kész. Most három paid rent, egy tényleges owner-jog,
+mind4 fizikai út és sleep witness kell ugyanazon új saját packed stage-ben,
+normál SDK/gateway/engine útvonalon. Stop/paused és readonly újranyitás zárja.
+Előtte konkrét maxwall/stop/source terv és olcsó preflight; provider/autonomy off.
+Nem négy kontrollált Player-pozíció vagy generált receipt. Az eredeti névsor,
+food/GP/harvest/clock és a private/local korlát maradjon. Lease-expiry/needs/travel
+hiba megőrzött FAIL, nem idő- vagy értéklimit-emelés.
 
 Közös kiindulóállapot `backups/si-c07-common-founder-20261031/workspace`,
 fixture1.4.0/world `srv-0c8d5093-61c9-469f-8751-07152f4ea6d4`, paused/stopped.
@@ -82,6 +92,25 @@ megmaradnak. A3. csomag még nyitott;4. ratio-próba/hosszú C07 run nem indul.
 ## Aktuális ellenőrzési bizonyíték
 
 A teljes történet és korábbi FAIL-ek a trial-dokuban; logok `.local/verification/`.
+
+- Owner végső fogyasztók `20261031-120654-682`:50 célzott eset PASS25,46s,
+  root és engine TS PASS; teljes wrapper196,550s. Native Player/save, owner/
+  paid/legacy kizárás, életciklus/title/expiry/policy/pozíció, offline fatigue,
+  online Mining coverage/frozen reopen, self-care gateway és saját napló.
+- `120500-128`:17 tenancy/housing-minimum/frozen-native reader eset PASS15,104s;
+  a native readerből kizárólag két név szerint kiválasztott eset futott,
+  171 másik szűrt. Owner és paid ugyanazon original founderen, readonly snapshot.
+- A riport utolsó world-binding őre után csak az érintett owner-riport eset
+  ismétlődött: `121201-448` PASS2,709s. Más világ alvása nem ad pozitív bizonyítékot.
+- `121451-366` artifact/preflight PASS8,127s: további3 célzott preflight eset,
+  aktuális source SHA-k, eredeti policy/P2/link/formázás és az előző founder-stage
+  DB/WAL/save hashei/exact opening kötése változatlan. Összesen70 különböző
+  célzott eset PASS, nem full regresszió; provider/új világindítás nem volt.
+- Owner korai közvetlen engine-indítás `115735-868` FAIL25,338s (hiányzó
+  relatív login-key); a normál natív test-hosttal javítva. Saját startup
+  `db.sqlite` a verification könyvtárban megőrzött, nem világállapot.
+  `120302-209` root TS FAIL69,402s: az új opcionális owner-field return típusa;
+  javítva, végső root/engine TS PASS. Részletes határ/migráció/rollback az owner-dokuban.
 
 - Közös stage `20261031-111547-446` PASS102,638s: normál genesis és natív
   tool/knowledge/grant/housing opening,1909 source rekord. Provider/ticks nélkül.

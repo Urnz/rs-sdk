@@ -8,7 +8,7 @@ import { outcomeCheck as check,outcomeTime as time,type OutcomeActor } from './o
 import { NativeMiningDispatchStore } from '../item-lifecycle/native-mining-dispatch.js';
 import { miningRequestDigest } from '../agent-skills/mining-demand-source.js';
 import { readMiningExecutorCoverage } from './tool-demand-executor.js';
-import { readHousingSleep,type SleepWitness } from '../housing/native-sleep.js';
+import { readHousingSleep,ownerSleepBinding,type SleepWitness } from '../housing/native-sleep.js';
 import { readRentJournal,type NativeRentReceipt } from '../housing/native-rent.js';
 import { readNativeRentReceipt } from '../housing/native-rent-source.js';
 import { outcomeRows } from './outcome-work.js';
@@ -45,6 +45,10 @@ export function readNativeMiningCohortCoverage(db:Database,scope:EvaluationScope
         const w=sleepWitnesses.get(p.witnessId);check(w&&digest(w)===p.witnessDigest&&w.bindingDigest===p.bindingDigest&&w.username===owner.username
             &&w.lifecycleId===owner.lifecycleId&&w.clock.clockId===s.clockId&&w.clock.profileDigest===s.clockProfileDigest
             &&time(w.clock.simulationTime)<=time(e.clock.simulationTime),'Sleep coverage witness differs');
+        if(w.ownerBinding){const i=ownerSleepBinding(w).intent;
+            check(i.worldId===worldId&&i.owner.agentId===owner.actorId&&i.owner.username===owner.username&&i.owner.lifecycleId===owner.lifecycleId
+                &&i.clockId===s.clockId&&i.clockProfileDigest===s.clockProfileDigest&&p.validUntilSimulationTime===i.endsAt
+                &&time(e.clock.simulationTime)<time(i.endsAt),'Sleep coverage owner identity/period differs');return;}
         if(!paid.has(w.operationId)){outcomeRows(db,'native_rent_audit');outcomeRows(db,'native_rent_operation');
             const receipt=readRentJournal<NativeRentReceipt>(db,'native_rent').find(r=>r.binding.intent.operationId===w.operationId);
             check(receipt,'Sleep coverage native payment absent');const verified=readNativeRentReceipt(db,receipt.binding);check(verified?.phase==='paid','Sleep coverage payment differs');paid.set(w.operationId,verified);}

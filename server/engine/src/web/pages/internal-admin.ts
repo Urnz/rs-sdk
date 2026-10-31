@@ -183,7 +183,7 @@ export async function handleInternalAdminRequest(req: Request, url: URL): Promis
 
     if (url.pathname === '/api/internal/admin/native-housing') {
         if (Object.keys(body).sort().join(',') !== 'commandId,operation,operationId') return json({ error: 'Invalid typed housing request' }, 400);
-        const result = await enqueueNativeHousing({ operation: body.operation as 'pay' | 'cancel' | 'sleep' | 'wake', operationId: body.operationId as string });
+        const result = await enqueueNativeHousing({ operation: body.operation as 'pay' | 'cancel' | 'sleep' | 'wake' | 'owner-sleep' | 'owner-wake', operationId: body.operationId as string });
         return json(result, result.ok ? 200 : 409);
     }
 

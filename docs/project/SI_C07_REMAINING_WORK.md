@@ -34,8 +34,9 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    [közös founder-stage alkalmazója és offline natív bizonyítéka](SI_C07_COMMON_FOUNDER_STAGE.md)
    is kész: azonos négy alapító, normál genesis, kilenc learned pin, workshop/worker/grant,
    durability100 tool és négy packed slot. Paused diagnosztikai1.4.0 stage,
-   végső capture-ből kizárva. Következő az owner saját free-slot natív sleep útja,
-   majd mind4 founder tényleges route/rent/sleep próbája. A3. még nyitott;
+   végső capture-ből kizárva. Az [owner saját free-slot natív sleep/observer](SI_C07_OWNER_SLEEP.md)
+   és a self-care/readonly fogyasztók is implementáltak és natívan ellenőrzöttek.
+   Következő mind4 founder tényleges SDK/Lite route/rent/sleep próbája. A3. még nyitott;
    nincs új lezárási pont vagy C07 warmup/minimum-credit.
 4. **Natív időarány-validálás.** A választott clock-ratio összevetése a content
    tickkel, travel/harvest/work credit és tényleges meal/needs ritmussal.

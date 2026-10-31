@@ -1249,8 +1249,9 @@ is kész, a közös katalógusban elérhetők. A [közös founder-stage offline 
 és [readonly bizonyítéka](SI_C07_COMMON_FOUNDER_STAGE_RESULT.json) is kész: négy eredeti
 alapító, kilenc learned verified pin, normál genesis, workshop/worker/grant,
 durability100 csákány és négy packed ágy. A külön1.4.0 diagnosztikai stage
-final capture-ből kizárt; owner saját free-slot natív sleep és mind4 tényleges
-housing/rent/sleep út még kell a3. csomaghoz. Nem M3-warmup
+final capture-ből kizárt. Az [owner saját free-slot natív sleep és observer](SI_C07_OWNER_SLEEP.md),
+self-care és readonly fogyasztói is kész komponensszintű natív úton. Mind4
+tényleges SDK/Lite housing/rent/sleep út még kell a3. csomaghoz. Nem M3-warmup
 vagy minimum-PASS; az eredeti alapítók/food/GP/minimum változatlan.
 Öt nagy csomag maradt; nincs új lezárási pont, live baseline vagy hosszú run.
 

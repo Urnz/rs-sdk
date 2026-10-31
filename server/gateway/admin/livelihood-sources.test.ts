@@ -27,6 +27,8 @@ import { readBusinessFacilityGrant } from './business-facility-grant.js';
 import { initializeFoodCommerce } from '../../../agent-operated-shop/native-commerce.js';
 import type { LivelihoodJournalEntry } from '../../../agent-state/livelihood.js';
 import { loadNativeKitchenPolicy } from '../../../production-workflow/native-kitchen-policy.js';
+import {reservePopulationOwnerBed} from './native-housing.js';
+import {nativeHousingCatalogs} from '../../../housing/native-rent.js';
 
 const roots: string[] = [], closers: Array<() => void> = [];
 afterEach(() => { for (const close of closers.splice(0).reverse()) close(); for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
@@ -122,6 +124,25 @@ test('rent terms come from a real player Property title/catalog; missing landlor
     expect(s.rent).toMatchObject({ kind: 'housing', operation: 'pay', landlordAgentId: 'rain22', bedSlotId: 'falador.south-house.bed-1' });
     // Hunger still wins over a perfectly valid rental quote; missing food is not a reason to start work or spend rent.
     expect(selectLivelihoodAction(s).reason).toBe('food-input-or-authority-required');
+});
+
+test('owner self-care chooses an exclusive free bed and wake source without a self-rental quote or GP budget',async()=>{
+    const f=fixture(),member=f.add('ownertest',false),propertyPath=join(f.root,'.local/admin/properties.sqlite');mkdirSync(join(propertyPath,'..'),{recursive:true});
+    const p=new PropertyStore(loadPropertyCatalog(join(f.root,'config/properties.json')),propertyPath);
+    try{p.assignGenesis('owner-opening','falador.south-house',1,{kind:'player',id:member.playerUsername});}finally{p.close();}
+    const bed=nativeHousingCatalogs(f.root).native.beds[0]!,bot=f.bots.get('ownertest')!;
+    bot.state!.player!.worldX=bed.x;bot.state!.player!.worldZ=bed.z;bot.state!.player!.level=bed.level;
+    const first=await f.ports.snapshot('ownertest');expect(first.rest).toMatchObject({kind:'housing',operation:'owner-sleep',bedSlotId:bed.bedSlotId});
+    expect(first.rent).toBeUndefined();expect(first.wake).toMatchObject({kind:'housing',operation:'owner-wake'});
+    if(first.rest?.kind!=='housing')throw Error('No owner action');
+    const clock=f.time.get(f.start.clockId)!,housing={workspace:f.root,worldId:populationNeedsOptions(f.root).worldId,
+        housingPath:join(f.root,'.local/economy/housing.sqlite'),propertyPath,checkpointPath:join(f.root,'server/engine/data/player-checkpoints.sqlite')};
+    const bound=reservePopulationOwnerBed(housing,member,{clockId:clock.clockId,profileDigest:clock.profileDigest,simulationTime:clock.lastSimulationTime,
+        wallTime:clock.lastObservedWallTime,status:clock.status,revision:clock.revision,engineTick:null},{operationId:first.rest.operationId,bedSlotId:bed.bedSlotId});
+    expect(bound.intent).not.toHaveProperty('amountGp');expect((await f.ports.snapshot('ownertest')).rest).toMatchObject({operationId:bound.intent.operationId,operation:'owner-sleep'});
+    const missing:LivelihoodJournalEntry={actionId:randomUUID(),agentId:'ownertest',eventId:randomUUID(),policy:'society-livelihood@1.0.0',
+        lifecycle:bound.intent.owner.lifecycleId,action:{...first.rest,operationId:'absent-owner-admission'},phase:'submitted',reason:'test',receipt:null,createdAt:f.now,updatedAt:f.now,revision:1};
+    expect(await f.ports.reconcile(missing)).toMatchObject({status:'failed',reason:'owner-bed-not-admitted'});
 });
 
 test('Business stock demand creates no free raw material; only existing raw stock, policy and employment select a cook order', async () => {

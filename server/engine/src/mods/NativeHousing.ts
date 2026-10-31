@@ -13,6 +13,8 @@ import type { SimulationClockObservation } from '../../../../simulation-clock/ty
 import { initializeRentJournal, writeRentJournal, rentIds, type NativeHousingCommand, type NativeRentReceipt, type NativeRentBinding } from '../../../../housing/native-rent.js';
 import { NativeRentSource, readNativeRentReceipt } from '../../../../housing/native-rent-source.js';
 import { readHousingSleep,type SleepWitness,type NativeHousingSleepObservation } from '../../../../housing/native-sleep.js';
+import type {NativeOwnerBedBinding} from '../../../../housing/native-owner.js';
+import type {CommerceActor} from '../../../../agent-operated-shop/native-commerce.js';
 export { readHousingSleep } from '../../../../housing/native-sleep.js';
 export function initializeHousingSleep(db: Database): void {
     db.transaction(() => {
@@ -27,24 +29,36 @@ export class NativeHousingExecutor {
     constructor(private readonly p: NativeHousingPorts) {}
     private identity(binding: NativeRentBinding, player: Player, landlord = false): void {
         const i = binding.intent, actor = landlord ? i.landlord : i.tenant;
+        this.actorIdentity(i,actor,player);
+    }
+    private actorIdentity(i:{operationId:string;worldId:string;clockId:string;clockProfileDigest:string},actor:CommerceActor,player:Player){
         const context = this.p.identity(player.username, rentIds(i.operationId).escrowId, 0, World.currentTick);
         if (player.username !== actor.username || player.populationTerminal || player.levels[PlayerStat.HITPOINTS]! <= 0 || !context
-            || context.action.worldId !== i.worldId || context.action.actorId !== actor.agentId || context.action.lifecycleId !== actor.lifecycleId
+            || context.action.username!==actor.username||context.action.worldId !== i.worldId || context.action.actorId !== actor.agentId || context.action.lifecycleId !== actor.lifecycleId
             || context.action.clockId !== i.clockId || context.action.clockProfileDigest !== i.clockProfileDigest) throw new Error('Housing actor/lifecycle differs');
     }
+    private sleepAuthority(operationId:string,clock:SimulationClockObservation,owner:boolean){
+        if(owner){const binding=this.p.source.ownerBed(operationId,clock),i=binding.intent;
+            return{bindingDigest:binding.digest,intent:i,actor:i.owner,ownerBinding:binding as NativeOwnerBedBinding|undefined,
+                access:{kind:'bed-entitlement' as const,evidenceId:`owner:${operationId}`,sourceDigest:binding.digest,validUntilSimulationTime:i.endsAt}};}
+        const {order,access}=this.p.source.entitlement(operationId,clock);
+        return{bindingDigest:order.binding.digest,intent:order.binding.intent,actor:order.binding.intent.tenant,ownerBinding:undefined as NativeOwnerBedBinding|undefined,access};
+    }
     execute(command: NativeHousingCommand, tenant: Player | null, landlord: Player | null): string {
-        const p = this.p, order = p.source.order(command.operationId), b = order.binding, i = b.intent;
+        const p = this.p,ownerCommand=command.operation==='owner-sleep'||command.operation==='owner-wake',
+            binding=ownerCommand?p.source.ownerBed(command.operationId):p.source.order(command.operationId).binding,i=binding.intent,
+            actor='owner' in i?i.owner:i.tenant;
         let clock = p.clock();
-        if (command.operation === 'wake') {
-            p.time.recordPlayerRest(i.clockId, i.tenant.username, 'awake', clock.wallTime, World.currentTick); if (tenant) tenant.populationSleeping = false; return 'awake';
+        if (command.operation === 'wake'||command.operation==='owner-wake') {
+            p.time.recordPlayerRest(i.clockId, actor.username, 'awake', clock.wallTime, World.currentTick); if (tenant) tenant.populationSleeping = false; return 'awake';
         }
-        if (command.operation === 'sleep') {
+        if (command.operation === 'sleep'||command.operation==='owner-sleep') {
             if (clock.status !== 'running') throw new Error('Sleep admission needs a running clock');
-            if (!tenant) throw new Error('Sleep needs a live tenant'); this.identity(b, tenant);
+            if (!tenant) throw new Error('Sleep needs a live tenant'); this.actorIdentity(i,actor,tenant);
             // Identity validation may itself observe the shared clock. Bind the
             // admission and witness after it, rather than rewinding PlayerTime.
             clock = p.clock();
-            const entitlement = p.source.entitlement(command.operationId, clock), bed = i.catalogs.native.beds.find(b => b.bedSlotId === i.bedSlotId)!;
+            const authority=this.sleepAuthority(command.operationId,clock,ownerCommand),bed=i.catalogs.native.beds.find(b=>b.bedSlotId===i.bedSlotId)!;
             if (tenant.activeScript || tenant.protect || tenant.target || tenant.busy() || tenant.queue.head() || tenant.weakQueue.head() || tenant.engineQueue.head()
                 || tenant.level !== bed.level || Math.max(Math.abs(tenant.x - bed.x), Math.abs(tenant.z - bed.z)) > 1)
                 throw new Error('Tenant is busy or outside the rented bed');
@@ -55,8 +69,9 @@ export class NativeHousingExecutor {
                 if (!tenant.populationSleeping) throw new Error('Sleep authority was invalidated'); return 'sleeping';
             }
             initializeHousingSleep(p.market.db);
-            const witness: SleepWitness = { id: randomUUID(), operationId: command.operationId, bindingDigest: b.digest, username: tenant.username,
-                lifecycleId: i.tenant.lifecycleId, x: tenant.x, z: tenant.z, level: tenant.level, clock, checkpointDigest: foodDigest([...tenant.save(false)]) };
+            const witness: SleepWitness = { id: randomUUID(), operationId: command.operationId, bindingDigest: binding.digest, username: tenant.username,
+                lifecycleId: actor.lifecycleId, x: tenant.x, z: tenant.z, level: tenant.level, clock, checkpointDigest: foodDigest([...tenant.save(false)]),
+                ...authority.ownerBinding?{ownerBinding:authority.ownerBinding}:{} };
             p.market.db.transaction(() => {
                 p.checkpoint(); p.market.checkpoint(tenant.username, tenant.save(false), true);
                 const sequence = readHousingSleep(p.market.db).length + 1;
@@ -67,9 +82,12 @@ export class NativeHousingExecutor {
             }).immediate();
             p.time.startPlayerSleep(i.clockId, tenant.username, { sleeperKind: 'npc-agent', sleepPlaceId: i.bedSlotId,
                 fatigueRecoveryMultiplierBasisPoints: i.catalogs.recovery.fatigueRecoveryMultiplierBasisPoints,
-                access: { ...entitlement.access, evidenceId: `housing:${witness.id}`, sourceDigest: foodDigest(witness) } }, clock.wallTime, World.currentTick);
+                access: { ...authority.access, evidenceId: `housing:${witness.id}`, sourceDigest: foodDigest(witness) } }, clock.wallTime, World.currentTick);
             tenant.stopAction(); tenant.clearWaypoints(); tenant.populationSleeping = true; return 'sleeping';
         }
+        if(ownerCommand)throw Error('Unsupported owner housing command');
+        const b=binding as NativeRentBinding;
+        const rent=b.intent;
         initializeRentJournal(p.market.db, 'native_rent'); new PlayerInventoryEscrowStore(p.market);
         const prior = readNativeRentReceipt(p.market.db, b); if (prior) return prior.phase;
         if (command.operation === 'cancel') {
@@ -82,13 +100,13 @@ export class NativeHousingExecutor {
         const wallet = (a: Player): PlayerInventoryEscrowWallet => ({ count: id => a.getInventory(InvType.INV)!.getItemCount(id),
             remove: (id, n) => a.invDel(InvType.INV, id, n), add: (id, n) => a.invAdd(InvType.INV, id, n) });
         const before = { tenant: wallet(tenant).count(995), landlord: wallet(landlord).count(995) };
-        if (before.tenant < i.amountGp || before.landlord > 2147483647 - i.amountGp
+        if (before.tenant < rent.amountGp || before.landlord > 2147483647 - rent.amountGp
             || (!before.landlord && landlord.getInventory(InvType.INV)!.freeSlotCount < 1)) throw new Error('Insufficient rent funds or landlord capacity');
         const snapshots = [tenant, landlord].map(a => { const inv = a.getInventory(InvType.INV)!; return { inv, items: inv.items.map(v => v && { ...v }) }; });
         try {
             p.market.db.transaction(() => {
                 p.source.order(command.operationId, p.clock()); const escrow = new PlayerInventoryEscrowStore(p.market), id = rentIds(command.operationId).escrowId;
-                escrow.mutateWithCheckpoint({ operation: 'hold', escrowId: id, username: tenant.username, assets: { gp: i.amountGp, items: [] } }, wallet(tenant),
+                escrow.mutateWithCheckpoint({ operation: 'hold', escrowId: id, username: tenant.username, assets: { gp: rent.amountGp, items: [] } }, wallet(tenant),
                     { owner: tenant.username, save: () => tenant.save(false), rollback: () => {} }, clock.wallTime, b.digest);
                 escrow.mutateWithCheckpoint({ operation: 'commit', escrowId: id, username: tenant.username, payeeUsername: landlord.username }, wallet(landlord),
                     { owner: landlord.username, save: () => landlord.save(false), rollback: () => {} }, clock.wallTime, b.digest);
@@ -107,12 +125,14 @@ export class NativeHousingExecutor {
         if(!player.populationSleeping||player.populationTerminal||player.loggingOut||state?.rest!=='sleeping'||!state.sleepContext?.access.evidenceId.startsWith('housing:'))return null;
         const witness=readHousingSleep(p.market.db).find(w=>`housing:${w.id}`===state.sleepContext!.access.evidenceId);
         if(!witness||foodDigest(witness)!==state.sleepContext.access.sourceDigest||witness.username!==username)throw Error('Missing sleep observer witness');
-        const {order,access}=p.source.entitlement(witness.operationId,clock),i=order.binding.intent,context=p.identity(username,witness.id,0,clock.engineTick!);
+        const authority=this.sleepAuthority(witness.operationId,clock,!!witness.ownerBinding),{intent:i,actor,access}=authority,context=p.identity(username,witness.id,0,clock.engineTick!);
         const bed=i.catalogs.native.beds.find(b=>b.bedSlotId===i.bedSlotId)!;
-        if(!context||context.action.actorId!==i.tenant.agentId||context.action.username!==username||context.action.lifecycleId!==witness.lifecycleId
+        if(!context||context.action.actorId!==actor.agentId||context.action.username!==username||context.action.lifecycleId!==witness.lifecycleId
             ||context.action.worldId!==i.worldId||context.action.clockId!==clock.clockId||context.action.clockProfileDigest!==clock.profileDigest
             ||context.clock.engineTick!==clock.engineTick||context.clock.status!=='running'||context.clock.simulationTime<clock.simulationTime
-            ||order.binding.digest!==witness.bindingDigest||state.sleepContext.sleepPlaceId!==i.bedSlotId||witness.clock.simulationTime>clock.simulationTime
+            ||context.clock.simulationTime>=i.endsAt
+            ||authority.bindingDigest!==witness.bindingDigest||(witness.ownerBinding&&foodDigest(witness.ownerBinding)!==foodDigest(authority.ownerBinding))
+            ||state.sleepContext.sleepPlaceId!==i.bedSlotId||witness.clock.simulationTime>clock.simulationTime
             ||player.levels[PlayerStat.HITPOINTS]!<=0||player.level!==bed.level||Math.max(Math.abs(player.x-bed.x),Math.abs(player.z-bed.z))>1)throw Error('Sleep observer authority/position differs');
         return{kind:'native-housing-sleep-v1',witnessId:witness.id,witnessDigest:foodDigest(witness),bindingDigest:witness.bindingDigest,
             username,lifecycleId:witness.lifecycleId,observedAtSimulationTime:clock.simulationTime,validUntilSimulationTime:access.validUntilSimulationTime};
@@ -125,9 +145,11 @@ export class NativeHousingExecutor {
         try {
             const witness = readHousingSleep(p.market.db).find(w => `housing:${w.id}` === state.sleepContext!.access.evidenceId);
             if (!witness || foodDigest(witness) !== state.sleepContext.access.sourceDigest || witness.username !== username) throw new Error('Missing sleep witness');
-            const { order } = p.source.entitlement(witness.operationId, clock), i = order.binding.intent;
+            const authority=this.sleepAuthority(witness.operationId,clock,!!witness.ownerBinding),{intent:i,actor}=authority;
             const context = p.identity(username, witness.id, 0, World.currentTick);
-            if (order.binding.digest !== witness.bindingDigest || context?.action.lifecycleId !== witness.lifecycleId || context.action.actorId !== i.tenant.agentId) throw new Error('Sleeper lifecycle changed');
+            if (authority.bindingDigest !== witness.bindingDigest || context?.action.lifecycleId !== witness.lifecycleId || context.action.actorId !== actor.agentId
+                ||context.action.worldId!==i.worldId||context.action.clockId!==i.clockId||context.action.clockProfileDigest!==i.clockProfileDigest
+                ||(witness.ownerBinding&&foodDigest(witness.ownerBinding)!==foodDigest(authority.ownerBinding))) throw new Error('Sleeper lifecycle changed');
             const bed = i.catalogs.native.beds.find(b => b.bedSlotId === i.bedSlotId)!;
             if (player && (player.populationTerminal || player.levels[PlayerStat.HITPOINTS]! <= 0 || player.level !== bed.level
                 || Math.max(Math.abs(player.x - bed.x), Math.abs(player.z - bed.z)) > 1)) throw new Error('Sleeper left the bed');

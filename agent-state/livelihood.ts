@@ -4,7 +4,7 @@ import type { AgentSkillParameterBinding, AgentSkillReference } from './types.js
 
 export type LivelihoodAction =
     | { kind: 'skill'; skill: AgentSkillReference; binding: Omit<AgentSkillParameterBinding, 'digest'>; goalId?: string }
-    | { kind: 'housing'; operation: 'pay' | 'sleep' | 'wake'; operationId: string;
+    | { kind: 'housing'; operation: 'pay' | 'sleep' | 'wake' | 'owner-sleep' | 'owner-wake'; operationId: string;
         bedSlotId?: string; landlordAgentId?: string; afterPlayerTimeRevision?: number }
     | { kind: 'commerce'; operationId: string; quote?: { businessId: string; workerAgentId: string;
         kind: 'sale' | 'procurement'; quantity: 1; unitPriceGp: number } }

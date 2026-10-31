@@ -24,6 +24,8 @@ function access(p:HousingAccessPoint,at:number){
         for(const t of p.tenancies)if(t.housing_unit_id===unit.housingUnitId&&['active','arrears'].includes(t.status)&&active(t.starts_at,t.ends_at)){
             occupy(t.bed_slot_id,t.tenancy_id);upper.add(t.tenant_agent_id); // A plain contract is potential access, never paid native lower credit.
         }
+        for(const b of p.ownerReservations??[]){const i=b.intent;if(i.housingUnitId===unit.housingUnitId&&active(i.startsAt,i.endsAt))
+            occupy(i.bedSlotId,`owner:${i.operationId}`);}
         for(const grant of p.grants)if(grant.unitId===unit.housingUnitId&&active(grant.from,grant.to)){
             const actor=p.cohort.find(a=>a.binding.actorId===grant.actor.agentId&&a.binding.playerId===grant.actor.username&&a.binding.lifecycleId===grant.actor.lifecycleId);
             if(actor?.active&&slots.get(grant.bedId)?.size===1)lower.add(grant.actor.agentId);

@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import { housingUnitCatalogDigest } from './units.js';
 import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
 import { readRentJournal, rentIds, type NativeRentOrder } from './native-rent.js';
+import {readOwnerBedReservations} from './native-owner.js';
 import type { BedAccessEntitlement, HousingTenancy, HousingTenancyStatus,
     HousingUnitCatalog, RentPaymentEvidence } from './types.js';
 
@@ -113,6 +114,8 @@ export class HousingTenancyStore {
         }
         const transaction = this.database.transaction(() => {
             if (tenancyId.startsWith('rent.') && !this.prepaidMutation) throw new Error('Native rent tenancy requires paid admission');
+            if(readOwnerBedReservations(this.database).some(b=>(b.intent.bedSlotId===bedId||b.intent.owner.agentId===tenantId)
+                &&b.intent.startsAt<end&&b.intent.endsAt>start.iso))throw Error('Bed slot or tenant is reserved by native owner access');
             if (this.database.query("SELECT 1 FROM sqlite_master WHERE name='housing_native_schema'").get()
                 && readRentJournal<NativeRentOrder>(this.database, 'housing_native').some(o => ['reserved', 'active'].includes(o.phase)
                     && (o.binding.intent.bedSlotId === bedId || o.binding.intent.tenant.agentId === tenantId)

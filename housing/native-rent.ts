@@ -18,7 +18,7 @@ export interface NativeRentBinding { intent: NativeRentIntent; digest: string }
 export interface NativeRentOrder { binding: NativeRentBinding; phase: 'reserved' | 'active' | 'closed' | 'cancelled'; nativeDigest: string | null }
 export interface NativeRentReceipt { binding: NativeRentBinding; phase: 'paid' | 'cancelled'; clock: SimulationClockObservation;
     before: { tenant: number; landlord: number }; after: { tenant: number; landlord: number }; checkpoints: { tenant: string; landlord: string } | null; digest: string }
-export type NativeHousingCommand = { operation: 'pay' | 'cancel' | 'sleep' | 'wake'; operationId: string };
+export type NativeHousingCommand = { operation: 'pay' | 'cancel' | 'sleep' | 'wake' | 'owner-sleep' | 'owner-wake'; operationId: string };
 export type NativeHousingResponse = { ok: true; operationId: string; phase: string } | { ok: false; error: string };
 export const rentIds = (id: string) => ({ escrowId: workUuid(`rent:${id}`), tenancyId: `rent.${foodDigest(id).slice(0, 48)}` });
 export function nativeHousingCatalogs(root: string) {
@@ -29,6 +29,7 @@ export function nativeHousingCatalogs(root: string) {
     const native = JSON.parse(readFileSync(config('native-housing.json'), 'utf8')) as { schemaVersion: number; housingUnitId: string; beds: { bedSlotId: string; x: number; z: number; level: number }[] };
     const unit = units.units.find(u => u.housingUnitId === native.housingUnitId);
     if (native.schemaVersion !== 1 || !unit?.enabled || native.beds.length !== unit.capacity || new Set(native.beds.map(b => b.bedSlotId)).size !== unit.capacity
+        || new Set(native.beds.map(b=>`${b.x},${b.z},${b.level}`)).size!==unit.capacity
         || native.beds.some(b => !unit.bedSlots.some(s => s.bedSlotId === b.bedSlotId) || ![b.x, b.z, b.level].every(Number.isSafeInteger)
             || b.x < 0 || b.x > 16383 || b.z < 0 || b.z > 16383 || b.level < 0 || b.level > 3)) throw new Error('Invalid native housing bed mapping');
     return { units, hierarchy, effects, native, recovery: resolveHousingEffects(effects, hierarchy, unit.tierId) };

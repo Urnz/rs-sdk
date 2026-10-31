@@ -1875,7 +1875,7 @@
     {
       "id": "legal-housing-exposure",
       "status": "unverified",
-      "reason": "Frozen exact-clock points bound legal housing time with ownership versions, audited capacity and paid native rent. Four configured packed slots do not attest95% access: three paid tenant routes/sleeps and a native own-property free-slot path, plus complete pinned history, remain required."
+      "reason": "Frozen exact-clock points bound legal housing time with ownership versions and audited paid/owner bed capacity. The native own-property sleep and continuous observer are implemented; three actual paid tenant routes/sleeps, the actual founder owner route/sleep and complete pinned history are still required. Four configured packed slots alone cannot attest95% access."
     },
     {
       "id": "clock-ratio",
@@ -2409,7 +2409,7 @@
     },
     {
       "path": "society-metrics/integration-sources.ts",
-      "sha256": "d7bca2a44fd79ace560eef237d2d7e3c2a6526a5f93205947233e8c73c33019a"
+      "sha256": "dc46fc909241f355819bb2a69d0795e2c59a677757afff52d223b40e6aaf7a98"
     },
     {
       "path": "server/gateway/admin/save-reader.ts",
@@ -2417,31 +2417,55 @@
     },
     {
       "path": "society-metrics/housing-access.ts",
-      "sha256": "6df947bad18c0572b215a281601f863e941c003a237b1c4e400ce30d903bc5b7"
+      "sha256": "5e74dbe2dcbaa5633c300ab14f7b917019856980719dd8f314b74936568336d5"
     },
     {
       "path": "society-metrics/housing-minimum.ts",
-      "sha256": "35600d5bf4388aeac0948b4d7dcc7d78981c7c158ae363212fef026420e80aa0"
+      "sha256": "3b8669aa3fe4632a6389cb14a7a706be3a97705e125c33ae0fa40986e404a0c7"
     },
     {
       "path": "housing/native-rent.ts",
-      "sha256": "dd7a1f1a70631a34d095b77e674d989bd6a8bb1162e2e922e975d421570f11a4"
+      "sha256": "ba9b6ea681d7916afa916a51e418bef158c1dbcacc08306f8448d2e0c7b4667e"
     },
     {
       "path": "housing/native-rent-source.ts",
-      "sha256": "b463f49a15ed85b4f6bc85150acd771c342eaa8b0f55adf9ee41f2c4a58a8be6"
+      "sha256": "296b913102f99e753db0337b0a9cde2b146ec3f55c6aa33bf7ed82916740a9b6"
     },
     {
       "path": "housing/native-sleep.ts",
-      "sha256": "dbd3858f0cd64339c5e00335a3c456d6c338fdae3992c7a7a30b89b207598843"
+      "sha256": "4c6dd3655605efb865d0ec0d13c7ca39852ae9b98e8010d615bcaee5e89c0c7d"
+    },
+    {
+      "path": "housing/native-owner.ts",
+      "sha256": "7d413a0077d0ce6d9429ea27bf18b21e37f7af41bf226053b6f8ff585c45cd56"
+    },
+    {
+      "path": "housing/native-rent-runtime.ts",
+      "sha256": "4928fff1d7ee262091fc2eb525d78d3c79fb61a5b0c57d612eb2a223c0e3b3de"
+    },
+    {
+      "path": "housing/tenancy-store.ts",
+      "sha256": "9ebb308daf5b0f3ed7ac3e7b61363e5c952fb32e8e3e16eb00e1e69c3c162151"
+    },
+    {
+      "path": "server/gateway/admin/native-housing.ts",
+      "sha256": "8aa189f5909ff22b77934f54703b519a8f861d0e9511c4a40fe40c72b7d15062"
+    },
+    {
+      "path": "server/gateway/admin/livelihood-sources.ts",
+      "sha256": "9088c6b6da9f402b0da47ab6f8dbe23c915b8dbf286192c9ddf090fe2d1c1bc9"
+    },
+    {
+      "path": "agent-state/livelihood.ts",
+      "sha256": "dc1e8a9b6bb11a586cb1c8756dfd45f10254f8b1cf1044cbc75405795774eef6"
     },
     {
       "path": "server/engine/src/mods/NativeHousing.ts",
-      "sha256": "dc193dd9ec479474bf0d653e914adfca4a33a18061af82477ce39cb4f08716a5"
+      "sha256": "4119c55c44b701c1ec1e4ca5b12467238448f1fe577c516af26fa97eef7c1775"
     },
     {
       "path": "server/engine/src/mods/NativeHousingRuntime.ts",
-      "sha256": "91f8d118574958765c04ee2f154e043e1efe2299ca5dd38a5c779b6e4a3715a7"
+      "sha256": "2aab05e76b82829ad4b4b974a3d7e93c598b57d0e9583e5106dcb2141b6b5d86"
     },
     {
       "path": "society-metrics/tool-capacity.ts",
@@ -2454,10 +2478,6 @@
     {
       "path": "item-lifecycle/repair-authorization.ts",
       "sha256": "d83b4d26c529292c279a609a348a83670e9af860c4f31b5f0e5faddb98c12d82"
-    },
-    {
-      "path": "housing/tenancy-store.ts",
-      "sha256": "d42d1b9c70b1ef7d8973816fa6219b8c4e6bbc594ab03bc6a1fc3abfef2cfc8e"
     },
     {
       "path": "server/engine/src/mods/PropertyStore.ts",
@@ -2505,7 +2525,7 @@
     },
     {
       "path": "society-metrics/integration-report.ts",
-      "sha256": "c64a1a7a8f58711d6a4850f5f72fdfc73fee585c0873819cfce3b0ac7d340259"
+      "sha256": "5c8e9f5cd2327ceea71dea28e2d27be87bb5514c98166fab369216a1e0f54d58"
     },
     {
       "path": "society-metrics/evaluation-report.ts",
@@ -2561,7 +2581,7 @@
     },
     {
       "path": "society-metrics/tool-demand-coverage.ts",
-      "sha256": "266c8e7063e966e76adc5bf80bd37439b7f8dac809abe68332a7945d9475313c"
+      "sha256": "f06ca722ebecb6557cc06bd1889bc1209ceb061104469f0b20da363b86c87799"
     },
     {
       "path": "server/engine/src/mods/NativeMiningCoverage.ts",
@@ -2777,11 +2797,11 @@
     },
     {
       "path": "server/engine/src/web/pages/internal-admin.ts",
-      "sha256": "d7af1e03ff6a5a882bc63874a7113c1fbd408656c3d1c48c06c74548141733fc"
+      "sha256": "0be16195328f4fea489e76e7bc61e1d8091d446d68bbb8b9fd43f44bc677db70"
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "8547ed01357eba7a2a6d5649ebfbbe10380bc87ed92f33c17844264521bbb868"
+      "sha256": "9d6477377f694125db24354e7038c881b6574763f1339ee51cd6e876d70a031c"
     },
     {
       "path": "society-experiments/founder-baseline.ts",
@@ -2838,5 +2858,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "2966238f6762ca971252413cf3358f3c6795b56382766dad7186641bd91975a0"
+  "digest": "640c798ba0b51fa8f63e2ac944355cf9b80cb94e09d2bf96570e66efd73799ff"
 }

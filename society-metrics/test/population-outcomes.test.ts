@@ -1242,7 +1242,7 @@ test('native lifecycle repair and frozen physical checkpoints assess comparable 
     expect(retention()).toBe('inconclusive');
 },20000);
 
-test('native paid rent and frozen authority snapshots reach original-founder daily housing exposure and reopen offline',()=>{
+for(const owner of [false,true])test(`native ${owner?'owner bed plus ':''}paid rent and frozen authority snapshots reach original-founder daily housing exposure and reopen offline`,()=>{
     const f=fixture();cpSync(configDirectory,join(f.root,'config'),{recursive:true});mkdirSync(join(f.root,'server/engine/data'),{recursive:true});
     const integration={...nativeIntegrationOptions(f.root),worldId:'fixture',clockPath:f.clockPath},checkpoint=join(f.root,'server/engine/data/housing-checkpoints.sqlite');
     const native={workspace:f.root,worldId:'fixture',housingPath:integration.housingPath,propertyPath:join(f.root,'.local/admin/properties.sqlite'),checkpointPath:checkpoint};
@@ -1269,6 +1269,9 @@ test('native paid rent and frozen authority snapshots reach original-founder dai
         const facts={binding:order.binding,phase:'paid' as const,clock:paidAt,before:{tenant:1000,landlord:0},after:{tenant:500,landlord:500},
             checkpoints:{tenant:'a'.repeat(64),landlord:'b'.repeat(64)}};
         db.transaction(()=>writeRentJournal(db,'native_rent',{...facts,digest:foodDigest(facts)})).immediate();rent.finalize(order.binding.intent.operationId);
+        if(owner)rent.reserveOwner({operationId:'housing-measurement-owner',worldId:'fixture',clockId:paidAt.clockId,clockProfileDigest:paidAt.profileDigest,
+            owner:actor('ada'),housingUnitId:catalogs.native.housingUnitId,bedSlotId:catalogs.native.beds[1]!.bedSlotId,propertyVersion:2,
+            startsAt:paidAt.simulationTime,endsAt:'2001-01-03T00:00:00.000Z',catalogs},paidAt);
         for(const hour of [0,1,2]){
             const wallAt=new Date(Date.parse(paidAt.wallTime)+hour*3600000).toISOString(),observed=clock.observe('world',wallAt,hour+3);
             for(const binding of bindings)persistence.needs.advance({binding,clock:observed,history:[],playerTime:null,expectedRevision:persistence.needs.get(binding)!.revision});
@@ -1283,11 +1286,13 @@ test('native paid rent and frozen authority snapshots reach original-founder dai
             snapshots.push({at:observed.simulationTime,paths});if(hour<2)clock.resume('world',clock.get('world')!.revision,wallAt);
         }
     }finally{rent.close();persistence.close();db.close(true);agents.close();clock.close();}
-    for(const p of snapshots){const point=readHousingAccessPoint(f.scope,integration,p.paths,p.at);expect(point.grants).toHaveLength(1);}
+    for(const p of snapshots){const point=readHousingAccessPoint(f.scope,integration,p.paths,p.at);expect(point.grants).toHaveLength(owner?2:1);
+        if(owner)expect(point.ownerReservations).toHaveLength(1);}
     const options={configDirectory:join(f.root,'config'),nativeOutcomes:f.options,nativeIntegration:{...integration,housingBoundaries:snapshots},
         dependencies:{agentPath:f.agentPath,clockPath:f.clockPath,productionPath:integration.businessPath,enginePath:join(f.root,'absent-trades.sqlite')}};
     const read=()=>reportSocietyEvaluation(f.scope,options),good=read(),housing=good.nativeIntegration!.minimumHousing;
     expect(housing.intervals).toHaveLength(2);expect(housing.intervals.every(i=>i.lowerActorIds.includes('bea'))).toBeTrue();
+    if(owner)expect(housing.intervals.every(i=>i.lowerActorIds.includes('ada'))).toBeTrue();
     expect(good.minimumAssessment.sources.housingAccess.status).toBe('available');
     const cell=good.minimumAssessment.assessment!.requirements.find(r=>r.requirementId==='legal-housing-access-time')!.cells.find(c=>c.subject.actorAgentId==='bea'&&c.subject.bucket===0)!;
     expect(cell.lower).toEqual({numerator:'72000000000',denominator:'86400000'});expect(cell.verdict).toBe('inconclusive');

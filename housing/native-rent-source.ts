@@ -5,6 +5,7 @@ import { assertNativeFoodDomainPath, assertNativeFoodPath } from '../food-loop/n
 import { foodDigest } from '../server/engine/src/mods/NativeFoodConsumptionStore.js';
 import { nativeHousingCatalogs, readRentJournal, rentIds, type HousingNativeOptions, type NativeRentBinding, type NativeRentOrder, type NativeRentReceipt } from './native-rent.js';
 import type { SimulationClockObservation } from '../simulation-clock/types.js';
+import {readOwnerBedReservations,assertOwnerBedAuthority} from './native-owner.js';
 
 export function assertRentProperty(options: HousingNativeOptions, binding: NativeRentBinding): void {
     assertNativeFoodDomainPath({ ...options, checkpointPath: options.propertyPath });
@@ -31,6 +32,24 @@ export class NativeRentSource {
     }
     close(): void { this.db.close(true); }
     active(): NativeRentOrder[] { return readRentJournal<NativeRentOrder>(this.db, 'housing_native').filter(o => o.phase === 'active'); }
+    ownerReservations(){return readOwnerBedReservations(this.db);}
+    ownerBed(operationId:string,clock?:SimulationClockObservation){
+        let result!:ReturnType<typeof readOwnerBedReservations>[number];
+        this.db.transaction(()=>{
+            const binding=readOwnerBedReservations(this.db).find(b=>b.intent.operationId===operationId);
+            if(!binding||binding.intent.worldId!==this.options.worldId)throw Error('Owner bed binding unavailable in this world');
+            if(clock){
+                assertOwnerBedAuthority(this.options,binding,clock);const i=binding.intent;
+                const collision=(bed:string,actor:string,from:string,to:string)=>from<=clock.simulationTime&&clock.simulationTime<to
+                    &&(bed===i.bedSlotId||actor===i.owner.agentId);
+                if(readRentJournal<NativeRentOrder>(this.db,'housing_native').some(o=>['reserved','active'].includes(o.phase)
+                    &&collision(o.binding.intent.bedSlotId,o.binding.intent.tenant.agentId,o.binding.intent.startsAt,o.binding.intent.endsAt)))
+                    throw Error('Owner bed overlaps a rental reservation');
+                const leases=this.db.query("SELECT bed_slot_id,tenant_agent_id,starts_at,ends_at FROM housing_tenancy WHERE status IN ('active','arrears')").all() as any[];
+                if(leases.some(t=>collision(t.bed_slot_id,t.tenant_agent_id,t.starts_at,t.ends_at)))throw Error('Owner bed overlaps a tenancy');
+            }result=structuredClone(binding);
+        }).deferred();return result;
+    }
     order(operationId: string, clock?: SimulationClockObservation): NativeRentOrder {
         let result!: NativeRentOrder;
         this.db.transaction(() => {

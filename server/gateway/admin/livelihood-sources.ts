@@ -22,7 +22,11 @@ import { BusinessManagerStore } from './business-manager.js';
 import { createAdminBusinessWorkRequest } from './agent-state.js';
 import { populationNeedsOptions, populationNeedsBinding, readPopulationNeeds, readPopulationFoodApplications } from './needs-runtime.js';
 import { reservePopulationKitchen } from './native-kitchen.js';
-import { reservePopulationRental, requestNativeHousing, finalizePopulationRental } from './native-housing.js';
+import { reservePopulationRental, reservePopulationOwnerBed,requestNativeHousing, finalizePopulationRental } from './native-housing.js';
+import {readOwnerBedReservations} from '../../../housing/native-owner.js';
+import {NativeRentSource} from '../../../housing/native-rent-source.js';
+import {readHousingSleep} from '../../../housing/native-sleep.js';
+import {foodDigest} from '../../engine/src/mods/NativeFoodConsumptionStore.js';
 import { reservePopulationFoodCommerce, requestNativeFoodCommerce, reconcilePopulationFoodCommerce } from './native-food-commerce.js';
 import { resolveAdminSkillForAgent, type AdminAgentSkillCatalogOptions } from './skill-catalog.js';
 import type { GatewayBotSnapshot } from './types.js';
@@ -74,6 +78,7 @@ export function createLivelihoodPorts(options: LivelihoodSourceOptions): Livelih
     const member = (id: string) => { const m = agents(s => s.getPopulationMember(id));
         if (!m || m.status !== 'active' || m.characterLifecycle.status !== 'active') throw new Error('Active population binding required'); return m; };
     const rentalOrders = () => domainRows(housing.housingPath, 'housing_native_schema', db => readRentJournal<NativeRentOrder>(db, 'housing_native'));
+    const ownerBeds=()=>domainRows(housing.housingPath,'housing_native_schema',readOwnerBedReservations);
     const commerceOrders = () => domainRows(businessPath, 'business_food_commerce_schema', readFoodCommerce);
 
     const facilityGrant = (businessId: string, worker: AgentPopulationMember, capability: string, c: SimulationClockObservation) =>
@@ -287,8 +292,22 @@ export function createLivelihoodPorts(options: LivelihoodSourceOptions): Livelih
             const title = domainRows(housing.propertyPath, 'property_state', db => db.query('SELECT * FROM property_state WHERE property_id=?1').all(unit.propertyId) as { owner_kind: string; owner_id: string; status: string }[])[0];
             const landlord = title?.owner_kind === 'player' && title.status === 'owned'
                 ? agents(s => s.listPopulationMembers('active')).find(m => m.playerUsername === title.owner_id && m.agentId !== agentId) : undefined;
+            const owners=ownerBeds(),existing=owners.find(o=>o.intent.owner.agentId===agentId&&o.intent.owner.lifecycleId===binding.lifecycleId
+                &&o.intent.clockId===c.clockId&&o.intent.clockProfileDigest===c.profileDigest&&o.intent.startsAt<=c.simulationTime&&o.intent.endsAt>c.simulationTime);
             const bed = catalogs.native.beds.find(bed => !rentals.some(o => ['reserved', 'active'].includes(o.phase)
-                && o.binding.intent.bedSlotId === bed.bedSlotId && o.binding.intent.endsAt > c.simulationTime));
+                && o.binding.intent.bedSlotId === bed.bedSlotId && o.binding.intent.endsAt > c.simulationTime)
+                &&!owners.some(o=>o.intent.bedSlotId===bed.bedSlotId&&o.intent.endsAt>c.simulationTime));
+            if(title?.status==='owned'&&title.owner_kind==='player'&&title.owner_id===m.playerUsername){
+                const selected=existing?catalogs.native.beds.find(b=>b.bedSlotId===existing.intent.bedSlotId):bed;
+                if(selected){
+                    const operationId=existing?.intent.operationId??`owner:${workDigest({binding,bed:selected.bedSlotId,at:c.simulationTime}).slice(0,48)}`;
+                    result.wake={kind:'housing',operation:'owner-wake',operationId,afterPlayerTimeRevision:time?.revision??0};
+                    const player=b?.state?.player;
+                    result.rest=player&&player.level===selected.level&&Math.max(Math.abs(player.worldX-selected.x),Math.abs(player.worldZ-selected.z))<=1
+                        ?{kind:'housing',operation:'owner-sleep',operationId,bedSlotId:selected.bedSlotId,afterPlayerTimeRevision:time?.revision??0}
+                        :travel(m,'housing',`owner:${operationId}`);
+                }
+            }
             const gp = b?.state?.inventory.filter(i => i.id === 995).reduce((n, i) => n + i.count, 0) ?? 0;
             if (landlord && bed && gp >= unit.rentGpPerPeriod) result.rent = { kind: 'housing', operation: 'pay',
                 operationId: `routine-rent.${workDigest([binding.lifecycleId, needs?.revision, bed.bedSlotId]).slice(0, 48)}`,
@@ -300,6 +319,21 @@ export function createLivelihoodPorts(options: LivelihoodSourceOptions): Livelih
     const proof = async (entry: LivelihoodJournalEntry, cancelPending = false): Promise<LivelihoodReceipt> => {
         const a = entry.action;
         if (a?.kind === 'housing') {
+            if(a.operation==='owner-sleep'||a.operation==='owner-wake'){
+                const bound=ownerBeds().find(b=>b.intent.operationId===a.operationId);
+                if(!bound)return{status:'failed',reason:'owner-bed-not-admitted',source:`owner-non-admission:${a.operationId}`};
+                if(bound.intent.owner.agentId!==entry.agentId||bound.intent.owner.lifecycleId!==entry.lifecycle)throw Error('Owner receipt actor/lifecycle differs');
+                const m=member(entry.agentId),t=options.simulationClock?.store.getPlayerTimeState(clock().clockId,m.playerUsername);
+                if(t&&typeof a.afterPlayerTimeRevision==='number'&&t.revision>a.afterPlayerTimeRevision&&t.rest===(a.operation==='owner-sleep'?'sleeping':'awake')){
+                    if(a.operation==='owner-wake')return{status:'completed',reason:'native-owner-wake',source:`player-time:${t.clockId}:${t.playerId}:${t.revision}`};
+                    const source=new NativeRentSource(housing);try{source.ownerBed(a.operationId,clock());}finally{source.close();}
+                    const witnesses=domainRows(housing.checkpointPath,'native_housing_sleep',readHousingSleep),w=witnesses.find(w=>`housing:${w.id}`===t.sleepContext?.access.evidenceId);
+                    if(w?.ownerBinding&&w.bindingDigest===bound.digest&&w.username===m.playerUsername&&w.lifecycleId===entry.lifecycle
+                        &&t.sleepContext?.access.sourceDigest===foodDigest(w)&&t.sleepContext.sleepPlaceId===bound.intent.bedSlotId)
+                        return{status:'completed',reason:'native-owner-sleep',source:`housing:${w.id}`};
+                }
+                return{status:'pending',reason:'native-owner-sleep-pending',source:null};
+            }
             const bound = rentalOrders().find(o => o.binding.intent.operationId === a.operationId);
             if (!bound || bound.binding.intent.tenant.agentId !== entry.agentId || bound.binding.intent.tenant.lifecycleId !== entry.lifecycle)
                 throw new Error('Housing receipt actor/lifecycle differs');
@@ -411,10 +445,11 @@ export function createLivelihoodPorts(options: LivelihoodSourceOptions): Livelih
             reason: proof.reason!, source: `native-food:${actionId}:${proof.data.receiptDigest}` };
     }, execute: async entry => {
         const a = entry.action;
-        if (a?.kind !== 'stock' && !(a?.kind === 'housing' && a.operation === 'wake') && !fresh(member(entry.agentId).playerUsername))
+        if (a?.kind !== 'stock' && !(a?.kind === 'housing' && (a.operation === 'wake'||a.operation==='owner-wake')) && !fresh(member(entry.agentId).playerUsername))
             throw new Error('Native routine actor is busy or stale');
         if (a?.kind === 'stock') await executeStock(entry, a);
         else if (a?.kind === 'housing') {
+            if(a.operation==='owner-sleep'&&a.bedSlotId)reservePopulationOwnerBed(housing,member(entry.agentId),clock(),{operationId:a.operationId,bedSlotId:a.bedSlotId});
             if (a.operation === 'pay' && a.bedSlotId && a.landlordAgentId)
                 reservePopulationRental(housing, member(entry.agentId), member(a.landlordAgentId), clock(),
                     { operationId: a.operationId, bedSlotId: a.bedSlotId });

@@ -1,5 +1,6 @@
 import type {NeedsPolicy,NeedsDynamicsPolicy} from '../needs/types.js';
 import type {FoodLoopCatalog} from '../food-loop/types.js';
+import {ownerSleepBinding,type SleepWitness} from '../housing/native-sleep.js';
 import type { Database } from 'bun:sqlite';
 import { OwnedDatabase } from '../server/engine/src/io/OwnedDatabase.js';
 import { existsSync } from 'node:fs';
@@ -284,8 +285,8 @@ export function* iterateNativeIntegrationSources(scope: EvaluationScope, options
             const { hash, ...body } = row;
             check(row.sequence === index + 1 && row.previous_hash === previous && foodDigest(body) === hash, 'Native sleep witness audit differs');
             previous = hash;
-            const witness = JSON.parse(row.json) as { id: string; operationId: string; bindingDigest: string; username: string; lifecycleId: string;
-                x: number; z: number; level: number; clock: { clockId: string; profileDigest: string; simulationTime: string }; checkpointDigest: string };
+            const witness = JSON.parse(row.json) as SleepWitness;
+            if(witness.ownerBinding)ownerSleepBinding(witness);
             check(witness.id === row.witness_id, 'Native sleep witness identity differs'); return witness;
         });
         const head = db.query('SELECT * FROM native_housing_sleep_head WHERE id=1').get() as { sequence: number; hash: string | null } | null;
