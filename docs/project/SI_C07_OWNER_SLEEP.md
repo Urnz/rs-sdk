@@ -2,8 +2,8 @@
 
 2026-10-31. Az owner free-slot út implementált és célzott natív próbával
 ellenőrzött. Nem self-rent: nincs ár, GP-transzfer, tenancy vagy prepaid payment.
-A3. csomagból a négy eredeti founder tényleges, packed világon végrehajtott
-route/rent/sleep próbája maradt ehhez a lakhatási lépéshez. SI-C07 továbbra
+A3. csomaghoz azóta a [négy eredeti founder tényleges packed route/rent/sleep próbája](SI_C07_FOUNDER_HOUSING_TRIAL.md)
+és [readonly natív eredménye](SI_C07_FOUNDER_HOUSING_RESULT.json) is elkészült. SI-C07 továbbra
 nyitott,27/45, NO-GO; SI-M3/MVS nem PASS.
 
 ## Konkrét működés
@@ -94,12 +94,11 @@ teljes regressziót nem indokol az owner komponens saját additív naplója.
 Összesen70 különböző célzott eset eredménye PASS; az ismételt részpróbák nem új
 funkcionális esetek. A fizetési/GP és eredeti minimumképlet változatlan.
 
-## Következő konkrét próba
+## A következő próba eredménye
 
-Új, aktuális forráshoz kötött saját founder-stage, az eredeti négy alapítóval
-és változatlan openinggel. A régi paused openinghez nem nyúlunk. Normál SDK/
-gateway/engine: három tényleges paid rent, egy owner-jog, mind4 fizikai route
-és sleep witness, majd stop/paused/readonly visszaolvasás. Provider/autonomy off;
-az összefüggő futás előtt konkrét maxwall/stop terv és olcsó előfeltétel kell.
-Utána dönthető el a3. csomag lezárása; ratio, SI-A14 és a külön jóváhagyandó
-hosszú C07 run későbbi kapuk. A bizonyíték eredményét nem ígérjük meg előre.
+Új saját E-stage az eredeti négy alapítóval, változatlan openinggel:
+három normál paid rent, egy owner reservation, mind4 valódi SDK/Lite route,
+stabil bed-arrival és natív sleep witness PASS. Clean stop/paused, független
+kétszeri readonly ellenőrzés;241,609s live wrapper és1,418s reader. A korábbi
+sealed opening érintetlen. A3. csomag lezárt; következő a4. ratio-validálás.
+SI-A14/végső forráskijelölés és a külön jóváhagyandó hosszú run későbbi kapuk.

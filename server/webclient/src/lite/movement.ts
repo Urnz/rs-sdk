@@ -74,6 +74,18 @@ function route(
     // length<=0 branch below, no MOVE_OPCLICK packet is required here; the
     // caller immediately emits the interaction op.
     if (srcX === dx && srcZ === dz) {
+        // A deliberate game click on our tile replaces the native waypoint
+        // queue (MoveClickHandler's single-current-tile branch). Treating it
+        // like an already-in-range interaction leaves an older walk running.
+        if (type === 0) {
+            c.out.p1Enc(ClientProt.MOVE_GAMECLICK);
+            c.out.p1(5);
+            c.out.p1(running ? 1 : 0);
+            c.out.p2(dx + c.mapBuildBaseX);
+            c.out.p2(dz + c.mapBuildBaseZ);
+            c.minimapFlagX = dx;
+            c.minimapFlagZ = dz;
+        }
         return true;
     }
     if (locShape !== LocShape.WALL_STRAIGHT) {

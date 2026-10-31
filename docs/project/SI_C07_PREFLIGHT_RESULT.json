@@ -2640,6 +2640,10 @@
       "sha256": "b0a85f8daf2f9069fd677102bcd536d00da6ba6b8e38750f0c3b9c8347c395f8"
     },
     {
+      "path": "server/webclient/src/lite/movement.ts",
+      "sha256": "25f531aaa78083b79559a8bd3b194c167fb40352e15370389ed8120d52e791e6"
+    },
+    {
       "path": "server/engine/src/mods/NativeMiningInteraction.ts",
       "sha256": "4f6ea1c0d49bff063a5259dd58ddbd749cd5ee4fbed65c3f1d980ad96e04bb3e"
     },
@@ -2736,6 +2740,26 @@
       "sha256": "bc0ce1df435950eb11af869d2e08e3da843770c83644d0a2eb841298b30db5b8"
     },
     {
+      "path": "society-experiments/founder-housing.ts",
+      "sha256": "bb71c164077a469fead8dfabe9a724c38159c1acf020de5130a86576c976c137"
+    },
+    {
+      "path": "society-experiments/founder-housing-result.ts",
+      "sha256": "f7d433083c31c21de04b3593ea0ad8ad1a1ae0727db60227171b41354d76813c"
+    },
+    {
+      "path": "scripts/run-founder-housing.ts",
+      "sha256": "cb4fa37f048e6f20e12d744a8c301ba58ecc0b58cdf7380b2eacd2d317413d9e"
+    },
+    {
+      "path": "scripts/founder-housing-client.ts",
+      "sha256": "e78c768f7c9a44871cd9ca92f8513e8943ebca7154e67f809a91c61fd897544d"
+    },
+    {
+      "path": "scripts/verify-founder-housing.ts",
+      "sha256": "21ab276785e2e581c9003d29a1ddb6998db1c3a6a52f6da98e3a872b1bdcec07"
+    },
+    {
       "path": "society-integration/fixture.ts",
       "sha256": "b5d1e53c5f78db802a34b4802333c3502d4df512684e74440126909f7ca87d71"
     },
@@ -2801,7 +2825,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "9d6477377f694125db24354e7038c881b6574763f1339ee51cd6e876d70a031c"
+      "sha256": "325816c9482b6119106772cfc93657b14c483a1fe909c7df4469a75f87dedfd6"
     },
     {
       "path": "society-experiments/founder-baseline.ts",
@@ -2858,5 +2882,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "640c798ba0b51fa8f63e2ac944355cf9b80cb94e09d2bf96570e66efd73799ff"
+  "digest": "7b1174b740eb45d1f0ac88cb1b52d9b495f5fe7da54710065e458eeb0dd5d0c2"
 }

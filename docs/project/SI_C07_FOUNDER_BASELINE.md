@@ -1,7 +1,7 @@
-# SI-C07/3 – Közös founder-baseline: konkrét jelölt és nyitott feltételek
+# SI-C07/3 – Közös founder-baseline: lezárt implementáció és mechanikai próba
 
-2026-10-31. **A3. csomag folyamatban, nincs lezárva.** A2. implementációs csomag
-[11/11 kész](SI_C07_NATIVE_AGGREGATE.md). A3–7. öt nagy csomag még megmaradt;
+2026-10-31. **A3. implementációs/integrációs csomag kész.** A2. implementációs csomag
+[11/11 kész](SI_C07_NATIVE_AGGREGATE.md). Négy nagy csomag maradt,4–7;
 27/45, SI-C07 nyitott, preflight NO-GO, SI-M3/MVS nem PASS.
 
 [Géppel olvasható jelölt](SI_C07_FOUNDER_BASELINE.json), előállító:
@@ -19,7 +19,8 @@ jóváhagyása és [normál publikálása](SI_C07_FOUNDER_PUBLICATION_RESULT.jso
 A [közös genesis/housing/knowledge/workshop alkalmazója](SI_C07_COMMON_FOUNDER_STAGE.md)
 és [valódi offline stage/readonly bizonyítéka](SI_C07_COMMON_FOUNDER_STAGE_RESULT.json)
 is elkészült. Az1.4.0 külön jelölt diagnosztikai indulóállapot, végső C07
-baseline-nak nem archiválható. Mind4 housing/sleep és a natív owner free-slot út még kell.
+baseline-nak nem archiválható. Azóta a [négy founder valódi housing-próbája](SI_C07_FOUNDER_HOUSING_TRIAL.md)
+és [független readonly eredménye](SI_C07_FOUNDER_HOUSING_RESULT.json) is PASS.
 
 ## A közös indulócsomag tartalma
 
@@ -69,23 +70,31 @@ Ez anchor-bizonyíték, **nem útvonal-, title-, sleep- vagy futási bizonyíté
 A régi két slot konfigurációja változatlan. A külön új1.4.0 diagnosztikai stage
 már négy slotot köt az azonos packed forráshoz. Három fizető tenant és egy
 szabad owner-slot tervezett; bérletet vagy sleep receiptet nem bootstrapelünk.
-A négy founder tényleges SDK/Lite útvonala még hiányzik; az owner
-hozzáférése önmagában nem sleep receipt. Azóta az [owner saját natív
-sleep/observer útja](SI_C07_OWNER_SLEEP.md) elkészült komponensszinten.
+A [négy founder tényleges SDK/Lite útja](SI_C07_FOUNDER_HOUSING_TRIAL.md) is kész:
+három valódi paid rent és published travel, egy owner reservation, négy fizikai
+stabil bed-arrival és natív sleep witness, mentett pozíció/PlayerTime readback.
+Az [owner saját natív sleep/observer útja](SI_C07_OWNER_SLEEP.md) ugyanebben a
+közös nyitású E-világban is működött. Ez nem95% időbeli exposure bizonyíték.
 
-## Miért nem kész még a3. csomag?
+## A3. csomag lezárása és a következő határ
 
 A három exact required1.0.0 utility eljárás már verified/shared és publikált.
 A normál genesis, learned knowledge, worker/grant, szerszámkötés és négy-slot
 overlay közös offline alkalmazása és readonly seal is kész.
 
-Az eredeti megmaradó feltétel a négy founder valódi housing/sleep útja.
-Az owner saját ingyenes slotjának admission és folyamatos observer útja
-[immár implementált és natívan ellenőrzött](SI_C07_OWNER_SLEEP.md).
-Azonos deklarált openinggel, aktuális forráshoz kötött új saját stage-ből mind4 route/rent/
-sleep bizonyíték kell. Nincs önmagának fizetett ál-bérlet vagy kézi receipt.
-Az eredeti3. csomag feltételei, nem új P2-lista. A4. ratio-próba, hosszú run
-és SI-C08 még nem indul.
+Az eredeti megmaradó feltétel, a négy founder valódi route/rent/sleep útja
+[elkészült](SI_C07_FOUNDER_HOUSING_RESULT.json): E-live241,609s, két független
+readonly natív olvasás1,418s. Négy eredeti lifecycle, három500 GP rent,
+egy ingyenes owner reservation, két30 GP komp; záró GP2740, eredeti négy étel
+és durability100 megmaradt. Nincs önmagának fizetett ál-bérlet vagy kézi receipt.
+Az A/B/C hibák és a szűk D diagnosztika megőrzöttek; a Lite current-tile stop
+és az exact elérhető szomszédválasztás javítva. A rögzített3. csomag lezárt.
+
+Következő a4. natív ratio-validálás:288:1 mellett travel/content tick/harvest/
+food/needs és az51 valódi warmup tool-use időkerete. Az eljárás-trial deklarált
+tool-damage nem M3-credit; a hosszú gazdaságban a tényleges belső inputú repair/
+reuse és reserve-retention még bizonyítandó. A végső teljes-source baseline
+kijelölése és külön hosszú-run jóváhagyása az5. kapuhoz tartozik. SI-C08 nem indul.
 
 ## Ellenőrzés
 

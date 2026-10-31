@@ -1250,10 +1250,20 @@ is kész, a közös katalógusban elérhetők. A [közös founder-stage offline 
 alapító, kilenc learned verified pin, normál genesis, workshop/worker/grant,
 durability100 csákány és négy packed ágy. A külön1.4.0 diagnosztikai stage
 final capture-ből kizárt. Az [owner saját free-slot natív sleep és observer](SI_C07_OWNER_SLEEP.md),
-self-care és readonly fogyasztói is kész komponensszintű natív úton. Mind4
-tényleges SDK/Lite housing/rent/sleep út még kell a3. csomaghoz. Nem M3-warmup
-vagy minimum-PASS; az eredeti alapítók/food/GP/minimum változatlan.
-Öt nagy csomag maradt; nincs új lezárási pont, live baseline vagy hosszú run.
+  self-care és readonly fogyasztói is kész komponensszintű natív úton.
+
+**2026-10-31 a3. implementációs/integrációs csomag lezárt:** a [négy founder
+valódi SDK/Lite route/rent/sleep próbája](SI_C07_FOUNDER_HOUSING_TRIAL.md) és
+[független readonly natív eredménye](SI_C07_FOUNDER_HOUSING_RESULT.json) PASS.
+Három500 GP rent/prepaid tenancy és exact published travel, egy owner
+reservation, négy stabil bed-arrival és natív sleep witness;241,609s,
+readback1,418s. Két30 GP ferry sink, záró actor GP2740; eredeti négy étel,
+treasury1000 és durability100 tool megmaradt. Lite current-tile stop packet,
+elérhető ágy-szomszéd és parent managed binding javítva; A/B/C FAIL megőrzött,
+szűk D mozgásdiagnosztika előzte meg az E PASS-t. **Az1–3. csomag kész,
+négy nagy csomag maradt,4–7; következő a4. natív ratio-validálás.** A külön
+diagnosztikai1.4.0 E-világ nem final baseline, nincs51 warmup-use vagy
+minimum-credit.27/45, C07 NO-GO, SI-M3/MVS nem PASS; hosszú run nem indult.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.
 - **Cél és indok:** a rövid siker és a bootstrap-élettartam után is működjön a társadalom.

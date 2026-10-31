@@ -1,7 +1,7 @@
 # SI-C07 – Rögzített munkacsomagok és lezárási feltételek
 
 Állapot: 2026-10-31. A 2026-10-25-i hét munkacsomag változatlan.
-**Az1–2. kész, a3. közös founder-baseline folyamatban, a4–7. későbbi fázis.** A fő feladatlista
+**Az1–3. implementációs/integrációs csomag kész, a4–7. még hátravan.** A fő feladatlista
 27/45; SI-C07 nyitott, preflight NO-GO. Hosszú C07 gazdasági próba nem indult.
 
 A korábban ismételt „6 maradt” a 2–7. nagy csomagot számolta, nem a 2. csomag
@@ -21,7 +21,7 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    mind17 szabály,8 integrity gate és16 source family együtt PASS. Hiány unknown,
    natív számszerű sértés FAIL, frozen readonly eredmény azonos. Komponens-producer
    fixture, nem tényleges C07 gazdasági próba és nem jóváhagyott founder-baseline.
-3. **FOLYAMATBAN – Teljes közös founder-baseline.** [Konkrét jelölt és hiányok](SI_C07_FOUNDER_BASELINE.md). Négy founder kompetenciákkal, pontos
+3. **KÉSZ – Közös founder-baseline implementáció és mechanikai integráció.** [Konkrét jelölt és lezárás](SI_C07_FOUNDER_BASELINE.md). Négy founder kompetenciákkal, pontos
    verified skill/grant csomaggal; natív Mining→smelt→repair→reuse input/
    kapacitás, étellánc és lakhatás. Az eredeti minimumhoz szükséges jóváhagyott
    indulóállapot, nem a teszteredményhez igazított készletnövelés.
@@ -36,8 +36,12 @@ Részletes [állapotfelmérés és a 2. csomag lezárási listája](SI_C07_PACKA
    durability100 tool és négy packed slot. Paused diagnosztikai1.4.0 stage,
    végső capture-ből kizárva. Az [owner saját free-slot natív sleep/observer](SI_C07_OWNER_SLEEP.md)
    és a self-care/readonly fogyasztók is implementáltak és natívan ellenőrzöttek.
-   Következő mind4 founder tényleges SDK/Lite route/rent/sleep próbája. A3. még nyitott;
-   nincs új lezárási pont vagy C07 warmup/minimum-credit.
+   A [négy founder tényleges SDK/Lite route/rent/sleep próbája](SI_C07_FOUNDER_HOUSING_TRIAL.md)
+   és [readonly natív eredménye](SI_C07_FOUNDER_HOUSING_RESULT.json) is PASS: három
+   rent, egy owner reservation, három published travel, négy stabil bed-arrival/
+   native sleep;241,609s, külön readback1,418s. Eredeti food/GP/harvest/clock
+   opening megmaradt. A3. lezárt; nincs C07 warmup/minimum-credit. A végső
+   teljes-source baseline kijelölése/engedélye az5. kapu, a gazdasági teljesítmény6–7.
 4. **Natív időarány-validálás.** A választott clock-ratio összevetése a content
    tickkel, travel/harvest/work credit és tényleges meal/needs ritmussal.
    A 288:1 nem tekinthető már validált M3-aránynak.

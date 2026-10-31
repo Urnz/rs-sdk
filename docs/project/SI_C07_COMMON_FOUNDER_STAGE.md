@@ -41,14 +41,15 @@ az új fixture-digeszthez kötött, nem korábbi trial átvétele vagy átminős
   binding és meglévő világ adoptálása fail-closed. A valódi stage nem javítható
   vissza a seal átírásával.
 
-## Pontos megmaradó housing-határ
+## Az offline nyitás utáni housing-határ lezárása
 
-Négy konfigurált slot nem négy igazolt alvás. A jelenlegi normál natív út
-csak fizetett, külön tenant/landlord bérletből ad sleep witness-t.
-A tulajdonos saját ingyenes slotjához még nincs megfelelő natív admission és
-folyamatos observer-út. Nem készül önmagának fizetett ál-bérlet vagy kézzel
-írt sleep receipt. Három valódi fizető tenant és egy valódi owner sleep,
-mind4 útvonallal, még a3. csomag feltétele; addig a csomag nem zárható le.
+Az offline nyitás önmagában nem bizonyított négy alvást. Azóta az
+[owner saját natív admission/observer útja](SI_C07_OWNER_SLEEP.md) és a
+[négy founder tényleges útvonalas housing-próbája](SI_C07_FOUNDER_HOUSING_TRIAL.md)
+is kész. Új saját E-stage-ből három normál paid rent, egy ingyenes owner
+reservation és négy fizikai stabil bed-arrival/native sleep, clean stop és
+[readonly újranyitás](SI_C07_FOUNDER_HOUSING_RESULT.json) PASS. A3. implementációs/
+integrációs csomag lezárt; a végső teljes-source baseline/ratio/hosszú run későbbi kapu.
 
 Az új stage későbbi vékony housing-próbához kiindulóállapot. Az érintetlen
 sealed opening megőrzendő; egy próbából megmaradó világ nem válik visszamenőleg

@@ -1,0 +1,172 @@
+{
+  "protocol": "si-c07-founder-housing-result-v1",
+  "status": "native-route-rent-sleep-pass",
+  "worldId": "srv-0c8d5093-61c9-469f-8751-07152f4ea6d4",
+  "fixtureDigest": "0c8d509361c9a69fd75107152f4ea6d424fa40a84083845bbe9eff51ec538940",
+  "sourceManifestDigest": "13ad7cd0d6dec734ea3ac83a4ea6772f52b5825cbc00167126015549317d65f4",
+  "openingSealDigest": "57db7a1c75f24332566be5d85f857e23d9b7b3d750c13c33e4bcca2ca6c63e40",
+  "openingSetupDigest": "5d7a89ee0bf75c83f623c9fe4f97571ab11cec1eac82dae97493e0023940e45e",
+  "elapsedMs": 240552,
+  "clock": {
+    "clockId": "world",
+    "profileDigest": "f19889e1720ef6ef21b2079cdc3147361449eb747046de5f0ba3c1829a56c7e7",
+    "simulationTime": "2001-01-01T19:14:27.744Z",
+    "wallTime": "2026-10-31T12:20:21.860Z",
+    "status": "paused",
+    "revision": 3,
+    "engineTick": null
+  },
+  "actors": [
+    {
+      "agentId": "sifisher",
+      "username": "sifisher",
+      "kind": "paid",
+      "bed": {
+        "bedSlotId": "falador.south-house.bed-2",
+        "x": 2973,
+        "z": 3330,
+        "level": 0
+      },
+      "operationId": "a64677f2-b924-46c9-b5f3-314b430b934f",
+      "witnessId": "d7475ae6-e195-4712-85ee-0581688c9d8e",
+      "witnessDigest": "76af1994ed062b09821f899267cce28761db83d2f408b3b94556d32dd68271cb",
+      "lifecycleId": "4d6909b5d87a8c4bf2ac74c3ef43ce866de57533cfdfbf92759929dcfebd2476",
+      "openingGp": 700,
+      "closingGp": 170,
+      "fareGp": 30,
+      "position": {
+        "x": 2972,
+        "z": 3331,
+        "level": 0
+      },
+      "playerTimeRevision": 2
+    },
+    {
+      "agentId": "sicook",
+      "username": "sicook",
+      "kind": "paid",
+      "bed": {
+        "bedSlotId": "falador.south-house.bed-3",
+        "x": 2973,
+        "z": 3332,
+        "level": 0
+      },
+      "operationId": "7c486619-ff95-4c65-b94a-41e62f8ff418",
+      "witnessId": "049f4ae4-61f2-4aaf-bb5a-01ca65a0d9d8",
+      "witnessDigest": "2c75b3b75a2e95192ee1b7727ceaa9d15a301dde41203906479eba6c5f621ee0",
+      "lifecycleId": "6ad1b75602e27af685a394262b43d7848ce9fd8287699b4678714310b6300367",
+      "openingGp": 700,
+      "closingGp": 170,
+      "fareGp": 30,
+      "position": {
+        "x": 2972,
+        "z": 3331,
+        "level": 0
+      },
+      "playerTimeRevision": 2
+    },
+    {
+      "agentId": "sicourier",
+      "username": "sicourier",
+      "kind": "paid",
+      "bed": {
+        "bedSlotId": "falador.south-house.bed-4",
+        "x": 2977,
+        "z": 3332,
+        "level": 0
+      },
+      "operationId": "cff07876-8826-48d8-9756-afec797b0d0c",
+      "witnessId": "9add4e93-e101-4fac-b9bb-8aa7f08240a5",
+      "witnessDigest": "20660ee36eb5422c170b682af27070f752b1f6d92c738eec9dd56d1cb03c9aa2",
+      "lifecycleId": "e92a6008ab710c3f3afdc2f8d848ba7c8c95029f236d66f2bcc2e0502bb387a6",
+      "openingGp": 700,
+      "closingGp": 200,
+      "fareGp": 0,
+      "position": {
+        "x": 2976,
+        "z": 3331,
+        "level": 0
+      },
+      "playerTimeRevision": 1
+    },
+    {
+      "agentId": "silessor",
+      "username": "silessor",
+      "kind": "owner",
+      "bed": {
+        "bedSlotId": "falador.south-house.bed-1",
+        "x": 2973,
+        "z": 3328,
+        "level": 0
+      },
+      "operationId": "833ac27e-0cf4-4515-918f-dd7e555e7fbe",
+      "witnessId": "0235373c-66f3-489c-8e93-63d18e7f3275",
+      "witnessDigest": "21c73ec9a9975d6be4c1bda6ca62c85a9e11c513ec917472f320c22b1484fa6d",
+      "lifecycleId": "504e687fdfec18230e58657022def49f51f2cc7af166fa234eb808af969c5b3a",
+      "openingGp": 700,
+      "closingGp": 2200,
+      "fareGp": 0,
+      "position": {
+        "x": 2972,
+        "z": 3329,
+        "level": 0
+      },
+      "playerTimeRevision": 2
+    }
+  ],
+  "nativeFiles": [
+    {
+      "path": ".local/economy/housing.sqlite",
+      "suffix": "",
+      "sha256": "55373c59c4907ecb28c814801ff0341b4160f402aef3c65a5698265514b9e922"
+    },
+    {
+      "path": ".local/admin/properties.sqlite",
+      "suffix": "",
+      "sha256": "2868ca62fd67db7a69fc0d0fe378ef812042c946650e8e1b4340952250079f50"
+    },
+    {
+      "path": "server/engine/data/player-checkpoints.sqlite",
+      "suffix": "",
+      "sha256": "40cf07c52bfaa52b334ef341456f970787f6dc701ffe18ad3c572cb5056dbd70"
+    },
+    {
+      "path": "server/engine/data/player-checkpoints.sqlite",
+      "suffix": "-wal",
+      "sha256": "0ec9ae39d92dac73c0502b0183b7c6360ecb078cf1b37fb5499e7e040e6b2256"
+    },
+    {
+      "path": ".local/simulation/simulation-clock.sqlite",
+      "suffix": "",
+      "sha256": "c4ab37fc937f55e686ceb18c5efe21aaf2ec85fb2125e27d22b4fc67c7119bf6"
+    },
+    {
+      "path": ".local/agent-state/agents.sqlite",
+      "suffix": "",
+      "sha256": "5de6d3fba7b9239854164be74dbad2bda6aad49f76439ef2e57d28000395a5f6"
+    },
+    {
+      "path": ".local/agent-state/agents.sqlite",
+      "suffix": "-wal",
+      "sha256": "cbeb935727ca6d59c7a83118290b3628b94e4c967574677bbb64f44e545b6a33"
+    },
+    {
+      "path": ".local/economy/institution-treasury.sqlite",
+      "suffix": "",
+      "sha256": "98d634ea8c541e2e68932f5a749742962307fcdb32926a52590ba0d6bcfe1b75"
+    }
+  ],
+  "readonlyUnchanged": true,
+  "sqliteMetadata": "SHM and zero-byte WAL files have no persistent payload and are excluded; DB and every nonempty WAL are hashed.",
+  "providerCalls": 0,
+  "providerCostMicros": 0,
+  "qualifiesMinimum": false,
+  "limits": {
+    "maximumWallMs": 480000,
+    "travelMs": 360000,
+    "bedMs": 30000,
+    "readinessMs": 60000
+  },
+  "scope": "Four actual founder routes/bed arrivals and native payments/owner/sleep only; not M3, ratio or sustained supply.",
+  "digest": "d017794de20215782eb7c88654604086bcfbdbd11beb27437497104135cc5c29"
+}
