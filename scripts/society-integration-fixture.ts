@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util';
 import { existsSync, symlinkSync, unlinkSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { loadIntegrationFixture, integrationWorldId } from '../society-integration/fixture.js';
+import {founderProcedureTrialFixture} from '../society-experiments/founder-trial-stage.js';
 import { preflightIntegrationDefinition, readIntegrationBaseline, FOOD_TRIAL_STATE } from '../society-integration/bootstrap.js';
 import { verifyNativeIntegrationSeal } from '../society-integration/baseline.js';
 import { createIntegrationWorkspace, createFoodTrialWorkspace, captureIntegrationBaseline, verifyIntegrationBaseline, restoreIntegrationBaseline,
@@ -11,7 +12,7 @@ const { values, positionals } = parseArgs({ allowPositionals: true, strict: true
     output: { type: 'string' }, bundle: { type: 'string' }, fixture: { type: 'string', default: 'config/fixtures/society-lobster-four-v1.json' },
     offline: { type: 'boolean', default: false } } });
 const root = resolve(values.root ?? join(import.meta.dir, '..')), command = positionals[0] ?? 'preflight';
-const fixture = loadIntegrationFixture(resolve(root, values.fixture));
+const baseFixture = loadIntegrationFixture(resolve(root, values.fixture)),fixture=command==='create-founder-trials'?founderProcedureTrialFixture(baseFixture):baseFixture;
 function offline(target: string) {
     if (!values.offline) throw new Error('Explicit --offline is required; stop all writers before creating/capturing a baseline');
     if (process.platform !== 'win32') throw new Error('Use a platform-specific offline probe; the supplied probe supports Windows');
@@ -24,9 +25,9 @@ if (command === 'preflight') {
     const seal = baseline ? verifyNativeIntegrationSeal(root, fixture).digest : null;
     console.log(JSON.stringify({ ...definition, baseline, nativeSeal: seal }, null, 2));
     if (!definition.executableSkillsReady) process.exitCode = 2;
-} else if (command === 'create' || command === 'create-food-trials') {
+} else if (command === 'create' || command === 'create-food-trials'||command==='create-founder-trials') {
     if (!values.output) throw new Error('Create requires a NEW --output directory');
-    const trial = command === 'create-food-trials';
+    const trial = command !== 'create';
     if (!trial) {
         const definition = await preflightIntegrationDefinition(root, fixture);
         if (!definition.executableSkillsReady) throw new Error(`Verified skills are not ready: ${definition.errors.join('; ')}`);
@@ -39,7 +40,7 @@ if (command === 'preflight') {
                 for (const path of ['node_modules', 'server/engine/node_modules', 'server/webclient/node_modules']) if (existsSync(join(root, path))) {
                     const link = join(stage, path); symlinkSync(join(root, path), link, process.platform === 'win32' ? 'junction' : 'dir'); links.push(link);
                 }
-                const child = Bun.spawn([process.execPath, join(stage, 'scripts/integration-native-bootstrap.ts'), ...(trial ? ['--food-trials'] : [])], { cwd: join(stage, 'server/engine'),
+                const child = Bun.spawn([process.execPath, join(stage, 'scripts/integration-native-bootstrap.ts'), ...(trial ? ['--food-trials'] : []),...(command==='create-founder-trials'?['--founder-procedures']:[])], { cwd: join(stage, 'server/engine'),
                     env: { ...process.env, CONTROL_PLANE_SERVER_ID: integrationWorldId(fixture), MANAGED_WORKSPACE: stage,
                         ENGINE_ADMIN_URL: 'http://127.0.0.1:65530', GATEWAY_URL: 'ws://127.0.0.1:65531',
                         PLAYER_CHECKPOINT_DATABASE: 'data/player-checkpoints.sqlite', GE_DATABASE: 'data/player-checkpoints.sqlite', TRADE_EVIDENCE_DB: 'data/mods/trade-evidence.sqlite',
@@ -73,4 +74,4 @@ if (command === 'preflight') {
 } else if (command === 'restore-result') {
     if (!values.bundle || !values.output) throw new Error('Result restore requires --bundle and a NEW --output directory');
     console.log(JSON.stringify(restoreIntegrationResult(values.bundle, values.output), null, 2));
-} else throw new Error('Commands: preflight, create, create-food-trials, capture, verify, restore, capture-result, verify-result, restore-result');
+} else throw new Error('Commands: preflight, create, create-food-trials, create-founder-trials, capture, verify, restore, capture-result, verify-result, restore-result');

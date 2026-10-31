@@ -23,6 +23,8 @@ test('only the exact bounded tin draft receives trial operations, without spendi
         (d:typeof draft)=>{if(d.steps[0]?.kind==='operation')d.steps[0].arguments.x=3286;},
         (d:typeof draft)=>{if(d.steps[1]?.kind==='operation')d.steps[1].maxAttempts=2;},
         (d:typeof draft)=>{if(d.steps[1]?.kind==='operation')d.steps[1].arguments.item='copper ore';},
+        (d:typeof draft)=>{if(d.steps[1]?.kind==='operation')d.steps[1].arguments.timeoutMs=15000;},
+        (d:typeof draft)=>{if(d.steps[1]?.kind==='operation')d.steps[1].arguments.timeoutMs=60001;},
         (d:typeof draft)=>{d.limits.maxOperations=3;},
         (d:typeof draft)=>{d.limits.timeoutMs=120001;}
     ]){const changed=structuredClone(draft);mutate(changed);expect(()=>miningTrialAuthorization(changed)).toThrow();}

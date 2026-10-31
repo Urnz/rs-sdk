@@ -397,7 +397,10 @@ const PlayerOps: CommandHandlers = {
         if (!state.activePlayer.inOperableDistance(state.activeLoc)) {
             state.activePlayer.queueWaypoint(state.activeLoc.x, state.activeLoc.z);
         }
-        state.activePlayer.setInteraction(Interaction.SCRIPT, state.activeLoc, ServerTriggerType.APLOC1 + type);
+        const op=ServerTriggerType.APLOC1 + type;
+        if(state.activePlayer.setInteraction(Interaction.SCRIPT, state.activeLoc, op)&&state.nativeMiningDispatchId&&(type===0||type===2)){
+            state.activePlayer.nativeMiningContinuation={dispatchId:state.nativeMiningDispatchId,target:state.activeLoc,op,admissionClock:state.nativeMiningAdmissionClock};
+        }
     }),
 
     // https://x.com/JagexAsh/status/1791472651623370843

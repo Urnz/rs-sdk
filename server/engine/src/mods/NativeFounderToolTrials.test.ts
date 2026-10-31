@@ -60,7 +60,9 @@ test('SI-C07 persisted full smelt and repair trials use real population/Business
     const prepared=await prepareFounderProcedureTrials(root,'worker','trial-workshop'),again=await prepareFounderProcedureTrials(root,'worker','trial-workshop');
     expect(again.prepared.map(p=>p.trialId)).toEqual(prepared.prepared.map(p=>p.trialId));expect(prepared.executionStarted).toBeFalse();
     const trials=new SkillTrialStore(join(root,'.local/agent-skills/trials.json')),journal=new FileSkillRunJournal(join(root,'.local/agent-skills/runs'));
-    const options={workspace:root,worldId:s.owner.worldId,checkpointPath,binding:()=>s.owner,dispatch:async(command:NativeToolWorkCommand)=>executor.start(command,f.miner)};
+    const options={workspace:root,worldId:s.owner.worldId,checkpointPath,
+        binding:()=>({...s.owner,worldProfileDigest:'extra-population-metadata',lifecyclePolicyDigest:'extra-policy-metadata'}),
+        dispatch:async(command:NativeToolWorkCommand)=>executor.start(command,f.miner)};
     for(const kind of ['smelt','repair'] as const){
         const planned=prepared.prepared.find(p=>p.kind===kind)!;let trial=(await trials.get(planned.trialId))!;
         trial=await trials.transition(trial.trialId,trial.revision,'running');

@@ -21,6 +21,6 @@
   ],
   "steps": [
     { "kind": "operation", "id": "mine", "operation": "walk-to", "arguments": { "x": 3285, "z": 3365, "tolerance": 5 } },
-    { "kind": "operation", "id": "tin", "operation": "gather-loc", "arguments": { "name": "rocks tin ore", "match": "exact", "option": "mine", "item": "tin ore", "skill": "Mining", "timeoutMs": 15000 } }
+    { "kind": "operation", "id": "tin", "operation": "gather-loc", "arguments": { "name": "rocks tin ore", "match": "exact", "option": "mine", "item": "tin ore", "skill": "Mining", "timeoutMs": 60000 } }
   ]
 }

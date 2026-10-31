@@ -247,7 +247,7 @@ export class ActionHelpers {
      * through the very door we're trying to open.
      * @returns true if already adjacent or successfully walked adjacent
      */
-    async walkAdjacentTo(targetX: number, targetZ: number): Promise<boolean> {
+    async walkAdjacentTo(targetX: number, targetZ: number, arrivalTolerance:0|1=1): Promise<boolean> {
         const playerState = this.sdk.getState()?.player;
         if (!playerState) return false;
 
@@ -274,7 +274,7 @@ export class ActionHelpers {
         // Try each candidate — the closest one may be on the other side of a wall
         for (const target of candidates) {
             await this.sdk.sendWalk(target.x, target.z, true);
-            const result = await this.waitForMovementComplete(target.x, target.z, 1);
+            const result = await this.waitForMovementComplete(target.x, target.z, arrivalTolerance);
             if (result.arrived) return true;
 
             // Check if we ended up adjacent to the target even if not at the candidate tile

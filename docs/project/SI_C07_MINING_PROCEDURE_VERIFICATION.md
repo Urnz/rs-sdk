@@ -11,7 +11,9 @@ feltétele megszűnt: a normál Mining korábban kizárólag megtanult verified
 eljárást fogadott el, ezért a draft nem szerezhetett valódi natív bizonyítékot.
 Most kizárólag az adott exact draft kétműveletes, paraméter nélküli alakjához
 adható acknowledged trial: walk3285,3365/tolerance5, majd exact tin gather,
-15s műveleti és legfeljebb120s eljárási limit. Nincs bank/trade/GP jogosultság.
+60s műveleti és legfeljebb120s eljárási limit. A korábbi15s keret élő
+Mining1/bronze tick-ritmus alapján módosult; [mérés és indok](SI_C07_FOUNDER_TRIAL_STAGE.md).
+Nincs bank/trade/GP jogosultság.
 Az admin meglévő külön trial-run megerősítése és az executor markerje kell;
 a draft státusz vagy a megtanult tudás önmagában nem engedély.
 
@@ -53,6 +55,12 @@ Hiányzó executor seal, hamis receipt digest, idegen username/world és egy
 külön másolaton átírt/rehashed native effect elutasított. Az eredeti natív
 event UPDATE-jét az immutability trigger tiltja; ezt az állítást megtartottuk.
 A kanonikus DB byte-hash readonly újraellenőrzés után azonos.
+
+2026-10-31: a [külön F-világ tényleges SDK/Lite útja](SI_C07_FOUNDER_TRIAL_STAGE.md)
+is sikeres. Két új, nem seedelt Mining1 run13,254s és11,130s alatt, ugyanazon
+owned instance100→99→98, két külön source-bound dispatch/fulfilled output;
+normál tartós review és readonly recheck PASS. Az exact60s draft publikálási
+javaslata a [közös előnézetben](SI_C07_FOUNDER_TRIAL_RESULT.json). Nem C07 warmup-credit.
 
 ## Célzott ellenőrzés
 

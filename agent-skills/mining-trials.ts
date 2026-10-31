@@ -11,7 +11,7 @@ export function miningTrialAuthorization(draft:SkillDefinition):SkillRuntimeAuth
         ||walk.maxAttempts!==undefined&&walk.maxAttempts!==1||gather.maxAttempts!==undefined&&gather.maxAttempts!==1
         ||hash(walk.arguments)!==hash({x:3285,z:3365,tolerance:5})||Object.keys(draft.parameters).length!==0
         ||draft.limits.maxOperations!==2||draft.limits.timeoutMs>120000
-        ||hash(miningGatherArgs(gather.arguments))!==hash(miningGatherArgs({name:'rocks tin ore',match:'exact',option:'mine',item:'tin ore',skill:'Mining',timeoutMs:15000})))
+        ||hash(miningGatherArgs(gather.arguments))!==hash(miningGatherArgs({name:'rocks tin ore',match:'exact',option:'mine',item:'tin ore',skill:'Mining',timeoutMs:60000})))
         throw Error('Mining trial requires the exact bounded tin procedure');
     return{operations:['walk-to','gather-loc'],itemNames:['tin ore'],partners:[],maxQuantity:1,maxUnitPriceGp:0,maxGpPerRun:0};
 }

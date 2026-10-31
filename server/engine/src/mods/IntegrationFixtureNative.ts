@@ -20,6 +20,7 @@ import { initializeNativeCommerce } from './NativeCommerceStore.js';
 import { TradeEvidenceStore } from './TradeEvidenceStore.js';
 import { PlayerRewardStore } from './PlayerRewardStore.js';
 import { recordNativeFoodOpening } from './NativeFoodOpening.js';
+import {equalNativeInventoryQuantities,nativeInventoryQuantities} from '../../../../society-integration/native-inventory.js';
 
 /** Private offline bootstrap bridge. It only accepts an empty, unpublished integration staging workspace.
  * Root gateway modules are loaded dynamically to preserve the engine's independent NodeNext build boundary. */
@@ -54,7 +55,7 @@ export async function nativeIntegrationBootstrapPorts(workspace: string) {
         if (!save.valid) throw new Error(`Native bootstrap save unreadable: ${save.error}`);
         return { savedAt: new Date(1_600_000_000_000 + parseInt(foodDigest([...bytes]).slice(0, 8), 16)).toISOString(),
             coins: save.coins, coinPlacement: save.coins === 0 || save.inventory.some((i: any) => i.id === 995) ? 'inventory' : 'bank', skills: save.skills.map((s: any) => ({ name: s.name, experience: s.experience })),
-            inventory: save.inventory.filter((i: any) => i.id !== 995).map(({ id, count }: any) => ({ id, count })),
+            inventory: nativeInventoryQuantities(save.inventory.filter((i: any) => i.id !== 995).map(({ id, count }: any) => ({ id, count }))),
             equipment: save.equipment.map(({ id, count, slot }: any) => ({ id, count, slot })),
             bank: save.bank.filter((i: any) => i.id !== 995).map(({ id, count }: any) => ({ id, count })), position: save.position };
     };
@@ -108,7 +109,7 @@ export async function nativeIntegrationBootstrapPorts(workspace: string) {
                     writeFileSync(playerPath(name), bytes);
                     const after = snapshot(name);
                     for (const key of ['coins', 'coinPlacement', 'skills', 'inventory', 'bank', 'equipment', 'position'] as const)
-                        if (!isDeepStrictEqual(after[key], planned[key])) throw new Error(`Native bootstrap roundtrip differs: ${key}`);
+                        if (!(key==='inventory'?equalNativeInventoryQuantities(after[key],planned[key]):isDeepStrictEqual(after[key], planned[key]))) throw new Error(`Native bootstrap roundtrip differs: ${key}`);
                     return { ok: true, commandId, username: name, operation: 'edit', backupId: foodDigest([...original]), before, after };
                 },
                 async listProperties() { return { enabled: true, pendingPurchases: [], properties: properties(store => store.listProperties()).map((state: any) => ({

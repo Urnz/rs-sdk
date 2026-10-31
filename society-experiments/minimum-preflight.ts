@@ -114,6 +114,8 @@ export async function inspectMinimumRunPreparation(root:string,fixture:Integrati
         'agent-skills/mining-trials.ts','agent-skills/food-trials.ts','agent-skills/verifier.ts','agent-skills/verify.ts',
         'agent-skills/trial-review.ts','agent-skills/trials.ts','agent-skills/journal.ts','society-experiments/founder-procedure-trials.ts','scripts/society-founder-trials.ts',
         'society-integration/state-paths.ts',
+        'society-integration/native-inventory.ts','society-experiments/founder-trial-stage.ts','server/engine/src/mods/FounderProcedureTrialNative.ts',
+        'scripts/society-integration-fixture.ts','scripts/integration-native-bootstrap.ts','scripts/run-founder-procedure-trials.ts','sdk/actions-helpers.ts',
         'server/gateway/admin/native-tool-skills.ts','server/gateway/admin/public/admin.js',
         'server/gateway/admin/native-mining-skill-evidence.ts','server/gateway/admin/routes.ts',
         'server/gateway/admin/native-mining-demand.ts','server/gateway/gateway.ts','server/engine/src/web/pages/internal-admin.ts',

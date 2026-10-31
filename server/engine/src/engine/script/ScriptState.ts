@@ -12,6 +12,7 @@ import { toInt32 } from '#/util/Numbers.js';
 import type { NativeFoodProductionPorts, NativeFoodProductionStage } from '#/mods/NativeFoodProduction.js';
 import type { NativeFoodTradePorts } from '#/mods/NativeFoodTrade.js';
 import type { NativeTravelFarePorts } from '#/mods/NativeTravelFare.js';
+import type { SimulationClockObservation } from '../../../../../simulation-clock/types.js';
 
 export interface GosubStackFrame {
     script: ScriptFile;
@@ -45,6 +46,7 @@ export default class ScriptState {
     nativeFoodProductionActionId: string | null = null;
     nativeMiningActionId: string | null = null;
     nativeMiningDispatchId: string | null = null;
+    nativeMiningAdmissionClock: SimulationClockObservation | null = null;
     nativeToolWorkOperationId: string | null = null;
     nativeMiningOutput: number | null = null;
     nativeMiningInstanceId: string | null = null;

@@ -263,7 +263,7 @@ test('SI-C03 gateway and verifier reopen native source; transport success, wrong
     const action=f.p.identity(f.miner.username,'proof',0,World.currentTick)!.action;
     const {actorId,username,lifecycleId,worldId,clockId,clockProfileDigest}=action;
     const owner={actorId,username,lifecycleId,worldId,clockId,clockProfileDigest};
-    let dispatched=0;const options={workspace:dirname(f.market.db.filename),worldId,checkpointPath:f.market.db.filename,binding:()=>owner,
+    let dispatched=0;const options={workspace:dirname(f.market.db.filename),worldId,checkpointPath:f.market.db.filename,binding:()=>({...owner,worldProfileDigest:'extra-population-field'}),
         dispatch:async(command:NativeToolWorkCommand)=>{dispatched++;return f.executor().start(command,f.miner);}};
     const waiting=await executeToolSkillRequest(options,username,request);expect(waiting.data!.status).toBe('waiting');
     const id=waiting.data!.operationId;for(let n=0;n<3;n++)f.tick(id);

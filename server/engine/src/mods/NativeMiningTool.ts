@@ -157,7 +157,9 @@ export function prepareNativeMining(state: ScriptState): void {
     const id = state.nativeMiningActionId ?? randomUUID();
     const source = state._activeLoc;
     const output = source && rocks[LocType.get(source.type).debugname ?? ''];
-    observeNativeMiningIngress(player,id,output||undefined,p,undefined,state.nativeMiningDispatchId??undefined);
+    // Script continuations are internal work, not additional executor ingress.
+    if(!state.nativeMiningDispatchId||!state.nativeMiningAdmissionClock)
+        observeNativeMiningIngress(player,id,output||undefined,p,undefined,state.nativeMiningDispatchId??undefined);
     if (!p) return;
     if(NativeMiningCoverageStore.present(p.market.db)&&new NativeMiningCoverageStore(p.market.db).selection().actors.some(a=>a.username===player.username)
         &&!state.nativeMiningDispatchId)throw Error('Selected cohort Mining requires exact executor dispatch');
@@ -165,6 +167,12 @@ export function prepareNativeMining(state: ScriptState): void {
         const dispatch=new NativeMiningDispatchStore(p.market.db).get(state.nativeMiningDispatchId),t=dispatch?.request.target;
         if(!dispatch||state.nativeMiningDispatchId!==id||dispatch.owner.username!==player.username||!source||!t
             ||source.x!==t.x||source.z!==t.z||source.type!==t.locId||source.level!==dispatch.level)throw Error('Native Mining dispatch target differs');
+        const intent=new NativeMiningIntentStore(p.market.db).get(dispatch.demandId),context=p.identity(player.username,id,0,World.currentTick);
+        // p_oploc and p_delay resume on later ticks. A cancelled/expired operation cannot produce late ore.
+        if(!intent||intent.phase!=='pending'||!context||Date.parse(context.clock.wallTime)>=Date.parse(intent.intent.expiresAtWallTime)
+            ||p.intentFulfillmentAllowed?.(intent)===false){
+            player.clearInteraction();state.execution=1;return;
+        }
     }
     state.nativeMiningActionId = id;
     if (NativeToolStore.present(p.market.db) && new NativeToolStore(p.market.db).event(id)) { state.execution = 1; return; }
@@ -206,7 +214,12 @@ export function prepareNativeMining(state: ScriptState): void {
     } catch(error) {
         observeDemand(p,context,id,binding??null,demandSource,'blocked',blockedReason);throw error;
     }
-    observeDemand(p,context,id,binding??null,demandSource,'admitted');
+    // The command and processPlayers can both run in one tick. Reuse this action's
+    // first admission timestamp within that exact tick/revision; the strict ledger
+    // still rejects any changed custody/item/source. Expiry above always uses NOW.
+    if(!state.nativeMiningAdmissionClock||state.nativeMiningAdmissionClock.engineTick!==context.clock.engineTick
+        ||state.nativeMiningAdmissionClock.revision!==context.clock.revision)state.nativeMiningAdmissionClock=context.clock;
+    observeDemand(p,{...context,clock:state.nativeMiningAdmissionClock},id,binding??null,demandSource,'admitted');
 }
 
 export function handleNativeMiningOutput(state: ScriptState, inv: number, item: number, count: number): boolean {

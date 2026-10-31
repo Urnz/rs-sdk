@@ -1151,7 +1151,7 @@
         "draftVersion": "0.1.0",
         "reviewed": null,
         "sourcePath": "agent-skills/catalog/procedure.mining.gather-tin@0.1.0.skill.json",
-        "candidateDefinitionDigest": "704a060b51c65f703f7a5facccd8f9780655391163e4488425a6f92e214dfd6f",
+        "candidateDefinitionDigest": "3bcb4d605092acaaf64c4ee26629e751d64ced0baa55ab3b2c15ab50df69129c",
         "status": "unverified"
       },
       {
@@ -1590,7 +1590,7 @@
       "Specification only. Four actual packed bed anchors are proposed for a fresh configuration; no site overlay, verified promotion, applied genesis or runtime grant is fabricated.",
       "No frozen source selection, ratio validation, SI-A14, provider approval or actual minimum PASS follows from this candidate."
     ],
-    "digest": "238b7eb14b2eea2a41440a0e4dfc607b6285f5b587d3748f57df233d3f84ca1a"
+    "digest": "2c9318ea34281d66ed2e1d095b4e987e5bb8164edcc498df9c098b23f5058ec5"
   },
   "supplyEnvelope": {
     "maximumFinitePortions": 36,
@@ -1864,7 +1864,7 @@
     {
       "id": "tool-chain-baseline",
       "status": "blocked",
-      "reason": "Common founder candidate 238b7eb14b2eea2a41440a0e4dfc607b6285f5b587d3748f57df233d3f84ca1a: procedure:procedure.mining.gather-tin, procedure:procedure.metallurgy.smelt-bronze, procedure:procedure.tools.repair-bronze-pickaxe; proposed same-instance capacity and actual packed bed sites are specified, but no candidate is installed."
+      "reason": "Common founder candidate 2c9318ea34281d66ed2e1d095b4e987e5bb8164edcc498df9c098b23f5058ec5: procedure:procedure.mining.gather-tin, procedure:procedure.metallurgy.smelt-bronze, procedure:procedure.tools.repair-bronze-pickaxe; proposed same-instance capacity and actual packed bed sites are specified, but no candidate is installed."
     },
     {
       "id": "minimum-assessor",
@@ -2165,7 +2165,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeMiningTool.ts",
-      "sha256": "6b9b163758451aab7866d75ef8c8fcbe3195e269cc1c3d0257af9cc407696fe6"
+      "sha256": "109cb043ff5a3c515caef716a2a5b1acc7f872421d4dcc47bdc4105bbc3c726b"
     },
     {
       "path": "server/engine/src/mods/NativeToolWork.ts",
@@ -2277,11 +2277,11 @@
     },
     {
       "path": "server/engine/src/engine/script/handlers/PlayerOps.ts",
-      "sha256": "65ee97da35838c4c76671f4907fd47bf355b0383f7215bd188552eff3b5ea213"
+      "sha256": "7e75f25c68a255f92014aa5362635896956655be5ad8968c0b8244dbca7146b6"
     },
     {
       "path": "server/engine/src/mods/IntegrationFixtureNative.ts",
-      "sha256": "e06a3d1d5fce94b5280cb00b92adc726e877a78b715558f40b3dc946e9df9b4d"
+      "sha256": "91f06ddd9c3f5a71ef88135d47aeb85e6dcdca5980f741dc41e2b66324accf14"
     },
     {
       "path": "server/engine/src/mods/NativeFoodSkill.ts",
@@ -2317,7 +2317,7 @@
     },
     {
       "path": "server/engine/src/engine/entity/Player.ts",
-      "sha256": "b836b1553782225875690395ab94a8c3596c0eb315357d69e7196cfec2cb89f1"
+      "sha256": "1411b9fc11c2419572153ca2a84b700f741cb0c440b13e5d1d4c6308e2a2ece2"
     },
     {
       "path": "server/engine/src/engine/entity/PlayerLoading.ts",
@@ -2549,7 +2549,7 @@
     },
     {
       "path": "server/engine/src/mods/NativeMiningIntentRuntime.ts",
-      "sha256": "dd722beeb93947dc1c1d8ab9dd3adadd11c0227e4ab2d08a48cdfe48c1705779"
+      "sha256": "1d345bf6b571315a42cf6afa857337ea9060b2359353a9aaecebe4e7c345401d"
     },
     {
       "path": "server/engine/src/engine/World.ts",
@@ -2613,7 +2613,7 @@
     },
     {
       "path": "sdk/actions.ts",
-      "sha256": "1f6a368b035b163ab94b1a72c691450aa410ebb1c4c5b38147603e42007e4b00"
+      "sha256": "1f9c5adbdbe377975f749e96175ecd555e0b8ddcfade2774dd743a51fc98a2e8"
     },
     {
       "path": "agent-skills/mining-interaction-source.ts",
@@ -2629,7 +2629,7 @@
     },
     {
       "path": "server/engine/src/engine/script/ScriptState.ts",
-      "sha256": "5a87745758bae7f0ecf45c3b0b74074e24dbf9ca49bdfccebd32d92691566989"
+      "sha256": "83ced18d68c2fcafdae82500dc9653ca55f99e9bba8e074db170520114f9d165"
     },
     {
       "path": "server/gateway/admin/native-mining-interaction.ts",
@@ -2657,7 +2657,7 @@
     },
     {
       "path": "agent-skills/mining-trials.ts",
-      "sha256": "513c9c01615d4937486382de66177a6ce78150940c49e7069b4e141fd6032351"
+      "sha256": "44c90d9b7abbc58c641653040ec7861e62ee12a3b6575dc53f9d6ed8a4aaae17"
     },
     {
       "path": "agent-skills/food-trials.ts",
@@ -2696,8 +2696,36 @@
       "sha256": "7b52fd375e8079984694ab07b707a5f68d9aae7d0425e2d1bd51e55f3fee23ca"
     },
     {
+      "path": "society-integration/native-inventory.ts",
+      "sha256": "422d9336682fb73fa9d3d5ee3285ae1ab46b3cbaeeb22ab94a3409443fcd0d8c"
+    },
+    {
+      "path": "society-experiments/founder-trial-stage.ts",
+      "sha256": "565814d0ccd3b39936fd097c443d7ce49690d7cbbaca721d2ae0e9d817d456fd"
+    },
+    {
+      "path": "server/engine/src/mods/FounderProcedureTrialNative.ts",
+      "sha256": "79b956cdf0b04df7c6846054b19e234db7e20ceca1cf8b55a5d468de13aac7c7"
+    },
+    {
+      "path": "scripts/society-integration-fixture.ts",
+      "sha256": "901a6b02af3511ca63ba9e57f343321ec4669a234550232c4a3b9546d74e8687"
+    },
+    {
+      "path": "scripts/integration-native-bootstrap.ts",
+      "sha256": "61479b80f9bec052f5dcffadae1264afc936e127f09ec8e73420609fefb6caba"
+    },
+    {
+      "path": "scripts/run-founder-procedure-trials.ts",
+      "sha256": "6f9cda44f719f927ff72d7599a70847b275cf1b2fe4f5e73b2753c1555f1b0e1"
+    },
+    {
+      "path": "sdk/actions-helpers.ts",
+      "sha256": "6087d45da8a2fe76ac2d32c7cfa3e0af326ebe47f2c87fec3ebbf4b247b70aee"
+    },
+    {
       "path": "server/gateway/admin/native-tool-skills.ts",
-      "sha256": "94f561bfbae63df1bafdba5774a5a5e7146b7c5e787bc864021f68ec2ba8f95a"
+      "sha256": "d7f9516d65dba9bfb5fd5ca755e0e1f1c0dba2fa569c8848249f1ce6c96e5cc5"
     },
     {
       "path": "server/gateway/admin/public/admin.js",
@@ -2721,7 +2749,7 @@
     },
     {
       "path": "society-experiments/minimum-preflight.ts",
-      "sha256": "3427dbf58c1c40527b79a941e16455a48a213db4eaa9b387e9979f057d4a213d"
+      "sha256": "ea2f033c28374912a9327337293d2ad035288249f7e145f3abefea49a44de0e8"
     },
     {
       "path": "society-experiments/founder-baseline.ts",
@@ -2761,7 +2789,7 @@
     },
     {
       "path": "agent-skills/catalog/procedure.mining.gather-tin@0.1.0.skill.json",
-      "sha256": "8271550acba4dca8e53ebd8933241f18c673313651a7eb29d0b5a2fc67335da0"
+      "sha256": "90ab2361daaea3a89cf982497c839701ed2c5550479977267889e832d4da937a"
     },
     {
       "path": "agent-skills/catalog/procedure.metallurgy.smelt-bronze@0.1.0.skill.json",
@@ -2778,5 +2806,5 @@
     "Validate the chosen clock ratio; bind all authoritative sources through the expanded baseline.",
     "Run SI-A14 and present a concrete eligible run/model/budget/stop plan for separate approval."
   ],
-  "digest": "15da959a4713852e1d8cf455681eb57fbfc24bc51d617273c2c771e026be57fe"
+  "digest": "f4f558e7553cd00545315fbc49b18f2e3cf91777fd42f5d41ee2a26a43852f7d"
 }

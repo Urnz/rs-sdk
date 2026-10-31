@@ -1240,9 +1240,12 @@ elkészült. Két külön Mining1 packed tin output és lifecycle kopás forrás
 ellenőrzött; ACK/success önmagában nem promótálhat.
 **A [három eljárás tartós normál trial/review útja](SI_C07_PROCEDURE_REVIEW.md) is kész:**
 run/admission/report/approval kötés, újranyitás és natív source-recheck; smelt/repair
-valós Business/Property jogosultsággal. Kontrollált mozgású komponens-próba,
-nem élő publikálási bizonyíték. A friss külön trial-stage tényleges útvonalas
-futásai, három1.0.0 publikálása és a közös founder-stage még kell.
+valós Business/Property jogosultsággal. Ez a korábbi, kontrollált mozgású komponens-próba.
+**2026-10-31: a [külön natív trial-stage valódi útvonalas próbái](SI_C07_FOUNDER_TRIAL_STAGE.md)
+is elkészültek:6 normál SDK/Lite futás és3 tartós review PASS**, readonly újranyitással.
+[Konkrét publikálási csomag](SI_C07_FOUNDER_TRIAL_RESULT.json); három1.0.0
+emberi jóváhagyás/publikálás és a közös founder-stage még kell. Nem M3-warmup
+vagy minimum-PASS; az eredeti alapítók/food/GP/minimum változatlan.
 Öt nagy csomag maradt; nincs új lezárási pont, live baseline vagy hosszú run.
 
 - **Státusz/típus/prioritás:** [ ] VÉGREHAJTÁS; P1; G05, aktív 24 acceptance.

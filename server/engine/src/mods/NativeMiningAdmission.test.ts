@@ -38,9 +38,13 @@ import {PlayerStat} from '../engine/entity/PlayerStat.js';
 import type {SkillDefinition,SkillRunResult} from '../../../../agent-skills/types.js';
 import {nativeToolDigest as hash} from '../../../../item-lifecycle/native-tool.js';
 import {Database} from 'bun:sqlite';
+import ScriptState from '../engine/script/ScriptState.js';
+import {Interaction} from '../engine/entity/Interaction.js';
+import ServerTriggerType from '../engine/script/ServerTriggerType.js';
 import {FileSkillRunJournal} from '../../../../agent-skills/journal.js';
 import {SkillTrialStore} from '../../../../agent-skills/trials.js';
 import {reviewSkillTrial,readSkillTrialReview} from '../../../../agent-skills/trial-review.js';
+import {tickNativeMiningCoverage} from './NativeMiningCoverage.js';
 beforeAll(loadPackedContent);
 const sources:ReturnType<typeof miningSourceFixture>[]=[],token=process.env.ENGINE_ADMIN_TOKEN;
 let rockSequence=0;
@@ -85,6 +89,84 @@ function harness(draft?:SkillDefinition){
     return{...f,s,tracker,local,options,interactionOptions,interactionRequest,
         perform:(sequence=1)=>executeMiningInteractionRequest(interactionOptions,'worker',interactionRequest(sequence)),offline(){online=false;}};
 }
+
+async function naturalMining(withCoverage=false){
+    const f=harness();f.s.admit();await executeMiningDemandRequest(f.options,'worker',f.s.request);
+    let coverage:NativeMiningCoverageStore|undefined;
+    if(withCoverage){
+        const clock=f.s.clock.observeNow(f.s.owner.clockId,World.currentTick);
+        coverage=new NativeMiningCoverageStore(f.market.db,{schemaVersion:1,selectionId:randomUUID(),worldId:f.s.owner.worldId,
+            clockId:clock.clockId,clockProfileDigest:clock.profileDigest,fromSimulationTime:clock.simulationTime,
+            toSimulationTime:new Date(Date.parse(clock.simulationTime)+86400000).toISOString(),maximumSimulationGapMs:3600000,maximumWallGapMs:5000,
+            actors:[f.s.owner],openingHeads:miningCoverageSourceHeads(f.market.db)});
+        f.p.miningCoverage={db:f.market.db,workspace:f.s.root,clock:()=>f.s.clock.observeNow(clock.clockId,World.currentTick),identity:f.p.identity,
+            player:name=>name==='worker'?f.miner:null,roster:()=>[f.s.owner],admitted:r=>miningIntentFulfillmentAllowed(f.s.root,r.intent)};
+    }
+    const request=f.interactionRequest(),source=persistMiningInteractionSource(f.s.root,f.s.owner,request);
+    f.miner.setVar(VarPlayerType.getId('action_delay'),0);JavaRandom.setSeed(4096);
+    expect(applyNativeMiningInteraction(f.local.interaction!,{dispatchId:source.id,username:'worker'}).ok).toBeTrue();
+    // Production applies the typed command before processPlayers in the SAME tick.
+    await Bun.sleep(2);f.miner.processInteraction();
+    const tick=()=>{World.currentTick++;if(f.miner.delayed&&World.currentTick>=f.miner.delayedUntil)f.miner.delayed=false;
+        if(!f.miner.delayed&&f.miner.activeScript?.execution===ScriptState.SUSPENDED)f.miner.executeScript(f.miner.activeScript,true,true);
+        f.miner.processInteraction();};
+    return{...f,source,tick,coverage};
+}
+
+test('SI-C07 continuation preserves one exact dispatch through natural packed p_oploc ticks and delayed output',async()=>{
+    const f=await naturalMining(true);expect(f.miner.nativeMiningContinuation?.dispatchId).toBe(f.source.id);
+    for(let i=0;i<40&&!f.store.event(f.source.id);i++)f.tick();
+    expect(f.tracker.store.get(f.s.demandId)).toMatchObject({phase:'fulfilled',completionEventId:f.source.id});
+    expect(f.store.event(f.source.id)).toMatchObject({kind:'mined',source:{nativeMiningDispatchId:f.source.id}});
+    expect(f.miner.getInventory(InvType.INV)!.getItemCount(436)).toBe(1);
+    expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(99);
+    for(let i=0;i<10;i++)f.tick();
+    expect(f.miner.getInventory(InvType.INV)!.getItemCount(436)).toBe(1);
+    expect(new NativeMiningDispatchStore(f.market.db).read()).toHaveLength(1);
+    tickNativeMiningCoverage(f.p.miningCoverage);
+    const entries=f.coverage!.read().entries;
+    expect(entries.filter(e=>e.event.kind==='ingress')).toHaveLength(1);
+    expect(entries.at(-1)!.event).toMatchObject({kind:'sample',ingressWriteFailed:false});
+});
+
+test('SI-C07 continuation close clears queued packed work before any late ore or wear',async()=>{
+    const f=await naturalMining();f.tick();
+    expect(f.miner.nativeMiningContinuation).not.toBeNull();
+    await executeMiningDemandRequest(f.options,'worker',{...f.s.request,operation:'close'});
+    expect(f.miner.nativeMiningContinuation).toBeNull();expect(f.miner.target).toBeNull();
+    for(let i=0;i<40;i++)f.tick();
+    expect(f.store.event(f.source.id)).toBeNull();expect(f.miner.getInventory(InvType.INV)!.getItemCount(436)).toBe(0);
+    expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(100);
+});
+
+test('SI-C07 continuation suspended success cannot commit after acknowledged close',async()=>{
+    const f=await naturalMining();
+    for(let i=0;i<40&&!f.miner.activeScript;i++)f.tick();
+    expect(f.miner.activeScript?.nativeMiningDispatchId).toBe(f.source.id);
+    await executeMiningDemandRequest(f.options,'worker',{...f.s.request,operation:'close'});
+    for(let i=0;i<10;i++)f.tick();
+    expect(f.store.event(f.source.id)).toBeNull();expect(f.miner.getInventory(InvType.INV)!.getItemCount(436)).toBe(0);
+    expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(100);
+});
+
+test('SI-C07 continuation raw same-target replacement cannot inherit the executor dispatch',async()=>{
+    const f=await naturalMining(),target=f.miner.target!;
+    f.miner.setInteraction(Interaction.ENGINE,target,ServerTriggerType.APLOC1);
+    expect(f.miner.nativeMiningContinuation).toBeNull();
+    for(let i=0;i<40;i++)f.tick();
+    expect(f.store.event(f.source.id)).toBeNull();expect(f.tracker.store.get(f.s.demandId)!.phase).toBe('pending');
+});
+
+test('SI-C07 continuation expiry stops delayed packed output without producing ore or wear',async()=>{
+    const f=await naturalMining();
+    for(let i=0;i<40&&!f.miner.activeScript;i++)f.tick();
+    expect(f.miner.activeScript?.nativeMiningDispatchId).toBe(f.source.id);
+    const identity=f.p.identity,expired=new Date(Date.parse(f.tracker.store.get(f.s.demandId)!.intent.expiresAtWallTime)+1).toISOString();
+    f.p.identity=(...args)=>{const c=identity(...args);return c?{...c,clock:{...c.clock,wallTime:expired}}:c;};
+    for(let i=0;i<10;i++)f.tick();
+    expect(f.store.event(f.source.id)).toBeNull();expect(f.miner.getInventory(InvType.INV)!.getItemCount(436)).toBe(0);
+    expect(f.store.lifecycle.get('tool-worker')!.durability).toBe(100);
+});
 
 test('SI-C07 admitted executor → SDK runtime → gateway proof → internal HTTP/tick → packed Mining → canonical fulfillment',async()=>{
     const f=harness();let nativeCalls=0;

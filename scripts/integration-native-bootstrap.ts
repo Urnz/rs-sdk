@@ -22,7 +22,8 @@ try {
     const names = ['InvType', 'ObjType', 'NpcType', 'LocType', 'VarPlayerType', 'VarNpcType', 'VarBitType', 'ParamType', 'EnumType', 'StructType', 'SeqType', 'DbRowType', 'DbTableType'];
     for (const name of names) { const type = await import(pathToFileURL(join(root, `server/engine/src/cache/config/${name}.ts`)).href); type.default.load(join(root, 'server/engine/data/pack')); }
     const index = await import(pathToFileURL(join(root, 'server/engine/src/cache/config/DbTableIndex.ts')).href); index.default.init();
-    if (fixture.nativeSiteProfile) {
+    const damage=process.argv.includes('--damage-founder-trial');
+    if (fixture.nativeSiteProfile&&!damage) {
         // Read actual packed map/content without starting ticks or placing synthetic
         // facilities. Missing objects fail before any native save is provisioned.
         World.reload(); World.gameMap.init();
@@ -33,16 +34,27 @@ try {
             throw new Error(`Actual native fixture site is missing: ${site.debugName} at ${site.x},${site.z},${site.level}`);
         console.log('Actual packed kitchen and both rental beds verified; no physical travel claimed.');
     }
+    if(damage){
+        const {damageFounderTrialTool}=await import(pathToFileURL(join(root,'server/engine/src/mods/FounderProcedureTrialNative.ts')).href);
+        console.log(JSON.stringify(await damageFounderTrialTool(root))); // Explicit non-minimum trial precondition, not Mining credit.
+    }else{
     const { nativeIntegrationBootstrapPorts } = await import(pathToFileURL(join(root, 'server/engine/src/mods/IntegrationFixtureNative.ts')).href);
     const ports = await nativeIntegrationBootstrapPorts(root);
     const trial = process.argv.includes('--food-trials');
     try {
-        if (trial) await bootstrapFoodTrialStage(root, fixture, ports);
+        if (trial) {
+            await bootstrapFoodTrialStage(root, fixture, ports);
+            if(process.argv.includes('--founder-procedures')){
+                const {provisionFounderProcedureTrial}=await import(pathToFileURL(join(root,'server/engine/src/mods/FounderProcedureTrialNative.ts')).href);
+                await provisionFounderProcedureTrial(root,fixture);
+            }
+        }
         else { await bootstrapIntegrationStage(root, fixture, ports); sealIntegrationBaseline(root, fixture); }
     }
     finally { ports.close(); }
     console.log(trial ? 'Disposable native food trial world; no integration receipt or seal.'
         : 'Native integration fixture staged and sealed; no live acceptance executed.');
+    }
 } finally { delete process.env.ENGINE_LOGIN_PRIVATE_KEY; unlinkSync(keyPath); }
 // Offline bootstrap deliberately never starts World.cycle(). World imports still
 // create login/friend/logger workers, so an otherwise finished CLI would remain

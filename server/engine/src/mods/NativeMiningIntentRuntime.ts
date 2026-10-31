@@ -5,6 +5,7 @@ import { playerSaveStore,ensurePlayerSaveStore } from '../engine/market/MarketSt
 import { populationFoodContext,populationFoodTickClock } from './PopulationDeathRuntime.js';
 import { NativeMiningIntentTracker } from './NativeMiningIntent.js';
 import { NativeMiningIntentStore,type NativeMiningIntentRecord } from '../../../../item-lifecycle/native-mining-intent.js';
+import { NativeMiningDispatchStore } from '../../../../item-lifecycle/native-mining-dispatch.js';
 import { authorizeMiningDemand,authorizeMiningDemandCommand,readMiningDemandInvocation,miningDemandCancellation,miningOperationSealed } from '../../../../agent-skills/mining-demand-source.js';
 import { assertManagedModuleRoot } from '../../../control-plane/instance-context.js';
 import { tickNativeMiningCoverage,type MiningCoveragePorts } from './NativeMiningCoverage.js';
@@ -48,6 +49,9 @@ export function applyNativeMiningDemand(local:NativeMiningDemandRuntime,command:
         if(invocation.contextDigest!==command.contextDigest)throw Error('Native Mining context differs');
         if(command.operation==='close'){
             if(!miningDemandCancellation(workspace,command.demandId,owner)&&!miningOperationSealed(workspace,owner,invocation.request))throw Error('No acknowledged cancellation');
+            const continuation=player?.nativeMiningContinuation;
+            if(player&&continuation&&new NativeMiningDispatchStore(tracker.ports.market.db).get(continuation.dispatchId)?.demandId===command.demandId)
+                player.clearInteraction();
             return{ok:true,record:tracker.cancelAcknowledged(command.demandId)};
         }
         if(!player)throw Error('Native Mining avatar offline');

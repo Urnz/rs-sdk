@@ -30,7 +30,8 @@ import { MoveStrategy } from '#/engine/entity/MoveStrategy.js';
 import { isClientConnected } from '#/engine/entity/NetworkPlayer.js';
 import Npc from '#/engine/entity/Npc.js';
 import Obj from '#/engine/entity/Obj.js';
-import PathingEntity from '#/engine/entity/PathingEntity.js';
+import PathingEntity, { type TargetOp } from '#/engine/entity/PathingEntity.js';
+import { Interaction } from '#/engine/entity/Interaction.js';
 import { PlayerLoading } from '#/engine/entity/PlayerLoading.js';
 import { PlayerQueueRequest, PlayerQueueType, QueueType, ScriptArgument } from '#/engine/entity/PlayerQueueRequest.js';
 import { PlayerStat, PlayerStatEnabled, PlayerStatFree, PlayerStatNameMap } from '#/engine/entity/PlayerStat.js';
@@ -111,6 +112,8 @@ export default class Player extends PathingEntity {
     populationSleeping = false;
     nativeAttributeXpReceipts: NativeAttributeXpReceipt[] = [];
     nativeMiningPorts?: NativeMiningPorts;
+    /** One engine-script continuation, cleared by every replacement/cancellation. Never inherited by raw input. */
+    nativeMiningContinuation: {dispatchId:string;target:Loc;op:TargetOp;admissionClock:ScriptState['nativeMiningAdmissionClock']} | null = null;
     nativeToolWorkOperationId: string | null = null;
     nativeAttributeXpContext?: (username: string, tick: number) => NativeAttributeContext | null;
     static readonly DESIGN_BODY_COLORS: number[][] = [
@@ -1025,6 +1028,16 @@ export default class Player extends PathingEntity {
         }
     }
 
+    override setInteraction(interaction:Interaction,target:Entity,op:TargetOp,com?:number):boolean {
+        this.nativeMiningContinuation=null;
+        return super.setInteraction(interaction,target,op,com);
+    }
+
+    override clearInteraction():void {
+        this.nativeMiningContinuation=null;
+        super.clearInteraction();
+    }
+
     // clear current interaction and walk queue
     stopAction() {
         this.clearPendingAction();
@@ -1238,7 +1251,14 @@ export default class Player extends PathingEntity {
             this.target = null;
             this.clearWaypoints();
 
-            this.executeScript(ScriptRunner.init(opTrigger, this, target), true);
+            const state=ScriptRunner.init(opTrigger, this, target),continuation=this.nativeMiningContinuation;
+            this.nativeMiningContinuation=null;
+            if(continuation&&continuation.target===target&&continuation.op===this.targetOp){
+                state.nativeMiningDispatchId=continuation.dispatchId;
+                state.nativeMiningActionId=continuation.dispatchId;
+                state.nativeMiningAdmissionClock=continuation.admissionClock;
+            }
+            this.executeScript(state, true);
 
             // If p_opnpc was called, remember it for later
             // For now, keep the current target

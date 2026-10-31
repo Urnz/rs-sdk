@@ -48,7 +48,11 @@ function readProof(options:Pick<NativeToolSkillOptions,'workspace'|'worldId'|'ch
     }).deferred();return result;}finally{db.close(true);}
 }
 export async function executeToolSkillRequest(options:NativeToolSkillOptions,username:string,raw:SocietyToolRequest):Promise<ActionResult>{
-    const request=validateSocietyToolRequest(raw),operationId=toolSkillOperationId(request),owner=options.binding(username);
+    const request=validateSocietyToolRequest(raw),operationId=toolSkillOperationId(request);
+    // Population bindings also carry profile/policy metadata. Native custody is
+    // exactly these six fields, like the engine's committed intent and Mining.
+    const {actorId,lifecycleId,worldId,clockId,clockProfileDigest,username:boundUsername}=options.binding(username),
+        owner:NativeToolOwner={actorId,username:boundUsername,lifecycleId,worldId,clockId,clockProfileDigest};
     if(owner.username!==username||owner.worldId!==options.worldId)throw new Error('Native tool selected identity differs');
     assertNativeFoodDomainPath({...options,checkpointPath:join(options.workspace,'.local/agent-skills/tool-operations',`${operationId}.json`)});
     persistToolWorkInvocation(options.workspace,request,owner);

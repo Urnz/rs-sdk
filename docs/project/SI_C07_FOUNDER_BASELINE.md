@@ -11,6 +11,12 @@ exit2-vel tér vissza; ez nem futtatási vagy telepítési hiba elrejtése.
 kijelölés null, provider-engedély0. A jelölt nem válik az1.3.0 fixture új,
 visszamenőlegesen értelmezett tartalmává.
 
+2026-10-31: [külön eljárás-trial](SI_C07_FOUNDER_TRIAL_STAGE.md) és
+[három publikálási előnézet](SI_C07_FOUNDER_TRIAL_RESULT.json) már elkészült,
+6 valódi útvonalas run +3 tartós review PASS. Ez külön declared trial opening;
+nem ennek a közös founder-jelöltnek a telepítése. A három exact1.0.0 emberi
+publikálása és a közös genesis/housing/knowledge/workshop alkalmazása még kell.
+
 ## A közös indulócsomag tartalma
 
 - A korábbi négy founder változatlan ID-val, eredeti Fishing/Cooking XP-vel,

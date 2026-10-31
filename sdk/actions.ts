@@ -3932,8 +3932,8 @@ export class BotActions {
             // pattern and silently interact with a random nearby loc.
             return { success: false, message: `interactLoc requires a target loc, name, or pattern (got ${target})`, reason: 'loc_not_found' };
         }
-        const resolvedLoc = this.helpers.resolveLocation(target, /./);
         if(mining)return this._interactLocOnce(target,option,mining);
+        const resolvedLoc = this.helpers.resolveLocation(target, /./);
         return this.helpers.withDoorRetry(
             () => this._interactLocOnce(target, option),
             (r) => r.reason === 'cant_reach',
@@ -3972,8 +3972,12 @@ export class BotActions {
         }
 
         // Walk to the location first (handles doors)
-        if (loc.distance > (mining?1:2)) {
-            const walkResult = await this.walkTo(loc.x, loc.z, mining?1:2);
+        if(mining){
+            // A rock's own tile is blocked. Approach a real neighbouring tile;
+            // walking to its centre can trigger unrelated door retries until the demand expires.
+            if(!await this.helpers.walkAdjacentTo(loc.x,loc.z,0))return{success:false,message:`Cannot approach ${loc.name}`,reason:'cant_reach'};
+        }else if (loc.distance > 2) {
+            const walkResult = await this.walkTo(loc.x, loc.z, 2);
             if (!walkResult.success) {
                 return { success: false, message: `Cannot reach ${loc.name}: ${walkResult.message}`, reason: 'cant_reach' };
             }
@@ -3982,7 +3986,7 @@ export class BotActions {
         // Re-find the location after walking (it may have changed). Keep a RegExp
         // target as-is so its anchors survive; an entity target re-finds by
         // identity so same-named neighbours (Varrock cart crates) can't win.
-        const locNow = target instanceof RegExp || typeof target === 'string'
+        const locNow = mining?this.helpers.refindLocation(loc):target instanceof RegExp || typeof target === 'string'
             ? this.helpers.resolveLocation(target, /./, optionFilter)
             : this.helpers.refindLocation(loc)
                 ?? this.helpers.resolveLocation(exactNamePattern(loc.name), /./, optionFilter);
